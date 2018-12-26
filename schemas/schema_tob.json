@@ -30140,10 +30140,13 @@
               "field_description": ""
             },
             {
-              "field_name": "type_localised",
+              "field_name": "message_event_association",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "message_events",
+                "event"
+              ],
               "field_description": ""
             },
             {
@@ -36583,20 +36586,20 @@
               "field_description": ""
             },
             {
-              "field_name": "ui_priority",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
               "field_name": "pre_battle_speech_parameter",
-              "field_type": "OptionalStringU8",
+              "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
                 "pre_battle_speech_parameters_enum",
                 "key"
               ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_custom",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -64956,15 +64959,18 @@
               "field_name": "bundle",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
               "field_description": "bundle applied to character when the trait category is active"
             },
             {
-              "field_name": "FIXME",
+              "field_name": "inactive",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
+              "field_description": "'true' if this category can't be activated"
             }
           ]
         },
