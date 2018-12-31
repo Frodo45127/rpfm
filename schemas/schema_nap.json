@@ -121,6 +121,51 @@
       ]
     },
     {
+      "name": "_kv_morale_ext_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ume_encouraged_column_formation",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "special_ability_inspire_unit_bonus",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "special_ability_rally_min_bonus",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "special_ability_rally_max_bonus",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "_kv_morale_tables",
       "versions": [
         {
@@ -184,6 +229,37 @@
             {
               "field_name": "value",
               "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "_kv_rules_ext_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "special_ability_artillery_rof_boost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "special_ability_artillery_accuracy_boost",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -490,6 +566,18 @@
                 "avatar_aesthetics",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -1848,6 +1936,30 @@
       ]
     },
     {
+      "name": "agent_attribute_situations_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "attribute_situation",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "attribute",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "agent_attributes_tables",
       "versions": [
         {
@@ -2231,6 +2343,51 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_uniforms",
+                "uniform_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "generals_unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_land",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -2244,6 +2401,61 @@
               "field_name": "key",
               "field_type": "StringU8",
               "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "agent_spawning_to_government_types_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "spawning",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "agent_spawnings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "base_chance",
+              "field_type": "Float",
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -2898,6 +3110,30 @@
       ]
     },
     {
+      "name": "agent_to_bribe_actions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bribe_action",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "agent_uniform_colours_tables",
       "versions": [
         {
@@ -3532,6 +3768,98 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "move_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "line_of_sight",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "zone_of_control",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "playable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "animation_set",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "portrait_override",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_spawnable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_attribute",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "agent_attributes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "religion",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_total_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_cap_lower_bound",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -3938,6 +4266,46 @@
             {
               "field_name": "circunvent_cooldown",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "text",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "picture_in_picture",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "offset_angle",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "offset_range",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -5014,6 +5382,80 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillary_types",
+                "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "applies_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "transferrable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_to_world",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_to_faction",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "precedence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "start_date",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "end_date",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -5065,6 +5507,37 @@
       ]
     },
     {
+      "name": "ancillary_to_attribute_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "ancillary",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "attribute",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "ancillary_to_effects_tables",
       "versions": [
         {
@@ -5093,6 +5566,30 @@
             {
               "field_name": "value",
               "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ancillary_to_excluded_ancillaries_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "ancillary",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "excluded_ancillary",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
