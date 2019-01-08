@@ -57702,6 +57702,84 @@
           ]
         }
       ]
+    },
+    {
+      "name": "animals_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "animation",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_animations_table",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "armour",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_armour_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "charge_bonus",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "entity",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": "Looks up VariantMeshes/VariantMeshDefinitions/animal_%.VariantMeshDefinition and assigns it as the variantmesh of the unit (the name of the variantmesh definition must be animal_thiskeyvalue)"
+            },
+            {
+              "field_name": "melee_attack",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_defence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "variant",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "variants",
+                "variant_name"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }
