@@ -5515,15 +5515,21 @@
             {
               "field_name": "ancillary",
               "field_type": "StringU16",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
               "field_description": ""
             },
             {
               "field_name": "attribute",
               "field_type": "StringU16",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_key": true,
+              "field_is_reference": [
+                "agent_attributes",
+                "key"
+              ],
               "field_description": ""
             },
             {
@@ -5583,15 +5589,21 @@
             {
               "field_name": "ancillary",
               "field_type": "StringU16",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
               "field_description": ""
             },
             {
               "field_name": "excluded_ancillary",
               "field_type": "StringU16",
-              "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_key": true,
+              "field_is_reference": [
+                "ancillary_info",
+                "ancillary"
+              ],
               "field_description": ""
             }
           ]
@@ -13765,6 +13777,37 @@
       ]
     },
     {
+      "name": "battle_bridge_subculture_jcts_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "subculture",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "simple_bridge",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "refined_bridge",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "battle_camera_shake_parameters_tables",
       "versions": [
         {
@@ -14462,6 +14505,23 @@
                 "battle_cities",
                 "city"
               ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_climate_groupings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "battle_terrain_climate_grouping",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -16300,6 +16360,77 @@
       ]
     },
     {
+      "name": "battle_groundcover_density_maps_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "climate",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "climates",
+                "climate_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ground_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_ground_types",
+                "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "density_map",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_groundcover_distribution_maps_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "climate",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "climates",
+                "climate_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "distribution_map",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "lod",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "battle_misc_effects_tables",
       "versions": [
         {
@@ -16617,6 +16748,58 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "soldier_model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "man_animations_table",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_animations_table",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "equipement_theme",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_themes",
+                "theme"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_personality_types_enum",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -16706,6 +16889,35 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "advisor_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "advisors",
+                "advisor_name"
+              ],
               "field_description": ""
             }
           ]
@@ -18693,35 +18905,35 @@
           "fields": [
             {
               "field_name": "key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "season",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "weather_type",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "time_of_day",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             },
             {
               "field_name": "climate",
-              "field_type": "OptionalStringU8",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "climates",
@@ -18731,7 +18943,7 @@
             },
             {
               "field_name": "sky_file",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -18748,6 +18960,126 @@
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_terrain_farm_walls_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "farm",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battle_terrain_farms",
+                "farm"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fence_1_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fence_2_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fence_4_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fence_8_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fence_end",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hedge_1_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hedge_2_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hedge_4_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hedge_8_panel",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hedge_end",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -18873,6 +19205,169 @@
       ]
     },
     {
+      "name": "battle_terrain_set_climates_jcts_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "climate",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_terrain_texture_set_grouping",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_terrain_set_groupings_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "battle_terrain_texture_set_grouping",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_terrain_climate_grouping",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "battle_terrain_sets_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "battle_terrain_set_grouping",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "variation",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "season",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "colour_map",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "blend_map",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "grass_map",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cliff_map",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rock_map",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tiled_detail_map",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "detail_map_a",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "detail_map_b",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "detail_map_c",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "detail_map_d",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "forest_underlay",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "grass_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "battle_type_faction_presets_tables",
       "versions": [
         {
@@ -18901,6 +19396,38 @@
             {
               "field_name": "id",
               "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "faction",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "weighting_type",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battle_type_setup_limits",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -18991,6 +19518,91 @@
             {
               "field_name": "id",
               "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "battle_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "battle_types",
+                "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "weighting_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "army_size",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "era",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_infantry",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_cavalry",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_artillery",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_small_ship",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_frigate",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_line_of_battle",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -19095,6 +19707,18 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "Order put in ui"
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
             }
           ]
         }
@@ -20884,6 +21508,82 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_categories",
+                "category"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "models_building",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_material",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_audio_materials",
+                "audio_material"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hit_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gun_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "transformation",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_building_transformations",
+                "transformation"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "capacity_in_men",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -22434,6 +23134,30 @@
       ]
     },
     {
+      "name": "battlefield_snow_props_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "prop",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "enable_for_snow",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "battles_tables",
       "versions": [
         {
@@ -23051,6 +23775,105 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_types",
+                "type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_naval",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "specification",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screenshot_path",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "map_path",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "team_size_1",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "team_size_2",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "release",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplayer",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "singleplayer",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "intro_movie",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "year",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -23092,17 +23915,17 @@
           "fields": [
             {
               "field_name": "battle_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "battles",
                 "key"
               ],
-              "field_description": "delete this field if you see it"
+              "field_description": ""
             },
             {
               "field_name": "battle_sky_type_key",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
                 "battle_sky_types",
@@ -23528,6 +24351,39 @@
             {
               "field_name": "in_encyclopedia",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tech_category_tab",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tech_category_position",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "chain_category",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -25430,6 +26286,185 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "level_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "chain",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_chains",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "condition",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "create_time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "create_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "upkeep_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "demolition_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "zoc",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "lower_happiness",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "upper_happiness",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "repression",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gdp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "town_wealth_growth",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pop_change",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "maxpop_change",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "commodity",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "commodities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gov_type_key",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "commodity_vol",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "only_in_capital",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "military_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "naval_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "economic_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "enlightenment_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -25907,6 +26942,45 @@
             {
               "field_name": "enabled",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "xp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "conditions",
+              "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -34631,6 +35705,143 @@
       ]
     },
     {
+      "name": "campaign_anim_action_to_sets_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "action",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "set",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_anim_sets",
+                "set"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "animation",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_anim_sets_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "set",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_anim_transitions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "anim",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_anims",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_anims_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "loop",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "remove_bearing",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "reference_pose",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "campaign_autoresolver_battle_situations_tables",
       "versions": [
         {
@@ -36990,7 +38201,7 @@
             },
             {
               "field_name": "effect",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "effects",
@@ -36999,30 +38210,10 @@
               "field_description": ""
             },
             {
-              "field_name": "effect_scope",
-              "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "campaign_effect_scopes",
-                "key"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "effect_value",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "optional_campaign_key",
-              "field_type": "OptionalStringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "campaigns",
-                "campaign_name"
-              ],
               "field_description": ""
             }
           ]
@@ -37689,6 +38880,46 @@
             },
             {
               "field_name": "causes_sea_attrition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "movement_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_ambush",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "causes_heat_attrition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "causes_cold_attrition",
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
@@ -40363,16 +41594,6 @@
               "field_description": ""
             },
             {
-              "field_name": "template_name",
-              "field_type": "StringU16",
-              "field_is_key": false,
-              "field_is_reference": [
-                "campaign_map_settlement_templates",
-                "template_name"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "slot_count",
               "field_type": "Integer",
               "field_is_key": false,
@@ -40427,16 +41648,6 @@
               "field_description": ""
             },
             {
-              "field_name": "template",
-              "field_type": "StringU16",
-              "field_is_key": false,
-              "field_is_reference": [
-                "campaign_map_slots_templates",
-                "template_name"
-              ],
-              "field_description": ""
-            },
-            {
               "field_name": "rotation",
               "field_type": "Integer",
               "field_is_key": false,
@@ -40451,6 +41662,23 @@
                 "warscape_underlay_textures",
                 "underlay_key"
               ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_map_slots_templates_rotations_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "rotation",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -40559,6 +41787,31 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "select_context",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_map_tooltip_select_contexts",
+                "select_context"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "over_context",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_map_tooltip_over_contexts",
+                "over_contexts"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -40590,16 +41843,6 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "template",
-              "field_type": "StringU16",
-              "field_is_key": false,
-              "field_is_reference": [
-                "campaign_map_slots_templates",
-                "template_name"
-              ],
               "field_description": ""
             }
           ]
@@ -43876,6 +45119,119 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "reference_pose",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "anim_reference_poses",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_step_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "step_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "post_step_to",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_stand_to_walk",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stand_to_walk",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stand_to_walk_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mid_walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "walk_to_stand_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "post_walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "post_mid_walk_to_stand",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -43923,6 +45279,38 @@
               "field_name": "optional_campaign_type",
               "field_type": "OptionalStringU16",
               "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "variable_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_variables",
+                "variable_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "campaign_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaigns",
+                "campaign_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -45364,6 +46752,60 @@
           "fields": [
             {
               "field_name": "template_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_units",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_units",
+              "field_type": "Integer",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "group_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ideal_pct",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "variance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_required",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "config_key",
               "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
@@ -47209,6 +48651,52 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "trait_info",
+                "trait"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "no_going_back_level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hidden",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "precedence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "trait_categories",
+                "category"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -47250,6 +48738,36 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "climate_to_tilesets_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "climate",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "climates",
+                "climate_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "tileset",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "terrain_tilesets",
+                "tileset_name"
+              ],
               "field_description": ""
             }
           ]
@@ -48465,6 +49983,32 @@
             {
               "field_name": "index",
               "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fallback_ui_culture",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "index",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
