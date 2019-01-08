@@ -382,7 +382,7 @@ impl PackedFileDBTreeView {
         let update_search_stuff = Action::new(()).into_raw();
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        build_columns(&table_definition, table_view, model);
+        build_columns(&table_definition, table_view, model, &packed_file_path.borrow().last().unwrap());
 
         {
             let mut table_state_data = table_state_data.borrow_mut();
@@ -2047,7 +2047,7 @@ impl PackedFileDBTreeView {
                         }
 
                         // Build the Column's "Data".
-                        build_columns(&table_definition, table_view, model);
+                        build_columns(&table_definition, table_view, model, &packed_file_path.borrow().last().unwrap());
 
                         if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
@@ -3340,7 +3340,7 @@ impl PackedFileDBTreeView {
                 history_opposite.push(TableOperations::ImportTSVDB(data.borrow().clone()));
 
                 Self::load_data_to_table_view(&dependency_data, &table_data, table_view, model);
-                build_columns(&data.borrow().table_definition, table_view, model);
+                build_columns(&data.borrow().table_definition, table_view, model, &packed_file_path.borrow().last().unwrap());
 
                 // If we want to let the columns resize themselfs...
                 if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
@@ -5385,7 +5385,8 @@ fn clean_column_names(field_name: &str) -> String {
 fn build_columns(
     definition: &TableDefinition,
     table_view: *mut TableView,
-    model: *mut StandardItemModel
+    model: *mut StandardItemModel,
+    table_name: &str,
 ) {
     // Create a list of "Key" columns.
     let mut keys = vec![];
@@ -5409,13 +5410,52 @@ fn build_columns(
             FieldType::OptionalStringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
         }
 
-        // Create the tooltip for the column.
-        let tooltip_text: String = if let Some(ref reference) = field.field_is_reference {
-            if !field.field_description.is_empty() { format!("{}\n\nThis column is a reference to \"{}/{}\".", field.field_description, reference.0, reference.1) }
-            else { format!("This column is a reference to \"{}/{}\".", reference.0, reference.1) }
-        } else { field.field_description.to_owned() };
-        unsafe { item.as_mut().unwrap().set_tool_tip(&QString::from_std_str(&tooltip_text)); }
-            
+        // Create the tooltip for the column. To get the reference data, we iterate through every table in the schema and check their references.
+        let mut tooltip_text = String::new();
+        if !field.field_description.is_empty() { tooltip_text.push_str(&format!("<p>{}</p>", field.field_description)); }
+        if let Some(ref reference) = field.field_is_reference {
+            tooltip_text.push_str(&format!("<p>This column is a reference to:</p><p><i>\"{}/{}\"</i></p>", reference.0, reference.1));
+        } else { 
+            let schema = SCHEMA.lock().unwrap().clone();
+            let mut referenced_columns = if let Some(schema) = schema {
+                let mut columns = vec![];
+                for table in schema.tables_definitions {
+                    let mut found = false;
+                    for version in table.versions {
+                        for field_ref in version.fields {
+                            if let Some(ref_data) = field_ref.field_is_reference { 
+                                if &ref_data.0 == table_name && ref_data.1 == field.field_name {
+                                    found = true;
+                                    columns.push((table.name.to_owned(), field_ref.field_name)); 
+                                }
+                            }
+                        }
+                        if found { break; }
+                    }
+                }
+                columns
+            } else { vec![] };
+
+            referenced_columns.sort_unstable();
+            if !referenced_columns.is_empty() { 
+                tooltip_text.push_str("<p>Fields that reference this column:</p>");
+                for (index, reference) in referenced_columns.iter().enumerate() {
+                    tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
+                    if index == 50 { 
+                        tooltip_text.push_str(&format!("<p>And many more. Exactly, {} more. Too many to show them here.</p>nnnn", referenced_columns.len() as isize - 50));
+                        break ;
+                    }
+                }
+
+                // Dirty trick to remove the las <br> from the tooltip, or the nnnn in case that text get used.
+                tooltip_text.pop();
+                tooltip_text.pop();
+                tooltip_text.pop();
+                tooltip_text.pop();
+            }
+        }
+        if !tooltip_text.is_empty() { unsafe { item.as_mut().unwrap().set_tool_tip(&QString::from_std_str(&tooltip_text)); }}
+
         // If the field is key, add that column to the "Key" list, so we can move them at the begining later.
         if field.field_is_key { keys.push(index); }
     }
