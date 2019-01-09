@@ -5441,13 +5441,15 @@ fn build_columns(
                 tooltip_text.push_str("<p>Fields that reference this column:</p>");
                 for (index, reference) in referenced_columns.iter().enumerate() {
                     tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
+
+                    // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
                     if index == 50 { 
                         tooltip_text.push_str(&format!("<p>And many more. Exactly, {} more. Too many to show them here.</p>nnnn", referenced_columns.len() as isize - 50));
                         break ;
                     }
                 }
 
-                // Dirty trick to remove the las <br> from the tooltip, or the nnnn in case that text get used.
+                // Dirty trick to remove the last <br> from the tooltip, or the nnnn in case that text get used.
                 tooltip_text.pop();
                 tooltip_text.pop();
                 tooltip_text.pop();

@@ -106,17 +106,20 @@ impl DB {
         let entry_count = if (index + 4) <= packed_file_data.len() { decode_packedfile_integer_u32(&packed_file_data[(index)..(index + 4)], &mut index)? } else { return Err(ErrorKind::DBTableIsNotADBTable)? };
 
         // These tables use the not-yet-implemented type "List" in the following versions:
-        // - models_artillery: 0
+        // - models_artillery: 0,
+        // - models_artilleries: 0,
         // - models_building: 0, 3, 7.
-        // - models_naval: 6, 11.
+        // - models_naval: 0, 6, 11.
         // - models_sieges: 2, 3.
         // So we disable everything for any problematic version of these tables.
         // TODO: Implement the needed type for these tables.
         if (db_type == "models_artillery_tables" && version == 0) ||
+            (db_type == "models_artilleries_tables" && version == 0) ||
             (db_type == "models_building_tables" && (version == 0 ||
                                                     version == 3 ||
                                                     version == 7)) ||
-            (db_type == "models_naval_tables" && (version == 6 ||
+            (db_type == "models_naval_tables" && (version == 0 ||
+                                                    version == 6 ||
                                                     version == 11)) ||
             (db_type == "models_sieges_tables" && (version == 2 ||
                                                     version == 3))
