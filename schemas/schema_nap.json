@@ -68904,6 +68904,61 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "faction",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "minister_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ministerial_positions",
+                "minister_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "government_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "government_types",
+                "government_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gender",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "genders",
+                "gender"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "string",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ministerial_positions_strings",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -69546,6 +69601,30 @@
       ]
     },
     {
+      "name": "mission_activities_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "mission_activity",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "description",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "mission_category_age_multipliers_tables",
       "versions": [
         {
@@ -69668,6 +69747,30 @@
       ]
     },
     {
+      "name": "mission_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "text",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "mission_issuers_tables",
       "versions": [
         {
@@ -69696,6 +69799,30 @@
               "field_name": "issuer_key",
               "field_type": "StringU16",
               "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mission_sources_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "mission_source",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "description",
+              "field_type": "StringU16",
+              "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -69989,6 +70116,95 @@
             {
               "field_name": "prioritised",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screen_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "activity",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "source",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "description",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "success_condition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "failure_condition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cancel_condition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "issue_conditions",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "advisory",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "duration",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -71109,6 +71325,40 @@
       ]
     },
     {
+      "name": "names_forts_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "name_group",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "names_groups",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fort_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "names_groups_tables",
       "versions": [
         {
@@ -71136,6 +71386,58 @@
             {
               "field_name": "description",
               "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "names_royalty_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "faction",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "numeral_start",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gender",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "frequency",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -72296,6 +72598,30 @@
       ]
     },
     {
+      "name": "policies_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "policy",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prerequisites",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "political_actions_dilemma_junctions_tables",
       "versions": [
         {
@@ -73044,6 +73370,36 @@
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "population_class_to_applicable_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "population_class",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "population_classes",
+                "population_class"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
               "field_description": ""
             }
           ]
@@ -77088,6 +77444,310 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_category_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "shot_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_shot_type_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "missile_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles_missile_type_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "missile_model",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "explosion_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles_explosions",
+                "key"
+              ],
+              "field_description": "Explosions happen when the projectile hits either the target or the ground (check that penetration is off for detonating when hitting the target)."
+            },
+            {
+              "field_name": "trail",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_trails",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "spin_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles_spin_type_enum",
+                "key"
+              ],
+              "field_description": "Determines spinning behaviour of projectile while flying."
+            },
+            {
+              "field_name": "projectile_number",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "in_flight_transition",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_inflight_transition_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "trajectory_sight",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_trajectory_sight_enum",
+                "key"
+              ],
+              "field_description": "Low / High: Aims for the lowest / highest angle possible. Fixed: Always fire at max_elevation, adjusting speed of projectile only to set range."
+            },
+            {
+              "field_name": "effective_range",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Mainly used to limit targeting, as the actual effective range depends on velocity and angle."
+            },
+            {
+              "field_name": "minimum_range",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Can't target units closer than the minimum_range"
+            },
+            {
+              "field_name": "max_elevation",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "This is the maximum angle that the projectile can be fired at. Generally you want it high (max 89 degrees), and above 45. Except for special cases (e.g. cannon)"
+            },
+            {
+              "field_name": "muzzle_velocity",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "This describes the speed the projectile launches at (metres per second). If it is negative, the code will calculate this value based on firing at 45 degrees, hitting at the effective range"
+            },
+            {
+              "field_name": "marksmanship_bonus",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Percentage chance of hitting within the calibration area."
+            },
+            {
+              "field_name": "spread",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Used to spread out multiple projectiles fired at once, e.g. for gravel shot"
+            },
+            {
+              "field_name": "damage",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "penetration",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_penetration_enum",
+                "key"
+              ],
+              "field_description": "How many entities the projectile can travel through. Low ~3, medium ~15, high ~40"
+            },
+            {
+              "field_name": "incendiary",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_incendiary_enum",
+                "key"
+              ],
+              "field_description": "NONE = 0, VERY_LOW = 1, LOW = 5, MEDIUM = 10, HIGH = 20, VERY_HIGH = 50"
+            },
+            {
+              "field_name": "blast_effect",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_blast_effect_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "can_bounce",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "high_air_resistance",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "If set to true, projectile flightpath will drop rapidly after firing."
+            },
+            {
+              "field_name": "collision_radius",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Size of the projectile (spherical)"
+            },
+            {
+              "field_name": "base_reload_time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "base_misfire_chance",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "weather_effect",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_weather_effect_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sail_damage_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "below_waterline_damage_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "launch_audio",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "weapon_fire_audio_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "hit_audio",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "launch_particle_effect",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "particle_effects",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "projectile_trail_particle_effect",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "particle_effects",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "impact",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_impacts",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "gun_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_gun_types_enum",
+                "gun_type"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -77594,6 +78254,32 @@
                 "campaigns",
                 "campaign_name"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "factor",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "positive_pip_path",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "negative_pip_path",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -78938,6 +79624,49 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "commodity_unit_names",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "slot_bed",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "trade_value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_filepath",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -79883,6 +80612,110 @@
       ]
     },
     {
+      "name": "sea_climate_details_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "climates",
+                "climate_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sea_deep_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sea_deep_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sea_deep_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sea_shallow_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sea_shallow_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sea_shallow_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sun_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sun_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sun_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sky_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sky_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            },
+            {
+              "field_name": "sky_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "These are not RGB. For some reason these are together in the vanilla files. So needs fixing."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "sea_surfaces_tables",
       "versions": [
         {
@@ -80744,6 +81577,47 @@
       ]
     },
     {
+      "name": "ship_names_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "name_group",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ship_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "exclusive_to_faction",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "shortcut_localisation_tables",
       "versions": [
         {
@@ -81107,6 +81981,36 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "small_vegetation_climates_jct_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "climate",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "climates",
+                "climate_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rigid_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -82639,6 +83543,30 @@
       ]
     },
     {
+      "name": "special_edition_enums_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bit_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "spotting_and_hiding_values_tables",
       "versions": [
         {
@@ -83570,6 +84498,38 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "tax_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "taxes_keys",
+                "tax_lookup"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -84034,6 +84994,105 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "building_level",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "position_index",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "research_points_required",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "military_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "naval_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "economic_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "enlightenment_prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_early",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_late",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "info_pic",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ai_bias",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -84222,6 +85281,36 @@
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "technology_faction_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "technology_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "technologies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -84944,7 +86033,7 @@
           "fields": [
             {
               "field_name": "technology",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "technologies",
@@ -84954,7 +86043,7 @@
             },
             {
               "field_name": "required_technology",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "technologies",
@@ -85010,6 +86099,23 @@
               "field_name": "key",
               "field_type": "StringU8",
               "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "technology_threads_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "tech_thread",
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -86013,6 +87119,43 @@
       ]
     },
     {
+      "name": "trait_attribute_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "trait_level",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "character_trait_levels",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "attribute",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agent_attributes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_value",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "trait_categories_tables",
       "versions": [
         {
@@ -86117,7 +87260,7 @@
           "fields": [
             {
               "field_name": "antitrait",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "trait_info",
@@ -86127,7 +87270,7 @@
             },
             {
               "field_name": "trait",
-              "field_type": "StringU8",
+              "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
                 "trait_info",
@@ -86163,6 +87306,74 @@
                 "agents",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "trait_triggers_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "trigger",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "event",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "trigger_events",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "conditions",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "trees_climates_jct_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "climate",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "climates",
+                "climate_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "tree",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "abundance",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -87388,6 +88599,94 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "uniform_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "uniforms",
+                "uniform_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_name",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_r",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_g",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_b",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_r",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_g",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_b",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tertiary_colour_r",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tertiary_colour_g",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tertiary_colour_b",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -87458,6 +88757,45 @@
               "field_is_key": false,
               "field_is_reference": [
                 "imposter_sharing_enums",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "uniform_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "filename",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_stats_land",
                 "key"
               ],
               "field_description": ""
@@ -87994,6 +89332,39 @@
             {
               "field_name": "button_tooltip_text",
               "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stationary_for_turn",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "supersedes_ability",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "requires_effect_enabling",
+              "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -88565,6 +89936,18 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -88683,6 +90066,44 @@
             {
               "field_name": "onscreen",
               "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unit_class_to_population_class_priorities_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "unit_class",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "upper_class_priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "middle_class_priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "lower_class_priority",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -89011,6 +90432,18 @@
               "field_name": "tooltip_text",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -90824,6 +92257,59 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_special_ability_types",
+                "special_ability_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "active_time",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "recharge_time",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "num_uses",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unit_special_ability_types_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "special_ability_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -91936,6 +93422,708 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "men",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "horse",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "guns",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "officer",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_personalities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "musician",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_personalities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "standard_bearer",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_personalities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "soldier_model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "man_entity",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "man_animations_table",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_animations_table",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "equipment_theme",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_themes",
+                "theme"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "armour_audio",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "man_health",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mount_model",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "mounts",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mount_entity",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mount_animations_table",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_animations_table",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mount_armour",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mount_health",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "articulated_entity",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ammo_caisson_entity",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ammo_caisson_model",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "artillery_model",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "siege_gun",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gun_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_missile_weapon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_primary_missile_weapon_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "core_marksmanship",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "core_loading_skill",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_missile_attack",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "firing_mechanism",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_firing_mechanism_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_missile_type",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ammo",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skeleton_missile",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_skeleton_missile_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_weapon_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_melee_weapons_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_attack",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "charge_bonus",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_defense",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "shield_bonus",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skeleton_melee",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_skeleton_melee_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "pistols",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_drill_set",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_drill_set_enum",
+                "unit_drill_set"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_training_level",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_training_level_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "morale",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rank_depth",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "close_formation_spacing_horizontal",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "close_formation_spacing_vertical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "loose_formation_spacing_horizontal",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "loose_formation_spacing_vertical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "dismounted_close_formation_spacing_horizontal",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "dismounted_close_formation_spacing_vertical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "base_density",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_bonus_vs_cavalry",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "grenades",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "skirmish",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "guard_mode",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_dismount",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_place_stakes",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cannot_run",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_rally",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hide_medium_woodland",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hide_scrub",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hide_long_grass",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "hide_buildings",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_stalk",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_snipe",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "does_fire_mounted_by_default",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tree_spot_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "scrub_spot_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "long_grass_spot_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "campmap_stealth",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "campmap_policing_bonus",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "disciplined",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "impetuous",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "scares_horses",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "scares_enemies",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "inspire",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fatigue_resistance",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "siege_ladders",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "heat_resistance",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cold_resistance",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_do_formed_attack",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pike_wall",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pike_square",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_inmune_to_attrition",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_fire_mounted_whilst_moving",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "musician_2",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_personalities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ammo_caisson_destroyed_model",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_rigid",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ammo_caisson_destruction",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -92077,6 +94265,135 @@
                 "projectiles",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "unit_type",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "core_loading_skill",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "core_marksmanship",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_attack",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_defence",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_weapon_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pistols",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ammo",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_entity",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_entities",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "soldier_model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_animated",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "man_animations_table",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_animations_table",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "equipment_theme",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_themes",
+                "theme"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "armour_audio",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spacing",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "discipline",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -92261,6 +94578,60 @@
             },
             {
               "field_name": "melee_attack",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "core_gunner_loading_skill",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "core_gunner_marksmanship",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "morale",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_fixed_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_experience_cost_multiplier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "xp_level",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_defence",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -93299,6 +95670,888 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": [
+                "units",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "morale",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mothball_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "reactive_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "admiral_promotion_cost_record",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bow_chasers",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "stern_chasers",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "deck_1_top",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "deck_2",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "deck_3",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "deck_4",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "deck_5",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "gun_types",
+                "gun_type"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ship_model",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "models_naval",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "admiral",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "officer1",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "officer2",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "officer3",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "num_marines",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "num_seamen",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "num_gunners",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "core_gunner_marksmanship",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "core_gunner_loading_skill",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "firing_mechanism",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_stats_firing_mechanism_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "water_bail_out_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "flood_threshold_to_sink",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "fire_risk_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mass",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "collision_momentum_modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "formation_distance",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "minimum_distance",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "formation_integrity",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_speed",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "acceleration",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stopping_threshold",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "heel_factor",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "beating_angle",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_yard_angle",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sail_furl_angle",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_wind_astern",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_15_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_30_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_45_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_60_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_75_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_90_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_105_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_120_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_135_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_145_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "speed_180_deg",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "position_damping",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rotation_damping",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_at_full_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_at_10_percent",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_at_20_percent",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_at_35_percent",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_at_50_percent",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_at_65_percent",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_at_80_percent",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "turn_rate_stopped",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_gallants_allowed",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_above_water_1_top_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_above_water_1_top_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_above_water_1_top_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_above_water_2_top_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_above_water_2_top_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_above_water_2_top_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_below_water_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_below_water_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "side_panels_below_water_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prow_panels_above_water_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prow_panels_above_water_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prow_panels_above_water_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prow_panels_below_water_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prow_panels_below_water_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prow_panels_below_water_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stern_panels_above_water_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stern_panels_above_water_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stern_panels_above_water_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stern_panels_below_water_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stern_panels_below_water_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stern_panels_below_water_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_1_front_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_1_front_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_1_front_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_2_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_2_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_2_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_3_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_3_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_3_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_sails_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_sails_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_sails_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "middle_sails_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "middle_sails_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "middle_sails_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bottom_sails_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bottom_sails_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bottom_sails_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_gallants_sails_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_gallants_sails_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "top_gallants_sails_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_bowsprit_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_bowsprit_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mast_bowsprit_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "front_sails_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "front_sails_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "front_sails_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "back_sails_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "back_sails_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "back_sails_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "magazine_armour",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "magazine_hits",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "magazine_critical",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "scares_enemies",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "inspire",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_trade",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stat_bar_manouevrability_rating",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "stat_bar_hull_strength",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -94302,6 +97555,204 @@
               "field_description": ""
             }
           ]
+        },
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "on_screen_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_category",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "class",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_class",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplayer_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplayer_late_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "create_time",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "create_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "upkeep_cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "campaign_action_points",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "voice",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_voice_categories",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "icon_name",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "info_pic",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_description_text",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_description_texts",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "region_unit_resource",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "region_unit_resources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "total_cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "multiplayer_category",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_category",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_early",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_middle",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_late",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "prestige",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "armed_citizenry",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "total_cap_mp",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_type_icon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "use_onscreen_name",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
         }
       ]
     },
@@ -94334,6 +97785,44 @@
             {
               "field_name": "allowed",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "units_to_gov_type_permissions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gov_type",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_number",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "outcome",
+              "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -95082,6 +98571,106 @@
                 "warscape_equipment_collections",
                 "collection_key"
               ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "theme",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_weapon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_weapon",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "defensive",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ambient",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "personal",
+              "field_type": "OptionalStringU16",
+              "field_is_key": false,
+              "field_is_reference": [
+                "warscape_equipment_collections",
+                "collection_key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "warscape_naval_lod_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU16",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "filename",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "range",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "naval",
+              "field_type": "StringU16",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
