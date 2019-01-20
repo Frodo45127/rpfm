@@ -1,3 +1,13 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
+// 
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+// 
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
 // Here it goes the code needed to produce error files in panic, so I can debug properly the stupid CTDs people has, because sentry fails a lot.
 // If you're interested, is inspired in the human-panic crate. The reason to not use that crate is because it's not configurable. At all.
 // But otherwise, feel free to check it out if you need an easy-to-use simple error logger.
