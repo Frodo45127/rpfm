@@ -11,6 +11,7 @@ use std::sync::{Arc, Mutex};
 use crate::common::*;
 use crate::common::coding_helpers::*;
 use crate::error::{ErrorKind, Result};
+use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
 
