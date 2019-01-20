@@ -547,8 +547,28 @@ impl PackFile {
         // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
         self.packed_files.sort_unstable_by(|a, b| a.path.join("\\").to_lowercase().cmp(&b.path.join("\\").to_lowercase()));
         
-        // We ensure that all the data is loaded before attempting to save.
-        for packed_file in &mut self.packed_files { packed_file.load_data()?; }
+        // We ensure that all the data is loaded and in his right form (compressed/encrypted) before attempting to save.
+        // We need to do this here because we need later on their compressed size.
+        for packed_file in &mut self.packed_files { 
+            packed_file.load_data()?;
+
+            // Remember: first compress (only PFH5), then encrypt.
+            let (data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_data_and_info_from_memory()?;
+            
+            // Compression is not yet supported (stupid xz). Uncompress everything.
+            if *is_compressed {
+                *data = decompress_data(&data)?;
+                *is_compressed = false;
+                *should_be_compressed = false;
+            }
+
+            // Encryption is not yet supported. Unencrypt everything.
+            if *is_encrypted { 
+                *data = decrypt_packed_file(&data);
+                *is_encrypted = false;
+                *should_be_encrypted = None;
+            }
+        }
 
         // First we encode the indexes and the data (just in case we compressed it).
         let mut pack_file_index = vec![];
@@ -607,7 +627,9 @@ impl PackFile {
         // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
         file.write_all(&pack_file_index)?;
         file.write_all(&packed_file_index)?;
-        for packed_file in &self.packed_files { file.write_all(&(packed_file.get_data()?))?; }
+        for packed_file in &mut self.packed_files { 
+            let (data,_,_,_,_) = packed_file.get_data_and_info_from_memory()?;
+            file.write_all(&data)?; }
 
         // If nothing has failed, return success.
         Ok(())

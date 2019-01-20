@@ -138,6 +138,9 @@ pub enum ErrorKind {
     // Error for when the compressed PackedFile is either incomplete (<9 bytes) or the decompression failed.
     PackedFileDataCouldNotBeDecompressed,
 
+    // Error for when we expect data to be in memory, but it isn't.
+    PackedFileDataIsNotInMemory,
+
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
@@ -428,6 +431,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileDataCouldNotBeLoaded => write!(f, "<p>This PackedFile's data could not be loaded. This means RPFM can no longer read the PackFile from the disk.</p>"),
             ErrorKind::PackedFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackedFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.</p>", reported_size, expected_size),
             ErrorKind::PackedFileDataCouldNotBeDecompressed => write!(f, "<p>This is a compressed file and the decompresion failed for some reason. This means this PackedFile cannot be opened in RPFM.</p>"),
+            ErrorKind::PackedFileDataIsNotInMemory => write!(f, "<p>This PackedFile's data is not in memory. If you see this, report it, as it's a bug.</p>"),
 
             //--------------------------------//
             // DB Table Errors

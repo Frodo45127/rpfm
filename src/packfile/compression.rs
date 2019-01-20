@@ -3,10 +3,9 @@
 use crate::error::{Error, ErrorKind, Result};
 
 /// This function decompress the data of a PackedFile, returning the decompressed data.
-pub fn decompress_data(mut data: Vec<u8>) -> Result<Vec<u8>> {
+pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
+    let mut data = data.to_vec();
 
-    // CA seems to use a custom implementation of LZMA with a different header than the 7zip/XZ utils implementation.
-    // That means we have to fix the header first. If we don't have at least 9 bytes, it's an invalid file.
     if data.len() >= 9 {
         let mut fixed_data: Vec<u8> = vec![];
         fixed_data.append(&mut data[4..8].to_vec());
