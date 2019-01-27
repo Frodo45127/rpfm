@@ -27,8 +27,9 @@ fn main() {
     res.set("ProductName","Rusted PackFile Manager");
     if let Err(error) = res.compile() { println!("Error: {}", std::error::Error::description(&error).to_string()); }
 
-    // Force cargo to rerun this script if it's changed.
+    // Force cargo to rerun this script if any of these files is changed.
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=libs/*");
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -38,6 +39,7 @@ fn main() {
 	println!("cargo:rustc-link-search=native=./libs");
     println!("cargo:rustc-link-lib=dylib=qt_custom_rpfm");
 
-    // Force cargo to rerun this script if it's changed.
+    // Force cargo to rerun this script if any of these files is changed.
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=libs/*");
 }
