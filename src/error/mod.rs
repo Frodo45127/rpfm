@@ -151,6 +151,9 @@ pub enum ErrorKind {
     // Error for when we expect data to be in memory, but it isn't.
     PackedFileDataIsNotInMemory,
 
+    // Error for when we try to open a PackedFile not in the filter from the GlobalSearch.
+    PackedFileNotInFilter,
+
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
@@ -442,6 +445,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackedFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.</p>", reported_size, expected_size),
             ErrorKind::PackedFileDataCouldNotBeDecompressed => write!(f, "<p>This is a compressed file and the decompresion failed for some reason. This means this PackedFile cannot be opened in RPFM.</p>"),
             ErrorKind::PackedFileDataIsNotInMemory => write!(f, "<p>This PackedFile's data is not in memory. If you see this, report it, as it's a bug.</p>"),
+            ErrorKind::PackedFileNotInFilter => write!(f, "<p>This PackedFile is not in the current TreeView filter. If you want to open it, remove the filter.</p>"),
 
             //--------------------------------//
             // DB Table Errors

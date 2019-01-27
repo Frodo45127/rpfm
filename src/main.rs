@@ -69,6 +69,7 @@ use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::item_selection_model::SelectionFlag;
+use qt_core::object::Object;
 use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, Orientation, ShortcutContext, SortOrder, WindowState};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef, SlotCInt, SlotModelIndexRef, SlotItemSelectionRefItemSelectionRef};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
@@ -110,6 +111,7 @@ use crate::ui::packedfile_db::*;
 use crate::ui::packedfile_loc::*;
 use crate::ui::packedfile_text::*;
 use crate::ui::packedfile_rigidmodel::*;
+use crate::ui::qt_custom_stuff::*;
 use crate::ui::settings::*;
 use crate::ui::table_state::*;
 use crate::ui::updater::*;
@@ -545,7 +547,11 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     pub window: *mut MainWindow,
     pub folder_tree_view: *mut TreeView,
+    pub folder_tree_filter: *mut SortFilterProxyModel,
     pub folder_tree_model: *mut StandardItemModel,
+    pub folder_tree_filter_line_edit: *mut LineEdit,
+    pub folder_tree_filter_autoexpand_matches_button: *mut PushButton,
+    pub folder_tree_filter_case_sensitive_button: *mut PushButton,
     pub packed_file_splitter: *mut Splitter,
 
     //-------------------------------------------------------------------------------//
@@ -714,12 +720,36 @@ fn main() {
         // Create the PackedFile splitter.
         let mut packed_file_splitter = Splitter::new(());
 
+        // Create the widget to fit in all the TreeView stuff.
+        let mut folder_tree_widget = Widget::new();
+        let mut folder_tree_layout = GridLayout::new();
+        unsafe { folder_tree_widget.set_layout(folder_tree_layout.static_cast_mut()); }
+
         // Create the TreeView.
         let mut folder_tree_view = TreeView::new();
+        let folder_tree_filter = unsafe { new_treeview_filter(folder_tree_widget.as_mut_ptr() as *mut Object) };
         let mut folder_tree_model = StandardItemModel::new(());
-        unsafe { folder_tree_view.set_model(folder_tree_model.static_cast_mut()); }
+        unsafe { folder_tree_filter.as_mut().unwrap().set_source_model(folder_tree_model.static_cast_mut()); }
+        unsafe { folder_tree_view.set_model(folder_tree_filter as *mut AbstractItemModel); }
         folder_tree_view.set_header_hidden(true);
         folder_tree_view.set_animated(true);
+
+        // Create the filter's LineEdit.
+        let mut folder_tree_filter_line_edit = LineEdit::new(());
+        folder_tree_filter_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the files in the PackFile. Works with Regex too!"));
+
+        // Create the filter's "Auto-Expand Matches" button.
+        let mut folder_tree_filter_autoexpand_matches_button = PushButton::new(&QString::from_std_str("Auto-Expand Matches"));
+        folder_tree_filter_autoexpand_matches_button.set_checkable(true);
+
+        // Create the filter's "Case Sensitive" button.
+        let mut folder_tree_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
+        folder_tree_filter_case_sensitive_button.set_checkable(true);
+
+        unsafe { folder_tree_layout.add_widget((folder_tree_view.as_mut_ptr() as *mut Widget, 0, 0, 1, 2)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 2)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_autoexpand_matches_button.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
 
         // Create the "Global Search" view.
         let global_search_widget = Widget::new().into_raw();
@@ -809,7 +839,7 @@ fn main() {
         let update_global_search_stuff = Action::new(()).into_raw();
 
         // Add the corresponding widgets to the layout.
-        unsafe { central_splitter.add_widget(folder_tree_view.static_cast_mut()); }
+        unsafe { central_splitter.add_widget(folder_tree_widget.as_mut_ptr()); }
         unsafe { central_splitter.add_widget(packed_file_splitter.static_cast_mut() as *mut Widget); }
         unsafe { central_splitter.add_widget(global_search_widget); }
 
@@ -866,7 +896,11 @@ fn main() {
             //-------------------------------------------------------------------------------//
             window: window.into_raw(),
             folder_tree_view: folder_tree_view.into_raw(),
+            folder_tree_filter: folder_tree_filter,
             folder_tree_model: folder_tree_model.into_raw(),
+            folder_tree_filter_line_edit: folder_tree_filter_line_edit.into_raw(),
+            folder_tree_filter_autoexpand_matches_button: folder_tree_filter_autoexpand_matches_button.into_raw(),
+            folder_tree_filter_case_sensitive_button: folder_tree_filter_case_sensitive_button.into_raw(),
             packed_file_splitter: packed_file_splitter.into_raw(),
 
             //-------------------------------------------------------------------------------//
@@ -1488,6 +1522,7 @@ fn main() {
                         &receiver_qt,
                         app_ui.window,
                         app_ui.folder_tree_view,
+                        Some(app_ui.folder_tree_filter),
                         app_ui.folder_tree_model,
                         TreeViewOperation::Build(false),
                     );
@@ -1654,6 +1689,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Build(false),
                             );
@@ -1875,6 +1911,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::DeleteUnselected(item_type),
                             );
@@ -1942,6 +1979,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::DeleteUnselected(item_type),
                             );
@@ -2083,7 +2121,7 @@ fn main() {
             receiver_qt => move |selection,_| {
 
                 // Get the path of the selected item.
-                let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
+                let path = get_path_from_item_selection(app_ui.folder_tree_model, Some(app_ui.folder_tree_filter), &selection, true);
 
                 // Try to get the TreePathType. This should never fail, so CTD if it does it.
                 sender_qt.send(Commands::GetTypeOfPath).unwrap();
@@ -2340,6 +2378,7 @@ fn main() {
                                             &receiver_qt,
                                             app_ui.window,
                                             app_ui.folder_tree_view,
+                                            Some(app_ui.folder_tree_filter),
                                             app_ui.folder_tree_model,
                                             TreeViewOperation::Add(paths_packedfile.to_vec()),
                                         );
@@ -2432,6 +2471,7 @@ fn main() {
                                         &receiver_qt,
                                         app_ui.window,
                                         app_ui.folder_tree_view,
+                                        Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::Add(paths_packedfile.to_vec()),
                                     );
@@ -2590,6 +2630,7 @@ fn main() {
                                             &receiver_qt,
                                             app_ui.window,
                                             app_ui.folder_tree_view,
+                                            Some(app_ui.folder_tree_filter),
                                             app_ui.folder_tree_model,
                                             TreeViewOperation::Add(paths_packedfile.to_vec()),
                                         );
@@ -2686,6 +2727,7 @@ fn main() {
                                         &receiver_qt,
                                         app_ui.window,
                                         app_ui.folder_tree_view,
+                                        Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::Add(paths_packedfile.to_vec()),
                                     );
@@ -2839,6 +2881,7 @@ fn main() {
                         &receiver_qt,
                         app_ui.window,
                         app_ui.folder_tree_view,
+                        Some(app_ui.folder_tree_filter),
                         app_ui.folder_tree_model,
                         TreeViewOperation::Add(vec![complete_path; 1]),
                     );
@@ -2894,6 +2937,7 @@ fn main() {
                                                 &receiver_qt,
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
+                                                Some(app_ui.folder_tree_filter),
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(vec![complete_path; 1]),
                                             );
@@ -2977,6 +3021,7 @@ fn main() {
                                                 &receiver_qt,
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
+                                                Some(app_ui.folder_tree_filter),
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(vec![complete_path; 1]),
                                             );
@@ -3074,6 +3119,7 @@ fn main() {
                                                 &receiver_qt,
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
+                                                Some(app_ui.folder_tree_filter),
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(vec![complete_path; 1]),
                                             );
@@ -3142,6 +3188,7 @@ fn main() {
                                     &receiver_qt,
                                     app_ui.window,
                                     app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(paths_to_add.to_vec()),
                                 );
@@ -3346,6 +3393,7 @@ fn main() {
                             &receiver_qt,
                             app_ui.window,
                             app_ui.folder_tree_view,
+                            Some(app_ui.folder_tree_filter),
                             app_ui.folder_tree_model,
                             TreeViewOperation::DeleteSelected(path_type),
                         );
@@ -3764,6 +3812,17 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger one of the "Filter Updater" events for the Folder TreeView.
+        let slot_folder_view_filter_change_text = SlotStringRef::new(move |_| {
+            filter_files(&app_ui); 
+        });
+        let slot_folder_tree_filter_change_autoexpand_matches = SlotBool::new(move |_| {
+            filter_files(&app_ui); 
+        });
+        let slot_folder_view_filter_change_case_sensitive = SlotBool::new(move |_| {
+            filter_files(&app_ui); 
+        });
+
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
@@ -3780,6 +3839,11 @@ fn main() {
         unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
         unsafe { app_ui.context_menu_open_with_external_program.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_with_external_program); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_in_multi_view); }
+
+        // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
+        unsafe { app_ui.folder_tree_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_folder_view_filter_change_text); }
+        unsafe { app_ui.folder_tree_filter_autoexpand_matches_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_tree_filter_change_autoexpand_matches); }
+        unsafe { app_ui.folder_tree_filter_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_view_filter_change_case_sensitive); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
@@ -3831,6 +3895,7 @@ fn main() {
                                         &receiver_qt,
                                         app_ui.window,
                                         app_ui.folder_tree_view,
+                                        Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::Rename(item_type.clone(), new_name.to_owned()),
                                     );
@@ -3979,6 +4044,7 @@ fn main() {
                                     &receiver_qt,
                                     app_ui.window,
                                     app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
                                 );
@@ -4069,6 +4135,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
                             );
@@ -4334,52 +4401,45 @@ fn main() {
             slot_open_packedfile => move |model_index_filter| {
 
                 // Map the ModelIndex to his real ModelIndex in the full model.
-                let model_index_match;
-                unsafe { model_index_match = filter_model_matches_loc.as_mut().unwrap().map_to_source(&model_index_filter); }
+                let model_index_match = unsafe { filter_model_matches_loc.as_mut().unwrap().map_to_source(&model_index_filter) };
 
                 // Get the data about the PackedFile.
-                let path;
-                let row;
-                let column;
-                unsafe { path = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string(); }
+                let path = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string() };
                 let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
-                unsafe { row = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1; }
-                unsafe { column = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap();; }
 
                 // Expand and select the item in the TreeView.
                 let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
-                let model_index;
-                unsafe { model_index = app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item); }
+                let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
 
-                let selection_model;
-                unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().select((
                     &model_index,
                     Flags::from_enum(SelectionFlag::ClearAndSelect)
                 )); }
 
                 // Show the PackedFile in the TreeView.
-                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
-                unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
-                
+                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
+                let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
+                if filtered_index.is_valid() {
+                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
+                }
+
                 // Close any open PackedFile, the open the PackedFile and select the match in it.
                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
                 let action = Action::new(()).into_raw();
                 unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
                 unsafe { action.as_mut().unwrap().trigger(); }
 
-                let packed_file_table;
-                let packed_file_model;
-                unsafe { packed_file_table = app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
-                unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
-                let selection_model;
-                unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &packed_file_model.as_mut().unwrap().index((row, column)),
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
+                if filtered_index.is_valid() {
+                    let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &filtered_index,
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
 
-                unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
+                }
+                else { show_dialog(app_ui.window, false, ErrorKind::PackedFileNotInFilter); }
             }
         ));
 
@@ -4389,52 +4449,45 @@ fn main() {
             slot_open_packedfile => move |model_index_filter| {
 
                 // Map the ModelIndex to his real ModelIndex in the full model.
-                let model_index_match;
-                unsafe { model_index_match = filter_model_matches_db.as_mut().unwrap().map_to_source(&model_index_filter); }
+                let model_index_match = unsafe { filter_model_matches_db.as_mut().unwrap().map_to_source(&model_index_filter) };
 
                 // Get the data about the PackedFile.
-                let path;
-                let row;
-                let column;
-                unsafe { path = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string(); }
+                let path = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string() };
                 let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
-                unsafe { row = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1; }
-                unsafe { column = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap(); }
 
                 // Expand and select the item in the TreeView.
                 let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
-                let model_index;
-                unsafe { model_index = app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item); }
-
-                let selection_model;
-                unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
+                let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
+                
+                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().select((
                     &model_index,
                     Flags::from_enum(SelectionFlag::ClearAndSelect)
                 )); }
 
                 // Show the PackedFile in the TreeView.
-                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
-                unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
-                           
+                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
+                let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
+                if filtered_index.is_valid() {
+                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
+                }
+
                 // Close any open PackedFile, the open the PackedFile and select the match in it.
                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
                 let action = Action::new(()).into_raw();
                 unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
                 unsafe { action.as_mut().unwrap().trigger(); }
 
-                let packed_file_table;
-                let packed_file_model;
-                unsafe { packed_file_table = app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
-                unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
-                let selection_model;
-                unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &packed_file_model.as_mut().unwrap().index((row, column)),
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
+                if filtered_index.is_valid() {
+                    let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &filtered_index,
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
 
-                unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
+                }
+                else { show_dialog(app_ui.window, false, ErrorKind::PackedFileNotInFilter); }
             }
         ));
 

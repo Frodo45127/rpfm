@@ -65,6 +65,7 @@ pub fn open_packfile(
                 &receiver_qt,
                 app_ui.window,
                 app_ui.folder_tree_view,
+                Some(app_ui.folder_tree_filter),
                 app_ui.folder_tree_model,
                 TreeViewOperation::Build(false),
             );
@@ -204,7 +205,7 @@ pub fn open_packedfile(
         let selection = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
 
         // Get the path of the selected item.
-        let full_path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
+        let full_path = get_path_from_item_selection(app_ui.folder_tree_model, Some(app_ui.folder_tree_filter), &selection, true);
 
         // Send the Path to the Background Thread, and get the type of the item.
         sender_qt.send(Commands::GetTypeOfPath).unwrap();
@@ -516,6 +517,7 @@ pub fn save_packfile(
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
                             );
@@ -701,6 +703,7 @@ pub fn build_my_mod_menu(
                                     &receiver_qt,
                                     app_ui.window,
                                     app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Build(false),
                                 );
@@ -1441,4 +1444,24 @@ pub fn filter_matches_result(
 
     // Filter whatever it's in that column by the text we got.
     unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&pattern); }
+}
+
+/// Function to filter the file list. If a value is not provided by a slot, we get it from the widget itself.
+pub fn filter_files(app_ui: &AppUI) {
+
+    // Set the pattern to search.
+    let mut pattern = unsafe { RegExp::new(&app_ui.folder_tree_filter_line_edit.as_mut().unwrap().text()) };
+
+    // Check if the filter should be "Case Sensitive".
+    let case_sensitive = unsafe { app_ui.folder_tree_filter_case_sensitive_button.as_mut().unwrap().is_checked() };
+    if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+    else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+
+    // Filter whatever it's in that column by the text we got.
+    unsafe { trigger_treeview_filter(app_ui.folder_tree_filter, &mut pattern); }
+
+    // Expand all the matches, if the option for it is enabled.
+    if unsafe { app_ui.folder_tree_filter_autoexpand_matches_button.as_ref().unwrap().is_checked() } {
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().expand_all(); }
+    }
 }

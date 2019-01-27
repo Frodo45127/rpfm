@@ -43,6 +43,7 @@ use qt_core::model_index::ModelIndex;
 use qt_core::object::Object;
 use qt_core::qt::{GlobalColor, ShortcutContext};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
+use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
 
@@ -190,7 +191,7 @@ impl AddFromPackFileSlots {
                     unsafe { selection_file_to_move = tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
 
                     // Get his path.
-                    let item_path = get_path_from_item_selection(tree_model, &selection_file_to_move, true);
+                    let item_path = get_path_from_item_selection(tree_model, None, &selection_file_to_move, true);
 
                     // Ask the Background Thread to move the files, and send him the path.
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -210,6 +211,7 @@ impl AddFromPackFileSlots {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Add(paths.to_vec()),
                             );
@@ -294,6 +296,7 @@ impl AddFromPackFileSlots {
             &receiver_qt,
             app_ui.window,
             tree_view,
+            None,
             tree_model,
             TreeViewOperation::Build(true),
         );
@@ -1127,20 +1130,16 @@ pub fn undo_paint_for_packed_file(
     let cycles = if !full_path.is_empty() { full_path.len() - 1 } else { 0 };
 
     // Get his parent.
-    let mut parent;
-    unsafe { parent = item.as_mut().unwrap().parent(); }
+    let mut parent = unsafe { item.as_mut().unwrap().parent() };
 
     // Unleash hell upon the land.
     for _ in 0..cycles {
 
-        let childs;
-        unsafe { childs = parent.as_mut().unwrap().row_count(); }
+        let childs = unsafe { parent.as_mut().unwrap().row_count() };
         for child in 0..childs {
-            let item;
-            let colour;
-            unsafe { item = parent.as_mut().unwrap().child(child); }
-            unsafe { colour = item.as_mut().unwrap().background().color().name(()).to_std_string(); }
-
+            let item = unsafe { parent.as_mut().unwrap().child(child) };
+            let colour = unsafe { item.as_mut().unwrap().background().color().name(()).to_std_string() };
+            
             // If it's not transparent, stop.
             if colour != "#000000" { return }
         }
@@ -1281,72 +1280,79 @@ pub fn are_you_sure(
 /// This function is used to expand the entire path from the PackFile to an specific item in the TreeView.
 pub fn expand_treeview_to_item(
     tree_view: *mut TreeView,
+    filter: *mut SortFilterProxyModel,
     model: *mut StandardItemModel,
     path: &[String],
 ) {
-    // Get it another time, this time to use it to hold the current item.
-    let mut item;
-    unsafe { item = model.as_ref().unwrap().item(0); }
-    unsafe { tree_view.as_mut().unwrap().expand(&model.as_ref().unwrap().index_from_item(item)); }
+    // Get the first item's index, as that one should always exist (the Packfile).
+    let mut item = unsafe { model.as_ref().unwrap().item(0) };
+    let model_index = unsafe { model.as_ref().unwrap().index((0, 0)) };
+    let filtered_index = unsafe { filter.as_ref().unwrap().map_from_source(&model_index) };
 
-    // Indexes to see how deep we must go.
-    let mut index = 0;
-    let path_deep = path.len();
+    // If it's valid (filter didn't hid it away)...
+    if filtered_index.is_valid() {
+        unsafe { tree_view.as_mut().unwrap().expand(&filtered_index); }
+        
+        // Indexes to see how deep we must go.
+        let mut index = 0;
+        let path_deep = path.len();
 
-    // First looping downwards.
-    loop {
+        // First looping downwards.
+        loop {
 
-        // If we reached the folder of the file, stop.
-        if index == (path_deep - 1) { return }
+            // If we reached the folder of the file, stop.
+            if index == (path_deep - 1) { return }
 
-        // If we are not still in the folder of the file...
-        else {
+            // If we are not still in the folder of the file...
+            else {
 
-            // Get the amount of children of the current item.
-            let children_count;
-            unsafe { children_count = item.as_ref().unwrap().row_count(); }
+                // Get the amount of children of the current item.
+                let children_count = unsafe { item.as_ref().unwrap().row_count() };
 
-            // Bool to know when to stop in case of not finding the path.
-            let mut not_found = true;
+                // Bool to know when to stop in case of not finding the path.
+                let mut not_found = true;
 
-            // For each children we have...
-            for row in 0..children_count {
+                // For each children we have...
+                for row in 0..children_count {
 
-                // Check if it has children of his own.
-                let child;
-                let has_children;
-                unsafe { child = item.as_ref().unwrap().child(row); }
-                unsafe { has_children = child.as_ref().unwrap().has_children(); }
+                    // Check if it has children of his own.
+                    let child = unsafe { item.as_ref().unwrap().child(row) };
+                    let has_children = unsafe { child.as_ref().unwrap().has_children() };
+                    
+                    // If it doesn't have children, continue with the next child.
+                    if !has_children { continue; }
 
-                // If it doesn't have children, continue with the next child.
-                if !has_children { continue; }
+                    // Get his text.
+                    let text = unsafe { child.as_ref().unwrap().text().to_std_string() };
 
-                // Get his text.
-                let text;
-                unsafe { text = child.as_ref().unwrap().text().to_std_string(); }
+                    // If it's the one we're looking for...
+                    if text == path[index] {
 
-                // If it's the one we're looking for...
-                if text == path[index] {
+                        // Use it as our new item.
+                        item = child;
 
-                    // Use it as our new item.
-                    item = child;
+                        // Increase the index.
+                        index += 1;
 
-                    // Increase the index.
-                    index += 1;
+                        // Tell the progam you found the child.
+                        not_found = false;
 
-                    // Tell the progam you found the child.
-                    not_found = false;
+                        // Expand the folder, if exists.
+                        let model_index = unsafe { model.as_ref().unwrap().index_from_item(item.as_ref().unwrap()) };
+                        let filtered_index = unsafe { filter.as_ref().unwrap().map_from_source(&model_index) };
+                        if filtered_index.is_valid() {
+                            unsafe { tree_view.as_mut().unwrap().expand(&filtered_index); }
+                        }
+                        else { return }
 
-                    // Expand the folder.
-                    unsafe { tree_view.as_mut().unwrap().expand(&model.as_ref().unwrap().index_from_item(item)); }
-
-                    // Break the loop.
-                    break;
+                        // Break the loop.
+                        break;
+                    }
                 }
-            }
 
-            // If the child was not found, stop and return the parent.
-            if not_found { break; }
+                // If the child was not found, stop and return the parent.
+                if not_found { break; }
+            }
         }
     }
 }
@@ -1363,10 +1369,8 @@ pub fn get_path_from_selection(
     let mut path: Vec<String> = vec![];
 
     // Get the selection of the TreeView.
-    let selection_model;
-    let mut selection;
-    unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
-    unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
+    let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
+    let mut selection = unsafe { app_ui.folder_tree_filter.as_mut().unwrap().map_selection_to_source(&selection_model.as_mut().unwrap().selection()).indexes() };
 
     // If the selection has something...
     if selection.count(()) > 0 {
@@ -1412,8 +1416,11 @@ pub fn get_path_from_selection(
 /// This function is used to get the complete Path of a Selected Item in a StandardItemModel.
 /// Set include_bool to true to include the PackFile in the path (like it's in the TreeView).
 /// If you want to get the selection from the Main TreeView, use "get_path_from_selection" instead.
+/// 
+/// NOTE: If the model doesn't have a filter, pass NONE to it.
 pub fn get_path_from_item_selection(
     model: *mut StandardItemModel,
+    filter: Option<*mut SortFilterProxyModel>,
     item: &ItemSelection,
     include_packfile: bool
 ) -> Vec<String>{
@@ -1421,22 +1428,31 @@ pub fn get_path_from_item_selection(
     // Create the vector to hold the Path.
     let mut path: Vec<String> = vec![];
 
-    // Get the selection of the TreeView.
+    // Get the selection of the TreeView and translate it to our real model.
     let mut selection = item.indexes();
+    let mut real_selection = vec![];
+    if let Some(filter) = filter {
+        for item in 0..selection.count(()) {
+            let model_index = unsafe { filter.as_mut().unwrap().map_to_source(&selection.at(item)) };
+            real_selection.push(model_index);
+        }
+    }
+    else {
+        for item in (0..selection.count(())).rev() {
+            real_selection.push(selection.take_at(item));
+        }
+        real_selection.reverse();
+    }
 
-    // If the selection has something...
-    if selection.count(()) > 0 {
-
-        // Get the selected cell.
-        let mut item = selection.take_at(0);
+    for item in &real_selection {
+        let mut item = item;
         let mut parent;
 
         // Loop until we reach the root index.
         loop {
 
             // Get his data.
-            let name;
-            unsafe { name = model.as_mut().unwrap().data(&item).to_string().to_std_string(); }
+            let name = unsafe { model.as_mut().unwrap().data(item).to_string().to_std_string() };
 
             // Add it to the list
             path.push(name);
@@ -1445,7 +1461,7 @@ pub fn get_path_from_item_selection(
             parent = item.parent();
 
             // If the parent is valid, it's the new item.
-            if parent.is_valid() { item = parent; }
+            if parent.is_valid() { item = &parent; }
 
             // Otherwise, we stop.
             else { break; }
@@ -1456,13 +1472,10 @@ pub fn get_path_from_item_selection(
 
         // Reverse it, as we want it from Parent to Children.
         path.reverse();
-
-        // Return the Path.
-        path
     }
 
-    // Otherwise, return an empty path.
-    else { path }
+    // Return the path. If it wasn't found, it should be empty.
+    path
 }
 
 /// This function is used to get the complete Path of a specific Item in a StandardItemModel.
@@ -1837,12 +1850,15 @@ fn set_icon_to_item(
 
 /// This function takes care of EVERY operation that manipulates the provided TreeView.
 /// It does one thing or another, depending on the operation we provide it.
+///
+/// NOTE: If the TreeView doesn't have a filter, pass None to it.
 pub fn update_treeview(
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt_data: &Rc<RefCell<Receiver<Data>>>,
     window: *mut MainWindow,
     tree_view: *mut TreeView,
+    filter: Option<*mut SortFilterProxyModel>,
     model: *mut StandardItemModel,
     operation: TreeViewOperation,
 ) {
@@ -2052,8 +2068,7 @@ pub fn update_treeview(
             for path in &paths {
 
                 // First, we get the item of our PackFile in the TreeView.
-                let mut parent;
-                unsafe { parent = model.as_ref().unwrap().item(0); }
+                let mut parent = unsafe { model.as_ref().unwrap().item(0) };
 
                 // For each field in our path...
                 for (index, field) in path.iter().enumerate() {
@@ -2225,12 +2240,14 @@ pub fn update_treeview(
                 TreePathType::File(_) | TreePathType::Folder(_) => {
 
                     // Get whatever is selected from the TreeView.
-                    let packfile;
-                    let selection_model;
-                    let mut selection;
-                    unsafe { selection_model = tree_view.as_mut().unwrap().selection_model(); }
-                    unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
-                    unsafe { packfile = model.as_ref().unwrap().item(0); }
+                    let packfile = unsafe { model.as_ref().unwrap().item(0) };
+                    let selection_model = unsafe { tree_view.as_mut().unwrap().selection_model() };
+                    let mut selection = if let Some(filter) = filter {
+                        unsafe { filter.as_mut().unwrap().map_selection_to_source(&selection_model.as_mut().unwrap().selection()).indexes() }  
+                    }
+                    else {
+                        unsafe { selection_model.as_mut().unwrap().selection().indexes() }
+                    };
                     let mut item = selection.take_at(0);
                     let mut parent;
 
@@ -2244,10 +2261,8 @@ pub fn update_treeview(
                         unsafe { model.as_mut().unwrap().remove_row((item.row(), &parent));}
 
                         // Check if the parent still has children.
-                        let has_children;
-                        let packfile_has_children;
-                        unsafe { has_children = model.as_mut().unwrap().has_children(&parent); }
-                        unsafe { packfile_has_children = packfile.as_ref().unwrap().has_children(); }
+                        let has_children = unsafe { model.as_mut().unwrap().has_children(&parent) };
+                        let packfile_has_children = unsafe { packfile.as_ref().unwrap().has_children() };
 
                         // If the parent has more children, or we reached the PackFile, we're done.
                         if has_children | !packfile_has_children { break; }
@@ -2267,6 +2282,7 @@ pub fn update_treeview(
                         &receiver_qt_data,
                         window,
                         tree_view,
+                        filter,
                         model,
                         TreeViewOperation::Build(false),
                     );
@@ -2287,12 +2303,10 @@ pub fn update_treeview(
                 TreePathType::File(path) => {
 
                     // Get the PackFile's item.
-                    let packfile;
-                    unsafe { packfile = model.as_ref().unwrap().item(0); }
+                    let packfile = unsafe { model.as_ref().unwrap().item(0) };
 
                     // Get it another time, this time to use it to hold the current item.
-                    let mut item;
-                    unsafe { item = model.as_ref().unwrap().item(0); }
+                    let mut item = unsafe { model.as_ref().unwrap().item(0) };
 
                     // Indexes to see how deep we must go.
                     let mut index = 0;
@@ -2305,8 +2319,7 @@ pub fn update_treeview(
                         if index == (path_deep - 1) {
 
                             // Get the amount of children of the current item.
-                            let children_count;
-                            unsafe { children_count = item.as_ref().unwrap().row_count(); }
+                            let children_count = unsafe { item.as_ref().unwrap().row_count() };
 
                             // For each children we have...
                             for row in 0..children_count {
@@ -2432,12 +2445,16 @@ pub fn update_treeview(
         TreeViewOperation::Rename(path_type, new_name) => {
 
             // Get the selection model.
-            let selection_model;
-            unsafe { selection_model = tree_view.as_mut().unwrap().selection_model(); }
+            let selection_model = unsafe { tree_view.as_mut().unwrap().selection_model() };
 
             // Get the selected cell.
-            let selection;
-            unsafe { selection = selection_model.as_mut().unwrap().selected_indexes(); }
+            let selection = if let Some(filter) = filter {
+                unsafe { filter.as_ref().unwrap().map_selection_to_source(&selection_model.as_mut().unwrap().selection()).indexes() }
+            }
+            else {
+                unsafe { selection_model.as_mut().unwrap().selected_indexes() }
+            };
+            
             let selection = selection.at(0);
 
             // Put the new name in a variant.
@@ -2483,8 +2500,7 @@ pub fn update_treeview(
 
                 // Get the item and the new text.
                 let item = get_item_from_incomplete_path(model, &path);
-                let text;
-                unsafe { text = item.as_mut().unwrap().text().to_std_string(); }
+                let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
                 let new_name = format!("{}{}", prefix, text); 
                 unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&new_name)); }
 
