@@ -32531,12 +32531,12 @@
           "version": 2,
           "fields": [
             {
-              "field_name": "campaign_group",
+              "field_name": "effect_bundle",
               "field_type": "StringU8",
-              "field_is_key": true,
+              "field_is_key": false,
               "field_is_reference": [
-                "campaign_groups",
-                "id"
+                "effect_bundles",
+                "key"
               ],
               "field_description": ""
             },
@@ -32551,12 +32551,12 @@
               "field_description": ""
             },
             {
-              "field_name": "effect_bundle",
+              "field_name": "campaign_group",
               "field_type": "StringU8",
-              "field_is_key": false,
+              "field_is_key": true,
               "field_is_reference": [
-                "effect_bundles",
-                "key"
+                "campaign_groups",
+                "id"
               ],
               "field_description": ""
             }
