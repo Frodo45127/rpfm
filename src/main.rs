@@ -552,6 +552,7 @@ pub struct AppUI {
     pub folder_tree_filter_line_edit: *mut LineEdit,
     pub folder_tree_filter_autoexpand_matches_button: *mut PushButton,
     pub folder_tree_filter_case_sensitive_button: *mut PushButton,
+    pub folder_tree_filter_filter_by_folder_button: *mut PushButton,
     pub packed_file_splitter: *mut Splitter,
 
     //-------------------------------------------------------------------------------//
@@ -743,13 +744,18 @@ fn main() {
         folder_tree_filter_autoexpand_matches_button.set_checkable(true);
 
         // Create the filter's "Case Sensitive" button.
-        let mut folder_tree_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
+        let mut folder_tree_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("AaI"));
         folder_tree_filter_case_sensitive_button.set_checkable(true);
+
+        // Create the filter's "Filter By Folder" button.
+        let mut folder_tree_filter_filter_by_folder_button = PushButton::new(&QString::from_std_str("Filter By Folder"));
+        folder_tree_filter_filter_by_folder_button.set_checkable(true);
 
         unsafe { folder_tree_layout.add_widget((folder_tree_view.as_mut_ptr() as *mut Widget, 0, 0, 1, 2)); }
         unsafe { folder_tree_layout.add_widget((folder_tree_filter_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 2)); }
         unsafe { folder_tree_layout.add_widget((folder_tree_filter_autoexpand_matches_button.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
         unsafe { folder_tree_layout.add_widget((folder_tree_filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_filter_by_folder_button.as_mut_ptr() as *mut Widget, 3, 0, 1, 2)); }
 
         // Create the "Global Search" view.
         let global_search_widget = Widget::new().into_raw();
@@ -901,6 +907,7 @@ fn main() {
             folder_tree_filter_line_edit: folder_tree_filter_line_edit.into_raw(),
             folder_tree_filter_autoexpand_matches_button: folder_tree_filter_autoexpand_matches_button.into_raw(),
             folder_tree_filter_case_sensitive_button: folder_tree_filter_case_sensitive_button.into_raw(),
+            folder_tree_filter_filter_by_folder_button: folder_tree_filter_filter_by_folder_button.into_raw(),
             packed_file_splitter: packed_file_splitter.into_raw(),
 
             //-------------------------------------------------------------------------------//
@@ -1371,6 +1378,11 @@ fn main() {
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in an external program.")); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in a secondary view, without closing the currently open one.")); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Performs a search over every DB Table, Loc PackedFile and Text File in the PackFile.")); }
+        
+        // TreeView Filter buttons.
+        unsafe { app_ui.folder_tree_filter_autoexpand_matches_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Auto-Expand matches. NOTE: Filtering with all matches expanded in a big PackFile (+10k files, like data.pack) can hang the program for a while. You have been warned.")); }
+        unsafe { app_ui.folder_tree_filter_case_sensitive_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Enable/Disable case sensitive filtering for the TreeView.")); }
+        unsafe { app_ui.folder_tree_filter_filter_by_folder_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Set the filter to only filter by folder names and show all the files inside the matched folders.")); }
 
         //---------------------------------------------------------------------------------------//
         // What should happend when we press buttons and stuff...
@@ -3822,6 +3834,9 @@ fn main() {
         let slot_folder_view_filter_change_case_sensitive = SlotBool::new(move |_| {
             filter_files(&app_ui); 
         });
+        let slot_folder_tree_filter_filter_by_folder_button = SlotBool::new(move |_| {
+            filter_files(&app_ui); 
+        });
 
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
@@ -3844,6 +3859,7 @@ fn main() {
         unsafe { app_ui.folder_tree_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_folder_view_filter_change_text); }
         unsafe { app_ui.folder_tree_filter_autoexpand_matches_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_tree_filter_change_autoexpand_matches); }
         unsafe { app_ui.folder_tree_filter_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_view_filter_change_case_sensitive); }
+        unsafe { app_ui.folder_tree_filter_filter_by_folder_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_tree_filter_filter_by_folder_button); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it

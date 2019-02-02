@@ -22,4 +22,4 @@ extern "C" { pub fn new_spinbox_item_delegate(table_view: *mut Object, column: i
 extern "C" { pub fn new_doublespinbox_item_delegate(table_view: *mut Object, column: i32); }
 extern "C" { pub fn new_treeview_filter(parent: *mut Object) -> *mut SortFilterProxyModel; }
 
-extern "C" { pub fn trigger_treeview_filter(filter: *mut SortFilterProxyModel, pattern: *mut RegExp); }
+extern "C" { pub fn trigger_treeview_filter(filter: *mut SortFilterProxyModel, pattern: *mut RegExp, filter_by_folder: bool); }
