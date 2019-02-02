@@ -14,7 +14,7 @@ It depends on what you need. Good things of RPFM are:
 - **UI similar to PFM**, so it's not hard to get used to when coming from PFM.
 
 Bad things are:
-- **Doesn't support Napoleon or Empire (yet)**.
+- **You say it**.
 
 # Status of the Project
 RPFM currently supports:
@@ -24,6 +24,8 @@ RPFM currently supports:
 - **TW: Attila**.
 - **TW: Rome 2**.
 - **TW: Shogun 2**.
+- **TW: Napoleon**.
+- **TW: Empire**.
 - **TW: Arena** (Read-Only and not complete table support).
 
 It can do more or less what PFM can do, but faster and, in some times, even better. If you want to know all the features RPFM has to offer, you can check the manual that it comes with it. It's included in RPFM release since 1.0, and you can open it by going to ***About/Open Manual***.
@@ -37,10 +39,11 @@ In ***Linux*** make sure you have Qt5 installed. Then download and execute the p
 To build this project, you need:
 * ***Qt 5.8*** or higher.
 * ***Rust toolchain*** (+1.26).
+* ***Lzma lib*** (or equivalent).
 
-In **Linux**, you just need to install the latest ***Qt5 package*** of your distro (at least *Qt 5.8*), and the DDS Plugin from *Qt5 ImageFormats* (you'll have to compile it, as it's no longer included by default in Qt). Also, you'll need the ***Rust Toolchain*** (at least +1.26, recommended using [***Rustup***][Rustup download]).
+In **Linux**, you just need to install the latest ***Qt5 package*** of your distro (at least *Qt 5.8*), and the DDS Plugin from *Qt5 ImageFormats* (you'll have to compile it, as it's no longer included by default in Qt). Also, you'll need the ***Rust Toolchain*** (at least +1.26, recommended using [***Rustup***][Rustup download]) and the LZMA lib.
 
-In **Windows**, first you need to install the ***Rust Toolchain*** (at least +1.26, recommended using [***Rustup***][Rustup download]), and then install ***Qt5*** (at least *Qt 5.8*), and the DDS Plugin from *Qt5 ImageFormats* (you'll have to compile it, as it's no longer included by default in Qt). That's all.
+In **Windows**, first you need to install the ***Rust Toolchain*** (at least +1.26, recommended using [***Rustup***][Rustup download]) the LZMA lib, and then install ***Qt5*** (at least *Qt 5.8*), and the DDS Plugin from *Qt5 ImageFormats* (you'll have to compile it, as it's no longer included by default in Qt). That's all.
 
 To build, move to the repo directory and execute:
 ```bash
@@ -55,7 +58,7 @@ cargo run
 - **Kailua throws useless errors!!!**: That feature is alpha and very experimental.
 - **Linux paths doesn't work properly**: The linux version of some of the games have their files with a different structure than in Windows. To be fixed in another update.
 - **Trying to extract a folder in a folder with a folder of the same name of the folder we are trying to extract gets you inside the folder instead of extracting your folder**: Weird behavior of the FileChooser. Still trying to find the cause.
-- **Selecting an encrypted RigidModel crashes the game**: The RigidModel module is a bit unstable. To be fixed in the next update.
+- **Selecting an encrypted RigidModel crashes the game**: The RigidModel module is a bit unstable. To be fixed in a future update.
 - **My PackFile just vanished from the data folder!!!!!**: If you mod in the data folder of Warhammer 2, ***DISABLE LAZY-LOADING IN THE SETTINGS***. The problem is a bug in the Assembly Kit, not in RPFM. Want it fixed? Ask CA to fix it. If you have lazy-loading disabled, just try to save the PackFile outside the data folder and you'll recover all your data.
 
 # FAQ
