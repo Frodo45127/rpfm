@@ -42,7 +42,8 @@ use qt_core::item_selection::ItemSelection;
 use qt_core::model_index::ModelIndex;
 use qt_core::object::Object;
 use qt_core::qt::{GlobalColor, ShortcutContext};
-use qt_core::slots::{SlotBool, SlotNoArgs, SlotModelIndexRef};
+use qt_core::reg_exp::RegExp;
+use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef, SlotModelIndexRef};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::variant::Variant;
 use cpp_utils::StaticCast;
@@ -485,13 +486,16 @@ pub fn create_new_packed_file_dialog(
     // Create the main Grid and his widgets.
     let main_grid = GridLayout::new().into_raw();
     let mut new_packed_file_name_edit = LineEdit::new(());
+    let table_filter_line_edit = LineEdit::new(()).into_raw();
     let create_button = PushButton::new(&QString::from_std_str("Create")).into_raw();
     let mut table_dropdown = ComboBox::new();
+    let table_filter = SortFilterProxyModel::new().into_raw();
     let mut table_model = StandardItemModel::new(());
     unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     new_packed_file_name_edit.set_text(&QString::from_std_str("new_file"));
     unsafe { table_dropdown.set_model(table_model.static_cast_mut()); }
+    unsafe { table_filter_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the tables of the list. Works with Regex too!")); }
 
     // Add all the widgets to the main grid.
     unsafe { main_grid.as_mut().unwrap().add_widget((new_packed_file_name_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
@@ -510,7 +514,11 @@ pub fn create_new_packed_file_dialog(
 
                 // Add every table to the dropdown if exists in the dependency database.
                 schema.tables_definitions.iter().filter(|x| tables.contains(&x.name)).for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x.name)));
+                unsafe { table_filter.as_mut().unwrap().set_source_model(table_model.static_cast_mut()); }
+                unsafe { table_dropdown.set_model(table_filter as *mut AbstractItemModel); }
+
                 unsafe { main_grid.as_mut().unwrap().add_widget((table_dropdown.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+                unsafe { main_grid.as_mut().unwrap().add_widget((table_filter_line_edit as *mut Widget, 2, 0, 1, 1)); }
             }
 
             // If we don't have an schema, return Some(Error).
@@ -522,8 +530,17 @@ pub fn create_new_packed_file_dialog(
     // Actions for the New PackedFile Dialog...
     //-------------------------------------------------------------------------------------------//
 
+    // What happens when we search in the filter.
+    let slot_table_filter_change_text = SlotStringRef::new(move |_| {
+        let pattern = unsafe { RegExp::new(&table_filter_line_edit.as_mut().unwrap().text()) };
+        unsafe { table_filter.as_mut().unwrap().set_filter_reg_exp(&pattern); }
+    });
+
     // What happens when we hit the "Create" button.
     unsafe { create_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // What happens when we edit the search filter.
+    unsafe { table_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_table_filter_change_text); }
 
     // Show the Dialog and, if we hit the "Create" button...
     if dialog.exec() == 1 {
