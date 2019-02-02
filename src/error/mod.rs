@@ -1,3 +1,13 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
+// 
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+// 
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
 // Here should go all the stuff needed to get the damn error system working, so we can provide precise
 // error reports instead what we had before.
 
@@ -137,6 +147,12 @@ pub enum ErrorKind {
 
     // Error for when the compressed PackedFile is either incomplete (<9 bytes) or the decompression failed.
     PackedFileDataCouldNotBeDecompressed,
+
+    // Error for when we expect data to be in memory, but it isn't.
+    PackedFileDataIsNotInMemory,
+
+    // Error for when we try to open a PackedFile not in the filter from the GlobalSearch.
+    PackedFileNotInFilter,
 
     //--------------------------------//
     // DB Table Errors
@@ -428,6 +444,8 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileDataCouldNotBeLoaded => write!(f, "<p>This PackedFile's data could not be loaded. This means RPFM can no longer read the PackFile from the disk.</p>"),
             ErrorKind::PackedFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackedFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackedFile, or this PackedFile is corrupted.</p>", reported_size, expected_size),
             ErrorKind::PackedFileDataCouldNotBeDecompressed => write!(f, "<p>This is a compressed file and the decompresion failed for some reason. This means this PackedFile cannot be opened in RPFM.</p>"),
+            ErrorKind::PackedFileDataIsNotInMemory => write!(f, "<p>This PackedFile's data is not in memory. If you see this, report it, as it's a bug.</p>"),
+            ErrorKind::PackedFileNotInFilter => write!(f, "<p>This PackedFile is not in the current TreeView filter. If you want to open it, remove the filter.</p>"),
 
             //--------------------------------//
             // DB Table Errors

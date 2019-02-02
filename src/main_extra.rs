@@ -1,3 +1,13 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
+// 
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+// 
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
 // Here are functions that were part of main, but the file got too big to search them efficiently.
 // If you need to turn something from main.rs into a function, put the function here.
 use super::*;
@@ -55,6 +65,7 @@ pub fn open_packfile(
                 &receiver_qt,
                 app_ui.window,
                 app_ui.folder_tree_view,
+                Some(app_ui.folder_tree_filter),
                 app_ui.folder_tree_model,
                 TreeViewOperation::Build(false),
             );
@@ -73,7 +84,9 @@ pub fn open_packfile(
                     "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                     "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                     "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-                    "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                    "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                    "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+                    "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
                 }
 
                 // Set the current "Operational Mode" to `MyMod`.
@@ -109,6 +122,15 @@ pub fn open_packfile(
 
                     // PFH3 is for Shogun 2.
                     PFHVersion::PFH3 => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+
+                    // PFH0 is for Napoleon/Empire.
+                    PFHVersion::PFH0 => {
+                        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                        match &*game_selected {
+                            "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); },
+                            "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
+                        }
+                    },
                 }
 
                 // Set the current "Operational Mode" to `Normal`.
@@ -183,7 +205,7 @@ pub fn open_packedfile(
         let selection = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
 
         // Get the path of the selected item.
-        let full_path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
+        let full_path = get_path_from_item_selection(app_ui.folder_tree_model, Some(app_ui.folder_tree_filter), &selection, true);
 
         // Send the Path to the Background Thread, and get the type of the item.
         sender_qt.send(Commands::GetTypeOfPath).unwrap();
@@ -495,6 +517,7 @@ pub fn save_packfile(
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
                             );
@@ -622,7 +645,9 @@ pub fn build_my_mod_menu(
                             "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
                             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                             "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-                            "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                            "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                            "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+                            "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
                         }
 
                         // Get his new path from the base "MyMod" path + `mod_game`.
@@ -678,6 +703,7 @@ pub fn build_my_mod_menu(
                                     &receiver_qt,
                                     app_ui.window,
                                     app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Build(false),
                                 );
@@ -1291,6 +1317,12 @@ pub fn enable_packfile_actions(
             "shogun_2" => {
                 unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
             },
+            "napoleon" => {
+                unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
+            "empire" => {
+                unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+            },
             _ => {},
         }
     }
@@ -1316,7 +1348,13 @@ pub fn enable_packfile_actions(
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
 
         // Disable Shogun 2 actions...
-        unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+
+        // Disable Napoleon actions...
+        unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        
+        // Disable Empire actions...
+        unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(false); }
     }
 }
 
@@ -1406,4 +1444,25 @@ pub fn filter_matches_result(
 
     // Filter whatever it's in that column by the text we got.
     unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&pattern); }
+}
+
+/// Function to filter the file list. If a value is not provided by a slot, we get it from the widget itself.
+pub fn filter_files(app_ui: &AppUI) {
+
+    // Set the pattern to search.
+    let mut pattern = unsafe { RegExp::new(&app_ui.folder_tree_filter_line_edit.as_mut().unwrap().text()) };
+
+    // Check if the filter should be "Case Sensitive" and if it should "Filter By Folders".
+    let filter_by_folder = unsafe { app_ui.folder_tree_filter_filter_by_folder_button.as_mut().unwrap().is_checked() };
+    let case_sensitive = unsafe { app_ui.folder_tree_filter_case_sensitive_button.as_mut().unwrap().is_checked() };
+    if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+    else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+
+    // Filter whatever it's in that column by the text we got.
+    unsafe { trigger_treeview_filter(app_ui.folder_tree_filter, &mut pattern, filter_by_folder); }
+
+    // Expand all the matches, if the option for it is enabled.
+    if unsafe { app_ui.folder_tree_filter_autoexpand_matches_button.as_ref().unwrap().is_checked() } {
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().expand_all(); }
+    }
 }

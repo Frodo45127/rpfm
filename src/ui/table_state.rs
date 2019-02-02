@@ -1,3 +1,13 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
+// 
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+// 
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
 // Usually this kind of stuff goes into the background thread, but this is only used in the UI. And I'm tired, so this'll stay here for the moment.
 
 use qt_gui::standard_item_model::StandardItemModel;

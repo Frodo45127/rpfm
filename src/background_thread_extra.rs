@@ -1,3 +1,13 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
+// 
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+// 
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
 // In this file are all the functions that the UI needs to interact with the PackFile logic.
 // As a rule, there should be no UI-related stuff in this module or his childrens.
 

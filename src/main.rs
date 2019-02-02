@@ -1,3 +1,13 @@
+//---------------------------------------------------------------------------//
+// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
+// 
+// This file is part of the Rusted PackFile Manager (RPFM) project,
+// which can be found here: https://github.com/Frodo45127/rpfm.
+// 
+// This file is licensed under the MIT license, which can be found here:
+// https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
+//---------------------------------------------------------------------------//
+
 // This is the main file of RPFM. Here is the main loop that builds the UI and controls his events.
 
 // Disabled `Clippy` linters, with the reasons why they were disabled.
@@ -59,6 +69,7 @@ use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::item_selection_model::SelectionFlag;
+use qt_core::object::Object;
 use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, Orientation, ShortcutContext, SortOrder, WindowState};
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef, SlotCInt, SlotModelIndexRef, SlotItemSelectionRefItemSelectionRef};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
@@ -100,6 +111,7 @@ use crate::ui::packedfile_db::*;
 use crate::ui::packedfile_loc::*;
 use crate::ui::packedfile_text::*;
 use crate::ui::packedfile_rigidmodel::*;
+use crate::ui::qt_custom_stuff::*;
 use crate::ui::settings::*;
 use crate::ui::table_state::*;
 use crate::ui::updater::*;
@@ -303,29 +315,98 @@ lazy_static! {
             supports_editing: true,
         });
 
-        // // Napoleon
-        // map.insert("napoleon", GameInfo {
-        //     display_name: "Napoleon".to_owned(),
-        //     id: PFHVersion::PFH2,
-        //     schema: "schema_nap.json".to_owned(),
-        //     db_pack: "data.pack".to_owned(),
-        //     loc_pack: "local_en.pack".to_owned(),
-        //     steam_id: Some(34030),
-        //     ca_types_file: None,
-        //     supports_editing: true,
-        // });
+        // Napoleon
+        map.insert("napoleon", GameInfo {
+            display_name: "Napoleon".to_owned(),
+            id: PFHVersion::PFH0,
+            schema: "schema_nap.json".to_owned(),
+            db_packs: vec![                     // NOTE: Patches 5 and 7 has no table changes, so they should not be here.
+                "data.pack".to_owned(),         // Main DB PackFile
+                "patch.pack".to_owned(),        // First Patch
+                "patch2.pack".to_owned(),       // Second Patch
+                "patch3.pack".to_owned(),       // Third Patch
+                "patch4.pack".to_owned(),       // Fourth Patch
+                "patch6.pack".to_owned(),       // Six Patch
+            ],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),         // English
+                "local_en_patch.pack".to_owned(),   // English Patch
+                "local_br.pack".to_owned(),         // Brazilian
+                "local_br_patch.pack".to_owned(),   // Brazilian Patch
+                "local_cz.pack".to_owned(),         // Czech
+                "local_cz_patch.pack".to_owned(),   // Czech Patch
+                "local_ge.pack".to_owned(),         // German
+                "local_ge_patch.pack".to_owned(),   // German Patch
+                "local_sp.pack".to_owned(),         // Spanish
+                "local_sp_patch.pack".to_owned(),   // Spanish Patch
+                "local_fr.pack".to_owned(),         // French
+                "local_fr_patch.pack".to_owned(),   // French Patch
+                "local_it.pack".to_owned(),         // Italian
+                "local_it_patch.pack".to_owned(),   // Italian Patch
+                "local_kr.pack".to_owned(),         // Korean
+                "local_kr_patch.pack".to_owned(),   // Korean Patch
+                "local_pl.pack".to_owned(),         // Polish
+                "local_pl_patch.pack".to_owned(),   // Polish Patch
+                "local_ru.pack".to_owned(),         // Russian
+                "local_ru_patch.pack".to_owned(),   // Russian Patch
+                "local_tr.pack".to_owned(),         // Turkish
+                "local_tr_patch.pack".to_owned(),   // Turkish Patch
+                "local_cn.pack".to_owned(),         // Simplified Chinese
+                "local_cn_patch.pack".to_owned(),   // Simplified Chinese Patch
+                "local_zh.pack".to_owned(),         // Traditional Chinese
+                "local_zh_patch.pack".to_owned(),   // Traditional Chinese Patch
+            ],
+            steam_id: Some(34030),
+            ca_types_file: None,
+            supports_editing: true,
+        });
 
-        // // Empire
-        // map.insert("empire", GameInfo {
-        //     display_name: "Empire".to_owned(),
-        //     id: PFHVersion::PFH0,
-        //     schema: "schema_emp.json".to_owned(),
-        //     db_pack: "data.pack".to_owned(),
-        //     loc_pack: "local_en.pack".to_owned(),
-        //     steam_id: Some(10500),
-        //     ca_types_file: None,
-        //     supports_editing: true,
-        // });
+        // Empire
+        map.insert("empire", GameInfo {
+            display_name: "Empire".to_owned(),
+            id: PFHVersion::PFH0,
+            schema: "schema_emp.json".to_owned(),
+            db_packs: vec![
+                "main.pack".to_owned(),         // Main DB PackFile
+                "models.pack".to_owned(),       // Models PackFile (contains model-related DB Tables)
+                "patch.pack".to_owned(),        // First Patch
+                "patch2.pack".to_owned(),       // Second Patch
+                "patch3.pack".to_owned(),       // Third Patch
+                "patch4.pack".to_owned(),       // Fourth Patch
+                "patch5.pack".to_owned(),       // Fifth Patch
+            ],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "patch_en.pack".to_owned(),     // English Patch
+                "local_br.pack".to_owned(),     // Brazilian
+                "patch_br.pack".to_owned(),     // Brazilian Patch
+                "local_cz.pack".to_owned(),     // Czech
+                "patch_cz.pack".to_owned(),     // Czech Patch
+                "local_ge.pack".to_owned(),     // German
+                "patch_ge.pack".to_owned(),     // German Patch
+                "local_sp.pack".to_owned(),     // Spanish
+                "patch_sp.pack".to_owned(),     // Spanish Patch
+                "local_fr.pack".to_owned(),     // French
+                "patch_fr.pack".to_owned(),     // French Patch
+                "local_it.pack".to_owned(),     // Italian
+                "patch_it.pack".to_owned(),     // Italian Patch
+                "local_kr.pack".to_owned(),     // Korean
+                "patch_kr.pack".to_owned(),     // Korean Patch
+                "local_pl.pack".to_owned(),     // Polish
+                "patch_pl.pack".to_owned(),     // Polish Patch
+                "local_ru.pack".to_owned(),     // Russian
+                "patch_ru.pack".to_owned(),     // Russian Patch
+                "local_tr.pack".to_owned(),     // Turkish
+                "patch_tr.pack".to_owned(),     // Turkish Patch
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "patch_cn.pack".to_owned(),     // Simplified Chinese Patch
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+                "patch_zh.pack".to_owned(),     // Traditional Chinese Patch
+            ],
+            steam_id: Some(10500),
+            ca_types_file: None,
+            supports_editing: true,
+        });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
         // Otherwise, stuff that uses this list will probably break.
@@ -466,7 +547,12 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     pub window: *mut MainWindow,
     pub folder_tree_view: *mut TreeView,
+    pub folder_tree_filter: *mut SortFilterProxyModel,
     pub folder_tree_model: *mut StandardItemModel,
+    pub folder_tree_filter_line_edit: *mut LineEdit,
+    pub folder_tree_filter_autoexpand_matches_button: *mut PushButton,
+    pub folder_tree_filter_case_sensitive_button: *mut PushButton,
+    pub folder_tree_filter_filter_by_folder_button: *mut PushButton,
     pub packed_file_splitter: *mut Splitter,
 
     //-------------------------------------------------------------------------------//
@@ -508,6 +594,8 @@ pub struct AppUI {
     pub attila: *mut Action,
     pub rome_2: *mut Action,
     pub shogun_2: *mut Action,
+    pub napoleon: *mut Action,
+    pub empire: *mut Action,
     pub arena: *mut Action,
 
     pub game_selected_group: *mut ActionGroup,
@@ -535,6 +623,12 @@ pub struct AppUI {
 
     // Shogun 2's actions.
     pub sho2_optimize_packfile: *mut Action,
+
+    // Napoleon's actions.
+    pub nap_optimize_packfile: *mut Action,
+
+    // Empire's actions.
+    pub emp_optimize_packfile: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // "About" menu.
@@ -627,12 +721,41 @@ fn main() {
         // Create the PackedFile splitter.
         let mut packed_file_splitter = Splitter::new(());
 
+        // Create the widget to fit in all the TreeView stuff.
+        let mut folder_tree_widget = Widget::new();
+        let mut folder_tree_layout = GridLayout::new();
+        unsafe { folder_tree_widget.set_layout(folder_tree_layout.static_cast_mut()); }
+
         // Create the TreeView.
         let mut folder_tree_view = TreeView::new();
+        let folder_tree_filter = unsafe { new_treeview_filter(folder_tree_widget.as_mut_ptr() as *mut Object) };
         let mut folder_tree_model = StandardItemModel::new(());
-        unsafe { folder_tree_view.set_model(folder_tree_model.static_cast_mut()); }
+        unsafe { folder_tree_filter.as_mut().unwrap().set_source_model(folder_tree_model.static_cast_mut()); }
+        unsafe { folder_tree_view.set_model(folder_tree_filter as *mut AbstractItemModel); }
         folder_tree_view.set_header_hidden(true);
         folder_tree_view.set_animated(true);
+
+        // Create the filter's LineEdit.
+        let mut folder_tree_filter_line_edit = LineEdit::new(());
+        folder_tree_filter_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the files in the PackFile. Works with Regex too!"));
+
+        // Create the filter's "Auto-Expand Matches" button.
+        let mut folder_tree_filter_autoexpand_matches_button = PushButton::new(&QString::from_std_str("Auto-Expand Matches"));
+        folder_tree_filter_autoexpand_matches_button.set_checkable(true);
+
+        // Create the filter's "Case Sensitive" button.
+        let mut folder_tree_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("AaI"));
+        folder_tree_filter_case_sensitive_button.set_checkable(true);
+
+        // Create the filter's "Filter By Folder" button.
+        let mut folder_tree_filter_filter_by_folder_button = PushButton::new(&QString::from_std_str("Filter By Folder"));
+        folder_tree_filter_filter_by_folder_button.set_checkable(true);
+
+        unsafe { folder_tree_layout.add_widget((folder_tree_view.as_mut_ptr() as *mut Widget, 0, 0, 1, 2)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 2)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_autoexpand_matches_button.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { folder_tree_layout.add_widget((folder_tree_filter_filter_by_folder_button.as_mut_ptr() as *mut Widget, 3, 0, 1, 2)); }
 
         // Create the "Global Search" view.
         let global_search_widget = Widget::new().into_raw();
@@ -722,7 +845,7 @@ fn main() {
         let update_global_search_stuff = Action::new(()).into_raw();
 
         // Add the corresponding widgets to the layout.
-        unsafe { central_splitter.add_widget(folder_tree_view.static_cast_mut()); }
+        unsafe { central_splitter.add_widget(folder_tree_widget.as_mut_ptr()); }
         unsafe { central_splitter.add_widget(packed_file_splitter.static_cast_mut() as *mut Widget); }
         unsafe { central_splitter.add_widget(global_search_widget); }
 
@@ -761,6 +884,8 @@ fn main() {
         let menu_attila = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")) };
         let menu_rome_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")) };
         let menu_shogun_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Shogun 2")) };
+        let menu_napoleon = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Napoleon")) };
+        let menu_empire = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Empire")) };
         
         // Contextual Menu for the TreeView.
         let mut folder_tree_view_context_menu = Menu::new(());
@@ -777,7 +902,12 @@ fn main() {
             //-------------------------------------------------------------------------------//
             window: window.into_raw(),
             folder_tree_view: folder_tree_view.into_raw(),
+            folder_tree_filter: folder_tree_filter,
             folder_tree_model: folder_tree_model.into_raw(),
+            folder_tree_filter_line_edit: folder_tree_filter_line_edit.into_raw(),
+            folder_tree_filter_autoexpand_matches_button: folder_tree_filter_autoexpand_matches_button.into_raw(),
+            folder_tree_filter_case_sensitive_button: folder_tree_filter_case_sensitive_button.into_raw(),
+            folder_tree_filter_filter_by_folder_button: folder_tree_filter_filter_by_folder_button.into_raw(),
             packed_file_splitter: packed_file_splitter.into_raw(),
 
             //-------------------------------------------------------------------------------//
@@ -819,6 +949,8 @@ fn main() {
             attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
             rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
             shogun_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Shogun 2")),
+            napoleon: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Napoleon")),
+            empire: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Empire")),
             arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
 
             game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -846,6 +978,12 @@ fn main() {
 
             // Shogun 2's actions.
             sho2_optimize_packfile: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+
+            // Napoleon's actions.
+            nap_optimize_packfile: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+
+            // Empire's actions.
+            emp_optimize_packfile: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
@@ -928,6 +1066,8 @@ fn main() {
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.rome_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.shogun_2); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.napoleon); }
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.empire); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
@@ -935,6 +1075,8 @@ fn main() {
         unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.shogun_2.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.napoleon.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.empire.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.arena.as_mut().unwrap().set_checkable(true); }
 
         // Arena is special, so separate it from the rest.
@@ -1194,6 +1336,8 @@ fn main() {
         unsafe { app_ui.attila.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Attila' as 'Game Selected'.")); }
         unsafe { app_ui.rome_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Rome 2' as 'Game Selected'.")); }
         unsafe { app_ui.shogun_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Shogun 2' as 'Game Selected'.")); }
+        unsafe { app_ui.napoleon.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Napoleon' as 'Game Selected'.")); }
+        unsafe { app_ui.empire.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Empire' as 'Game Selected'.")); }
         unsafe { app_ui.arena.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Arena' as 'Game Selected'.")); }
 
         // Menu bar, Special Stuff.
@@ -1234,6 +1378,11 @@ fn main() {
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in an external program.")); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in a secondary view, without closing the currently open one.")); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Performs a search over every DB Table, Loc PackedFile and Text File in the PackFile.")); }
+        
+        // TreeView Filter buttons.
+        unsafe { app_ui.folder_tree_filter_autoexpand_matches_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Auto-Expand matches. NOTE: Filtering with all matches expanded in a big PackFile (+10k files, like data.pack) can hang the program for a while. You have been warned.")); }
+        unsafe { app_ui.folder_tree_filter_case_sensitive_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Enable/Disable case sensitive filtering for the TreeView.")); }
+        unsafe { app_ui.folder_tree_filter_filter_by_folder_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Set the filter to only filter by folder names and show all the files inside the matched folders.")); }
 
         //---------------------------------------------------------------------------------------//
         // What should happend when we press buttons and stuff...
@@ -1309,6 +1458,8 @@ fn main() {
         unsafe { app_ui.attila.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.rome_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.shogun_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.napoleon.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
+        unsafe { app_ui.empire.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.arena.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
 
         // Update the "Game Selected" here, so we can skip some steps when initializing.
@@ -1320,7 +1471,9 @@ fn main() {
             "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
             "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
             "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
-            "shogun_2" | _ => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+            "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+            "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+            "empire" | _ => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
         }
 
         //-----------------------------------------------------//
@@ -1381,6 +1534,7 @@ fn main() {
                         &receiver_qt,
                         app_ui.window,
                         app_ui.folder_tree_view,
+                        Some(app_ui.folder_tree_filter),
                         app_ui.folder_tree_model,
                         TreeViewOperation::Build(false),
                     );
@@ -1547,6 +1701,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Build(false),
                             );
@@ -1562,6 +1717,8 @@ fn main() {
                                 "attila" => unsafe { app_ui.attila.as_mut().unwrap().trigger(); }
                                 "rome_2" => unsafe { app_ui.rome_2.as_mut().unwrap().trigger(); }
                                 "shogun_2" => unsafe { app_ui.shogun_2.as_mut().unwrap().trigger(); }
+                                "napoleon" => unsafe { app_ui.napoleon.as_mut().unwrap().trigger(); }
+                                "empire" => unsafe { app_ui.empire.as_mut().unwrap().trigger(); }
                                 "arena" => unsafe { app_ui.arena.as_mut().unwrap().trigger(); },
                                 _ => unreachable!()
                             }
@@ -1766,6 +1923,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::DeleteUnselected(item_type),
                             );
@@ -1833,6 +1991,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::DeleteUnselected(item_type),
                             );
@@ -1974,7 +2133,7 @@ fn main() {
             receiver_qt => move |selection,_| {
 
                 // Get the path of the selected item.
-                let path = get_path_from_item_selection(app_ui.folder_tree_model, &selection, true);
+                let path = get_path_from_item_selection(app_ui.folder_tree_model, Some(app_ui.folder_tree_filter), &selection, true);
 
                 // Try to get the TreePathType. This should never fail, so CTD if it does it.
                 sender_qt.send(Commands::GetTypeOfPath).unwrap();
@@ -2231,6 +2390,7 @@ fn main() {
                                             &receiver_qt,
                                             app_ui.window,
                                             app_ui.folder_tree_view,
+                                            Some(app_ui.folder_tree_filter),
                                             app_ui.folder_tree_model,
                                             TreeViewOperation::Add(paths_packedfile.to_vec()),
                                         );
@@ -2323,6 +2483,7 @@ fn main() {
                                         &receiver_qt,
                                         app_ui.window,
                                         app_ui.folder_tree_view,
+                                        Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::Add(paths_packedfile.to_vec()),
                                     );
@@ -2481,6 +2642,7 @@ fn main() {
                                             &receiver_qt,
                                             app_ui.window,
                                             app_ui.folder_tree_view,
+                                            Some(app_ui.folder_tree_filter),
                                             app_ui.folder_tree_model,
                                             TreeViewOperation::Add(paths_packedfile.to_vec()),
                                         );
@@ -2577,6 +2739,7 @@ fn main() {
                                         &receiver_qt,
                                         app_ui.window,
                                         app_ui.folder_tree_view,
+                                        Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::Add(paths_packedfile.to_vec()),
                                     );
@@ -2730,6 +2893,7 @@ fn main() {
                         &receiver_qt,
                         app_ui.window,
                         app_ui.folder_tree_view,
+                        Some(app_ui.folder_tree_filter),
                         app_ui.folder_tree_model,
                         TreeViewOperation::Add(vec![complete_path; 1]),
                     );
@@ -2785,6 +2949,7 @@ fn main() {
                                                 &receiver_qt,
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
+                                                Some(app_ui.folder_tree_filter),
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(vec![complete_path; 1]),
                                             );
@@ -2868,6 +3033,7 @@ fn main() {
                                                 &receiver_qt,
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
+                                                Some(app_ui.folder_tree_filter),
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(vec![complete_path; 1]),
                                             );
@@ -2965,6 +3131,7 @@ fn main() {
                                                 &receiver_qt,
                                                 app_ui.window,
                                                 app_ui.folder_tree_view,
+                                                Some(app_ui.folder_tree_filter),
                                                 app_ui.folder_tree_model,
                                                 TreeViewOperation::Add(vec![complete_path; 1]),
                                             );
@@ -3033,6 +3200,7 @@ fn main() {
                                     &receiver_qt,
                                     app_ui.window,
                                     app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::Add(paths_to_add.to_vec()),
                                 );
@@ -3237,6 +3405,7 @@ fn main() {
                             &receiver_qt,
                             app_ui.window,
                             app_ui.folder_tree_view,
+                            Some(app_ui.folder_tree_filter),
                             app_ui.folder_tree_model,
                             TreeViewOperation::DeleteSelected(path_type),
                         );
@@ -3655,6 +3824,20 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger one of the "Filter Updater" events for the Folder TreeView.
+        let slot_folder_view_filter_change_text = SlotStringRef::new(move |_| {
+            filter_files(&app_ui); 
+        });
+        let slot_folder_tree_filter_change_autoexpand_matches = SlotBool::new(move |_| {
+            filter_files(&app_ui); 
+        });
+        let slot_folder_view_filter_change_case_sensitive = SlotBool::new(move |_| {
+            filter_files(&app_ui); 
+        });
+        let slot_folder_tree_filter_filter_by_folder_button = SlotBool::new(move |_| {
+            filter_files(&app_ui); 
+        });
+
         // Contextual Menu Actions.
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
@@ -3671,6 +3854,12 @@ fn main() {
         unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
         unsafe { app_ui.context_menu_open_with_external_program.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_with_external_program); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_in_multi_view); }
+
+        // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
+        unsafe { app_ui.folder_tree_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_folder_view_filter_change_text); }
+        unsafe { app_ui.folder_tree_filter_autoexpand_matches_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_tree_filter_change_autoexpand_matches); }
+        unsafe { app_ui.folder_tree_filter_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_view_filter_change_case_sensitive); }
+        unsafe { app_ui.folder_tree_filter_filter_by_folder_button.as_mut().unwrap().signals().toggled().connect(&slot_folder_tree_filter_filter_by_folder_button); }
 
         //-----------------------------------------------------------------------------------------//
         // Rename Action. Due to me not understanding how the edition of a TreeView works, we do it
@@ -3722,6 +3911,7 @@ fn main() {
                                         &receiver_qt,
                                         app_ui.window,
                                         app_ui.folder_tree_view,
+                                        Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
                                         TreeViewOperation::Rename(item_type.clone(), new_name.to_owned()),
                                     );
@@ -3870,6 +4060,7 @@ fn main() {
                                     &receiver_qt,
                                     app_ui.window,
                                     app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
                                     TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
                                 );
@@ -3960,6 +4151,7 @@ fn main() {
                                 &receiver_qt,
                                 app_ui.window,
                                 app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
                             );
@@ -4225,52 +4417,51 @@ fn main() {
             slot_open_packedfile => move |model_index_filter| {
 
                 // Map the ModelIndex to his real ModelIndex in the full model.
-                let model_index_match;
-                unsafe { model_index_match = filter_model_matches_loc.as_mut().unwrap().map_to_source(&model_index_filter); }
+                let model_index_match = unsafe { filter_model_matches_loc.as_mut().unwrap().map_to_source(&model_index_filter) };
 
                 // Get the data about the PackedFile.
-                let path;
-                let row;
-                let column;
-                unsafe { path = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string(); }
+                let path = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string() };
                 let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
-                unsafe { row = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1; }
-                unsafe { column = model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap();; }
+                let row = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1 };
+                let column = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
 
                 // Expand and select the item in the TreeView.
                 let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
-                let model_index;
-                unsafe { model_index = app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item); }
+                let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
 
-                let selection_model;
-                unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &model_index,
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
+                let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
+                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
 
-                // Show the PackedFile in the TreeView.
-                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
-                unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
-                
-                // Close any open PackedFile, the open the PackedFile and select the match in it.
-                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-                let action = Action::new(()).into_raw();
-                unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
-                unsafe { action.as_mut().unwrap().trigger(); }
+                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
+                if filtered_index.is_valid() {
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &filtered_index,
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
+                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
 
-                let packed_file_table;
-                let packed_file_model;
-                unsafe { packed_file_table = app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
-                unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
-                let selection_model;
-                unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &packed_file_model.as_mut().unwrap().index((row, column)),
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
+                    // Show the PackedFile in the TreeView.
+                    expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
 
-                unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+                    // Close any open PackedFile, the open the PackedFile and select the match in it.
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                    let action = Action::new(()).into_raw();
+                    unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
+                    unsafe { action.as_mut().unwrap().trigger(); }
+
+                    // Then, select the match and scroll to it.
+                    let packed_file_table = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView };
+                    let packed_file_model = unsafe { packed_file_table.as_mut().unwrap().model() };
+                    let selection_model = unsafe { packed_file_table.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &packed_file_model.as_mut().unwrap().index((row, column)),
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
+
+                    unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+                    
+                }
+                else { show_dialog(app_ui.window, false, ErrorKind::PackedFileNotInFilter); }
             }
         ));
 
@@ -4280,52 +4471,51 @@ fn main() {
             slot_open_packedfile => move |model_index_filter| {
 
                 // Map the ModelIndex to his real ModelIndex in the full model.
-                let model_index_match;
-                unsafe { model_index_match = filter_model_matches_db.as_mut().unwrap().map_to_source(&model_index_filter); }
+                let model_index_match = unsafe { filter_model_matches_db.as_mut().unwrap().map_to_source(&model_index_filter) };
 
                 // Get the data about the PackedFile.
-                let path;
-                let row;
-                let column;
-                unsafe { path = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string(); }
+                let path = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string() };
                 let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
-                unsafe { row = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1; }
-                unsafe { column = model_matches_db.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap(); }
+                let row = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1 };
+                let column = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
 
                 // Expand and select the item in the TreeView.
                 let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
-                let model_index;
-                unsafe { model_index = app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item); }
+                let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
+                
+                let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
+                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
 
-                let selection_model;
-                unsafe { selection_model = app_ui.folder_tree_view.as_mut().unwrap().selection_model(); }
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &model_index,
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
+                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
+                if filtered_index.is_valid() {
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &filtered_index,
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
+                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
 
-                // Show the PackedFile in the TreeView.
-                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_model, &path);
-                unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&model_index); }
-                           
-                // Close any open PackedFile, the open the PackedFile and select the match in it.
-                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-                let action = Action::new(()).into_raw();
-                unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
-                unsafe { action.as_mut().unwrap().trigger(); }
+                    // Show the PackedFile in the TreeView.
+                    expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
 
-                let packed_file_table;
-                let packed_file_model;
-                unsafe { packed_file_table = app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView; }
-                unsafe { packed_file_model = packed_file_table.as_mut().unwrap().model(); }
-                let selection_model;
-                unsafe { selection_model = packed_file_table.as_mut().unwrap().selection_model(); }
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &packed_file_model.as_mut().unwrap().index((row, column)),
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
+                    // Close any open PackedFile, the open the PackedFile.
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                    let action = Action::new(()).into_raw();
+                    unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
+                    unsafe { action.as_mut().unwrap().trigger(); }
 
-                unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+                    // Then, select the match and scroll to it.
+                    let packed_file_table = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView };
+                    let packed_file_model = unsafe { packed_file_table.as_mut().unwrap().model() };
+                    let selection_model = unsafe { packed_file_table.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &packed_file_model.as_mut().unwrap().index((row, column)),
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
+
+                    unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+
+                }
+                else { show_dialog(app_ui.window, false, ErrorKind::PackedFileNotInFilter); }
             }
         ));
 
