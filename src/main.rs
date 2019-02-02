@@ -4422,38 +4422,44 @@ fn main() {
                 // Get the data about the PackedFile.
                 let path = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string() };
                 let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+                let row = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1 };
+                let column = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
 
                 // Expand and select the item in the TreeView.
                 let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
                 let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
 
-                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &model_index,
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
-
-                // Show the PackedFile in the TreeView.
-                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
                 let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
-                if filtered_index.is_valid() {
-                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
-                }
+                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
 
-                // Close any open PackedFile, the open the PackedFile and select the match in it.
-                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-                let action = Action::new(()).into_raw();
-                unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
-                unsafe { action.as_mut().unwrap().trigger(); }
-
+                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
                 if filtered_index.is_valid() {
-                    let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
                     unsafe { selection_model.as_mut().unwrap().select((
                         &filtered_index,
                         Flags::from_enum(SelectionFlag::ClearAndSelect)
                     )); }
-
                     unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
+
+                    // Show the PackedFile in the TreeView.
+                    expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
+
+                    // Close any open PackedFile, the open the PackedFile and select the match in it.
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                    let action = Action::new(()).into_raw();
+                    unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
+                    unsafe { action.as_mut().unwrap().trigger(); }
+
+                    // Then, select the match and scroll to it.
+                    let packed_file_table = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView };
+                    let packed_file_model = unsafe { packed_file_table.as_mut().unwrap().model() };
+                    let selection_model = unsafe { packed_file_table.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &packed_file_model.as_mut().unwrap().index((row, column)),
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
+
+                    unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+                    
                 }
                 else { show_dialog(app_ui.window, false, ErrorKind::PackedFileNotInFilter); }
             }
@@ -4470,38 +4476,44 @@ fn main() {
                 // Get the data about the PackedFile.
                 let path = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 0)).as_mut().unwrap().text().to_std_string() };
                 let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+                let row = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 2)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1 };
+                let column = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
 
                 // Expand and select the item in the TreeView.
                 let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
                 let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
                 
-                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().select((
-                    &model_index,
-                    Flags::from_enum(SelectionFlag::ClearAndSelect)
-                )); }
-
-                // Show the PackedFile in the TreeView.
-                expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
                 let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
-                if filtered_index.is_valid() {
-                    unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
-                }
+                let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
 
-                // Close any open PackedFile, the open the PackedFile and select the match in it.
-                purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-                let action = Action::new(()).into_raw();
-                unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
-                unsafe { action.as_mut().unwrap().trigger(); }
-
+                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
                 if filtered_index.is_valid() {
-                    let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
                     unsafe { selection_model.as_mut().unwrap().select((
                         &filtered_index,
                         Flags::from_enum(SelectionFlag::ClearAndSelect)
                     )); }
-
                     unsafe { app_ui.folder_tree_view.as_mut().unwrap().scroll_to(&filtered_index); }
+
+                    // Show the PackedFile in the TreeView.
+                    expand_treeview_to_item(app_ui.folder_tree_view, app_ui.folder_tree_filter, app_ui.folder_tree_model, &path);
+
+                    // Close any open PackedFile, the open the PackedFile.
+                    purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                    let action = Action::new(()).into_raw();
+                    unsafe { action.as_mut().unwrap().signals().triggered().connect(&*slot_open_packedfile); }
+                    unsafe { action.as_mut().unwrap().trigger(); }
+
+                    // Then, select the match and scroll to it.
+                    let packed_file_table = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().widget(0).as_mut().unwrap().layout().as_mut().unwrap().item_at(0).as_mut().unwrap().widget() as *mut TableView };
+                    let packed_file_model = unsafe { packed_file_table.as_mut().unwrap().model() };
+                    let selection_model = unsafe { packed_file_table.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().select((
+                        &packed_file_model.as_mut().unwrap().index((row, column)),
+                        Flags::from_enum(SelectionFlag::ClearAndSelect)
+                    )); }
+
+                    unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
+
                 }
                 else { show_dialog(app_ui.window, false, ErrorKind::PackedFileNotInFilter); }
             }
