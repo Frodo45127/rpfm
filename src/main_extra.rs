@@ -502,25 +502,9 @@ pub fn save_packfile(
                     match check_message_validity_tryrecv(&receiver_qt) {
                         Data::I64(date) => {
 
-                            // Update the "Last Modified Date" of the PackFile in the TreeView.
+                            // Update the "Last Modified Date" of the PackFile in the TreeView and his name.
                             unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
-
-                            // Get the Selection Model and the Model Index of the PackFile's Cell, so the rename function works properly in the UI.
-                            let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
-                            let model_index = unsafe { app_ui.folder_tree_model.as_ref().unwrap().index((0, 0)) };
-                            unsafe { selection_model.as_mut().unwrap().select((&model_index, Flags::from_int(3))); }
-
-                            // Rename it with the new name.
-                            update_treeview(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &receiver_qt,
-                                app_ui.window,
-                                app_ui.folder_tree_view,
-                                Some(app_ui.folder_tree_filter),
-                                app_ui.folder_tree_model,
-                                TreeViewOperation::Rename(TreePathType::PackFile, path.file_name().unwrap().to_string_lossy().as_ref().to_owned()),
-                            );
+                            unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_text(&QString::from_std_str(path.file_name().unwrap().to_string_lossy().as_ref().to_owned())); }
 
                             // Set the mod as "Not Modified".
                             *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
