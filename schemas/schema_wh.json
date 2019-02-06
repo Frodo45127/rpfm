@@ -48198,6 +48198,43 @@
       ]
     },
     {
+      "name": "religion_conversion_mods_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "rel_from",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "religions",
+                "religion_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rel_to",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "religions",
+                "religion_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "modifier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "religions_tables",
       "versions": [
         {
@@ -48411,6 +48448,43 @@
                 "instant_income_types",
                 "id"
               ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "resource_effects_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "resource_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "resources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
@@ -52969,6 +53043,53 @@
       ]
     },
     {
+      "name": "technology_unit_upgrades_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "target_unit",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "technology",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "technologies",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "trade_node_groups_tables",
       "versions": [
         {
@@ -56925,6 +57046,70 @@
               "field_is_reference": [
                 "unit_lists",
                 "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unit_variant_upgrades_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "ancillary_primary",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ancillary_secondary",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": "Optional"
+            },
+            {
+              "field_name": "cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "main_unit_key",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "variant_name",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "variants",
+                "variant_name"
               ],
               "field_description": ""
             }
