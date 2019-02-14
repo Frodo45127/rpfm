@@ -392,7 +392,7 @@ impl PackedFileDBTreeView {
         let update_search_stuff = Action::new(()).into_raw();
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        build_columns(&table_definition, table_view, model, &packed_file_path.borrow().last().unwrap());
+        build_columns(&table_definition, table_view, model, &packed_file_path.borrow()[1]);
 
         {
             let mut table_state_data = table_state_data.borrow_mut();
@@ -2057,7 +2057,7 @@ impl PackedFileDBTreeView {
                         }
 
                         // Build the Column's "Data".
-                        build_columns(&table_definition, table_view, model, &packed_file_path.borrow().last().unwrap());
+                        build_columns(&table_definition, table_view, model, &packed_file_path.borrow()[1]);
 
                         if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
@@ -3350,7 +3350,7 @@ impl PackedFileDBTreeView {
                 history_opposite.push(TableOperations::ImportTSVDB(data.borrow().clone()));
 
                 Self::load_data_to_table_view(&dependency_data, &table_data, table_view, model);
-                build_columns(&data.borrow().table_definition, table_view, model, &packed_file_path.borrow().last().unwrap());
+                build_columns(&data.borrow().table_definition, table_view, model, &packed_file_path.borrow()[1]);
 
                 // If we want to let the columns resize themselfs...
                 if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
@@ -5428,13 +5428,14 @@ fn build_columns(
         } else { 
             let schema = SCHEMA.lock().unwrap().clone();
             let mut referenced_columns = if let Some(schema) = schema {
+                let short_table_name = table_name.split_at(table_name.len() - 7).0;
                 let mut columns = vec![];
                 for table in schema.tables_definitions {
                     let mut found = false;
                     for version in table.versions {
                         for field_ref in version.fields {
                             if let Some(ref_data) = field_ref.field_is_reference { 
-                                if &ref_data.0 == table_name && ref_data.1 == field.field_name {
+                                if &ref_data.0 == short_table_name && ref_data.1 == field.field_name {
                                     found = true;
                                     columns.push((table.name.to_owned(), field_ref.field_name)); 
                                 }
