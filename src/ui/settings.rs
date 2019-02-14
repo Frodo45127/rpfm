@@ -418,7 +418,7 @@ impl SettingsDialog {
         //-------------------------------------------------------------------------------------------//
 
         // Load the MyMod Path, if exists.
-        settings_dialog.load_to_settings_dialog();
+        settings_dialog.load_to_settings_dialog(&SETTINGS.lock().unwrap());
 
         //-------------------------------------------------------------------------------------------//
         // Actions that must exectute at the end...
@@ -428,9 +428,7 @@ impl SettingsDialog {
         // What happens when we hit the "Restore Default" action.
         let slot_restore_default = SlotNoArgs::new(clone!(
             settings_dialog => move || {
-
-                *SETTINGS.lock().unwrap() = Settings::new();
-                (*settings_dialog.borrow_mut()).load_to_settings_dialog()
+                (*settings_dialog.borrow_mut()).load_to_settings_dialog(&Settings::new());
             }
         ));
 
@@ -445,40 +443,40 @@ impl SettingsDialog {
     }
 
     /// This function loads the data from the Settings struct to the Settings Dialog.
-    pub fn load_to_settings_dialog(&mut self) {
+    pub fn load_to_settings_dialog(&mut self, settings: &Settings) {
 
         // Load the MyMod Path, if exists.
-        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(SETTINGS.lock().unwrap().paths["mymods_base_path"].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(settings.paths["mymods_base_path"].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter_mut() {
-            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&SETTINGS.lock().unwrap().paths[key].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths[key].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
         }
 
         // Get the Default Game.
         for (index, (folder_name,_)) in SUPPORTED_GAMES.iter().enumerate() {
-            if *folder_name == SETTINGS.lock().unwrap().settings_string["default_game"] {
+            if *folder_name == settings.settings_string["default_game"] {
                 unsafe { self.extra_default_game_combobox.as_mut().unwrap().set_current_index(index as i32); }
                 break;
             }
         }
 
         // Load the UI Stuff.
-        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"]); }
-        unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"]); }
-        unsafe { self.ui_disable_combos_on_tables.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"]); }
-        unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["start_maximized"]); }
-        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["remember_column_state"]); }
-        unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"]); }
-        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_dark_theme"]); }
+        unsafe { self.ui_adjust_columns_to_content.as_mut().unwrap().set_checked(settings.settings_bool["adjust_columns_to_content"]); }
+        unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(settings.settings_bool["extend_last_column_on_tables"]); }
+        unsafe { self.ui_disable_combos_on_tables.as_mut().unwrap().set_checked(settings.settings_bool["disable_combos_on_tables"]); }
+        unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(settings.settings_bool["start_maximized"]); }
+        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_state"]); }
+        unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(settings.settings_bool["remember_table_state_permanently"]); }
+        unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(settings.settings_bool["use_dark_theme"]); }
 
         // Load the Extra Stuff.
-        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["allow_editing_of_ca_packfiles"]); }
-        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["check_updates_on_start"]); }
-        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"]); }
-        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_pfm_extracting_behavior"]); }
-        unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"]); }
-        unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"]); }
+        unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]); }
+        unsafe { self.extra_check_updates_on_start.as_mut().unwrap().set_checked(settings.settings_bool["check_updates_on_start"]); }
+        unsafe { self.extra_check_schema_updates_on_start.as_mut().unwrap().set_checked(settings.settings_bool["check_schema_updates_on_start"]); }
+        unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(settings.settings_bool["use_pfm_extracting_behavior"]); }
+        unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(settings.settings_bool["use_dependency_checker"]); }
+        unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(settings.settings_bool["use_lazy_loading"]); }
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
