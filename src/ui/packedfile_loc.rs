@@ -2272,24 +2272,28 @@ impl PackedFileLocTreeView {
                 // Same with the columns, if we opted to keep their state.
                 let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
-                
-                if SETTINGS.lock().unwrap().settings_bool["remember_column_state"] {
+
+                // Depending on the current settings, load the current state of the table or not.
+                if SETTINGS.lock().unwrap().settings_bool["remember_column_sorting"] {
                     let sort_order = if state_data.columns_state.sorting_column.1 { SortOrder::Descending } else { SortOrder::Ascending };
                     unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, sort_order)); }
-      
+                }
+ 
+                if SETTINGS.lock().unwrap().settings_bool["remember_column_visual_order"] {
                     for (visual_old, visual_new) in &state_data.columns_state.visual_order {
                         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*visual_old, *visual_new); }
                     }
+                }
 
                     // For this we have to "block" the action before checking it, to avoid borrowmut errors. There is no need to unblock, because the blocker will die after the action.
+                if SETTINGS.lock().unwrap().settings_bool["remember_column_hidden_state"] {
                     for hidden_column in &state_data.columns_state.hidden_columns {
                         unsafe { table_view.as_mut().unwrap().set_column_hidden(*hidden_column, true); }
 
                         let mut _blocker = unsafe { SignalBlocker::new(actions_hide_show_column[*hidden_column as usize].as_mut().unwrap() as &mut Object) };
                         unsafe { actions_hide_show_column[*hidden_column as usize].as_mut().unwrap().set_checked(true); }
-                    }                     
+                    }      
                 }
-                else { state_data.columns_state = ColumnsState::new((-1, false), vec![], vec![]); }
                 
                 blocker1.unblock();
                 blocker2.unblock();

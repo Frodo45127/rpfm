@@ -57,9 +57,11 @@ pub struct SettingsDialog {
     pub ui_extend_last_column_on_tables: *mut CheckBox,
     pub ui_disable_combos_on_tables: *mut CheckBox,
     pub ui_start_maximized: *mut CheckBox,
-    pub ui_remember_column_state: *mut CheckBox,
     pub ui_remember_table_state_permanently: *mut CheckBox,
     pub ui_use_dark_theme: *mut CheckBox,
+    pub ui_table_view_remember_column_sorting: *mut CheckBox,
+    pub ui_table_view_remember_column_visual_order: *mut CheckBox,
+    pub ui_table_view_remember_column_hidden_state: *mut CheckBox,
     pub extra_default_game_combobox: *mut ComboBox,
     pub extra_allow_editing_of_ca_packfiles: *mut CheckBox,
     pub extra_check_updates_on_start: *mut CheckBox,
@@ -149,22 +151,33 @@ impl SettingsDialog {
         let ui_settings_grid = GridLayout::new().into_raw();
         unsafe { ui_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
+        // Create the "UI TableView Settings" frame and grid.
+        let ui_table_view_settings_frame = GroupBox::new(&QString::from_std_str("Table Settings")).into_raw();
+        let ui_table_view_settings_grid = GridLayout::new().into_raw();
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
+
         // Create the UI options.
         let mut adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut extend_last_column_on_tables_label = Label::new(&QString::from_std_str("Extend Last Column on Tables:"));
         let mut disable_combos_on_tables_label = Label::new(&QString::from_std_str("Disable ComboBoxes on Tables:"));
         let mut start_maximized_label = Label::new(&QString::from_std_str("Start Maximized:"));
-        let mut remember_column_state_label = Label::new(&QString::from_std_str("Remember Column State on Tables:"));
         let mut remember_table_state_permanently_label = Label::new(&QString::from_std_str("Remember Table State Across PackFiles:"));
         let mut use_dark_theme_label = Label::new(&QString::from_std_str("Use Dark Theme (Requires restart):"));
+
+        let mut remember_column_sorting_label = Label::new(&QString::from_std_str("Remember Column's Sorting State:"));
+        let mut remember_column_visual_order_label = Label::new(&QString::from_std_str("Remember Column's Visual Order:"));
+        let mut remember_column_hidden_state_label = Label::new(&QString::from_std_str("Remember Hidden Columns:"));
 
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
         let mut extend_last_column_on_tables_checkbox = CheckBox::new(());
         let mut disable_combos_on_tables_checkbox = CheckBox::new(());
         let mut start_maximized_checkbox = CheckBox::new(());
-        let mut remember_column_state_checkbox = CheckBox::new(());
         let mut remember_table_state_permanently_checkbox = CheckBox::new(());
         let mut use_dark_theme_checkbox = CheckBox::new(());
+
+        let mut remember_column_sorting_checkbox = CheckBox::new(());
+        let mut remember_column_visual_order_checkbox = CheckBox::new(());
+        let mut remember_column_hidden_state_checkbox = CheckBox::new(());
 
         let mut shortcuts_label = Label::new(&QString::from_std_str("See/Change Shortcuts:"));
         let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
@@ -174,11 +187,15 @@ impl SettingsDialog {
         let extend_last_column_on_tables_tip = QString::from_std_str("If you enable this, the last column on DB Tables and Loc PackedFiles will extend itself to fill the empty space at his right, if there is any.");
         let disable_combos_on_tables_tip = QString::from_std_str("If you disable this, no more combos will be shown in referenced columns in tables. This means no combos nor autocompletion on DB Tables.\nNow shut up Baldy.");
         let start_maximized_tip = QString::from_std_str("If you enable this, RPFM will start maximized.");
-        let remember_column_state_tip = QString::from_std_str("If you enable this, RPFM will remember how did you left a DB Table or Loc PackedFile (columns moved, what column was sorting the Table,...) when you re-open it again. This memory is temporary, until the opened PackFile changes.");
         let remember_table_state_permanently_tip = QString::from_std_str("If you enable this, RPFM will remember the state of a DB Table or Loc PackedFile (filter data, columns moved, what column was sorting the Table,...) even when you close RPFM and open it again. If you don't want this behavior, leave this disabled.");
         let use_dark_theme_tip = QString::from_std_str("<i>Ash nazg durbatulûk, ash nazg gimbatul, ash nazg thrakatulûk, agh burzum-ishi krimpatul</i>");
-        let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
+        
+        let remember_column_sorting_tip = QString::from_std_str("Enable this to make RPFM remember for what column was a DB Table/LOC sorted when closing it and opening it again.");
+        let remember_column_visual_order_tip = QString::from_std_str("Enable this to make RPFM remember the visual order of the columns of a DB Table/LOC, when closing it and opening it again.");
+        let remember_column_hidden_state_tip = QString::from_std_str("Enable this to make RFPM remember what columns of a DB Table/LOC where hidden when closing it and opening it again.");
 
+        let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
+        
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
         extend_last_column_on_tables_label.set_tool_tip(&extend_last_column_on_tables_tip);
@@ -187,12 +204,18 @@ impl SettingsDialog {
         disable_combos_on_tables_checkbox.set_tool_tip(&disable_combos_on_tables_tip);
         start_maximized_label.set_tool_tip(&start_maximized_tip);
         start_maximized_checkbox.set_tool_tip(&start_maximized_tip);
-        remember_column_state_label.set_tool_tip(&remember_column_state_tip);
-        remember_column_state_checkbox.set_tool_tip(&remember_column_state_tip);
         remember_table_state_permanently_label.set_tool_tip(&remember_table_state_permanently_tip);
         remember_table_state_permanently_checkbox.set_tool_tip(&remember_table_state_permanently_tip);
         use_dark_theme_label.set_tool_tip(&use_dark_theme_tip);
         use_dark_theme_checkbox.set_tool_tip(&use_dark_theme_tip);
+
+        remember_column_sorting_label.set_tool_tip(&remember_column_sorting_tip);
+        remember_column_sorting_checkbox.set_tool_tip(&remember_column_sorting_tip);
+        remember_column_visual_order_label.set_tool_tip(&remember_column_visual_order_tip);
+        remember_column_visual_order_checkbox.set_tool_tip(&remember_column_visual_order_tip);
+        remember_column_hidden_state_label.set_tool_tip(&remember_column_hidden_state_tip);
+        remember_column_hidden_state_checkbox.set_tool_tip(&remember_column_hidden_state_tip);
+
         shortcuts_label.set_tool_tip(&shortcuts_tip);
         shortcuts_button.set_tool_tip(&shortcuts_tip);
 
@@ -208,19 +231,28 @@ impl SettingsDialog {
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_label.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((start_maximized_checkbox.static_cast_mut() as *mut Widget, 3, 1, 1, 1)); }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_label.static_cast_mut() as *mut Widget, 4, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_column_state_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
-
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_label.static_cast_mut() as *mut Widget, 4, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((remember_table_state_permanently_checkbox.static_cast_mut() as *mut Widget, 4, 1, 1, 1)); }
        
         if cfg!(target_os = "windows") {
-            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_label.static_cast_mut() as *mut Widget, 6, 0, 1, 1)); }
-            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
+            unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
         }
 
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 7, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 7, 1, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 6, 0, 1, 1)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
+        
+        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((ui_table_view_settings_frame as *mut Widget, 99, 0, 1, 2)); }
+        unsafe { ui_table_view_settings_frame.as_mut().unwrap().set_layout(ui_table_view_settings_grid as *mut Layout); }
+
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_sorting_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_sorting_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_visual_order_label.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_visual_order_checkbox.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
+        
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_hidden_state_label.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_hidden_state_checkbox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -401,9 +433,11 @@ impl SettingsDialog {
             ui_extend_last_column_on_tables: extend_last_column_on_tables_checkbox.into_raw(),
             ui_disable_combos_on_tables: disable_combos_on_tables_checkbox.into_raw(),
             ui_start_maximized: start_maximized_checkbox.into_raw(),
-            ui_remember_column_state: remember_column_state_checkbox.into_raw(),
             ui_remember_table_state_permanently: remember_table_state_permanently_checkbox.into_raw(),
             ui_use_dark_theme: use_dark_theme_checkbox.into_raw(),
+            ui_table_view_remember_column_sorting: remember_column_sorting_checkbox.into_raw(),
+            ui_table_view_remember_column_visual_order: remember_column_visual_order_checkbox.into_raw(),
+            ui_table_view_remember_column_hidden_state: remember_column_hidden_state_checkbox.into_raw(),
             extra_default_game_combobox: default_game_combobox.into_raw(),
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox.into_raw(),
             extra_check_updates_on_start: check_updates_on_start_checkbox.into_raw(),
@@ -466,9 +500,13 @@ impl SettingsDialog {
         unsafe { self.ui_extend_last_column_on_tables.as_mut().unwrap().set_checked(settings.settings_bool["extend_last_column_on_tables"]); }
         unsafe { self.ui_disable_combos_on_tables.as_mut().unwrap().set_checked(settings.settings_bool["disable_combos_on_tables"]); }
         unsafe { self.ui_start_maximized.as_mut().unwrap().set_checked(settings.settings_bool["start_maximized"]); }
-        unsafe { self.ui_remember_column_state.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_state"]); }
         unsafe { self.ui_remember_table_state_permanently.as_mut().unwrap().set_checked(settings.settings_bool["remember_table_state_permanently"]); }
         unsafe { self.ui_use_dark_theme.as_mut().unwrap().set_checked(settings.settings_bool["use_dark_theme"]); }
+
+        // Load the UI TableView Stuff.
+        unsafe { self.ui_table_view_remember_column_sorting.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_sorting"]); }
+        unsafe { self.ui_table_view_remember_column_visual_order.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_visual_order"]); }
+        unsafe { self.ui_table_view_remember_column_hidden_state.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_hidden_state"]); }
 
         // Load the Extra Stuff.
         unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]); }
@@ -516,9 +554,13 @@ impl SettingsDialog {
         unsafe { settings.settings_bool.insert("extend_last_column_on_tables".to_owned(), self.ui_extend_last_column_on_tables.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("disable_combos_on_tables".to_owned(), self.ui_disable_combos_on_tables.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("start_maximized".to_owned(), self.ui_start_maximized.as_mut().unwrap().is_checked()); }
-        unsafe { settings.settings_bool.insert("remember_column_state".to_owned(), self.ui_remember_column_state.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("remember_table_state_permanently".to_owned(), self.ui_remember_table_state_permanently.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("use_dark_theme".to_owned(), self.ui_use_dark_theme.as_mut().unwrap().is_checked()); }
+
+        // Get the UI TableView Settings.
+        unsafe { settings.settings_bool.insert("remember_column_sorting".to_owned(), self.ui_table_view_remember_column_sorting.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("remember_column_visual_order".to_owned(), self.ui_table_view_remember_column_visual_order.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("remember_column_hidden_state".to_owned(), self.ui_table_view_remember_column_hidden_state.as_mut().unwrap().is_checked()); }
 
         // Get the Extra Settings.
         unsafe { settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked()); }

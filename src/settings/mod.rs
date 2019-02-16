@@ -77,22 +77,29 @@ impl Settings {
             paths.insert(folder_name.to_string(), None);
         }
 
+        // Default Game.
         settings_string.insert("default_game".to_owned(), "warhammer_2".to_owned());
 
+        // UI Settings.
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);
         settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
         settings_bool.insert("disable_combos_on_tables".to_owned(), false);
         settings_bool.insert("start_maximized".to_owned(), false);
-        settings_bool.insert("remember_column_state".to_owned(), true);
         settings_bool.insert("remember_table_state_permanently".to_owned(), false);
         settings_bool.insert("use_dark_theme".to_owned(), false);
 
+        // Behavioral Settings.
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("use_pfm_extracting_behavior".to_owned(), false);
         settings_bool.insert("use_dependency_checker".to_owned(), false);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
+
+        // TableView Specific Settings.
+        settings_bool.insert("remember_column_sorting".to_owned(), true);
+        settings_bool.insert("remember_column_visual_order".to_owned(), true);
+        settings_bool.insert("remember_column_hidden_state".to_owned(), true);
 
         // Return it.
         Self {
