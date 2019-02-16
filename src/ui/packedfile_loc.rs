@@ -443,9 +443,26 @@ impl PackedFileLocTreeView {
             )),
 
             slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
-                packed_file_path => move |column, order| {
+                packed_file_path => move |column, _| {
+                    let mut needs_cleaning = false;
                     if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
-                        state.columns_state.sorting_column = (column, if let SortOrder::Ascending = order { false } else { true });
+                        
+                        // We only change the order if it's less than 3. Otherwise, we reset it.
+                        let mut old_order = state.columns_state.sorting_column.1;
+                        if old_order < 2 {
+                            old_order += 1;
+
+                            if old_order == 0 { state.columns_state.sorting_column = (-1, old_order); }
+                            else { state.columns_state.sorting_column = (column, old_order); }
+                        }
+                        else {
+                            needs_cleaning = true;
+                            old_order = -1;
+                            state.columns_state.sorting_column = (-1, old_order);   
+                        }
+                    }
+                    if needs_cleaning {
+                        unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)) };
                     }
                 }
             )),
@@ -2275,8 +2292,12 @@ impl PackedFileLocTreeView {
 
                 // Depending on the current settings, load the current state of the table or not.
                 if SETTINGS.lock().unwrap().settings_bool["remember_column_sorting"] {
-                    let sort_order = if state_data.columns_state.sorting_column.1 { SortOrder::Descending } else { SortOrder::Ascending };
-                    unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, sort_order)); }
+                    let sort_order = match state_data.columns_state.sorting_column.1 { 
+                        1 => (state_data.columns_state.sorting_column.0, SortOrder::Ascending),
+                        2 => (state_data.columns_state.sorting_column.0, SortOrder::Descending),
+                        _ => (-1, SortOrder::Ascending),
+                    };
+                    unsafe { table_view.as_mut().unwrap().sort_by_column(sort_order); }
                 }
  
                 if SETTINGS.lock().unwrap().settings_bool["remember_column_visual_order"] {

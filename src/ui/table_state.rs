@@ -57,10 +57,10 @@ pub struct SearchState {
     pub is_case_sensitive: bool,
 }
 
-/// This Struct stores the last state of the columns of a TableView. For sorting_column, ascending is false, descending is true.
+/// This Struct stores the last state of the columns of a TableView. For sorting_column, no order is 0, ascending is 1, descending is 2.
 #[derive(Serialize, Deserialize)]
 pub struct ColumnsState {
-    pub sorting_column: (i32, bool),
+    pub sorting_column: (i32, i8),
     pub visual_order: Vec<(i32, i32)>,
     pub hidden_columns: Vec<i32>,
 }
@@ -86,7 +86,7 @@ impl TableStateUI {
         Self {
             filter_state: FilterState::new(String::new(), 0, false),
             search_state: SearchState::new(String::new(), String::new(), 0, false),
-            columns_state: ColumnsState::new((-1, false), vec![], vec![]),
+            columns_state: ColumnsState::new((-1, 0), vec![], vec![]),
         }
     }
 
@@ -153,7 +153,7 @@ impl SearchState {
 impl ColumnsState {
 
     /// This function creates the ColumnState of a TableView.
-    pub fn new(sorting_column: (i32, bool), visual_order: Vec<(i32, i32)>, hidden_columns: Vec<i32>) -> Self {
+    pub fn new(sorting_column: (i32, i8), visual_order: Vec<(i32, i32)>, hidden_columns: Vec<i32>) -> Self {
         Self {
             sorting_column,
             visual_order,
