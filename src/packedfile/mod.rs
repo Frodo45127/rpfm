@@ -37,7 +37,7 @@ pub enum PackedFileType {
     Loc(String),
 
     // Name of the File, Name of the table, version of the table.
-    DB(String, String, u32),
+    DB(String, String, i32),
 
     // Name of the File.
     Text(String),
@@ -59,7 +59,7 @@ pub trait SerializableToTSV {
 
     /// `export_tsv`: Requires `&self`, the destination path for the TSV file and (in case of a table) 
     /// a name and a number (version) to put in the header of the TSV file. Returns sucess or an error.
-    fn export_tsv(&self, tsv_file_path: &PathBuf, db_info: (&str, u32)) -> Result<()>;
+    fn export_tsv(&self, tsv_file_path: &PathBuf, db_info: (&str, i32)) -> Result<()>;
 }
 
 /*
@@ -166,7 +166,7 @@ pub fn tsv_mass_import(
 
                 // Get the type and the version of the table and check if it's in the schema.
                 let table_type = tsv_info[0];
-                let table_version = tsv_info[1].parse::<u32>().unwrap();
+                let table_version = tsv_info[1].parse::<i32>().unwrap();
                 
                 let table_definition = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                     if let Some(table_definition) = DB::get_schema(&table_type, table_version, &schema) { table_definition }

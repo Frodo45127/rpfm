@@ -37,7 +37,7 @@ use qt_widgets::action::Action;
 use qt_widgets::action_group::ActionGroup;
 use qt_widgets::application::Application;
 use qt_widgets::combo_box::ComboBox;
-use qt_widgets::file_dialog::{AcceptMode, FileDialog, FileMode};
+use qt_widgets::file_dialog::{AcceptMode, FileDialog, FileMode, Option::ShowDirsOnly};
 use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::header_view::ResizeMode;
@@ -100,6 +100,7 @@ use crate::error::{ErrorKind, logger::Report, Result};
 use crate::main_extra::*;
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::*;
+use crate::packedfile::db::DB;
 use crate::packedfile::db::schemas::Schema;
 use crate::packedfile::db::schemas_importer::*;
 use crate::packfile::{PFHVersion, PFHFileType, PFHFlags};
@@ -177,6 +178,8 @@ lazy_static! {
                 "local_zh.pack".to_owned(),     // Traditional Chinese
             ],
             steam_id: Some(594_570),
+            raw_db_version: 2,
+            pak_file: Some("wh2.pak".to_owned()),
             ca_types_file: Some("ca_types_wh2".to_owned()),
             supports_editing: true,
         });
@@ -207,6 +210,8 @@ lazy_static! {
                 "local_zh.pack".to_owned(),     // Traditional Chinese
             ],
             steam_id: Some(364_360),
+            raw_db_version: 2,
+            pak_file: Some("wh.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
         });
@@ -233,6 +238,8 @@ lazy_static! {
                 "local_zh.pack".to_owned(),     // Traditional Chinese
             ],
             steam_id: Some(712_100),
+            raw_db_version: 2,
+            pak_file: Some("tob.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
         });
@@ -259,6 +266,8 @@ lazy_static! {
                 "local_zh.pack".to_owned(),     // Traditional Chinese
             ],
             steam_id: Some(325_610),
+            raw_db_version: 2,
+            pak_file: Some("att.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
         });
@@ -285,6 +294,8 @@ lazy_static! {
                 "local_zh.pack".to_owned(),     // Traditional Chinese
             ],
             steam_id: Some(214_950),
+            raw_db_version: 2,
+            pak_file: Some("rom2.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
         });
@@ -311,6 +322,8 @@ lazy_static! {
                 "local_zh.pack".to_owned(),     // Traditional Chinese
             ],
             steam_id: Some(34330),
+            raw_db_version: 1,
+            pak_file: Some("sho2.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
         });
@@ -357,6 +370,8 @@ lazy_static! {
                 "local_zh_patch.pack".to_owned(),   // Traditional Chinese Patch
             ],
             steam_id: Some(34030),
+            raw_db_version: 0,
+            pak_file: Some("nap.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
         });
@@ -404,6 +419,8 @@ lazy_static! {
                 "patch_zh.pack".to_owned(),     // Traditional Chinese Patch
             ],
             steam_id: Some(10500),
+            raw_db_version: 0,
+            pak_file: Some("emp.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
         });
@@ -418,6 +435,8 @@ lazy_static! {
             db_packs: vec!["wad.pack".to_owned()],
             loc_packs: vec!["local_ex.pack".to_owned()],
             steam_id: None,
+            raw_db_version: -1,
+            pak_file: None,
             ca_types_file: None,
             supports_editing: false,
         });
@@ -489,6 +508,9 @@ lazy_static! {
 
     /// PackedFiles from the dependencies of the currently open PackFile.
     static ref DEPENDENCY_DATABASE: Mutex<Vec<PackedFile>> = Mutex::new(vec![]);
+    
+    /// DB Files from the Pak File of the current game. Only for dependency checking.
+    static ref FAKE_DEPENDENCY_DATABASE: Mutex<Vec<DB>> = Mutex::new(vec![]);
 
     /// Currently loaded schema.
     static ref SCHEMA: Arc<Mutex<Option<Schema>>> = Arc::new(Mutex::new(None));
@@ -607,28 +629,36 @@ pub struct AppUI {
     // Warhammer 2's actions.
     pub wh2_patch_siege_ai: *mut Action,
     pub wh2_optimize_packfile: *mut Action,
+    pub wh2_generate_pak_file: *mut Action,
 
     // Warhammer's actions.
     pub wh_patch_siege_ai: *mut Action,
     pub wh_optimize_packfile: *mut Action,
+    pub wh_generate_pak_file: *mut Action,
 
     // Thrones of Britannia's actions.
     pub tob_optimize_packfile: *mut Action,
-    
+    pub tob_generate_pak_file: *mut Action,
+
     // Attila's actions.
     pub att_optimize_packfile: *mut Action,
-    
+    pub att_generate_pak_file: *mut Action,
+
     // Rome 2's actions.
     pub rom2_optimize_packfile: *mut Action,
+    pub rom2_generate_pak_file: *mut Action,
 
     // Shogun 2's actions.
     pub sho2_optimize_packfile: *mut Action,
+    pub sho2_generate_pak_file: *mut Action,
 
     // Napoleon's actions.
     pub nap_optimize_packfile: *mut Action,
+    pub nap_generate_pak_file: *mut Action,
 
     // Empire's actions.
     pub emp_optimize_packfile: *mut Action,
+    pub emp_generate_pak_file: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // "About" menu.
@@ -962,28 +992,36 @@ fn main() {
             // Warhammer 2's actions.
             wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
             wh2_optimize_packfile: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            wh2_generate_pak_file: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
 
             // Warhammer's actions.
             wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
             wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            wh_generate_pak_file: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
             
             // Thrones of Britannia's actions.
             tob_optimize_packfile: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            tob_generate_pak_file: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
 
             // Attila's actions.
             att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            
+            att_generate_pak_file: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+
             // Rome 2's actions.
             rom2_optimize_packfile: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            rom2_generate_pak_file: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
 
             // Shogun 2's actions.
             sho2_optimize_packfile: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            sho2_generate_pak_file: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
 
             // Napoleon's actions.
             nap_optimize_packfile: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            nap_generate_pak_file: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
 
             // Empire's actions.
             emp_optimize_packfile: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            emp_generate_pak_file: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
@@ -1343,12 +1381,23 @@ fn main() {
         // Menu bar, Special Stuff.
         let patch_siege_ai_tip = QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.");
         let optimize_packfile = QString::from_std_str("Check and remove any data in DB Tables and Locs (Locs only for english users) that is unchanged from the base game. That means your mod will only contain the stuff you change, avoiding incompatibilities with other mods.");
+        let generate_pak_file = QString::from_std_str("Generates a Pak File (Processed Assembly Kit File) for the game selected, to help with dependency checking. You should NEVER use this, as these files are automatically redistributed with RPFM.");
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.wh_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.att_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.rom2_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
+        unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.sho2_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
+        unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.nap_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
+        unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.emp_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
 
         // Menu bar, About.
         unsafe { app_ui.about_qt.as_mut().unwrap().set_status_tip(&QString::from_std_str("Info about Qt, the UI Toolkit used to make this program.")); }
@@ -2027,14 +2076,81 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Generate Pak File" action.
+        let slot_generate_pak_file = SlotBool::new(clone!(
+            receiver_qt,
+            sender_qt,
+            sender_qt_data => move |_| {
+
+                // If there is no problem, ere we go.
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
+                let game_selected = GAME_SELECTED.lock().unwrap().clone();
+                let path = match &*game_selected {
+                    "warhammer_2" | "warhammer" | "thrones" | "attila" | "rome_2" => {
+                        let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone().unwrap();
+                        path.push("assembly_kit");
+                        path.push("raw_data");
+                        path.push("db");
+                        path
+                    }
+                    _ => {
+
+                        let mut path = PathBuf::from("");
+
+                        // Create the FileDialog to get the path of the Assembly Kit.
+                        let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                            app_ui.window as *mut Widget,
+                            &QString::from_std_str("Select Assembly Kit's Folder"),
+                        )) };
+
+                        // Set it to only search Folders.
+                        file_dialog.set_file_mode(FileMode::Directory);
+                        file_dialog.set_option(ShowDirsOnly);
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        if file_dialog.exec() == 1 { 
+                            path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                        }
+                        path
+                    }
+                };
+
+                sender_qt.send(Commands::GeneratePakFile).unwrap();
+                sender_qt_data.send(Data::PathBuf(path)).unwrap();
+                match check_message_validity_tryrecv(&receiver_qt) {
+                    Data::Success => show_dialog(app_ui.window, true, "PAK File succesfully created and reloaded."),
+                    Data::Error(error) => show_dialog(app_ui.window, false, error),
+                    _ => panic!(THREADS_MESSAGE_ERROR),
+                }
+
+                // Re-enable the Main Window.
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        ));
+
         // "Special Stuff" Menu Actions.        
         unsafe { app_ui.wh2_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
         unsafe { app_ui.wh_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
 
         unsafe { app_ui.wh2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.wh_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+        unsafe { app_ui.tob_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.att_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.rom2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+        unsafe { app_ui.sho2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+        unsafe { app_ui.nap_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+        unsafe { app_ui.emp_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
+
+        unsafe { app_ui.wh2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
+        unsafe { app_ui.wh_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
+        unsafe { app_ui.tob_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
+        unsafe { app_ui.att_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
+        unsafe { app_ui.rom2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
+        unsafe { app_ui.sho2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
+        unsafe { app_ui.nap_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
+        unsafe { app_ui.emp_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
 
         //-----------------------------------------------------//
         // "About" Menu...

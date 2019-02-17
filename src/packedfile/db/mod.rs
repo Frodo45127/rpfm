@@ -32,6 +32,7 @@ use super::SerializableToTSV;
 use self::schemas::*;
 use crate::error::{Error, ErrorKind, Result};
 
+pub mod raw_tables;
 pub mod schemas;
 pub mod schemas_importer;
 
@@ -49,7 +50,7 @@ const VERSION_MARKER: &[u8] = &[252, 253, 254, 255];
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DB {
     pub db_type: String,
-    pub version: u32,
+    pub version: i32,
     pub mysterious_byte: u8,
     pub table_definition: TableDefinition,
     pub entries: Vec<Vec<DecodedData>>,
@@ -72,7 +73,7 @@ pub enum DecodedData {
 impl DB {
 
     /// This function creates a new empty DB PackedFile.
-    pub fn new(db_type: &str, version: u32, table_definition: TableDefinition) -> Self {
+    pub fn new(db_type: &str, version: i32, table_definition: TableDefinition) -> Self {
         Self{
             db_type: db_type.to_owned(),
             version,
@@ -105,7 +106,7 @@ impl DB {
                 if &packed_file_data[index..(index + 4)] == VERSION_MARKER { 
                     if (index + 8) < packed_file_data.len() { 
                         index += 8;
-                        decode_integer_u32(&packed_file_data[(index - 4)..(index)])?
+                        decode_integer_i32(&packed_file_data[(index - 4)..(index)])?
                     } else { return Err(ErrorKind::DBTableIsNotADBTable)? }
                 } else { 0 }
             } else { return Err(ErrorKind::DBTableIsNotADBTable)? };
@@ -225,7 +226,7 @@ impl DB {
         packed_file.extend_from_slice(GUID_MARKER);
         packed_file.extend_from_slice(&encode_packedfile_string_u16(&format!("{}", Uuid::new_v4())));
         packed_file.extend_from_slice(VERSION_MARKER);
-        packed_file.extend_from_slice(&encode_integer_u32(self.version));
+        packed_file.extend_from_slice(&encode_integer_i32(self.version));
         packed_file.push(self.mysterious_byte);
         packed_file.extend_from_slice(&encode_integer_u32(self.entries.len() as u32));
 
@@ -249,7 +250,7 @@ impl DB {
     }
 
     /// This functions returns the version and entry count of a DB Table, without decoding the entire table. It just emulates what the `read` function does.
-    pub fn get_header_data(packed_file_data: &[u8]) -> Result<(u32, u32, usize)> {
+    pub fn get_header_data(packed_file_data: &[u8]) -> Result<(i32, u32, usize)> {
 
         // Create the index that we'll use to decode the entire table.
         let mut index = 0;
@@ -266,7 +267,7 @@ impl DB {
                 if &packed_file_data[index..(index + 4)] == VERSION_MARKER { 
                     if (index + 8) < packed_file_data.len() { 
                         index += 8;
-                        decode_integer_u32(&packed_file_data[(index - 4)..(index)])?
+                        decode_integer_i32(&packed_file_data[(index - 4)..(index)])?
                     } else { return Err(ErrorKind::DBTableIsNotADBTable)? }
                 } else { 0 }
             } else { return Err(ErrorKind::DBTableIsNotADBTable)? };
@@ -278,7 +279,7 @@ impl DB {
     }
 
     /// This function gets the schema corresponding to the table we passed it, if it exists.
-    pub fn get_schema(db_name: &str, version: u32, schema: &schemas::Schema) -> Option<schemas::TableDefinition> {
+    pub fn get_schema(db_name: &str, version: i32, schema: &schemas::Schema) -> Option<schemas::TableDefinition> {
         if let Some(index_table_definitions) = schema.get_table_definitions(db_name) {
             if let Some(index_table_versions) = schema.tables_definitions[index_table_definitions].get_table_version(version) {
                 if !schema.tables_definitions[index_table_definitions].versions[index_table_versions].fields.is_empty() {
@@ -300,7 +301,7 @@ impl DB {
     }
 
     /// This function removes from the schema the version of a table with the provided version.
-    pub fn remove_table_version(table_name: &str, version: u32, schema: &mut schemas::Schema) -> Result<()> {
+    pub fn remove_table_version(table_name: &str, version: i32, schema: &mut schemas::Schema) -> Result<()> {
         if let Some(index_table_definitions) = schema.get_table_definitions(table_name) {
             if let Some(index_table_versions) = schema.tables_definitions[index_table_definitions].get_table_version(version) {
                 schema.tables_definitions[index_table_definitions].versions.remove(index_table_versions);
@@ -394,7 +395,7 @@ impl SerializableToTSV for DB {
     fn export_tsv(
         &self, 
         packed_file_path: &PathBuf, 
-        db_info: (&str, u32)
+        db_info: (&str, i32)
     ) -> Result<()> {
 
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise

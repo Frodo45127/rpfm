@@ -198,7 +198,7 @@ pub struct PackedFileDBDecoderStuffNonUI {
     pub packed_file_path: Vec<String>,
     pub packed_file_data: Vec<u8>,
     pub initial_index: usize,
-    pub version: u32,
+    pub version: i32,
     pub entry_count: u32,
 }
 
@@ -4303,7 +4303,7 @@ impl PackedFileDBDecoder {
                                                 unsafe { version = stuff.table_model_old_versions.as_mut().unwrap().item_from_index(&model_index).as_mut().unwrap().text().to_std_string(); }
 
                                                 // Turn it into a number.
-                                                let version = version.parse::<u32>().unwrap();
+                                                let version = version.parse::<i32>().unwrap();
 
                                                 // Get the new definition.
                                                 let table_definition = DB::get_schema(&stuff_non_ui.packed_file_path[1], version, &*schema.borrow());
@@ -4341,7 +4341,7 @@ impl PackedFileDBDecoder {
                                                 unsafe { version = stuff.table_model_old_versions.as_mut().unwrap().item_from_index(&model_index).as_mut().unwrap().text().to_std_string(); }
 
                                                 // Turn it into a number.
-                                                let version = version.parse::<u32>().unwrap();
+                                                let version = version.parse::<i32>().unwrap();
 
                                                 // Try to remove that version form the schema.
                                                 if let Err(error) = DB::remove_table_version(&stuff_non_ui.packed_file_path[1], version, &mut schema.borrow_mut()) {

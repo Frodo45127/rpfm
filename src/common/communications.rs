@@ -88,6 +88,7 @@ pub enum Commands {
     GetTableListFromDependencyPackFile,
     GetTableVersionFromDependencyPackFile,
     OptimizePackFile,
+    GeneratePakFile,
     GetPackFilesList,
     SetPackFilesList,
     DecodeDependencyDB,
@@ -108,6 +109,7 @@ pub enum Data {
 
     Bool(bool),
     U32(u32),
+    I32(i32),
     I64(i64),
 
     String(String),

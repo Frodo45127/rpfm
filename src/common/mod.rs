@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 
 use crate::SUPPORTED_GAMES;
 use crate::GAME_SELECTED;
+use crate::RPFM_PATH;
 use crate::SETTINGS;
 use crate::error::{ErrorKind, Result};
 use crate::packfile::PackFile;
@@ -158,31 +159,56 @@ pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
 /// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
 /// every table definition from the assembly kit. Well, from the folder you tell it to search.
 #[allow(dead_code)]
-pub fn get_assembly_kit_schemas(current_path: &Path) -> Result<Vec<PathBuf>> {
+pub fn get_raw_definitions(current_path: &Path) -> Result<Vec<PathBuf>> {
 
-    // Create the list of files.
     let mut file_list: Vec<PathBuf> = vec![];
-
-    // Get everything from the path we have.
     match read_dir(current_path) {
 
         // If we don't have any problems reading it...
         Ok(files_in_current_path) => {
-
-            // For each thing in the current path...
             for file in files_in_current_path {
-
-                // Get his path
                 let file_path = file.unwrap().path().clone();
 
                 // If it's a file and starts with "TWaD_", to the file_list it goes (except if it's one of those special files).
                 if file_path.is_file() &&
                     file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") &&
+                    !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_TExc") &&
                     file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_schema_validation" &&
                     file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_relationships" &&
                     file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_validation" &&
                     file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_tables" &&
                     file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_queries" {
+                    file_list.push(file_path);
+                }
+            }
+        }
+
+        // In case of reading error, report it.
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
+    }
+
+    // Sort the files alphabetically.
+    file_list.sort();
+
+    // Return the list of paths.
+    Ok(file_list)
+}
+
+/// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
+/// every raw table data from the assembly kit. Well, from the folder you tell it to search.
+#[allow(dead_code)]
+pub fn get_raw_data(current_path: &Path) -> Result<Vec<PathBuf>> {
+
+    let mut file_list: Vec<PathBuf> = vec![];
+    match read_dir(current_path) {
+
+        // If we don't have any problems reading it...
+        Ok(files_in_current_path) => {
+            for file in files_in_current_path {
+                let file_path = file.unwrap().path().clone();
+
+                // If it's a file and it doesn't start with "TWaD_", to the file_list it goes.
+                if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") {
                     file_list.push(file_path);
                 }
             }
@@ -294,4 +320,20 @@ pub fn get_game_selected_content_packfiles_paths() -> Option<Vec<PathBuf>> {
 
     paths.sort();
     Some(paths)
+}
+
+/// Get the `/rpfm_path/pak_files/xxx.pak` path of the Game Selected, if it has one.
+#[allow(dead_code)]
+pub fn get_game_selected_pak_file() -> Option<PathBuf> {
+
+    if let Some(pak_file) = &SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].pak_file {
+        let mut base_path = RPFM_PATH.to_path_buf();
+        base_path.push("pak_files");
+        base_path.push(pak_file);
+
+        if base_path.is_file() {
+            return Some(base_path)
+        }
+    }
+    None
 }
