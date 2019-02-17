@@ -992,36 +992,36 @@ fn main() {
             // Warhammer 2's actions.
             wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
             wh2_optimize_packfile: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            wh2_generate_pak_file: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            wh2_generate_pak_file: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Warhammer's actions.
             wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
             wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            wh_generate_pak_file: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            wh_generate_pak_file: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
             
             // Thrones of Britannia's actions.
             tob_optimize_packfile: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            tob_generate_pak_file: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            tob_generate_pak_file: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Attila's actions.
             att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            att_generate_pak_file: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            att_generate_pak_file: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Rome 2's actions.
             rom2_optimize_packfile: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            rom2_generate_pak_file: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            rom2_generate_pak_file: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Shogun 2's actions.
             sho2_optimize_packfile: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            sho2_generate_pak_file: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            sho2_generate_pak_file: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Napoleon's actions.
             nap_optimize_packfile: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            nap_generate_pak_file: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            nap_generate_pak_file: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Empire's actions.
             emp_optimize_packfile: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            emp_generate_pak_file: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Generate Pak File")),
+            emp_generate_pak_file: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
@@ -1381,7 +1381,7 @@ fn main() {
         // Menu bar, Special Stuff.
         let patch_siege_ai_tip = QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.");
         let optimize_packfile = QString::from_std_str("Check and remove any data in DB Tables and Locs (Locs only for english users) that is unchanged from the base game. That means your mod will only contain the stuff you change, avoiding incompatibilities with other mods.");
-        let generate_pak_file = QString::from_std_str("Generates a Pak File (Processed Assembly Kit File) for the game selected, to help with dependency checking. You should NEVER use this, as these files are automatically redistributed with RPFM.");
+        let generate_pak_file = QString::from_std_str("Generates a PAK File (Processed Assembly Kit File) for the game selected, to help with dependency checking. You should NEVER use this, as these files are automatically redistributed with RPFM.");
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
@@ -2117,8 +2117,10 @@ fn main() {
                     }
                 };
 
+                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
+
                 sender_qt.send(Commands::GeneratePakFile).unwrap();
-                sender_qt_data.send(Data::PathBuf(path)).unwrap();
+                sender_qt_data.send(Data::PathBufI16((path, version))).unwrap();
                 match check_message_validity_tryrecv(&receiver_qt) {
                     Data::Success => show_dialog(app_ui.window, true, "PAK File succesfully created and reloaded."),
                     Data::Error(error) => show_dialog(app_ui.window, false, error),

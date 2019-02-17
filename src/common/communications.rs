@@ -117,6 +117,7 @@ pub enum Data {
     StringVecString((String, Vec<String>)),
     StringVecVecString((String, Vec<Vec<String>>)),
     PathBuf(PathBuf),
+    PathBufI16((PathBuf, i16)),
     
     Settings(Settings),
     Shortcuts(Shortcuts),

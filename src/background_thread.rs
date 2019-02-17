@@ -1011,8 +1011,8 @@ pub fn background_loop(
                     // In case we want to generate a new Pak File for our Game Selected...
                     Commands::GeneratePakFile => {
 
-                        let path = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-                        match process_raw_tables(&path) {
+                        let data = if let Data::PathBufI16(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        match process_raw_tables(&data.0, data.1) {
                             Ok(_) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
