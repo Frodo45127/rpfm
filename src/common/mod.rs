@@ -158,8 +158,9 @@ pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
 
 /// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
 /// every table definition from the assembly kit. Well, from the folder you tell it to search.
+/// Version 0 means Empire/Nappy format. Version 1 or 2 is everything after them.
 #[allow(dead_code)]
-pub fn get_raw_definitions(current_path: &Path) -> Result<Vec<PathBuf>> {
+pub fn get_raw_definitions(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
 
     let mut file_list: Vec<PathBuf> = vec![];
     match read_dir(current_path) {
@@ -170,15 +171,25 @@ pub fn get_raw_definitions(current_path: &Path) -> Result<Vec<PathBuf>> {
                 let file_path = file.unwrap().path().clone();
 
                 // If it's a file and starts with "TWaD_", to the file_list it goes (except if it's one of those special files).
-                if file_path.is_file() &&
-                    file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") &&
-                    !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_TExc") &&
-                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_schema_validation" &&
-                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_relationships" &&
-                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_validation" &&
-                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_tables" &&
-                    file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_queries" {
-                    file_list.push(file_path);
+                if version == 1 || version == 2 {
+                    if file_path.is_file() &&
+                        file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") &&
+                        !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_TExc") &&
+                        file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_schema_validation" &&
+                        file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_relationships" &&
+                        file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_validation" &&
+                        file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_tables" &&
+                        file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_queries" {
+                        file_list.push(file_path);
+                    }
+                }
+
+                // In this case, we just catch all the xsd files on the folder.
+                else if version == 0 {
+                    if file_path.is_file() &&
+                        file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xsd") {
+                        file_list.push(file_path);
+                    }   
                 }
             }
         }
@@ -196,8 +207,9 @@ pub fn get_raw_definitions(current_path: &Path) -> Result<Vec<PathBuf>> {
 
 /// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
 /// every raw table data from the assembly kit. Well, from the folder you tell it to search.
+/// Version 0 means Empire/Nappy format. Version 1 or 2 is everything after them.
 #[allow(dead_code)]
-pub fn get_raw_data(current_path: &Path) -> Result<Vec<PathBuf>> {
+pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
 
     let mut file_list: Vec<PathBuf> = vec![];
     match read_dir(current_path) {
@@ -208,8 +220,17 @@ pub fn get_raw_data(current_path: &Path) -> Result<Vec<PathBuf>> {
                 let file_path = file.unwrap().path().clone();
 
                 // If it's a file and it doesn't start with "TWaD_", to the file_list it goes.
-                if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") {
-                    file_list.push(file_path);
+                if version == 1 || version == 2 {
+                    if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") {
+                        file_list.push(file_path);
+                    }
+                }
+
+                // In this case, if it's an xml, to the file_list it goes.
+                if version == 0 {
+                    if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xml") {
+                        file_list.push(file_path);
+                    }
                 }
             }
         }

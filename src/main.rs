@@ -2095,9 +2095,7 @@ fn main() {
                         path.push("db");
                         path
                     }
-                    _ => {
-
-                        let mut path = PathBuf::from("");
+                    "shogun_2" => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let mut file_dialog = unsafe { FileDialog::new_unsafe((
@@ -2110,21 +2108,52 @@ fn main() {
                         file_dialog.set_option(ShowDirsOnly);
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        let mut path = PathBuf::from("");
+                        if file_dialog.exec() == 1 { 
+                            path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                        }
+                        path.push("raw_data");
+                        path.push("db");
+                        path
+                    }
+
+                    "napoleon" | "empire" => {
+
+                        // Create the FileDialog to get the path of the Assembly Kit.
+                        let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                            app_ui.window as *mut Widget,
+                            &QString::from_std_str("Select Raw DB Folder"),
+                        )) };
+
+                        // Set it to only search Folders.
+                        file_dialog.set_file_mode(FileMode::Directory);
+                        file_dialog.set_option(ShowDirsOnly);
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        let mut path = PathBuf::from("");
                         if file_dialog.exec() == 1 { 
                             path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         }
                         path
                     }
+
+                    // For any other game, return an empty path.
+                    _ => PathBuf::new(),
                 };
 
                 let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
 
-                sender_qt.send(Commands::GeneratePakFile).unwrap();
-                sender_qt_data.send(Data::PathBufI16((path, version))).unwrap();
-                match check_message_validity_tryrecv(&receiver_qt) {
-                    Data::Success => show_dialog(app_ui.window, true, "PAK File succesfully created and reloaded."),
-                    Data::Error(error) => show_dialog(app_ui.window, false, error),
-                    _ => panic!(THREADS_MESSAGE_ERROR),
+                if path.file_name().is_some() {
+                    sender_qt.send(Commands::GeneratePakFile).unwrap();
+                    sender_qt_data.send(Data::PathBufI16((path, version))).unwrap();
+                    match check_message_validity_tryrecv(&receiver_qt) {
+                        Data::Success => show_dialog(app_ui.window, true, "PAK File succesfully created and reloaded."),
+                        Data::Error(error) => show_dialog(app_ui.window, false, error),
+                        _ => panic!(THREADS_MESSAGE_ERROR),
+                    }
+                }
+                else {
+                    show_dialog(app_ui.window, false, "This operation is not supported for the Game Selected.");
                 }
 
                 // Re-enable the Main Window.
