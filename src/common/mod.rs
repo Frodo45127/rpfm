@@ -227,7 +227,7 @@ pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
                 }
 
                 // In this case, if it's an xml, to the file_list it goes.
-                if version == 0 {
+                else if version == 0 {
                     if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xml") {
                         file_list.push(file_path);
                     }
