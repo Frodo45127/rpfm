@@ -43,6 +43,8 @@ use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItem
 use qt_core::reg_exp::RegExp;
 use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor, MatchFlag};
 
+use regex::Regex;
+
 use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -2154,13 +2156,14 @@ impl PackedFileLocTreeView {
                             // Get the list of all valid ModelIndex for the current filter and the current position.
                             let matches = matches.borrow();
                             let matches_original_from_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.0.get()).collect::<Vec<&ModelIndex>>();
+                            let regex = Regex::new(&format!("(?i){}", text_source)).unwrap();
                             for model_index in &matches_original_from_filter {
                              
                                 // If the position is still valid (not required, but just in case)...
                                 if model_index.is_valid() {
                                     let item = unsafe { model.as_mut().unwrap().item_from_index(model_index) };
                                     let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
-                                    positions_and_texts.push(((model_index.row(), model_index.column()), text.replace(&text_source, &text_replace)));
+                                    positions_and_texts.push(((model_index.row(), model_index.column()), regex.replace_all(&text, &*text_replace).to_string()));
                                 } else { return }
                             }
                         }
