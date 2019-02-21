@@ -2,6 +2,7 @@
 /.idea/
 /target/
 /dependency_packs/
+/pak_files/
 **/*.rs.bk
 .directory
 settings.json

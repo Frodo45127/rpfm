@@ -11,6 +11,8 @@
 // In this file are all the functions that the UI needs to interact with the PackFile logic.
 // As a rule, there should be no UI-related stuff in this module or his childrens.
 
+use bincode::deserialize;
+
 use std::fs::{File, DirBuilder};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -197,6 +199,30 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
 
     // Return the new PackedFiles list.
     packed_files
+}
+
+/// This function is a special open function, to get all the fake DB files from the PAK file of the Game Selected,
+/// if it does has one.
+pub fn load_fake_dependency_packfiles() -> Vec<DB> {
+
+    // Create the empty list.
+    let mut db_files = vec![];
+
+    // Get all the paths we need.
+    if let Some(pak_file) = get_game_selected_pak_file() {
+        if let Ok(pak_file) = File::open(pak_file) {
+            let mut pak_file = BufReader::new(pak_file);
+            let mut data = vec![];
+            if pak_file.read_to_end(&mut data).is_ok() {
+                if let Ok(pak_file) = deserialize(&data) {
+                    db_files = pak_file;
+                }
+            }
+        }
+    }
+
+    // Return the fake DB Table list.
+    db_files
 }
 
 /// This function is another special open function, to get all the PackedFiles from every CA PackFile of a game.

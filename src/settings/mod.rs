@@ -35,6 +35,8 @@ const SETTINGS_FILE: &str = "settings.json";
 /// - `db_packs`: These are the PackFiles from where we load the data for db references. Since 1.0, we use data.pack or equivalent for this.
 /// - `loc_packs`: These are the PackFiles from where we load the data for loc special stuff. This should be the one for english. For other languages, we'll have to search it.
 /// - `steam_id`: This is the "SteamID" used by the game, if it's on steam. If not, it's just None.
+/// - `raw_files_version`: This is the **type** of raw files the game uses. -1 is "Don't have Assembly Kit". 0 is Empire/Nappy. 1 is Shogun 2. 2 is anything newer than Shogun 2.
+/// - `pak_file`: This is the file containing the processed data from the raw db files from the Assembly Kit. If no Asskit is released for the game, set this to none.
 /// - `ca_types_file`: This is the file used for checking scripts with Kailua. If there is no file, set it as None.
 /// - `supports_editing`: True if we can save PackFiles for this game. False if we cannot (Arena). This also affect if we can use this game for "MyMod" stuff.
 #[derive(Clone, Debug)]
@@ -45,6 +47,8 @@ pub struct GameInfo {
     pub db_packs: Vec<String>,
     pub loc_packs: Vec<String>,
     pub steam_id: Option<u64>,
+    pub raw_db_version: i16,
+    pub pak_file: Option<String>,
     pub ca_types_file: Option<String>,
     pub supports_editing: bool,
 }

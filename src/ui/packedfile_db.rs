@@ -49,6 +49,8 @@ use qt_core::string_list::StringList;
 use qt_core::reg_exp::RegExp;
 use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor, MatchFlag};
 
+use regex::Regex;
+
 use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -198,7 +200,7 @@ pub struct PackedFileDBDecoderStuffNonUI {
     pub packed_file_path: Vec<String>,
     pub packed_file_data: Vec<u8>,
     pub initial_index: usize,
-    pub version: u32,
+    pub version: i32,
     pub entry_count: u32,
 }
 
@@ -2699,14 +2701,14 @@ impl PackedFileDBTreeView {
                                     }
                                 } else { return }
                             }
-
+                            let regex = Regex::new(&format!("(?i){}", text_source)).unwrap();
                             for model_index in &matches_original_from_filter {
                              
                                 // If the position is still valid (not required, but just in case)...
                                 if model_index.is_valid() {
                                     let item = unsafe { model.as_mut().unwrap().item_from_index(model_index) };
                                     let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
-                                    positions_and_texts.push(((model_index.row(), model_index.column()), text.replace(&text_source, &text_replace)));
+                                    positions_and_texts.push(((model_index.row(), model_index.column()), regex.replace_all(&text, &*text_replace).to_string()));
                                 } else { return }
                             }
                         }
@@ -4303,7 +4305,7 @@ impl PackedFileDBDecoder {
                                                 unsafe { version = stuff.table_model_old_versions.as_mut().unwrap().item_from_index(&model_index).as_mut().unwrap().text().to_std_string(); }
 
                                                 // Turn it into a number.
-                                                let version = version.parse::<u32>().unwrap();
+                                                let version = version.parse::<i32>().unwrap();
 
                                                 // Get the new definition.
                                                 let table_definition = DB::get_schema(&stuff_non_ui.packed_file_path[1], version, &*schema.borrow());
@@ -4341,7 +4343,7 @@ impl PackedFileDBDecoder {
                                                 unsafe { version = stuff.table_model_old_versions.as_mut().unwrap().item_from_index(&model_index).as_mut().unwrap().text().to_std_string(); }
 
                                                 // Turn it into a number.
-                                                let version = version.parse::<u32>().unwrap();
+                                                let version = version.parse::<i32>().unwrap();
 
                                                 // Try to remove that version form the schema.
                                                 if let Err(error) = DB::remove_table_version(&stuff_non_ui.packed_file_path[1], version, &mut schema.borrow_mut()) {

@@ -1284,28 +1284,36 @@ pub fn enable_packfile_actions(
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer" => {
                 unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.wh_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "thrones_of_britannia" => {
                 unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.tob_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "attila" => {
                 unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.att_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "rome_2" => {
                 unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.rom2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "shogun_2" => {
                 unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.sho2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "napoleon" => {
                 unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.nap_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "empire" => {
                 unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.emp_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             _ => {},
         }
@@ -1317,28 +1325,36 @@ pub fn enable_packfile_actions(
         // Disable Warhammer 2 actions...
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_enabled(false); }
 
         // Disable Warhammer actions...
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.wh_generate_pak_file.as_mut().unwrap().set_enabled(false); }
 
         // Disable Thrones of Britannia actions...
         unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.tob_generate_pak_file.as_mut().unwrap().set_enabled(false); }
 
         // Disable Attila actions...
         unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.att_generate_pak_file.as_mut().unwrap().set_enabled(false); }
 
         // Disable Rome 2 actions...
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.rom2_generate_pak_file.as_mut().unwrap().set_enabled(false); }
 
         // Disable Shogun 2 actions...
         unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.sho2_generate_pak_file.as_mut().unwrap().set_enabled(false); }
 
         // Disable Napoleon actions...
         unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.nap_generate_pak_file.as_mut().unwrap().set_enabled(false); }
         
         // Disable Empire actions...
         unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.emp_generate_pak_file.as_mut().unwrap().set_enabled(false); }
     }
 }
 

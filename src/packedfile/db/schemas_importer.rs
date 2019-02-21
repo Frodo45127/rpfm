@@ -58,8 +58,8 @@ pub fn import_schema(
     // We get the new schema.
     let mut schema = Schema::new();
 
-    // Then we get all the schema files. We unwrap it, as we want it to crash oon error.
-    let assembly_kit_schemas = get_assembly_kit_schemas(assembly_kit_schemas_path).unwrap();
+    // Then we get all the schema files. We unwrap it, as we want it to crash on error.
+    let assembly_kit_schemas = get_raw_definitions(assembly_kit_schemas_path, 2).unwrap();
 
     // For each file...
     for path in &assembly_kit_schemas {

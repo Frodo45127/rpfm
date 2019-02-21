@@ -26,6 +26,7 @@ use crate::SHORTCUTS;
 use crate::SETTINGS;
 use crate::SCHEMA;
 use crate::DEPENDENCY_DATABASE;
+use crate::FAKE_DEPENDENCY_DATABASE;
 use crate::GAME_SELECTED;
 use crate::GlobalMatch;
 use crate::background_thread_extra;
@@ -37,6 +38,7 @@ use crate::packfile::{PackFile, PFHFlags};
 use crate::packedfile::*;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
+use crate::packedfile::db::raw_tables::*;
 use crate::packedfile::db::schemas::*;
 use crate::packedfile::rigidmodel::*;
 use crate::updater::*;
@@ -257,6 +259,9 @@ pub fn background_loop(
 
                         // Change the `dependency_database` for that game.
                         *DEPENDENCY_DATABASE.lock().unwrap() = background_thread_extra::load_dependency_packfiles(&pack_file_decoded.pack_files);
+
+                        // Change the `fake dependency_database` for that game.
+                        *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = background_thread_extra::load_fake_dependency_packfiles();
 
                         // If there is a PackFile open, change his id to match the one of the new GameSelected.
                         if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id; }
@@ -973,7 +978,7 @@ pub fn background_loop(
                         let table_name = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         if let Some(vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut().filter(|x| x.path.len() == 3).find(|x| x.path[1] == table_name) {
                             match DB::get_header_data(&vanilla_table.get_data_and_keep_it().unwrap()) {
-                                Ok(data) => sender.send(Data::U32(data.0)).unwrap(),
+                                Ok(data) => sender.send(Data::I32(data.0)).unwrap(),
                                 Err(error) => sender.send(Data::Error(error)).unwrap(),
                             }
                         }
@@ -983,7 +988,7 @@ pub fn background_loop(
                             if let Some(definition) = schema.tables_definitions.iter().find(|x| x.name == table_name) {
                                 let mut versions = definition.versions.to_vec();
                                 versions.sort_unstable_by(|x, y| x.version.cmp(&y.version));
-                                sender.send(Data::U32(versions.last().unwrap().version)).unwrap();
+                                sender.send(Data::I32(versions.last().unwrap().version)).unwrap();
                             }
 
                             // If there is no table in the schema, we return an error.
@@ -1001,6 +1006,19 @@ pub fn background_loop(
                             Ok(deleted_packed_files) => sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap(),
                             Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
                         }
+                    }
+
+                    // In case we want to generate a new Pak File for our Game Selected...
+                    Commands::GeneratePakFile => {
+
+                        let data = if let Data::PathBufI16(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        match process_raw_tables(&data.0, data.1) {
+                            Ok(_) => sender.send(Data::Success).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
+
+                        // Reload the `fake dependency_database` for that game.
+                        *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = background_thread_extra::load_fake_dependency_packfiles();
                     }
 
                     // In case we want to get the PackFiles List of our PackFile...
@@ -1069,6 +1087,27 @@ pub fn background_loop(
                                                     }
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // We have to check in the Fake Dependency Database too, just in case.
+                        let mut iter = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
+                        let mut iter = iter.iter_mut();
+                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
+                            while let Some(table) = iter.find(|x| x.db_type == dependency_data.0) {
+                                if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                                    for row in table.entries.iter() {
+
+                                        // For now we assume any dependency is a string.
+                                        match row[column_index] { 
+                                            DecodedData::StringU8(ref entry) |
+                                            DecodedData::StringU16(ref entry) |
+                                            DecodedData::OptionalStringU8(ref entry) |
+                                            DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                            _ => {}
                                         }
                                     }
                                 }
