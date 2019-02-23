@@ -1018,11 +1018,13 @@ fn main() {
 
             // Napoleon's actions.
             nap_optimize_packfile: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            nap_generate_pak_file: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
+            // nap_generate_pak_file: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
+            nap_generate_pak_file: Action::new(&QString::from_std_str("")).into_raw(),
 
             // Empire's actions.
             emp_optimize_packfile: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            emp_generate_pak_file: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
+            // emp_generate_pak_file: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
+            emp_generate_pak_file: Action::new(&QString::from_std_str("")).into_raw(),
 
             //-------------------------------------------------------------------------------//
             // "About" menu.
