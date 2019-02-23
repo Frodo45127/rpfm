@@ -14,13 +14,12 @@ use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
 use std::path::PathBuf;
 use std::fs::{DirBuilder, File};
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::process::Command;
 use regex::Regex;
 
 use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
-use crate::SHOW_TABLE_ERRORS;
 use crate::SHOW_TABLE_SCHEMA_ERRORS;
 use crate::SHORTCUTS;
 use crate::SETTINGS;
@@ -268,9 +267,10 @@ pub fn background_loop(
 
                         // Test to see if every DB Table can be decoded. This is slow and only useful when
                         // a new patch lands and you want to know what tables you need to decode. So, unless you want 
-                        // to decode new tables, leave the const as false.
-                        if SHOW_TABLE_ERRORS {
+                        // to decode new tables, leave the setting as false.
+                        if SETTINGS.lock().unwrap().settings_bool["check_for_missing_table_definitions"] {
                             let mut counter = 0;
+                            let mut table_list = String::new();
                             for i in pack_file_decoded.packed_files.iter_mut() {
                                 if i.path.starts_with(&["db".to_owned()]) {
                                     if let Some(ref schema) = *SCHEMA.lock().unwrap() {
@@ -280,16 +280,21 @@ pub fn background_loop(
                                                     Ok((_, entry_count, _)) => {
                                                         if entry_count > 0 {
                                                             counter += 1;
-                                                            println!("{}, {:?}", counter, i.path);
+                                                            table_list.push_str(&format!("{}, {:?}\n", counter, i.path))
                                                         }
                                                     }
-                                                    Err(_) => println!("Error in {:?}", i.path),
+                                                    Err(_) => table_list.push_str(&format!("Error in {:?}", i.path)),
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
+
+                            // Try to save the file.
+                            let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
+                            let mut file = BufWriter::new(File::create(path).unwrap());
+                            file.write_all(table_list.as_bytes()).unwrap();
                         }
 
                         // Test to check for referenced columns with wrong values on them. This usually means the schema is broken.

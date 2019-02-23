@@ -69,6 +69,7 @@ pub struct SettingsDialog {
     pub extra_use_pfm_extracting_behavior: *mut CheckBox,
     pub extra_use_dependency_checker: *mut CheckBox,
     pub extra_use_lazy_loading_checker: *mut CheckBox,
+    pub debug_check_for_missing_table_definitions: *mut CheckBox,
 }
 
 /// `MyModNewWindow`: This struct holds all the relevant stuff for "My Mod"'s New Mod Window.
@@ -259,6 +260,11 @@ impl SettingsDialog {
         let extra_settings_grid = GridLayout::new().into_raw();
         unsafe { extra_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
+        // Create the "Debug Settings" frame and grid.
+        let debug_settings_frame = GroupBox::new(&QString::from_std_str("Debug Settings")).into_raw();
+        let debug_settings_grid = GridLayout::new().into_raw();
+        unsafe { debug_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
+
         // Create the "Default Game" Label and ComboBox.
         let default_game_label = Label::new(&QString::from_std_str("Default Game:")).into_raw();
         let mut default_game_combobox = ComboBox::new();
@@ -275,6 +281,8 @@ impl SettingsDialog {
         let mut use_pfm_extracting_behavior_label = Label::new(&QString::from_std_str("Use PFM Extracting Behavior:"));
         let mut use_dependency_checker_label = Label::new(&QString::from_std_str("Enable Dependency Checker for DB Tables:"));
         let mut use_lazy_loading_label = Label::new(&QString::from_std_str("Use Lazy-Loading for PackFiles:"));
+        
+        let mut check_for_missing_table_definitions_label = Label::new(&QString::from_std_str("Check for Missing Table Definitions"));
 
         let mut allow_editing_of_ca_packfiles_checkbox = CheckBox::new(());
         let mut check_updates_on_start_checkbox = CheckBox::new(());
@@ -283,6 +291,8 @@ impl SettingsDialog {
         let mut use_dependency_checker_checkbox = CheckBox::new(());
         let mut use_lazy_loading_checkbox = CheckBox::new(());
 
+        let mut check_for_missing_table_definitions_checkbox = CheckBox::new(());
+
         // Tips.
         let allow_editing_of_ca_packfiles_tip = QString::from_std_str("By default, only PackFiles of Type 'Mod' and 'Movie' are editables, as those are the only ones used for modding.\nIf you enable this, you'll be able to edit 'Boot', 'Release' and 'Patch' PackFiles too. Just be careful of not writing over one of the game's original PackFiles!");
         let check_updates_on_start_tip = QString::from_std_str("If you enable this, RPFM will check for updates at the start of the program, and inform you if there is any update available.\nWhether download it or not is up to you.");
@@ -290,6 +300,8 @@ impl SettingsDialog {
         let use_pfm_extracting_behavior_tip = QString::from_std_str("By default, extracting a file/folder extracts just the file to wherever you want.\nIf you enable this, the file/folder will be extracted wherever you want UNDER HIS ENTIRE PATH.\nThat means that extracting a table go from 'myfolder/table_file' to 'myfolder/db/main_units_tables/table_file'.");
         let use_dependency_checker_tip = QString::from_std_str("If you enable this, when opening a DB Table RPFM will try to get his dependencies and mark all cells with a reference to another table as 'Not Found In Table' (Red), 'Referenced Table Not Found' (Blue) or 'Correct Reference' (Black). It makes opening a big table a bit slower.");
         let use_lazy_loading_tip = QString::from_std_str("If you enable this, PackFiles will load their data on-demand from the disk instead of loading the entire PackFile to Ram. This reduces Ram usage by a lot, but if something else changes/deletes the PackFile while it's open, the PackFile will likely be unrecoverable and you'll lose whatever is in it.\nIf you mainly mod in Warhammer 2's /data folder LEAVE THIS DISABLED, as a bug in the Assembly Kit causes PackFiles to become broken/be deleted when you have this enabled.");
+        
+        let check_for_missing_table_definitions_tip = QString::from_std_str("If you enable this, RPFM will try to decode EVERY TABLE in the current PackFile when opening it or when changing the Game Selected, and it'll output all the tables without an schema to a \"missing_table_definitions.txt\" file.\nDEBUG FEATURE, VERY SLOW. DON'T ENABLE IT UNLESS YOU REALLY WANT TO USE IT.");
 
         // Tips for the checkboxes.
         allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
@@ -299,6 +311,8 @@ impl SettingsDialog {
         use_dependency_checker_checkbox.set_tool_tip(&use_dependency_checker_tip);
         use_lazy_loading_checkbox.set_tool_tip(&use_lazy_loading_tip);
 
+        check_for_missing_table_definitions_checkbox.set_tool_tip(&check_for_missing_table_definitions_tip);
+
         // Also, for their labels.
         allow_editing_of_ca_packfiles_label.set_tool_tip(&allow_editing_of_ca_packfiles_tip);
         check_updates_on_start_label.set_tool_tip(&check_updates_on_start_tip);
@@ -306,6 +320,8 @@ impl SettingsDialog {
         use_pfm_extracting_behavior_label.set_tool_tip(&use_pfm_extracting_behavior_tip);
         use_dependency_checker_label.set_tool_tip(&use_dependency_checker_tip);
         use_lazy_loading_label.set_tool_tip(&use_lazy_loading_tip);
+
+        check_for_missing_table_definitions_label.set_tool_tip(&check_for_missing_table_definitions_tip);
 
         // Add the "Default Game" stuff to the Grid.
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((default_game_label as *mut Widget, 0, 0, 1, 1)); }
@@ -328,6 +344,12 @@ impl SettingsDialog {
 
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_lazy_loading_label.into_raw() as *mut Widget, 6, 0, 1, 1)); }
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_lazy_loading_checkbox.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
+
+        unsafe { extra_settings_grid.as_mut().unwrap().add_widget((debug_settings_frame as *mut Widget, 99, 0, 1, 2)); }
+        unsafe { debug_settings_frame.as_mut().unwrap().set_layout(debug_settings_grid as *mut Layout); }
+
+        unsafe { debug_settings_grid.as_mut().unwrap().add_widget((check_for_missing_table_definitions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { debug_settings_grid.as_mut().unwrap().add_widget((check_for_missing_table_definitions_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
 
         // Add the Path's grid to his Frame, and his Frame to the Main Grid.
         unsafe { paths_frame.as_mut().unwrap().set_layout(paths_grid.static_cast_mut() as *mut Layout); }
@@ -445,6 +467,7 @@ impl SettingsDialog {
             extra_use_pfm_extracting_behavior: use_pfm_extracting_behavior_checkbox.into_raw(),
             extra_use_dependency_checker: use_dependency_checker_checkbox.into_raw(),
             extra_use_lazy_loading_checker: use_lazy_loading_checkbox.into_raw(),
+            debug_check_for_missing_table_definitions: check_for_missing_table_definitions_checkbox.into_raw(),
         };
 
         //-------------------------------------------------------------------------------------------//
@@ -515,6 +538,9 @@ impl SettingsDialog {
         unsafe { self.extra_use_pfm_extracting_behavior.as_mut().unwrap().set_checked(settings.settings_bool["use_pfm_extracting_behavior"]); }
         unsafe { self.extra_use_dependency_checker.as_mut().unwrap().set_checked(settings.settings_bool["use_dependency_checker"]); }
         unsafe { self.extra_use_lazy_loading_checker.as_mut().unwrap().set_checked(settings.settings_bool["use_lazy_loading"]); }
+
+        // Load the Debug Stuff.
+        unsafe { self.debug_check_for_missing_table_definitions.as_mut().unwrap().set_checked(settings.settings_bool["check_for_missing_table_definitions"]); }
     }
 
     /// This function gets the data from the Settings Dialog and returns a Settings struct with that
@@ -569,6 +595,9 @@ impl SettingsDialog {
         unsafe { settings.settings_bool.insert("use_pfm_extracting_behavior".to_owned(), self.extra_use_pfm_extracting_behavior.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("use_dependency_checker".to_owned(), self.extra_use_dependency_checker.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_use_lazy_loading_checker.as_mut().unwrap().is_checked()); }
+
+        // Get the Debug Settings.
+        unsafe { settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions.as_mut().unwrap().is_checked()); }
 
         // Return the new Settings.
         settings

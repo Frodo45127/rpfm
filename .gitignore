@@ -12,3 +12,4 @@ rpfm-code.iml
 *.sublime-project
 *.sublime-workspace
 table_state.json
+missing_table_definitions.txt

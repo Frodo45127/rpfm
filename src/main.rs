@@ -529,10 +529,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
 
-/// This constant is used to enable or disable the report of table errors. This is useful for decoding new tables to the schema,
-/// as the program will report you in the terminal what tables cannot be decoded. Slow as hell, so never enable it in a release.
-const SHOW_TABLE_ERRORS: bool = false;
-
 /// This constant is used to check the references of every table in a PackFile and return the errors. For now it's only to check
 /// if tables have swapped columns, but it may be expanded in the future.
 const SHOW_TABLE_SCHEMA_ERRORS: bool = false;

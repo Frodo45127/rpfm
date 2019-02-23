@@ -100,6 +100,9 @@ impl Settings {
         settings_bool.insert("use_dependency_checker".to_owned(), false);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
 
+        // Debug Settings.
+        settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
+
         // TableView Specific Settings.
         settings_bool.insert("remember_column_sorting".to_owned(), true);
         settings_bool.insert("remember_column_visual_order".to_owned(), true);
