@@ -201,7 +201,7 @@ impl SerializableToTSV for Loc {
     fn export_tsv(
         &self, 
         packed_file_path: &PathBuf, 
-        _db_info: (&str, u32)
+        _db_info: (&str, i32)
     ) -> Result<()> {
 
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise

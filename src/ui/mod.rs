@@ -560,7 +560,7 @@ pub fn create_new_packed_file_dialog(
                 sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
                 sender_data.send(Data::String(table.to_owned())).unwrap();
                 let version = match check_message_validity_recv2(&receiver) { 
-                    Data::U32(data) => data,
+                    Data::I32(data) => data,
                     Data::Error(error) => return Some(Err(error)),
                     _ => panic!(THREADS_MESSAGE_ERROR), 
                 };

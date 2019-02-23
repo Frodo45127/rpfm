@@ -43,6 +43,8 @@ use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItem
 use qt_core::reg_exp::RegExp;
 use qt_core::qt::{Orientation, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, CaseSensitivity, GlobalColor, MatchFlag};
 
+use regex::Regex;
+
 use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -443,9 +445,26 @@ impl PackedFileLocTreeView {
             )),
 
             slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
-                packed_file_path => move |column, order| {
+                packed_file_path => move |column, _| {
+                    let mut needs_cleaning = false;
                     if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
-                        state.columns_state.sorting_column = (column, if let SortOrder::Ascending = order { false } else { true });
+                        
+                        // We only change the order if it's less than 3. Otherwise, we reset it.
+                        let mut old_order = state.columns_state.sorting_column.1;
+                        if old_order < 2 {
+                            old_order += 1;
+
+                            if old_order == 0 { state.columns_state.sorting_column = (-1, old_order); }
+                            else { state.columns_state.sorting_column = (column, old_order); }
+                        }
+                        else {
+                            needs_cleaning = true;
+                            old_order = -1;
+                            state.columns_state.sorting_column = (-1, old_order);   
+                        }
+                    }
+                    if needs_cleaning {
+                        unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)) };
                     }
                 }
             )),
@@ -2137,13 +2156,14 @@ impl PackedFileLocTreeView {
                             // Get the list of all valid ModelIndex for the current filter and the current position.
                             let matches = matches.borrow();
                             let matches_original_from_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.0.get()).collect::<Vec<&ModelIndex>>();
+                            let regex = Regex::new(&format!("(?i){}", text_source)).unwrap();
                             for model_index in &matches_original_from_filter {
                              
                                 // If the position is still valid (not required, but just in case)...
                                 if model_index.is_valid() {
                                     let item = unsafe { model.as_mut().unwrap().item_from_index(model_index) };
                                     let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
-                                    positions_and_texts.push(((model_index.row(), model_index.column()), text.replace(&text_source, &text_replace)));
+                                    positions_and_texts.push(((model_index.row(), model_index.column()), regex.replace_all(&text, &*text_replace).to_string()));
                                 } else { return }
                             }
                         }
@@ -2272,24 +2292,32 @@ impl PackedFileLocTreeView {
                 // Same with the columns, if we opted to keep their state.
                 let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
                 let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
-                
-                if SETTINGS.lock().unwrap().settings_bool["remember_column_state"] {
-                    let sort_order = if state_data.columns_state.sorting_column.1 { SortOrder::Descending } else { SortOrder::Ascending };
-                    unsafe { table_view.as_mut().unwrap().sort_by_column((state_data.columns_state.sorting_column.0, sort_order)); }
-      
+
+                // Depending on the current settings, load the current state of the table or not.
+                if SETTINGS.lock().unwrap().settings_bool["remember_column_sorting"] {
+                    let sort_order = match state_data.columns_state.sorting_column.1 { 
+                        1 => (state_data.columns_state.sorting_column.0, SortOrder::Ascending),
+                        2 => (state_data.columns_state.sorting_column.0, SortOrder::Descending),
+                        _ => (-1, SortOrder::Ascending),
+                    };
+                    unsafe { table_view.as_mut().unwrap().sort_by_column(sort_order); }
+                }
+ 
+                if SETTINGS.lock().unwrap().settings_bool["remember_column_visual_order"] {
                     for (visual_old, visual_new) in &state_data.columns_state.visual_order {
                         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*visual_old, *visual_new); }
                     }
+                }
 
                     // For this we have to "block" the action before checking it, to avoid borrowmut errors. There is no need to unblock, because the blocker will die after the action.
+                if SETTINGS.lock().unwrap().settings_bool["remember_column_hidden_state"] {
                     for hidden_column in &state_data.columns_state.hidden_columns {
                         unsafe { table_view.as_mut().unwrap().set_column_hidden(*hidden_column, true); }
 
                         let mut _blocker = unsafe { SignalBlocker::new(actions_hide_show_column[*hidden_column as usize].as_mut().unwrap() as &mut Object) };
                         unsafe { actions_hide_show_column[*hidden_column as usize].as_mut().unwrap().set_checked(true); }
-                    }                     
+                    }      
                 }
-                else { state_data.columns_state = ColumnsState::new((-1, false), vec![], vec![]); }
                 
                 blocker1.unblock();
                 blocker2.unblock();

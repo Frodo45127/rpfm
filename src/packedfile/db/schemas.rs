@@ -20,6 +20,7 @@ use std::io::BufReader;
 use crate::RPFM_PATH;
 use crate::error::{ErrorKind, Result};
 use super::schemas_importer;
+use super::raw_tables;
 
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
 /// Type).
@@ -46,7 +47,7 @@ pub struct TableDefinitions {
 /// - fields: the different fields this table has.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TableDefinition {
-    pub version: u32,
+    pub version: i32,
     pub fields: Vec<Field>,
 }
 
@@ -170,7 +171,7 @@ impl TableDefinitions {
     }
 
     /// This functions returns the index of the definitions for a table.
-    pub fn get_table_version(&self, table_version: u32) -> Option<usize> {
+    pub fn get_table_version(&self, table_version: i32) -> Option<usize> {
         for (index, table) in self.versions.iter().enumerate() {
             if table.version == table_version {
                 return Some(index);
@@ -207,7 +208,7 @@ impl TableDefinition {
 
     /// This function creates a new table definition. We need to call it when we don't have a definition
     /// of the table we are trying to decode with the version we have.
-    pub fn new(version: u32) -> TableDefinition {
+    pub fn new(version: i32) -> TableDefinition {
         TableDefinition {
             version,
             fields: vec![],
@@ -217,7 +218,7 @@ impl TableDefinition {
     /// This function creates a new table definition from an imported definition from the assembly kit.
     /// Note that this import the loc fields (they need to be removed manually later) and it doesn't
     /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: &schemas_importer::root, version: u32, table_name: &str) -> TableDefinition {
+    pub fn new_from_assembly_kit(imported_table_definition: &schemas_importer::root, version: i32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 
@@ -242,6 +243,87 @@ impl TableDefinition {
                 field.name == "on_screen_target" {
                 continue;
             }
+            let field_name = field.name.to_owned();
+            let field_is_key = field.primary_key == "1";
+            let field_is_reference = if field.column_source_table != None {
+                Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
+            }
+            else {None};
+
+            let field_type = match &*field.field_type {
+                "yesno" => FieldType::Boolean,
+                "single" | "decimal" | "double" => FieldType::Float,
+                "autonumber" => FieldType::LongInteger, // Not always true, but better than nothing.
+                "integer" => {
+
+                    // In Warhammer 2 these tables are wrong in the definition schema.
+                    if table_name.starts_with("_kv") {
+                        FieldType::Float
+                    }
+                    else {
+                        FieldType::Integer
+                    }
+                },
+                "text" => {
+
+                    // Key fields are ALWAYS REQUIRED. This fixes it's detection.
+                    if field.name == "key" {
+                        FieldType::StringU8
+                    }
+                    else {
+                        match &*field.required {
+                            "1" => {
+                                // In Warhammer 2 this table has his "value" field broken.
+                                if table_name == "_kv_winds_of_magic_params_tables" && field.name == "value" {
+                                    FieldType::Float
+                                }
+                                else {
+                                    FieldType::StringU8
+                                }
+                            },
+                            "0" => FieldType::OptionalStringU8,
+
+                            // If we reach this point, we set it to OptionalStringU16. Not because it is it
+                            // (we don't have a way to distinguish String types) but to know what fields
+                            // reach this point.
+                            _ => FieldType::OptionalStringU16,
+                        }
+                    }
+                }
+                // If we reach this point, we set it to StringU16. Not because it is it
+                // (we don't have a way to distinguish String types) but to know what fields
+                // reach this point.
+                _ => FieldType::StringU16,
+
+            };
+
+            let field_description = match field.field_description {
+                Some(ref description) => description.to_owned(),
+                None => String::new(),
+            };
+
+            let new_field = Field::new(
+                field_name,
+                field_type,
+                field_is_key,
+                field_is_reference,
+                field_description
+            );
+            fields.push(new_field);
+        }
+
+        TableDefinition {
+            version,
+            fields,
+        }
+    }
+        
+    /// This function creates a new fake table definition from an imported definition from the assembly kit.
+    /// For use with the raw tables processing.
+    pub fn new_fake_from_assembly_kit(imported_table_definition: &raw_tables::root, version: i32, table_name: &str) -> TableDefinition {
+        let mut fields = vec![];
+        for field in &imported_table_definition.field {
+
             let field_name = field.name.to_owned();
             let field_is_key = field.primary_key == "1";
             let field_is_reference = if field.column_source_table != None {

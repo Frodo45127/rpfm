@@ -35,6 +35,8 @@ const SETTINGS_FILE: &str = "settings.json";
 /// - `db_packs`: These are the PackFiles from where we load the data for db references. Since 1.0, we use data.pack or equivalent for this.
 /// - `loc_packs`: These are the PackFiles from where we load the data for loc special stuff. This should be the one for english. For other languages, we'll have to search it.
 /// - `steam_id`: This is the "SteamID" used by the game, if it's on steam. If not, it's just None.
+/// - `raw_files_version`: This is the **type** of raw files the game uses. -1 is "Don't have Assembly Kit". 0 is Empire/Nappy. 1 is Shogun 2. 2 is anything newer than Shogun 2.
+/// - `pak_file`: This is the file containing the processed data from the raw db files from the Assembly Kit. If no Asskit is released for the game, set this to none.
 /// - `ca_types_file`: This is the file used for checking scripts with Kailua. If there is no file, set it as None.
 /// - `supports_editing`: True if we can save PackFiles for this game. False if we cannot (Arena). This also affect if we can use this game for "MyMod" stuff.
 #[derive(Clone, Debug)]
@@ -45,6 +47,8 @@ pub struct GameInfo {
     pub db_packs: Vec<String>,
     pub loc_packs: Vec<String>,
     pub steam_id: Option<u64>,
+    pub raw_db_version: i16,
+    pub pak_file: Option<String>,
     pub ca_types_file: Option<String>,
     pub supports_editing: bool,
 }
@@ -77,22 +81,32 @@ impl Settings {
             paths.insert(folder_name.to_string(), None);
         }
 
+        // Default Game.
         settings_string.insert("default_game".to_owned(), "warhammer_2".to_owned());
 
+        // UI Settings.
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);
         settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
         settings_bool.insert("disable_combos_on_tables".to_owned(), false);
         settings_bool.insert("start_maximized".to_owned(), false);
-        settings_bool.insert("remember_column_state".to_owned(), true);
         settings_bool.insert("remember_table_state_permanently".to_owned(), false);
         settings_bool.insert("use_dark_theme".to_owned(), false);
 
+        // Behavioral Settings.
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
         settings_bool.insert("use_pfm_extracting_behavior".to_owned(), false);
         settings_bool.insert("use_dependency_checker".to_owned(), false);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
+
+        // Debug Settings.
+        settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
+
+        // TableView Specific Settings.
+        settings_bool.insert("remember_column_sorting".to_owned(), true);
+        settings_bool.insert("remember_column_visual_order".to_owned(), true);
+        settings_bool.insert("remember_column_hidden_state".to_owned(), true);
 
         // Return it.
         Self {
