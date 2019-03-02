@@ -108,9 +108,10 @@ use crate::settings::*;
 use crate::settings::shortcuts::Shortcuts;
 use crate::ui::*;
 use crate::ui::dependency_manager::*;
-use crate::ui::packedfile_db::db_decoder::*;
-use crate::ui::packedfile_db::packedfile_db::*;
-use crate::ui::packedfile_loc::*;
+use crate::ui::packedfile_table::PackedFileTableView;
+use crate::ui::packedfile_table::db_decoder::*;
+use crate::ui::packedfile_table::packedfile_db::*;
+use crate::ui::packedfile_table::packedfile_loc::*;
 use crate::ui::packedfile_text::*;
 use crate::ui::packedfile_rigidmodel::*;
 use crate::ui::qt_custom_stuff::*;
@@ -554,7 +555,7 @@ pub enum Mode {
 #[derive(Debug, Clone)]
 pub enum GlobalMatch {
     DB((Vec<String>, Vec<(String, i32, i64, String)>)),
-    Loc((Vec<String>, Vec<(i32, i64, String)>)),
+    Loc((Vec<String>, Vec<(String, i32, i64, String)>)),
 }
 
 /// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
@@ -4465,10 +4466,10 @@ fn main() {
                                                 let clean_path: PathBuf = path.iter().collect();
                                                 let clean_path = clean_path.to_string_lossy();
                                                 let mut file = StandardItem::new(&QString::from_std_str(clean_path));
-                                                let mut column = StandardItem::new(&QString::from_std_str(if match_found.0 == 0 { "Key" } else { "Text" }));
-                                                let mut column_number = StandardItem::new(&QString::from_std_str(&format!("{:?}", match_found.0)));
-                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.1 + 1)));
-                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.2));
+                                                let mut column = StandardItem::new(&QString::from_std_str(&match_found.0));
+                                                let mut column_number = StandardItem::new(&QString::from_std_str(&format!("{:?}", match_found.1)));
+                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.2 + 1)));
+                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.3));
                                                 file.set_editable(false);
                                                 column.set_editable(false);
                                                 column_number.set_editable(false);
@@ -4733,10 +4734,10 @@ fn main() {
                                                 let clean_path: PathBuf = path.iter().collect();
                                                 let clean_path = clean_path.to_string_lossy();
                                                 let mut file = StandardItem::new(&QString::from_std_str(clean_path));
-                                                let mut column = StandardItem::new(&QString::from_std_str(if match_found.0 == 0 { "Key" } else { "Text" }));
-                                                let mut column_number = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.0)));
-                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.1 + 1)));
-                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.2));
+                                                let mut column = StandardItem::new(&QString::from_std_str(&match_found.0));
+                                                let mut column_number = StandardItem::new(&QString::from_std_str(&format!("{:?}", match_found.1)));
+                                                let mut row = StandardItem::new(&QString::from_std_str(format!("{:?}", match_found.2 + 1)));
+                                                let mut text = StandardItem::new(&QString::from_std_str(&match_found.3));
                                                 file.set_editable(false);
                                                 column.set_editable(false);
                                                 column_number.set_editable(false);

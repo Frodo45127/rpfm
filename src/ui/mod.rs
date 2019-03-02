@@ -73,12 +73,10 @@ use crate::error::{Error, ErrorKind, Result};
 use crate::packedfile::*;
 use crate::packedfile::db::*;
 use crate::packedfile::db::schemas::*;
-use crate::packedfile::loc::*;
 use crate::ui::table_state::TableStateData;
 
 pub mod dependency_manager;
-pub mod packedfile_db;
-pub mod packedfile_loc;
+pub mod packedfile_table;
 pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
@@ -892,8 +890,7 @@ pub enum TableOperations {
     RemoveRows((Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
     SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
-    ImportTSVDB(DB),
-    ImportTSVLOC(Loc),
+    ImportTSV(Vec<Vec<DecodedData>>),
 }
 
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
@@ -948,7 +945,7 @@ impl Debug for TableOperations {
             TableOperations::RemoveRows(data) => write!(f, "Row/s removed in {} batches.", data.len()),
             TableOperations::SmartDelete(_) => write!(f, "Smart deletion."),
             TableOperations::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
-            TableOperations::ImportTSVDB(_) | TableOperations::ImportTSVLOC(_) => write!(f, "Imported TSV file."),
+            TableOperations::ImportTSV(_) => write!(f, "Imported TSV file."),
         }
     }
 }

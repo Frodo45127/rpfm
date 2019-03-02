@@ -45,6 +45,12 @@ pub struct TableDefinitions {
 /// This struct holds the definitions for a version of a table. It has:
 /// - version: the version of the table these definitions are for.
 /// - fields: the different fields this table has.
+///
+/// NOTE: the versions are:
+/// - 0: for unversioned tables.
+/// - 1+: for versioned tables.
+/// - 1: for LOC Definitions.
+/// - -1: for Fake Definitions.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TableDefinition {
     pub version: i32,
@@ -398,9 +404,22 @@ impl TableDefinition {
             fields,
         }
     }
+
+    /// This generates a new fake definition for LOC PackedFiles.
+    pub fn new_loc_definition() -> Self {
+        let version = 1;
+        let mut fields = vec![];
+        fields.push(Field::new("key".to_owned(), FieldType::StringU16, false, None, "".to_owned()));
+        fields.push(Field::new("text".to_owned(), FieldType::StringU16, false, None, "".to_owned()));
+        fields.push(Field::new("tooltip".to_owned(), FieldType::Boolean, false, None, "".to_owned()));
+        Self {
+            version,
+            fields,
+        }
+    }
 }
 
-/// Implementation of "Field"
+/// Implementation of "Field".
 impl Field {
 
     /// This function creates a new table definition. We need to call it when we don't have a definition

@@ -27,8 +27,9 @@ use crate::common::*;
 use crate::error::{Error, ErrorKind, Result};
 use crate::packfile::{PackFile, PFHVersion, PFHFileType};
 use crate::packfile::packedfile::PackedFile;
+use crate::packedfile::DecodedData;
 use crate::packedfile::loc::Loc;
-use crate::packedfile::db::{DB, DecodedData};
+use crate::packedfile::db::DB;
 use crate::packedfile::rigidmodel::RigidModel;
 
 /*

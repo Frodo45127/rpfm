@@ -30,8 +30,7 @@ pub struct Shortcuts {
     pub menu_bar_about: BTreeMap<String, String>,
     pub tree_view: BTreeMap<String, String>,
     pub pack_files_list: BTreeMap<String, String>,
-    pub packed_files_db: BTreeMap<String, String>,
-    pub packed_files_loc: BTreeMap<String, String>,
+    pub packed_files_table: BTreeMap<String, String>,
     pub db_decoder_fields: BTreeMap<String, String>,
     pub db_decoder_definitions: BTreeMap<String, String>,
 }
@@ -47,8 +46,7 @@ impl Shortcuts {
         let mut menu_bar_about = BTreeMap::new();
         let mut tree_view = BTreeMap::new();
         let mut pack_files_list = BTreeMap::new();
-        let mut packed_files_db = BTreeMap::new(); 
-        let mut packed_files_loc = BTreeMap::new();
+        let mut packed_files_table = BTreeMap::new();
         let mut db_decoder_fields = BTreeMap::new();
         let mut db_decoder_definitions = BTreeMap::new();
 
@@ -96,43 +94,25 @@ impl Shortcuts {
         pack_files_list.insert("paste".to_owned(), "Ctrl+V".to_owned());
         pack_files_list.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         
-        packed_files_db.insert("add_row".to_owned(), "Ctrl+Shift+A".to_owned());
-        packed_files_db.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
-        packed_files_db.insert("delete_row".to_owned(), "Ctrl+Del".to_owned());
-        packed_files_db.insert("clone_row".to_owned(), "Ctrl+D".to_owned());
-        packed_files_db.insert("clone_and_append_row".to_owned(), "Ctrl+Shift+D".to_owned());
-        packed_files_db.insert("copy".to_owned(), "Ctrl+C".to_owned());
-        packed_files_db.insert("copy_as_lua_table".to_owned(), "Ctrl+Shift+C".to_owned());
-        packed_files_db.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
-        packed_files_db.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
-        packed_files_db.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
-        packed_files_db.insert("apply_maths_to_selection".to_owned(), "Ctrl+B".to_owned());
-        packed_files_db.insert("apply_prefix_to_selection".to_owned(), "Ctrl+Y".to_owned());
-        packed_files_db.insert("search".to_owned(), "Ctrl+F".to_owned());
-        packed_files_db.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
-        packed_files_db.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
-        packed_files_db.insert("smart_delete".to_owned(), "Del".to_owned());
-        packed_files_db.insert("undo".to_owned(), "Ctrl+Z".to_owned());
-        packed_files_db.insert("redo".to_owned(), "Ctrl+Shift+Z".to_owned());
-        
-        packed_files_loc.insert("add_row".to_owned(), "Ctrl+Shift+A".to_owned());
-        packed_files_loc.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
-        packed_files_loc.insert("delete_row".to_owned(), "Ctrl+Del".to_owned());
-        packed_files_loc.insert("clone_row".to_owned(), "Ctrl+D".to_owned());
-        packed_files_loc.insert("clone_and_append_row".to_owned(), "Ctrl+Shift+D".to_owned());
-        packed_files_loc.insert("copy".to_owned(), "Ctrl+C".to_owned());
-        packed_files_loc.insert("copy_as_lua_table".to_owned(), "Ctrl+Shift+C".to_owned());
-        packed_files_loc.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
-        packed_files_loc.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
-        packed_files_loc.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
-        packed_files_loc.insert("apply_prefix_to_selection".to_owned(), "Ctrl+Y".to_owned());
-        packed_files_loc.insert("search".to_owned(), "Ctrl+F".to_owned());
-        packed_files_loc.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
-        packed_files_loc.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
-        packed_files_loc.insert("smart_delete".to_owned(), "Del".to_owned());
-        packed_files_loc.insert("undo".to_owned(), "Ctrl+Z".to_owned());
-        packed_files_loc.insert("redo".to_owned(), "Ctrl+Shift+Z".to_owned());
-        
+        packed_files_table.insert("add_row".to_owned(), "Ctrl+Shift+A".to_owned());
+        packed_files_table.insert("insert_row".to_owned(), "Ctrl+I".to_owned());
+        packed_files_table.insert("delete_row".to_owned(), "Ctrl+Del".to_owned());
+        packed_files_table.insert("clone_row".to_owned(), "Ctrl+D".to_owned());
+        packed_files_table.insert("clone_and_append_row".to_owned(), "Ctrl+Shift+D".to_owned());
+        packed_files_table.insert("copy".to_owned(), "Ctrl+C".to_owned());
+        packed_files_table.insert("copy_as_lua_table".to_owned(), "Ctrl+Shift+C".to_owned());
+        packed_files_table.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
+        packed_files_table.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
+        packed_files_table.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
+        packed_files_table.insert("apply_maths_to_selection".to_owned(), "Ctrl+B".to_owned());
+        packed_files_table.insert("apply_prefix_to_selection".to_owned(), "Ctrl+Y".to_owned());
+        packed_files_table.insert("search".to_owned(), "Ctrl+F".to_owned());
+        packed_files_table.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
+        packed_files_table.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
+        packed_files_table.insert("smart_delete".to_owned(), "Del".to_owned());
+        packed_files_table.insert("undo".to_owned(), "Ctrl+Z".to_owned());
+        packed_files_table.insert("redo".to_owned(), "Ctrl+Shift+Z".to_owned());
+           
         db_decoder_fields.insert("move_up".to_owned(), "Ctrl+Up".to_owned());
         db_decoder_fields.insert("move_down".to_owned(), "Ctrl+Down".to_owned());
         db_decoder_fields.insert("delete".to_owned(), "Ctrl+Del".to_owned());
@@ -146,8 +126,7 @@ impl Shortcuts {
             menu_bar_about,
             tree_view,
             pack_files_list,
-            packed_files_db,
-            packed_files_loc,
+            packed_files_table,
             db_decoder_fields,
             db_decoder_definitions,
         }
@@ -184,12 +163,8 @@ impl Shortcuts {
             for key in &keys_to_delete { shortcuts.pack_files_list.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.packed_files_db.clone() { if defaults.packed_files_db.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { shortcuts.packed_files_db.remove(key); }
-
-            let mut keys_to_delete = vec![];
-            for (key, _) in shortcuts.packed_files_loc.clone() { if defaults.packed_files_loc.get(&*key).is_none() { keys_to_delete.push(key); } }
-            for key in &keys_to_delete { shortcuts.packed_files_loc.remove(key); }
+            for (key, _) in shortcuts.packed_files_table.clone() { if defaults.packed_files_table.get(&*key).is_none() { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { shortcuts.packed_files_table.remove(key); }
 
             let mut keys_to_delete = vec![];
             for (key, _) in shortcuts.db_decoder_fields.clone() { if defaults.db_decoder_fields.get(&*key).is_none() { keys_to_delete.push(key); } }
@@ -205,8 +180,7 @@ impl Shortcuts {
             for (key, value) in defaults.menu_bar_about { if shortcuts.menu_bar_about.get(&*key).is_none() { shortcuts.menu_bar_about.insert(key, value);  } }
             for (key, value) in defaults.tree_view { if shortcuts.tree_view.get(&*key).is_none() { shortcuts.tree_view.insert(key, value);  } }
             for (key, value) in defaults.pack_files_list { if shortcuts.pack_files_list.get(&*key).is_none() { shortcuts.pack_files_list.insert(key, value);  } }
-            for (key, value) in defaults.packed_files_db { if shortcuts.packed_files_db.get(&*key).is_none() { shortcuts.packed_files_db.insert(key, value);  } }
-            for (key, value) in defaults.packed_files_loc { if shortcuts.packed_files_loc.get(&*key).is_none() { shortcuts.packed_files_loc.insert(key, value);  } }
+            for (key, value) in defaults.packed_files_table { if shortcuts.packed_files_table.get(&*key).is_none() { shortcuts.packed_files_table.insert(key, value);  } }
             for (key, value) in defaults.db_decoder_fields { if shortcuts.db_decoder_fields.get(&*key).is_none() { shortcuts.db_decoder_fields.insert(key, value);  } }
             for (key, value) in defaults.db_decoder_definitions { if shortcuts.db_decoder_definitions.get(&*key).is_none() { shortcuts.db_decoder_definitions.insert(key, value);  } }
         }

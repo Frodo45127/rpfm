@@ -661,28 +661,6 @@ pub fn background_loop(
                         );
                     }
 
-                    // In case we want to import a TSV file into a Loc PackedFile...
-                    Commands::ImportTSVPackedFileLoc => {
-
-                        // Try to import the TSV into the open Loc PackedFile from the provided path, or die trying.
-                        let mut data = if let Data::LocPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match data.0.import_tsv(&data.1, "") {
-                            Ok(_) => sender.send(Data::Loc(data.0)).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
-                    }
-
-                    // In case we want to export a Loc PackedFile into a TSV file...
-                    Commands::ExportTSVPackedFileLoc => {
-
-                        // Try to export the TSV from the open Loc PackedFile to the provided path, or die trying.
-                        let data = if let Data::LocPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match data.0.export_tsv(&data.1, ("", 0)) {
-                            Ok(_) => sender.send(Data::Success).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
-                    }
-
                     // In case we want to decode a DB PackedFile...
                     Commands::DecodePackedFileDB => {
 
@@ -733,24 +711,20 @@ pub fn background_loop(
                         );
                     }
 
-                    // In case we want to import a TSV file into a DB PackedFile...
-                    Commands::ImportTSVPackedFileDB => {
 
-                        // Try to import the TSV into the open DB Table from the provided path, or die trying.
-                        let mut data = if let Data::DBPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        let db_type = data.0.db_type.to_owned();
-                        match data.0.import_tsv(&data.1, &db_type) {
-                            Ok(_) => sender.send(Data::DB(data.0)).unwrap(),
+                    // In case we want to import a TSV file into a DB Table/Loc PackedFile...
+                    Commands::ImportTSVPackedFile => {
+                        let data = if let Data::TableDefinitionPathBufStringI32(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        match import_tsv(&data.0, &data.1, &data.2, data.3) {
+                            Ok(data) => sender.send(Data::VecVecDecodedData(data)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
 
-                    // In case we want to export a DB PackedFile into a TSV file...
-                    Commands::ExportTSVPackedFileDB => {
-
-                        // Try to export the TSV into the open DB PackedFile to the provided path, or die trying.
-                        let data = if let Data::DBPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match data.0.export_tsv(&data.1, (&data.0.db_type, data.0.version)) {
+                    // In case we want to export a DB Table/Loc PackedFile into a TSV file...
+                    Commands::ExportTSVPackedFile => {
+                        let data = if let Data::VecVecDecodedDataPathBufVecStringTupleStrI32(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        match export_tsv(&data.0, &data.1, &data.2, (&(data.3).0, (data.3).1)) {
                             Ok(_) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
@@ -1190,12 +1164,13 @@ pub fn background_loop(
 
                     // In case we want to perform a "Global Search"...
                     Commands::GlobalSearch => {
-                       
+
                         // Wait until we get the needed data from the UI thread.
                         let pattern = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
                         let mut error = false;
+                        let loc_definition = TableDefinition::new_loc_definition();
                         for packed_file in &mut pack_file_decoded.packed_files {
                             let path = packed_file.path.to_vec();
                             let packedfile_name = path.last().unwrap().to_owned();
@@ -1260,13 +1235,26 @@ pub fn background_loop(
 
                                         let mut matches_in_file = vec![];
                                         for (index, row) in packed_file.entries.iter().enumerate() {
-                                            if let Ok(ref regex) = regex {
-                                                if regex.is_match(&row.key) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
-                                                if regex.is_match(&row.text) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
-                                            }
-                                            else {
-                                                if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
-                                                if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                            for (column, field) in loc_definition.fields.iter().enumerate() {
+                                                match row[column] {
+
+                                                    // All these are Strings, so it can be together,
+                                                    DecodedData::StringU8(ref data) |
+                                                    DecodedData::StringU16(ref data) |
+                                                    DecodedData::OptionalStringU8(ref data) |
+                                                    DecodedData::OptionalStringU16(ref data) => 
+
+                                                        if let Ok(ref regex) = regex {
+                                                            if regex.is_match(&data) {
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                            }
+                                                        }
+                                                        else if data.contains(&pattern) {
+                                                            matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                        }
+
+                                                    _ => continue
+                                                }
                                             }
                                         }
 
@@ -1335,6 +1323,7 @@ pub fn background_loop(
                         let (pattern, paths) = if let Data::StringVecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
+                        let loc_definition = TableDefinition::new_loc_definition();
                         let mut error = false;
                         for packed_file in &mut pack_file_decoded.packed_files {
 
@@ -1411,13 +1400,26 @@ pub fn background_loop(
 
                                             let mut matches_in_file = vec![];
                                             for (index, row) in packed_file.entries.iter().enumerate() {
-                                                if let Ok(ref regex) = regex {
-                                                    if regex.is_match(&row.key) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
-                                                    if regex.is_match(&row.text) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
-                                                }
-                                                else {
-                                                    if row.key.contains(&pattern) { matches_in_file.push((0, index as i64, row.key.to_owned())); }
-                                                    if row.text.contains(&pattern) { matches_in_file.push((1, index as i64, row.text.to_owned())); }
+                                                for (column, field) in loc_definition.fields.iter().enumerate() {
+                                                    match row[column] {
+
+                                                        // All these are Strings, so it can be together,
+                                                        DecodedData::StringU8(ref data) |
+                                                        DecodedData::StringU16(ref data) |
+                                                        DecodedData::OptionalStringU8(ref data) |
+                                                        DecodedData::OptionalStringU16(ref data) => 
+
+                                                            if let Ok(ref regex) = regex {
+                                                                if regex.is_match(&data) {
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                }
+                                                            }
+                                                            else if data.contains(&pattern) {
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                            }
+
+                                                        _ => continue
+                                                    }
                                                 }
                                             }
 

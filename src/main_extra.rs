@@ -189,8 +189,8 @@ pub fn open_packedfile(
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
     is_folder_tree_view_locked: &Rc<RefCell<bool>>,
-    db_slots: &Rc<RefCell<BTreeMap<i32, PackedFileDBTreeView>>>,
-    loc_slots: &Rc<RefCell<BTreeMap<i32, PackedFileLocTreeView>>>,
+    db_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTableView>>>,
+    loc_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTableView>>>,
     text_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTextView>>>,
     rigid_model_slots: &Rc<RefCell<BTreeMap<i32, PackedFileRigidModelDataView>>>,
     update_global_search_stuff: *mut Action,
@@ -285,7 +285,7 @@ pub fn open_packedfile(
                     "LOC" => {
 
                         // Try to get the view build, or return error.
-                        match PackedFileLocTreeView::create_tree_view(
+                        match create_loc_view(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
@@ -311,7 +311,7 @@ pub fn open_packedfile(
                     "DB" => {
 
                         // Try to get the view build, or return error.
-                        match PackedFileDBTreeView::create_table_view(
+                        match create_db_view(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,

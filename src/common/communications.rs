@@ -70,12 +70,8 @@ pub enum Commands {
     MassExportTSV,
     DecodePackedFileLoc,
     EncodePackedFileLoc,
-    ImportTSVPackedFileLoc,
-    ExportTSVPackedFileLoc,
     DecodePackedFileDB,
     EncodePackedFileDB,
-    ImportTSVPackedFileDB,
-    ExportTSVPackedFileDB,
     DecodePackedFileText,
     EncodePackedFileText,
     DecodePackedFileRigidModel,
@@ -96,6 +92,8 @@ pub enum Commands {
     GlobalSearch,
     UpdateGlobalSearchData,
     OpenWithExternalProgram,
+    ImportTSVPackedFile,
+    ExportTSVPackedFile,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 
@@ -128,14 +126,15 @@ pub enum Data {
 
     PackedFile(PackedFile),
     TreePathType(TreePathType),
+    TableDefinitionPathBufStringI32((TableDefinition, PathBuf, String, i32)),
+    VecVecDecodedData((Vec<Vec<DecodedData>>)),
+    VecVecDecodedDataPathBufVecStringTupleStrI32((Vec<Vec<DecodedData>>, PathBuf, Vec<String>, (String, i32))),
 
     Loc(Loc),
     LocVecString((Loc, Vec<String>)),
-    LocPathBuf((Loc, PathBuf)),
 
     DB(DB),
     DBVecString((DB, Vec<String>)),
-    DBPathBuf((DB, PathBuf)),
 
     RigidModel(RigidModel),
     RigidModelVecString((RigidModel, Vec<String>)),

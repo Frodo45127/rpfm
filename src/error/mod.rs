@@ -88,8 +88,8 @@ pub enum ErrorKind {
     // These errors are to be used when importing TSV files. The last one is for any other error it can happen not already covered.
     ImportTSVIncorrectRow(usize, usize),
     ImportTSVWrongTypeTable,
-    ImportTSVWrongTypeLoc,
     ImportTSVWrongVersion,
+    ImportTSVInvalidVersion,
     TSVErrorGeneric,
 
     //-----------------------------------------------------//
@@ -103,7 +103,7 @@ pub enum ErrorKind {
     SavePackFileGeneric(String),
 
     // Error for when we try to load an unsupported PackFile.
-    PackFileNotSupported,
+    //PackFileNotSupported,
 
     // Error for when the PackFile's header can be read but it's not decodeable.
     PackFileHeaderNotComplete,
@@ -399,8 +399,8 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::ImportTSVIncorrectRow(row, column) => write!(f, "<p>This TSV file has an error in the <b>row <i>{}</i></b>, <b>field <i>{}</i></b> (both starting at 1). Please, check it and make sure the value in that field is a valid value for that column.</p>", row + 1, column + 1),
             ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file either belongs to another table, to a localisation PackedFile, it's broken or it's incompatible with RPFM.</p>"),
-            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file either belongs to a DB table, it's broken or it's incompatible with RPFM.</p>"),
             ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
+            ErrorKind::ImportTSVInvalidVersion => write!(f, "<p>This TSV file has an invalid version value at line 1.</p>"),
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 
             //-----------------------------------------------------//
@@ -408,7 +408,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::OpenPackFileGeneric(error) => write!(f, "<p>Error while trying to open a PackFile:</p><p>{}</p>", error),
             ErrorKind::SavePackFileGeneric(error) => write!(f, "<p>Error while trying to save the currently open PackFile:</p><p>{}</p>", error),
-            ErrorKind::PackFileNotSupported => write!(f, "
+            /*ErrorKind::PackFileNotSupported => write!(f, "
             <p>The file is not a supported PackFile.</p>
             <p>For now, we only support:</p>
             <ul>
@@ -417,7 +417,7 @@ impl Display for ErrorKind {
             <li>- Attila.</li>
             <li>- Rome 2.</li>
             <li>- Arena.</li>
-            </ul>"),
+            </ul>"),*/
             ErrorKind::PackFileHeaderNotComplete => write!(f, "<p>The header of the PackFile is incomplete, unsupported or damaged.</p>"),
             ErrorKind::PackFileIndexesNotComplete => write!(f, "<p>The indexes of this of the PackFile are incomplete, unsupported or damaged.</p>"),
             ErrorKind::OpenPackFileInvalidExtension => write!(f, "<p>RPFM can only open packfiles whose name ends in <i>'.pack'</i></p>"),

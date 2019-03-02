@@ -8,7 +8,9 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// In this file are all the helper functions used by the UI when decoding DB PackedFiles.
+// This file contains all the common stuff between DB, the DB Decoder and Locs, 
+// to reduce duplicated code. It also houses the DB Decoder, because thatś 
+// related with the tables.
 
 use qt_widgets::abstract_item_view::ScrollMode;
 use qt_widgets::action::Action;
@@ -36,32 +38,52 @@ use qt_core::variant::Variant;
 use qt_core::item_selection::ItemSelection;
 use qt_core::item_selection_model::SelectionFlag;
 use qt_core::object::Object;
+use qt_core::reg_exp::RegExp;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
 use qt_core::string_list::StringList;
-use qt_core::qt::{CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, GlobalColor, MatchFlag};
+use qt_core::qt::{CaseSensitivity, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, GlobalColor, MatchFlag};
 
 use regex::Regex;
 
 use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::mpsc::{Sender, Receiver};
 
 use crate::TABLE_STATES_UI;
-use crate::AppUI;
-use crate::Commands;
-use crate::Data;
 use crate::QString;
-use crate::common::*;
-use crate::common::communications::*;
-use crate::error::{ErrorKind, Result};
 use crate::ui::*;
+use crate::packedfile::db::DB;
+use crate::packedfile::loc::Loc;
+use crate::ui::table_state::*;
 
-use super::*;
+pub mod packedfile_db;
+pub mod packedfile_loc;
+pub mod db_decoder;
 
-/// Struct `PackedFileDBTreeView`: contains all the stuff we need to give to the program to show a
-/// TableView with the data of a DB PackedFile, allowing us to manipulate it.
-pub struct PackedFileDBTreeView {
+//----------------------------------------------------------------//
+// Generic Enums and Structs for DB/LOC PackedFiles.
+//----------------------------------------------------------------//
+
+/// Enum `TableType`: used to distinguis between DB and Loc.
+#[derive(Clone)]
+pub enum TableType {
+    DB(DB),
+    LOC(Loc),
+}
+
+/// Enum MathOperationResult: used for keeping together different types of results after a math operation.
+/// None is an special type, so we know that we have to ignore an specified cell.
+#[derive(Clone, PartialEq)]
+enum MathOperationResult {
+    Float(f32),
+    Integer(i32),
+    LongInteger(i64),
+    None
+}
+
+/// Struct `PackedFileTableView`: contains all the stuff we need to give to the program to show a
+/// TableView with the data of a DB/LOC PackedFile, allowing us to manipulate it.
+pub struct PackedFileTableView {
     pub slot_column_moved: SlotCIntCIntCInt<'static>,
     pub slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder<'static>,
     pub slot_undo: SlotNoArgs<'static>,
@@ -99,13 +121,21 @@ pub struct PackedFileDBTreeView {
     pub slot_close_search: SlotNoArgs<'static>,
     pub slot_replace_current: SlotNoArgs<'static>,
     pub slot_replace_all: SlotNoArgs<'static>,
+
+    // From here there is just stuff we need for the Table to work, not UI stuff.
+    // pub undo_lock: Rc<RefCell<bool>>,
 }
 
+//----------------------------------------------------------------//
+// Implementation of `PackedFileTableView`.
+//----------------------------------------------------------------//
+
 /// Implementation of PackedFileDBTreeView.
-impl PackedFileDBTreeView {
+impl PackedFileTableView {
 
     /// This function creates a new Table with the PackedFile's View as father and returns a
-    /// `PackedFileDBTreeView` with all his data.
+    /// `PackedFileTableView` with all his data. This is the generic function for DB and LOCs.
+    /// ANYTHING specific goes before or after this.
     pub fn create_table_view(
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
@@ -117,17 +147,10 @@ impl PackedFileDBTreeView {
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
         table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
+        table_definition: &Rc<TableDefinition>,
+        enable_header_popups: Option<String>,
+        table_type: &Rc<RefCell<TableType>>,
     ) -> Result<Self> {
-
-        // Send the index back to the background thread, and wait until we get a response.
-        sender_qt.send(Commands::DecodePackedFileDB).unwrap();
-        sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
-        let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
-            Data::DB(data) => Rc::new(RefCell::new(data)),
-            Data::Error(error) => return Err(error),
-            _ => panic!(THREADS_MESSAGE_ERROR), 
-        };
-        let table_definition = Rc::new(packed_file_data.borrow().table_definition.clone());
 
         // Create the dependency data for this table and populate it.
         let mut dependency_data: BTreeMap<i32, Vec<String>> = BTreeMap::new();
@@ -169,6 +192,7 @@ impl PackedFileDBTreeView {
         unsafe { row_filter_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!")); }
 
         // Create the filter's column selector.
+        // TODO: Make this follow the visual order of the columns, NOT THE LOGICAL ONE.
         let row_filter_column_selector = ComboBox::new().into_raw();
         let row_filter_column_list = StandardItemModel::new(()).into_raw();
         unsafe { row_filter_column_selector.as_mut().unwrap().set_model(row_filter_column_list as *mut AbstractItemModel); }
@@ -193,7 +217,7 @@ impl PackedFileDBTreeView {
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
-        Self::load_data_to_table_view(&dependency_data, &packed_file_data.borrow(), table_view, model);
+        Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
 
         // Add Table to the Grid.
         unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
@@ -281,7 +305,7 @@ impl PackedFileDBTreeView {
         let update_search_stuff = Action::new(()).into_raw();
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        build_columns(&table_definition, table_view, model, &packed_file_path.borrow()[1]);
+        build_columns(table_view, model, &table_definition, enable_header_popups.clone());
 
         {
             let mut table_state_data = table_state_data.borrow_mut();
@@ -338,24 +362,24 @@ impl PackedFileDBTreeView {
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
 
         // Set the shortcuts for these actions.
-        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["add_row"]))); }
-        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["insert_row"]))); }
-        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["delete_row"]))); }
-        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["apply_maths_to_selection"]))); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["apply_prefix_to_selection"]))); }
-        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["clone_row"]))); }
-        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["clone_and_append_row"]))); }
-        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["copy"]))); }
-        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["copy_as_lua_table"]))); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["paste_in_selection"]))); }
-        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["paste_as_new_row"]))); }
-        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["paste_to_fill_selection"]))); }
-        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["search"]))); }
-        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["import_tsv"]))); }
-        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["export_tsv"]))); }
-        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["smart_delete"]))); }
-        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["undo"]))); }
-        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_db["redo"]))); }
+        unsafe { context_menu_add.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["add_row"]))); }
+        unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["insert_row"]))); }
+        unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["delete_row"]))); }
+        unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["apply_maths_to_selection"]))); }
+        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["apply_prefix_to_selection"]))); }
+        unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["clone_row"]))); }
+        unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["clone_and_append_row"]))); }
+        unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["copy"]))); }
+        unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["copy_as_lua_table"]))); }
+        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_in_selection"]))); }
+        unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_as_new_row"]))); }
+        unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_to_fill_selection"]))); }
+        unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["search"]))); }
+        unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["import_tsv"]))); }
+        unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["export_tsv"]))); }
+        unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["smart_delete"]))); }
+        unsafe { context_menu_undo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["undo"]))); }
+        unsafe { context_menu_redo.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["redo"]))); }
 
         // Set the shortcuts to only trigger in the Table.
         unsafe { context_menu_add.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -501,10 +525,12 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                packed_file_data,
                 sender_qt,
                 sender_qt_data,
+                enable_header_popups,
                 undo_lock,
+                table_type,
+                table_definition,
                 table_state_data => move || {
                     {
                         let mut table_state_data = table_state_data.borrow_mut();
@@ -516,7 +542,6 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &packed_file_path,
-                            &packed_file_data,
                             table_view,
                             model,
                             filter_model,
@@ -525,6 +550,9 @@ impl PackedFileDBTreeView {
                             &global_search_explicit_paths,
                             update_global_search_stuff,
                             &undo_lock,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
+                            enable_header_popups.clone()
                         );
 
                         update_undo_model(model, table_state_data.undo_model);
@@ -540,10 +568,12 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                packed_file_data,
                 sender_qt,
                 sender_qt_data,
+                enable_header_popups,
                 undo_lock,
+                table_type,
+                table_definition,
                 table_state_data => move || {
                     {
                         let mut table_state_data = table_state_data.borrow_mut();
@@ -555,7 +585,6 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &packed_file_path,
-                            &packed_file_data,
                             table_view,
                             model,
                             filter_model,
@@ -564,6 +593,9 @@ impl PackedFileDBTreeView {
                             &global_search_explicit_paths,
                             update_global_search_stuff,
                             &undo_lock,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
+                            enable_header_popups.clone()
                         );
 
                         update_undo_model(model, table_state_data.undo_model); 
@@ -653,7 +685,8 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                packed_file_data,
+                table_definition,
+                table_type,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
 
@@ -668,11 +701,12 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &app_ui,
-                            &packed_file_data,
                             &packed_file_path,
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
                         );
 
                         // Otherwise, update the needed stuff.
@@ -768,8 +802,8 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                packed_file_data,
                 table_state_data,
+                table_type,
                 sender_qt,
                 sender_qt_data,
                 table_definition => move |_| {
@@ -830,11 +864,12 @@ impl PackedFileDBTreeView {
                         &sender_qt_data,
                         &is_modified,
                         &app_ui,
-                        &packed_file_data,
                         &packed_file_path,
                         model,
                         &global_search_explicit_paths,
                         update_global_search_stuff,
+                        &table_definition,
+                        &mut table_type.borrow_mut(),
                     );
 
                     // Update the search stuff, if needed.
@@ -856,8 +891,8 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                packed_file_data,
                 table_state_data,
+                table_type,
                 sender_qt,
                 sender_qt_data,
                 table_definition => move |_| {
@@ -930,11 +965,13 @@ impl PackedFileDBTreeView {
                         &sender_qt_data,
                         &is_modified,
                         &app_ui,
-                        &packed_file_data,
                         &packed_file_path,
                         model,
                         &global_search_explicit_paths,
                         update_global_search_stuff,
+                        &table_definition,
+                        &mut table_type.borrow_mut(),
+
                     );
 
                     // Update the search stuff, if needed.
@@ -955,8 +992,9 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                packed_file_data,
                 table_state_data,
+                table_definition,
+                table_type,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1011,11 +1049,12 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &app_ui,
-                            &packed_file_data,
                             &packed_file_path,
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
                         );
 
                         // Update the search stuff, if needed.
@@ -1204,8 +1243,8 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 table_definition,
-                packed_file_data,
                 table_state_data,
+                table_type,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1245,11 +1284,12 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &app_ui,
-                            &packed_file_data,
                             &packed_file_path,
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
                         );
 
                         // Update the search stuff, if needed.
@@ -1275,9 +1315,9 @@ impl PackedFileDBTreeView {
                 packed_file_path,
                 app_ui,
                 is_modified,
-                packed_file_data,
                 table_definition,
                 table_state_data,
+                table_type,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1316,11 +1356,12 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &app_ui,
-                            &packed_file_data,
                             &packed_file_path,
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
                         );
 
                         // Update the search stuff, if needed.
@@ -1400,11 +1441,17 @@ impl PackedFileDBTreeView {
 
             slot_context_menu_copy_as_lua_table: SlotBool::new(clone!(
                 table_definition,
-                packed_file_data => move |_| {
+                table_type => move |_| {
+
+                    let table_type = &*table_type.borrow();
+                    let packed_file_data = match table_type {
+                        TableType::DB(data) => &data.entries,
+                        TableType::LOC(data) => &data.entries,
+                    };
 
                     // Get all the rows into a Vec<Vec<String>>, so we can deal with them more easely.
                     let mut entries = vec![];
-                    for row in &packed_file_data.borrow().entries {
+                    for row in packed_file_data.iter() {
                         let mut row_string = vec![];
                         for cell in row.iter() {
 
@@ -1658,8 +1705,8 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 table_definition,
-                packed_file_data,
                 table_state_data,
+                table_type,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -1804,11 +1851,12 @@ impl PackedFileDBTreeView {
                                 &sender_qt_data,
                                 &is_modified,
                                 &app_ui,
-                                &packed_file_data,
                                 &packed_file_path,
                                 model,
                                 &global_search_explicit_paths,
                                 update_global_search_stuff,
+                                &table_definition,
+                                &mut table_type.borrow_mut(),
                             );
 
                             // Update the search stuff, if needed.
@@ -1933,14 +1981,15 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 table_definition,
-                packed_file_data,
                 packed_file_path,
                 table_state_data,
+                table_type,
+                enable_header_popups,
                 sender_qt,
                 sender_qt_data,
                 dependency_data,
                 receiver_qt => move |_| {
-
+                    
                     // Create the FileDialog to import the TSV file and configure it.
                     let mut file_dialog = unsafe { FileDialog::new_unsafe((
                         app_ui.window as *mut Widget,
@@ -1951,26 +2000,33 @@ impl PackedFileDBTreeView {
 
                     // Run it and, if we receive 1 (Accept), try to import the TSV file.
                     if file_dialog.exec() == 1 {
-
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                        sender_qt.send(Commands::ImportTSVPackedFileDB).unwrap();
-                        sender_qt_data.send(Data::DBPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
+                        let (name, version, old_data) = match &*table_type.borrow() {
+                            TableType::DB(data) => (data.db_type.to_owned(), data.version, data.entries.to_vec()),
+                            TableType::LOC(data) => ("".to_owned(), 1, data.entries.to_vec()),
+                        };
+
+                        sender_qt.send(Commands::ImportTSVPackedFile).unwrap();
+                        sender_qt_data.send(Data::TableDefinitionPathBufStringI32(((*table_definition).clone(), path, name, version))).unwrap();
 
                         match check_message_validity_recv2(&receiver_qt) {
-                            Data::DB(new_db_data) => Self::load_data_to_table_view(&dependency_data, &new_db_data, table_view, model),
+                            Data::VecVecDecodedData(new_data) => {
+                                match &mut *table_type.borrow_mut() {
+                                    TableType::DB(data) => data.entries = new_data.to_vec(),
+                                    TableType::LOC(data) => data.entries = new_data.to_vec(),
+                                };
+                                Self::load_data_to_table_view(table_view, model, &table_type.borrow(), &table_definition, &dependency_data)
+                            },
                             Data::Error(error) => return show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
 
                         // Build the Column's "Data".
-                        build_columns(&table_definition, table_view, model, &packed_file_path.borrow()[1]);
+                        build_columns(table_view, model, &table_definition, enable_header_popups.clone());
 
                         if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
                         }
-
-                        // Make a copy of the old data for the undo system.
-                        let old_data = packed_file_data.borrow().clone();
 
                         // Try to save the PackedFile to the main PackFile.
                         Self::save_to_packed_file(
@@ -1978,11 +2034,12 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &app_ui,
-                            &packed_file_data,
                             &packed_file_path,
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
                         );
 
                         // Update the search stuff, if needed.
@@ -1991,7 +2048,7 @@ impl PackedFileDBTreeView {
                         {
                             let mut table_state_data = table_state_data.borrow_mut();
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
-                            table_state_data.undo_history.push(TableOperations::ImportTSVDB(old_data));
+                            table_state_data.undo_history.push(TableOperations::ImportTSV(old_data));
                             table_state_data.redo_history.clear();
                             update_undo_model(model, table_state_data.undo_model); 
                         }
@@ -2000,10 +2057,11 @@ impl PackedFileDBTreeView {
                 }
             )),
             slot_context_menu_export: SlotBool::new(clone!(
+                table_definition,
+                table_type,
                 app_ui,
                 sender_qt,
                 sender_qt_data,
-                packed_file_data,
                 receiver_qt => move |_| {
 
                     // Create a File Chooser to get the destination path and configure it.
@@ -2021,8 +2079,14 @@ impl PackedFileDBTreeView {
                     if file_dialog.exec() == 1 {
 
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                        sender_qt.send(Commands::ExportTSVPackedFileDB).unwrap();
-                        sender_qt_data.send(Data::DBPathBuf((packed_file_data.borrow().clone(), path))).unwrap();
+                        let headers = table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
+                        let (name, version, entries) = match &*table_type.borrow() {
+                            TableType::DB(data) => (data.db_type.to_owned(), data.version, data.entries.to_vec()),
+                            TableType::LOC(data) => ("Loc PackedFile".to_owned(), 1, data.entries.to_vec()),
+                        };
+
+                        sender_qt.send(Commands::ExportTSVPackedFile).unwrap();
+                        sender_qt_data.send(Data::VecVecDecodedDataPathBufVecStringTupleStrI32((entries.to_vec(), path, headers, (name, version)))).unwrap();
 
                         // If there is an error, report it. Otherwise, we're done.
                         match check_message_validity_recv2(&receiver_qt) {
@@ -2038,9 +2102,9 @@ impl PackedFileDBTreeView {
                 app_ui,
                 is_modified,
                 table_definition,
-                packed_file_data,
                 packed_file_path,
                 table_state_data,
+                table_type,
                 sender_qt,
                 sender_qt_data => move |_| {
 
@@ -2156,11 +2220,12 @@ impl PackedFileDBTreeView {
                             &sender_qt_data,
                             &is_modified,
                             &app_ui,
-                            &packed_file_data,
                             &packed_file_path,
                             model,
                             &global_search_explicit_paths,
                             update_global_search_stuff,
+                            &table_definition,
+                            &mut table_type.borrow_mut(),
                         );
 
                         // Update the search stuff, if needed.
@@ -2783,16 +2848,23 @@ impl PackedFileDBTreeView {
 
     /// This function loads the data from a LocData into a TableView.
     pub fn load_data_to_table_view(
-        dependency_data: &BTreeMap<i32, Vec<String>>,
-        packed_file_data: &DB,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
+        data: &TableType,
+        table_definition: &TableDefinition,
+        dependency_data: &BTreeMap<i32, Vec<String>>,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
         // This wipes out header information, so remember to run "build_columns" after this.
         unsafe { model.as_mut().unwrap().clear(); }
 
-        for entry in &packed_file_data.entries {
+        // Set the right data, depending on the table type you get.
+        let data = match data {
+            TableType::DB(data) => &data.entries,
+            TableType::LOC(data) => &data.entries,
+        };
+
+        for entry in data {
             let mut qlist = ListStandardItemMutPtr::new(());
             for (index, field) in entry.iter().enumerate() {
 
@@ -2843,7 +2915,7 @@ impl PackedFileDBTreeView {
                 };
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && packed_file_data.table_definition.fields[index].field_is_reference.is_some() {
+                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && table_definition.fields[index].field_is_reference.is_some() {
                     check_references(dependency_data, index as i32, item.as_mut_ptr());
                 }
 
@@ -2853,9 +2925,9 @@ impl PackedFileDBTreeView {
         }
 
         // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
-        if packed_file_data.entries.is_empty() {
+        if data.is_empty() {
             let mut qlist = ListStandardItemMutPtr::new(());
-            for field in &packed_file_data.table_definition.fields {
+            for field in &table_definition.fields {
                 let item = match field.field_type {
                     FieldType::Boolean => {
                         let mut item = StandardItem::new(());
@@ -2893,7 +2965,7 @@ impl PackedFileDBTreeView {
         // Here we assing the ItemDelegates, so each type has his own widget with validation included.
         // LongInteger uses normal string controls due to QSpinBox being limited to i32.
         // The rest don't need any kind of validation. For now.
-        for (column, field) in packed_file_data.table_definition.fields.iter().enumerate() {
+        for (column, field) in table_definition.fields.iter().enumerate() {
             match field.field_type {
                 FieldType::Boolean => {},
                 FieldType::Float => unsafe { qt_custom_stuff::new_doublespinbox_item_delegate(table_view as *mut Object, column as i32) },
@@ -2917,20 +2989,25 @@ impl PackedFileDBTreeView {
         }
     }
 
-    /// This function returns a DBData with all the stuff in the table. This can and will fail in case
-    /// the data of a field cannot be parsed to the type of that field. Beware of that.
+    /// This function returns a DBData with all the stuff in the table. The data is filtered in the UI BEFORE inserting it
+    /// into the table, so this should be safe. Should.
     pub fn return_data_from_table_view(
-        packed_file_data: &mut DB,
+        table_type: &mut TableType,
+        definition: &TableDefinition,
         model: *mut StandardItemModel,
     ) {
 
         // Remove every entry from the DB, then add each one again from the model.
         // The model already validates the data BEFORE accepting it, so all the data here should be valid.
-        packed_file_data.entries.clear();
-        let rows = unsafe { model.as_mut().unwrap().row_count(()) };
-        for row in 0..rows {
+        let packed_file_data = match table_type {
+            TableType::DB(data) => &mut data.entries,
+            TableType::LOC(data) => &mut data.entries,
+        };
+
+        packed_file_data.clear();
+        for row in 0..unsafe { model.as_mut().unwrap().row_count(()) } {
             let mut new_row: Vec<DecodedData> = vec![];
-            for (column, field) in packed_file_data.table_definition.fields.iter().enumerate() {
+            for (column, field) in definition.fields.iter().enumerate() {
 
                 // Create a new Item.
                 let item = unsafe {
@@ -2953,7 +3030,7 @@ impl PackedFileDBTreeView {
                 };
                 new_row.push(item);
             }
-            packed_file_data.entries.push(new_row);
+            packed_file_data.push(new_row);
         }
     }
 
@@ -2963,19 +3040,29 @@ impl PackedFileDBTreeView {
         sender_qt_data: &Sender<Data>,
         is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
-        data: &Rc<RefCell<DB>>,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         model: *mut StandardItemModel,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
+        definition: &TableDefinition,
+        mut table_type: &mut TableType,
     ) {
 
         // Update the DB with the data in the table, or report error if it fails.
-        Self::return_data_from_table_view(&mut data.borrow_mut(), model);
+        Self::return_data_from_table_view(&mut table_type, definition, model);
+        
+        // Depending on the table type, we save it one way or another.
+        match table_type {
+            TableType::DB(packed_file) => {
+                sender_qt.send(Commands::EncodePackedFileDB).unwrap();
+                sender_qt_data.send(Data::DBVecString((packed_file.clone(), packed_file_path.borrow().to_vec()))).unwrap();
+            },
 
-        // Tell the background thread to start saving the PackedFile.
-        sender_qt.send(Commands::EncodePackedFileDB).unwrap();
-        sender_qt_data.send(Data::DBVecString((data.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
+            TableType::LOC(packed_file) => {
+                sender_qt.send(Commands::EncodePackedFileLoc).unwrap();
+                sender_qt_data.send(Data::LocVecString((packed_file.clone(), packed_file_path.borrow().to_vec()))).unwrap();
+            }
+        }
 
         // Set the mod as "Modified".
         *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
@@ -2996,7 +3083,6 @@ impl PackedFileDBTreeView {
         sender_qt_data: &Sender<Data>,
         is_modified: &Rc<RefCell<bool>>,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
-        data: &Rc<RefCell<DB>>,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
         filter_model: *mut SortFilterProxyModel,
@@ -3005,6 +3091,9 @@ impl PackedFileDBTreeView {
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
         undo_lock: &Rc<RefCell<bool>>,
+        table_definition: &TableDefinition,
+        mut table_type: &mut TableType,
+        enable_header_popups: Option<String>,
     ) {
 
         // Get the last operation in the Undo History, or return if there is none.
@@ -3087,11 +3176,12 @@ impl PackedFileDBTreeView {
                     &sender_qt_data,
                     &is_modified,
                     &app_ui,
-                    &data,
                     &packed_file_path,
                     model,
                     &global_search_explicit_paths,
                     update_global_search_stuff,
+                    table_definition,
+                    &mut table_type,
                 );
             }
 
@@ -3249,22 +3339,32 @@ impl PackedFileDBTreeView {
                     &sender_qt_data,
                     &is_modified,
                     &app_ui,
-                    &data,
                     &packed_file_path,
                     model,
                     &global_search_explicit_paths,
                     update_global_search_stuff,
+                    table_definition,
+                    &mut table_type,
                 );
             }
 
             // This action is special and we have to manually trigger a save for it.
-            TableOperations::ImportTSVDB(table_data) => {
+            TableOperations::ImportTSV(table_data) => {
 
                 // Prepare the redo operation.
-                history_opposite.push(TableOperations::ImportTSVDB(data.borrow().clone()));
+                match table_type {
+                    TableType::DB(data) => {
+                        history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
+                        data.entries = table_data;
+                    },
+                    TableType::LOC(data) => {
+                        history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
+                        data.entries = table_data;
+                    },
+                }
 
-                Self::load_data_to_table_view(&dependency_data, &table_data, table_view, model);
-                build_columns(&data.borrow().table_definition, table_view, model, &packed_file_path.borrow()[1]);
+                Self::load_data_to_table_view(table_view, model, table_type, table_definition, &dependency_data);
+                build_columns(table_view, model, table_definition, enable_header_popups);
 
                 // If we want to let the columns resize themselfs...
                 if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
@@ -3277,16 +3377,355 @@ impl PackedFileDBTreeView {
                     &sender_qt_data,
                     &is_modified,
                     &app_ui,
-                    &data,
                     &packed_file_path,
                     model,
                     &global_search_explicit_paths,
                     update_global_search_stuff,
+                    table_definition,
+                    &mut table_type,
                 );
             }
-
-            // Any other variant is not possible in this kind of table.
-            _ => { return },
         }
+    }
+}
+
+
+
+//----------------------------------------------------------------//
+// Helper Functions for DB/LOC PackedFiles.
+//----------------------------------------------------------------//
+
+/// This function "process" the column names of a table, so they look like they should.
+fn clean_column_names(field_name: &str) -> String {
+    let mut new_name = String::new();
+    let mut should_be_uppercase = false;
+
+    for character in field_name.chars() {
+
+        if new_name.is_empty() || should_be_uppercase {
+            new_name.push_str(&character.to_uppercase().to_string());
+            should_be_uppercase = false;
+        }
+
+        else if character == '_' {
+            new_name.push(' ');
+            should_be_uppercase = true;
+        }
+
+        else { new_name.push(character); }
+    }
+
+    new_name
+}
+
+/// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
+/// His intended use is for just after we load/reload the data to the table.
+fn build_columns(
+    table_view: *mut TableView,
+    model: *mut StandardItemModel,
+    definition: &TableDefinition,
+    enable_header_popups: Option<String>,
+) {
+    // Create a list of "Key" columns.
+    let mut keys = vec![];
+
+    // For each column, clean their name and set their width and tooltip.
+    for (index, field) in definition.fields.iter().enumerate() {
+
+        let name = clean_column_names(&field.field_name);
+        let item = StandardItem::new(&QString::from_std_str(&name)).into_raw();
+        unsafe { model.as_mut().unwrap().set_horizontal_header_item(index as i32, item) };
+
+        // Depending on his type, set one width or another.
+        match field.field_type {
+            FieldType::Boolean => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 100); }
+            FieldType::Float => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 140); }
+            FieldType::Integer => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 140); }
+            FieldType::LongInteger => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 140); }
+            FieldType::StringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+            FieldType::StringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+            FieldType::OptionalStringU8 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+            FieldType::OptionalStringU16 => unsafe { table_view.as_mut().unwrap().set_column_width(index as i32, 350); }
+        }
+
+        // We only pass this for DB Tables. Loc files can skip this.
+        if let Some(ref table_name) = enable_header_popups {   
+    
+            // Create the tooltip for the column. To get the reference data, we iterate through every table in the schema and check their references.
+            let mut tooltip_text = String::new();
+            if !field.field_description.is_empty() { tooltip_text.push_str(&format!("<p>{}</p>", field.field_description)); }
+            if let Some(ref reference) = field.field_is_reference {
+                tooltip_text.push_str(&format!("<p>This column is a reference to:</p><p><i>\"{}/{}\"</i></p>", reference.0, reference.1));
+            } else { 
+                let schema = SCHEMA.lock().unwrap().clone();
+                let mut referenced_columns = if let Some(schema) = schema {
+                    let short_table_name = table_name.split_at(table_name.len() - 7).0;
+                    let mut columns = vec![];
+                    for table in schema.tables_definitions {
+                        let mut found = false;
+                        for version in table.versions {
+                            for field_ref in version.fields {
+                                if let Some(ref_data) = field_ref.field_is_reference { 
+                                    if &ref_data.0 == short_table_name && ref_data.1 == field.field_name {
+                                        found = true;
+                                        columns.push((table.name.to_owned(), field_ref.field_name)); 
+                                    }
+                                }
+                            }
+                            if found { break; }
+                        }
+                    }
+                    columns
+                } else { vec![] };
+
+                referenced_columns.sort_unstable();
+                if !referenced_columns.is_empty() { 
+                    tooltip_text.push_str("<p>Fields that reference this column:</p>");
+                    for (index, reference) in referenced_columns.iter().enumerate() {
+                        tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
+
+                        // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
+                        if index == 50 { 
+                            tooltip_text.push_str(&format!("<p>And many more. Exactly, {} more. Too many to show them here.</p>nnnn", referenced_columns.len() as isize - 50));
+                            break ;
+                        }
+                    }
+
+                    // Dirty trick to remove the last <br> from the tooltip, or the nnnn in case that text get used.
+                    tooltip_text.pop();
+                    tooltip_text.pop();
+                    tooltip_text.pop();
+                    tooltip_text.pop();
+                }
+            }
+            if !tooltip_text.is_empty() { unsafe { item.as_mut().unwrap().set_tool_tip(&QString::from_std_str(&tooltip_text)); }}
+        }
+
+        // If the field is key, add that column to the "Key" list, so we can move them at the begining later.
+        if field.field_is_key { keys.push(index); }
+    }
+
+    // If we have any "Key" field, move it to the beginning.
+    if !keys.is_empty() {
+        for (position, column) in keys.iter().enumerate() {
+            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*column as i32, position as i32); }
+        }
+    }
+}
+
+// Function to check if an specific field's data is in their references.
+fn check_references(
+    dependency_data: &BTreeMap<i32, Vec<String>>,
+    column: i32,
+    item: *mut StandardItem,
+) {
+    // Check if it's a valid reference.
+    if let Some(ref_data) = dependency_data.get(&column) {
+
+        let text = unsafe { item.as_mut().unwrap().text().to_std_string() };
+        if ref_data.contains(&text) { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::White } else { GlobalColor::Black })); } }
+        else if ref_data.is_empty() { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Blue)); } }
+        else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
+    }
+}
+
+/// This function checks if the data in the clipboard is suitable for the selected Items.
+fn check_clipboard(
+    definition: &TableDefinition,
+    table_view: *mut TableView,
+    model: *mut StandardItemModel,
+    filter_model: *mut SortFilterProxyModel,
+) -> bool {
+
+    // Get the current selection.
+    let clipboard = GuiApplication::clipboard();
+    let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
+    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+    let mut indexes_sorted = vec![];
+    for index in 0..indexes.count(()) {
+        indexes_sorted.push(indexes.at(index))
+    }
+
+    // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
+    let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
+    indexes_sorted.sort_unstable_by(|a, b| {
+        if a.row() == b.row() {
+            if header.visual_index(a.column()) < header.visual_index(b.column()) { Ordering::Less }
+            else { Ordering::Greater }
+        } 
+        else if a.row() < b.row() { Ordering::Less }
+        else { Ordering::Greater }
+    });
+
+    // If there is nothing selected, don't waste your time.
+    if indexes_sorted.is_empty() { return false }
+
+    // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
+    if text.ends_with('\n') { text.pop(); }
+    let text = text.replace('\n', "\t");
+    let text = text.split('\t').collect::<Vec<&str>>();
+
+    // Get the list of items selected in a format we can deal with easely.
+    let mut items = vec![];
+    for model_index in &indexes_sorted {
+        if model_index.is_valid() {
+            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
+        }
+    }
+
+    // If none of the items are valid, stop.
+    if items.is_empty() { return false }
+
+    // Zip together both vectors.
+    let data = items.iter().zip(text);
+    for cell in data {
+
+        // Depending on the column, we try to encode the data in one format or another.
+        let column = unsafe { cell.0.as_mut().unwrap().index().column() };
+        match definition.fields[column as usize].field_type {
+            FieldType::Boolean =>  if cell.1.to_lowercase() != "true" && cell.1.to_lowercase() != "false" && cell.1 != "1" && cell.1 != "0" { return false },
+            FieldType::Float => if cell.1.parse::<f32>().is_err() { return false },
+            FieldType::Integer => if cell.1.parse::<i32>().is_err() { return false },
+            FieldType::LongInteger => if cell.1.parse::<i64>().is_err() { return false },
+
+            // All these are Strings, so we can skip their checks....
+            FieldType::StringU8 |
+            FieldType::StringU16 |
+            FieldType::OptionalStringU8 |
+            FieldType::OptionalStringU16 => continue
+        }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
+}
+
+/// This function checks if the data in the clipboard is suitable for be pasted in all selected cells.
+fn check_clipboard_to_fill_selection(
+    definition: &TableDefinition,
+    table_view: *mut TableView,
+    model: *mut StandardItemModel,
+    filter_model: *mut SortFilterProxyModel,
+) -> bool {
+
+    // Get the current selection.
+    let clipboard = GuiApplication::clipboard();
+    let text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
+    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+
+    // If there is nothing selected, don't waste your time.
+    if indexes.count(()) == 0 { return false }
+
+    // For each selected index...
+    for index in 0..indexes.count(()) {
+        let model_index = indexes.at(index);
+        if model_index.is_valid() {
+
+            // Depending on the column, we try to encode the data in one format or another.
+            let item = unsafe { model.as_mut().unwrap().item_from_index(&model_index) };
+            let column = unsafe { item.as_mut().unwrap().index().column() };
+            match definition.fields[column as usize].field_type {
+                FieldType::Boolean => if text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != "1" && text != "0" { return false },
+                FieldType::Float => if text.parse::<f32>().is_err() { return false },
+                FieldType::Integer => if text.parse::<i32>().is_err() { return false },
+                FieldType::LongInteger => if text.parse::<i64>().is_err() { return false },
+
+                // All these are Strings, so we can skip their checks....
+                FieldType::StringU8 |
+                FieldType::StringU16 |
+                FieldType::OptionalStringU8 |
+                FieldType::OptionalStringU16 => {}
+            }
+        }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
+}
+
+/// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
+fn check_clipboard_append_rows(
+    table_view: *mut TableView,
+    definition: &TableDefinition
+) -> bool {
+
+    // Get the text from the clipboard.
+    let clipboard = GuiApplication::clipboard();
+    let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
+
+    // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
+    if text.ends_with('\n') { text.pop(); }
+    let text = text.replace('\n', "\t");
+    let text = text.split('\t').collect::<Vec<&str>>();
+
+    // Get the index for the column.
+    let mut column = 0;
+    for cell in text {
+
+        // Depending on the column, we try to encode the data in one format or another.
+        let column_logical_index = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap().logical_index(column) };
+        match definition.fields[column_logical_index as usize].field_type {
+            FieldType::Boolean => if cell.to_lowercase() != "true" && cell.to_lowercase() != "false" && cell != "1" && cell != "0" { return false },
+            FieldType::Float => if cell.parse::<f32>().is_err() { return false },
+            FieldType::Integer => if cell.parse::<i32>().is_err() { return false },
+            FieldType::LongInteger => if cell.parse::<i64>().is_err() { return false },
+
+            // All these are Strings, so we can skip their checks....
+            FieldType::StringU8 |
+            FieldType::StringU16 |
+            FieldType::OptionalStringU8 |
+            FieldType::OptionalStringU16 => {}
+        }
+
+        // Reset or increase the column count, if needed.
+        if column as usize == definition.fields.len() - 1 { column = 0; } else { column += 1; }
+    }
+
+    // If we reach this place, it means none of the cells was incorrect, so we can paste.
+    true
+}
+
+/// Function to filter the table. If a value is not provided by a slot, we get it from the widget itself.
+fn filter_table(
+    pattern: Option<QString>,
+    column: Option<i32>,
+    case_sensitive: Option<bool>,
+    filter_model: *mut SortFilterProxyModel,
+    filter_line_edit: *mut LineEdit,
+    column_selector: *mut ComboBox,
+    case_sensitive_button: *mut PushButton,
+    update_search_stuff: *mut Action,
+    packed_file_path: &Rc<RefCell<Vec<String>>>,
+) {
+
+    // Set the pattern to search.
+    let mut pattern = if let Some(pattern) = pattern { RegExp::new(&pattern) }
+    else { unsafe { RegExp::new(&filter_line_edit.as_mut().unwrap().text()) }};
+
+    // Set the column selected.
+    if let Some(column) = column { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column); }}
+    else { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column_selector.as_mut().unwrap().current_index()); }}
+
+    // Check if the filter should be "Case Sensitive".
+    if let Some(case_sensitive) = case_sensitive { 
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+    }
+
+    else {
+        let case_sensitive = unsafe { case_sensitive_button.as_mut().unwrap().is_checked() };
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+    }
+
+    // Filter whatever it's in that column by the text we got.
+    unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&pattern); }
+
+    // Update the search stuff, if needed.
+    unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+
+    // Add the new filter data to the state history.
+    if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
+        unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
     }
 }
