@@ -551,7 +551,7 @@ impl PackedFileTableView {
                             update_global_search_stuff,
                             &undo_lock,
                             &table_definition,
-                            &mut table_type.borrow_mut(),
+                            &table_type,
                             enable_header_popups.clone()
                         );
 
@@ -594,7 +594,7 @@ impl PackedFileTableView {
                             update_global_search_stuff,
                             &undo_lock,
                             &table_definition,
-                            &mut table_type.borrow_mut(),
+                            &table_type,
                             enable_header_popups.clone()
                         );
 
@@ -3092,7 +3092,7 @@ impl PackedFileTableView {
         update_global_search_stuff: *mut Action,
         undo_lock: &Rc<RefCell<bool>>,
         table_definition: &TableDefinition,
-        mut table_type: &mut TableType,
+        table_type: &Rc<RefCell<TableType>>,
         enable_header_popups: Option<String>,
     ) {
 
@@ -3181,7 +3181,7 @@ impl PackedFileTableView {
                     &global_search_explicit_paths,
                     update_global_search_stuff,
                     table_definition,
-                    &mut table_type,
+                    &mut table_type.borrow_mut(),
                 );
             }
 
@@ -3344,7 +3344,7 @@ impl PackedFileTableView {
                     &global_search_explicit_paths,
                     update_global_search_stuff,
                     table_definition,
-                    &mut table_type,
+                    &mut table_type.borrow_mut(),
                 );
             }
 
@@ -3352,18 +3352,21 @@ impl PackedFileTableView {
             TableOperations::ImportTSV(table_data) => {
 
                 // Prepare the redo operation.
-                match table_type {
-                    TableType::DB(data) => {
-                        history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                        data.entries = table_data;
-                    },
-                    TableType::LOC(data) => {
-                        history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                        data.entries = table_data;
-                    },
+                {
+                    let table_type = &mut *table_type.borrow_mut(); 
+                    match table_type {
+                        TableType::DB(data) => {
+                            history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
+                            data.entries = table_data;
+                        },
+                        TableType::LOC(data) => {
+                            history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
+                            data.entries = table_data;
+                        },
+                    }
                 }
 
-                Self::load_data_to_table_view(table_view, model, table_type, table_definition, &dependency_data);
+                Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
                 build_columns(table_view, model, table_definition, enable_header_popups);
 
                 // If we want to let the columns resize themselfs...
@@ -3382,7 +3385,7 @@ impl PackedFileTableView {
                     &global_search_explicit_paths,
                     update_global_search_stuff,
                     table_definition,
-                    &mut table_type,
+                    &mut table_type.borrow_mut(),
                 );
             }
         }
