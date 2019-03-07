@@ -1,0 +1,227 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>DB Decoder - Rusted PackFile Manager Documentation</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body class="light">
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../";
+            var default_theme = "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { } 
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            document.body.className = theme;
+            document.querySelector('html').className = theme + ' js';
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <ol class="chapter"><li><a href="../chapters/chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li><a href="../chapters/chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li><a href="../chapters/chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li><a href="../chapters/chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li><a href="../chapters/chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li><a href="../chapters/chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li><a href="../chapters/chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li><a href="../chapters/chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li><a href="../chapters/chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li><a href="../chapters/chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li><a href="../chapters/chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li><a href="../chapters/chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li></ol></li></ol></li><li><a href="../chapters/chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li><a href="../chapters/chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li><a href="../chapters/chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li><a href="../chapters/chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li><a href="../chapters/chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li><a href="../chapters/chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li><a href="../chapters/chapter_5.html" class="active"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><a href="../chapters/chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li></ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div id="menu-bar-sticky-container">
+                        <div class="left-buttons">
+                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                                <i class="fa fa-bars"></i>
+                            </button>
+                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                                <i class="fa fa-paint-brush"></i>
+                            </button>
+                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                            </ul>
+                            
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                            
+                        </div>
+
+                        <h1 class="menu-title">Rusted PackFile Manager Documentation</h1> 
+
+                        <div class="right-buttons">
+                            <a href="../print.html" title="Print this book" aria-label="Print this book">
+                                <i id="print-button" class="fa fa-print"></i>
+                            </a>
+                            
+                        </div>
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <a class="header" href="#db-decoder" id="db-decoder"><h1>DB Decoder</h1></a>
+<p><img src="./../images/image23.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p>RPFM has an integrated database decoder, to speed up a lot the decoding process of the &quot; <strong>structure</strong>&quot; (or &quot; <strong>Definition</strong>&quot;) of a table. It can be opened by right-clicking on a table and selecting &quot; <strong>Open/Open with Decoder</strong>&quot;. Only works on tables.</p>
+<p>Starting by the left we have this:</p>
+<p><img src="./../images/image24.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p>This is the &quot; <strong>PackedFile's Data</strong>&quot; view. It's similar to a hexadecimal editor, but far less powerful, and it's not editable. In the middle you have &quot;<em>Raw Hexadecimal Data</em>&quot;, and in the right, you have a &quot;<em>Decoded</em>&quot; version of that data. To make it easier to work with it, both scrolling and selection are synchronised between both TextViews. So you can select a byte in the middle view, and it'll get selected in the right one too. The colour code here means:</p>
+<ul>
+<li><strong>Red</strong> : header of the table. It contains certain info about what's in the table.</li>
+<li><strong>Yellow</strong> : the part of the table already decoded following the structure from the fields table.</li>
+<li><strong>Magenta</strong> : the byte where the next field after all the fields from the fields table starts.</li>
+</ul>
+<p>For performance reasons, this view is limited to 60 lines, which should be more than enough the decode the first row of almost every table.</p>
+<p>Next, to the right, we have this:</p>
+<p><img src="./../images/image25.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p>This is the &quot; <strong>Fields List</strong>&quot;. Here are all the columns this table has, including their title, type, if they are a &quot;<em>key</em>&quot; column, their relation with other tables/columns, the decoded data on each field of the first row of the table, and a &quot;Description&quot; field, to add commentaries that'll show up when hovering a cell of that column with the mouse.</p>
+<p>If we right-click in any field of the table, we have these three self-explanatory options to help us with the decoding:</p>
+<p><img src="./../images/image26.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p>And finally, under the table, we have this:</p>
+<p><img src="./../images/image27.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p>The &quot; <strong>Current Field Decoded</strong>&quot; will show up the field that starts in the magenta byte of the &quot;<em>PackedFile's Data</em>&quot; View, decoded in the different types the tables use. His use is simple: check what type makes more sense (for example, in the screenshot, it's evidently a &quot;<em>StringU8</em>&quot;), and click the &quot; <strong>Use this</strong>&quot; button in his row. Doing that will add a field of that type to the &quot;Fields List&quot;, and it'll update the &quot;<em>PackedFile's Data</em>&quot; View to show where the next field starts. Keep doing that until you think you've decoded the complete first row of the table, hit &quot; <strong>Finish It!</strong>&quot; at the right bottom corner, and select the table again. If the decoding is correct, the table will open. And that's how I met your mother you decode a table.</p>
+<p>Under &quot; <strong>Current Field Decoded</strong>&quot; we have &quot; <strong>Selected Field Decoded</strong>&quot;. It does the same that &quot;<em>Current Field Decoded</em>&quot;, but from the byte you selected in the &quot;<em>PackedFile's Data</em>&quot; View. Just select a byte and it'll try to decode any possible field starting from it. It's for helping decoding complex tables.</p>
+<p>To the right, we have a list of data about the table, and the list of versions of that table we have a definition for. If we right-click in one of them, we can load that version (useful to have something to start when a table gets &quot;<em>updated</em>&quot; in a patch) or delete it (in case we make a totally disaster and don't want it to be in the schema).</p>
+<p><img src="./../images/image28.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p>And at the bottom, we have the &quot; <strong>Remove all fields</strong>&quot; and &quot;<em>Finish It!</em>&quot; buttons. The first one clears the &quot;<em>Fields List</em>&quot; and reset the decoding process. The second one saves the current &quot;<em>Fields List</em>&quot; into the game's schema and reloads the schema, so the changes can be used immediately.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="../chapters/chapter_4_5.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+                            <a rel="next" href="../chapters/chapter_appendix.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a href="../chapters/chapter_4_5.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="../chapters/chapter_appendix.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+            </nav>
+
+        </div>
+
+        
+
+        
+
+        
+
+        
+        <script src="../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>
