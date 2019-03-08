@@ -1,8 +1,0 @@
-[book]
-authors = ["Ismael Gutiérrez González"]
-multilingual = false
-src = "src"
-title = "Rusted PackFile Manager Documentation"
-
-[build]
-build-dir = "./../docs"
