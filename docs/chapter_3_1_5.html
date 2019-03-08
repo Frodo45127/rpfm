@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>What's RPFM? - Rusted PackFile Manager Documentation</title>
+        <title>About Menu - Rusted PackFile Manager Documentation</title>
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,7 +75,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li><a href="chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li><a href="chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li><a href="chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li><a href="chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li><a href="chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li><a href="chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li><a href="chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li><a href="chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li><a href="chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li><a href="chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li><a href="chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li></ol></li></ol></li><li><a href="chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li><a href="chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li><a href="chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li><a href="chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li><a href="chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li><a href="chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li><a href="chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li><a href="chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li></ol>
+            <ol class="chapter"><li><a href="chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li><a href="chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li><a href="chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li><a href="chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li><a href="chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li><a href="chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li><a href="chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li><a href="chapter_3_1_5.html" class="active"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li><a href="chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li><a href="chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li><a href="chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li></ol></li></ol></li><li><a href="chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li><a href="chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li><a href="chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li><a href="chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li><a href="chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li><a href="chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li><a href="chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li><a href="chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -140,28 +140,34 @@
 
                 <div id="content" class="content">
                     <main>
-                        <a class="header" href="#whats-rpfm" id="whats-rpfm"><h1>What's RPFM?</h1></a>
-<p><img src="./images/image1.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
-<p>This is <strong>Rusted PackFile Manager</strong>, a.k.a. <strong>RPFM</strong>, a modding tool for modern Total War Games.</p>
-<p>Before explaining what it does, a <strong>little explanation</strong> on how modding works in Total War games since Empire is due. Since Empire, most of the data of Total War games is in <code>.pack</code> files, packed together so it's faster to read for the game. Those <code>.pack</code> files are <em>containers</em>. Inside them there are a ton of files with the actual data of the game. Some of those files are:</p>
+                        <a class="header" href="#about-menu" id="about-menu"><h1><code>About</code> Menu</h1></a>
+<p><img src="./images/image11.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p>Pretty simple and straightforward menu:</p>
 <ul>
-<li><strong>DB Tables</strong>: contains most of the modable stuff of the game, like unit stats, building info,.... They are always in the folder <code>db/whatever_tables/table_file</code>.</li>
-<li><strong>LOCs</strong>: contains the actual text you see in screen when playing the game. Yeah, all those letters are not unicorn magic. It's hard to believe, I know, but it's true.</li>
-<li><strong>Lua/Txt/Xml/...</strong>: plain text files. Not rocket science.</li>
-<li><strong>RigidModels</strong>: the files with the actual 3D models of almost everything you see in the game, like units, monsters,....</li>
-<li><strong>Images</strong>: icons, textures, etc....</li>
-<li><strong>ESF Starpos</strong>: these are like a <em>snapshot</em> or <em>savegame</em> that gives the game all the info of how everything in the campaign map should be at the start of the campaign. Like what provinces are where, what armies are in X place with Y units....</li>
+<li><code>About QT</code>: Shows info about the version of Qt (the framework RPFM uses for the UI) in use.</li>
+<li><code>About RPFM</code>: Shows info about the version of RPFM in use, and the credits.</li>
+<li><code>Open Manual</code>: Opens this manual on the web browser you have as <em>Default</em>.</li>
+<li><code>Support me on Patreon</code>: Open <strong><em>RPFM</em></strong>'s Patreon page. In case you want to contribute with money or you want to check the dev blog</li>
+<li><code>Check Updates</code>: Checks if there is a newer version of RPFM available.</li>
+<li><code>Check Schema Update</code>: Checks if there is any newer version of RPFM's Schemas available and downloads it.</li>
 </ul>
-<p>Now, how it's modding done in modern Total War Games? By creating a <code>mod</code> PackFile, adding some of those files, changing them, and then telling the launcher to use that mod with the changes you did. Simple isn't? Now, <strong><em>what is RPFM?</em></strong> It's a program that let's you create and edit those PackFiles, allowing you to edit the tables, locs,... inside them too. That's more or less what it is.</p>
-<p>But hey, isn't this familiar? If you have modded a modern Total War game, yep. RPFM it's a <em>complete reimplementation</em> in Rust and Qt5 of the old <strong>PackFile Manager</strong>, because PFM it's slow, buggy, and was unmaintained for more than half a year before someone picked it up. If you've used PFM before, you can see it has a similar UI, and most of the features are in the same place, or close by. It's done that way to make it <strong><em>easier to use for modders</em></strong> coming from PFM.</p>
-<p>So, you want to give it a try? Then read the <strong><img src="./chapter_2.md" alt="Initial Configuration" /></strong> section, as without it most of the <em>Advanced Features</em> RPFM has are disabled. And remember, you can always access this documentation in the <code>About</code> menu, by clicking on <code>Open Documentation</code>.</p>
+<p>The <em>Schemas</em> I talked in the last point are what <strong>allows RPFM to decode and open the tables</strong> of all the supported games. Newer schemas means more tables to open. It's very common that after an update a few tables change his structure and are no longer decodables. To get them to work again, the schema has to be updated.</p>
+<p>And that's all for the top <code>Menu</code> Bar. Now we'll take a look at the thing you're going to use the most (or almost the most): the <code>TreeView</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
+                            <a rel="prev" href="chapter_3_1_4.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
 
+                        
+                            <a rel="next" href="chapter_3_2_0.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
                         
 
                         <div style="clear: both"></div>
@@ -171,7 +177,15 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
+                    <a href="chapter_3_1_4.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
 
+                
+                    <a href="chapter_3_2_0.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
                 
             </nav>
 

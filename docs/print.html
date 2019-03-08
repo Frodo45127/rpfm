@@ -75,7 +75,7 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <ol class="chapter"><li><a href="chapters/chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li><a href="chapters/chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li><a href="chapters/chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li><a href="chapters/chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li><a href="chapters/chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li><a href="chapters/chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li><a href="chapters/chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li><a href="chapters/chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li><a href="chapters/chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li><a href="chapters/chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li><a href="chapters/chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li><a href="chapters/chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li></ol></li></ol></li><li><a href="chapters/chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li><a href="chapters/chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li><a href="chapters/chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li><a href="chapters/chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li><a href="chapters/chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li><a href="chapters/chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li><a href="chapters/chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><a href="chapters/chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li></ol>
+            <ol class="chapter"><li><a href="chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li><a href="chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li><a href="chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li><a href="chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li><a href="chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li><a href="chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li><a href="chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li><a href="chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li><a href="chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li><a href="chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li><a href="chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li></ol></li></ol></li><li><a href="chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li><a href="chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li><a href="chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li><a href="chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li><a href="chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li><a href="chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li><a href="chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li><a href="chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li></ol>
         </nav>
 
         <div id="page-wrapper" class="page-wrapper">
@@ -141,7 +141,7 @@
                 <div id="content" class="content">
                     <main>
                         <a class="header" href="#whats-rpfm" id="whats-rpfm"><h1>What's RPFM?</h1></a>
-<p><img src="./../images/image1.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p><img src="./images/image1.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
 <p>This is <strong>Rusted PackFile Manager</strong>, a.k.a. <strong>RPFM</strong>, a modding tool for modern Total War Games.</p>
 <p>Before explaining what it does, a <strong>little explanation</strong> on how modding works in Total War games since Empire is due. Since Empire, most of the data of Total War games is in <code>.pack</code> files, packed together so it's faster to read for the game. Those <code>.pack</code> files are <em>containers</em>. Inside them there are a ton of files with the actual data of the game. Some of those files are:</p>
 <ul>
@@ -156,24 +156,24 @@
 <p>But hey, isn't this familiar? If you have modded a modern Total War game, yep. RPFM it's a <em>complete reimplementation</em> in Rust and Qt5 of the old <strong>PackFile Manager</strong>, because PFM it's slow, buggy, and was unmaintained for more than half a year before someone picked it up. If you've used PFM before, you can see it has a similar UI, and most of the features are in the same place, or close by. It's done that way to make it <strong><em>easier to use for modders</em></strong> coming from PFM.</p>
 <p>So, you want to give it a try? Then read the <strong><img src="./chapter_2.md" alt="Initial Configuration" /></strong> section, as without it most of the <em>Advanced Features</em> RPFM has are disabled. And remember, you can always access this documentation in the <code>About</code> menu, by clicking on <code>Open Documentation</code>.</p>
 <a class="header" href="#initial-configuration" id="initial-configuration"><h1>Initial Configuration</h1></a>
-<p><img src="./../images/image2.png" alt="Preferences... everyone has them." /></p>
+<p><img src="./images/image2.png" alt="Preferences... everyone has them." /></p>
 <p>After we start RPFM for the first time, we have to configure a couple of things. To do it, we need to go to <code>PackFile/Preferences</code>, and the window above this will popup. It seems like a lot of new stuff to know, but it's really simple. First the paths:</p>
 <ul>
 <li><code>MyMod's folder</code>: it's the path where your <strong><em>MyMod</em></strong> will be stored. <strong><em>MyMod</em></strong> are explained in a later chapter of this documentation, so for now you just need to know that it's a path RPFM will use to store stuff for your mods. Set it pointing to an empty folder.</li>
 <li><code>XXX folder</code>: These are the folders where your games are. RPFM uses them for plenty of things, so remember to set them for the games you have.</li>
 </ul>
 <p>In the end, it should look something like this:</p>
-<p><img src="./../images/image3.png" alt="Paths... all of them end in Rome." /></p>
+<p><img src="./images/image3.png" alt="Paths... all of them end in Rome." /></p>
 <p>Next, the <code>Default Game</code>. RPFM uses a <code>Game Selected</code> setting to configure certain parts of the program to work with one game or another. For example, it changes the way the mods are saved, the default folder to save them, <strong>the schema used for the tables</strong>,.... Here you can set the game that'll be selected by default when you open the program.</p>
 <p>Next, all those checkboxes. You can get an explanation about what they do just by hovering them with the mouse, like this.</p>
-<p><img src="./../images/image4.png" alt="Hovering before it was cool!." /></p>
+<p><img src="./images/image4.png" alt="Hovering before it was cool!." /></p>
 <p>There are a couple of settings that may need some aditional explanation:</p>
 <ul>
 <li><code>Use Dark Theme</code>: Self-explanatory, but only available in Windows. The Linux version <strong>uses the system's Qt Theme</strong> instead.</li>
 <li><code>Check for Missing Table Definition</code>: Debug setting to help me get the schemas done. Unless you're updating an schema, <strong><em>don't ever enable it!</em></strong></li>
 </ul>
 <p>And finally, the <code>Shortcuts</code> button. Hitting it will open the <code>Shortcuts</code> window, where you can see and edit all the shortcuts currently used by RPFM.</p>
-<p><img src="./../images/image5.png" alt="Shortcuts are little cuts...." /></p>
+<p><img src="./images/image5.png" alt="Shortcuts are little cuts...." /></p>
 <p>Just keep in mind that some of <strong>the shortcuts are applied when the program starts</strong>, so you'll have to close and re-open RPFM for the changes to take effect.</p>
 <p>When you're done with the settings, just hit <code>Save</code>. You can restore them to the defaults with the button of the left (same for the shortcuts with their <code>Restore Defaults</code> button). One thing to take into account is that, if any of the paths is invalid, RPFM will delete it when hitting <code>Save</code>.</p>
 <p>Now the last step. This is optional, but recommendable and it <strong>requires you to have the Assembly Kit</strong> for your games installed. We have to go to <code>Special Stuff</code> and, for each game we have, hit <code>Generate PAK File</code>. This will create a special file that will help RPFM with reference data for table columns. It's <strong>not enabled for Empire and Napoleon</strong> for now, but it should work for every other game.</p>
@@ -193,7 +193,7 @@
 </ul>
 <p>And now, let's begin!</p>
 <a class="header" href="#packfile-menu" id="packfile-menu"><h1><code>PackFile</code> Menu</h1></a>
-<p><img src="./../images/image6.png" alt="Menuses..." /></p>
+<p><img src="./images/image6.png" alt="Menuses..." /></p>
 <p>Here, we can find the <em>basic</em> actions:</p>
 <ul>
 <li><code>New PackFile</code>: Creates a new PackFile outtanowhere.</li>
@@ -230,7 +230,7 @@
 <p>And, if you don't enable <code>Allow Editing of CA PackFiles</code>, RPFM will not let you save <code>Boot</code>, <code>Release</code> or <code>Patch</code> PackFiles.</p>
 <p>And with that, we finish the <code>PackFile</code> Menu. Next, the <code>MyMod</code> menu.</p>
 <a class="header" href="#mymod-menu" id="mymod-menu"><h1><code>MyMod</code> Menu</h1></a>
-<p><img src="./../images/image7.png" alt="MyMod.... more like OurMod...." /></p>
+<p><img src="./images/image7.png" alt="MyMod.... more like OurMod...." /></p>
 <p><code>MyMod</code> is a feature to help modders <strong>keep their mod's data organized</strong>. The system is almost a 1:1 clone of PFM's <em>MyMod</em> feature so it should be easy to use for veterans too.</p>
 <p>For those new with the concept, remember that <code>MyMod</code> folder we set in the settings? When we create a <code>MyMod</code>, in that folder will be created a folder for the game the mod's for (if it didn't exist before), and inside that there will be a PackFile and a folder, both with the name of your mod. Each time you extract something from the PackFile, it'll be automatically extracted in his folder, <strong>mirroring the structure it has in the PackFile</strong>. For example, extracting a table will result in the table being extracted at <code>mymod_folder/db/table_name/file</code>._ Adding Files/Folders from the MyMod folder <strong>will also add them mirroring the path they have</strong>. For example, adding a file from <code>mymod_folder/db/table_name/file</code>_ will add the file in <code>PackFile/db/table_name/file</code>.</p>
 <p>This makes easier to keep track of the mod files, and you can even <strong>put that folder under .git</strong>, or any other version control system, as you can have an unpacked mod that you can pack with a single click (well, a few clicks).</p>
@@ -243,7 +243,7 @@
 <li><code>XXX/yourmod.pack</code>: Open your previously created <code>MyMod</code> to edit, delete, install,.... whatever you want, baby!</li>
 </ul>
 <p>When we click on <code>New MyMod</code>, the following dialog will appear:</p>
-<p><img src="./../images/image8.png" alt="I said OURMOD!!!!" /></p>
+<p><img src="./images/image8.png" alt="I said OURMOD!!!!" /></p>
 <p>Here you can configure the name and game the mod is for. Once you're done, hit <code>Save</code> and your new <code>MyMod</code> will be created and opened.</p>
 <p>And lastly, a couple of aclarations:</p>
 <ul>
@@ -251,7 +251,7 @@
 <li>Only <code>MyMod</code> PackFiles opened from <code>XXX/yourmod.pack</code> will enjoy the <code>MyMod</code> features, like keeping the paths when adding/extracting files. Manually opened <code>MyMod</code> PackFiles will be treated as regular PackFiles.</li>
 </ul>
 <a class="header" href="#game-selected-menu" id="game-selected-menu"><h1><code>Game Selected</code> Menu</h1></a>
-<p><img src="./../images/image9.png" alt="I'm a man of many games..." /></p>
+<p><img src="./images/image9.png" alt="I'm a man of many games..." /></p>
 <p>In this menu you can <strong>change the currently selected game</strong>. When opening PackFiles, RPFM tries to be smart and auto-select a game, but there are some PackFiles that are the same between games (for example, Attila and Warhammer 1 PackFiles are identical), so... just make sure the right game is selected after opening a PackFile, as that affects how many parts of the program work. The complete list of supported games is:</p>
 <ul>
 <li><code>Warhammer 2</code>: Full Support.</li>
@@ -265,7 +265,7 @@
 <li><code>Arena</code>: Read-Only Support for PackFiles. Incomplete schema.</li>
 </ul>
 <a class="header" href="#special-stuff-menu" id="special-stuff-menu"><h1><code>Special Stuff</code> Menu</h1></a>
-<p><img src="./../images/image10.png" alt="Because you are S.P.E.C.I.A.L!" /></p>
+<p><img src="./images/image10.png" alt="Because you are S.P.E.C.I.A.L!" /></p>
 <p>This menu contains... special features implemented for specific games. Basically, any feature that <strong>doesn't really fit in any other place</strong> goes here. Here we have:</p>
 <ul>
 <li><code>Patch SiegeAI</code>: used in Warhammer 1 &amp; 2 for <strong>creating siege maps that the AI can handle</strong>. Basically, make your map with the stuff required for the AI to work, and then patch his PackFile with this.</li>
@@ -273,7 +273,7 @@
 <li><code>Generate PAK File</code>: generates a file from raw data from the Assembly Kit that allows RPFM to provide a ton of reference data from tables not in the game. Or easier to understand, if you use the dependency checker, you'll have <strong>far fewer blue columns</strong>. Doesn't work for Empire and Napoleon, yet.</li>
 </ul>
 <a class="header" href="#about-menu" id="about-menu"><h1><code>About</code> Menu</h1></a>
-<p><img src="./../images/image11.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p><img src="./images/image11.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
 <p>Pretty simple and straightforward menu:</p>
 <ul>
 <li><code>About QT</code>: Shows info about the version of Qt (the framework RPFM uses for the UI) in use.</li>
@@ -286,9 +286,9 @@
 <p>The <em>Schemas</em> I talked in the last point are what <strong>allows RPFM to decode and open the tables</strong> of all the supported games. Newer schemas means more tables to open. It's very common that after an update a few tables change his structure and are no longer decodables. To get them to work again, the schema has to be updated.</p>
 <p>And that's all for the top <code>Menu</code> Bar. Now we'll take a look at the thing you're going to use the most (or almost the most): the <code>TreeView</code>.</p>
 <a class="header" href="#packfile-treeview" id="packfile-treeview"><h1>PackFile TreeView</h1></a>
-<p><img src="./../images/image12.png" alt="It's beautiful..." /></p>
+<p><img src="./images/image12.png" alt="It's beautiful..." /></p>
 <p>That thing on the left with folders and stuff is the <strong>PackFile's TreeView</strong>. That's where all the files inside your PackFiles will show up. When you Right-Click on any of them, this context menu will show up:</p>
-<p><img src="./../images/image13.png" alt="Contextualize THIS!" /></p>
+<p><img src="./images/image13.png" alt="Contextualize THIS!" /></p>
 <p>These are the actions you can use to alter the PackFile. Each one of them has a hotkey, in case you're a lazy bastard. These are all the actions in the menu:</p>
 <ul>
 <li><code>Add…/Add File</code>: Allows you to add one or more files to the PackFile.</li>
@@ -327,22 +327,22 @@
 <li><code>Filter By Folder</code>: in case you want to find a folder and not a file (for example, searching a table) tick this. I'll show you the matched folder and all his contents.</li>
 </ul>
 <a class="header" href="#dependency-manager" id="dependency-manager"><h1>Dependency Manager</h1></a>
-<p><img src="./../images/image14.png" alt="Depending...." /></p>
+<p><img src="./images/image14.png" alt="Depending...." /></p>
 <p>The <code>Dependency Manager</code> allows you to modify a special list of PackFiles saved inside your mod's PackFile. When starting the game, the launcher will try to load the PackFiles in this list BEFORE your PackFile. If a PackFile is not found, it'll be ignored. This list can be used to hardcode dependencies into your PackFile. In his Contextual Menu (right-click) you can find some basic commands to manipulate the list, like <code>Add Row, Insert Row, Copy, Paste</code>... Not much more to say about this really.</p>
 <a class="header" href="#global-search" id="global-search"><h1>Global Search</h1></a>
-<p><img src="./../images/image15.png" alt="Gonna search you around the globe, with a satelite and infrared to see you move through the night..." /></p>
+<p><img src="./images/image15.png" alt="Gonna search you around the globe, with a satelite and infrared to see you move through the night..." /></p>
 <p><code>Global Search</code> allows you to perform a simple search (accepts Regex) across every DB Table or Loc PackedFile inside your PackFile, providing you with a filterable list of results in the right of the screen. You can use it from the TreeView's Context Menu, or with the shortcut <code>Ctrl+Shift+F</code> while the TreeView is focused.</p>
 <p>The <code>Matches</code> lists on the right of the screen shows every match for your search in <strong>DB Tables</strong> (top table) and <strong>Loc PackedFiles</strong> (bottom table). Both lists <strong>are filterable</strong> (with regex support) and contain the path to the PackedFile, Column, Row, and Matched Text. If you double-click on them, their PackedFile <strong>will be open and the match selected</strong>. Also, these lists are updated when you make changes, so if you, for example, remove a match from a table, that match will be removed on-the-fly from the list.</p>
 <p>The only inconvenient is that doing this in PackFiles with an enormous number of tables and a brutal number of matches will cause RPFM to hang a second after each edit.</p>
 <a class="header" href="#packedfiles" id="packedfiles"><h1>PackedFiles</h1></a>
 <p>As explained before, RPFM can not only edit the PackFiles of modern Total War Games, but it can also edit the Files inside them (PackedFiles) without the need of extracting them. Ín this section we'll see what PackedFiles can RPFM see/edit.</p>
 <a class="header" href="#db-tables" id="db-tables"><h1>DB Tables</h1></a>
-<p><img src="./../images/image16.png" alt="Tables... Not as plain as you!" /></p>
+<p><img src="./images/image16.png" alt="Tables... Not as plain as you!" /></p>
 <p><code>DB Tables</code> are where most of the moddable data of the games is. For example, unit stats, faction colors, buildings info,... RPFM has a complete integrated editor for them. The screenshot above is how a DB Table looks in RPFM when opened.</p>
 <p>The editor includes <strong><em>cross-table references</em></strong>, which means that, if one column references another table, you'll get a combo when editing that column with data to input from the other table. Also, if you hover over the header of any column that references another table, is referenced on another table, or <strong>has a description in the schema</strong>, you can see in the tooltip the column's special info.</p>
 <p>All columns are also <strong>movable</strong>, so you can rearrange them however you want, and numeric columns (except long integer columns) have a <strong>numeric-only editor</strong>. And you can sort the table by one column one way or another, or remove the sorting with a third click in the column title.</p>
 <p>At the bottom of the window you have a <strong>real-time filter</strong>. Select the column you want to use to filter, if you want it to filter as <code>Case Sensitive</code>, and just write and see how the table gets filtered as you type. It works with Regex too. For example, the following will only show up the rows that contain in their <code>Key</code> column <code>v_b</code> or <code>fake</code>:</p>
-<p><img src="./../images/image17.png" alt="Filters.... Filters never change." /></p>
+<p><img src="./images/image17.png" alt="Filters.... Filters never change." /></p>
 <p>Here you have a <strong><em>Regex Cheatsheet</em></strong> in case you want to use more complex filters: <a href="https://www.cheatography.com/davechild/cheat-sheets/regular-expressions/">https://www.cheatography.com/davechild/cheat-sheets/regular-expressions/</a></p>
 <p>One last thing before checking the context menu is that RPFM remembers the following stuff when you close and re-open the table:</p>
 <ul>
@@ -357,7 +357,7 @@
 </ul>
 <p>That way the table is just like you left it when you open it again. This memory lasts only until the open PackFile changes, but you can configure RPFM to remember it even in that case by enabling <code>Remember Table State Across PackFiles</code> in the <code>Preferences</code> dialog.</p>
 <p>Now, with the Right-Click (or Contextual) Menu:</p>
-<p><img src="./../images/image18.png" alt="I just rightclicked and this showed up." /></p>
+<p><img src="./images/image18.png" alt="I just rightclicked and this showed up." /></p>
 <p>These are all the actions available for DB Tables:</p>
 <ul>
 <li>´Add Row`: Appends an empty row at the end of the table.</li>
@@ -387,48 +387,70 @@
 <li><strong>If you have a combination of both</strong> , it'll delete rows where all cells are selected, and it'll delete the contents of the cells where not all cells in a row are selected. Fancy.</li>
 </ul>
 <a class="header" href="#loc-packedfiles" id="loc-packedfiles"><h1>LOC PackedFiles</h1></a>
-<p><img src="./../images/image19.png" alt="Localizable at any hour...." /></p>
+<p><img src="./images/image19.png" alt="Localizable at any hour...." /></p>
 <p>Loc PackedFiles are files that end in <code>.loc</code>, and <strong>contain most of the texts you see ingame</strong>. When you open them, you can see they work like a… DB Table. They are really an special type of table, so you can do to them exactly the same stuff you do can do to DB Tables. Loc PackedFiles uses the same colour code for cells and rows as the TreeView.</p>
 <p>One thing to take into account (and really, the only one) is that if you want to write multiple lines in a cell (for example, for multiple paragraphs in one single cell) you <strong>can write <code>\n</code> and RPFM will take care of saving it properly</strong>, so you see multiple lines ingame. Same with <code>\t</code> for tablulations.</p>
 <a class="header" href="#text-packedfiles" id="text-packedfiles"><h1>Text PackedFiles</h1></a>
-<p><img src="./../images/image20.png" alt="It's textual, you know?" /></p>
+<p><img src="./images/image20.png" alt="It's textual, you know?" /></p>
 <p>RPFM can open and edit a wide variety of Text PackedFiles, such as <code>XML, HTML, LUA, TXT,...</code>. It has native <strong>Undo/Redo support, Copy/Paste support,...</strong> the normal things for a very basic text editor.</p>
 <p>Also, exclusive for Warhammer 2 Lua files, there is an option to <code>Check Syntax</code>. This will pass the file through <code>Kailua</code> (if installed and in the <code>Path</code>) and return you a list of errors encountered. Keep in mind <strong>this is experimental,</strong> exclusive to Warhammer 2 Lua Files and it may fail.</p>
 <a class="header" href="#rigidmodel-packedfiles" id="rigidmodel-packedfiles"><h1>RigidModel PackedFiles</h1></a>
-<p><img src="./../images/image21.png" alt="It's the most rigid thing you'll ever see..." /></p>
+<p><img src="./images/image21.png" alt="It's the most rigid thing you'll ever see..." /></p>
 <p>RigidModels are 3D models used by Total War Games. RPFM allows some limited editing of them. It allows you to <strong>change any of the textures</strong> each model uses and to patch Attila's RigidModels for being loadable in Warhammer games (just the model, it doesn't patch collisions or logic). It doesn't work with all the RigidModels.</p>
 <a class="header" href="#images" id="images"><h1>Images</h1></a>
-<p><img src="./../images/image22.png" alt="Imagine how hard can be...." /></p>
+<p><img src="./images/image22.png" alt="Imagine how hard can be...." /></p>
 <p>RPFM can open a variety of image formats, such as <strong>PNG, JPG, TGA, DDS (most of them)...</strong> Just select the image you want to see, and it'll open in the right side of the window.</p>
 <a class="header" href="#db-decoder" id="db-decoder"><h1>DB Decoder</h1></a>
-<p><img src="./../images/image23.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
-<p>RPFM has an integrated database decoder, to speed up a lot the decoding process of the &quot; <strong>structure</strong>&quot; (or &quot; <strong>Definition</strong>&quot;) of a table. It can be opened by right-clicking on a table and selecting &quot; <strong>Open/Open with Decoder</strong>&quot;. Only works on tables.</p>
-<p>Starting by the left we have this:</p>
-<p><img src="./../images/image24.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
-<p>This is the &quot; <strong>PackedFile's Data</strong>&quot; view. It's similar to a hexadecimal editor, but far less powerful, and it's not editable. In the middle you have &quot;<em>Raw Hexadecimal Data</em>&quot;, and in the right, you have a &quot;<em>Decoded</em>&quot; version of that data. To make it easier to work with it, both scrolling and selection are synchronised between both TextViews. So you can select a byte in the middle view, and it'll get selected in the right one too. The colour code here means:</p>
+<p><img src="./images/image23.png" alt="Decoding your life, one step at a time." /></p>
+<p>RPFM has an integrated <strong>DB decoder</strong>, to speed up a lot the decoding process of the <strong>definition</strong> of a table. It can be opened by right-clicking on a table file and selecting <code>Open/Open with Decoder</code>. Only works on tables.</p>
+<p>The decoder screen is a bit complex so, like Jack the Ripper, let's check it in parts, one at a time. Starting by the left we have this:</p>
+<p><img src="./images/image24.png" alt="Raw data... like raw meat, but less toxic." /></p>
+<p>This is the <code>PackedFile's Data</code> view. It's similar to a hexadecimal editor, but far less powerful, and it's not editable. In the middle you have <strong>Raw Hexadecimal Data</strong>, and in the right, you have a <strong>Decoded version</strong> of that data. To make it easier to work with it, both scrolling and selection are synchronised between both views. So you can select a byte in the middle view, and it'll get selected in the right one too. The colour code here means:</p>
 <ul>
-<li><strong>Red</strong> : header of the table. It contains certain info about what's in the table.</li>
+<li><strong>Red</strong> : header of the table. It contains certain info about what's in the table, like his uuid, amount of rows,....</li>
 <li><strong>Yellow</strong> : the part of the table already decoded following the structure from the fields table.</li>
 <li><strong>Magenta</strong> : the byte where the next field after all the fields from the fields table starts.</li>
 </ul>
-<p>For performance reasons, this view is limited to 60 lines, which should be more than enough the decode the first row of almost every table.</p>
+<p>For performance reasons, this view is <strong>limited to 60 lines</strong>, which should be more than enough the decode the first row of almost every table. This limit may be removed in the future if I manage to fix the performance slowdown....</p>
 <p>Next, to the right, we have this:</p>
-<p><img src="./../images/image25.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
-<p>This is the &quot; <strong>Fields List</strong>&quot;. Here are all the columns this table has, including their title, type, if they are a &quot;<em>key</em>&quot; column, their relation with other tables/columns, the decoded data on each field of the first row of the table, and a &quot;Description&quot; field, to add commentaries that'll show up when hovering a cell of that column with the mouse.</p>
+<p><img src="./images/image25.png" alt="Fields.... like normal ones, but with less cows." /></p>
+<p>This is the <code>Fields List</code>. Here are all the columns this table has, including their title, type, if they are a <code>key</code> column, their relation with other tables/columns, the decoded data on each field of the first row of the table, and a <em>Description</em> field, to add commentaries that'll show up when hovering the header of that column with the mouse.</p>
 <p>If we right-click in any field of the table, we have these three self-explanatory options to help us with the decoding:</p>
-<p><img src="./../images/image26.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
-<p>And finally, under the table, we have this:</p>
-<p><img src="./../images/image27.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
-<p>The &quot; <strong>Current Field Decoded</strong>&quot; will show up the field that starts in the magenta byte of the &quot;<em>PackedFile's Data</em>&quot; View, decoded in the different types the tables use. His use is simple: check what type makes more sense (for example, in the screenshot, it's evidently a &quot;<em>StringU8</em>&quot;), and click the &quot; <strong>Use this</strong>&quot; button in his row. Doing that will add a field of that type to the &quot;Fields List&quot;, and it'll update the &quot;<em>PackedFile's Data</em>&quot; View to show where the next field starts. Keep doing that until you think you've decoded the complete first row of the table, hit &quot; <strong>Finish It!</strong>&quot; at the right bottom corner, and select the table again. If the decoding is correct, the table will open. And that's how I met your mother you decode a table.</p>
-<p>Under &quot; <strong>Current Field Decoded</strong>&quot; we have &quot; <strong>Selected Field Decoded</strong>&quot;. It does the same that &quot;<em>Current Field Decoded</em>&quot;, but from the byte you selected in the &quot;<em>PackedFile's Data</em>&quot; View. Just select a byte and it'll try to decode any possible field starting from it. It's for helping decoding complex tables.</p>
-<p>To the right, we have a list of data about the table, and the list of versions of that table we have a definition for. If we right-click in one of them, we can load that version (useful to have something to start when a table gets &quot;<em>updated</em>&quot; in a patch) or delete it (in case we make a totally disaster and don't want it to be in the schema).</p>
-<p><img src="./../images/image28.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
-<p>And at the bottom, we have the &quot; <strong>Remove all fields</strong>&quot; and &quot;<em>Finish It!</em>&quot; buttons. The first one clears the &quot;<em>Fields List</em>&quot; and reset the decoding process. The second one saves the current &quot;<em>Fields List</em>&quot; into the game's schema and reloads the schema, so the changes can be used immediately.</p>
+<p><img src="./images/image26.png" alt="Moving up and down....." /></p>
+<p>And finally, under the <code>Fields List</code>, we have this:</p>
+<p><img src="./images/image27.png" alt="The guts of the decoder, exposed." /></p>
+<p>The <code>Current Field Decoded</code> will show up the field that starts in the magenta byte of the <code>PackedFile's Data</code> view, decoded in the different types the tables use. It's use is simple: check what type makes more sense (for example, in the screenshot, it's evidently a <code>StringU8</code>), and click the <code>Use this</code> button in his row. Doing that will add a field of that type to the <code>Fields List</code>, and it'll update the <code>PackedFile's Data</code> View to show where the next field starts. Keep doing that until you think you've decoded the complete first row of the table, hit <code>Finish It!</code> at the right bottom corner, and select the table again. If the decoding is correct, the table will open. And that's how ~I met your mother~ you decode a table.</p>
+<p>Under <code>Current Field Decoded</code> we have <code>Selected Field Decoded</code>. It does the same that <code>Current Field Decoded</code>, but from the byte you selected in the <code>PackedFile's Data</code> View. Just select a byte and it'll try to decode any possible field starting from it. It's for helping decoding complex tables.</p>
+<p>To the right, we have some information about the table, and the <code>Versions List</code> (a list of versions of that table we have a definition for). If we right-click in one of them, we can load that version (useful to have something to start when a table gets <em>updated</em> in a patch) or delete it (in case we make a totally disaster and don't want it to be in the schema).</p>
+<p><img src="./images/image28.png" alt="Because no more is needed." /></p>
+<p>And at the bottom, we have:</p>
+<ul>
+<li><code>Remove all fields</code>: removes all decoded fields, returning the table to a clean state.</li>
+<li><code>Finish It!</code>: Save the <code>Fields List</code> as a new definition for that version of the table in the schema. The definition is inmediatly available after that, so the changes can be used immediately.</li>
+</ul>
+<a class="header" href="#db-types" id="db-types"><h1>DB Types</h1></a>
+<p>People have complained that the types used in the DB Decoder and, by extension, in the tables are <strong><em>not intuitive enough</em></strong>, so here is a little explanation to shut you up:</p>
+<ul>
+<li><code>Bool</code>: One byte. Can be 00 or 01.</li>
+<li><code>Float</code>, or <code>f32</code>: 4 bytes that represent a floating point number. Can be really anything.</li>
+<li><code>Integer</code>, or <code>i32</code>: 4 bytes that represent a signed integer (admits negative numbers). Can be really anything.</li>
+<li><code>Long Integer</code> or <code>i64</code>: 8 bytes that represent a signed integer (admits negative numbers). Can be really anything.</li>
+<li><code>StringU8</code>: An UTF-8 String. It has an u16 (2 bytes) at the begining that specify his lenght, and then the String itself with each character encoded in one byte.</li>
+<li><code>StringU16</code>: An UTF-16 String. It has an u16 (2 bytes) at the begining that specify his lenght, and then the String itself with each character encoded in two bytes.</li>
+<li><code>OptionalStringU8</code>: Like a UTF-8 String, but with a bool before. If the bool is true, there is a <code>StringU8</code> after it. If it's false, <strong>then there is nothing more</strong> of that field after it.</li>
+<li><code>OptionalStringU16</code>: Like a UTF-16 String. but with a bool before. If the bool is true, there is a <code>StringU16</code> after it. If it's false, then <strong>there is nothing more</strong> of that field after it.</li>
+</ul>
+<p>There are some extra types that RPFM doesn't yet support for one reason or another:</p>
+<ul>
+<li><code>OptionalInteger</code>: Like an Integer, but with a bool before. If the bool is true, there is a <code>Integer</code> after it. If it's false, then there is nothing more of that field after it. Only seen in one table in Warhammer 2.</li>
+<li><code>List</code>: It's... like a table inside a field. It's a complex type used in many <em>XXX_models</em> tables. Not yet implemented because it's a pain to implement properly on the UI side.</li>
+</ul>
+<p>If you need more help to understand these types, please search on google.</p>
 <a class="header" href="#appendix" id="appendix"><h1>Appendix</h1></a>
 <ul>
 <li>Basic shortcuts (non-editable) for EVERY Table View provided by Qt:</li>
 </ul>
-<p><img src="./../images/image29.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
+<p><img src="./images/image29.png" alt="This how Rusted PackFile Manager looks on a sunny day on the beach." /></p>
 <ul>
 <li>If RPFM crashes, it'll generate an error log in his folder called &quot;error-report-xxxxxxx.toml&quot;. That file can help me find the problem, so if you want to help reporting the bug, send me that file too.</li>
 </ul>
