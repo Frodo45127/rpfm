@@ -55,10 +55,12 @@ use crate::ui::*;
 use crate::packedfile::db::DB;
 use crate::packedfile::loc::Loc;
 use crate::ui::table_state::*;
+use crate::ui::packedfile_table::packedfile_table_extras::*;
 
+pub mod db_decoder;
 pub mod packedfile_db;
 pub mod packedfile_loc;
-pub mod db_decoder;
+pub mod packedfile_table_extras;
 
 //----------------------------------------------------------------//
 // Generic Enums and Structs for DB/LOC PackedFiles.
@@ -100,7 +102,7 @@ pub struct PackedFileTableView {
     pub slot_context_menu_insert: SlotBool<'static>,
     pub slot_context_menu_delete: SlotBool<'static>,
     pub slot_context_menu_apply_maths_to_selection: SlotBool<'static>,
-    pub slot_context_menu_apply_prefix_to_selection: SlotBool<'static>,
+    pub slot_context_menu_rewrite_selection: SlotBool<'static>,
     pub slot_context_menu_clone: SlotBool<'static>,
     pub slot_context_menu_clone_and_append: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
@@ -336,7 +338,7 @@ impl PackedFileTableView {
 
         let mut context_menu_apply_submenu = Menu::new(&QString::from_std_str("A&pply..."));
         let context_menu_apply_maths_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Maths to Selection"));
-        let context_menu_apply_prefix_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Prefix to Selection"));
+        let context_menu_rewrite_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Rewrite Selection"));
 
         let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
         let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
@@ -366,7 +368,7 @@ impl PackedFileTableView {
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["insert_row"]))); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["delete_row"]))); }
         unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["apply_maths_to_selection"]))); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["apply_prefix_to_selection"]))); }
+        unsafe { context_menu_rewrite_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["rewrite_selection"]))); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["clone_row"]))); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["clone_and_append_row"]))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["copy"]))); }
@@ -386,7 +388,7 @@ impl PackedFileTableView {
         unsafe { context_menu_insert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_rewrite_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -406,7 +408,7 @@ impl PackedFileTableView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_insert); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_delete); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_apply_maths_to_selection); }
-        unsafe { table_view.as_mut().unwrap().add_action(context_menu_apply_prefix_to_selection); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_rewrite_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone_and_append); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
@@ -426,7 +428,7 @@ impl PackedFileTableView {
         unsafe { context_menu_insert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Insert an empty row just above the one selected.")); }
         unsafe { context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete all the selected rows.")); }
         unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Apply a simple mathematical operation to every cell in the selected cells.")); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Apply a prefix to every cell in the selected cells.")); }
+        unsafe { context_menu_rewrite_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rewrite the selected cells using a pattern.")); }
         unsafe { context_menu_clone.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and insert the new rows under the original ones.")); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and append the new rows at the end of the table.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
@@ -638,6 +640,7 @@ impl PackedFileTableView {
                             context_menu_clone_and_append.as_mut().unwrap().set_enabled(true);
                             context_menu_copy.as_mut().unwrap().set_enabled(true);
                             context_menu_delete.as_mut().unwrap().set_enabled(true);
+                            context_menu_rewrite_selection.as_mut().unwrap().set_enabled(true);
                         
                             // The "Apply" actions have to be enabled only when all the indexes are valid for the operation. 
                             let mut columns = vec![];
@@ -656,14 +659,6 @@ impl PackedFileTableView {
                                 else { can_apply = false; break } 
                             }
                             context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(can_apply);
-
-                            let mut can_apply = true;
-                            for column in &columns {
-                                let field_type = &table_definition.fields[*column as usize].field_type;
-                                if *field_type == FieldType::StringU8 || *field_type == FieldType::StringU16 || *field_type == FieldType::OptionalStringU8 || *field_type == FieldType::OptionalStringU16 { continue }
-                                else { can_apply = false; break } 
-                            }
-                            context_menu_apply_prefix_to_selection.as_mut().unwrap().set_enabled(can_apply);
                         }
                     }
 
@@ -671,7 +666,7 @@ impl PackedFileTableView {
                     else {
                         unsafe {
                             context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(false);
-                            context_menu_apply_prefix_to_selection.as_mut().unwrap().set_enabled(false);
+                            context_menu_rewrite_selection.as_mut().unwrap().set_enabled(false);
                             context_menu_clone.as_mut().unwrap().set_enabled(false);
                             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
                             context_menu_copy.as_mut().unwrap().set_enabled(false);
@@ -1184,46 +1179,119 @@ impl PackedFileTableView {
                 }
             )),
 
-            slot_context_menu_apply_prefix_to_selection: SlotBool::new(clone!(
+            slot_context_menu_rewrite_selection: SlotBool::new(clone!(
                 packed_file_path,
                 table_state_data,
+                table_definition,
                 app_ui => move |_| {
 
-                    // If we got a prefix, get all the cells in the selection, try to apply it to them.
-                    if let Some(mut prefix) = create_apply_prefix_dialog(&app_ui) {
+                    // If we got a sequence, get all the cells in the selection, try to apply it to them.
+                    if let Some(mut sequence) = create_rewrite_selection_dialog(&app_ui) {
 
-                        // For some reason Qt adds & sometimes, ro remove it if you found it.
-                        if let Some(index) = prefix.find('&') { prefix.remove(index); }
+                        // For some reason Qt adds & sometimes, so remove it if you found it.
+                        if let Some(index) = sequence.find('&') { sequence.remove(index); }
 
-                        let mut results = vec![];
+                        // Get all the selected cells. We can rewrite any kind of cell (except Booleans),
+                        // so we have to do a first pass to ensure everything is valid before applying the data.
                         let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
+                        let mut results = vec![];
                         for index in 0..indexes.count(()) {
                             let model_index = indexes.at(index);
-                            if model_index.is_valid() { 
 
-                                let text = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().text().to_std_string() };
-                                let result = format!("{}{}", prefix, text);
-                                results.push(result);
+                            // Always check this is valid. Otherwise this can and will crash if the filter goes the wrong way.
+                            if model_index.is_valid() { 
+                                let item = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap() };
+                                let column = item.column();
+                                let column_type = table_definition.fields[column as usize].field_type;
+                                let text = match column_type {
+
+                                    // As I said, we skip booleans.
+                                    FieldType::Boolean => continue,
+                                    FieldType::Float |
+                                    FieldType::Integer |
+                                    FieldType::LongInteger |
+                                    FieldType::StringU8 |
+                                    FieldType::StringU16 |
+                                    FieldType::OptionalStringU8 |
+                                    FieldType::OptionalStringU16 => item.text().to_std_string(),
+                                };
+
+                                // If any of the new texts is incompatible with his cells, skip it.
+                                let replaced_text = sequence.to_owned().replace("{x}", &text).replace("{X}", &text);
+                                match column_type {
+                                    FieldType::Boolean => continue,
+                                    FieldType::Float => if replaced_text.parse::<f32>().is_err() { continue; }
+                                    FieldType::Integer => if replaced_text.parse::<i32>().is_err() { continue; }
+                                    FieldType::LongInteger => if replaced_text.parse::<i64>().is_err() { continue; }
+                                    FieldType::StringU8 |
+                                    FieldType::StringU16 |
+                                    FieldType::OptionalStringU8 |
+                                    FieldType::OptionalStringU16 => {},
+                                };
+
+                                results.push((model_index, replaced_text));
                             }
                         }
 
-                        // Then iterate again over every cell applying the new value.
-                        for index in 0..indexes.count(()) {
-                            let model_index = indexes.at(index);
-                            unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_text(&QString::from_std_str(&results[index as usize])) };
+                        // Then iterate again over every result applying the new value to the cell. Save the amount of changes.
+                        let mut changed_cells = 0;
+                        for (model_index, result) in results {
+                            let item = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_mut().unwrap() };
+                            let column = item.column();
+                            let column_type = table_definition.fields[column as usize].field_type;
+                            match column_type {
+
+                                // If we hit this, something above this is broken.
+                                FieldType::Boolean => continue,
+
+                                FieldType::Float => {
+                                    let current_value = item.text().to_std_string();
+                                    if &*current_value != result {
+                                        item.set_data((&Variant::new2(result.parse::<f32>().unwrap()), 2));
+                                        changed_cells += 1;
+                                    }
+                                },
+
+                                FieldType::Integer => {
+                                    let current_value = item.text().to_std_string();
+                                    if &*current_value != result {
+                                        item.set_data((&Variant::new0(result.parse::<i32>().unwrap()), 2));
+                                        changed_cells += 1;
+                                    }
+                                },
+
+                                FieldType::LongInteger => {
+                                    let current_value = item.text().to_std_string();
+                                    if &*current_value != result {
+                                        item.set_data((&Variant::new2(result.parse::<i64>().unwrap()), 2));
+                                        changed_cells += 1;
+                                    }
+                                },
+
+                                FieldType::StringU8 |
+                                FieldType::StringU16 |
+                                FieldType::OptionalStringU8 |
+                                FieldType::OptionalStringU16 => {
+                                    let current_value = item.text().to_std_string();
+                                    if &*current_value != result {
+                                        item.set_text(&QString::from_std_str(result));
+                                        changed_cells += 1;
+                                    }
+                                }
+                            }
                         }
 
                         {
                             let mut table_state_data = table_state_data.borrow_mut();
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
 
-                            // If we finished appling prefixes, fix the undo history to have all the previous changes merged into one.
+                            // If we finished rewriting cells, fix the undo history to have all the previous changes merged into one.
                             // Keep in mind that `None` results should be ignored here.
                             let len = table_state_data.undo_history.len();
                             let mut edits_data = vec![];
                             
                             {
-                                let mut edits = table_state_data.undo_history.drain((len - results.len())..);
+                                let mut edits = table_state_data.undo_history.drain((len - changed_cells)..);
                                 for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
                             }
 
@@ -2713,7 +2781,7 @@ impl PackedFileTableView {
         unsafe { context_menu_insert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_insert); }
         unsafe { context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_delete); }
         unsafe { context_menu_apply_maths_to_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_apply_maths_to_selection); }
-        unsafe { context_menu_apply_prefix_to_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_apply_prefix_to_selection); }
+        unsafe { context_menu_rewrite_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_rewrite_selection); }
         unsafe { context_menu_clone.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone); }
         unsafe { context_menu_clone_and_append.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone_and_append); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
@@ -2749,7 +2817,7 @@ impl PackedFileTableView {
             context_menu_insert.as_mut().unwrap().set_enabled(true);
             context_menu_delete.as_mut().unwrap().set_enabled(false);
             context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(false);
-            context_menu_apply_prefix_to_selection.as_mut().unwrap().set_enabled(false);
+            context_menu_rewrite_selection.as_mut().unwrap().set_enabled(false);
             context_menu_clone.as_mut().unwrap().set_enabled(false);
             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
