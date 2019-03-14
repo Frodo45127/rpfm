@@ -47,6 +47,9 @@ pub enum ErrorKind {
     // Error for when serializing to TOML fails.
     TOMLSerializerError,
 
+    // Error for when trying to do something to a file that doesn't exists anymore.
+    NonExistantFile,
+
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -376,6 +379,7 @@ impl Display for ErrorKind {
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::ThereIsAnSpecialPlaceInHellForYou => write!(f, "<p>There is an special place in hell for you.</p>"),
             ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors

@@ -100,6 +100,8 @@ pub fn get_type_of_selected_path(
         if is_a_file { TreePathType::File(tree_path) }
 
         // Otherwise, we assume it's a folder. This is not bulletproof so FIXME: find a way to make this more solid.
+        // FIXME: This is confirmed to be broken for the situation where there is a folder and a file with the same name
+        // in the same folder.
         else {
 
             // We check if the folder actually exists in our PackFile.

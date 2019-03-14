@@ -437,26 +437,16 @@ pub fn background_loop(
                     // In case we want to delete PackedFiles from a PackFile...
                     Commands::DeletePackedFile => {
 
-                        // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get the type of the Path we want to delete.
-                        let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
-
                         // Delete the PackedFiles from the PackFile, changing his return in case of success.
-                        match background_thread_extra::delete_from_packfile(&mut pack_file_decoded, &path) {
-                            Ok(_) => sender.send(Data::TreePathType(path_type)).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
+                        let paths = if let Data::VecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        sender.send(Data::VecTreePathType(background_thread_extra::delete_from_packfile(&mut pack_file_decoded, &paths))).unwrap();
                     }
 
                     // In case we want to extract PackedFiles from a PackFile...
                     Commands::ExtractPackedFile => {
 
-                        // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::VecStringPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Try to extract the PackFile.
+                        // Wait until we get the needed data from the UI thread, and try to extract the PackFile.
+                        let data = if let Data::VecVecStringPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
                         match background_thread_extra::extract_from_packfile(
                             &pack_file_decoded,
                             &data.0,

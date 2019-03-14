@@ -201,11 +201,9 @@ pub fn open_packedfile(
     // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here.
     if !(*is_folder_tree_view_locked.borrow()) {
 
-        // Get the selection to see what we are going to open.
-        let selection = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
-
-        // Get the path of the selected item.
-        let full_path = get_path_from_item_selection(app_ui.folder_tree_model, Some(app_ui.folder_tree_filter), &selection, true);
+        // Get the selection to see what we are going to open. We only continue this if we have one thing selected.
+        let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
+        let full_path = if selected_paths.len() == 1 { selected_paths[0].to_vec() } else { return Ok(()) };
 
         // Send the Path to the Background Thread, and get the type of the item.
         sender_qt.send(Commands::GetTypeOfPath).unwrap();
