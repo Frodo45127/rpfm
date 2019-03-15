@@ -2234,21 +2234,7 @@ fn main() {
         );
 
         // What happens when we trigger the "Open Manual" action.
-        let slot_open_manual = SlotBool::new(move |_| { 
-                let mut manual_path = format!("{:?}", RPFM_PATH.to_path_buf().join(PathBuf::from("rpfm_manual.pdf")));
-
-                // In linux we have to remove the commas.
-                if cfg!(target_os = "linux") { 
-                    manual_path.remove(0);
-                    manual_path.pop();
-                }
-                
-                // No matter how many times I tried, it's IMPOSSIBLE to open a file on windows, so instead we use this magic crate that seems to work everywhere.
-                if let Err(error) = open::that(manual_path) {
-                    show_dialog(app_ui.window, false, error);
-                }
-            }
-        );
+        let slot_open_manual = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://frodo45127.github.io/rpfm/"))); });
 
         // What happens when we trigger the "Support me on Patreon" action.
         let slot_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://www.patreon.com/RPFM"))); });
