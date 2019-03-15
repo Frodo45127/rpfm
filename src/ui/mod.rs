@@ -182,62 +182,63 @@ impl AddFromPackFileSlots {
                 receiver_qt => move |_| {
 
                     // Get the file to get from the Right TreeView.
-                    let selection_file_to_move;
-                    unsafe { selection_file_to_move = tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    let selection_file_to_move = unsafe { tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
+                    if selection_file_to_move.count(()) == 1 {
+                            
+                        // Get his path.
+                        let item_path = get_path_from_item_selection(tree_model, None, &selection_file_to_move, true);
 
-                    // Get his path.
-                    let item_path = get_path_from_item_selection(tree_model, None, &selection_file_to_move, true);
+                        // Ask the Background Thread to move the files, and send him the path.
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                        sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
+                        sender_qt_data.send(Data::VecString(item_path)).unwrap();
 
-                    // Ask the Background Thread to move the files, and send him the path.
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-                    sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
-                    sender_qt_data.send(Data::VecString(item_path)).unwrap();
+                        // Check what response we got.
+                        match check_message_validity_tryrecv(&receiver_qt) {
+                        
+                            // If it's success....
+                            Data::VecVecString(paths) => {
 
-                    // Check what response we got.
-                    match check_message_validity_tryrecv(&receiver_qt) {
-                    
-                        // If it's success....
-                        Data::VecVecString(paths) => {
+                                // Update the TreeView.
+                                update_treeview(
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    &receiver_qt,
+                                    app_ui.window,
+                                    app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Add(paths.to_vec()),
+                                );
 
-                            // Update the TreeView.
-                            update_treeview(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &receiver_qt,
-                                app_ui.window,
-                                app_ui.folder_tree_view,
-                                Some(app_ui.folder_tree_filter),
-                                app_ui.folder_tree_model,
-                                TreeViewOperation::Add(paths.to_vec()),
-                            );
+                                // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
-                            // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                                // Update the global search stuff, if needed.
+                                global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
+                                unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
-                            // Update the global search stuff, if needed.
-                            global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
-                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
-
-                            // For each file added, remove it from the data history if exists.
-                            for path in &paths {
-                                if table_state_data.borrow().get(path).is_some() {
-                                    table_state_data.borrow_mut().remove(path);
+                                // For each file added, remove it from the data history if exists.
+                                for path in &paths {
+                                    if table_state_data.borrow().get(path).is_some() {
+                                        table_state_data.borrow_mut().remove(path);
+                                    }
                                 }
                             }
+
+                            // If we got an error...
+                            Data::Error(error) => show_dialog(app_ui.window, true, error),
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!(THREADS_MESSAGE_ERROR),
                         }
 
-                        // If we got an error...
-                        Data::Error(error) => show_dialog(app_ui.window, true, error),
+                        // Re-enable the Main Window.
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
-                        // In ANY other situation, it's a message problem.
-                        _ => panic!(THREADS_MESSAGE_ERROR),
+                        // Set the focus again on the extra Treeview, so we don't need to refocus manually.
+                        unsafe { tree_view.as_mut().unwrap().set_focus(()); }
                     }
-
-                    // Re-enable the Main Window.
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-                    // Set the focus again on the extra Treeview, so we don't need to refocus manually.
-                    unsafe { tree_view.as_mut().unwrap().set_focus(()); }
                 }
             )),
 
