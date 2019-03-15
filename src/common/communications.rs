@@ -94,6 +94,7 @@ pub enum Commands {
     OpenWithExternalProgram,
     ImportTSVPackedFile,
     ExportTSVPackedFile,
+    MergeTables,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 
@@ -146,9 +147,11 @@ pub enum Data {
     VecString(Vec<String>),
     VecStringPackedFileType((Vec<String>, PackedFileType)),
     VecStringString((Vec<String>, String)),
+    VecStringVecTreePathType((Vec<String>, Vec<TreePathType>)),
     VecTreePathType(Vec<TreePathType>),
     VecVecString(Vec<Vec<String>>),
     VecVecStringPathBuf((Vec<Vec<String>>, PathBuf)),
+    VecVecStringStringBoolBool((Vec<Vec<String>>, String, bool, bool)),
     VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
     VecGlobalMatch(Vec<GlobalMatch>),
     VersionsVersions((Versions, Versions)),

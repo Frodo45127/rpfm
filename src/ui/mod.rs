@@ -11,6 +11,7 @@
 // In this file are all the helper functions used by the UI (mainly Qt here)
 
 use qt_widgets::action::Action;
+use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::dialog::Dialog;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
@@ -668,6 +669,41 @@ pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
     if dialog.exec() == 1 { 
         let text = pattern.text().to_std_string();
         if !text.is_empty() { Some(text) }
+        else { None }
+    }
+    
+    // Otherwise, return None.
+    else { None }
+}
+
+/// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
+pub fn create_merge_tables_dialog(app_ui: &AppUI) -> Option<(String, bool)> {
+
+    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
+    dialog.set_window_title(&QString::from_std_str("Merge Tables"));
+    dialog.set_modal(true);
+
+    // Create the main Grid.
+    let main_grid = GridLayout::new().into_raw();
+    let mut name = LineEdit::new(());
+    name.set_placeholder_text(&QString::from_std_str("Write the name of the new file here."));
+
+    let mut delete_source_tables = CheckBox::new(&QString::from_std_str("Delete original tables"));
+
+    let accept_button = PushButton::new(&QString::from_std_str("Accept")).into_raw();
+    unsafe { main_grid.as_mut().unwrap().add_widget((name.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((delete_source_tables.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((accept_button as *mut Widget, 2, 0, 1, 1)); }
+    unsafe { dialog.set_layout(main_grid as *mut Layout); }
+
+    // What happens when we hit the "Search" button.
+    unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+    // Execute the dialog.
+    if dialog.exec() == 1 { 
+        let text = name.text().to_std_string();
+        let delete_source_tables = delete_source_tables.is_checked();
+        if !text.is_empty() { Some((text, delete_source_tables)) }
         else { None }
     }
     

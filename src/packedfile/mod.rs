@@ -59,6 +59,137 @@ pub enum DecodedData {
 }
 
 //----------------------------------------------------------------//
+// Generic Functions for PackedFiles.
+//----------------------------------------------------------------//
+
+/// This function is used to create a PackedFile outtanowhere. It returns his new path.
+pub fn create_packed_file(
+    pack_file: &mut PackFile,
+    packed_file_type: PackedFileType,
+    path: Vec<String>,
+) -> Result<()> {
+
+    // Depending on their type, we do different things to prepare the PackedFile and get his data.
+    let data = match packed_file_type {
+
+        // If it's a Loc PackedFile, create it and generate his data.
+        PackedFileType::Loc(_) => Loc::new().save(),
+
+        // If it's a DB table...
+        PackedFileType::DB(_, table, version) => {
+
+            // Try to get his table definition.
+            let table_definition = match *SCHEMA.lock().unwrap() {
+                Some(ref schema) => DB::get_schema(&table, version, &schema),
+                None => return Err(ErrorKind::SchemaNotFound)?
+            };
+
+            // If there is a table definition, create the new table. Otherwise, return error.
+            match table_definition {
+                Some(table_definition) => DB::new(&table, version, table_definition).save(),
+                None => return Err(ErrorKind::SchemaTableDefinitionNotFound)?
+            }
+        }
+
+        // If it's a Text PackedFile, return an empty encoded string.
+        PackedFileType::Text(_) => encode_string_u8(""),
+    };
+
+    // Create and add the new PackedFile to the PackFile.
+    pack_file.add_packedfiles(vec![PackedFile::read_from_vec(path, get_current_time(), false, data); 1]);
+
+    // Return the path to update the UI.
+    Ok(())
+}
+
+/// This function merges (if it's possible) the provided DB and LOC tables into one with the name and, if asked,
+/// it deletes the souce files. Table_type means true: DB, false: LOC.
+pub fn merge_tables( 
+    pack_file: &mut PackFile,
+    source_paths: &[Vec<String>],
+    name: &str,
+    delete_source_paths: bool,
+    table_type: bool,
+) -> Result<(Vec<String>, Vec<TreePathType>)> {
+
+    let paths_clean = source_paths.iter().map(|x| x[1..].to_vec()).collect::<Vec<Vec<String>>>();
+    let mut db_files = vec![];
+    let mut loc_files = vec![];
+
+    // Decode them depending on their type.
+    for path in &paths_clean {
+        let packed_file = pack_file.packed_files.iter().find(|x| &x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
+        let packed_file_data = packed_file.get_data()?;
+        
+        if table_type { 
+            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                db_files.push(DB::read(&packed_file_data, &path[1], &schema)?); 
+            }
+            else { return Err(ErrorKind::SchemaNotFound)? }
+        }
+        else { loc_files.push(Loc::read(&packed_file_data)?); }
+    }
+
+    // Merge them all into one, and return error if any problem arise.
+    let packed_file_data = if table_type {
+        let mut final_entries_list = vec![];
+        let mut version = -2;
+        let mut table_definition = TableDefinition::new(0);
+
+        for table in &mut db_files {
+            if version == -2 { 
+                version = table.version; 
+                table_definition = table.table_definition.clone();
+            }
+            else if table.version != version { return Err(ErrorKind::InvalidFilesForMerging)? }
+
+            final_entries_list.append(&mut table.entries);
+        }
+
+        let mut new_table = DB::new(&db_files[0].db_type, version, table_definition);
+        new_table.entries = final_entries_list;
+        new_table.save()
+    }
+
+    else {
+        let mut final_entries_list = vec![];
+        for table in &mut loc_files {
+            final_entries_list.append(&mut table.entries);
+        }
+
+        let mut new_table = Loc::new();
+        new_table.entries = final_entries_list;
+        new_table.save()
+    };
+
+    // And then, we reach the part where we have to do the "saving to PackFile" stuff.
+    let mut path = paths_clean[0].to_vec();
+    path.pop();
+    path.push(name.to_owned());
+    let packed_file = PackedFile::read_from_vec(path, get_current_time(), false, packed_file_data);
+
+    // If we want to remove the source files, this is the moment.
+    let mut deleted_paths = vec![];
+    if delete_source_paths {
+        for path in &paths_clean {
+            let index = pack_file.packed_files.iter().position(|x| &x.path == path).unwrap();
+            deleted_paths.push(pack_file.packed_files[index].path.to_vec());
+            pack_file.remove_packedfile(index);
+        }
+    }
+
+    // Prepare the paths to return.
+    let added_path = pack_file.add_packed_files(vec![packed_file])[0].to_vec();
+    deleted_paths.retain(|x| x != &added_path);
+
+    let mut tree_paths = vec![];
+    for path in &deleted_paths {
+        tree_paths.push(TreePathType::File(path.to_vec()));
+    }
+    Ok((added_path, tree_paths))
+}
+
+//----------------------------------------------------------------//
 // TSV Functions for PackedFiles.
 //----------------------------------------------------------------//
 
@@ -163,48 +294,8 @@ pub fn export_tsv(
 }
 
 //----------------------------------------------------------------//
-// Generic Functions for PackedFiles.
+// Mass-TSV Functions for PackedFiles.
 //----------------------------------------------------------------//
-
-/// This function is used to create a PackedFile outtanowhere. It returns his new path.
-pub fn create_packed_file(
-    pack_file: &mut PackFile,
-    packed_file_type: PackedFileType,
-    path: Vec<String>,
-) -> Result<()> {
-
-    // Depending on their type, we do different things to prepare the PackedFile and get his data.
-    let data = match packed_file_type {
-
-        // If it's a Loc PackedFile, create it and generate his data.
-        PackedFileType::Loc(_) => Loc::new().save(),
-
-        // If it's a DB table...
-        PackedFileType::DB(_, table, version) => {
-
-            // Try to get his table definition.
-            let table_definition = match *SCHEMA.lock().unwrap() {
-                Some(ref schema) => DB::get_schema(&table, version, &schema),
-                None => return Err(ErrorKind::SchemaNotFound)?
-            };
-
-            // If there is a table definition, create the new table. Otherwise, return error.
-            match table_definition {
-                Some(table_definition) => DB::new(&table, version, table_definition).save(),
-                None => return Err(ErrorKind::SchemaTableDefinitionNotFound)?
-            }
-        }
-
-        // If it's a Text PackedFile, return an empty encoded string.
-        PackedFileType::Text(_) => encode_string_u8(""),
-    };
-
-    // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read_from_vec(path, get_current_time(), false, data); 1]);
-
-    // Return the path to update the UI.
-    Ok(())
-}
 
 /// This function is used to Mass-Import TSV files into a PackFile. Note that this will OVERWRITE any
 /// existing PackedFile that has a name conflict with the TSV files provided.

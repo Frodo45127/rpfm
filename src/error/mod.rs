@@ -50,6 +50,9 @@ pub enum ErrorKind {
     // Error for when trying to do something to a file that doesn't exists anymore.
     NonExistantFile,
 
+    // Error for when we're trying to merge two invalid files.
+    InvalidFilesForMerging,
+
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -380,6 +383,7 @@ impl Display for ErrorKind {
             ErrorKind::ThereIsAnSpecialPlaceInHellForYou => write!(f, "<p>There is an special place in hell for you.</p>"),
             ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
+            ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors

@@ -680,6 +680,7 @@ pub struct AppUI {
     pub context_menu_create_text: *mut Action,
     pub context_menu_mass_import_tsv: *mut Action,
     pub context_menu_mass_export_tsv: *mut Action,
+    pub context_menu_merge_tables: *mut Action,
     pub context_menu_delete: *mut Action,
     pub context_menu_extract: *mut Action,
     pub context_menu_rename_current: *mut Action,
@@ -1051,6 +1052,7 @@ fn main() {
             context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
             context_menu_mass_export_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Export TSV")),
 
+            context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge DBs/LOCs")),
             context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
             context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
             
@@ -1283,6 +1285,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["create_text"]))); }
         unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["mass_import_tsv"]))); }
         unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["mass_export_tsv"]))); }
+        unsafe { app_ui.context_menu_merge_tables.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["merge_tables"]))); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["delete"]))); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["extract"]))); }
         unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["rename_current"]))); }
@@ -1306,6 +1309,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_merge_tables.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -1329,6 +1333,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_text); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_mass_import_tsv); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_mass_export_tsv); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_merge_tables); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_delete); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename_current); }
@@ -1419,6 +1424,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_text.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a Plain Text File. It accepts different extensions, like '.xml', '.lua', '.txt',....")); }
         unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a bunch of TSV files at the same time. It automatically checks if they are DB Tables, Locs or invalid TSVs, and imports them all at once. Existing files will be overwritten!")); }
         unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export every DB Table and Loc PackedFile from this PackFile as TSV files at the same time. Existing files will be overwritten!")); }
+        unsafe { app_ui.context_menu_merge_tables.as_mut().unwrap().set_status_tip(&QString::from_std_str("Merge multple DB Tables/Loc PackedFiles into one.")); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete the selected File/Folder.")); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_status_tip(&QString::from_std_str("Extract the selected File/Folder from the PackFile.")); }
         unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename a File/Folder. Remember, whitespaces are NOT ALLOWED.")); }
@@ -2334,6 +2340,10 @@ fn main() {
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(enabled);
                         }
 
+                        // Only if we have multiple files selected, we give the option to merge. Further checkings are done when clicked.
+                        let enabled = if file > 1 { true } else { false };
+                        unsafe { app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(enabled); }
+
                         // If we only have selected one file and it's a DB, we should enable this too.
                         let mut enable_db_decoder = false;
                         if file == 1 {
@@ -2355,6 +2365,7 @@ fn main() {
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(true);
@@ -2390,6 +2401,7 @@ fn main() {
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
@@ -2414,6 +2426,7 @@ fn main() {
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
@@ -2438,6 +2451,7 @@ fn main() {
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
@@ -2486,6 +2500,7 @@ fn main() {
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
@@ -2510,6 +2525,7 @@ fn main() {
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
@@ -3545,6 +3561,149 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Merge" action in the Contextual Menu.
+        let slot_contextual_menu_merge_tables = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            packedfiles_open_in_packedfile_view,
+            global_search_explicit_paths,
+            table_state_data,
+            is_modified => move |_| {
+                
+                // Get the currently selected paths, and get how many we have of each type.
+                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
+
+                // First, we check if we're merging locs, as it's far simpler.
+                let mut loc_pass = true;
+                for path in &selected_paths {
+                    if !path.last().unwrap().ends_with(".loc") {
+                        loc_pass = false;
+                        break;
+                    }
+                }
+
+                // Then DB Tables. The conditions are that they're in the same db folder and with the same version.
+                // If ANY of these fails (until the "update table version" feature it's done), we fail the pass.
+                // Due to performance reasons, the version thing will be done later.
+                let mut db_pass = true;
+                let mut db_folder = String::new();
+                for path in &selected_paths {
+                    if path.len() == 4 {
+                        if path[1] == "db" {
+                            if db_folder.is_empty() {
+                                db_folder = path[2].to_owned();
+                            }
+
+                            if path[2] != db_folder {
+                                db_pass = false;
+                                break;                                
+                            }
+                        }
+                        else {
+                            db_pass = false;
+                            break;
+                        }
+                    }
+                    else {
+                        db_pass = false;
+                        break;
+                    }
+                }
+
+                // If we got valid files, create the dialog to ask for the needed info.
+                if (loc_pass || db_pass) && !(loc_pass && db_pass) {
+    
+                    // If we have a PackedFile open, throw the usual warning.
+                    if !packedfiles_open_in_packedfile_view.borrow().is_empty() {
+
+                        let mut dialog = unsafe { MessageBox::new_unsafe((
+                            message_box::Icon::Information,
+                            &QString::from_std_str("Warning"),
+                            &QString::from_std_str("<p>If you do this, RPFM will close whatever PackedFile is open in the right view.</p><p> Are you sure you want to continue?</p>"),
+                            Flags::from_int(4_194_304), // Cancel button.
+                            app_ui.window as *mut Widget,
+                        )) };
+
+                        dialog.add_button((&QString::from_std_str("&Accept"), message_box::ButtonRole::AcceptRole));
+                        dialog.set_modal(true);
+                        dialog.show();
+
+                        // If we hit "Accept", close all PackedFiles.
+                        if dialog.exec() == 0 { 
+                            purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                            display_help_tips(&app_ui);
+                        } else { return }
+                    }
+
+                    // Get the info for the merged file.
+                    if let Some((mut name, delete_source_files)) = create_merge_tables_dialog(&app_ui) {
+
+                        // If it's a loc file and the name doesn't end in a ".loc" termination, call it ".loc".
+                        if loc_pass && !name.ends_with(".loc") {
+                            name.push_str(".loc");
+                        }
+
+                        sender_qt.send(Commands::MergeTables).unwrap();
+                        sender_qt_data.send(Data::VecVecStringStringBoolBool((selected_paths, name, delete_source_files, if db_pass { true } else { false }))).unwrap();
+                        match check_message_validity_recv2(&receiver_qt) {
+                            Data::VecStringVecTreePathType((path_to_add, items_to_remove)) => {
+
+                                // First, we need to remove the removed tables, if any.
+                                update_treeview(
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    &receiver_qt,
+                                    app_ui.window,
+                                    app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Delete(items_to_remove.to_vec()),
+                                );
+
+                                // Next, we need to add the new table.
+                                update_treeview(
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    &receiver_qt,
+                                    app_ui.window,
+                                    app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Add(vec![path_to_add.to_vec()]),
+                                );
+
+                                // Set the mod as "Modified". We don't paint deletions.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                // Update the global search stuff, if needed.
+                                global_search_explicit_paths.borrow_mut().append(&mut vec![path_to_add.to_vec()]);
+                                unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                                // Remove the added file from the data history if exists.
+                                if table_state_data.borrow().get(&path_to_add).is_some() {
+                                    table_state_data.borrow_mut().remove(&path_to_add);
+                                }
+
+                                // Same with the deleted ones.
+                                for item in &items_to_remove {
+                                    let path = if let TreePathType::File(path) = item { path.to_vec() } else { panic!("This should never happen.") };
+                                    if table_state_data.borrow().get(&path).is_some() {
+                                        table_state_data.borrow_mut().remove(&path);
+                                    }
+                                }
+                            }
+                            
+                            Data::Error(error) => show_dialog(app_ui.window, false, error),
+                            _ => panic!(THREADS_MESSAGE_ERROR),
+                        }
+                    }
+                }
+
+                else { show_dialog(app_ui.window, false, ErrorKind::InvalidFilesForMerging); }
+            }
+        ));
+
         // What happens when we trigger the "Delete" action in the Contextual Menu.
         let slot_contextual_menu_delete = SlotBool::new(clone!(
             sender_qt,
@@ -3979,6 +4138,7 @@ fn main() {
         unsafe { app_ui.context_menu_create_text.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_text); }
         unsafe { app_ui.context_menu_mass_import_tsv.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_mass_import_tsv); }
         unsafe { app_ui.context_menu_mass_export_tsv.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_mass_export_tsv); }
+        unsafe { app_ui.context_menu_merge_tables.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_merge_tables); }
         unsafe { app_ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_delete); }
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
         unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }

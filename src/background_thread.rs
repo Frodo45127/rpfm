@@ -1511,6 +1511,17 @@ pub fn background_loop(
                             }
                             None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                         }
+                    },
+
+                    // In case we want to merge DB or Loc Tables from a PackFile...
+                    Commands::MergeTables => {
+
+                        // Delete the PackedFiles from the PackFile, changing his return in case of success.
+                        let (paths, name, delete_source_files, table_types) = if let Data::VecVecStringStringBoolBool(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        match merge_tables(&mut pack_file_decoded, &paths, &name, delete_source_files, table_types) {
+                            Ok(data) => sender.send(Data::VecStringVecTreePathType(data)).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
                     }
                 }
             }
