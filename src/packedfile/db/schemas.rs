@@ -171,8 +171,8 @@ impl Schema {
         let current_schema_versions: Versions = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json")?.json()?;
         let mut schemas_to_update = vec![];
         for (game, version_local) in &local_schema_versions {
-            let version_current = current_schema_versions.get(game).unwrap();
-            if version_local != version_current { schemas_to_update.push((game.to_owned(), version_local)); }
+            let version_current = current_schema_versions[game];
+            if version_local != &version_current { schemas_to_update.push((game.to_owned(), version_local)); }
         }
 
         for (game_name, game) in SUPPORTED_GAMES.iter() {
@@ -640,7 +640,7 @@ impl TableDefinition {
 
         // We have to check for removed fields too.
         for field_current in &version_current.fields {
-            if let None = self.fields.iter().find(|x| x.field_name == field_current.field_name) {
+            if self.fields.iter().find(|x| x.field_name == field_current.field_name).is_none() {
                 removed_fields.push(field_current.field_name.to_owned());
             }
         }

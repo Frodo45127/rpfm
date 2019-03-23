@@ -14,6 +14,7 @@
 #![allow(
     clippy::cast_lossless,                  // Disabled due to useless warnings.
     clippy::cognitive_complexity,           // Disabled due to useless warnings.
+    clippy::cyclomatic_complexity,          // Disabled due to useless warnings.
     clippy::doc_markdown,                   // Disabled due to false positives on things that shouldn't be formated in the docs as it says.
     clippy::if_same_then_else,              // Disabled because some of the solutions it provides are freaking hard to read.
     clippy::match_bool,                     // Disabled because the solutions it provides are harder to read than the current code.
@@ -933,7 +934,7 @@ fn main() {
             //-------------------------------------------------------------------------------//
             window: window.into_raw(),
             folder_tree_view: folder_tree_view.into_raw(),
-            folder_tree_filter: folder_tree_filter,
+            folder_tree_filter,
             folder_tree_model: folder_tree_model.into_raw(),
             folder_tree_filter_line_edit: folder_tree_filter_line_edit.into_raw(),
             folder_tree_filter_autoexpand_matches_button: folder_tree_filter_autoexpand_matches_button.into_raw(),
@@ -2109,10 +2110,8 @@ fn main() {
                         file_dialog.set_option(ShowDirsOnly);
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        let mut path = PathBuf::from("");
-                        if file_dialog.exec() == 1 { 
-                            path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                        }
+                        let mut path = if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        } else { PathBuf::from("") };
                         path.push("raw_data");
                         path.push("db");
                         path
@@ -2131,11 +2130,8 @@ fn main() {
                         file_dialog.set_option(ShowDirsOnly);
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        let mut path = PathBuf::from("");
-                        if file_dialog.exec() == 1 { 
-                            path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
-                        }
-                        path
+                        if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        } else { PathBuf::from("") }
                     }
 
                     // For any other game, return an empty path.

@@ -187,11 +187,10 @@ pub fn get_raw_definitions(current_path: &Path, version: i16) -> Result<Vec<Path
                 }
 
                 // In this case, we just catch all the xsd files on the folder.
-                else if version == 0 {
-                    if file_path.is_file() &&
-                        file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xsd") {
-                        file_list.push(file_path);
-                    }   
+                else if version == 0 && 
+                    file_path.is_file() &&
+                    file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xsd") {
+                    file_list.push(file_path);   
                 }
             }
         }
@@ -229,10 +228,10 @@ pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
                 }
 
                 // In this case, if it's an xml, to the file_list it goes.
-                else if version == 0 {
-                    if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xml") {
-                        file_list.push(file_path);
-                    }
+                else if version == 0 &&
+                    file_path.is_file() && 
+                    !file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xml") {
+                    file_list.push(file_path);
                 }
             }
         }

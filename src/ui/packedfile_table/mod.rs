@@ -1246,7 +1246,7 @@ impl PackedFileTableView {
 
                                 FieldType::Float => {
                                     let current_value = item.text().to_std_string();
-                                    if &*current_value != result {
+                                    if *current_value != result {
                                         item.set_data((&Variant::new2(result.parse::<f32>().unwrap()), 2));
                                         changed_cells += 1;
                                     }
@@ -1254,7 +1254,7 @@ impl PackedFileTableView {
 
                                 FieldType::Integer => {
                                     let current_value = item.text().to_std_string();
-                                    if &*current_value != result {
+                                    if *current_value != result {
                                         item.set_data((&Variant::new0(result.parse::<i32>().unwrap()), 2));
                                         changed_cells += 1;
                                     }
@@ -1262,7 +1262,7 @@ impl PackedFileTableView {
 
                                 FieldType::LongInteger => {
                                     let current_value = item.text().to_std_string();
-                                    if &*current_value != result {
+                                    if *current_value != result {
                                         item.set_data((&Variant::new2(result.parse::<i64>().unwrap()), 2));
                                         changed_cells += 1;
                                     }
@@ -1273,7 +1273,7 @@ impl PackedFileTableView {
                                 FieldType::OptionalStringU8 |
                                 FieldType::OptionalStringU16 => {
                                     let current_value = item.text().to_std_string();
-                                    if &*current_value != result {
+                                    if *current_value != result {
                                         item.set_text(&QString::from_std_str(result));
                                         changed_cells += 1;
                                     }
@@ -3537,7 +3537,7 @@ fn build_columns(
                         for version in table.versions {
                             for field_ref in version.fields {
                                 if let Some(ref_data) = field_ref.field_is_reference { 
-                                    if &ref_data.0 == short_table_name && ref_data.1 == field.field_name {
+                                    if ref_data.0 == short_table_name && ref_data.1 == field.field_name {
                                         found = true;
                                         columns.push((table.name.to_owned(), field_ref.field_name)); 
                                     }
