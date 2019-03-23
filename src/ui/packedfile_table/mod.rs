@@ -1453,28 +1453,14 @@ impl PackedFileTableView {
 
             slot_context_menu_copy: SlotBool::new(move |_| {
 
-                // Create a string to keep all the values in a TSV format (x\tx\tx).
+                // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
+                let indexes = unsafe { table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection().indexes() };
+                let mut indexes_sorted = (0..indexes.count(())).map(|x| indexes.at(x)).collect::<Vec<&ModelIndex>>();
+                sort_indexes_visually(&mut indexes_sorted, table_view);
+                let indexes_sorted = get_real_indexes(&indexes_sorted, filter_model);
+
+                // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
                 let mut copy = String::new();
-
-                // Get the current selection.
-                let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
-                let mut indexes_sorted = vec![];
-                for index in 0..indexes.count(()) {
-                    indexes_sorted.push(indexes.at(index))
-                }
-
-                // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
-                let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
-                indexes_sorted.sort_unstable_by(|a, b| {
-                    if a.row() == b.row() {
-                        if header.visual_index(a.column()) < header.visual_index(b.column()) { Ordering::Less }
-                        else { Ordering::Greater }
-                    } 
-                    else if a.row() < b.row() { Ordering::Less }
-                    else { Ordering::Greater }
-                });
-
-                // Build the copy String.
                 let mut row = 0;
                 for (cycle, model_index) in indexes_sorted.iter().enumerate() {
                     if model_index.is_valid() {

@@ -21,13 +21,17 @@ use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::push_button::PushButton;
 use qt_widgets::radio_button::RadioButton;
+use qt_widgets::table_view::TableView;
 use qt_widgets::widget::Widget;
 
 use qt_core::connection::Signal;
+use qt_core::model_index::ModelIndex;
+use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 
 use cpp_utils::StaticCast;
 
 use std::f32;
+use std::cmp::Ordering;
 
 use crate::QString;
 use crate::AppUI;
@@ -139,4 +143,28 @@ And, in case you ask, works with numeric cells too, as long as the resulting tex
         let prefix = rewrite_sequence_line_edit.text().to_std_string();
         if prefix.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) } 
     } else { None }
+}
+
+/// This function gives you the VISUAL selection. That means, the selection just as you see it on screen.
+/// This should be provided with the indexes OF THE VIEW/FILTER, NOT THE MODEL.
+pub fn sort_indexes_visually(indexes_sorted: &mut Vec<&ModelIndex>, table_view: *mut TableView) {
+
+    // Sort the indexes so they follow the visual index, not their logical one.
+    // This should fix situations like copying a row and getting a different order in the cells,
+    // or copying a sorted table and getting a weird order in the copied cells.
+    let horizontal_header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
+    let vertical_header = unsafe { table_view.as_ref().unwrap().vertical_header().as_ref().unwrap() };
+    indexes_sorted.sort_unstable_by(|a, b| {
+        if vertical_header.visual_index(a.row()) == vertical_header.visual_index(b.row()) {
+            if horizontal_header.visual_index(a.column()) < horizontal_header.visual_index(b.column()) { Ordering::Less }
+            else { Ordering::Greater }
+        } 
+        else if vertical_header.visual_index(a.row()) < vertical_header.visual_index(b.row()) { Ordering::Less }
+        else { Ordering::Greater }
+    });
+}
+
+/// This function gives you the model's ModelIndexes from the ones from the view/filter.
+pub fn get_real_indexes(indexes_sorted: &Vec<&ModelIndex>, filter_model: *mut SortFilterProxyModel) -> Vec<ModelIndex> {
+    unsafe { indexes_sorted.iter().map(|x| filter_model.as_mut().unwrap().map_to_source(x)).collect() }
 }
