@@ -2074,7 +2074,7 @@ impl PackedFileDBDecoder {
     fn update_selection_decoded_fields(
         stuff: &PackedFileDBDecoderStuff,
         stuff_non_ui: &PackedFileDBDecoderStuffNonUI,
-        selection_start: usize
+        mut selection_start: usize
     ) {
 
         // Create the variables to hold the values we'll pass to the LineEdits.
@@ -2089,17 +2089,17 @@ impl PackedFileDBDecoder {
 
         // Check if the index does even exist, to avoid crashes.
         if stuff_non_ui.packed_file_data.get(selection_start).is_some() {
-            decoded_bool = match coding_helpers::decode_packedfile_bool(stuff_non_ui.packed_file_data[selection_start], &mut selection_start.clone()) {
+            decoded_bool = match coding_helpers::decode_packedfile_bool(stuff_non_ui.packed_file_data[selection_start], &mut selection_start) {
                 Ok(data) => if data { "True" } else { "False" },
                 Err(_) => "Error"
             };
 
-            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start.clone()) {
+            decoded_optional_string_u8 = match coding_helpers::decode_packedfile_optional_string_u8(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
 
-            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start.clone()) {
+            decoded_optional_string_u16 = match coding_helpers::decode_packedfile_optional_string_u16(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
@@ -2112,12 +2112,12 @@ impl PackedFileDBDecoder {
 
         // Check if the index does even exist, to avoid crashes.
         if stuff_non_ui.packed_file_data.get(selection_start + 3).is_some() {
-            decoded_float = match coding_helpers::decode_packedfile_float_f32(&stuff_non_ui.packed_file_data[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
+            decoded_float = match coding_helpers::decode_packedfile_float_f32(&stuff_non_ui.packed_file_data[selection_start..(selection_start + 4)], &mut selection_start) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned(),
             };
 
-            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&stuff_non_ui.packed_file_data[selection_start..(selection_start + 4)], &mut selection_start.clone()) {
+            decoded_integer = match coding_helpers::decode_packedfile_integer_i32(&stuff_non_ui.packed_file_data[selection_start..(selection_start + 4)], &mut selection_start) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned()
             };
@@ -2129,7 +2129,7 @@ impl PackedFileDBDecoder {
 
         // Check if the index does even exist, to avoid crashes.
         decoded_long_integer = if stuff_non_ui.packed_file_data.get(selection_start + 7).is_some() {
-            match coding_helpers::decode_packedfile_integer_i64(&stuff_non_ui.packed_file_data[selection_start..(selection_start + 8)], &mut selection_start.clone()) {
+            match coding_helpers::decode_packedfile_integer_i64(&stuff_non_ui.packed_file_data[selection_start..(selection_start + 8)], &mut selection_start) {
                 Ok(data) => data.to_string(),
                 Err(_) => "Error".to_owned()
             }
@@ -2138,12 +2138,12 @@ impl PackedFileDBDecoder {
 
         // Check that the index exist, to avoid crashes.
         if stuff_non_ui.packed_file_data.get(selection_start + 1).is_some() {
-            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start.clone()) {
+            decoded_string_u8 = match coding_helpers::decode_packedfile_string_u8(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
 
-            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start.clone()) {
+            decoded_string_u16 = match coding_helpers::decode_packedfile_string_u16(&stuff_non_ui.packed_file_data[selection_start..], &mut selection_start) {
                 Ok(data) => data,
                 Err(_) => "Error".to_owned()
             };
