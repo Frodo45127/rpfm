@@ -1523,6 +1523,14 @@ pub fn background_loop(
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
+
+                    // In case we want to generate an schema diff...
+                    Commands::GenerateSchemaDiff => {
+                        match Schema::generate_schema_diff() {
+                            Ok(_) => sender.send(Data::Success).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
+                    }
                 }
             }
 

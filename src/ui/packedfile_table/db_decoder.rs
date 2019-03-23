@@ -76,6 +76,7 @@ pub struct PackedFileDBDecoder {
     pub slot_table_view_context_menu_move_up: SlotBool<'static>,
     pub slot_table_view_context_menu_move_down: SlotBool<'static>,
     pub slot_table_view_context_menu_delete: SlotBool<'static>,
+    pub slot_generate_pretty_diff: SlotNoArgs<'static>,
     pub slot_remove_all_fields: SlotNoArgs<'static>,
     pub slot_save_definition: SlotNoArgs<'static>,
     pub slot_table_view_old_versions_context_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
@@ -127,6 +128,7 @@ pub struct PackedFileDBDecoderStuff {
     pub table_view_old_versions: *mut TableView,
     pub table_model_old_versions: *mut StandardItemModel,
 
+    pub generate_pretty_diff_button: *mut PushButton,
     pub clear_definition_button: *mut PushButton,
     pub save_button: *mut PushButton,
 
@@ -177,6 +179,7 @@ impl PackedFileDBDecoder {
             slot_table_view_context_menu_move_up: SlotBool::new(|_| {}),
             slot_table_view_context_menu_move_down: SlotBool::new(|_| {}),
             slot_table_view_context_menu_delete: SlotBool::new(|_| {}),
+            slot_generate_pretty_diff: SlotNoArgs::new(|| {}),
             slot_remove_all_fields: SlotNoArgs::new(|| {}),
             slot_save_definition: SlotNoArgs::new(|| {}),
             slot_table_view_old_versions_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
@@ -448,12 +451,14 @@ impl PackedFileDBDecoder {
         unsafe { button_box.as_mut().unwrap().set_layout(button_box_layout as *mut Layout); }
 
         // Create the bottom Buttons.
+        let generate_pretty_diff_button = PushButton::new(&QString::from_std_str("Generate Diff")).into_raw();
         let clear_definition_button = PushButton::new(&QString::from_std_str("Remove all fields")).into_raw();
         let save_button = PushButton::new(&QString::from_std_str("Finish it!")).into_raw();
 
         // Add them to the Dialog.
-        unsafe { button_box_layout.as_mut().unwrap().add_widget((clear_definition_button as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { button_box_layout.as_mut().unwrap().add_widget((save_button as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { button_box_layout.as_mut().unwrap().add_widget((generate_pretty_diff_button as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { button_box_layout.as_mut().unwrap().add_widget((clear_definition_button as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { button_box_layout.as_mut().unwrap().add_widget((save_button as *mut Widget, 0, 2, 1, 1)); }
 
         // Add everything to the main grid.
         unsafe { widget_layout.as_mut().unwrap().add_widget((hex_view_group as *mut Widget, 0, 0, 5, 1)); }
@@ -519,6 +524,7 @@ impl PackedFileDBDecoder {
                     table_info_entry_count_decoded_label,
                     table_view_old_versions,
                     table_model_old_versions,
+                    generate_pretty_diff_button,
                     clear_definition_button,
                     save_button,
                     table_view_context_menu: table_view_context_menu.into_raw(),
@@ -938,6 +944,26 @@ impl PackedFileDBDecoder {
                                         }
                                     )),
 
+                                    // Slot for the "Generate Pretty Diff" button.
+                                    slot_generate_pretty_diff: SlotNoArgs::new(clone!(
+                                        sender_qt,
+                                        receiver_qt,
+                                        app_ui => move || {
+
+                                            // Tell the background thread to generate the diff and wait.
+                                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                                            sender_qt.send(Commands::GenerateSchemaDiff).unwrap();
+                                            match check_message_validity_tryrecv(&receiver_qt) {
+                                                Data::Success => show_dialog(app_ui.window, true, "Diff generated succesfully"),
+                                                Data::Error(error) => show_dialog(app_ui.window, false, error),
+
+                                                // In ANY other situation, it's a message problem.
+                                                _ => panic!(THREADS_MESSAGE_ERROR),
+                                            }
+                                            unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                                        }
+                                    )),
+
                                     // Slot for the "Kill them all!" button.
                                     slot_remove_all_fields: SlotNoArgs::new(clone!(
                                         index,
@@ -1140,10 +1166,9 @@ impl PackedFileDBDecoder {
                                 unsafe { stuff.table_view_context_menu_move_down.as_mut().unwrap().signals().triggered().connect(&slots.slot_table_view_context_menu_move_down); }
                                 unsafe { stuff.table_view_context_menu_delete.as_mut().unwrap().signals().triggered().connect(&slots.slot_table_view_context_menu_delete); }
 
-                                // Action of the "Kill them all!" button.
+                                // Actions for the bottom buttons.
+                                unsafe { stuff.generate_pretty_diff_button.as_mut().unwrap().signals().released().connect(&slots.slot_generate_pretty_diff); }
                                 unsafe { stuff.clear_definition_button.as_mut().unwrap().signals().released().connect(&slots.slot_remove_all_fields); }
-
-                                // Action of the "Finish it!" button.
                                 unsafe { stuff.save_button.as_mut().unwrap().signals().released().connect(&slots.slot_save_definition); }
 
                                 // Actions for the Contextual Menu in the "Versions" table.
