@@ -24,6 +24,7 @@ use uuid::Uuid;
 
 use super::DecodedData;
 use self::schemas::*;
+use crate::GAME_SELECTED;
 use crate::common::coding_helpers::*;
 use crate::error::{ErrorKind, Result};
 
@@ -202,11 +203,15 @@ impl DB {
     /// This function takes an entire DB and encode it to Vec<u8>, so it can be written in the disk.
     /// It returns a Vec<u8> with the entire DB encoded in it.
     pub fn save(&self) -> Vec<u8> {
-
-        // Create the vector for the encoded PackedFile.
         let mut packed_file: Vec<u8> = vec![];
-        packed_file.extend_from_slice(GUID_MARKER);
-        packed_file.extend_from_slice(&encode_packedfile_string_u16(&format!("{}", Uuid::new_v4())));
+
+        // Napoleon and Empire do not have GUID, and adding it to their tables crash both games.
+        // So for those two games, we ignore the GUID_MARKER and the GUID itself.
+        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+        if game_selected != "empire" && game_selected != "napoleon" {
+            packed_file.extend_from_slice(GUID_MARKER);
+            packed_file.extend_from_slice(&encode_packedfile_string_u16(&format!("{}", Uuid::new_v4())));
+        }
         packed_file.extend_from_slice(VERSION_MARKER);
         packed_file.extend_from_slice(&encode_integer_i32(self.version));
         packed_file.push(self.mysterious_byte);
