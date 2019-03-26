@@ -3187,73 +3187,14 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
-
-                // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, &PackedFileType::DB("".to_owned(), "".to_owned(), 0)) {
-
-                    // Check what we got to create....
-                    match packed_file_type {
-
-                        // If we got correct data from the dialog...
-                        Ok(packed_file_type) => {
-
-                            // Get the name of the PackedFile.
-                            if let PackedFileType::DB(name, table,_) = packed_file_type.clone() {
-
-                                // If the name is not empty...
-                                if !name.is_empty() {
-
-                                    // Get his Path, without the name of the PackFile.
-                                    let complete_path = vec!["db".to_owned(), table, name];
-
-                                    // Check if the PackedFile already exists.
-                                    sender_qt.send(Commands::PackedFileExists).unwrap();
-                                    sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
-                                    let exists = if let Data::Bool(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                                    // If the folder already exists, return an error.
-                                    if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
-
-                                    // Add it to the PackFile.
-                                    sender_qt.send(Commands::CreatePackedFile).unwrap();
-                                    sender_qt_data.send(Data::VecStringPackedFileType((complete_path.to_vec(), packed_file_type.clone()))).unwrap();
-
-                                    // Get the response, just in case it failed.
-                                    match check_message_validity_recv2(&receiver_qt) {
-                                        Data::Success => {
-                                            
-                                            // Add the new Folder to the TreeView.
-                                            update_treeview(
-                                                &sender_qt,
-                                                &sender_qt_data,
-                                                &receiver_qt,
-                                                app_ui.window,
-                                                app_ui.folder_tree_view,
-                                                Some(app_ui.folder_tree_filter),
-                                                app_ui.folder_tree_model,
-                                                TreeViewOperation::Add(vec![complete_path; 1]),
-                                            );
-
-                                            // Set it as modified. Exception for the Paint system.
-                                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-                                        }
-
-                                        Data::Error(error) => show_dialog(app_ui.window, false, error),
-
-                                        // In ANY other situation, it's a message problem.
-                                        _ => panic!(THREADS_MESSAGE_ERROR),
-                                    }
-                                }
-
-                                // Otherwise, the name is invalid.
-                                else { show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
-                            }
-                        }
-
-                        // If we got an error while trying to prepare the dialog, report it.
-                        Err(error) => show_dialog(app_ui.window, false, error),
-                    }
-                }
+                create_packed_files(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &is_modified,
+                    &app_ui,
+                    &PackedFileType::DB("".to_owned(), "".to_owned(), 0)
+                );
             }
         ));
 
@@ -3263,82 +3204,14 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
-
-                // TODO: Replace this with a result.
-                // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, &PackedFileType::Loc("".to_owned())) {
-
-                    // Check what we got to create....
-                    match packed_file_type {
-
-                        // If we got correct data from the dialog...
-                        Ok(packed_file_type) => {
-
-                            // Get the name of the PackedFile.
-                            if let PackedFileType::Loc(mut name) = packed_file_type.clone() {
-
-                                // If the name is not empty...
-                                if !name.is_empty() {
-
-                                    // If the name doesn't end in a ".loc" termination, call it ".loc".
-                                    if !name.ends_with(".loc") {
-                                        name.push_str(".loc");
-                                    }
-
-                                    // Get the currently selected paths, and only continue if there is only one.
-                                    let selected_paths = get_path_from_main_treeview_selection(&app_ui, false);
-                                    if selected_paths.len() == 1 {
-                                        let mut complete_path = selected_paths[0].to_vec();
-                                        complete_path.push(name);
-
-                                        // Check if the PackedFile already exists.
-                                        sender_qt.send(Commands::PackedFileExists).unwrap();
-                                        sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
-                                        let exists = if let Data::Bool(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                                        // If the folder already exists, return an error.
-                                        if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
-
-                                        // Add it to the PackFile.
-                                        sender_qt.send(Commands::CreatePackedFile).unwrap();
-                                        sender_qt_data.send(Data::VecStringPackedFileType((complete_path.to_vec(), packed_file_type.clone()))).unwrap();
-
-                                        // Get the response, just in case it failed.
-                                        match check_message_validity_recv2(&receiver_qt) {
-                                            Data::Success => {
-                                                // Add the new Folder to the TreeView.
-                                                update_treeview(
-                                                    &sender_qt,
-                                                    &sender_qt_data,
-                                                    &receiver_qt,
-                                                    app_ui.window,
-                                                    app_ui.folder_tree_view,
-                                                    Some(app_ui.folder_tree_filter),
-                                                    app_ui.folder_tree_model,
-                                                    TreeViewOperation::Add(vec![complete_path; 1]),
-                                                );
-
-                                                // Set it as modified. Exception for the Paint system.
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-                                            }
-
-                                            Data::Error(error) => show_dialog(app_ui.window, false, error),
-
-                                            // In ANY other situation, it's a message problem.
-                                            _ => panic!(THREADS_MESSAGE_ERROR),
-                                        }
-                                    }
-                                }
-
-                                // Otherwise, the name is invalid.
-                                else { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
-                            }
-                        }
-
-                        // If we got an error while trying to prepare the dialog, report it.
-                        Err(error) => show_dialog(app_ui.window, false, error),
-                    }
-                }
+                create_packed_files(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &is_modified,
+                    &app_ui,
+                    &PackedFileType::Loc(String::new())
+                );
             }
         ));
 
@@ -3348,96 +3221,14 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
-
-                // Create the "New PackedFile" dialog and wait for his data (or a cancelation).
-                if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, &PackedFileType::Text("".to_owned())) {
-
-                    // Check what we got to create....
-                    match packed_file_type {
-
-                        // If we got correct data from the dialog...
-                        Ok(packed_file_type) => {
-
-                            // Get the name of the PackedFile.
-                            if let PackedFileType::Text(mut name) = packed_file_type.clone() {
-
-                                // If the name is not empty...
-                                if !name.is_empty() {
-
-                                    // If the name doesn't end in a text termination, call it .txt.
-                                    if !name.ends_with(".lua") &&
-                                        !name.ends_with(".xml") &&
-                                        !name.ends_with(".xml.shader") &&
-                                        !name.ends_with(".xml.material") &&
-                                        !name.ends_with(".variantmeshdefinition") &&
-                                        !name.ends_with(".environment") &&
-                                        !name.ends_with(".lighting") &&
-                                        !name.ends_with(".wsmodel") &&
-                                        !name.ends_with(".csv") &&
-                                        !name.ends_with(".tsv") &&
-                                        !name.ends_with(".inl") &&
-                                        !name.ends_with(".battle_speech_camera") &&
-                                        !name.ends_with(".bob") &&
-                                        !name.ends_with(".cindyscene") &&
-                                        !name.ends_with(".cindyscenemanager") &&
-                                        !name.ends_with(".txt") {
-                                        name.push_str(".txt");
-                                    }
-
-                                    // Get the currently selected paths, and only continue if there is only one.
-                                    let selected_paths = get_path_from_main_treeview_selection(&app_ui, false);
-                                    if selected_paths.len() == 1 {
-                                        let mut complete_path = selected_paths[0].to_vec();
-                                        complete_path.push(name);
-
-                                        // Check if the PackedFile already exists.
-                                        sender_qt.send(Commands::PackedFileExists).unwrap();
-                                        sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
-                                        let exists = if let Data::Bool(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                                        // If the folder already exists, return an error.
-                                        if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
-
-                                        // Add it to the PackFile.
-                                        sender_qt.send(Commands::CreatePackedFile).unwrap();
-                                        sender_qt_data.send(Data::VecStringPackedFileType((complete_path.to_vec(), packed_file_type.clone()))).unwrap();
-
-                                        // Get the response, just in case it failed.
-                                        match check_message_validity_recv2(&receiver_qt) {
-                                            Data::Success => {
-                                                // Add the new Folder to the TreeView.
-                                                update_treeview(
-                                                    &sender_qt,
-                                                    &sender_qt_data,
-                                                    &receiver_qt,
-                                                    app_ui.window,
-                                                    app_ui.folder_tree_view,
-                                                    Some(app_ui.folder_tree_filter),
-                                                    app_ui.folder_tree_model,
-                                                    TreeViewOperation::Add(vec![complete_path; 1]),
-                                                );
-
-                                                // Set it as modified. Exception for the Paint system.
-                                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-                                            }
-
-                                            Data::Error(error) => show_dialog(app_ui.window, false, error),
-
-                                            // In ANY other situation, it's a message problem.
-                                            _ => panic!(THREADS_MESSAGE_ERROR),
-                                        }
-                                    }
-                                }
-
-                                // Otherwise, the name is invalid.
-                                else { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
-                            }
-                        }
-
-                        // If we got an error while trying to prepare the dialog, report it.
-                        Err(error) => show_dialog(app_ui.window, false, error),
-                    }
-                }
+                create_packed_files(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &is_modified,
+                    &app_ui,
+                    &PackedFileType::Text(String::new())
+                );
             }
         ));
 

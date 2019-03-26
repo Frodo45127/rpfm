@@ -1228,6 +1228,119 @@ pub fn build_open_from_submenus(
     open_from_slots
 }
 
+/// This function is the one that takes care of the creation of different PackedFiles.
+pub fn create_packed_files(
+    sender_qt: &Sender<Commands>,
+    sender_qt_data: &Sender<Data>,
+    receiver_qt: &Rc<RefCell<Receiver<Data>>>,
+    is_modified: &Rc<RefCell<bool>>,
+    app_ui: &AppUI,
+    packed_file_type: &PackedFileType,
+) {
+    // Create the "New PackedFile" dialog and wait for his data (or a cancelation). If we receive None, we do nothing. If we receive Some,
+    // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
+    if let Some(packed_file_type) = create_new_packed_file_dialog(&app_ui, &sender_qt, &sender_qt_data, &receiver_qt, packed_file_type) {
+        match packed_file_type {
+            Ok(packed_file_type) => {
+
+                // If we reach this place, we got all alright. Now act depending on the type of PackedFile we want to create.
+                match packed_file_type.clone() {
+                    PackedFileType::Loc(ref mut name) | PackedFileType::Text(ref mut name) | PackedFileType::DB(ref mut name, _, _) => {
+
+                        // If the name is_empty, stop.
+                        if name.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
+
+                        // Fix their name termination if needed.
+                        if let PackedFileType::Loc(_) = packed_file_type {
+                            if !name.ends_with(".loc") { name.push_str(".loc"); }
+                        }
+                        if let PackedFileType::Text(_) = packed_file_type {
+                            if !name.ends_with(".lua") &&
+                                !name.ends_with(".xml") &&
+                                !name.ends_with(".xml.shader") &&
+                                !name.ends_with(".xml.material") &&
+                                !name.ends_with(".variantmeshdefinition") &&
+                                !name.ends_with(".environment") &&
+                                !name.ends_with(".lighting") &&
+                                !name.ends_with(".wsmodel") &&
+                                !name.ends_with(".csv") &&
+                                !name.ends_with(".tsv") &&
+                                !name.ends_with(".inl") &&
+                                !name.ends_with(".battle_speech_camera") &&
+                                !name.ends_with(".bob") &&
+                                !name.ends_with(".cindyscene") &&
+                                !name.ends_with(".cindyscenemanager") &&
+                                !name.ends_with(".txt") {
+                                name.push_str(".txt");
+                            }
+                        }
+
+                        // Get the currently selected paths (or the complete path, in case of DB Tables),
+                        // and only continue if there is only one and it's not empty.
+                        let selected_paths = get_path_from_main_treeview_selection(&app_ui, false);
+                        let complete_path = if let PackedFileType::DB(_, table,_) = &packed_file_type {
+                            vec!["db".to_owned(), table.to_owned(), name.to_owned()]
+                        } 
+                        else {
+
+                            // We want to be able to write relative paths with this so, if a `/` is detected, split the name.
+                            if selected_paths.len() == 1 { 
+                                let mut complete_path = selected_paths[0].to_vec();
+                                complete_path.append(&mut (name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
+                                complete_path
+                            }
+                            else { vec![] }
+                        };
+
+                        // If and only if, after all these checks, we got a path to save the PackedFile, we continue.
+                        if !complete_path.is_empty() {
+
+                            // Check if the PackedFile already exists, and report it if so.
+                            sender_qt.send(Commands::PackedFileExists).unwrap();
+                            sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
+                            let exists = if let Data::Bool(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            if exists { return show_dialog(app_ui.window, false, ErrorKind::FileAlreadyInPackFile)}
+
+                            // Add it to the PackFile.
+                            sender_qt.send(Commands::CreatePackedFile).unwrap();
+                            sender_qt_data.send(Data::VecStringPackedFileType((complete_path.to_vec(), packed_file_type.clone()))).unwrap();
+
+                            // Get the response, just in case it failed.
+                            match check_message_validity_recv2(&receiver_qt) {
+                                Data::Success => {
+                                    
+                                    // Add the new Folder to the TreeView.
+                                    update_treeview(
+                                        &sender_qt,
+                                        &sender_qt_data,
+                                        &receiver_qt,
+                                        app_ui.window,
+                                        app_ui.folder_tree_view,
+                                        Some(app_ui.folder_tree_filter),
+                                        app_ui.folder_tree_model,
+                                        TreeViewOperation::Add(vec![complete_path; 1]),
+                                    );
+
+                                    // Set it as modified. Exception for the Paint system.
+                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                                }
+
+                                Data::Error(error) => show_dialog(app_ui.window, false, error),
+
+                                // In ANY other situation, it's a message problem.
+                                _ => panic!(THREADS_MESSAGE_ERROR),
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If we got an error while trying to prepare the dialog, report it.
+            Err(error) => show_dialog(app_ui.window, false, error),
+        }
+    }
+}
+
 /// This function enables or disables the actions from the `MenuBar` needed when we open a PackFile.
 /// NOTE: To disable the "Special Stuff" actions, we use `enable` => false.
 pub fn enable_packfile_actions(
