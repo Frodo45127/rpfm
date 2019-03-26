@@ -1234,6 +1234,7 @@ pub fn create_packed_files(
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     is_modified: &Rc<RefCell<bool>>,
+    table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
     app_ui: &AppUI,
     packed_file_type: &PackedFileType,
 ) {
@@ -1318,11 +1319,21 @@ pub fn create_packed_files(
                                         app_ui.folder_tree_view,
                                         Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Add(vec![complete_path; 1]),
+                                        TreeViewOperation::Add(vec![complete_path.to_vec(); 1]),
                                     );
 
                                     // Set it as modified. Exception for the Paint system.
                                     *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+
+                                    // If, for some reason, there is a TableState data for this file, remove it.
+                                    if table_state_data.borrow().get(&complete_path).is_some() {
+                                        table_state_data.borrow_mut().remove(&complete_path);
+                                    }
+
+                                    // Set it to not remove his color.
+                                    let mut data = TableStateData::new_empty();
+                                    data.not_allow_full_undo = true;
+                                    table_state_data.borrow_mut().insert(complete_path, data);
                                 }
 
                                 Data::Error(error) => show_dialog(app_ui.window, false, error),

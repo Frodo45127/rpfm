@@ -614,7 +614,7 @@ impl PackedFileTableView {
                     let table_state_data = table_state_data.borrow_mut();
                     let table_state_data = table_state_data.get(&*packed_file_path.borrow()).unwrap();
                     unsafe {
-                        if table_state_data.undo_history.is_empty() && !table_state_data.is_renamed { 
+                        if table_state_data.undo_history.is_empty() && !table_state_data.not_allow_full_undo { 
                             context_menu_undo.as_mut().unwrap().set_enabled(false); 
                             undo_paint_for_packed_file(&app_ui, model, &packed_file_path);
                         }

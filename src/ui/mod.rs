@@ -223,6 +223,11 @@ impl AddFromPackFileSlots {
                                     if table_state_data.borrow().get(path).is_some() {
                                         table_state_data.borrow_mut().remove(path);
                                     }
+                                
+                                    // Set it to not remove his color.
+                                    let mut data = TableStateData::new_empty();
+                                    data.not_allow_full_undo = true;
+                                    table_state_data.borrow_mut().insert(path.to_vec(), data);
                                 }
                             }
 
@@ -1703,24 +1708,11 @@ pub fn clean_treeview(
     model: *mut StandardItemModel
 ) {
 
-    // Get the color we need to apply.
-    let color = GlobalColor::Transparent;
-
-    // Paint the current item.
-    unsafe { item.as_mut().unwrap().set_background(&Brush::new(color)); }
-
-    // Get the amount of children of the current item.
-    let children_count;
-    unsafe { children_count = item.as_ref().unwrap().row_count(); }
-
-    // For each children we have...
+    // Clean the current item, and repeat for each children.
+    unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
+    let children_count = unsafe { item.as_ref().unwrap().row_count() };
     for row in 0..children_count {
-
-        // Get the child.
-        let child;
-        unsafe { child = item.as_ref().unwrap().child(row); }
-        
-        // Paint him and his children too.
+        let child = unsafe { item.as_ref().unwrap().child(row) };
         clean_treeview(child, model);
 
     }

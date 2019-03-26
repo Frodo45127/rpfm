@@ -2684,6 +2684,9 @@ fn main() {
                                             if table_state_data.borrow().get(path).is_some() {
                                                 table_state_data.borrow_mut().remove(path);
                                             }
+                                            let mut data = TableStateData::new_empty();
+                                            data.not_allow_full_undo = true;
+                                            table_state_data.borrow_mut().insert(path.to_vec(), data);
                                         }
                                     }
 
@@ -2777,6 +2780,9 @@ fn main() {
                                         if table_state_data.borrow().get(path).is_some() {
                                             table_state_data.borrow_mut().remove(path);
                                         }
+                                        let mut data = TableStateData::new_empty();
+                                        data.not_allow_full_undo = true;
+                                        table_state_data.borrow_mut().insert(path.to_vec(), data);
                                     }
                                 }
 
@@ -2936,6 +2942,9 @@ fn main() {
                                             if table_state_data.borrow().get(path).is_some() {
                                                 table_state_data.borrow_mut().remove(path);
                                             }
+                                            let mut data = TableStateData::new_empty();
+                                            data.not_allow_full_undo = true;
+                                            table_state_data.borrow_mut().insert(path.to_vec(), data);
                                         }
                                     }
 
@@ -3033,6 +3042,9 @@ fn main() {
                                         if table_state_data.borrow().get(path).is_some() {
                                             table_state_data.borrow_mut().remove(path);
                                         }
+                                        let mut data = TableStateData::new_empty();
+                                        data.not_allow_full_undo = true;
+                                        table_state_data.borrow_mut().insert(path.to_vec(), data);
                                     }
                                 }
 
@@ -3183,6 +3195,7 @@ fn main() {
 
         // What happens when we trigger the "Create DB PackedFile" Action.
         let slot_contextual_menu_create_packed_file_db = SlotBool::new(clone!(
+            table_state_data,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3192,6 +3205,7 @@ fn main() {
                     &sender_qt_data,
                     &receiver_qt,
                     &is_modified,
+                    &table_state_data,
                     &app_ui,
                     &PackedFileType::DB("".to_owned(), "".to_owned(), 0)
                 );
@@ -3200,6 +3214,7 @@ fn main() {
 
         // What happens when we trigger the "Create Loc PackedFile" Action.
         let slot_contextual_menu_create_packed_file_loc = SlotBool::new(clone!(
+            table_state_data,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3209,6 +3224,7 @@ fn main() {
                     &sender_qt_data,
                     &receiver_qt,
                     &is_modified,
+                    &table_state_data,
                     &app_ui,
                     &PackedFileType::Loc(String::new())
                 );
@@ -3217,6 +3233,7 @@ fn main() {
 
         // What happens when we trigger the "Create Text PackedFile" Action.
         let slot_contextual_menu_create_packed_file_text = SlotBool::new(clone!(
+            table_state_data,
             is_modified,
             sender_qt,
             sender_qt_data,
@@ -3226,6 +3243,7 @@ fn main() {
                     &sender_qt_data,
                     &receiver_qt,
                     &is_modified,
+                    &table_state_data,
                     &app_ui,
                     &PackedFileType::Text(String::new())
                 );
@@ -3290,6 +3308,10 @@ fn main() {
                                     if table_state_data.borrow().get(path).is_some() {
                                         table_state_data.borrow_mut().remove(path);
                                     }
+
+                                    let mut data = TableStateData::new_empty();
+                                    data.not_allow_full_undo = true;
+                                    table_state_data.borrow_mut().insert(path.to_vec(), data);
                                 }
                             }
 
@@ -3464,6 +3486,10 @@ fn main() {
                                     if table_state_data.borrow().get(&path).is_some() {
                                         table_state_data.borrow_mut().remove(&path);
                                     }
+
+                                    let mut data = TableStateData::new_empty();
+                                    data.not_allow_full_undo = true;
+                                    table_state_data.borrow_mut().insert(path.to_vec(), data);
                                 }
                             }
                             
@@ -4029,7 +4055,7 @@ fn main() {
                                                     *new_path.last_mut().unwrap() = new_name.to_owned();
                                                     
                                                     let mut data = table_state_data.borrow_mut().remove(item_path).unwrap();
-                                                    data.is_renamed = true;
+                                                    data.not_allow_full_undo = true;
                                                     table_state_data.borrow_mut().insert(new_path.to_vec(), data);
                                                 }
                                             } 
@@ -4041,7 +4067,7 @@ fn main() {
                                                     *new_path.last_mut().unwrap() = new_name.to_owned();
                                                     
                                                     let mut data = table_state_data.borrow_mut().remove(&old_path).unwrap();
-                                                    data.is_renamed = true;
+                                                    data.not_allow_full_undo = true;
                                                     table_state_data.borrow_mut().insert(new_path.to_vec(), data);
                                                 }
                                             }
@@ -4153,7 +4179,7 @@ fn main() {
                                             *new_path.last_mut().unwrap() = new_name.to_owned();
                                             
                                             let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
-                                            data.is_renamed = true;
+                                            data.not_allow_full_undo = true;
                                             table_state_data.borrow_mut().insert(new_path, data);
                                         }
                                     }
@@ -4245,7 +4271,7 @@ fn main() {
                                     *new_path.last_mut().unwrap() = new_name.to_owned();
                                     
                                     let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
-                                    data.is_renamed = true;
+                                    data.not_allow_full_undo = true;
                                     table_state_data.borrow_mut().insert(new_path, data);
                                 }
                             }
