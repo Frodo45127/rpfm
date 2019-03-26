@@ -107,7 +107,7 @@ pub struct PackedFileTableView {
     pub slot_context_menu_clone_and_append: SlotBool<'static>,
     pub slot_context_menu_copy: SlotBool<'static>,
     pub slot_context_menu_copy_as_lua_table: SlotBool<'static>,
-    pub slot_context_menu_paste_in_selection: SlotBool<'static>,
+    pub slot_context_menu_paste: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_paste_to_fill_selection: SlotBool<'static>,
     pub slot_context_menu_search: SlotBool<'static>,
@@ -349,7 +349,7 @@ impl PackedFileTableView {
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy as &LUA Table"));
 
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
-        let context_menu_paste_in_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste in Selection"));
+        let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste"));
         let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
         let context_menu_paste_to_fill_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste to Fill Selection"));
 
@@ -373,7 +373,7 @@ impl PackedFileTableView {
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["clone_and_append_row"]))); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["copy"]))); }
         unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["copy_as_lua_table"]))); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_in_selection"]))); }
+        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste"]))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_as_new_row"]))); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_to_fill_selection"]))); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["search"]))); }
@@ -393,7 +393,7 @@ impl PackedFileTableView {
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -413,7 +413,7 @@ impl PackedFileTableView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_clone_and_append); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_copy_as_lua_table); }
-        unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_in_selection); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_to_fill_selection); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_search); }
@@ -433,7 +433,7 @@ impl PackedFileTableView {
         unsafe { context_menu_clone_and_append.as_mut().unwrap().set_status_tip(&QString::from_std_str("Duplicate the selected rows and append the new rows at the end of the table.")); }
         unsafe { context_menu_copy.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy whatever is selected to the Clipboard.")); }
         unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().set_status_tip(&QString::from_std_str("Turns the entire DB Table into a LUA Table and copies it to the clipboard.")); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. Does nothing if the data is not compatible with the cell.")); }
+        unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. If the data of a cell is incompatible with the content to paste, the cell is ignored.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard in EVERY CELL selected. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Search what you want in the table. Also allows you to replace coincidences.")); }
@@ -803,55 +803,9 @@ impl PackedFileTableView {
                 sender_qt_data,
                 table_definition => move |_| {
 
-                    // Create a new list of StandardItem.
-                    let mut qlist = ListStandardItemMutPtr::new(());
-
-                    // For each field in the definition...
-                    for field in &table_definition.fields {
-
-                        // Create a new Item.
-                        let mut item = match field.field_type {
-
-                            // This one needs a couple of changes before turning it into an item in the table.
-                            FieldType::Boolean => {
-                                let mut item = StandardItem::new(());
-                                item.set_editable(false);
-                                item.set_checkable(true);
-                                item.set_check_state(CheckState::Checked);
-                                item
-                            },
-                            FieldType::Float => {
-                                let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new2(0.0f32), 2));
-                                item
-                            },
-                            FieldType::Integer => {
-                                let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new0(0i32), 2));
-                                item
-                            },
-                            FieldType::LongInteger => {
-                                let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new2(0i64), 2));
-                                item
-                            },
-
-                            // All these are Strings, so it can be together.
-                            FieldType::StringU8 |
-                            FieldType::StringU16 |
-                            FieldType::OptionalStringU8 |
-                            FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
-                        };
-
-                        // Paint the cells.
-                        item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-
-                        // Add the item to the list.
-                        unsafe { qlist.append_unsafe(&item.into_raw()); }
-                    }
-
-                    // Append the new row.
-                    unsafe { model.as_mut().unwrap().append_row(&qlist); }
+                    // Create the row and append it.
+                    let rows = create_empty_rows(&table_definition, 1);
+                    for row in &rows { unsafe { model.as_mut().unwrap().append_row(row); } }
 
                     // Save, so there are no discrepances between the normal and undo models.
                     Self::save_to_packed_file(
@@ -892,67 +846,26 @@ impl PackedFileTableView {
                 sender_qt_data,
                 table_definition => move |_| {
 
-                    // Create a new list of StandardItem.
-                    let mut qlist = ListStandardItemMutPtr::new(());
+                    // Get the indexes ready for battle.
+                    let indexes = unsafe { table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection().indexes() };
+                    let indexes_sorted = (0..indexes.count(())).map(|x| indexes.at(x)).collect::<Vec<&ModelIndex>>();
+                    let mut indexes_sorted = get_real_indexes(&indexes_sorted, filter_model);
+                    sort_indexes_by_model(&mut indexes_sorted);
+                    dedup_indexes_per_row(&mut indexes_sorted);
+                    let mut row_numbers = vec![];
 
-                    // For each field in the definition...
-                    for field in &table_definition.fields {
-
-                        // Create a new Item.
-                        let mut item = match field.field_type {
-
-                            // This one needs a couple of changes before turning it into an item in the table.
-                            FieldType::Boolean => {
-                                let mut item = StandardItem::new(());
-                                item.set_editable(false);
-                                item.set_checkable(true);
-                                item.set_check_state(CheckState::Checked);
-                                item
-                            },
-                            FieldType::Float => {
-                                let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new2(0.0f32), 2));
-                                item
-                            },
-                            FieldType::Integer => {
-                                let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new0(0i32), 2));
-                                item
-                            },
-                            FieldType::LongInteger => {
-                                let mut item = StandardItem::new(());
-                                item.set_data((&Variant::new2(0i64), 2));
-                                item
-                            },
-                            // All these are Strings, so it can be together.
-                            FieldType::StringU8 |
-                            FieldType::StringU16 |
-                            FieldType::OptionalStringU8 |
-                            FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
-                        };
-
-                        // Paint the cells.
-                        item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
-
-                        // Add the item to the list.
-                        unsafe { qlist.append_unsafe(&item.into_raw()); }
+                    // If nothing is selected, we just append the row at the end.
+                    if indexes_sorted.is_empty() {
+                        let rows = create_empty_rows(&table_definition, 1);
+                        unsafe { model.as_mut().unwrap().append_row(&rows[0]); } 
+                        row_numbers.push(unsafe { model.as_mut().unwrap().row_count(()) - 1 });
                     }
-
-                    // Get the current row and insert the new one.
-                    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
-                    let row = if indexes.count(()) > 0 {
-                        let model_index = indexes.at(0);
-                        if model_index.is_valid() {
-                            unsafe { model.as_mut().unwrap().insert_row((model_index.row(), &qlist)); }
-                            model_index.row()
-                        } else { return }
+                
+                    for index in indexes_sorted.iter().rev() {
+                        row_numbers.push(index.row());
+                        let rows = create_empty_rows(&table_definition, 1);
+                        unsafe { model.as_mut().unwrap().insert_row((index.row(), &rows[0])); }
                     }
-
-                    // Otherwise, just do the same the "Add Row" do.
-                    else { 
-                        unsafe { model.as_mut().unwrap().append_row(&qlist); } 
-                        unsafe { model.as_mut().unwrap().row_count(()) - 1 }
-                    };
 
                     // Save, so there are no discrepances between the normal and undo models.
                     Self::save_to_packed_file(
@@ -966,16 +879,17 @@ impl PackedFileTableView {
                         update_global_search_stuff,
                         &table_definition,
                         &mut table_type.borrow_mut(),
-
                     );
 
                     // Update the search stuff, if needed.
                     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
-
                     {
+
+                        // The undo mode needs this reversed.
+                        row_numbers.reverse();
                         let mut table_state_data = table_state_data.borrow_mut();
                         let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
-                        table_state_data.undo_history.push(TableOperations::AddRows(vec![row; 1]));
+                        table_state_data.undo_history.push(TableOperations::AddRows(row_numbers));
                         table_state_data.redo_history.clear();
                         update_undo_model(model, table_state_data.undo_model); 
                     }
@@ -1639,115 +1553,146 @@ impl PackedFileTableView {
             )),
 
             // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
-            slot_context_menu_paste_in_selection: SlotBool::new(clone!(
+            slot_context_menu_paste: SlotBool::new(clone!(
                 packed_file_path,
                 table_state_data,
                 table_definition => move |_| {
 
-                    // If whatever it's in the Clipboard is pasteable in our selection...
-                    if check_clipboard(&table_definition, table_view, model, filter_model) {
+                    // Get the current selection.
+                    let clipboard = GuiApplication::clipboard();
+                    let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
 
-                        // Get the text from the clipboard and the list of cells to paste to.
-                        let clipboard = GuiApplication::clipboard();
-                        let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
-                        let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
-                        let mut indexes_sorted = vec![];
-                        for index in 0..indexes.count(()) {
-                            indexes_sorted.push(indexes.at(index))
-                        }
+                    // Get the current selection and his, visually speaking, first item (top-left).
+                    let indexes = unsafe { table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection().indexes() };
+                    let mut indexes_sorted_visual = (0..indexes.count(())).map(|x| indexes.at(x)).collect::<Vec<&ModelIndex>>();
+                    sort_indexes_visually(&mut indexes_sorted_visual, table_view);
+                    let base_index_visual = if !indexes_sorted_visual.is_empty() { &indexes_sorted_visual[0] } else { return };
 
-                        // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
-                        let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
-                        indexes_sorted.sort_unstable_by(|a, b| {
-                            if a.row() == b.row() {
-                                if header.visual_index(a.column()) < header.visual_index(b.column()) { Ordering::Less }
-                                else { Ordering::Greater }
-                            } 
-                            else if a.row() < b.row() { Ordering::Less }
-                            else { Ordering::Greater }
-                        });
+                    // If the text ends in \n, remove it. Excel things.
+                    if text.ends_with('\n') { text.pop(); }
+                    let rows = text.split('\n').collect::<Vec<&str>>();
+                    let rows = rows.iter().map(|x| x.split('\t').collect::<Vec<&str>>()).collect::<Vec<Vec<&str>>>();
 
-                        // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
-                        if text.ends_with('\n') { text.pop(); }
-                        let text = text.replace('\n', "\t");
-                        let text = text.split('\t').collect::<Vec<&str>>();
+                    // We're going to try and check in square mode. That means, start in the selected cell, then right
+                    // until we reach a \n, then return to the initial column. Due to how sorting works, we have to do
+                    // a test pass first and get all the real AND VALID indexes, then try to paste on them.
+                    let horizontal_header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
+                    let vertical_header = unsafe { table_view.as_ref().unwrap().vertical_header().as_ref().unwrap() };
+                    let mut real_cells = vec![];
+                    let mut added_rows = 0;
+                    let mut visual_row = vertical_header.visual_index(base_index_visual.row());
+                    for row in &rows {
+                        let mut visual_column = horizontal_header.visual_index(base_index_visual.column());
+                        for text in row {
 
-                        // Get the list of items selected in a format we can deal with easely.
-                        let mut items = vec![];
-                        for model_index in &indexes_sorted {
-                            if model_index.is_valid() {
-                                unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
+                            // Depending on the column, we try to encode the data in one format or another, or we just skip it.
+                            let real_column = horizontal_header.logical_index(visual_column);
+                            let mut real_row = vertical_header.logical_index(visual_row);
+                            if let Some(field) = table_definition.fields.get(real_column as usize) {
+                                let is_valid_data = match field.field_type {
+                                    FieldType::Boolean => if text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0" { false } else { true },
+                                    FieldType::Float => if text.parse::<f32>().is_err() { false } else { true },
+                                    FieldType::Integer => if text.parse::<i32>().is_err() { false } else { true },
+                                    FieldType::LongInteger => if text.parse::<i64>().is_err() { false } else { true },
+
+                                    // All these are Strings, so we can skip their checks....
+                                    FieldType::StringU8 |
+                                    FieldType::StringU16 |
+                                    FieldType::OptionalStringU8 |
+                                    FieldType::OptionalStringU16 => true,
+                                };
+                                if is_valid_data {
+        
+                                    // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER) and try again.
+                                    if real_row == -1 {
+                                        let rows = create_empty_rows(&table_definition, 1);
+                                        unsafe { model.as_mut().unwrap().append_row(&rows[0]); }
+                                        real_row = unsafe { model.as_ref().unwrap().row_count(()) - 1 };
+                                        added_rows += 1;
+                                    }
+                                    real_cells.push((unsafe { filter_model.as_mut().unwrap().map_to_source(&filter_model.as_mut().unwrap().index((real_row, real_column))) }, text));
+                                }
                             }
+                            visual_column += 1;
                         }
+                        visual_row += 1;
+                    }
 
-                        // Zip together both vectors, so we can paste until one of them ends.
-                        let data = items.iter().zip(text);
-                        let mut changed_cells = 0;
-                        for cell in data.clone() {
-                            let column = unsafe { cell.0.as_mut().unwrap().index().column() };
-                            match table_definition.fields[column as usize].field_type {
+                    // Now we do the real pass, changing data if needed.
+                    let mut changed_cells = 0;
+                    for (real_cell, text) in &real_cells {
 
-                                FieldType::Boolean => {
-                                    let current_value = unsafe { cell.0.as_mut().unwrap().check_state() };
-                                    let new_value = if cell.1.to_lowercase() == "true" || cell.1 == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                                    if current_value != new_value { 
-                                        unsafe { cell.0.as_mut().unwrap().set_check_state(new_value); }
-                                        changed_cells += 1;
-                                    }
-                                },
+                        // Depending on the column, we try to encode the data in one format or another.
+                        match table_definition.fields[real_cell.column() as usize].field_type {
 
-                                FieldType::Float => {
-                                    let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
-                                    if &*current_value != cell.1 {
-                                        unsafe { cell.0.as_mut().unwrap().set_data((&Variant::new2(cell.1.parse::<f32>().unwrap()), 2)); }
-                                        changed_cells += 1;
-                                    }
-                                },
+                            FieldType::Boolean => {
+                                let current_value = unsafe { model.as_mut().unwrap().data((real_cell, 10)).to_bool() };
+                                let new_value = if text.to_lowercase() == "true" || **text == "1" { true } else { false };
+                                if current_value != new_value { 
+                                    unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new0(new_value), 10)); }
+                                    changed_cells += 1;
+                                }
+                            },
 
-                                FieldType::Integer => {
-                                    let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
-                                    if &*current_value != cell.1 {
-                                        unsafe { cell.0.as_mut().unwrap().set_data((&Variant::new0(cell.1.parse::<i32>().unwrap()), 2)); }
-                                        changed_cells += 1;
-                                    }
-                                },
+                            FieldType::Float => {
+                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                if &current_value != *text {
+                                    unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new2(text.parse::<f32>().unwrap()), 2)); }
+                                    changed_cells += 1;
+                                }
+                            },
 
-                                FieldType::LongInteger => {
-                                    let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
-                                    if &*current_value != cell.1 {
-                                        unsafe { cell.0.as_mut().unwrap().set_data((&Variant::new2(cell.1.parse::<i64>().unwrap()), 2)); }
-                                        changed_cells += 1;
-                                    }
-                                },
+                            FieldType::Integer => {
+                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                if &current_value != *text {
+                                    unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new0(text.parse::<i32>().unwrap()), 2)); }
+                                    changed_cells += 1;
+                                }
+                            },
 
-                                _ => {
-                                    let current_value = unsafe { cell.0.as_mut().unwrap().text().to_std_string() };
-                                    if &*current_value != cell.1 {
-                                        unsafe { cell.0.as_mut().unwrap().set_text(&QString::from_std_str(cell.1)); }
-                                        changed_cells += 1;
-                                    }
+                            FieldType::LongInteger => {
+                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                if &current_value != *text {
+                                    unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new2(text.parse::<i64>().unwrap()), 2)); }
+                                    changed_cells += 1;
+                                }
+                            },
+
+                            _ => {
+                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                if &current_value != *text {
+                                    unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new0(&QString::from_std_str(text)), 2)); }
+                                    changed_cells += 1;
                                 }
                             }
                         }
+                    }
 
-                        // Fix the undo history to have all the previous changed merged into one.
-                        if changed_cells > 0 {
+                    // Fix the undo history to have all the previous changed merged into one. Or that's what I wanted.
+                    // Sadly, the world doesn't work like that. As we can edit AND add rows, we have to use a combined undo operation.
+                    // I'll call it... Carolina.
+                    if changed_cells > 0 {
+                        {
+                            let mut table_state_data = table_state_data.borrow_mut();
+                            let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                            let len = table_state_data.undo_history.len();
+                            let mut edits_data = vec![];
+                            let mut rows = vec![];
+                            let mut carolina = vec![];
                             {
-                                let mut table_state_data = table_state_data.borrow_mut();
-                                let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
-                                let len = table_state_data.undo_history.len();
-                                let mut edits_data = vec![];
-                                {
-                                    let mut edits = table_state_data.undo_history.drain((len - changed_cells)..);
-                                    for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
-                                }
+                                let mut edits = table_state_data.undo_history.drain((len - changed_cells)..);
+                                for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
 
-                                table_state_data.undo_history.push(TableOperations::Editing(edits_data));
-                                table_state_data.redo_history.clear();
-                                update_undo_model(model, table_state_data.undo_model); 
+                                unsafe { ((model.as_mut().unwrap().row_count(()) - added_rows)..model.as_mut().unwrap().row_count(())).rev().for_each(|x| rows.push(x)); }
                             }
-                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
+                            carolina.push(TableOperations::Editing(edits_data));
+                            carolina.push(TableOperations::AddRows(rows));
+
+                            table_state_data.undo_history.push(TableOperations::Carolina(carolina));
+                            table_state_data.redo_history.clear();
+                            update_undo_model(model, table_state_data.undo_model); 
                         }
+                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
                     }
                 }
             )),
@@ -2772,7 +2717,7 @@ impl PackedFileTableView {
         unsafe { context_menu_clone_and_append.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_clone_and_append); }
         unsafe { context_menu_copy.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy); }
         unsafe { context_menu_copy_as_lua_table.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_copy_as_lua_table); }
-        unsafe { context_menu_paste_in_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_in_selection); }
+        unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_to_fill_selection); }
         unsafe { context_menu_search.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_search); }
@@ -2808,7 +2753,7 @@ impl PackedFileTableView {
             context_menu_clone_and_append.as_mut().unwrap().set_enabled(false);
             context_menu_copy.as_mut().unwrap().set_enabled(false);
             context_menu_copy_as_lua_table.as_mut().unwrap().set_enabled(true);
-            context_menu_paste_in_selection.as_mut().unwrap().set_enabled(true);
+            context_menu_paste.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
             context_menu_paste_to_fill_selection.as_mut().unwrap().set_enabled(true);
             context_menu_import.as_mut().unwrap().set_enabled(true);
@@ -3442,6 +3387,34 @@ impl PackedFileTableView {
                     &mut table_type.borrow_mut(),
                 );
             }
+            TableOperations::Carolina(operations) => {
+                for operation in &operations {
+                    history_source.push((*operation).clone());
+                    Self::undo_redo(
+                        &app_ui,
+                        &dependency_data,
+                        &sender_qt,
+                        &sender_qt_data,
+                        &is_modified,
+                        &packed_file_path,
+                        table_view,
+                        model,
+                        filter_model,
+                        history_source,
+                        history_opposite,
+                        &global_search_explicit_paths,
+                        update_global_search_stuff,
+                        &undo_lock,
+                        &table_definition,
+                        &table_type,
+                        enable_header_popups.clone()
+                    );
+                }
+                let len = history_opposite.len();
+                let mut edits = history_opposite.drain((len - operations.len())..).collect::<Vec<TableOperations>>();
+                edits.reverse();
+                history_opposite.push(TableOperations::Carolina(edits));
+            }
         }
     }
 }
@@ -3584,77 +3557,6 @@ fn check_references(
         else if ref_data.is_empty() { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Blue)); } }
         else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
     }
-}
-
-/// This function checks if the data in the clipboard is suitable for the selected Items.
-fn check_clipboard(
-    definition: &TableDefinition,
-    table_view: *mut TableView,
-    model: *mut StandardItemModel,
-    filter_model: *mut SortFilterProxyModel,
-) -> bool {
-
-    // Get the current selection.
-    let clipboard = GuiApplication::clipboard();
-    let mut text = unsafe { clipboard.as_mut().unwrap().text(()).to_std_string() };
-    let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
-    let mut indexes_sorted = vec![];
-    for index in 0..indexes.count(()) {
-        indexes_sorted.push(indexes.at(index))
-    }
-
-    // Sort the indexes so they follow the visual index, not their logical one. This should fix situations like copying a row and getting a different order in the cells.
-    let header = unsafe { table_view.as_ref().unwrap().horizontal_header().as_ref().unwrap() };
-    indexes_sorted.sort_unstable_by(|a, b| {
-        if a.row() == b.row() {
-            if header.visual_index(a.column()) < header.visual_index(b.column()) { Ordering::Less }
-            else { Ordering::Greater }
-        } 
-        else if a.row() < b.row() { Ordering::Less }
-        else { Ordering::Greater }
-    });
-
-    // If there is nothing selected, don't waste your time.
-    if indexes_sorted.is_empty() { return false }
-
-    // If the text ends in \n, remove it. Excel things. We don't use newlines, so replace them with '\t'.
-    if text.ends_with('\n') { text.pop(); }
-    let text = text.replace('\n', "\t");
-    let text = text.split('\t').collect::<Vec<&str>>();
-
-    // Get the list of items selected in a format we can deal with easely.
-    let mut items = vec![];
-    for model_index in &indexes_sorted {
-        if model_index.is_valid() {
-            unsafe { items.push(model.as_mut().unwrap().item_from_index(&model_index)); }
-        }
-    }
-
-    // If none of the items are valid, stop.
-    if items.is_empty() { return false }
-
-    // Zip together both vectors.
-    let data = items.iter().zip(text);
-    for cell in data {
-
-        // Depending on the column, we try to encode the data in one format or another.
-        let column = unsafe { cell.0.as_mut().unwrap().index().column() };
-        match definition.fields[column as usize].field_type {
-            FieldType::Boolean =>  if cell.1.to_lowercase() != "true" && cell.1.to_lowercase() != "false" && cell.1 != "1" && cell.1 != "0" { return false },
-            FieldType::Float => if cell.1.parse::<f32>().is_err() { return false },
-            FieldType::Integer => if cell.1.parse::<i32>().is_err() { return false },
-            FieldType::LongInteger => if cell.1.parse::<i64>().is_err() { return false },
-
-            // All these are Strings, so we can skip their checks....
-            FieldType::StringU8 |
-            FieldType::StringU16 |
-            FieldType::OptionalStringU8 |
-            FieldType::OptionalStringU16 => continue
-        }
-    }
-
-    // If we reach this place, it means none of the cells was incorrect, so we can paste.
-    true
 }
 
 /// This function checks if the data in the clipboard is suitable for be pasted in all selected cells.

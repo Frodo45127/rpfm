@@ -102,7 +102,7 @@ impl Shortcuts {
         packed_files_table.insert("clone_and_append_row".to_owned(), "Ctrl+Shift+D".to_owned());
         packed_files_table.insert("copy".to_owned(), "Ctrl+C".to_owned());
         packed_files_table.insert("copy_as_lua_table".to_owned(), "Ctrl+Shift+C".to_owned());
-        packed_files_table.insert("paste_in_selection".to_owned(), "Ctrl+V".to_owned());
+        packed_files_table.insert("paste".to_owned(), "Ctrl+V".to_owned());
         packed_files_table.insert("paste_as_new_row".to_owned(), "Ctrl+Shift+V".to_owned());
         packed_files_table.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
         packed_files_table.insert("apply_maths_to_selection".to_owned(), "Ctrl+B".to_owned());

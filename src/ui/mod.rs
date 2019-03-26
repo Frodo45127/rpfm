@@ -820,8 +820,9 @@ pub enum ItemVisualStatus {
 /// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows data, in consecutive batches.
 /// - SmartDelete: Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
 /// - RevertSmartDelete: Selfexplanatory. This is a combination of list of edits and list of adding rows.
-/// - ImportTSVDB: It holds a copy of the entire DB, before importing.
-/// - ImportTSVLOC: It holds a copy of the entire Loc, before importing.
+/// - ImportTSV: It holds a copy of the entire table, before importing.
+/// - Carolina: A Jack-of-all-Trades. It holds a Vec<TableOperations>, for those situations one is not enough.
+#[derive(Clone)]
 pub enum TableOperations {
     Editing(Vec<((i32, i32), *mut StandardItem)>),
     AddRows(Vec<i32>),
@@ -829,6 +830,7 @@ pub enum TableOperations {
     SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
     ImportTSV(Vec<Vec<DecodedData>>),
+    Carolina(Vec<TableOperations>),
 }
 
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
@@ -884,6 +886,7 @@ impl Debug for TableOperations {
             TableOperations::SmartDelete(_) => write!(f, "Smart deletion."),
             TableOperations::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
             TableOperations::ImportTSV(_) => write!(f, "Imported TSV file."),
+            TableOperations::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),
         }
     }
 }
