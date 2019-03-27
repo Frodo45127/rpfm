@@ -44,6 +44,7 @@ use qt_core::string_list::StringList;
 use qt_core::qt::{CaseSensitivity, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, GlobalColor, MatchFlag};
 
 use regex::Regex;
+use meval;
 
 use std::collections::BTreeMap;
 use std::cell::RefCell;
@@ -71,16 +72,6 @@ pub mod packedfile_table_extras;
 pub enum TableType {
     DB(DB),
     LOC(Loc),
-}
-
-/// Enum MathOperationResult: used for keeping together different types of results after a math operation.
-/// None is an special type, so we know that we have to ignore an specified cell.
-#[derive(Clone, PartialEq)]
-enum MathOperationResult {
-    Float(f32),
-    Integer(i32),
-    LongInteger(i64),
-    None
 }
 
 /// Struct `PackedFileTableView`: contains all the stuff we need to give to the program to show a
@@ -655,7 +646,7 @@ impl PackedFileTableView {
                             let mut can_apply = true;
                             for column in &columns {
                                 let field_type = &table_definition.fields[*column as usize].field_type;
-                                if *field_type == FieldType::Integer || *field_type == FieldType::LongInteger || *field_type == FieldType::Float { continue }
+                                if *field_type != FieldType::Boolean { continue }
                                 else { can_apply = false; break } 
                             }
                             context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(can_apply);
@@ -989,85 +980,55 @@ impl PackedFileTableView {
                 table_definition,
                 app_ui => move |_| {
 
-                    // If we got an operation and a value, get all the cells in the selection, try to apply the operation to them and,
-                    // if the resulting value is valid in all of them, apply it.
-                    if let Some((mut operation, value)) = create_apply_maths_dialog(&app_ui) {
+                    // If we got an operation, get all the cells in the selection, try to apply the operation to them and,
+                    // if the resulting value is valid in each of them, apply it.
+                    if let Some(operation) = create_apply_maths_dialog(&app_ui) {
 
-                        // For some reason Qt adds & to the X operation, so we need to delete it.
-                        if let Some(index) = operation.find('&') { operation.remove(index); }
+                        let mut results = 0;
+                        let indexes_visual = unsafe { table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection().indexes() };
+                        let indexes_visual = (0..indexes_visual.count(())).map(|x| indexes_visual.at(x)).collect::<Vec<&ModelIndex>>();
+                        let indexes_real = get_real_indexes(&indexes_visual, filter_model);
+                        for index in indexes_real {
+                            if index.is_valid() { 
 
-                        let mut results = vec![];
-                        let indexes = unsafe { filter_model.as_mut().unwrap().map_selection_to_source(&table_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
-                        for index in 0..indexes.count(()) {
-                            let model_index = indexes.at(index);
-                            if model_index.is_valid() { 
+                                // First, we replace {x} with our current value. Then, we try to parse with meval.
+                                // And finally, we try to put the new value in the cell.
+                                let current_value = unsafe { model.as_ref().unwrap().item_from_index(&index).as_ref().unwrap().data(2).to_string().to_std_string() };
+                                let real_operation = operation.replace("{x}", &current_value);
 
-                                // For Integers and Long Integers is easy. Just try to do the operation and return an error if it fails.
-                                let field_type = &table_definition.fields[model_index.column() as usize].field_type;
-                                if *field_type == FieldType::LongInteger || *field_type == FieldType::Integer {
-                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().data(2).to_long_long() };
+                                // We only do this if the current value is a valid number.
+                                if let Ok(result) = meval::eval_str(&real_operation) {
+                                    let mut is_valid = false;
+                                    
+                                    // If we got a current value and it's different, it's a valid cell.
+                                    if let Ok(current_value) = current_value.parse::<f64>() {
+                                        if (result - current_value) >= std::f64::EPSILON { 
+                                            is_valid = true;
+                                        }
+                                    }
 
-                                    let result = match &*operation {
-                                        "+" => value_to_operate.checked_add(value.round() as i64),
-                                        "-" => value_to_operate.checked_sub(value.round() as i64),
-                                        "*" => value_to_operate.checked_mul(value.round() as i64),
-                                        "/" => value_to_operate.checked_div(value.round() as i64),
-                                        _ => unreachable!()
-                                    };
-
-                                    let result = match result {
-                                        Some(result) => result,
-                                        None => return show_dialog(app_ui.window, false, ErrorKind::DBTableApplyMathsOverflow)
-                                    };
-
-                                    // If the value hasn't change (like when we add 0), set the operation as "None".
-                                    if result == value_to_operate { results.push(MathOperationResult::None) }
-
-                                    // For i32, we need to make sure the value is also a valid i32.
-                                    else if *field_type == FieldType::Integer {
-                                        if let Ok(result) = format!("{}", result).parse::<i32>() { results.push(MathOperationResult::Integer(result)) }
-                                        else { return show_dialog(app_ui.window, false, ErrorKind::DBTableApplyMathsOverflow) }
-                                    } else { results.push(MathOperationResult::LongInteger(result)) }         
+                                    // Otherwise, it's a change over a string. Allow it.
+                                    else { is_valid = true; }
+                                    if is_valid {    
+                                        match table_definition.fields[index.column() as usize].field_type {
+                                            FieldType::Float => unsafe { model.as_mut().unwrap().item_from_index(&index).as_mut().unwrap().set_data((&Variant::new2(result as f32), 2)) }
+                                            FieldType::Integer => unsafe { model.as_mut().unwrap().item_from_index(&index).as_mut().unwrap().set_data((&Variant::new0(result as i32), 2)) },
+                                            FieldType::LongInteger => unsafe { model.as_mut().unwrap().item_from_index(&index).as_mut().unwrap().set_data((&Variant::new2(result as i64), 2)) },
+                                            
+                                            FieldType::StringU8 |
+                                            FieldType::StringU16 |
+                                            FieldType::OptionalStringU8 |
+                                            FieldType::OptionalStringU16 => unsafe { model.as_mut().unwrap().item_from_index(&index).as_mut().unwrap().set_text(&QString::from_std_str(&format!("{}", result))) },
+                                            _ => continue,
+                                        }
+                                        results += 1;
+                                    }
                                 }
-
-                                // There is not a built-in method to check for overflow with floats, so we have to do some thinking.
-                                // Yo, maths! Ere I go again!
-                                else if *field_type == FieldType::Float {
-                                    let value_to_operate = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap().data(2).to_double() };
-
-                                    let result = match &*operation {
-                                        "+" => value_to_operate + value,
-                                        "-" => value_to_operate - value,
-                                        "*" => value_to_operate * value,
-                                        "/" => if value != 0f64 { value_to_operate / value } else { return show_dialog(app_ui.window, false, ErrorKind::ThereIsAnSpecialPlaceInHellForYou) },
-                                        _ => unreachable!()
-                                    };
-
-                                    // If the value hasn't change (like when we add 0), set the operation as "None".
-                                    // Turns out that comparing equality of floats is asking for trouble, so... we have to do some magic here.
-                                    if (result - value_to_operate) < std::f64::EPSILON { results.push(MathOperationResult::None) }
-                                    else if let Ok(result) = format!("{}", result).parse::<f32>() { results.push(MathOperationResult::Float(result)) }
-                                    else { return show_dialog(app_ui.window, false, ErrorKind::DBTableApplyMathsOverflow) }
-                                }
-                            }
-                        }
-
-                        // If every result is a valid result, then iterate again over every cell applying the new value.
-                        for index in 0..indexes.count(()) {
-                            let model_index = indexes.at(index);
-                            match results[index as usize] {
-                                MathOperationResult::Integer(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_data((&Variant::new0(x), 2)) },
-                                MathOperationResult::LongInteger(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_data((&Variant::new2(x), 2)) },
-                                MathOperationResult::Float(x) => unsafe { model.as_mut().unwrap().item_from_index(model_index).as_mut().unwrap().set_data((&Variant::new2(x), 2)) }
-                                MathOperationResult::None => continue,
                             }
                         }
 
                         // If we finished doing maths, fix the undo history to have all the previous changes merged into one.
-                        // Keep in mind that `None` results should be ignored here.
-                        let valid_results = results.iter().filter(|x| **x != MathOperationResult::None).count();
-
-                        if valid_results > 0 {
+                        if results > 0 {
                             {
                                 let mut table_state_data = table_state_data.borrow_mut();
                                 let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
@@ -1078,7 +1039,7 @@ impl PackedFileTableView {
                                 let mut edits_data = vec![];
                                 
                                 {
-                                    let mut edits = table_state_data.undo_history.drain((len - valid_results)..);
+                                    let mut edits = table_state_data.undo_history.drain((len - results)..);
                                     for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
                                 }
 
