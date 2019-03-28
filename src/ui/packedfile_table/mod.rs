@@ -1632,22 +1632,25 @@ impl PackedFileTableView {
                     // Fix the undo history to have all the previous changed merged into one. Or that's what I wanted.
                     // Sadly, the world doesn't work like that. As we can edit AND add rows, we have to use a combined undo operation.
                     // I'll call it... Carolina.
-                    if changed_cells > 0 {
+                    if changed_cells > 0 || added_rows > 0 {
                         {
                             let mut table_state_data = table_state_data.borrow_mut();
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                             let len = table_state_data.undo_history.len();
-                            let mut edits_data = vec![];
-                            let mut rows = vec![];
                             let mut carolina = vec![];
-                            {
+                            if changed_cells > 0 {
+                                let mut edits_data = vec![];
                                 let mut edits = table_state_data.undo_history.drain((len - changed_cells)..);
                                 for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
-
-                                unsafe { ((model.as_mut().unwrap().row_count(()) - added_rows)..model.as_mut().unwrap().row_count(())).rev().for_each(|x| rows.push(x)); }
+                                carolina.push(TableOperations::Editing(edits_data));
                             }
-                            carolina.push(TableOperations::Editing(edits_data));
-                            carolina.push(TableOperations::AddRows(rows));
+
+                            if added_rows > 0 {
+                                let mut rows = vec![];
+                                unsafe { ((model.as_mut().unwrap().row_count(()) - added_rows)..model.as_mut().unwrap().row_count(())).rev().for_each(|x| rows.push(x)); }
+                                carolina.push(TableOperations::AddRows(rows));
+
+                            }
 
                             table_state_data.undo_history.push(TableOperations::Carolina(carolina));
                             table_state_data.redo_history.clear();
