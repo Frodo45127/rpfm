@@ -476,6 +476,12 @@
 <hr />
 <ul>
 <li>
+<p><strong><em>1.5 Versions</em></strong>, where the parts became one and one became able of multiple things:</p>
+<ul>
+<li><a href="#150"><strong>1.5.0</strong></a></li>
+</ul>
+</li>
+<li>
 <p><strong><em>1.4 Versions</em></strong>, where the Empire was crushed:</p>
 <ul>
 <li><a href="#142"><strong>1.4.2</strong></a></li>
@@ -545,6 +551,32 @@
 </ul>
 <p>Before this, only God, Git and I knew what changes where done. Now, only God and Git know it. And in case you like scrolling, from here you have all the changelogs.</p>
 <hr />
+<a class="header" href="#150" id="150"><h1>1.5.0</h1></a>
+<ul>
+<li>Implemented <strong><em>Multi-Selection support</em></strong> for the Main TreeView.</li>
+<li>Implemented <strong><em>Multi-Extraction support</em></strong> for the Main TreeView.</li>
+<li>Implemented <strong><em>Multi-Deletion support</em></strong> for the Main TreeView.</li>
+<li>Implemented <code>Merge DB/Loc</code> feature.</li>
+<li>Implemented support for creating relative paths with the <code>Create PackedFile</code> feature.</li>
+<li>Documentation rewritten and moved to <a href="https://frodo45127.github.io/rpfm">https://frodo45127.github.io/rpfm</a>.</li>
+<li>Documentation expanded with explanation about DB Types.</li>
+<li>Documentation expanded with RPFM Changelogs.</li>
+<li>Documentation expanded with Schema Changelogs.</li>
+<li>Internally simplified <code>Add Row</code> feature.</li>
+<li>Internally simplified <code>Insert Row</code> feature.</li>
+<li>Reworked <code>Apply Prefix to Selection</code> into <code>Rewrite Selection</code>.</li>
+<li>Reworked <code>Paste in selection</code> into <code>Paste</code> (similar to excel's <code>Paste</code> mode).</li>
+<li>Reworked <code>Apply Maths to Selection</code> to allow far more complex mathematical operations.</li>
+<li>Reworked DB Tables and Loc PackedFiles UI modules into a single common module.</li>
+<li>Removed the <code>Use PFM Extracting Behavior</code> setting (now it just works like that).</li>
+<li>Actions previously exclusive of DB Tables (like <code>Apply Maths</code>) now work in Locs too.</li>
+<li>Fixed CTD when you <code>Ctrl+Click</code> two times on an element of the <code>Add From PackFile</code> TreeView.</li>
+<li>Fixed a bug that caused DB Tables saved for Empire and Napoleon to crash their respective game on launch.</li>
+<li>Fixed a bug that caused DB Tables and Locs that had just be created/added to lose their color in the Main TreeView when opened.</li>
+<li>Fixed a bug that, under very specific circustances, caused all contextual menu's actions to be greyed out until restart.</li>
+<li>Fixed a bug that caused copied cells from sorted columns to be copied unsorted.</li>
+<li>Now new rows are automatically added if you try to paste something in a DB/LOC Table and there are not enough rows for it.</li>
+</ul>
 <a class="header" href="#142" id="142"><h1>1.4.2</h1></a>
 <ul>
 <li>Implemented a new <code>Generate PAK File</code> Special Feature for all games except Empire and Napoleon.</li>
