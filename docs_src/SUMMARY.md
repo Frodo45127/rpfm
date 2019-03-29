@@ -21,6 +21,7 @@
 - [DB Decoder](./chapter_5.md)
 	- [DB Types](./chapter_5_1.md)
 - [Extras](./chapter_appendix.md)
+- [Compilation Instructions](./chapter_6.md)
 
 ------------------------------------------
 - [Changelogs](./changelogs.md)
