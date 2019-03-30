@@ -27,8 +27,9 @@ use crate::common::*;
 use crate::error::{Error, ErrorKind, Result};
 use crate::packfile::{PackFile, PFHVersion, PFHFileType};
 use crate::packfile::packedfile::PackedFile;
+use crate::packedfile::DecodedData;
 use crate::packedfile::loc::Loc;
-use crate::packedfile::db::{DB, DecodedData};
+use crate::packedfile::db::DB;
 use crate::packedfile::rigidmodel::RigidModel;
 
 /*
@@ -493,173 +494,264 @@ pub fn add_packedfile_to_packfile(
     }
 }
 
-/// This function is used to delete a PackedFile or a group of PackedFiles under the same tree_path
-/// from the PackFile. We just need the open PackFile and the tree_path of the file/folder to delete.
+/// This function is used to delete a PackedFile or a group of PackedFiles under the provided tree_path
+/// from the PackFile. We just need the open PackFile and the tree_paths of the files/folders to delete.
+///
+/// NOTE: The path has to be complete, including the PackFile.
 pub fn delete_from_packfile(
     pack_file: &mut PackFile,
-    tree_path: &[String]
-) -> Result<()> {
+    tree_paths: &[Vec<String>]
+) -> Vec<TreePathType> {
 
-    // Get what it's what we want to delete.
-    match get_type_of_selected_path(tree_path, pack_file) {
+    // First, we prepare the counters for the path types.
+    let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
+    let mut item_types = vec![];
 
-        // If it's a file, easy job.
-        TreePathType::File(packed_file_path) => {
-            let index = pack_file.packed_files.iter().position(|x| x.path == packed_file_path).unwrap();
-            pack_file.remove_packedfile(index);
-        }
+    // We need to "clean" the selected path list to ensure we don't pass stuff already deleted.
+    let mut tree_paths_clean = vec![];
+    let mut packfile_found = false;
+    for path_to_add in tree_paths {
+        let mut add_path = true;
+        for path in tree_paths {
 
-        // If it's a folder... it's a bit tricky.
-        TreePathType::Folder(tree_path) => {
-
-            // We create a vector to store the indexes of the files we are going to delete.
-            let mut indexes = vec![];
-
-            // For each PackedFile in our PackFile...
-            for (index, packed_file) in pack_file.packed_files.iter().enumerate() {
-
-                // If the PackedFile it's in our folder...
-                if !packed_file.path.is_empty() && packed_file.path.starts_with(&tree_path) {
-
-                    // Add his index to the indexes list.
-                    indexes.push(index);
-                }
+            // If the len is 1, it's the PackFile. Delete everything in the current list, add this one and stop.
+            if path_to_add.len() == 1 {
+                tree_paths_clean.clear();
+                packfile_found = true;
+                break;
             }
 
-            // For each PackedFile we want to remove (in reverse), we remove it individually.
-            indexes.iter().rev().for_each(|index| pack_file.remove_packedfile(*index));
-        },
-
-        // If it's a PackFile, easy job. For non-existant files, return an error so the UI does nothing.
-        TreePathType::PackFile => pack_file.remove_all_packedfiles(),
-        TreePathType::None => Err(ErrorKind::Generic)?,
+            if path == path_to_add { continue; }
+            else if path_to_add.starts_with(path) { 
+                add_path = false;
+                break;
+            }
+        }
+        if add_path { tree_paths_clean.push(path_to_add.to_vec()); }
+        if packfile_found { break; }
     }
 
-    // Return success.
-    Ok(())
+    // Get the types for all the paths.
+    for path in &tree_paths_clean {
+        let item_type = get_type_of_selected_path(&path, pack_file);
+        match item_type {
+            TreePathType::File(_) => file += 1,
+            TreePathType::Folder(_) => folder += 1,
+            TreePathType::PackFile => packfile += 1,
+            TreePathType::None => none += 1,
+        }
+
+        item_types.push(item_type);
+    }
+
+    // Now we do some bitwise magic to get what type of selection combination we have.
+    let mut contents: u8 = 0;
+    if file != 0 { contents |= 1; } 
+    if folder != 0 { contents |= 2; } 
+    if packfile != 0 { contents |= 4; } 
+    if none != 0 { contents |= 8; } 
+    match contents {
+
+        // Any combination of files and folders.
+        1 | 2 | 3 => {
+            for item_type in &item_types {
+                match item_type {
+                    TreePathType::File(path) => {
+   
+                        let index = pack_file.packed_files.iter().position(|x| &x.path == path).unwrap();
+                        pack_file.remove_packedfile(index);
+                    },
+
+                    TreePathType::Folder(path) => {
+                    
+                        // We create a vector to store the indexes of the files we are going to delete.
+                        let mut indexes = vec![];
+                        for (index, packed_file) in pack_file.packed_files.iter().enumerate() {
+
+                            // If the PackedFile it's in our folder, add his index to the indexes list.
+                            if !packed_file.path.is_empty() && packed_file.path.starts_with(&path) {
+                                indexes.push(index);
+                            }
+                        }
+
+                        // For each PackedFile we want to remove (in reverse), we remove it individually.
+                        indexes.iter().rev().for_each(|index| pack_file.remove_packedfile(*index));
+                    },
+
+                    _ => unreachable!(),
+                } 
+            }
+        },
+
+        // If the PackFile is selected, get it just extract the PackFile and everything will get extracted with it.
+        4 | 5 | 6 | 7 => pack_file.remove_all_packedfiles(),
+
+        // No paths selected, none selected, invalid path selected, or invalid value. 
+        0 | 8..=255 => {},
+    }
+
+    // Return the TreePathType list so the UI can delete them.
+    item_types
 }
 
 /// This function is used to extract a PackedFile or a folder from the PackFile.
 /// It requires:
 /// - pack_file: the PackFile from where we want to extract the PackedFile.
-/// - tree_path: the COMPLETE tree_path of the PackedFile we want to extract.
+/// - tree_paths: the COMPLETE tree_paths of the PackedFiles we want to extract.
 /// - extracted_path: the destination path of the file we want to extract.
+///
+/// NOTE: By COMPLETE I mean with the PackFile's name included.
 pub fn extract_from_packfile(
     pack_file: &PackFile,
-    tree_path: &[String],
-    extracted_path: &PathBuf
+    tree_paths: &[Vec<String>],
+    extracted_path: &PathBuf,
 ) -> Result<String> {
 
-    // Get what it's what we want to extract.
-    match get_type_of_selected_path(tree_path, pack_file) {
+    // First, we prepare the counters for the path types.
+    let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
+    let mut item_types = vec![];
 
-        // If it's a file, we try to create and write the file.
-        TreePathType::File(path) => {
-            let mut file = BufWriter::new(File::create(&extracted_path)?);
-            match file.write_all(&pack_file.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?.get_data()?){
-                Ok(_) => Ok(format!("File extracted successfully:\n{}", extracted_path.display())),
-                Err(_) => Err(ErrorKind::ExtractError(vec![format!("<li>{}</li>", extracted_path.display().to_string());1]))?
+    // These variables are here to keep track of what we have extracted and what files failed.
+    let mut files_extracted = 0;
+    let mut error_files = vec![];
+
+    // We need to "clean" the selected path list to ensure we don't pass stuff already extracted.
+    let mut tree_paths_clean = vec![];
+    let mut packfile_found = false;
+    for path_to_add in tree_paths {
+        let mut add_path = true;
+        for path in tree_paths {
+
+            // If the len is 1, it's the PackFile. Delete everything in the current list, add this one and stop.
+            if path_to_add.len() == 1 {
+                tree_paths_clean.clear();
+                packfile_found = true;
+                break;
             }
+
+            if path == path_to_add { continue; }
+            else if path_to_add.starts_with(path) { 
+                add_path = false;
+                break;
+            }
+        }
+        if add_path { tree_paths_clean.push(path_to_add.to_vec()); }
+        if packfile_found { break; }
+    }
+
+    // Get the types for all the paths.
+    for path in &tree_paths_clean {
+        let item_type = get_type_of_selected_path(&path, pack_file);
+        match item_type {
+            TreePathType::File(_) => file += 1,
+            TreePathType::Folder(_) => folder += 1,
+            TreePathType::PackFile => packfile += 1,
+            TreePathType::None => none += 1,
+        }
+
+        item_types.push(item_type);
+    }
+
+    // Now we do some bitwise magic to get what type of selection combination we have.
+    let mut contents: u8 = 0;
+    if file != 0 { contents |= 1; } 
+    if folder != 0 { contents |= 2; } 
+    if packfile != 0 { contents |= 4; } 
+    if none != 0 { contents |= 8; } 
+    match contents {
+
+        // Any combination of files and folders.
+        1 | 2 | 3 => {
+
+            // For folders we check each PackedFile to see if it starts with the folder's path (it's in the folder).
+            // There should be no duplicates here thanks to the filters from before.
+            for item_type in item_types {
+                match item_type {
+                    TreePathType::File(path) => {
+   
+                        // We remove everything from his path up to the folder we want to extract (not included).
+                        let packed_file = pack_file.packed_files.iter().find(|x| x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
+                        let mut additional_path = packed_file.path.to_vec();
+                        let file_name = additional_path.pop().unwrap();
+
+                        // Get the destination path of our file, without the file at the end, and create his folder.
+                        let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
+                        DirBuilder::new().recursive(true).create(&current_path)?;
+
+                        // Finish the path and save the file.
+                        current_path.push(&file_name);
+                        let mut file = BufWriter::new(File::create(&current_path)?);
+                        match file.write_all(&packed_file.get_data()?){
+                            Ok(_) => files_extracted += 1,
+                            Err(_) => error_files.push(format!("{:?}", current_path)),
+                        }
+                    },
+
+                    TreePathType::Folder(path) => {
+                    
+                        for packed_file in &pack_file.packed_files {
+                            if !path.is_empty() && packed_file.path.starts_with(&path) {
+                               
+                                // We remove everything from his path up to the folder we want to extract (not included).
+                                let mut additional_path = packed_file.path.to_vec();
+                                let file_name = additional_path.pop().unwrap();
+
+                                // Get the destination path of our file, without the file at the end, and create his folder.
+                                let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
+                                DirBuilder::new().recursive(true).create(&current_path)?;
+
+                                // Finish the path and save the file.
+                                current_path.push(&file_name);
+                                let mut file = BufWriter::new(File::create(&current_path)?);
+                                match file.write_all(&packed_file.get_data()?){
+                                    Ok(_) => files_extracted += 1,
+                                    Err(_) => error_files.push(format!("{:?}", current_path)),
+                                }
+                            }
+                        }
+                    },
+
+                    _ => unreachable!(),
+                } 
+            }            
         },
 
-        // If it's a folder...
-        TreePathType::Folder(tree_path) => {
+        // If the PackFile is selected, get it just extract the PackFile and everything will get extracted with it.
+        4 | 5 | 6 | 7 => {
 
-            // These variables are here to keep track of what we have extracted and what files failed.
-            let mut files_extracted = 0;
-            let mut error_files = vec![];
-
-            // For each PackedFile we have...
-            for packed_file in &pack_file.packed_files {
-
-                // If it's one we need to extract...
-                if packed_file.path.starts_with(&tree_path) {
-
-                    // We remove everything from his path up to the folder we want to extract (included).
-                    let mut additional_path = packed_file.path.to_vec();
-                    additional_path.drain(..(tree_path.len()));
-
-                    // Remove the name of the file from the path and keep it.
-                    let file_name = additional_path.pop().unwrap();
-
-                    // Get the destination path of our file, without the file at the end.
-                    let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
-
-                    // Create that directory.
-                    DirBuilder::new().recursive(true).create(&current_path)?;
-
-                    // Get the full path of the file.
-                    current_path.push(&file_name);
-
-                    // Try to create the file.
-                    let mut file = BufWriter::new(File::create(&current_path)?);
-
-                    // And try to write it. If any of the files throws an error, add it to the list and continue.
-                    match file.write_all(&packed_file.get_data()?) {
-                        Ok(_) => files_extracted += 1,
-                        Err(_) => error_files.push(format!("{:?}", current_path)),
-                    }
-                }
-            }
-
-            // If there is any error in the list, report it.
-            if !error_files.is_empty() {
-                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
-                return Err(ErrorKind::ExtractError(error_files_string))?
-            }
-
-            // If we reach this, return success.
-            Ok(format!("{} files extracted. No errors detected.", files_extracted))
-        },
-
-        // If it's the PackFile...
-        TreePathType::PackFile => {
-
-            // These variables are here to keep track of what we have extracted and what files failed.
-            let mut files_extracted = 0;
-            let mut error_files = vec![];
-
-            // For each PackedFile we have...
+            // For each PackedFile we have, just extracted in the folder we got, under the PackFile's folder.
             for packed_file in &pack_file.packed_files {
 
                 // We remove everything from his path up to the folder we want to extract (not included).
                 let mut additional_path = packed_file.path.to_vec();
-
-                // Remove the name of the file from the path and keep it.
                 let file_name = additional_path.pop().unwrap();
 
-                // Get the destination path of our file, with the name of the PackFile, without the file at the end.
+                // Get the destination path of our file, without the file at the end, and create his folder.
                 let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
-
-                // Create that directory.
                 DirBuilder::new().recursive(true).create(&current_path)?;
 
-                // Get the full path of the file.
+                // Finish the path and save the file.
                 current_path.push(&file_name);
-
-                // Try to create the file.
                 let mut file = BufWriter::new(File::create(&current_path)?);
-
-                // And try to write it. If any of the files throws an error, add it to the list and continue.
                 match file.write_all(&packed_file.get_data()?){
                     Ok(_) => files_extracted += 1,
                     Err(_) => error_files.push(format!("{:?}", current_path)),
                 }
             }
+        },
 
-            // If there is any error in the list, report it.
-            if !error_files.is_empty() {
-                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
-                return Err(ErrorKind::ExtractError(error_files_string))?
-            }
-
-            // If we reach this, return success.
-            Ok(format!("{} files extracted. No errors detected.", files_extracted))
-        }
-
-        // If it doesn't exist, there has been a bug somewhere else. Otherwise, this situation will never happen.
-        TreePathType::None => unreachable!(),
+        // No paths selected, none selected, invalid path selected, or invalid value. 
+        0 | 8..=255 => return Err(ErrorKind::NonExistantFile)?,
     }
+
+    // If there is any error in the list, report it.
+    if !error_files.is_empty() {
+        let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
+        return Err(ErrorKind::ExtractError(error_files_string))?
+    }
+
+    // If we reach this, return success.
+    Ok(format!("{} files extracted. No errors detected.", files_extracted))
 }
 
 /// This function is used to rename anything in the TreeView (PackFile not included).
@@ -920,7 +1012,7 @@ pub fn patch_siege_ai (
             deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
 
             // Delete the PackedFile. This cannot really fail during this process, so we can ignore this result.
-            delete_from_packfile(pack_file, tree_path).unwrap();
+            delete_from_packfile(pack_file, &[tree_path.to_vec()]);
             files_deleted += 1;
         }
     }
@@ -1108,7 +1200,7 @@ pub fn optimize_packfile(pack_file: &mut PackFile)-> Result<Vec<TreePathType>> {
             deleted_files_type.push(get_type_of_selected_path(&tree_path, &pack_file));
 
             // Delete the PackedFile.
-            delete_from_packfile(pack_file, tree_path).unwrap();
+            delete_from_packfile(pack_file, &[tree_path.to_vec()]);
         }
     }
 

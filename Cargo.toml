@@ -1,6 +1,6 @@
 [package]
 name = "rpfm-code"
-version = "1.4.2"
+version = "1.5.0"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 build = "build.rs"
 description = "A modding tool for Total War games."
@@ -34,6 +34,8 @@ lazy_static = "1.2.0"
 os_info = "1.1.0"
 toml = "0.4.7"
 rust-lzma = "0.4"
+
+meval = "0.2"
 
 bitflags = "1.0"
 [target.'cfg(windows)'.build-dependencies]

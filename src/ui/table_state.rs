@@ -70,7 +70,7 @@ pub struct TableStateData {
     pub undo_history: Vec<TableOperations>,
     pub redo_history: Vec<TableOperations>,
     pub undo_model: *mut StandardItemModel,
-    pub is_renamed: bool,
+    pub not_allow_full_undo: bool,
 }
 
 /// Implementation of TableState.
@@ -176,7 +176,7 @@ impl TableStateData {
             undo_history: vec![],
             redo_history: vec![],
             undo_model: StandardItemModel::new(()).into_raw(),
-            is_renamed: false,
+            not_allow_full_undo: false,
         }
     }
 }

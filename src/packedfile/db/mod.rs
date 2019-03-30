@@ -19,18 +19,14 @@
 // 1 misteryous byte
 // 4 bytes for the entry count, in u32 reversed.
 
-use csv::{ ReaderBuilder, WriterBuilder, QuoteStyle };
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
-
-use crate::common::coding_helpers::*;
-use super::SerializableToTSV;
+use super::DecodedData;
 use self::schemas::*;
-use crate::error::{Error, ErrorKind, Result};
+use crate::GAME_SELECTED;
+use crate::common::coding_helpers::*;
+use crate::error::{ErrorKind, Result};
 
 pub mod raw_tables;
 pub mod schemas;
@@ -54,19 +50,6 @@ pub struct DB {
     pub mysterious_byte: u8,
     pub table_definition: TableDefinition,
     pub entries: Vec<Vec<DecodedData>>,
-}
-
-/// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB PackedFile.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum DecodedData {
-    Boolean(bool),
-    Float(f32),
-    Integer(i32),
-    LongInteger(i64),
-    StringU8(String),
-    StringU16(String),
-    OptionalStringU8(String),
-    OptionalStringU16(String),
 }
 
 /// Implementation of "DB".
@@ -220,11 +203,15 @@ impl DB {
     /// This function takes an entire DB and encode it to Vec<u8>, so it can be written in the disk.
     /// It returns a Vec<u8> with the entire DB encoded in it.
     pub fn save(&self) -> Vec<u8> {
-
-        // Create the vector for the encoded PackedFile.
         let mut packed_file: Vec<u8> = vec![];
-        packed_file.extend_from_slice(GUID_MARKER);
-        packed_file.extend_from_slice(&encode_packedfile_string_u16(&format!("{}", Uuid::new_v4())));
+
+        // Napoleon and Empire do not have GUID, and adding it to their tables crash both games.
+        // So for those two games, we ignore the GUID_MARKER and the GUID itself.
+        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+        if game_selected != "empire" && game_selected != "napoleon" {
+            packed_file.extend_from_slice(GUID_MARKER);
+            packed_file.extend_from_slice(&encode_packedfile_string_u16(&format!("{}", Uuid::new_v4())));
+        }
         packed_file.extend_from_slice(VERSION_MARKER);
         packed_file.extend_from_slice(&encode_integer_i32(self.version));
         packed_file.push(self.mysterious_byte);
@@ -310,115 +297,5 @@ impl DB {
             unreachable!();
         }
         unreachable!();
-    }
-}
-
-/// Implementation of `SerializableToTSV` for `DBData`.
-impl SerializableToTSV for DB {
-
-    /// This function imports a TSV file and loads his contents into a DB Table.
-    fn import_tsv(
-        &mut self,
-        tsv_file_path: &PathBuf,
-        db_name: &str
-    ) -> Result<()> {
-
-        // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
-        // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
-        match ReaderBuilder::new()
-            .delimiter(b'\t')
-            .quoting(false)
-            .has_headers(false)
-            .flexible(true)
-            .from_path(&tsv_file_path) {
-
-            Ok(mut reader) => {
-
-                // If we succesfully read the TSV file into a reader, check the first two lines to ensure it's a valid TSV for our specific table.
-                let mut entries = vec![];
-                for (row, record) in reader.records().enumerate() {
-                    if let Ok(record) = record {
-
-                        if row == 0 { 
-                            if record.get(0).unwrap_or("error") != db_name {
-                                return Err(ErrorKind::ImportTSVWrongTypeTable)?;
-                            }
-                            if record.get(1).unwrap_or("error") != self.version.to_string() {
-                                return Err(ErrorKind::ImportTSVWrongVersion)?;
-                            }
-                        }
-
-                        // The second row is just to help people in other programs, not needed to be check.
-                        else if row == 1 { continue }
-
-                        // Then read the rest of the rows as a normal TSV.
-                        else if record.len() == self.table_definition.fields.len() {
-                            let mut entry = vec![];
-                            for (column, field) in record.iter().enumerate() {
-                                match self.table_definition.fields[column].field_type {
-                                    FieldType::Boolean => {
-                                        let value = field.to_lowercase();
-                                        if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
-                                        else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
-                                        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?; }
-                                    }
-                                    FieldType::Float => entry.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                                    FieldType::Integer => entry.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                                    FieldType::LongInteger => entry.push(DecodedData::LongInteger(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
-                                    FieldType::StringU8 => entry.push(DecodedData::StringU8(field.to_owned())),
-                                    FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
-                                    FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
-                                    FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
-                                }
-                            }
-                            entries.push(entry);
-                        }
-
-                        // If it fails here, return an error with the len of the record instead a field.
-                        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()))?; }
-                    }
-
-                    else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0))?; }
-                }
-
-                // If we reached this point without errors, we replace the old data with the new one and return success.
-                self.entries = entries;
-                Ok(())
-            }
-
-            // If we couldn't read the TSV file, return error.
-            Err(error) => Err(Error::from(error))
-        }
-    }
-
-    /// This function creates a TSV file with the contents of the DB Table.
-    fn export_tsv(
-        &self, 
-        packed_file_path: &PathBuf, 
-        db_info: (&str, i32)
-    ) -> Result<()> {
-
-        // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
-        // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
-        let mut writer = WriterBuilder::new()
-            .delimiter(b'\t')
-            .quote_style(QuoteStyle::Never)
-            .has_headers(false)
-            .flexible(true)
-            .from_writer(vec![]);
-
-        // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
-        writer.serialize(db_info)?;
-        writer.serialize(self.table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>())?;
-
-        // Then we serialize each entry in the DB Table.
-        for entry in &self.entries { writer.serialize(&entry)?; }
-
-        // Then, we try to write it on disk. If there is an error, report it.
-        if let Ok(mut file) = File::create(&packed_file_path) {
-            if file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes()).is_err() { Err(ErrorKind::IOGeneric)? }
-        } else { Err(ErrorKind::IOGeneric)? }
-
-        Ok(())
     }
 }

@@ -12,9 +12,9 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Add…/Add Folder`: Allows you to add a folder and all his files to the PackFile.
 - `Add…/Add from PackFile`: Allows you to add files or folders from another PackFile to your PackFile. Just, select whatever you want to add, double click it and it'll be added to your PackFile, keeping his path.
 - `Create…/Create Folder`: Allows you to create an empty folder. Due to how PackFiles work empty folders are not saved so, if you want to keep the folder, add a file to it.
-- `Create…/Create Loc`: Allows you to create an empty Loc PackedFile.
+- `Create…/Create Loc`: Allows you to create an empty Loc PackedFile. You can create his relative path too writing something like `folder1/folder2/file` instead of just the file name.
 - `Create…/Create DB`: Allows you to create an empty DB Table.
-- `Create…/Create Text`: Allows you to create an empty text file. ANY TEXT FILE (including lua, xml,...).
+- `Create…/Create Text`: Allows you to create an empty text file. ANY TEXT FILE (including lua, xml,...). You can create his relative path too writing something like `folder1/folder2/file` instead of just the file name.
 - `Create…/Mass-Import TSV`: Allows you to import a bunch of TSV files at once. The system is able to distinguish between DB and Loc TSV files, so you can import all of them at the same time, and RPFM will create all the files needed, in their correct place.
 - `Create…/Mass-Export TSV`: Allows you to export as TSV every DB Table and Loc PackedFiles in your PackFile at once.
 - `Open…/Open with Decoder`: Allows you to open a table in the `DB Decoder`. Only used to decode new tables, so…. You shouldn't touch this.
@@ -24,6 +24,7 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Rename…/Rename Current`: Allows you to rename whatever is selected, except the PackFile.
 - `Rename…/Apply Prefix to Selected`: Allows you to apply a prefix to every file inside the selected folder.
 - `Rename…/Apply Prefix to All`: Allows you to apply a prefix to every file in the PackFile.
+- `Merge DB/LOCs`: Allows you to merge multiple DB/LOC Tables into one.
 - `Delete`: Allows you to delete whatever is selected. If the PackFile is selected, it removes every file from it.
 - `Extract`: Allows you to extract whatever is selected out of the PackFile. If whatever you selected is compressed/encrypted, RPFM will decompress/decrypt it before extracting, so the resulting file is usable.
 - `Global Search`: Allows you to perform a simple search across every DB Table or Loc PackedFile inside your PackFile, providing you with a filterable list of results.

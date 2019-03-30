@@ -41,11 +41,14 @@ pub enum ErrorKind {
     // Generic error. For a situation where you just need to throw an error, doesn't matter what kind of error.
     Generic,
 
-    // Error for when someone tries to divide by 0.
-    ThereIsAnSpecialPlaceInHellForYou,
-
     // Error for when serializing to TOML fails.
     TOMLSerializerError,
+
+    // Error for when trying to do something to a file that doesn't exists anymore.
+    NonExistantFile,
+
+    // Error for when we're trying to merge two invalid files.
+    InvalidFilesForMerging,
 
     //-----------------------------------------------------//
     //                  Network Errors
@@ -88,8 +91,8 @@ pub enum ErrorKind {
     // These errors are to be used when importing TSV files. The last one is for any other error it can happen not already covered.
     ImportTSVIncorrectRow(usize, usize),
     ImportTSVWrongTypeTable,
-    ImportTSVWrongTypeLoc,
     ImportTSVWrongVersion,
+    ImportTSVInvalidVersion,
     TSVErrorGeneric,
 
     //-----------------------------------------------------//
@@ -103,7 +106,7 @@ pub enum ErrorKind {
     SavePackFileGeneric(String),
 
     // Error for when we try to load an unsupported PackFile.
-    PackFileNotSupported,
+    //PackFileNotSupported,
 
     // Error for when the PackFile's header can be read but it's not decodeable.
     PackFileHeaderNotComplete,
@@ -166,9 +169,6 @@ pub enum ErrorKind {
 
     // Error for when we are trying to use "Search&Replace" to place invalid data into a cell.
     DBTableReplaceInvalidData,
-
-    // Error for when we hit an overflow in the "Apply maths" feature.
-    DBTableApplyMathsOverflow,
 
     // Error for when a DB Table fails to decode.
     DBTableDecode(String),
@@ -374,8 +374,9 @@ impl Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
-            ErrorKind::ThereIsAnSpecialPlaceInHellForYou => write!(f, "<p>There is an special place in hell for you.</p>"),
             ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
+            ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -399,8 +400,8 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::ImportTSVIncorrectRow(row, column) => write!(f, "<p>This TSV file has an error in the <b>row <i>{}</i></b>, <b>field <i>{}</i></b> (both starting at 1). Please, check it and make sure the value in that field is a valid value for that column.</p>", row + 1, column + 1),
             ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file either belongs to another table, to a localisation PackedFile, it's broken or it's incompatible with RPFM.</p>"),
-            ErrorKind::ImportTSVWrongTypeLoc => write!(f, "<p>This TSV file either belongs to a DB table, it's broken or it's incompatible with RPFM.</p>"),
             ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
+            ErrorKind::ImportTSVInvalidVersion => write!(f, "<p>This TSV file has an invalid version value at line 1.</p>"),
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 
             //-----------------------------------------------------//
@@ -408,7 +409,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::OpenPackFileGeneric(error) => write!(f, "<p>Error while trying to open a PackFile:</p><p>{}</p>", error),
             ErrorKind::SavePackFileGeneric(error) => write!(f, "<p>Error while trying to save the currently open PackFile:</p><p>{}</p>", error),
-            ErrorKind::PackFileNotSupported => write!(f, "
+            /*ErrorKind::PackFileNotSupported => write!(f, "
             <p>The file is not a supported PackFile.</p>
             <p>For now, we only support:</p>
             <ul>
@@ -417,7 +418,7 @@ impl Display for ErrorKind {
             <li>- Attila.</li>
             <li>- Rome 2.</li>
             <li>- Arena.</li>
-            </ul>"),
+            </ul>"),*/
             ErrorKind::PackFileHeaderNotComplete => write!(f, "<p>The header of the PackFile is incomplete, unsupported or damaged.</p>"),
             ErrorKind::PackFileIndexesNotComplete => write!(f, "<p>The indexes of this of the PackFile are incomplete, unsupported or damaged.</p>"),
             ErrorKind::OpenPackFileInvalidExtension => write!(f, "<p>RPFM can only open packfiles whose name ends in <i>'.pack'</i></p>"),
@@ -453,7 +454,6 @@ impl Display for ErrorKind {
             ErrorKind::DBTableIsNotADBTable => write!(f, "<p>This is either not a DB Table, or it's a DB Table but it's corrupted.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
             ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
-            ErrorKind::DBTableApplyMathsOverflow => write!(f, "<p>The operation you just tried to do gives an invalid result. This means that the result value is bigger or lower than the maximum or minimum admited by the type in the cells.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
             ErrorKind::DBTableEmptyWithNoTableDefinition => write!(f, "<p>This DB Table is empty and there is not a Table Definition for it. That means is undecodeable.</p>"),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),

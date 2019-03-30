@@ -17,24 +17,14 @@ Bad things are:
 - **You say it**.
 
 # Status of the Project
-RPFM currently supports:
-- **TW: Warhammer 2**.
-- **TW: Warhammer**.
-- **TW: Thrones of Britannia**.
-- **TW: Attila**.
-- **TW: Rome 2**.
-- **TW: Shogun 2**.
-- **TW: Napoleon**.
-- **TW: Empire**.
-- **TW: Arena** (Read-Only and not complete table support).
-
-It can do more or less what PFM can do, but faster and, in some times, even better. If you want to know all the features RPFM has to offer, you can check the manual that it comes with it. It's included in RPFM release since 1.0, and you can open it by going to ***About/Open Manual***.
+RPFM currently supports **all Total War Games since Empire Total War**. Improvements are done every week, and I love cloudy days!
 
 # Requirements (to use)
 To use the ***Windows*** version, there are no requirements. Just extract it somewhere and execute it. After that, you need to go to settings, configure the paths of the games you have installed there. Otherwise, many features will not work. Also, if you want, use the ***Generate PAK File*** Special feature. It's explained in the manual.
 
 In ***Linux*** make sure you have Qt5 installed. Then download and execute the program and configure it, just like the Windows version. That's all.
 
+Also, the manual is [***HERE, READ IT BEFORE ASKING***][Manual].
 # Requirements (to build)
 To build this project, you need:
 * ***Qt 5.8*** or higher.
@@ -58,8 +48,7 @@ cargo run
 - **Kailua throws useless errors!!!**: That feature is alpha and very experimental.
 - **Linux paths doesn't work properly**: The linux version of some of the games have their files with a different structure than in Windows. To be fixed in another update.
 - **Trying to extract a folder in a folder with a folder of the same name of the folder we are trying to extract gets you inside the folder instead of extracting your folder**: Weird behavior of the FileChooser. Still trying to find the cause.
-- **Selecting an encrypted RigidModel crashes the game**: The RigidModel module is a bit unstable. To be fixed in a future update.
-- **My PackFile just vanished from the data folder!!!!!**: If you mod in the data folder of Warhammer 2, ***DISABLE LAZY-LOADING IN THE SETTINGS***. The problem is a bug in the Assembly Kit, not in RPFM. Want it fixed? Ask CA to fix it. If you have lazy-loading disabled, just try to save the PackFile outside the data folder and you'll recover all your data.
+- **My PackFile just vanished!!!!!**: If you open the same file with RPFM and other programs, and you have not ***DISABLED LAZY-LOADING IN THE SETTINGS***, this may happen. Not my fault, it's just how lazy-loading works. If you edit a file locked by another program, windows will give you the middle finger with this. So not RPFM's fault.
 
 # FAQ
 - **Why not helping with PFM instead of reimplementing it?**: because I wanted to learn a new language, and I already now a bit of C#. Also, where is the fun of that?
@@ -80,3 +69,4 @@ cargo run
 
 [Rustup download]: https://www.rustup.rs/ "Here you can download it :)"
 [Patreon]: https://www.patreon.com/RPFM
+[Manual]: https://frodo45127.github.io/rpfm/

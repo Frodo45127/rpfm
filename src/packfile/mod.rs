@@ -235,8 +235,30 @@ impl PackFile {
     /// It requires:
     /// - `&mut self`: the PackFile we are going to manipulate.
     /// - `packed_files`: a Vec<PackedFile> we are going to add.
+    ///
+    /// TODO: This is broken for duplicated Paths.
     pub fn add_packedfiles(&mut self, mut packed_files: Vec<PackedFile>) {
         self.packed_files.append(&mut packed_files);
+    }
+
+    /// This function adds one or more `PackedFiles` to an existing `PackFile`.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// - `packed_files`: a Vec<PackedFile> we are going to add.
+    ///
+    /// It returns the list of paths with PackedFiles changed.
+    /// TODO: This is temporal until we rewrote all the places where the other function is.
+    pub fn add_packed_files(&mut self, packed_files: Vec<PackedFile>) -> Vec<Vec<String>> {
+        let mut new_paths = vec![];
+        for packed_file in &packed_files {
+            new_paths.push(packed_file.path.to_vec());
+            match self.packed_files.iter().position(|x| x.path == packed_file.path) {
+                Some(index) => self.packed_files[index] = packed_file.clone(),
+                None => self.packed_files.push(packed_file.clone()),
+            }           
+        }
+        new_paths
     }
 
     /// This function returns the name of the PackedFile. If it's empty, it's a dummy PackFile. 

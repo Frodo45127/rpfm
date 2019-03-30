@@ -70,12 +70,8 @@ pub enum Commands {
     MassExportTSV,
     DecodePackedFileLoc,
     EncodePackedFileLoc,
-    ImportTSVPackedFileLoc,
-    ExportTSVPackedFileLoc,
     DecodePackedFileDB,
     EncodePackedFileDB,
-    ImportTSVPackedFileDB,
-    ExportTSVPackedFileDB,
     DecodePackedFileText,
     EncodePackedFileText,
     DecodePackedFileRigidModel,
@@ -96,6 +92,10 @@ pub enum Commands {
     GlobalSearch,
     UpdateGlobalSearchData,
     OpenWithExternalProgram,
+    ImportTSVPackedFile,
+    ExportTSVPackedFile,
+    MergeTables,
+    GenerateSchemaDiff,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 
@@ -128,14 +128,15 @@ pub enum Data {
 
     PackedFile(PackedFile),
     TreePathType(TreePathType),
+    TableDefinitionPathBufStringI32((TableDefinition, PathBuf, String, i32)),
+    VecVecDecodedData((Vec<Vec<DecodedData>>)),
+    VecVecDecodedDataPathBufVecStringTupleStrI32((Vec<Vec<DecodedData>>, PathBuf, Vec<String>, (String, i32))),
 
     Loc(Loc),
     LocVecString((Loc, Vec<String>)),
-    LocPathBuf((Loc, PathBuf)),
 
     DB(DB),
     DBVecString((DB, Vec<String>)),
-    DBPathBuf((DB, PathBuf)),
 
     RigidModel(RigidModel),
     RigidModelVecString((RigidModel, Vec<String>)),
@@ -146,11 +147,12 @@ pub enum Data {
     VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),
     VecString(Vec<String>),
     VecStringPackedFileType((Vec<String>, PackedFileType)),
-    VecStringPathBuf((Vec<String>, PathBuf)),
     VecStringString((Vec<String>, String)),
-    //VecStringTreePathType((Vec<String>, TreePathType)),
+    VecStringVecTreePathType((Vec<String>, Vec<TreePathType>)),
     VecTreePathType(Vec<TreePathType>),
     VecVecString(Vec<Vec<String>>),
+    VecVecStringPathBuf((Vec<Vec<String>>, PathBuf)),
+    VecVecStringStringBoolBool((Vec<Vec<String>>, String, bool, bool)),
     VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
     VecGlobalMatch(Vec<GlobalMatch>),
     VersionsVersions((Versions, Versions)),

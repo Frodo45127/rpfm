@@ -10,9 +10,10 @@
 
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
 
+use csv::{ReaderBuilder, WriterBuilder, QuoteStyle};
 use serde_derive::{Serialize, Deserialize};
 
-use std::io::{ BufReader, Read };
+use std::io::{BufReader, Read, Write};
 use std::fs::File;
 use std::path::PathBuf;
 
@@ -23,6 +24,7 @@ use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
+use crate::packedfile::db::schemas::{FieldType, TableDefinition};
 
 use crate::SCHEMA;
 pub mod loc;
@@ -43,30 +45,22 @@ pub enum PackedFileType {
     Text(String),
 }
 
-/*
---------------------------------------------------
-             Traits for PackedFiles
---------------------------------------------------
-*/
-
-/// Trait `SerializableToTSV`: This trait needs to be implemented by all the structs that can be
-/// export to and import from a TSV file, like `LocData` and `DBData`.
-pub trait SerializableToTSV {
-
-    /// `import_tsv`: Requires `&mut self`, a `&PathBuf` with the path of the TSV file and (in case of a table)
-    /// the name of our DB Table's table (xxx_tables). Returns success or an error.
-    fn import_tsv(&mut self, tsv_file_path: &PathBuf, db_name: &str) -> Result<()>;
-
-    /// `export_tsv`: Requires `&self`, the destination path for the TSV file and (in case of a table) 
-    /// a name and a number (version) to put in the header of the TSV file. Returns sucess or an error.
-    fn export_tsv(&self, tsv_file_path: &PathBuf, db_info: (&str, i32)) -> Result<()>;
+/// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB/Loc PackedFile.
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum DecodedData {
+    Boolean(bool),
+    Float(f32),
+    Integer(i32),
+    LongInteger(i64),
+    StringU8(String),
+    StringU16(String),
+    OptionalStringU8(String),
+    OptionalStringU16(String),
 }
 
-/*
---------------------------------------------------
-           Functions for PackedFiles
---------------------------------------------------
-*/
+//----------------------------------------------------------------//
+// Generic Functions for PackedFiles.
+//----------------------------------------------------------------//
 
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
@@ -108,6 +102,201 @@ pub fn create_packed_file(
     Ok(())
 }
 
+/// This function merges (if it's possible) the provided DB and LOC tables into one with the name and, if asked,
+/// it deletes the souce files. Table_type means true: DB, false: LOC.
+pub fn merge_tables( 
+    pack_file: &mut PackFile,
+    source_paths: &[Vec<String>],
+    name: &str,
+    delete_source_paths: bool,
+    table_type: bool,
+) -> Result<(Vec<String>, Vec<TreePathType>)> {
+
+    let paths_clean = source_paths.iter().map(|x| x[1..].to_vec()).collect::<Vec<Vec<String>>>();
+    let mut db_files = vec![];
+    let mut loc_files = vec![];
+
+    // Decode them depending on their type.
+    for path in &paths_clean {
+        let packed_file = pack_file.packed_files.iter().find(|x| &x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
+        let packed_file_data = packed_file.get_data()?;
+        
+        if table_type { 
+            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                db_files.push(DB::read(&packed_file_data, &path[1], &schema)?); 
+            }
+            else { return Err(ErrorKind::SchemaNotFound)? }
+        }
+        else { loc_files.push(Loc::read(&packed_file_data)?); }
+    }
+
+    // Merge them all into one, and return error if any problem arise.
+    let packed_file_data = if table_type {
+        let mut final_entries_list = vec![];
+        let mut version = -2;
+        let mut table_definition = TableDefinition::new(0);
+
+        for table in &mut db_files {
+            if version == -2 { 
+                version = table.version; 
+                table_definition = table.table_definition.clone();
+            }
+            else if table.version != version { return Err(ErrorKind::InvalidFilesForMerging)? }
+
+            final_entries_list.append(&mut table.entries);
+        }
+
+        let mut new_table = DB::new(&db_files[0].db_type, version, table_definition);
+        new_table.entries = final_entries_list;
+        new_table.save()
+    }
+
+    else {
+        let mut final_entries_list = vec![];
+        for table in &mut loc_files {
+            final_entries_list.append(&mut table.entries);
+        }
+
+        let mut new_table = Loc::new();
+        new_table.entries = final_entries_list;
+        new_table.save()
+    };
+
+    // And then, we reach the part where we have to do the "saving to PackFile" stuff.
+    let mut path = paths_clean[0].to_vec();
+    path.pop();
+    path.push(name.to_owned());
+    let packed_file = PackedFile::read_from_vec(path, get_current_time(), false, packed_file_data);
+
+    // If we want to remove the source files, this is the moment.
+    let mut deleted_paths = vec![];
+    if delete_source_paths {
+        for path in &paths_clean {
+            let index = pack_file.packed_files.iter().position(|x| &x.path == path).unwrap();
+            deleted_paths.push(pack_file.packed_files[index].path.to_vec());
+            pack_file.remove_packedfile(index);
+        }
+    }
+
+    // Prepare the paths to return.
+    let added_path = pack_file.add_packed_files(vec![packed_file])[0].to_vec();
+    deleted_paths.retain(|x| x != &added_path);
+
+    let mut tree_paths = vec![];
+    for path in &deleted_paths {
+        tree_paths.push(TreePathType::File(path.to_vec()));
+    }
+    Ok((added_path, tree_paths))
+}
+
+//----------------------------------------------------------------//
+// TSV Functions for PackedFiles.
+//----------------------------------------------------------------//
+
+/// This function imports a TSV file and loads his contents into a DB Table.
+pub fn import_tsv(
+    definition: &TableDefinition,
+    path: &PathBuf,
+    name: &str,
+    version: i32,
+) -> Result<Vec<Vec<DecodedData>>> {
+
+    // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
+    // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+    let mut reader = ReaderBuilder::new()
+        .delimiter(b'\t')
+        .quoting(false)
+        .has_headers(false)
+        .flexible(true)
+        .from_path(&path)?;
+
+    // If we succesfully load the TSV file into a reader, check the first two lines to ensure 
+    // it's a valid TSV for our specific DB/Loc.
+    let mut entries = vec![];
+    for (row, record) in reader.records().enumerate() {
+        if let Ok(record) = record {
+
+            // The first line should contain the "table_folder_name"/"Loc PackedFile", and the version (1 for Locs).
+            if row == 0 { 
+                if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable)?; }
+                if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != version { 
+                    return Err(ErrorKind::ImportTSVWrongVersion)?;
+                }
+            }
+
+            // The second line contains the column headers. Is just to help people in other programs,
+            // not needed to be check.
+            else if row == 1 { continue }
+
+            // Then read the rest of the rows as a normal TSV.
+            else if record.len() == definition.fields.len() {
+                let mut entry = vec![];
+                for (column, field) in record.iter().enumerate() {
+                    match definition.fields[column].field_type {
+                        FieldType::Boolean => {
+                            let value = field.to_lowercase();
+                            if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
+                            else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
+                            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?; }
+                        }
+                        FieldType::Float => entry.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                        FieldType::Integer => entry.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                        FieldType::LongInteger => entry.push(DecodedData::LongInteger(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                        FieldType::StringU8 => entry.push(DecodedData::StringU8(field.to_owned())),
+                        FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
+                        FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
+                        FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
+                    }
+                }
+                entries.push(entry);
+            }
+
+            // If it fails here, return an error with the len of the record instead a field.
+            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()))?; }
+        }
+
+        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0))?; }
+    }
+
+    // If we reached this point without errors, we replace the old data with the new one and return success.
+    Ok(entries)
+}
+
+/// This function creates a TSV file with the contents of the DB/Loc PackedFile.
+pub fn export_tsv(
+    data: &[Vec<DecodedData>], 
+    path: &PathBuf,
+    headers: &[String], 
+    first_row_data: (&str, i32)
+) -> Result<()> {
+
+    // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
+    // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+    let mut writer = WriterBuilder::new()
+        .delimiter(b'\t')
+        .quote_style(QuoteStyle::Never)
+        .has_headers(false)
+        .flexible(true)
+        .from_writer(vec![]);
+
+    // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
+    writer.serialize(first_row_data)?;
+    writer.serialize(headers)?;
+
+    // Then we serialize each entry in the DB Table.
+    for entry in data { writer.serialize(&entry)?; }
+
+    // Then, we try to write it on disk. If there is an error, report it.
+    let mut file = File::create(&path)?;
+    file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes())?;
+
+    Ok(())
+}
+
+//----------------------------------------------------------------//
+// Mass-TSV Functions for PackedFiles.
+//----------------------------------------------------------------//
+
 /// This function is used to Mass-Import TSV files into a PackFile. Note that this will OVERWRITE any
 /// existing PackedFile that has a name conflict with the TSV files provided.
 pub fn tsv_mass_import(
@@ -137,11 +326,13 @@ pub fn tsv_mass_import(
             // If it's a Loc PackedFile, use loc importing logic to try to import it.
             if tsv_info.len() == 1 && tsv_info[0] == "Loc PackedFile" {
 
-                let mut loc = Loc::new();
-                match loc.import_tsv(&path, "") {
-                    Ok(_) => {
+                let definition = TableDefinition::new_loc_definition();
+                match import_tsv(&definition, &path, tsv_info[0], 1) {
+                    Ok(data) => {
 
-                        let data = loc.save();
+                        let mut loc = Loc::new();
+                        loc.entries = data;
+                        let raw_data = loc.save();
                         let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
 
                         // If that path already exists in the list of new PackedFiles to add, change it using the index.
@@ -155,7 +346,7 @@ pub fn tsv_mass_import(
                         if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                         // Create and add the new PackedFile to the list of PackedFiles to add.
-                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, data));
+                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, raw_data));
                     }
                     Err(_) => error_files.push(path.to_string_lossy().to_string()),
                 }
@@ -174,11 +365,12 @@ pub fn tsv_mass_import(
                 } else { error_files.push(path.to_string_lossy().to_string()); continue };
 
                 // If it's a DB Table, use their logic for the importing.
-                let mut db = DB::new(table_type, table_version, table_definition);
-                match db.import_tsv(&path, &table_type) {
-                    Ok(_) => {
+                match import_tsv(&table_definition, &path, &table_type, table_version) {
+                    Ok(data) => {
 
-                        let data = db.save();
+                        let mut db = DB::new(table_type, table_version, table_definition);
+                        db.entries = data;
+                        let raw_data = db.save();
                         let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
                         
                         // If that path already exists in the list of new PackedFiles to add, change it using the index.
@@ -192,7 +384,7 @@ pub fn tsv_mass_import(
                         if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                         // Create and add the new PackedFile to the list of PackedFiles to add.
-                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, data));
+                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, raw_data));
                     }
                     Err(_) => error_files.push(path.to_string_lossy().to_string()),
                 }
@@ -264,7 +456,8 @@ pub fn tsv_mass_export(
                                 }
 
                                 export_path.push(name.to_owned());
-                                match db.export_tsv(&export_path, (&packed_file.path[1], db.version)) {
+                                let headers = db.table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
+                                match export_tsv(&db.entries, &export_path, &headers, (&packed_file.path[1], db.version)) {
                                     Ok(_) => exported_files.push(name.to_owned()),
                                     Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),
                                 }
@@ -293,7 +486,8 @@ pub fn tsv_mass_export(
                         }
 
                         export_path.push(name.to_owned());
-                        match loc.export_tsv(&export_path, ("", 0)) {
+                        let headers = TableDefinition::new_loc_definition().fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
+                        match export_tsv(&loc.entries, &export_path, &headers, ("Loc PackedFile", 1)) {
                             Ok(_) => exported_files.push(name.to_owned()),
                             Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),
                         }

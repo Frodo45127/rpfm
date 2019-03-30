@@ -39,8 +39,7 @@ pub struct ShortcutsDialog {
     menu_bar_about: *mut StandardItemModel,
     tree_view: *mut StandardItemModel,
     pack_files_list: *mut StandardItemModel,
-    packed_files_db: *mut StandardItemModel,
-    packed_files_loc: *mut StandardItemModel,
+    packed_files_table: *mut StandardItemModel,
     db_decoder_fields: *mut StandardItemModel,
     db_decoder_definitions: *mut StandardItemModel,
 }
@@ -175,48 +174,26 @@ impl ShortcutsDialog {
         unsafe { pack_files_list_context_menu_grid.add_widget((pack_files_list_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
-        // Creating the DB Context Menu List...
+        // Creating the PackedFile Table Context Menu List...
         //-------------------------------------------------------------------------------------------//
 
-        // Create the `DB Table` frame.
-        let db_frame = GroupBox::new(&QString::from_std_str("DB Table")).into_raw();
-        let mut db_grid = GridLayout::new();
-        unsafe { db_frame.as_mut().unwrap().set_layout(db_grid.static_cast_mut() as *mut Layout); }
+        // Create the `PackedFile Table` frame.
+        let packed_files_table_frame = GroupBox::new(&QString::from_std_str("DB/Loc Table")).into_raw();
+        let mut packed_files_table_grid = GridLayout::new();
+        unsafe { packed_files_table_frame.as_mut().unwrap().set_layout(packed_files_table_grid.static_cast_mut() as *mut Layout); }
 
         // Create the `Main TreeView Context Menu` list.
-        let db_context_menu_table = TableView::new().into_raw();
-        let db_context_menu_model = StandardItemModel::new(()).into_raw();
-        unsafe { db_context_menu_table.as_mut().unwrap().set_model(db_context_menu_model as *mut AbstractItemModel); }
+        let packed_files_table_context_menu_table = TableView::new().into_raw();
+        let packed_files_table_context_menu_model = StandardItemModel::new(()).into_raw();
+        unsafe { packed_files_table_context_menu_table.as_mut().unwrap().set_model(packed_files_table_context_menu_model as *mut AbstractItemModel); }
 
         // Disable sorting the columns and enlarge the last column.
-        unsafe { db_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
-        unsafe { db_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+        unsafe { packed_files_table_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
+        unsafe { packed_files_table_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { db_grid.add_widget((db_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { packed_file_context_menu_grid.add_widget((db_frame as *mut Widget, 0, 0, 1, 1)); }
-
-        //-------------------------------------------------------------------------------------------//
-        // Creating the Loc Context Menu List...
-        //-------------------------------------------------------------------------------------------//
-
-        // Create the `LOC Table` frame.
-        let loc_frame = GroupBox::new(&QString::from_std_str("LOC PackedFile")).into_raw();
-        let mut loc_grid = GridLayout::new();
-        unsafe { loc_frame.as_mut().unwrap().set_layout(loc_grid.static_cast_mut() as *mut Layout); }
-
-        // Create the `Main TreeView Context Menu` list.
-        let loc_context_menu_table = TableView::new().into_raw();
-        let loc_context_menu_model = StandardItemModel::new(()).into_raw();
-        unsafe { loc_context_menu_table.as_mut().unwrap().set_model(loc_context_menu_model as *mut AbstractItemModel); }
-
-        // Disable sorting the columns and enlarge the last column.
-        unsafe { loc_context_menu_table.as_mut().unwrap().set_sorting_enabled(false); }
-        unsafe { loc_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
-
-        // Add all the Lists to their respective grids.
-        unsafe { loc_grid.add_widget((loc_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { packed_file_context_menu_grid.add_widget((loc_frame as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { packed_files_table_grid.add_widget((packed_files_table_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { packed_file_context_menu_grid.add_widget((packed_files_table_frame as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the DB Decoder Field List Context Menu List...
@@ -296,8 +273,7 @@ impl ShortcutsDialog {
             menu_bar_about: menu_bar_about_model,
             tree_view: tree_view_context_menu_model,
             pack_files_list: pack_files_list_context_menu_model,
-            packed_files_db: db_context_menu_model,
-            packed_files_loc: loc_context_menu_model,
+            packed_files_table: packed_files_table_context_menu_model,
             db_decoder_fields: fields_context_menu_model,
             db_decoder_definitions: versions_context_menu_model,
         };
@@ -346,8 +322,7 @@ impl ShortcutsDialog {
         unsafe { self.menu_bar_about.as_mut().unwrap().clear(); }
         unsafe { self.tree_view.as_mut().unwrap().clear(); }
         unsafe { self.pack_files_list.as_mut().unwrap().clear(); }
-        unsafe { self.packed_files_db.as_mut().unwrap().clear(); }
-        unsafe { self.packed_files_loc.as_mut().unwrap().clear(); }
+        unsafe { self.packed_files_table.as_mut().unwrap().clear(); }
         unsafe { self.db_decoder_fields.as_mut().unwrap().clear(); }
         unsafe { self.db_decoder_definitions.as_mut().unwrap().clear(); }
 
@@ -384,20 +359,12 @@ impl ShortcutsDialog {
             unsafe { self.pack_files_list.as_mut().unwrap().append_row(&row_list); }
         }
 
-        for (key, value) in shortcuts.packed_files_db.iter() {
+        for (key, value) in shortcuts.packed_files_table.iter() {
             let mut row_list = ListStandardItemMutPtr::new(());
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
             unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
             unsafe { row_list.at(0).as_mut().unwrap().set_editable(false); }
-            unsafe { self.packed_files_db.as_mut().unwrap().append_row(&row_list); }
-        }
-
-        for (key, value) in shortcuts.packed_files_loc.iter() {
-            let mut row_list = ListStandardItemMutPtr::new(());
-            unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(key)).into_raw()); }
-            unsafe { row_list.append_unsafe(&StandardItem::new(&QString::from_std_str(value)).into_raw()); }
-            unsafe { row_list.at(0).as_mut().unwrap().set_editable(false); }
-            unsafe { self.packed_files_loc.as_mut().unwrap().append_row(&row_list); }
+            unsafe { self.packed_files_table.as_mut().unwrap().append_row(&row_list); }
         }
 
         for (key, value) in shortcuts.db_decoder_fields.iter() {
@@ -429,12 +396,9 @@ impl ShortcutsDialog {
         unsafe { self.pack_files_list.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
         unsafe { self.pack_files_list.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
         
-        unsafe { self.packed_files_db.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { self.packed_files_db.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
-        
-        unsafe { self.packed_files_loc.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
-        unsafe { self.packed_files_loc.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
-        
+        unsafe { self.packed_files_table.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
+        unsafe { self.packed_files_table.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
+
         unsafe { self.db_decoder_fields.as_mut().unwrap().set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Action")))); }
         unsafe { self.db_decoder_fields.as_mut().unwrap().set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut")))); }
         
@@ -490,21 +454,12 @@ impl ShortcutsDialog {
             ); }
         }
 
-        let packed_file_db_rows;
-        unsafe { packed_file_db_rows = self.packed_files_db.as_mut().unwrap().row_count(()); }
-        for row in 0..packed_file_db_rows {
-            unsafe { shortcuts.packed_files_db.insert(
-                QString::to_std_string(&self.packed_files_db.as_mut().unwrap().item((row as i32, 0)).as_mut().unwrap().text()),
-                QString::to_std_string(&self.packed_files_db.as_mut().unwrap().item((row as i32, 1)).as_mut().unwrap().text())
-            ); }
-        }
-
-        let packed_file_loc_rows;
-        unsafe { packed_file_loc_rows = self.packed_files_loc.as_mut().unwrap().row_count(()); }
-        for row in 0..packed_file_loc_rows {
-            unsafe { shortcuts.packed_files_loc.insert(
-                QString::to_std_string(&self.packed_files_loc.as_mut().unwrap().item((row as i32, 0)).as_mut().unwrap().text()),
-                QString::to_std_string(&self.packed_files_loc.as_mut().unwrap().item((row as i32, 1)).as_mut().unwrap().text())
+        let packed_file_table_rows;
+        unsafe { packed_file_table_rows = self.packed_files_table.as_mut().unwrap().row_count(()); }
+        for row in 0..packed_file_table_rows {
+            unsafe { shortcuts.packed_files_table.insert(
+                QString::to_std_string(&self.packed_files_table.as_mut().unwrap().item((row as i32, 0)).as_mut().unwrap().text()),
+                QString::to_std_string(&self.packed_files_table.as_mut().unwrap().item((row as i32, 1)).as_mut().unwrap().text())
             ); }
         }
 

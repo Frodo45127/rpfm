@@ -10,22 +10,18 @@
 
 // In this file are all the helper functions used by the UI (mainly Qt here)
 
-use qt_widgets::abstract_button::AbstractButton;
 use qt_widgets::action::Action;
-use qt_widgets::button_group::ButtonGroup;
+use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::dialog::Dialog;
-use qt_widgets::double_spin_box::DoubleSpinBox;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::grid_layout::GridLayout;
-use qt_widgets::group_box::GroupBox;
 use qt_widgets::label::Label;
 use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::message_box::{MessageBox, Icon};
 use qt_widgets::push_button::PushButton;
-use qt_widgets::radio_button::RadioButton;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
@@ -73,12 +69,10 @@ use crate::error::{Error, ErrorKind, Result};
 use crate::packedfile::*;
 use crate::packedfile::db::*;
 use crate::packedfile::db::schemas::*;
-use crate::packedfile::loc::*;
 use crate::ui::table_state::TableStateData;
 
 pub mod dependency_manager;
-pub mod packedfile_db;
-pub mod packedfile_loc;
+pub mod packedfile_table;
 pub mod packedfile_text;
 pub mod packedfile_image;
 pub mod packedfile_rigidmodel;
@@ -188,62 +182,68 @@ impl AddFromPackFileSlots {
                 receiver_qt => move |_| {
 
                     // Get the file to get from the Right TreeView.
-                    let selection_file_to_move;
-                    unsafe { selection_file_to_move = tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection(); }
+                    let selection_file_to_move = unsafe { tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
+                    if selection_file_to_move.count(()) == 1 {
+                            
+                        // Get his path.
+                        let item_path = get_path_from_item_selection(tree_model, None, &selection_file_to_move, true);
 
-                    // Get his path.
-                    let item_path = get_path_from_item_selection(tree_model, None, &selection_file_to_move, true);
+                        // Ask the Background Thread to move the files, and send him the path.
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                        sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
+                        sender_qt_data.send(Data::VecString(item_path)).unwrap();
 
-                    // Ask the Background Thread to move the files, and send him the path.
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-                    sender_qt.send(Commands::AddPackedFileFromPackFile).unwrap();
-                    sender_qt_data.send(Data::VecString(item_path)).unwrap();
+                        // Check what response we got.
+                        match check_message_validity_tryrecv(&receiver_qt) {
+                        
+                            // If it's success....
+                            Data::VecVecString(paths) => {
 
-                    // Check what response we got.
-                    match check_message_validity_tryrecv(&receiver_qt) {
-                    
-                        // If it's success....
-                        Data::VecVecString(paths) => {
+                                // Update the TreeView.
+                                update_treeview(
+                                    &sender_qt,
+                                    &sender_qt_data,
+                                    &receiver_qt,
+                                    app_ui.window,
+                                    app_ui.folder_tree_view,
+                                    Some(app_ui.folder_tree_filter),
+                                    app_ui.folder_tree_model,
+                                    TreeViewOperation::Add(paths.to_vec()),
+                                );
 
-                            // Update the TreeView.
-                            update_treeview(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &receiver_qt,
-                                app_ui.window,
-                                app_ui.folder_tree_view,
-                                Some(app_ui.folder_tree_filter),
-                                app_ui.folder_tree_model,
-                                TreeViewOperation::Add(paths.to_vec()),
-                            );
+                                // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
+                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
-                            // Set the mod as "Modified". This is an exception for the path, as it'll be painted later on.
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                                // Update the global search stuff, if needed.
+                                global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
+                                unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
-                            // Update the global search stuff, if needed.
-                            global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
-                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
-
-                            // For each file added, remove it from the data history if exists.
-                            for path in &paths {
-                                if table_state_data.borrow().get(path).is_some() {
-                                    table_state_data.borrow_mut().remove(path);
+                                // For each file added, remove it from the data history if exists.
+                                for path in &paths {
+                                    if table_state_data.borrow().get(path).is_some() {
+                                        table_state_data.borrow_mut().remove(path);
+                                    }
+                                
+                                    // Set it to not remove his color.
+                                    let mut data = TableStateData::new_empty();
+                                    data.not_allow_full_undo = true;
+                                    table_state_data.borrow_mut().insert(path.to_vec(), data);
                                 }
                             }
+
+                            // If we got an error...
+                            Data::Error(error) => show_dialog(app_ui.window, true, error),
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!(THREADS_MESSAGE_ERROR),
                         }
 
-                        // If we got an error...
-                        Data::Error(error) => show_dialog(app_ui.window, true, error),
+                        // Re-enable the Main Window.
+                        unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
-                        // In ANY other situation, it's a message problem.
-                        _ => panic!(THREADS_MESSAGE_ERROR),
+                        // Set the focus again on the extra Treeview, so we don't need to refocus manually.
+                        unsafe { tree_view.as_mut().unwrap().set_focus(()); }
                     }
-
-                    // Re-enable the Main Window.
-                    unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-                    // Set the focus again on the extra Treeview, so we don't need to refocus manually.
-                    unsafe { tree_view.as_mut().unwrap().set_focus(()); }
                 }
             )),
 
@@ -682,96 +682,39 @@ pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
     else { None }
 }
 
-/// This function creates the entire "Apply Maths" dialog for tables. It returns the operation to apply and the value.
-pub fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<(String, f64)> {
+/// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
+pub fn create_merge_tables_dialog(app_ui: &AppUI) -> Option<(String, bool)> {
 
-    // Create and configure the "Apply Maths" Dialog.
     let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
-    dialog.set_window_title(&QString::from_std_str("Apply Maths"));
+    dialog.set_window_title(&QString::from_std_str("Merge Tables"));
     dialog.set_modal(true);
+
+    // Create the main Grid.
     let main_grid = GridLayout::new().into_raw();
+    let mut name = LineEdit::new(());
+    name.set_placeholder_text(&QString::from_std_str("Write the name of the new file here."));
 
-    // Create the button group with the different operations, and set by default the "+" selected.
-    let operations_frame = GroupBox::new(&QString::from_std_str("Operations")).into_raw();
-    let operations_grid = GridLayout::new().into_raw();
-    unsafe { operations_frame.as_mut().unwrap().set_layout(operations_grid as *mut Layout); }
+    let mut delete_source_tables = CheckBox::new(&QString::from_std_str("Delete original tables"));
 
-    let mut button_group = ButtonGroup::new();
-    let mut operation_plus = RadioButton::new(&QString::from_std_str("+"));
-    let mut operation_minus = RadioButton::new(&QString::from_std_str("-"));
-    let mut operation_mult = RadioButton::new(&QString::from_std_str("*"));
-    let mut operation_div = RadioButton::new(&QString::from_std_str("/"));
-    unsafe { button_group.add_button(operation_plus.static_cast_mut() as *mut AbstractButton); }
-    unsafe { button_group.add_button(operation_minus.static_cast_mut() as *mut AbstractButton); }
-    unsafe { button_group.add_button(operation_mult.static_cast_mut() as *mut AbstractButton); }
-    unsafe { button_group.add_button(operation_div.static_cast_mut() as *mut AbstractButton); }
-    operation_plus.click();
-
-    // Create a little frame with some instructions.
-    let instructions_frame = GroupBox::new(&QString::from_std_str("Instructions")).into_raw();
-    let instructions_grid = GridLayout::new().into_raw();
-    unsafe { instructions_frame.as_mut().unwrap().set_layout(instructions_grid as *mut Layout); }
-    let mut instructions_label = Label::new(&QString::from_std_str(
-    "It's easy:
-     - Choose the operation on the left.
-     - Write the operand on the SpinBox.
-     - Click the button on the right.
-     - ???
-     - Profit!
-    "    
-    ));
-    unsafe { instructions_grid.as_mut().unwrap().add_widget((instructions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
-
-    // We use a double SpinBox for the value, so we can do any operation with F32 floats.
-    let mut value_spin_box = DoubleSpinBox::new();
-    value_spin_box.set_decimals(3);
-    value_spin_box.set_range(f32::MIN as f64, f32::MAX as f64);
-    let apply_button = PushButton::new(&QString::from_std_str("Apply")).into_raw();
-
-    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_plus.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
-    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_minus.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
-    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_mult.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
-    unsafe { operations_grid.as_mut().unwrap().add_widget((operation_div.static_cast_mut() as *mut Widget, 3, 0, 1, 1)); }
-
-    unsafe { main_grid.as_mut().unwrap().add_widget((operations_frame as *mut Widget, 0, 0, 4, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((instructions_frame as *mut Widget, 1, 1, 3, 2)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((value_spin_box.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((apply_button as *mut Widget, 0, 2, 1, 1)); }
+    let accept_button = PushButton::new(&QString::from_std_str("Accept")).into_raw();
+    unsafe { main_grid.as_mut().unwrap().add_widget((name.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((delete_source_tables.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((accept_button as *mut Widget, 2, 0, 1, 1)); }
     unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
-    unsafe { apply_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+    // What happens when we hit the "Search" button.
+    unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
-    if dialog.exec() == 1 {
-        let operation = unsafe { button_group.checked_button().as_ref().unwrap().text().to_std_string() };
-        let value = value_spin_box.value();
-        Some((operation, value))
-    } else { None }
-}
-
-/// This function creates the entire "Apply Prefix" dialog for tables. It returns the prefix to apply, or None.
-pub fn create_apply_prefix_dialog(app_ui: &AppUI) -> Option<String> {
-
-    // Create and configure the "Apply Maths" Dialog.
-    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
-    dialog.set_window_title(&QString::from_std_str("Apply Prefix"));
-    dialog.set_modal(true);
-    dialog.resize((400, 50));
-    let main_grid = GridLayout::new().into_raw();
-
-    let mut prefix_line_edit = LineEdit::new(());
-    prefix_line_edit.set_placeholder_text(&QString::from_std_str("Write here the prefix you want."));
-    let apply_button = PushButton::new(&QString::from_std_str("Apply")).into_raw();
-
-    unsafe { main_grid.as_mut().unwrap().add_widget((prefix_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((apply_button as *mut Widget, 0, 1, 1, 1)); }
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
-
-    unsafe { apply_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
-
+    // Execute the dialog.
     if dialog.exec() == 1 { 
-        let prefix = prefix_line_edit.text().to_std_string();
-        if prefix.is_empty() { None } else { Some(prefix_line_edit.text().to_std_string()) } 
-    } else { None }
+        let text = name.text().to_std_string();
+        let delete_source_tables = delete_source_tables.is_checked();
+        if !text.is_empty() { Some((text, delete_source_tables)) }
+        else { None }
+    }
+    
+    // Otherwise, return None.
+    else { None }
 }
 
 //----------------------------------------------------------------------------//
@@ -855,16 +798,14 @@ fn load_colors_from_undo_model(model: *mut StandardItemModel, undo_model: *mut S
 /// Enum `TreeViewOperation`: This enum has the different possible operations we want to do over a TreeView. The options are:
 /// - `Build`: Build the entire TreeView from nothing. Requires a bool, depending if the PackFile is editable or not.
 /// - `Add`: Add a File/Folder to the TreeView. Requires the path in the TreeView, without the mod's name.
-/// - `DeleteSelected`: Removes whatever is selected from the TreeView. It requires the TreePathType of whatever you want to delete.
-/// - `DeleteUnselected`: Remove the File/Folder corresponding to the TreePathType we provide from the TreeView. It requires the TreePathType of whatever you want to delete.
+/// - `Delete`: Remove the Files/Folders corresponding to the TreePathTypes we provide from the TreeView. It requires the TreePathTypes of whatever you want to delete.
 /// - `Rename`: Change the name of a File/Folder from the TreeView. Requires the TreePathType of whatever you want to rename and the new name.
 /// - `PrefixFiles`: Apply a prefix to every file under certain folder. Requires the old paths and the prefix to apply.
 #[derive(Clone, Debug)]
 pub enum TreeViewOperation {
     Build(bool),
     Add(Vec<Vec<String>>),
-    DeleteSelected(TreePathType),
-    DeleteUnselected(TreePathType),
+    Delete(Vec<TreePathType>),
     Rename(TreePathType, String),
     PrefixFiles(Vec<Vec<String>>, String),
 }
@@ -884,16 +825,17 @@ pub enum ItemVisualStatus {
 /// - RemoveRows: Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows data, in consecutive batches.
 /// - SmartDelete: Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
 /// - RevertSmartDelete: Selfexplanatory. This is a combination of list of edits and list of adding rows.
-/// - ImportTSVDB: It holds a copy of the entire DB, before importing.
-/// - ImportTSVLOC: It holds a copy of the entire Loc, before importing.
+/// - ImportTSV: It holds a copy of the entire table, before importing.
+/// - Carolina: A Jack-of-all-Trades. It holds a Vec<TableOperations>, for those situations one is not enough.
+#[derive(Clone)]
 pub enum TableOperations {
     Editing(Vec<((i32, i32), *mut StandardItem)>),
     AddRows(Vec<i32>),
     RemoveRows((Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
     SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
     RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
-    ImportTSVDB(DB),
-    ImportTSVLOC(Loc),
+    ImportTSV(Vec<Vec<DecodedData>>),
+    Carolina(Vec<TableOperations>),
 }
 
 /// Enum `IconType`: This enum holds all the possible Icon Types we can have in the TreeView,
@@ -948,7 +890,8 @@ impl Debug for TableOperations {
             TableOperations::RemoveRows(data) => write!(f, "Row/s removed in {} batches.", data.len()),
             TableOperations::SmartDelete(_) => write!(f, "Smart deletion."),
             TableOperations::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
-            TableOperations::ImportTSVDB(_) | TableOperations::ImportTSVLOC(_) => write!(f, "Imported TSV file."),
+            TableOperations::ImportTSV(_) => write!(f, "Imported TSV file."),
+            TableOperations::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),
         }
     }
 }
@@ -1225,7 +1168,6 @@ pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_ope
     if !x { unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }}
 }
 
-
 /// This function shows the tips in the PackedFile View. Remember to call "purge_them_all" before this!
 pub fn display_help_tips(app_ui: &AppUI) {
 
@@ -1374,45 +1316,40 @@ pub fn expand_treeview_to_item(
     }
 }
 
-/// This function is used to get the complete Path of a Selected Item in the TreeView.
+/// This function is used to get the complete Path of one or more selected items in the TreeView.
 /// Set include_bool to true to include the PackFile in the path (like it's in the TreeView).
-/// If you want to use your own model and selection, use "get_path_from_item_selection" instead.
-pub fn get_path_from_selection(
+///
+/// This function is tailored to work for the main TreeView. If you want to use your own model, 
+/// treeview and selection, use "get_path_from_item_selection" instead.
+pub fn get_path_from_main_treeview_selection(
     app_ui: &AppUI,
     include_packfile: bool
-) -> Vec<String> {
+) -> Vec<Vec<String>> {
 
-    // Create the vector to hold the Path.
-    let mut path: Vec<String> = vec![];
-
-    // Get the selection of the TreeView.
-    let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
-    let mut selection = unsafe { app_ui.folder_tree_filter.as_mut().unwrap().map_selection_to_source(&selection_model.as_mut().unwrap().selection()).indexes() };
+    // Create the vector to hold the Paths and get the selected indexes of the TreeView.
+    let mut paths: Vec<Vec<String>> = vec![];
+    let indexes = unsafe { app_ui.folder_tree_filter.as_mut().unwrap().map_selection_to_source(&app_ui.folder_tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection()).indexes() };
 
     // If the selection has something...
-    if selection.count(()) > 0 {
+    for index_num in 0..indexes.count(()) {
+        let mut path: Vec<String> = vec![];
 
         // Get the selected cell.
-        let mut item = selection.take_at(0);
+        let mut item = indexes.at(index_num);
         let mut parent;
 
         // Loop until we reach the root index.
         loop {
 
             // Get his data.
-            let name;
-            unsafe { name = app_ui.folder_tree_model.as_mut().unwrap().data(&item).to_string().to_std_string(); }
-
-            // Add it to the list
+            let name = unsafe { app_ui.folder_tree_model.as_mut().unwrap().data(item).to_string().to_std_string() };
             path.push(name);
 
             // Get the Parent of the item.
             parent = item.parent();
 
-            // If the parent is valid, it's the new item.
-            if parent.is_valid() { item = parent; }
-
-            // Otherwise, we stop.
+            // If the parent is valid, it's the new item. Otherwise, we stop.
+            if parent.is_valid() { item = &parent; }
             else { break; }
         }
 
@@ -1421,18 +1358,14 @@ pub fn get_path_from_selection(
 
         // Reverse it, as we want it from Parent to Children.
         path.reverse();
-
-        // Return the Path.
-        path
+        paths.push(path);
     }
-
-    // Otherwise, we return an empty path.
-    else { path }
+    paths
 }
 
-/// This function is used to get the complete Path of a Selected Item in a StandardItemModel.
-/// Set include_bool to true to include the PackFile in the path (like it's in the TreeView).
-/// If you want to get the selection from the Main TreeView, use "get_path_from_selection" instead.
+/// This function is used to get the complete Path of one or more selected items in a StandardItemModel.
+/// Set include_bool to true to include the PackFile in the paths (like it's in the TreeView).
+/// If you want to get the selection from the Main TreeView, use "get_path_from_main_treeview_selection" instead.
 /// 
 /// NOTE: If the model doesn't have a filter, pass NONE to it.
 pub fn get_path_from_item_selection(
@@ -1541,7 +1474,7 @@ pub fn get_path_from_item(
     path
 }
 
-/// This function is used to get the path it'll have in the TreeView an File/Folder from the FileSystem.
+/// This function is used to get the path it'll have in the TreeView a File/Folder from the FileSystem.
 /// is_file = true should be set in case we want to know the path of a file. Otherwise, the function will
 /// treat the Item from the FileSystem as a folder.
 pub fn get_path_from_pathbuf(
@@ -1582,8 +1515,9 @@ pub fn get_path_from_pathbuf(
     // For each path we have...
     for path in &mut paths {
 
-        // Get his base path without the PackFile.
-        let mut base_path = get_path_from_selection(&app_ui, false);
+        // Get his base path without the PackFile. This assumes we have only one item selected and ignores the rest.
+        let selected_paths = get_path_from_main_treeview_selection(&app_ui, false);
+        let mut base_path = selected_paths[0].to_vec();
 
         // Combine it with his path to form his full form.
         base_path.reverse();
@@ -1774,24 +1708,11 @@ pub fn clean_treeview(
     model: *mut StandardItemModel
 ) {
 
-    // Get the color we need to apply.
-    let color = GlobalColor::Transparent;
-
-    // Paint the current item.
-    unsafe { item.as_mut().unwrap().set_background(&Brush::new(color)); }
-
-    // Get the amount of children of the current item.
-    let children_count;
-    unsafe { children_count = item.as_ref().unwrap().row_count(); }
-
-    // For each children we have...
+    // Clean the current item, and repeat for each children.
+    unsafe { item.as_mut().unwrap().set_background(&Brush::new(GlobalColor::Transparent)); }
+    let children_count = unsafe { item.as_ref().unwrap().row_count() };
     for row in 0..children_count {
-
-        // Get the child.
-        let child;
-        unsafe { child = item.as_ref().unwrap().child(row); }
-        
-        // Paint him and his children too.
+        let child = unsafe { item.as_ref().unwrap().child(row) };
         clean_treeview(child, model);
 
     }
@@ -2247,214 +2168,188 @@ pub fn update_treeview(
             }
         },
 
-        // If we want to delete something selected from the `TreeView`...
-        TreeViewOperation::DeleteSelected(path_type) => {
+        // If we want to delete something from the TreeView...
+        TreeViewOperation::Delete(path_types) => {
 
-            // Then we see what type the selected thing is.
-            match path_type {
+            // NOTE: You're responsible of removing redundant types from here BEFORE passing them here for deletion.
+            for path_type in path_types {
+                match path_type {
 
-                // If it's a PackedFile or a Folder...
-                TreePathType::File(_) | TreePathType::Folder(_) => {
+                    // Different types require different methods...
+                    TreePathType::File(path) => {
 
-                    // Get whatever is selected from the TreeView.
-                    let packfile = unsafe { model.as_ref().unwrap().item(0) };
-                    let selection_model = unsafe { tree_view.as_mut().unwrap().selection_model() };
-                    let mut selection = if let Some(filter) = filter {
-                        unsafe { filter.as_mut().unwrap().map_selection_to_source(&selection_model.as_mut().unwrap().selection()).indexes() }  
-                    }
-                    else {
-                        unsafe { selection_model.as_mut().unwrap().selection().indexes() }
-                    };
-                    let mut item = selection.take_at(0);
-                    let mut parent;
+                        // Get the PackFile's item and the one we're gonna swap around.
+                        let packfile = unsafe { model.as_ref().unwrap().item(0) };
+                        let mut item = unsafe { model.as_ref().unwrap().item(0) };
 
-                    // Begin the endless cycle of war and dead.
-                    loop {
+                        // And the indexes to see how deep we must go.
+                        let mut index = 0;
+                        let path_deep = path.len();
 
-                        // Get the parent of the item.
-                        parent = item.parent();
+                        // First looping downwards.
+                        loop {
 
-                        // Kill the item in a cruel way.
-                        unsafe { model.as_mut().unwrap().remove_row((item.row(), &parent));}
+                            // If we reached the folder of the file...
+                            if index == (path_deep - 1) {
 
-                        // Check if the parent still has children.
-                        let has_children = unsafe { model.as_mut().unwrap().has_children(&parent) };
-                        let packfile_has_children = unsafe { packfile.as_ref().unwrap().has_children() };
+                                // Get the amount of children of the current item.
+                                let children_count = unsafe { item.as_ref().unwrap().row_count() };
 
-                        // If the parent has more children, or we reached the PackFile, we're done.
-                        if has_children | !packfile_has_children { break; }
+                                // For each children we have, check if it has children of his own.
+                                // We want a file, so skip those how have them.
+                                for row in 0..children_count {
+                                    let child = unsafe { item.as_ref().unwrap().child(row) };
+                                    let has_children = unsafe { child.as_ref().unwrap().has_children() };
+                                    if has_children { continue; }
 
-                        // Otherwise, our new item is our parent.
-                        else { item = parent }
-                    }
-                }
+                                    // If we found one with children, check if it's the one we want.
+                                    let text = unsafe { child.as_ref().unwrap().text().to_std_string() };
+                                    if text == path[index] {
 
-                // If it's a PackFile...
-                TreePathType::PackFile => {
-
-                    // Rebuild the TreeView.
-                    update_treeview(
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt_data,
-                        window,
-                        tree_view,
-                        filter,
-                        model,
-                        TreeViewOperation::Build(false),
-                    );
-                },
-
-                // If we don't have anything selected, we do nothing.
-                TreePathType::None => {},
-            }
-        },
-
-        // If we want to delete something from the TreeView, independant of his selection...
-        TreeViewOperation::DeleteUnselected(path_type) => {
-
-            // Then we see what type the selected thing is.
-            match path_type {
-
-                // If it's a PackedFile or a Folder...
-                TreePathType::File(path) => {
-
-                    // Get the PackFile's item.
-                    let packfile = unsafe { model.as_ref().unwrap().item(0) };
-
-                    // Get it another time, this time to use it to hold the current item.
-                    let mut item = unsafe { model.as_ref().unwrap().item(0) };
-
-                    // Indexes to see how deep we must go.
-                    let mut index = 0;
-                    let path_deep = path.len();
-
-                    // First looping downwards.
-                    loop {
-
-                        // If we reached the folder of the file...
-                        if index == (path_deep - 1) {
-
-                            // Get the amount of children of the current item.
-                            let children_count = unsafe { item.as_ref().unwrap().row_count() };
-
-                            // For each children we have...
-                            for row in 0..children_count {
-
-                                // Check if it has children of his own.
-                                let child;
-                                let has_children;
-                                unsafe { child = item.as_ref().unwrap().child(row); }
-                                unsafe { has_children = child.as_ref().unwrap().has_children(); }
-
-                                // If has children, continue with the next child.
-                                if has_children { continue; }
-
-                                // Get his text.
-                                let text;
-                                unsafe { text = child.as_ref().unwrap().text().to_std_string(); }
-
-                                // TODO: This can crash. Fix it properly.
-                                // If it's the one we're looking for...
-                                if text == path[index] {
-
-                                    // Use it as our new item.
-                                    item = child;
-
-                                    // And break the loop.
-                                    break;
+                                        // If it is, we're done.
+                                        item = child;
+                                        break;
+                                    }
                                 }
+
+                                // End the first loop.
+                                break;
                             }
 
-                            // End the first loop.
-                            break;
-                        }
+                            // If we are not still in the folder of the file...
+                            else {
 
-                        // If we are not still in the folder of the file...
-                        else {
+                                // Get the amount of children of the current item.
+                                let children_count = unsafe { item.as_ref().unwrap().row_count() };
 
-                            // Get the amount of children of the current item.
-                            let children_count;
-                            unsafe { children_count = item.as_ref().unwrap().row_count(); }
+                                // For each children we have, check if it has children of his own.
+                                // We want a folder, so skip those how don't have them.
+                                for row in 0..children_count {
+                                    let child = unsafe { item.as_ref().unwrap().child(row) };
+                                    let has_children = unsafe { child.as_ref().unwrap().has_children() };
+                                    if !has_children { continue; }
 
-                            // For each children we have...
-                            for row in 0..children_count {
+                                    // If we found one with children, check if it's the one we want.
+                                    let text = unsafe { child.as_ref().unwrap().text().to_std_string() };
+                                    if text == path[index] {
 
-                                // Check if it has children of his own.
-                                let child;
-                                let has_children;
-                                unsafe { child = item.as_ref().unwrap().child(row); }
-                                unsafe { has_children = child.as_ref().unwrap().has_children(); }
-
-                                // If it doesn't have children, continue with the next child.
-                                if !has_children { continue; }
-
-                                // Get his text.
-                                let text;
-                                unsafe { text = child.as_ref().unwrap().text().to_std_string(); }
-
-                                // If it's the one we're looking for...
-                                if text == path[index] {
-
-                                    // Use it as our new item.
-                                    item = child;
-
-                                    // Increase the index.
-                                    index += 1;
-
-                                    // Break the loop.
-                                    break;
+                                        // If it is, that's out new good boy.
+                                        item = child;
+                                        index += 1;
+                                        break;
+                                    }
                                 }
                             }
                         }
+
+                        // Prepare the Parent...
+                        let mut parent;
+
+                        // Begin the endless cycle of war and dead.
+                        loop {
+
+                            // Get the parent of the item.
+                            unsafe { parent = item.as_mut().unwrap().parent(); }
+
+                            // Kill the item in a cruel way.
+                            unsafe { parent.as_mut().unwrap().remove_row(item.as_mut().unwrap().row());}
+
+                            // Check if the parent still has children.
+                            let has_children = unsafe { parent.as_mut().unwrap().has_children() };
+                            let packfile_has_children = unsafe { packfile.as_ref().unwrap().has_children() };
+
+                            // If the parent has more children, or we reached the PackFile, we're done.
+                            if has_children | !packfile_has_children { break; }
+
+                            // Otherwise, our new item is our parent.
+                            else { item = parent }
+                        }
                     }
 
-                    // Prepare the Parent...
-                    let mut parent;
+                    TreePathType::Folder(path) => {
 
-                    // Begin the endless cycle of war and dead.
-                    loop {
+                        // Get the PackFile's item and the one we're gonna swap around.
+                        let packfile = unsafe { model.as_ref().unwrap().item(0) };
+                        let mut item = unsafe { model.as_ref().unwrap().item(0) };
 
-                        // Get the parent of the item.
-                        unsafe { parent = item.as_mut().unwrap().parent(); }
+                        // And the indexes to see how deep we must go.
+                        let mut index = 0;
+                        let path_deep = path.len();
 
-                        // Kill the item in a cruel way.
-                        unsafe { parent.as_mut().unwrap().remove_row(item.as_mut().unwrap().row());}
+                        // First looping downwards.
+                        loop {
 
-                        // Check if the parent still has children.
-                        let has_children;
-                        let packfile_has_children;
-                        unsafe { has_children = parent.as_mut().unwrap().has_children(); }
-                        unsafe { packfile_has_children = packfile.as_ref().unwrap().has_children(); }
+                            // If we reached the folder we're looking for, stop.
+                            if index == path_deep { break; }
 
-                        // If the parent has more children, or we reached the PackFile, we're done.
-                        if has_children | !packfile_has_children { break; }
+                            // If we are not still in the folder...
+                            else {
 
-                        // Otherwise, our new item is our parent.
-                        else { item = parent }
+                                // Get the amount of children of the current item.
+                                let children_count = unsafe { item.as_ref().unwrap().row_count() };
+
+                                // For each children we have, check if it has children of his own.
+                                // We want a folder, so skip those how don't have them.
+                                for row in 0..children_count {
+                                    let child = unsafe { item.as_ref().unwrap().child(row) };
+                                    let has_children = unsafe { child.as_ref().unwrap().has_children() };
+                                    if !has_children { continue; }
+
+                                    // If we found one with children, check if it's the one we want.
+                                    let text = unsafe { child.as_ref().unwrap().text().to_std_string() };
+                                    if text == path[index] {
+
+                                        // If it is, that's out new good boy.
+                                        item = child;
+                                        index += 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Prepare the Parent...
+                        let mut parent;
+
+                        // Begin the endless cycle of war and dead.
+                        loop {
+
+                            // Get the parent of the item.
+                            unsafe { parent = item.as_mut().unwrap().parent(); }
+
+                            // Kill the item in a cruel way.
+                            unsafe { parent.as_mut().unwrap().remove_row(item.as_mut().unwrap().row());}
+
+                            // Check if the parent still has children.
+                            let has_children = unsafe { parent.as_mut().unwrap().has_children() };
+                            let packfile_has_children = unsafe { packfile.as_ref().unwrap().has_children() };
+
+                            // If the parent has more children, or we reached the PackFile, we're done.
+                            if has_children | !packfile_has_children { break; }
+
+                            // Otherwise, our new item is our parent.
+                            else { item = parent }
+                        }
                     }
+
+                    TreePathType::PackFile => {
+
+                        // Just rebuild the TreeView. It's easier that way.
+                        update_treeview(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &receiver_qt_data,
+                            window,
+                            tree_view,
+                            filter,
+                            model,
+                            TreeViewOperation::Build(false),
+                        );
+                    },
+
+                    // If we don't have anything selected, we do nothing.
+                    _ => {},
                 }
-
-                // If it's a PackFile...
-                TreePathType::PackFile => {
-
-                    // Get the name of the PackFile from the TreeView.
-                    let packfile;
-                    let name;
-                    unsafe { packfile = model.as_ref().unwrap().item(0); }
-                    unsafe { name = packfile.as_mut().unwrap().text(); }
-
-                    // Clear the TreeModel.
-                    unsafe { model.as_mut().unwrap().clear(); }
-
-                    // Then we add the PackFile to it. This effectively deletes all the PackedFiles in the PackFile.
-                    let pack_file = StandardItem::new(&name);
-                    unsafe { model.as_mut().unwrap().append_row_unsafe(pack_file.into_raw()); }
-                },
-
-                // TODO: Implement this for folders.
-                // If we don't have anything selected, we do nothing.
-                _ => {},
             }
         },
 

@@ -1,6 +1,6 @@
 # `About` Menu
 
-![This how Rusted PackFile Manager looks on a sunny day on the beach.](./images/image11.png)
+![What do you want to learn about me, honey?](./images/image11.png)
 
 Pretty simple and straightforward menu:
 - `About QT`: Shows info about the version of Qt (the framework RPFM uses for the UI) in use.

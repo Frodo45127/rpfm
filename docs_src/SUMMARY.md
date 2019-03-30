@@ -21,3 +21,17 @@
 - [DB Decoder](./chapter_5.md)
 	- [DB Types](./chapter_5_1.md)
 - [Extras](./chapter_appendix.md)
+- [Compilation Instructions](./chapter_6.md)
+
+------------------------------------------
+- [Changelogs](./changelogs.md)
+	- [RPFM Changelogs](./changelogs_rpfm/changelogs.md)
+	- [Schema Changelogs](./changelogs_tables/changelogs.md)
+		- [Warhammer](./changelogs_tables/warhammer/changelog.md)
+		- [Thrones of Britannia](./changelogs_tables/thrones_of_britannia/changelog.md)
+		- [Attila](./changelogs_tables/attila/changelog.md)
+		- [Rome 2](./changelogs_tables/rome_2/changelog.md)
+		- [Shogun 2](./changelogs_tables/shogun_2/changelog.md)
+		- [Napoleon](./changelogs_tables/napoleon/changelog.md)
+		- [Empire](./changelogs_tables/empire/changelog.md)
+		- [Arena](./changelogs_tables/arena/changelog.md)
