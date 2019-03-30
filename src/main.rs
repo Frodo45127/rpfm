@@ -185,6 +185,7 @@ lazy_static! {
             pak_file: Some("wh2.pak".to_owned()),
             ca_types_file: Some("ca_types_wh2".to_owned()),
             supports_editing: true,
+            game_selected_icon: "gs_wh2.png".to_owned(),
         });
 
         // Warhammer
@@ -217,6 +218,7 @@ lazy_static! {
             pak_file: Some("wh.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
+            game_selected_icon: "gs_wh.png".to_owned(),
         });
 
         // Thrones of Britannia
@@ -245,6 +247,7 @@ lazy_static! {
             pak_file: Some("tob.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
+            game_selected_icon: "gs_tob.png".to_owned(),
         });
 
         // Attila
@@ -273,6 +276,7 @@ lazy_static! {
             pak_file: Some("att.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
+            game_selected_icon: "gs_att.png".to_owned(),
         });
 
         // Rome 2
@@ -301,6 +305,7 @@ lazy_static! {
             pak_file: Some("rom2.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
+            game_selected_icon: "gs_rom2.png".to_owned(),
         });
 
         // Shogun 2
@@ -329,6 +334,7 @@ lazy_static! {
             pak_file: Some("sho2.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
+            game_selected_icon: "gs_sho2.png".to_owned(),
         });
 
         // Napoleon
@@ -377,6 +383,7 @@ lazy_static! {
             pak_file: Some("nap.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
+            game_selected_icon: "gs_nap.png".to_owned(),
         });
 
         // Empire
@@ -426,6 +433,7 @@ lazy_static! {
             pak_file: Some("emp.pak".to_owned()),
             ca_types_file: None,
             supports_editing: true,
+            game_selected_icon: "gs_emp.png".to_owned(),
         });
 
         // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -442,6 +450,7 @@ lazy_static! {
             pak_file: None,
             ca_types_file: None,
             supports_editing: false,
+            game_selected_icon: "gs_are.png".to_owned(),
         });
 
         map
@@ -730,8 +739,8 @@ fn main() {
         //---------------------------------------------------------------------------------------//
 
         // Set the RPFM Icon.
-        let icon = Icon::new(&QString::from_std_str(format!("{}/img/rpfm.png", RPFM_PATH.to_string_lossy())));
-        Application::set_window_icon(&icon);
+        let app_icon = Icon::new(&QString::from_std_str(format!("{}/img/rpfm.png", RPFM_PATH.to_string_lossy())));
+        Application::set_window_icon(&app_icon);
 
         // Create the main window of the program.
         let mut window = MainWindow::new();
@@ -1465,6 +1474,19 @@ fn main() {
         // "Game Selected" Menu...
         //-----------------------------------------------------//
 
+        // The list of icons for representing the current "Game Selected" in the UI.
+        let _game_selected_icons: BTreeMap<String, Icon> = {
+            let mut map = BTreeMap::new();
+
+            for (key, game) in SUPPORTED_GAMES.iter() {
+                let mut path = RPFM_PATH.to_path_buf().join("img");
+                path.push(game.game_selected_icon.to_owned());
+                let image = Icon::new(&QString::from_std_str(path.to_str().unwrap()));
+                map.insert((*key).to_owned(), image);
+            }
+            map
+        };
+
         // What happens when we trigger the "Change Game Selected" action.
         let slot_change_game_selected = SlotBool::new(clone!(
             mode,
@@ -1506,6 +1528,10 @@ fn main() {
 
                 // Re-enable the Main Window.
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                // Change the GameSelected Icon. Disabled until we find better icons.
+                //let image = game_selected_icons.get(&**GAME_SELECTED.lock().unwrap()).unwrap();
+                //unsafe { app_ui.window.as_mut().unwrap().set_window_icon(&image); }
             }
         ));
 

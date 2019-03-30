@@ -39,6 +39,7 @@ const SETTINGS_FILE: &str = "settings.json";
 /// - `pak_file`: This is the file containing the processed data from the raw db files from the Assembly Kit. If no Asskit is released for the game, set this to none.
 /// - `ca_types_file`: This is the file used for checking scripts with Kailua. If there is no file, set it as None.
 /// - `supports_editing`: True if we can save PackFiles for this game. False if we cannot (Arena). This also affect if we can use this game for "MyMod" stuff.
+/// - `game_selected_icon`: Name of the icon used to display the game as `Game Selected` in the status bar.
 #[derive(Clone, Debug)]
 pub struct GameInfo {
     pub display_name: String,
@@ -51,6 +52,7 @@ pub struct GameInfo {
     pub pak_file: Option<String>,
     pub ca_types_file: Option<String>,
     pub supports_editing: bool,
+    pub game_selected_icon: String,
 }
 
 /// This struct hold every setting of the program, and it's the one that we are going to serialize.
