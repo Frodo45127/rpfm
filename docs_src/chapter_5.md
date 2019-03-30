@@ -39,5 +39,6 @@ To the right, we have some information about the table, and the `Versions List` 
 ![Because no more is needed.](./images/image28.png)
 
 And at the bottom, we have:
+- `Generate Diff`: generates a diff between your schema and the current schema (from Github) and saves it to RPFM's folder.
 - `Remove all fields`: removes all decoded fields, returning the table to a clean state.
 - `Finish It!`: Save the `Fields List` as a new definition for that version of the table in the schema. The definition is inmediatly available after that, so the changes can be used immediately.
