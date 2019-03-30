@@ -34,13 +34,13 @@ These are all the actions available for DB Tables:
 - ´Add Row`: Appends an empty row at the end of the table.
 - `Insert Row`: Inserts an empty row after every row with a selected cell.
 - `Delete Row`: Uses the computational power of your GPU to mine cryptocurrencies. Joking, it deletes any row with a selected cell.
-- ´Apply…/Apply Maths to Selection`: Allows you to apply a mathemathical operation to the selected cells. Only enabled if all the selected cells are numeric cells.
-- `Apply…/Apply Prefix to Selection`: Allows you to apply a prefix to the text in the selected cells. Only enabled if all the selected cells are text cells.
+- ´Apply…/Apply Maths to Selection`: Allows you to apply a mathemathical operation to the selected cells.
+- `Apply…/Rewrite Selection`: Allows you to rewrite the contents of a complete selection with whatever you want.
 - `Clone…/Clone and Insert`: Creates a duplicate of every row with a selected cell and inserts the duplicate just below the original row.
 - `Clone…/Clone and Append`: Creates a duplicate of every row with a selected cell and appends the duplicates at the end of the table.
 - `Copy …/Copy`: It copies whatever is selected to the Clipboard, in a format compatible with Excel, LibreOffice Calc and others.
 - `Copy …/Copy as LUA Table`: It copies the entire table as a Lua "Map\<String, Vector\<data\>\>" if the table has a key field, or as a series of Vectors if it hasn't, ready to paste it in a script. For scripters.
-- `Paste…/Paste in Selection`: It tries to paste whatever is in the Clipboard to the selected cells. It does nothing if there are no selected cells, or the clipboard's contents cannot be pasted into the selected cells without errors. This works by pasting until it ran out of selected cells, or contents to paste.
+- `Paste…/Paste`: It tries to paste whatever is in the Clipboard to the selected cells. It does nothing if there are no selected cells, or the clipboard's contents cannot be pasted into the selected cells. This works by pasting until it ran out of contents to paste.
 - `Paste…/Paste as New Rows`: It tries to paste whatever is in the Clipboard as new rows, appended at the end of the table. It doesn't do anything if the contents of the Clipboard cannot be pasted without errors. In case the contents could be pasted as a "Partial" row, it creates an empty row, and paste what it can paste, leaving the rest of the row empty.
 - `Paste…/Paste to Fill Selection`: It tries to paste whatever is in the in every selected cell.
 - `Search`: Open the *Search & Replace* panel, that you can use to search any text pattern you want in the table, and replace it if you want. It works in combination with the filter, so you can even do more precise searches combining them!
