@@ -1587,10 +1587,10 @@ impl PackedFileTableView {
                         match table_definition.fields[real_cell.column() as usize].field_type {
 
                             FieldType::Boolean => {
-                                let current_value = unsafe { model.as_mut().unwrap().data((real_cell, 10)).to_bool() };
-                                let new_value = if text.to_lowercase() == "true" || **text == "1" { true } else { false };
+                                let current_value = unsafe { model.as_mut().unwrap().item_from_index(real_cell).as_mut().unwrap().check_state() };
+                                let new_value = if text.to_lowercase() == "true" || **text == "1" { CheckState::Checked } else { CheckState::Unchecked };
                                 if current_value != new_value { 
-                                    unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new0(new_value), 10)); }
+                                    unsafe { model.as_mut().unwrap().item_from_index(real_cell).as_mut().unwrap().set_check_state(new_value); }
                                     changed_cells += 1;
                                 }
                             },
