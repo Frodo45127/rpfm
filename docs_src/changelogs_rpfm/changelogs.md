@@ -4,6 +4,7 @@ Here you can find **all the changelogs for every RPFM update** since... since I 
 
 -----------------------------------
 - ***1.5 Versions***, where the parts became one and one became able of multiple things:
+	- [**1.5.1**](#151)
 	- [**1.5.0**](#150)
 
 - ***1.4 Versions***, where the Empire was crushed:
@@ -52,6 +53,7 @@ Here you can find **all the changelogs for every RPFM update** since... since I 
 Before this, only God, Git and I knew what changes where done. Now, only God and Git know it. And in case you like scrolling, from here you have all the changelogs.
 
 -----------------------------------
+{{ #include 1.5.1.md }}
 {{ #include 1.5.0.md }}
 
 {{ #include 1.4.2.md }}
