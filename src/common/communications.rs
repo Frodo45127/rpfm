@@ -16,9 +16,8 @@ use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
 use crate::GlobalMatch;
-use crate::common::*;
 use crate::error::Error;
-use crate::packfile::{PFHFileType, PackFileUIData};
+use crate::packfile::{PFHFileType, PackFileUIData, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::*;
 use crate::packedfile::loc::*;
@@ -57,12 +56,9 @@ pub enum Commands {
     AddPackedFile,
     DeletePackedFile,
     ExtractPackedFile,
-    GetTypeOfPath,
     PackedFileExists,
     FolderExists,
     CreatePackedFile,
-    CreateFolder,
-    UpdateEmptyFolders,
     GetPackFileDataForTreeView,
     GetPackFileExtraDataForTreeView,
     AddPackedFileFromPackFile,
@@ -78,8 +74,7 @@ pub enum Commands {
     EncodePackedFileRigidModel,
     PatchAttilaRigidModelToWarhammer,
     DecodePackedFileImage,
-    RenamePackedFile,
-    ApplyPrefixToPackedFilesInPath,
+    RenamePackedFiles,
     GetPackedFile,
     GetTableListFromDependencyPackFile,
     GetTableVersionFromDependencyPackFile,
@@ -127,7 +122,6 @@ pub enum Data {
     PackFileUIData(PackFileUIData),
 
     PackedFile(PackedFile),
-    TreePathType(TreePathType),
     TableDefinitionPathBufStringI32((TableDefinition, PathBuf, String, i32)),
     VecVecDecodedData((Vec<Vec<DecodedData>>)),
     VecVecDecodedDataPathBufVecStringTupleStrI32((Vec<Vec<DecodedData>>, PathBuf, Vec<String>, (String, i32))),
@@ -141,21 +135,22 @@ pub enum Data {
     RigidModel(RigidModel),
     RigidModelVecString((RigidModel, Vec<String>)),
 
+    PathType(PathType),
+
     StringI64VecVecString((String, i64, Vec<Vec<String>>)),
     StringVecPathBuf((String, Vec<PathBuf>)),
-    StringVecTreePathType((String, Vec<TreePathType>)),
+    StringVecPathType((String, Vec<PathType>)),
     VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),
     VecString(Vec<String>),
     VecStringPackedFileType((Vec<String>, PackedFileType)),
-    VecStringString((Vec<String>, String)),
-    VecStringVecTreePathType((Vec<String>, Vec<TreePathType>)),
-    VecTreePathType(Vec<TreePathType>),
-    VecVecString(Vec<Vec<String>>),
-    VecVecStringPathBuf((Vec<Vec<String>>, PathBuf)),
     VecVecStringStringBoolBool((Vec<Vec<String>>, String, bool, bool)),
     VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
     VecGlobalMatch(Vec<GlobalMatch>),
     VersionsVersions((Versions, Versions)),
+    VecPathTypeString(Vec<(PathType, String)>),
+    VecPathType(Vec<PathType>),
+    VecStringVecPathType((Vec<String>, Vec<PathType>)),
+    VecPathTypePathBuf((Vec<PathType>, PathBuf)),
 }
 
 /// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.

@@ -580,6 +580,14 @@ impl TableDefinition {
         }
     }
 
+    /// This generates a new fake definition for the Dependency PackFile's List.
+    pub fn new_dependency_manager_definition() -> Self {
+        Self {
+            version: 1,
+            fields: vec![Field::new("PackFile's List".to_owned(), FieldType::StringU8, false, None, "".to_owned())],
+        }
+    }
+
     /// This function generates a MarkDown diff of two versions of an specific table and adds it to the provided changes list.
     pub fn get_pretty_diff(
         &self,

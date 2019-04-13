@@ -23,14 +23,13 @@ use crate::Data;
 use crate::common::*;
 use crate::common::communications::*;
 use crate::packedfile::db::schemas::TableDefinition;
-use crate::error::Result;
 use crate::ui::*;
 
 use super::*;
 
 /// This function creates a new TreeView with the PackedFile's View as father and returns a
 /// `PackedFileLocTreeView` with all his data.
-pub fn create_loc_view(
+pub fn create_dependency_manager_view(
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
@@ -40,19 +39,15 @@ pub fn create_loc_view(
     global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
     update_global_search_stuff: *mut Action,
     table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
-) -> Result<PackedFileTableView> {
+) -> PackedFileTableView {
 
     // Send the index back to the background thread, and wait until we get a response.
-    sender_qt.send(Commands::DecodePackedFileLoc).unwrap();
-    sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
-    let packed_file_data = match check_message_validity_recv2(&receiver_qt) { 
-        Data::Loc(data) => data,
-        Data::Error(error) => return Err(error),
-        _ => panic!(THREADS_MESSAGE_ERROR), 
-    };
+    sender_qt.send(Commands::GetPackFilesList).unwrap();
+    let pack_files = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+    let table_type = Rc::new(RefCell::new(TableType::DependencyManager(pack_files.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect())));
+    let table_definition = Rc::new(TableDefinition::new_dependency_manager_definition());
 
-    let table_definition = Rc::new(TableDefinition::new_loc_definition());
-
+    // This cannot fail, so unwrap it.
     PackedFileTableView::create_table_view(
         sender_qt,
         sender_qt_data,
@@ -65,6 +60,6 @@ pub fn create_loc_view(
         table_state_data,
         &table_definition,
         None,
-        &Rc::new(RefCell::new(TableType::LOC(packed_file_data))),
-    )
+        &table_type,
+    ).unwrap()
 }

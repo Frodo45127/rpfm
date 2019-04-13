@@ -290,9 +290,6 @@ pub enum ErrorKind {
     //                Contextual Errors
     //-----------------------------------------------------//
 
-    // Error for when a name is already in use in a path and is not valid for renaming.
-    NameAlreadyInUseInThisPath,
-
     // Error for when extracting one or more PackedFiles from a PackFile.
     ExtractError(Vec<String>),
 
@@ -301,12 +298,6 @@ pub enum ErrorKind {
 
     // Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
-
-    // Error for when the introduced input (usually, a name) has invalid characters, or it's invalid for any other reason.
-    InvalidInput,
-
-    // Error for when the introduced input (usually, a name) hasn't changed.
-    UnchangedInput,
 
     // Error for when mass-importing TSV file without selecting any file.
     NoFilesToImport,
@@ -522,12 +513,9 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                Contextual Errors
             //-----------------------------------------------------//
-            ErrorKind::NameAlreadyInUseInThisPath => write!(f, "<p>The provided name is already in use in the current path.</p>"),
             ErrorKind::ExtractError(errors) => write!(f, "<p>There has been a problem extracting the following files:</p><ul>{:#?}</ul>", errors),
             ErrorKind::MassImport(errors) => write!(f, "<p>The following files returned error when trying to import them:</p><ul>{}</ul><p>No files have been imported.</p>", errors),
             ErrorKind::EmptyInput => write!(f, "<p>Only my hearth can be empty.</p>"),
-            ErrorKind::InvalidInput => write!(f, "<p>There are characters that shall never be used.</p>"),
-            ErrorKind::UnchangedInput => write!(f, "<p>Like war, nothing changed.</p>"),
             ErrorKind::NoFilesToImport => write!(f, "<p>It's mathematically impossible to successfully import zero TSV files.</p>"),
             ErrorKind::FileAlreadyInPackFile => write!(f, "<p>The provided file/s already exists in the current path.</p>"),
             ErrorKind::FolderAlreadyInPackFile => write!(f, "<p>That folder already exists in the current path.</p>"),

@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use crate::common::*;
 use crate::common::coding_helpers::*;
 use crate::error::{Error, ErrorKind, Result};
-use crate::packfile::PackFile;
+use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
@@ -103,21 +103,20 @@ pub fn create_packed_file(
 }
 
 /// This function merges (if it's possible) the provided DB and LOC tables into one with the name and, if asked,
-/// it deletes the souce files. Table_type means true: DB, false: LOC.
+/// it deletes the source files. Table_type means true: DB, false: LOC.
 pub fn merge_tables( 
     pack_file: &mut PackFile,
     source_paths: &[Vec<String>],
     name: &str,
     delete_source_paths: bool,
     table_type: bool,
-) -> Result<(Vec<String>, Vec<TreePathType>)> {
-
-    let paths_clean = source_paths.iter().map(|x| x[1..].to_vec()).collect::<Vec<Vec<String>>>();
+) -> Result<(Vec<String>, Vec<PathType>)> {
+    
     let mut db_files = vec![];
     let mut loc_files = vec![];
 
     // Decode them depending on their type.
-    for path in &paths_clean {
+    for path in source_paths {
         let packed_file = pack_file.packed_files.iter().find(|x| &x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
         let packed_file_data = packed_file.get_data()?;
         
@@ -163,7 +162,7 @@ pub fn merge_tables(
     };
 
     // And then, we reach the part where we have to do the "saving to PackFile" stuff.
-    let mut path = paths_clean[0].to_vec();
+    let mut path = source_paths[0].to_vec();
     path.pop();
     path.push(name.to_owned());
     let packed_file = PackedFile::read_from_vec(path, get_current_time(), false, packed_file_data);
@@ -171,7 +170,7 @@ pub fn merge_tables(
     // If we want to remove the source files, this is the moment.
     let mut deleted_paths = vec![];
     if delete_source_paths {
-        for path in &paths_clean {
+        for path in source_paths {
             let index = pack_file.packed_files.iter().position(|x| &x.path == path).unwrap();
             deleted_paths.push(pack_file.packed_files[index].path.to_vec());
             pack_file.remove_packedfile(index);
@@ -184,7 +183,7 @@ pub fn merge_tables(
 
     let mut tree_paths = vec![];
     for path in &deleted_paths {
-        tree_paths.push(TreePathType::File(path.to_vec()));
+        tree_paths.push(PathType::File(path.to_vec()));
     }
     Ok((added_path, tree_paths))
 }

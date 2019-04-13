@@ -24,6 +24,7 @@ use crate::error::{ErrorKind, Result};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
+use crate::ui::packfile_treeview::TreePathType;
 
 mod compression;
 mod crypto;
@@ -96,6 +97,16 @@ pub enum PFHFileType {
     Other(u32),
 }
 
+/// This `Enum` is the background equivalent to the `TreePathType` Enum from the UI.
+/// We keep them separated so we have a version of it to use to only background stuff.
+#[derive(Debug, Clone)]
+pub enum PathType {
+    File(Vec<String>),
+    Folder(Vec<String>),
+    PackFile,
+    None,
+}
+
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
 ///
 /// It stores the following data from the header:
@@ -108,7 +119,6 @@ pub enum PFHFileType {
 /// And the following data from the *data* part of the PackFile:
 /// - `pack_files`: the list of PackFiles in the PackFile Index.
 /// - `packed_files`: the list of PackedFiles inside this PackFile.
-/// - `empty_folders`: the list of empty folder in the PackFile.
 #[derive(Debug)]
 pub struct PackFile {
     pub file_path: PathBuf,
@@ -119,7 +129,6 @@ pub struct PackFile {
 
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
-    pub empty_folders: Vec<Vec<String>>
 }
 
 /// This `Struct` is a reduced version of the `PackFile` Struct, used to pass data to the UI.
@@ -130,6 +139,18 @@ pub struct PackFileUIData {
     pub pfh_file_type: PFHFileType,
     pub bitmask: PFHFlags,
     pub timestamp: i64,
+}
+
+/// Implementation of PathType to get it from a TreePathType.
+impl From<&TreePathType> for PathType {
+    fn from(tree_path_type: &TreePathType) -> PathType {
+        match tree_path_type {
+            TreePathType::File(ref path) => PathType::File(path.to_vec()),
+            TreePathType::Folder(ref path) => PathType::Folder(path.to_vec()),
+            TreePathType::PackFile => PathType::PackFile,
+            TreePathType::None => PathType::None,
+        }
+    }
 }
 
 /// Implementation of PFHFileType.
@@ -200,7 +221,6 @@ impl PackFile {
 
             pack_files: vec![],
             packed_files: vec![],
-            empty_folders: vec![]
         }
     }
 
@@ -217,7 +237,6 @@ impl PackFile {
 
             pack_files: vec![],
             packed_files: vec![],
-            empty_folders: vec![]
         }
     }
 
@@ -350,28 +369,8 @@ impl PackFile {
                 }
             }
 
-            for folder in &self.empty_folders {
-                if folder.starts_with(path) { return true; }
-            }
-
             false
         }
-    }
-
-    /// This functions serves to update the empty folder list.
-    pub fn update_empty_folders(&mut self) {
-        let packed_files = &self.packed_files;
-        self.empty_folders.retain(|folder| {
-            if folder.is_empty() { false }
-            else {
-                for packed_file in packed_files {
-                    if packed_file.path.starts_with(folder) && packed_file.path.len() > folder.len() {
-                        return false
-                    }
-                }
-                true
-            }
-        })
     }
 
     /// This function reads the content of a PackFile and returns a `PackFile` with all the contents of the PackFile decoded.

@@ -13,7 +13,6 @@
 // var set, so the compiler doesn't spam us every time we try to compile.
 
 use chrono::{Utc, DateTime};
-use serde_derive::{Serialize, Deserialize};
 
 use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
@@ -23,7 +22,6 @@ use crate::GAME_SELECTED;
 use crate::RPFM_PATH;
 use crate::SETTINGS;
 use crate::error::{ErrorKind, Result};
-use crate::packfile::PackFile;
 
 pub mod coding_helpers;
 pub mod communications;
@@ -37,84 +35,6 @@ pub const THREADS_MESSAGE_ERROR: &str = "Error in thread messages system.";
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program and send a report to Sentry.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
-
-/// This enum has the different types of selected items in a TreeView. File and Folder have their tree_path without
-/// the mod's name.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum TreePathType {
-    File(Vec<String>),
-    Folder(Vec<String>),
-    PackFile,
-    None,
-}
-
-/// Custom implementation of "PartialEq" for "TreePathType", so we don't need to match each time while
-/// want to compare two TreePathType.
-impl PartialEq for TreePathType {
-    fn eq(&self, other: &TreePathType) -> bool {
-        match (self, other) {
-            (&TreePathType::File(_), &TreePathType::File(_)) |
-            (&TreePathType::Folder(_), &TreePathType::Folder(_)) |
-            (&TreePathType::PackFile, &TreePathType::PackFile) |
-            (&TreePathType::None, &TreePathType::None) => true,
-            _ => false,
-        }
-    }
-}
-
-/// This function checks if the PackedFile at the given TreePath is a file or a folder. Please note
-/// that the tree_path NEEDS TO BE COMPLETE (including PackFile's name) for the function to work
-/// properly.
-#[allow(dead_code)]
-pub fn get_type_of_selected_path(
-    tree_path: &[String],
-    pack_file_decoded: &PackFile
-) -> TreePathType {
-
-    // Get a local copy of the Path.
-    let mut tree_path = tree_path.to_owned();
-    
-    // If we don't have anything, it's an invalid path.
-    if tree_path.is_empty() { TreePathType::None }
-
-    // If the path is just the PackFile's name, it's the PackFile.
-    else if tree_path.len() == 1 { TreePathType::PackFile }
-
-    // If is not a PackFile...
-    else {
-
-        // We remove his first field, as our PackedFiles's paths don't have it.
-        tree_path.remove(0);
-
-        // Now we check if it's a file or a folder.
-        let mut is_a_file = false;
-
-        for i in &pack_file_decoded.packed_files {
-            if i.path == tree_path {
-                is_a_file = true;
-                break;
-            }
-        }
-
-        // If is a file, we return it.
-        if is_a_file { TreePathType::File(tree_path) }
-
-        // Otherwise, we assume it's a folder. This is not bulletproof so FIXME: find a way to make this more solid.
-        // FIXME: This is confirmed to be broken for the situation where there is a folder and a file with the same name
-        // in the same folder.
-        else {
-
-            // We check if the folder actually exists in our PackFile.
-            let is_a_folder = pack_file_decoded.folder_exists(&tree_path);
-
-            // If it exists, we return it as a folder.
-            if is_a_folder { TreePathType::Folder(tree_path) }
-
-            // Otherwise, it's a None.
-            else { TreePathType::None }
-        }
-    }
-}
 
 /// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the &Path.
 #[allow(dead_code)]

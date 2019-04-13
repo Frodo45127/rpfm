@@ -45,7 +45,6 @@ impl PackedFileTextView {
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
-        is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         layout: *mut GridLayout,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
@@ -75,20 +74,27 @@ impl PackedFileTextView {
             save_changes: SlotNoArgs::new(clone!(
                 packed_file_path,
                 app_ui,
-                is_modified,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move || {
 
                     // Get the text from the PlainTextEdit.
-                    let text;
-                    unsafe { text = plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string(); }
+                    let text = unsafe { plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string() };
 
                     // Tell the background thread to start saving the PackedFile.
                     sender_qt.send(Commands::EncodePackedFileText).unwrap();
                     sender_qt_data.send(Data::StringVecString((text, packed_file_path.borrow().to_vec()))).unwrap();
 
-                    // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+                    update_treeview(
+                        &sender_qt,
+                        &sender_qt_data,
+                        &receiver_qt,
+                        &app_ui,
+                        app_ui.folder_tree_view,
+                        Some(app_ui.folder_tree_filter),
+                        app_ui.folder_tree_model,
+                        TreeViewOperation::Modify(vec![TreePathType::File(packed_file_path.borrow().to_vec())]),
+                    );
                 }
             )),
 

@@ -44,7 +44,7 @@ pub fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<String> {
 
     // Create and configure the dialog.
     let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
-    dialog.set_window_title(&QString::from_std_str("Rewrite Selection"));
+    dialog.set_window_title(&QString::from_std_str("Apply Maths to Selection"));
     dialog.set_modal(true);
     dialog.resize((400, 50));
     let main_grid = GridLayout::new().into_raw();
@@ -120,8 +120,8 @@ And, in case you ask, works with numeric cells too, as long as the resulting tex
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
     if dialog.exec() == 1 { 
-        let prefix = rewrite_sequence_line_edit.text().to_std_string();
-        if prefix.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) } 
+        let new_text = rewrite_sequence_line_edit.text().to_std_string();
+        if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) } 
     } else { None }
 }
 

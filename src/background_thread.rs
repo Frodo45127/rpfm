@@ -388,14 +388,10 @@ pub fn background_loop(
 
                     // In case we want to Patch the SiegeAI of a PackFile...
                     Commands::PatchSiegeAI => {
-
+                        
                         // First, we try to patch the PackFile.
                         match background_thread_extra::patch_siege_ai(&mut pack_file_decoded) {
-
-                            // If we succeed, send back the result.
-                            Ok(result) => sender.send(Data::StringVecTreePathType(result)).unwrap(),
-
-                            // Otherwise, return an error.
+                            Ok(result) => sender.send(Data::StringVecPathType(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap()
                         }
                     }
@@ -436,17 +432,17 @@ pub fn background_loop(
 
                     // In case we want to delete PackedFiles from a PackFile...
                     Commands::DeletePackedFile => {
-
+                        
                         // Delete the PackedFiles from the PackFile, changing his return in case of success.
-                        let paths = if let Data::VecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        sender.send(Data::VecTreePathType(background_thread_extra::delete_from_packfile(&mut pack_file_decoded, &paths))).unwrap();
+                        let item_types = if let Data::VecPathType(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        sender.send(Data::VecPathType(background_thread_extra::delete_from_packfile(&mut pack_file_decoded, &item_types))).unwrap();
                     }
 
                     // In case we want to extract PackedFiles from a PackFile...
                     Commands::ExtractPackedFile => {
 
                         // Wait until we get the needed data from the UI thread, and try to extract the PackFile.
-                        let data = if let Data::VecVecStringPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::VecPathTypePathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
                         match background_thread_extra::extract_from_packfile(
                             &pack_file_decoded,
                             &data.0,
@@ -455,19 +451,6 @@ pub fn background_loop(
                             Ok(result) => sender.send(Data::String(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
-                    }
-
-                    // In case we want to get the type of an item in the TreeView, from his path...
-                    Commands::GetTypeOfPath => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get the type of the selected item.
-                        let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
-
-                        // Send the type back.
-                        sender.send(Data::TreePathType(path_type)).unwrap();
                     }
 
                     // In case we want to know if a PackedFile exists, knowing his path...
@@ -514,24 +497,6 @@ pub fn background_loop(
                         }
                     }
 
-                    // TODO: Move checkings here, from the UI.
-                    // In case we want to create an empty folder...
-                    Commands::CreateFolder => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Add the path to the "empty folder" list.
-                        pack_file_decoded.empty_folders.push(path);
-                    }
-
-                    // In case we want to update the empty folder list...
-                    Commands::UpdateEmptyFolders => {
-
-                        // Update the empty folder list, if needed.
-                        pack_file_decoded.update_empty_folders();
-                    }
-
                     // In case we want to get the data of a PackFile needed to form the TreeView...
                     Commands::GetPackFileDataForTreeView => {
 
@@ -558,34 +523,17 @@ pub fn background_loop(
                     Commands::AddPackedFileFromPackFile => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let path_type = if let Data::PathType(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to add the PackedFile to the main PackFile.
                         match background_thread_extra::add_packedfile_to_packfile(
                             &pack_file_decoded_extra,
                             &mut pack_file_decoded,
-                            &path
+                            &path_type
                         ) {
 
                             // In case of success, get the list of copied PackedFiles and send it back.
-                            Ok(_) => {
-
-                                // Get the "real" path, without the PackFile on it. If the path is just the PackFile, leave it empty.
-                                let real_path = if path.len() > 1 { &path[1..] } else { &[] };
-
-                                // Get all the PackedFiles to copy.
-                                let path_list: Vec<Vec<String>> = pack_file_decoded_extra
-                                    .packed_files
-                                    .iter()
-                                    .filter(|x| x.path.starts_with(&real_path))
-                                    .map(|x| x.path.to_vec())
-                                    .collect();
-
-                                // Send all of it back.
-                                sender.send(Data::VecVecString(path_list)).unwrap();
-                            }
-
-                            // In case of error, report it.
+                            Ok(path_types_added) => sender.send(Data::VecPathType(path_types_added)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -890,29 +838,9 @@ pub fn background_loop(
                     }
 
                     // In case we want to "Rename a PackedFile"...
-                    Commands::RenamePackedFile => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::VecStringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-
-                        // Try to rename it and report the result.
-                        match background_thread_extra::rename_packed_file(&mut pack_file_decoded, &data.0, &data.1) {
-                            Ok(_) => sender.send(Data::Success).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
-                    }
-
-                    // In case we want to "Rename multiple PackedFiles" at once...
-                    Commands::ApplyPrefixToPackedFilesInPath => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::VecStringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-
-                        // Try to rename it and report the result.
-                        match background_thread_extra::apply_prefix_to_packed_files(&mut pack_file_decoded, &data.0, &data.1) {
-                            Ok(result) => sender.send(Data::VecVecString(result)).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
+                    Commands::RenamePackedFiles => {
+                        let data = if let Data::VecPathTypeString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        sender.send(Data::VecPathTypeString(background_thread_extra::rename_packed_files(&mut pack_file_decoded, &data))).unwrap();
                     }
 
                     // In case we want to get a PackedFile's data...
@@ -972,7 +900,7 @@ pub fn background_loop(
                     // In case we want to optimize our PackFile...
                     Commands::OptimizePackFile => {
                         match background_thread_extra::optimize_packfile(&mut pack_file_decoded) {
-                            Ok(deleted_packed_files) => sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap(),
+                            Ok(deleted_packed_files) => sender.send(Data::VecPathType(deleted_packed_files)).unwrap(),
                             Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
                         }
                     }
@@ -1519,7 +1447,7 @@ pub fn background_loop(
                         // Delete the PackedFiles from the PackFile, changing his return in case of success.
                         let (paths, name, delete_source_files, table_types) = if let Data::VecVecStringStringBoolBool(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
                         match merge_tables(&mut pack_file_decoded, &paths, &name, delete_source_files, table_types) {
-                            Ok(data) => sender.send(Data::VecStringVecTreePathType(data)).unwrap(),
+                            Ok(data) => sender.send(Data::VecStringVecPathType(data)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }

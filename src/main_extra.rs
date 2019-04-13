@@ -23,7 +23,6 @@ pub fn open_packfile(
     pack_file_path: PathBuf,
     app_ui: &AppUI,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
-    is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     game_folder: &str,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
@@ -63,15 +62,12 @@ pub fn open_packfile(
                 sender_qt,
                 sender_qt_data,
                 &receiver_qt,
-                app_ui.window,
+                &app_ui,
                 app_ui.folder_tree_view,
                 Some(app_ui.folder_tree_filter),
                 app_ui.folder_tree_model,
                 TreeViewOperation::Build(false),
             );
-
-            // Set the new mod as "Not modified".
-            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
             // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
             if !game_folder.is_empty() {
@@ -185,7 +181,6 @@ pub fn open_packedfile(
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     app_ui: &AppUI,
-    is_modified: &Rc<RefCell<bool>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
     is_folder_tree_view_locked: &Rc<RefCell<bool>>,
@@ -200,17 +195,8 @@ pub fn open_packedfile(
 
     // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here.
     if !(*is_folder_tree_view_locked.borrow()) {
-
-        // Get the selection to see what we are going to open. We only continue this if we have one thing selected.
-        let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
-        let full_path = if selected_paths.len() == 1 { selected_paths[0].to_vec() } else { return Ok(()) };
-
-        // Send the Path to the Background Thread, and get the type of the item.
-        sender_qt.send(Commands::GetTypeOfPath).unwrap();
-        sender_qt_data.send(Data::VecString(full_path)).unwrap();
-        let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-        // We act, depending on his type.
+        let selected_items = get_item_types_from_main_treeview_selection(app_ui);
+        let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return Ok(()) };
         match item_type {
 
             // Only in case it's a file, we do something.
@@ -218,7 +204,7 @@ pub fn open_packedfile(
 
                 // If the file we want to open is already open in another view, don't open it.
                 for (view_pos, packed_file_path) in packedfiles_open_in_packedfile_view.borrow().iter() {
-                    if *packed_file_path.borrow() == path && view_pos != &view_position {
+                    if &*packed_file_path.borrow() == path && view_pos != &view_position {
                         return Err(ErrorKind::PackedFileIsOpenInAnotherView)?
                     }
                 }
@@ -273,7 +259,7 @@ pub fn open_packedfile(
                 unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
 
                 // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
-                let path = Rc::new(RefCell::new(path));
+                let path = Rc::new(RefCell::new(path.to_vec()));
 
                 // Then, depending of his type we decode it properly (if we have it implemented support
                 // for his type).
@@ -287,7 +273,6 @@ pub fn open_packedfile(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            &is_modified,
                             &app_ui,
                             widget_layout,
                             &path,
@@ -313,7 +298,6 @@ pub fn open_packedfile(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            &is_modified,
                             &app_ui,
                             widget_layout,
                             &path,
@@ -336,13 +320,12 @@ pub fn open_packedfile(
 
                     // If the file is a Text PackedFile...
                     "TEXT" => {
-
+                        
                         // Try to get the view build, or return error.
                         match PackedFileTextView::create_text_view(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            &is_modified,
                             &app_ui,
                             widget_layout,
                             &path
@@ -365,7 +348,6 @@ pub fn open_packedfile(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            &is_modified,
                             &app_ui,
                             widget_layout,
                             &path
@@ -422,7 +404,6 @@ pub fn open_packedfile(
 pub fn save_packfile(
     is_as_other_file: bool,
     app_ui: &AppUI,
-    is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     sender_qt: &Sender<Commands>,
@@ -442,7 +423,18 @@ pub fn save_packfile(
 
         match check_message_validity_tryrecv(&receiver_qt) {
             Data::I64(date) => {
-                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+
+                // Clean the TreeView and reset the 'Last Modified Date' of the PackFile.
+                update_treeview(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &app_ui,
+                    app_ui.folder_tree_view,
+                    Some(app_ui.folder_tree_filter),
+                    app_ui.folder_tree_model,
+                    TreeViewOperation::Clean,
+                );
                 unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
             }
 
@@ -504,8 +496,17 @@ pub fn save_packfile(
                             unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)))); }
                             unsafe { app_ui.folder_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_text(&QString::from_std_str(path.file_name().unwrap().to_string_lossy().as_ref().to_owned())); }
 
-                            // Set the mod as "Not Modified".
-                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+                            // Clean the TreeView.
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Clean,
+                            );
 
                             // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                             set_my_mod_mode(&mymod_stuff, &mode, None);
@@ -564,7 +565,6 @@ pub fn build_my_mod_menu(
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
     app_ui: AppUI,
     menu_bar_mymod: *mut Menu,
-    is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     needs_rebuild: Rc<RefCell<bool>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
@@ -603,7 +603,6 @@ pub fn build_my_mod_menu(
             table_state_data,
             app_ui,
             mode,
-            is_modified,
             needs_rebuild => move |_| {
 
                 // Create the "New MyMod" Dialog, and get the result.
@@ -683,7 +682,7 @@ pub fn build_my_mod_menu(
                                     &sender_qt,
                                     &sender_qt_data,
                                     &receiver_qt,
-                                    app_ui.window,
+                                    &app_ui,
                                     app_ui.folder_tree_view,
                                     Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
@@ -698,9 +697,6 @@ pub fn build_my_mod_menu(
                                 unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
                                 unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                                 unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
-
-                                // Set the new "MyMod" as "Not modified".
-                                *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                                 // Enable the actions available for the PackFile from the `MenuBar`.
                                 enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff)), true);
@@ -743,12 +739,13 @@ pub fn build_my_mod_menu(
         // This slot is used for the "Delete Selected MyMod" action.
         delete_selected_mymod: SlotBool::new(clone!(
             sender_qt,
+            sender_qt_data,
+            receiver_qt,
             mode,
-            is_modified,
             app_ui => move |_| {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
-                if are_you_sure(&app_ui, &is_modified, true) {
+                if are_you_sure(&app_ui, true) {
 
                     // We want to keep our "MyMod" name for the success message, so we store it here.
                     let old_mod_name: String;
@@ -818,11 +815,17 @@ pub fn build_my_mod_menu(
                         // Disable the actions available for the PackFile from the `MenuBar`.
                         enable_packfile_actions(&app_ui, &Rc::new(RefCell::new(mymod_stuff)), false);
 
-                        // Clear the TreeView.
-                        unsafe { app_ui.folder_tree_model.as_mut().unwrap().clear(); }
-
                         // Set the dummy mod as "Not modified".
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
+                        update_treeview(
+                            &sender_qt,
+                            &sender_qt_data,
+                            &receiver_qt,
+                            &app_ui,
+                            app_ui.folder_tree_view,
+                            Some(app_ui.folder_tree_filter),
+                            app_ui.folder_tree_model,
+                            TreeViewOperation::Clear,
+                        );
 
                         // Set it to rebuild next time we try to open the MyMod Menu.
                         *needs_rebuild.borrow_mut() = true;
@@ -998,7 +1001,6 @@ pub fn build_my_mod_menu(
                                     // Create the slot for that action.
                                     let slot_open_mod = SlotBool::new(clone!(
                                         game_folder_name,
-                                        is_modified,
                                         mode,
                                         mymod_stuff,
                                         pack_file,
@@ -1010,7 +1012,7 @@ pub fn build_my_mod_menu(
                                         receiver_qt => move |_| {
 
                                             // Check first if there has been changes in the PackFile.
-                                            if are_you_sure(&app_ui, &is_modified, false) {
+                                            if are_you_sure(&app_ui, false) {
 
                                                 // Open the PackFile (or die trying it!).
                                                 if let Err(error) = open_packfile(
@@ -1020,7 +1022,6 @@ pub fn build_my_mod_menu(
                                                     pack_file.to_path_buf(),
                                                     &app_ui,
                                                     &mymod_stuff,
-                                                    &is_modified,
                                                     &mode,
                                                     &game_folder_name,
                                                     &packedfiles_open_in_packedfile_view,
@@ -1091,7 +1092,6 @@ pub fn build_open_from_submenus(
     app_ui: AppUI,
     submenu_open_from_content: *mut Menu,
     submenu_open_from_data: *mut Menu,
-    is_modified: &Rc<RefCell<bool>>,
     mode: &Rc<RefCell<Mode>>,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
@@ -1124,7 +1124,6 @@ pub fn build_open_from_submenus(
 
             // Create the slot for that action.
             let slot_open_mod = SlotBool::new(clone!(
-                is_modified,
                 mode,
                 mymod_stuff,
                 path,
@@ -1136,7 +1135,7 @@ pub fn build_open_from_submenus(
                 receiver_qt => move |_| {
 
                     // Check first if there has been changes in the PackFile.
-                    if are_you_sure(&app_ui, &is_modified, false) {
+                    if are_you_sure(&app_ui, false) {
 
                         // Try to open it, and report it case of error.
                         if let Err(error) = open_packfile(
@@ -1146,7 +1145,6 @@ pub fn build_open_from_submenus(
                             path.to_path_buf(),
                             &app_ui,
                             &mymod_stuff,
-                            &is_modified,
                             &mode,
                             "",
                             &packedfiles_open_in_packedfile_view,
@@ -1179,7 +1177,6 @@ pub fn build_open_from_submenus(
 
             // Create the slot for that action.
             let slot_open_mod = SlotBool::new(clone!(
-                is_modified,
                 mode,
                 mymod_stuff,
                 path,
@@ -1191,7 +1188,7 @@ pub fn build_open_from_submenus(
                 receiver_qt => move |_| {
 
                     // Check first if there has been changes in the PackFile.
-                    if are_you_sure(&app_ui, &is_modified, false) {
+                    if are_you_sure(&app_ui, false) {
 
                         // Try to open it, and report it case of error.
                         if let Err(error) = open_packfile(
@@ -1201,7 +1198,6 @@ pub fn build_open_from_submenus(
                             path.to_path_buf(),
                             &app_ui,
                             &mymod_stuff,
-                            &is_modified,
                             &mode,
                             "",
                             &packedfiles_open_in_packedfile_view,
@@ -1233,7 +1229,6 @@ pub fn create_packed_files(
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
-    is_modified: &Rc<RefCell<bool>>,
     table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
     app_ui: &AppUI,
     packed_file_type: &PackedFileType,
@@ -1278,7 +1273,7 @@ pub fn create_packed_files(
 
                         // Get the currently selected paths (or the complete path, in case of DB Tables),
                         // and only continue if there is only one and it's not empty.
-                        let selected_paths = get_path_from_main_treeview_selection(&app_ui, false);
+                        let selected_paths = get_path_from_main_treeview_selection(&app_ui);
                         let complete_path = if let PackedFileType::DB(_, table,_) = &packed_file_type {
                             vec!["db".to_owned(), table.to_owned(), name.to_owned()]
                         } 
@@ -1315,15 +1310,12 @@ pub fn create_packed_files(
                                         &sender_qt,
                                         &sender_qt_data,
                                         &receiver_qt,
-                                        app_ui.window,
+                                        &app_ui,
                                         app_ui.folder_tree_view,
                                         Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Add(vec![complete_path.to_vec(); 1]),
+                                        TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]),
                                     );
-
-                                    // Set it as modified. Exception for the Paint system.
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                     // If, for some reason, there is a TableState data for this file, remove it.
                                     if table_state_data.borrow().get(&complete_path).is_some() {
@@ -1331,8 +1323,7 @@ pub fn create_packed_files(
                                     }
 
                                     // Set it to not remove his color.
-                                    let mut data = TableStateData::new_empty();
-                                    data.not_allow_full_undo = true;
+                                    let data = TableStateData::new_empty();
                                     table_state_data.borrow_mut().insert(complete_path, data);
                                 }
 

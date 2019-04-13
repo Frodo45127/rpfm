@@ -77,9 +77,7 @@ impl Shortcuts {
         tree_view.insert("merge_tables".to_owned(), "Ctrl+M".to_owned());
         tree_view.insert("delete".to_owned(), "Del".to_owned());
         tree_view.insert("extract".to_owned(), "Ctrl+E".to_owned());
-        tree_view.insert("rename_current".to_owned(), "Ctrl+R".to_owned());
-        tree_view.insert("apply_prefix_to_selected".to_owned(), "Ctrl+Shift+R".to_owned());
-        tree_view.insert("apply_prefix_to_all".to_owned(), "Ctrl+Alt+R".to_owned());
+        tree_view.insert("rename".to_owned(), "Ctrl+R".to_owned());
         tree_view.insert("open_in_decoder".to_owned(), "Ctrl+J".to_owned());
         tree_view.insert("open_packfiles_list".to_owned(), "Ctrl+Alt+M".to_owned());
         tree_view.insert("open_with_external_program".to_owned(), "Ctrl+K".to_owned());
