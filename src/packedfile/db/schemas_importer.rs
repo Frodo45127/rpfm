@@ -12,7 +12,7 @@
 // runtime, so we just wired up when we need to create a new schema from scratch.
 
 use serde_derive::Deserialize;
-use serde_xml_rs::deserialize;
+use serde_xml_rs::from_reader;
 
 use std::fs::File;
 use std::io::Read;
@@ -69,7 +69,7 @@ pub fn import_schema(
 
         // We read the file and deserialize it...
         let file = File::open(&path).expect("Couldn't open file");
-        let imported_table_definition: root = deserialize(file).unwrap();
+        let imported_table_definition: root = from_reader(file).unwrap();
 
         // Then we create a new table_definitions, a new imported table definition, and add it to the schema.
         let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();

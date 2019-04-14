@@ -16,7 +16,7 @@
 
 use regex::Regex;
 use serde_derive::Deserialize;
-use serde_xml_rs::deserialize;
+use serde_xml_rs::from_reader;
 use bincode;
 
 use std::fs::{File, DirBuilder};
@@ -126,7 +126,7 @@ pub fn process_raw_tables(
                 if exist { continue; }
 
                 // Then deserialize the definition of the table into something we can use.
-                let imported_definition: root = deserialize(definition_file).unwrap();
+                let imported_definition: root = from_reader(definition_file).unwrap();
                 let imported_table_definition = TableDefinition::new_fake_from_assembly_kit(&imported_definition, -1, &table_name);
 
                 // Before deserializing the data, due to limitations of serde_xml_rs, we have to rename all rows, beacuse unique names for
@@ -146,7 +146,7 @@ pub fn process_raw_tables(
 
                 // Only if the table has data we deserialize it.
                 if buffer.contains("</rows>\r\n</dataroot>") {
-                    let imported_data: dataroot = deserialize(buffer.as_bytes()).unwrap();
+                    let imported_data: dataroot = from_reader(buffer.as_bytes()).unwrap();
 
                     // Now we get that mess we've created and make readable data from it.
                     let mut entries = vec![];
@@ -217,7 +217,7 @@ pub fn process_raw_tables(
                 if exist { continue; }
 
                 // Then deserialize the definition of the table into something we can use.
-                let imported_definition: root = deserialize(definition_file).unwrap();
+                let imported_definition: root = from_reader(definition_file).unwrap();
                 let imported_table_definition = TableDefinition::new_fake_from_assembly_kit(&imported_definition, -1, &table_name);
 
                 // Before deserializing the data, due to limitations of serde_xml_rs, we have to rename all rows, beacuse unique names for
@@ -238,7 +238,7 @@ pub fn process_raw_tables(
 
                 // Only if the table has data we deserialize it.
                 if buffer.contains("</rows>\r\n</dataroot>") {
-                    let imported_data: dataroot = deserialize(buffer.as_bytes()).unwrap();
+                    let imported_data: dataroot = from_reader(buffer.as_bytes()).unwrap();
 
                     // Now we get that mess we've created and make readable data from it.
                     let mut entries = vec![];

@@ -66,7 +66,7 @@ impl Report {
 
 	/// Write a report to disk.
 	pub fn save(&self) -> Result<()> {
-		let uuid = Uuid::new_v4().hyphenated().to_string();
+		let uuid = Uuid::new_v4().to_hyphenated().to_string();
 		let file_name = format!("error-report-{}.toml", &uuid);
 		let file_path = RPFM_PATH.to_path_buf().join(file_name);
 		let mut file = BufWriter::new(File::create(&file_path)?);

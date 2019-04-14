@@ -7,39 +7,40 @@ description = "A modding tool for Total War games."
 edition = "2018"
 
 [dependencies]
-byteorder = "1.2"
-encoding = "0.2.33"
-num = "0.2"
-csv = "1.0"
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
-serde-xml-rs = "0.2"
-bincode = "1.1.2"
-chrono = "0.4"
-failure = "0.1"
-uuid = { version = "0.6", features = ["v4"] }
-restson = "0.4"
-reqwest = "0.9"
-open = "*"
-indexmap = "1.0"
-regex = "1"
+byteorder = "^1.2"
+encoding = "^0.2"
+num = "^0.2"
+csv = "^1.0"
+serde = "^1.0"
+serde_derive = "^1.0"
+serde_json = "^1.0"
+serde-xml-rs = "^0.3"
+bincode = "^1.1"
+chrono = "^0.4"
+failure = "^0.1"
+uuid = { version = "^0.7", features = ["v4"] }
+restson = "^0.5"
+reqwest = "^0.9"
+indexmap = "^1.0"
+regex = "^1"
+open = "^1.2"
 
-qt_core = "0.2"
-qt_gui = "0.2"
-qt_widgets = "0.2"
+qt_core = "^0.2"
+qt_gui = "^0.2"
+qt_widgets = "^0.2"
 
-cpp_utils = "*"
-lazy_static = "1.2.0"
-os_info = "1.1.0"
-toml = "0.4.7"
-rust-lzma = "0.4"
+cpp_utils = "^0.2"
+lazy_static = "^1.2"
+os_info = "^1.1"
+toml = "^0.5"
+rust-lzma = "^0.4"
 
-meval = "0.2"
+meval = "^0.2"
 
-bitflags = "1.0"
+bitflags = "^1.0"
+
 [target.'cfg(windows)'.build-dependencies]
-winres = "0.1.5"
+winres = "^0.1"
 
 [profile.release]
 lto = true
