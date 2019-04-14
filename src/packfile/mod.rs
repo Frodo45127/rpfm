@@ -119,6 +119,9 @@ pub enum PathType {
 /// And the following data from the *data* part of the PackFile:
 /// - `pack_files`: the list of PackFiles in the PackFile Index.
 /// - `packed_files`: the list of PackedFiles inside this PackFile.
+///
+/// And about the custom stuff (exclusive of RPFM).
+/// - `notes`: a String to store all the notes you have on the same Packfile.
 #[derive(Debug)]
 pub struct PackFile {
     pub file_path: PathBuf,
@@ -129,6 +132,9 @@ pub struct PackFile {
 
     pub pack_files: Vec<String>,
     pub packed_files: Vec<PackedFile>,
+
+    // Custom Stuff goes here.
+    pub notes: Option<String>,
 }
 
 /// This `Struct` is a reduced version of the `PackFile` Struct, used to pass data to the UI.
@@ -221,6 +227,8 @@ impl PackFile {
 
             pack_files: vec![],
             packed_files: vec![],
+
+            notes: None
         }
     }
 
@@ -237,6 +245,8 @@ impl PackFile {
 
             pack_files: vec![],
             packed_files: vec![],
+
+            notes: None,
         }
     }
 
@@ -541,7 +551,18 @@ impl PackFile {
                     size
                 )
             );
-            pack_file_decoded.packed_files.push(packed_file);
+
+            // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
+            if packed_file.path == &["frodos_biggest_secret.rpfm-notes"] {
+                if let Ok(data) = packed_file.get_data() {
+                    if let Ok(data) = decode_string_u8(&data) {
+                        pack_file_decoded.notes = Some(data);
+                    }
+                }
+            }
+            else {
+                pack_file_decoded.packed_files.push(packed_file);
+            }
 
             // Then we move our data position. For encrypted files in PFH5 PackFiles (only ARENA) we have to start the next one in a multiple of 8.
             if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && 
@@ -573,6 +594,11 @@ impl PackFile {
     /// It requires:
     /// - `&mut self`: the `PackFile` we are trying to save.
     pub fn save(&mut self) -> Result<()> {
+
+        // Before everything else, add the file for the notes if we have them.
+        if let Some(data) = &self.notes {
+            self.packed_files.push(PackedFile::read_from_vec(vec!["frodos_biggest_secret.rpfm-notes".to_owned()], 0, false, encode_string_u8(&data)));
+        }
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
@@ -661,7 +687,13 @@ impl PackFile {
         file.write_all(&packed_file_index)?;
         for packed_file in &mut self.packed_files { 
             let (data,_,_,_,_) = packed_file.get_data_and_info_from_memory()?;
-            file.write_all(&data)?; }
+            file.write_all(&data)?;
+        }
+
+        // Remove again the notes PackedFile.
+        if let Some(pos) = self.packed_files.iter().position(|x| x.path == vec!["frodos_biggest_secret.rpfm-notes".to_owned()]) {
+            self.remove_packedfile(pos);
+        }
 
         // If nothing has failed, return success.
         Ok(())

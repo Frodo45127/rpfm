@@ -1459,6 +1459,18 @@ pub fn background_loop(
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
+
+                    // In case we want to get the notes of the current PackFile...
+                    Commands::GetNotes => {
+                        let notes = if let Some(ref notes) = pack_file_decoded.notes { notes.to_owned() } else { String::new() };
+                        sender.send(Data::String(notes)).unwrap();
+                    }
+
+                    // In case we want to save notes to the current PackFile...
+                    Commands::SetNotes => {
+                        let notes = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        pack_file_decoded.notes = Some(notes);
+                    }
                 }
             }
 

@@ -322,7 +322,7 @@ pub fn open_packedfile(
                     "TEXT" => {
                         
                         // Try to get the view build, or return error.
-                        match PackedFileTextView::create_text_view(
+                        match create_text_view(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,

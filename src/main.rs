@@ -114,7 +114,9 @@ use crate::ui::packedfile_table::db_decoder::*;
 use crate::ui::packedfile_table::dependency_manager::*;
 use crate::ui::packedfile_table::packedfile_db::*;
 use crate::ui::packedfile_table::packedfile_loc::*;
-use crate::ui::packedfile_text::*;
+use crate::ui::packedfile_text::PackedFileTextView;
+use crate::ui::packedfile_text::packedfile_text::*;
+use crate::ui::packedfile_text::packfile_notes::*;
 use crate::ui::packedfile_rigidmodel::*;
 use crate::ui::packfile_treeview::*;
 use crate::ui::qt_custom_stuff::*;
@@ -703,6 +705,7 @@ pub struct AppUI {
     pub context_menu_open_dependency_manager: *mut Action,
     pub context_menu_open_with_external_program: *mut Action,
     pub context_menu_open_in_multi_view: *mut Action,
+    pub context_menu_open_notes: *mut Action,
     pub context_menu_global_search: *mut Action,
 
     //-------------------------------------------------------------------------------//
@@ -1073,6 +1076,7 @@ fn main() {
             context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
             context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
             context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
+            context_menu_open_notes: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Notes")),
             context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
             //-------------------------------------------------------------------------------//
@@ -1279,6 +1283,7 @@ fn main() {
             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
         }
 
         // Set the shortcuts for these actions.
@@ -1299,6 +1304,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_packfiles_list"]))); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_with_external_program"]))); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_in_multi_view"]))); }
+        unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_notes"]))); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["global_search"]))); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["expand_all"]))); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["collapse_all"]))); }
@@ -1321,6 +1327,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -1343,6 +1350,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_with_external_program); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_in_multi_view); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_notes); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_global_search); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_expand_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_collapse_all); }
@@ -1432,6 +1440,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in an external program.")); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in a secondary view, without closing the currently open one.")); }
+        unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackFile's Notes in a secondary view, without closing the currently open PackedFile in the Main View.")); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Performs a search over every DB Table, Loc PackedFile and Text File in the PackFile.")); }
         
         // TreeView Filter buttons.
@@ -2303,6 +2312,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
 
                         // These options are limited to only 1 file selected, and should not be usable if multiple files
@@ -2346,6 +2356,7 @@ fn main() {
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
 
                         // These options are limited to only 1 folder selected.
@@ -2379,6 +2390,7 @@ fn main() {
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2402,6 +2414,7 @@ fn main() {
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2425,6 +2438,7 @@ fn main() {
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2447,6 +2461,7 @@ fn main() {
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2470,6 +2485,7 @@ fn main() {
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2493,6 +2509,7 @@ fn main() {
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -3874,6 +3891,38 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Open in Multi-View" action in the Contextual Menu.
+        let slot_context_menu_open_notes = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            text_slots,
+            packedfiles_open_in_packedfile_view => move |_| {
+
+                // Create the widget that'll act as a container for the view.
+                let widget = Widget::new().into_raw();
+                let widget_layout = GridLayout::new().into_raw();
+                unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+                
+                let path = Rc::new(RefCell::new(vec![]));
+                let view_position = 1;
+
+                text_slots.borrow_mut().insert(view_position, create_notes_view(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &app_ui,
+                    widget_layout,
+                    &path,
+                ));
+
+                // Tell the program there is an open PackedFile and finish the table.
+                purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+            }
+        ));
+
         // What happens when we trigger one of the "Filter Updater" events for the Folder TreeView.
         let slot_folder_view_filter_change_text = SlotStringRef::new(move |_| {
             filter_files(&app_ui); 
@@ -3905,6 +3954,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
         unsafe { app_ui.context_menu_open_with_external_program.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_with_external_program); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_in_multi_view); }
+        unsafe { app_ui.context_menu_open_notes.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_notes); }
 
         // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
         unsafe { app_ui.folder_tree_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_folder_view_filter_change_text); }

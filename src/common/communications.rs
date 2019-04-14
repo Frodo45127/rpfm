@@ -91,6 +91,8 @@ pub enum Commands {
     ExportTSVPackedFile,
     MergeTables,
     GenerateSchemaDiff,
+    GetNotes,
+    SetNotes,
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 

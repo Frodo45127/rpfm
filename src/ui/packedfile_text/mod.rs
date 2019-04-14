@@ -29,6 +29,20 @@ use crate::common::communications::*;
 use crate::ui::*;
 use crate::error::Result;
 
+pub mod packedfile_text;
+pub mod packfile_notes;
+
+//----------------------------------------------------------------//
+// Generic Enums and Structs for Text PackedFiles.
+//----------------------------------------------------------------//
+
+/// Enum `TableType`: used to distinguis between DB and Loc.
+#[derive(Clone)]
+pub enum TextType {
+    PackedFile(String),
+    Notes(String),
+}
+
 /// Struct `PackedFileTextView`: contains all the stuff we need to give to the program to show a
 /// `PlainTextEdit` with the data of a plain text PackedFile, allowing us to manipulate it.
 pub struct PackedFileTextView {
@@ -36,11 +50,15 @@ pub struct PackedFileTextView {
     pub check_syntax: SlotNoArgs<'static>,
 }
 
-/// Implementation of PackedFileLocTreeView.
+//----------------------------------------------------------------//
+// Implementation of `PackedFileTextView`.
+//----------------------------------------------------------------//
+
+/// Implementation of `PackedFileTextView`.
 impl PackedFileTextView {
 
     /// This function creates a new TreeView with the PackedFile's View as father and returns a
-    /// `PackedFileLocTreeView` with all his data.
+    /// `PackedFileTextView` with all his data.
     pub fn create_text_view(
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
@@ -48,15 +66,12 @@ impl PackedFileTextView {
         app_ui: &AppUI,
         layout: *mut GridLayout,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
+        text_type: &Rc<RefCell<TextType>>,
     ) -> Result<Self> {
 
-        // Get the text of the PackedFile.
-        sender_qt.send(Commands::DecodePackedFileText).unwrap();
-        sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
-        let text = match check_message_validity_recv2(&receiver_qt) { 
-            Data::String(data) => data,
-            Data::Error(error) => return Err(error),
-            _ => panic!(THREADS_MESSAGE_ERROR), 
+        let text = match *text_type.borrow() {
+            TextType::PackedFile(ref text) => text.to_owned(),
+            TextType::Notes(ref text) => text.to_owned(),
         };
 
         // Create the PlainTextEdit and the checking button.
@@ -65,8 +80,10 @@ impl PackedFileTextView {
 
         // Add it to the view.
         unsafe { layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
-        if packed_file_path.borrow().last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().ca_types_file.is_some() {
-            unsafe { layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
+        if let TextType::PackedFile(_) = *text_type.borrow() {
+            if packed_file_path.borrow().last().unwrap().ends_with(".lua") && SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().ca_types_file.is_some() {
+                unsafe { layout.as_mut().unwrap().add_widget((check_syntax_button as *mut Widget, 1, 0, 1, 1)); }
+            }
         }
 
         // Create the stuff needed for this to work.
@@ -74,27 +91,57 @@ impl PackedFileTextView {
             save_changes: SlotNoArgs::new(clone!(
                 packed_file_path,
                 app_ui,
+                text_type,
                 receiver_qt,
                 sender_qt,
                 sender_qt_data => move || {
 
-                    // Get the text from the PlainTextEdit.
+                    // Get the text from the PlainTextEdit and save it, depending on his type.
                     let text = unsafe { plain_text_edit.as_mut().unwrap().to_plain_text().to_std_string() };
+                    match *text_type.borrow() {
+                        TextType::PackedFile(_) => {
+                            sender_qt.send(Commands::EncodePackedFileText).unwrap();
+                            sender_qt_data.send(Data::StringVecString((text, packed_file_path.borrow().to_vec()))).unwrap();
 
-                    // Tell the background thread to start saving the PackedFile.
-                    sender_qt.send(Commands::EncodePackedFileText).unwrap();
-                    sender_qt_data.send(Data::StringVecString((text, packed_file_path.borrow().to_vec()))).unwrap();
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Modify(vec![TreePathType::File(packed_file_path.borrow().to_vec())]),
+                            );
+                        },
+                        TextType::Notes(_) => {
+                            sender_qt.send(Commands::SetNotes).unwrap();
+                            sender_qt_data.send(Data::String(text)).unwrap();
 
-                    update_treeview(
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt,
-                        &app_ui,
-                        app_ui.folder_tree_view,
-                        Some(app_ui.folder_tree_filter),
-                        app_ui.folder_tree_model,
-                        TreeViewOperation::Modify(vec![TreePathType::File(packed_file_path.borrow().to_vec())]),
-                    );
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Modify(vec![TreePathType::PackFile]),
+                            );
+
+                            // This has to mark the PackFile as impossible to undo.
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]),
+                            );
+                        }
+                    }
                 }
             )),
 
