@@ -1642,6 +1642,16 @@ impl PackedFileTableView {
                         visual_row += 1;
                     }
 
+                    // We need to update the undo model here, because otherwise it'll start triggering crashes 
+                    // in case the first thing to paste is equal to the current value. In that case, the set_data
+                    // will not trigger, and the update_undo_model will not trigger either, causing a crash if 
+                    // inmediatly after that we try to paste something in a new line (which will not exist in the undo model).
+                    {
+                        let mut table_state_data = table_state_data.borrow_mut();
+                        let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+                        update_undo_model(model, table_state_data.undo_model); 
+                    }
+
                     // Now we do the real pass, changing data if needed.
                     let mut changed_cells = 0;
                     for (real_cell, text) in &real_cells {
@@ -1650,7 +1660,7 @@ impl PackedFileTableView {
                         match table_definition.fields[real_cell.column() as usize].field_type {
 
                             FieldType::Boolean => {
-                                let current_value = unsafe { model.as_mut().unwrap().item_from_index(real_cell).as_mut().unwrap().check_state() };
+                                let current_value = unsafe { model.as_ref().unwrap().item_from_index(real_cell).as_ref().unwrap().check_state() };
                                 let new_value = if text.to_lowercase() == "true" || **text == "1" { CheckState::Checked } else { CheckState::Unchecked };
                                 if current_value != new_value { 
                                     unsafe { model.as_mut().unwrap().item_from_index(real_cell).as_mut().unwrap().set_check_state(new_value); }
@@ -1659,7 +1669,7 @@ impl PackedFileTableView {
                             },
 
                             FieldType::Float => {
-                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                let current_value = unsafe { model.as_ref().unwrap().data(real_cell).to_string().to_std_string() };
                                 if &current_value != *text {
                                     unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new2(text.parse::<f32>().unwrap()), 2)); }
                                     changed_cells += 1;
@@ -1667,7 +1677,7 @@ impl PackedFileTableView {
                             },
 
                             FieldType::Integer => {
-                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                let current_value = unsafe { model.as_ref().unwrap().data(real_cell).to_string().to_std_string() };
                                 if &current_value != *text {
                                     unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new0(text.parse::<i32>().unwrap()), 2)); }
                                     changed_cells += 1;
@@ -1675,7 +1685,7 @@ impl PackedFileTableView {
                             },
 
                             FieldType::LongInteger => {
-                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                let current_value = unsafe { model.as_ref().unwrap().data(real_cell).to_string().to_std_string() };
                                 if &current_value != *text {
                                     unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new2(text.parse::<i64>().unwrap()), 2)); }
                                     changed_cells += 1;
@@ -1683,7 +1693,7 @@ impl PackedFileTableView {
                             },
 
                             _ => {
-                                let current_value = unsafe { model.as_mut().unwrap().data(real_cell).to_string().to_std_string() };
+                                let current_value = unsafe { model.as_ref().unwrap().data(real_cell).to_string().to_std_string() };
                                 if &current_value != *text {
                                     unsafe { model.as_mut().unwrap().set_data((real_cell, &Variant::new0(&QString::from_std_str(text)), 2)); }
                                     changed_cells += 1;
