@@ -1064,7 +1064,7 @@ impl PackedFileTableView {
                                     
                                     // If we got a current value and it's different, it's a valid cell.
                                     if let Ok(current_value) = current_value.parse::<f64>() {
-                                        if (result - current_value) >= std::f64::EPSILON { 
+                                        if (result - current_value).abs() >= std::f64::EPSILON { 
                                             is_valid = true;
                                         }
                                     }
