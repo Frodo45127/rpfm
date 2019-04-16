@@ -96,7 +96,9 @@ pub fn create_packed_file(
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read_from_vec(path, get_current_time(), false, data); 1]);
+    let packed_files = vec![PackedFile::read_from_vec(path, get_current_time(), false, data); 1];
+    let added_paths = pack_file.add_packed_files(&packed_files);
+    if added_paths.len() < packed_files.len() { Err(ErrorKind::ReservedFiles)? }
 
     // Return the path to update the UI.
     Ok(())
@@ -178,7 +180,7 @@ pub fn merge_tables(
     }
 
     // Prepare the paths to return.
-    let added_path = pack_file.add_packed_files(vec![packed_file])[0].to_vec();
+    let added_path = pack_file.add_packed_files(&[packed_file]).get(0).ok_or_else(|| Error::from(ErrorKind::ReservedFiles))?.to_vec();
     deleted_paths.retain(|x| x != &added_path);
 
     let mut tree_paths = vec![];
@@ -415,7 +417,8 @@ pub fn tsv_mass_import(
     indexes.iter().rev().for_each(|x| pack_file.remove_packedfile(*x) );
 
     // We add all the files to the PackFile, and return success.
-    pack_file.add_packedfiles(packed_files);
+    let added_paths = pack_file.add_packed_files(&packed_files);
+    if added_paths.len() < packed_files.len() { Err(ErrorKind::ReservedFiles)? }
     Ok((packed_files_to_remove, tree_path))
 }
 

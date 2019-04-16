@@ -50,6 +50,9 @@ pub enum ErrorKind {
     // Error for when we're trying to merge two invalid files.
     InvalidFilesForMerging,
 
+    // Error for when we're trying add/rename/whatever a file with a reserved path.
+    ReservedFiles,
+
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -368,6 +371,7 @@ impl Display for ErrorKind {
             ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
+            ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
