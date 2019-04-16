@@ -63,6 +63,7 @@ use qt_gui::icon::Icon;
 use qt_gui::key_sequence::KeySequence;
 use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::palette::{Palette, ColorGroup, ColorRole};
+use qt_gui::slots::SlotStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -4095,6 +4096,11 @@ fn main() {
         // Special Actions, like opening a PackedFile...
         //-----------------------------------------------------//
 
+        // What happens when we change the state of an item in the TreeView...
+        let slot_paint_treeview = SlotStandardItemMutPtr::new(move |item| {
+            paint_specific_item_treeview(item);
+        });
+
         // What happens when we try to open a PackedFile...
         let slot_open_packedfile = Rc::new(SlotNoArgs::new(clone!(
             global_search_explicit_paths,
@@ -4623,6 +4629,9 @@ fn main() {
             unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().clicked().connect(&*slot_open_packedfile); }
         }
 
+        // Action to paint the TreeView.
+        unsafe { app_ui.folder_tree_model.as_mut().unwrap().signals().item_changed().connect(&slot_paint_treeview); }
+        
         // Global search actions.
         unsafe { app_ui.context_menu_global_search.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_global_search); }
         unsafe { table_view_matches_loc.as_mut().unwrap().signals().double_clicked().connect(&slot_load_match_loc); }

@@ -445,19 +445,17 @@ pub fn update_treeview(
 
                                 if let TreePathType::File(ref path) = &item_type {
                                     unsafe { item.as_mut().unwrap().set_data((&Variant::new0(1i32), 20)); }
-                                    unsafe { item.as_mut().unwrap().set_data((&Variant::new0(1i32), 21)); }
-                                    unsafe { item.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
                                     set_icon_to_item(item, IconType::File(path.to_vec()));
                                 }
 
                                 else if let TreePathType::Folder(_) = &item_type {
                                     unsafe { item.as_mut().unwrap().set_data((&Variant::new0(2i32), 20)); }
-                                    unsafe { item.as_mut().unwrap().set_data((&Variant::new0(1i32), 21)); }
-                                    unsafe { item.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
                                     set_icon_to_item(item, IconType::Folder);
                                 }
 
+                                unsafe { item.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
                                 unsafe { parent.as_mut().unwrap().append_row_unsafe(item); }
+                                unsafe { item.as_mut().unwrap().set_data((&Variant::new0(1i32), 21)); }
 
                                 // Sort the TreeView.
                                 sort_item_in_tree_view(
@@ -507,10 +505,10 @@ pub fn update_treeview(
                                     let folder = StandardItem::new(&QString::from_std_str(name)).into_raw();
                                     folder.as_mut().unwrap().set_editable(false);
                                     folder.as_mut().unwrap().set_data((&Variant::new0(2i32), 20));
-                                    folder.as_mut().unwrap().set_data((&Variant::new0(1i32), 21));
                                     folder.as_mut().unwrap().set_data((&Variant::new0(true), 22));
                                     set_icon_to_item(folder, IconType::Folder);
                                     parent.as_mut().unwrap().append_row_unsafe(folder);
+                                    folder.as_mut().unwrap().set_data((&Variant::new0(1i32), 21));
 
                                     // This is our parent now.
                                     let index = parent.as_ref().unwrap().row_count() - 1;
@@ -899,8 +897,6 @@ pub fn update_treeview(
         }
     }
     *IS_MODIFIED.lock().unwrap() = update_packfile_state(None, &app_ui);
-    paint_full_treeview(None, model);
-
 }
 
 //----------------------------------------------------------------//
@@ -1275,89 +1271,21 @@ pub fn update_packfile_state(
     is_modified
 }
 
-/*/// This function paints the entire path to it, depending on if it's a modification or an addition.
-/// This requires the item to be in the Model already. Otherwise it'll not work.
-fn paint_specific_item_treeview(
-    item: *mut StandardItem,
-    model: *mut StandardItemModel,
+/// This function takes care of changing the color of an item on the TreeView on edition.
+pub fn paint_specific_item_treeview(
+    item: *mut StandardItem
 ) {
-
-    // First, paint the current item.
-    let status = unsafe { item.as_ref().unwrap().data(21).to_int() };
     let color_added = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green };
     let color_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
     let color_added_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
     let color_untouched = GlobalColor::Transparent;
-    let color = match &status {
-        0 => color_untouched.clone(),
-        1 => color_added.clone(),
-        2 => color_modified.clone(),
-        3 => color_added_modified.clone(),
+    match unsafe { item.as_ref().unwrap().data(21).to_int() } {
+        0 => unsafe { item.as_mut().unwrap().set_background(&Brush::new(color_untouched)); },
+        1 => unsafe { item.as_mut().unwrap().set_background(&Brush::new(color_added)); },
+        2 => unsafe { item.as_mut().unwrap().set_background(&Brush::new(color_modified)); },
+        3 => unsafe { item.as_mut().unwrap().set_background(&Brush::new(color_added_modified)); },
         _=> unimplemented!(),
     };
-
-    // Get the full path of the item and the times we must to go up until we reach the parent.
-    let full_path = get_path_from_item(model, item, true);
-    let cycles = if !full_path.is_empty() { full_path.len() - 1 } else { 0 };
-
-    // Paint it like one of your french girls.
-    unsafe { item.as_mut().unwrap().set_background(&Brush::new(color)); }
-
-    // Loop through his parents until we reach the PackFile.
-    let mut parent = unsafe { item.as_mut().unwrap().parent() };
-    for _ in 0..cycles {
-
-        // Get the status and paint them as needed.
-        let status = unsafe { parent.as_ref().unwrap().data(21).to_int() }; 
-        match status {
-            0 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
-            1 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
-            2 | 3 => {},
-            _ => unimplemented!(),
-        };
-        println!("{:?}", status);
-        println!("{:?}", unsafe { parent.as_ref().unwrap().data(21).to_int() });
-        match unsafe { parent.as_mut().unwrap().data(21).to_int() } {
-            0 => unsafe { parent.as_mut().unwrap().set_background(&Brush::new(color_modified.clone())) },
-            1 => unsafe { parent.as_mut().unwrap().set_background(&Brush::new(color_added_modified.clone())) },
-            2 | 3 => {},
-            _ => unimplemented!(),
-        };
-
-        // Set the new parent.
-        unsafe { parent = parent.as_mut().unwrap().parent(); }
-    }
-}*/
-
-fn paint_full_treeview(
-    item: Option<*mut StandardItem>,
-    model: *mut StandardItemModel
-) {
-    let item = match item {
-        Some(item) => item,
-        None => unsafe { model.as_mut().unwrap().item(0) } 
-    };
-
-    let status = unsafe { item.as_ref().unwrap().data(21).to_int() };
-    let color_added = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green };
-    let color_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
-    let color_added_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
-    let color_untouched = GlobalColor::Transparent;
-    let color = match &status {
-        0 => color_untouched,
-        1 => color_added,
-        2 => color_modified,
-        3 => color_added_modified,
-        _=> unimplemented!(),
-    };
-    unsafe { item.as_mut().unwrap().set_background(&Brush::new(color)); }
-
-    let children_count = unsafe { item.as_ref().unwrap().row_count() };
-    for row in 0..children_count {
-        let child = unsafe { item.as_ref().unwrap().child(row) };
-        paint_full_treeview(Some(child), model);
-    }
-
 }
 
 /// This function cleans the entire TreeView from colors. To be used when saving.
