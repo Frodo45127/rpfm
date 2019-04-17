@@ -144,9 +144,385 @@
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#016">016</a></li>
 <li><a href="#015">015</a></li>
 </ul>
 <hr />
+<a class="header" href="#016" id="016"><h1>016</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>agent_subtype_to_vows_tables</em>.</li>
+<li><em>bretonnia_vows_tables</em>.</li>
+<li><em>bretonnia_vows_to_traits_tables</em>.</li>
+<li><em>campaign_agent_subtype_factorial_effect_junctions_tables</em>.</li>
+<li><em>campaign_building_level_factorial_effect_junctions_tables</em>.</li>
+<li><em>campaign_factorial_categories_tables</em>.</li>
+<li><em>campaign_factorial_category_base_thresholds_tables</em>.</li>
+<li><em>campaign_factorial_category_junctions_tables</em>.</li>
+<li><em>campaign_factorial_scopes_tables</em>.</li>
+<li><em>campaign_factorial_ui_infos_tables</em>.</li>
+<li><em>campaign_group_member_criteria_originating_factions_tables</em>.</li>
+<li><em>effect_bonus_value_projectile_junctions_tables</em>.</li>
+<li><em>factorial_effects_tables</em>.</li>
+<li><em>prophecy_of_sotek_stages_tables</em>.</li>
+<li><em>prophecy_of_sotek_stages_to_missions_tables</em>.</li>
+<li><em>sacrifices_to_sotek_rituals_tables</em>.</li>
+<li><em>sotek_tooltip_types_tables</em>.</li>
+<li><em>special_unit_categories_tables</em>.</li>
+<li><em>workshop_categories_progress_levels_tables</em>.</li>
+<li><em>workshop_categories_tables</em>.</li>
+<li><em>workshop_categories_to_rituals_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><strong><em>agent_actions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>order</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Used to control the order actions appear with their categories and targets</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_abilities_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>use_active_time</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>use_wind_up_time</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>casting_rtpc_name</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_entity_type_limitations_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>contains_unique_entity_switches</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_entity_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>should_use_unique_entity_switches</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>max_unique_entity_switches</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>use_focus_rtpc</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>max_camera_distance_for_focus</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>min_camera_distance_for_focus</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>focus_rtpc</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>unique_entity_switch</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>ignore_moving_outside_combat</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>ignore_moving</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>group_idle_shoot</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_group_sounds</em>/<em>name</em>.</li>
+</ul>
+</li>
+<li><strong><em>group_idle_combat_ready</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_group_sounds</em>/<em>name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_entity_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>should_use_unique_entity_switches</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>max_unique_entity_switches</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>use_focus_rtpc</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>max_camera_distance_for_focus</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>min_camera_distance_for_focus</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>ignore_moving</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>focus_rtpc</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>unique_entity_switch</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>ignore_moving_outside_combat</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_entity_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>should_use_unique_entity_switches</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>max_unique_entity_switches</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>unique_entity_switch</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_group_sounds_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>disable_group_merging</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_metadata_tags_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>ignore_alpha_check</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>override_vo</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>sound will override vo, so if vo triggers this sound will not be stopped. Eg. Keeping a dinosaur vocalisation roar playing rather than stopping it for a vo roar</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_metadata_tags_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>ignore_alpha_check</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_mercenary_unit_character_level_restrictions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>faction_override</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>factions</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>character_level</strong>:
+<ul>
+<li><strong><em>Is Key</em></strong>: <em>false</em> =&gt; <em>true</em>.</li>
+</ul>
+</li>
+<li><strong>unit</strong>:
+<ul>
+<li><strong><em>Is Key</em></strong>: <em>true</em> =&gt; <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>frontend_faction_leaders_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>startpos_map</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>slot_sets_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>use_discoverability_feature</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_sets_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>special_category</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>special_unit_categories</em>/<em>category</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#015" id="015"><h1>015</h1></a>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 
