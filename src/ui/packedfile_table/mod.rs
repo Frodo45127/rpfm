@@ -211,6 +211,9 @@ impl PackedFileTableView {
             let _y = table_state_data.borrow_mut().insert(packed_file_path.borrow().to_vec(), TableStateData::new_empty());
         }
 
+        // Create the "Paste Lock", so we don't save in every freaking edit.
+        let save_lock = Rc::new(RefCell::new(false));
+
         // Create the TableView.
         let table_view = TableView::new().into_raw();
         let filter_model = SortFilterProxyModel::new().into_raw();
@@ -563,6 +566,7 @@ impl PackedFileTableView {
                 receiver_qt,
                 enable_header_popups,
                 undo_lock,
+                save_lock,
                 table_type,
                 table_definition,
                 table_state_data => move || {
@@ -584,6 +588,7 @@ impl PackedFileTableView {
                             &global_search_explicit_paths,
                             update_global_search_stuff,
                             &undo_lock,
+                            &save_lock,
                             &table_definition,
                             &table_type,
                             enable_header_popups.clone()
@@ -606,6 +611,7 @@ impl PackedFileTableView {
                 receiver_qt,
                 enable_header_popups,
                 undo_lock,
+                save_lock,
                 table_type,
                 table_definition,
                 table_state_data => move || {
@@ -627,6 +633,7 @@ impl PackedFileTableView {
                             &global_search_explicit_paths,
                             update_global_search_stuff,
                             &undo_lock,
+                            &save_lock,
                             &table_definition,
                             &table_type,
                             enable_header_popups.clone()
@@ -730,6 +737,7 @@ impl PackedFileTableView {
                 app_ui,
                 table_definition,
                 table_type,
+                save_lock,
                 receiver_qt,
                 sender_qt,
                 sender_qt_data => move |_,_,roles| {
@@ -739,29 +747,35 @@ impl PackedFileTableView {
                     // 16 is a role we use as an special trigger for this.
                     if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) || roles.contains(&16) {
 
-                        // Thanks to validation, this should NEVER fail. If this fails, revise the validation stuff.
-                        Self::save_to_packed_file(
-                            &sender_qt,
-                            &sender_qt_data,
-                            &receiver_qt,
-                            &app_ui,
-                            &packed_file_path,
-                            model,
-                            &global_search_explicit_paths,
-                            update_global_search_stuff,
-                            &table_definition,
-                            &mut table_type.borrow_mut(),
-                        );
+                        // For pasting, only save the last iteration of the paste.                        
+                        if !*save_lock.borrow() {
 
-                        // Otherwise, update the needed stuff.
-                        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+                            // Thanks to validation, this should NEVER fail. If this fails, revise the validation stuff.
+                            Self::save_to_packed_file(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                &packed_file_path,
+                                model,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
+                                &table_definition,
+                                &mut table_type.borrow_mut(),
+                            );
+
+                            // Otherwise, update the needed stuff.
+                            unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+                        }
                     }
                 }
             )),
 
             slot_item_changed: SlotStandardItemMutPtr::new(clone!(
+                undo_lock,
                 packed_file_path,
                 table_type,
+                save_lock,
                 table_state_data,
                 dependency_data,
                 table_definition => move |item| {
@@ -780,7 +794,10 @@ impl PackedFileTableView {
                             unsafe { item.as_mut().unwrap().set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
                             blocker.unblock();
 
-                            update_undo_model(model, table_state_data.undo_model); 
+                            // For pasting, only update the undo_model the last iteration of the paste.                        
+                            if !*save_lock.borrow() {
+                                update_undo_model(model, table_state_data.undo_model);
+                            }
                         }
 
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1578,6 +1595,8 @@ impl PackedFileTableView {
 
             // NOTE: Saving is not needed in this slot, as this gets detected by the main saving slot.
             slot_context_menu_paste: SlotBool::new(clone!(
+                undo_lock,
+                save_lock,
                 packed_file_path,
                 table_state_data,
                 table_definition => move |_| {
@@ -1649,12 +1668,13 @@ impl PackedFileTableView {
                     {
                         let mut table_state_data = table_state_data.borrow_mut();
                         let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
-                        update_undo_model(model, table_state_data.undo_model); 
+                        update_undo_model(model, table_state_data.undo_model);
                     }
+                    *save_lock.borrow_mut() = true;
 
                     // Now we do the real pass, changing data if needed.
                     let mut changed_cells = 0;
-                    for (real_cell, text) in &real_cells {
+                    for (index, (real_cell, text)) in real_cells.iter().enumerate() {
 
                         // Depending on the column, we try to encode the data in one format or another.
                         match table_definition.fields[real_cell.column() as usize].field_type {
@@ -1699,6 +1719,15 @@ impl PackedFileTableView {
                                     changed_cells += 1;
                                 }
                             }
+                        }
+
+                        // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+                        if index == real_cells.len() - 1 {
+                            *undo_lock.borrow_mut() = true;
+                            unsafe { model.as_mut().unwrap().item_from_index(real_cell).as_mut().unwrap().set_data((&Variant::new0(1i32), 16)); }
+                            *save_lock.borrow_mut() = false;
+                            unsafe { model.as_mut().unwrap().item_from_index(real_cell).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
+                            *undo_lock.borrow_mut() = false;
                         }
                     }
 
@@ -3150,6 +3179,7 @@ impl PackedFileTableView {
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
         undo_lock: &Rc<RefCell<bool>>,
+        save_lock: &Rc<RefCell<bool>>,
         table_definition: &TableDefinition,
         table_type: &Rc<RefCell<TableType>>,
         enable_header_popups: Option<String>,
@@ -3166,14 +3196,19 @@ impl PackedFileTableView {
                 history_opposite.push(TableOperations::Editing(redo_editions));
     
                 *undo_lock.borrow_mut() = true;
+                *save_lock.borrow_mut() = true;
                 for (index, edit) in editions.iter().enumerate() {
                     let row = (edit.0).0;
                     let column = (edit.0).1;
                     let item = edit.1;
                     unsafe { model.as_mut().unwrap().set_item((row, column, item.clone())); }
                     
-                    // Trick to tell the model to update everything.
-                    if index == editions.len() - 1 { unsafe { model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }}
+                    // If we are going to process the last one, unlock the save.
+                    if index == editions.len() - 1 { 
+                        unsafe { model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_data((&Variant::new0(1i32), 16)); }
+                        *save_lock.borrow_mut() = false;
+                        unsafe { model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
+                    }
                 }
                 *undo_lock.borrow_mut() = false;
     
@@ -3469,6 +3504,7 @@ impl PackedFileTableView {
                         &global_search_explicit_paths,
                         update_global_search_stuff,
                         &undo_lock,
+                        &save_lock,
                         &table_definition,
                         &table_type,
                         enable_header_popups.clone()
