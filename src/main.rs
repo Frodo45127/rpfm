@@ -39,10 +39,8 @@ use qt_widgets::action_group::ActionGroup;
 use qt_widgets::application::Application;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::file_dialog::{FileDialog, FileMode, Option::ShowDirsOnly};
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::header_view::ResizeMode;
-use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::menu::Menu;
@@ -755,9 +753,7 @@ fn main() {
 
         // Create a Central Widget and populate it.
         let mut central_widget = Widget::new();
-        let mut central_layout = GridLayout::new();
-
-        unsafe { central_widget.set_layout(central_layout.static_cast_mut()); }
+        let mut central_layout = create_grid_layout_safe(&mut central_widget);
         unsafe { window.set_central_widget(central_widget.as_mut_ptr()); }
 
         // Create the layout for the Central Widget.
@@ -769,8 +765,7 @@ fn main() {
 
         // Create the widget to fit in all the TreeView stuff.
         let mut folder_tree_widget = Widget::new();
-        let mut folder_tree_layout = GridLayout::new();
-        unsafe { folder_tree_widget.set_layout(folder_tree_layout.static_cast_mut()); }
+        let mut folder_tree_layout = create_grid_layout_safe(&mut folder_tree_widget);
 
         // Create the TreeView.
         let mut folder_tree_view = TreeView::new();
@@ -807,9 +802,7 @@ fn main() {
 
         // Create the "Global Search" view.
         let global_search_widget = Widget::new().into_raw();
-        let global_search_grid = GridLayout::new().into_raw();
-        unsafe { global_search_widget.as_mut().unwrap().set_layout(global_search_grid as *mut Layout); }
-        unsafe { global_search_grid.as_mut().unwrap().set_margin(3); }
+        let global_search_grid = create_grid_layout_unsafe(global_search_widget);
 
         let close_matches_button = PushButton::new(&QString::from_std_str("Close Matches")).into_raw();
         let table_view_matches_db = TableView::new().into_raw();
@@ -866,12 +859,10 @@ fn main() {
 
         // Create the frames for the matches tables.
         let db_matches_frame = GroupBox::new(&QString::from_std_str("DB Matches")).into_raw();
-        let db_matches_grid = GridLayout::new().into_raw();
-        unsafe { db_matches_frame.as_mut().unwrap().set_layout(db_matches_grid as *mut Layout); }
+        let db_matches_grid = create_grid_layout_unsafe(db_matches_frame as *mut Widget);
 
         let loc_matches_frame = GroupBox::new(&QString::from_std_str("Loc Matches")).into_raw();
-        let loc_matches_grid = GridLayout::new().into_raw();
-        unsafe { loc_matches_frame.as_mut().unwrap().set_layout(loc_matches_grid as *mut Layout); }
+        let loc_matches_grid = create_grid_layout_unsafe(loc_matches_frame as *mut Widget);
 
         unsafe { db_matches_grid.as_mut().unwrap().add_widget((table_view_matches_db as *mut Widget, 0, 0, 1, 3)); }
         unsafe { loc_matches_grid.as_mut().unwrap().add_widget((table_view_matches_loc as *mut Widget, 0, 0, 1, 3)); }
@@ -3814,8 +3805,7 @@ fn main() {
 
                 // Create the widget that'll act as a container for the view.
                 let widget = Widget::new().into_raw();
-                let widget_layout = GridLayout::new().into_raw();
-                unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+                let widget_layout = create_grid_layout_unsafe(widget);
 
                 // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
                 let path = Rc::new(RefCell::new(vec![]));
@@ -3902,8 +3892,7 @@ fn main() {
 
                 // Create the widget that'll act as a container for the view.
                 let widget = Widget::new().into_raw();
-                let widget_layout = GridLayout::new().into_raw();
-                unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+                let widget_layout = create_grid_layout_unsafe(widget);
                 
                 let path = Rc::new(RefCell::new(vec![]));
                 let view_position = 1;

@@ -16,11 +16,9 @@ use qt_widgets::dialog::Dialog;
 use qt_widgets::{dialog_button_box, dialog_button_box::DialogButtonBox};
 use qt_widgets::file_dialog::{FileDialog, FileMode, Option::ShowDirsOnly};
 use qt_widgets::frame::Frame;
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::label::Label;
 use qt_widgets::line_edit::LineEdit;
-use qt_widgets::layout::Layout;
 use qt_widgets::push_button::PushButton;
 use qt_widgets::widget::Widget;
 
@@ -47,7 +45,7 @@ use crate::common::communications::*;
 use crate::error::ErrorKind;
 use crate::settings::Settings;
 use super::shortcuts::ShortcutsDialog;
-use super::show_dialog;
+use super::{create_grid_layout_unsafe, show_dialog};
 
 /// `SettingsDialog`: This struct holds all the relevant stuff for the Settings Dialog.
 pub struct SettingsDialog {
@@ -103,12 +101,14 @@ impl SettingsDialog {
         unsafe { dialog.as_mut().unwrap().resize((750, 0)); }
 
         // Create the main Grid.
-        let main_grid = GridLayout::new().into_raw();
-        unsafe { dialog.as_mut().unwrap().set_layout(main_grid as *mut Layout); }
+        let main_grid = create_grid_layout_unsafe(dialog as *mut Widget);
+        unsafe { main_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
+        unsafe { main_grid.as_mut().unwrap().set_spacing(4); }
 
         // Create the Paths Frame.
         let paths_frame = GroupBox::new(&QString::from_std_str("Paths")).into_raw();
-        let mut paths_grid = GridLayout::new();
+        let paths_grid = create_grid_layout_unsafe(paths_frame as *mut Widget);
+        unsafe { paths_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
 
         // Create the MyMod's path stuff...
         let mymod_label = Label::new(&QString::from_std_str("MyMod's Path:")).into_raw();
@@ -119,9 +119,9 @@ impl SettingsDialog {
         unsafe { mymod_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("This is the folder where you want to store all \"MyMod\" related files.")); }
 
         // Add them to the grid.
-        unsafe { paths_grid.add_widget((mymod_label as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { paths_grid.add_widget((mymod_line_edit as *mut Widget, 0, 1, 1, 1)); }
-        unsafe { paths_grid.add_widget((mymod_button as *mut Widget, 0, 2, 1, 1)); }
+        unsafe { paths_grid.as_mut().unwrap().add_widget((mymod_label as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { paths_grid.as_mut().unwrap().add_widget((mymod_line_edit as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { paths_grid.as_mut().unwrap().add_widget((mymod_button as *mut Widget, 0, 2, 1, 1)); }
 
         // For each game supported...
         let mut game_paths = BTreeMap::new();
@@ -137,9 +137,9 @@ impl SettingsDialog {
             unsafe { game_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str(&*format!("This is the folder where you have {} installed.", game_supported.display_name))); }
 
             // And add them to the grid.
-            unsafe { paths_grid.add_widget((game_label as *mut Widget, (index + 1) as i32, 0, 1, 1)); }
-            unsafe { paths_grid.add_widget((game_line_edit as *mut Widget, (index + 1) as i32, 1, 1, 1)); }
-            unsafe { paths_grid.add_widget((game_button as *mut Widget, (index + 1) as i32, 2, 1, 1)); }
+            unsafe { paths_grid.as_mut().unwrap().add_widget((game_label as *mut Widget, (index + 1) as i32, 0, 1, 1)); }
+            unsafe { paths_grid.as_mut().unwrap().add_widget((game_line_edit as *mut Widget, (index + 1) as i32, 1, 1, 1)); }
+            unsafe { paths_grid.as_mut().unwrap().add_widget((game_button as *mut Widget, (index + 1) as i32, 2, 1, 1)); }
 
             // Add the LineEdit and Button to the list.
             game_paths.insert(folder_name.to_string(), game_line_edit);
@@ -148,12 +148,16 @@ impl SettingsDialog {
 
         // Create the "UI Settings" frame and Grid.
         let ui_settings_frame = GroupBox::new(&QString::from_std_str("UI Settings")).into_raw();
-        let ui_settings_grid = GridLayout::new().into_raw();
+        let ui_settings_grid = create_grid_layout_unsafe(ui_settings_frame as *mut Widget);
+        unsafe { ui_settings_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
+        unsafe { ui_settings_grid.as_mut().unwrap().set_spacing(4); }
         unsafe { ui_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
         // Create the "UI TableView Settings" frame and grid.
         let ui_table_view_settings_frame = GroupBox::new(&QString::from_std_str("Table Settings")).into_raw();
-        let ui_table_view_settings_grid = GridLayout::new().into_raw();
+        let ui_table_view_settings_grid = create_grid_layout_unsafe(ui_table_view_settings_frame as *mut Widget);
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
+        unsafe { ui_table_view_settings_grid.as_mut().unwrap().set_spacing(4); }
         unsafe { ui_table_view_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
         // Create the UI options.
@@ -243,7 +247,6 @@ impl SettingsDialog {
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
         
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((ui_table_view_settings_frame as *mut Widget, 99, 0, 1, 2)); }
-        unsafe { ui_table_view_settings_frame.as_mut().unwrap().set_layout(ui_table_view_settings_grid as *mut Layout); }
 
         unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_sorting_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_sorting_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
@@ -256,12 +259,16 @@ impl SettingsDialog {
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
-        let extra_settings_grid = GridLayout::new().into_raw();
+        let extra_settings_grid = create_grid_layout_unsafe(extra_settings_frame as *mut Widget);
+        unsafe { extra_settings_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
+        unsafe { extra_settings_grid.as_mut().unwrap().set_spacing(4); }
         unsafe { extra_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
         // Create the "Debug Settings" frame and grid.
         let debug_settings_frame = GroupBox::new(&QString::from_std_str("Debug Settings")).into_raw();
-        let debug_settings_grid = GridLayout::new().into_raw();
+        let debug_settings_grid = create_grid_layout_unsafe(debug_settings_frame as *mut Widget);
+        unsafe { debug_settings_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
+        unsafe { debug_settings_grid.as_mut().unwrap().set_spacing(4); }
         unsafe { debug_settings_grid.as_mut().unwrap().set_row_stretch(99, 10); }
 
         // Create the "Default Game" Label and ComboBox.
@@ -337,18 +344,14 @@ impl SettingsDialog {
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((use_lazy_loading_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
 
         unsafe { extra_settings_grid.as_mut().unwrap().add_widget((debug_settings_frame as *mut Widget, 99, 0, 1, 2)); }
-        unsafe { debug_settings_frame.as_mut().unwrap().set_layout(debug_settings_grid as *mut Layout); }
 
         unsafe { debug_settings_grid.as_mut().unwrap().add_widget((check_for_missing_table_definitions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { debug_settings_grid.as_mut().unwrap().add_widget((check_for_missing_table_definitions_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
 
         // Add the Path's grid to his Frame, and his Frame to the Main Grid.
-        unsafe { paths_frame.as_mut().unwrap().set_layout(paths_grid.static_cast_mut() as *mut Layout); }
         unsafe { main_grid.as_mut().unwrap().add_widget((paths_frame as *mut Widget, 0, 0, 1, 2)); }
 
         // Add the Grid to the Frame, and the Frame to the Main Grid.
-        unsafe { ui_settings_frame.as_mut().unwrap().set_layout(ui_settings_grid as *mut Layout); }
-        unsafe { extra_settings_frame.as_mut().unwrap().set_layout(extra_settings_grid as *mut Layout); }
         unsafe { main_grid.as_mut().unwrap().add_widget((ui_settings_frame as *mut Widget, 1, 0, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((extra_settings_frame as *mut Widget, 1, 1, 1, 1)); }
 
@@ -616,11 +619,11 @@ impl NewMyModDialog {
         dialog.resize((300, 0));
 
         // Create the main Grid.
-        let main_grid = GridLayout::new().into_raw();
+        let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
 
         // Create the Advices Frame.
         let advices_frame = Frame::new().into_raw();
-        let mut advices_grid = GridLayout::new();
+        let advices_grid = create_grid_layout_unsafe(advices_frame as *mut Widget);
 
         // Create the "Advices" Label.
         let advices_label = Label::new(&QString::from_std_str("Things to take into account before creating a new mod:
@@ -630,16 +633,8 @@ impl NewMyModDialog {
 	- You can't create a mod for a game that has no path set in the settings.")).into_raw();
 
         unsafe {
-
-            // Add it to his frame.
-            advices_grid.add_widget((advices_label as *mut Widget, 0, 0, 1, 1));
-
-            // Add the Grid to the Frame, and the Frame to the Main Grid.
-            advices_frame.as_mut().unwrap().set_layout(advices_grid.static_cast_mut() as *mut Layout);
+            advices_grid.as_mut().unwrap().add_widget((advices_label as *mut Widget, 0, 0, 1, 1));
             main_grid.as_mut().unwrap().add_widget((advices_frame as *mut Widget, 0, 0, 1, 2));
-
-            // And the Main Grid to the Dialog...
-            dialog.set_layout(main_grid as *mut Layout);
         }
 
         // Create the "MyMod's Name" Label and LineEdit.

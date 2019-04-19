@@ -162,12 +162,10 @@ impl PackedFileTextView {
                     result.iter().for_each(|x| clean_result.push_str(&format!("{}\n", x)));
 
                     // Create the dialog.
-                    let dialog;
-                    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw(); }
+                    let dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget).into_raw() };
 
                     // Create the Grid.
-                    let grid = GridLayout::new().into_raw();
-                    unsafe { dialog.as_mut().unwrap().set_layout(grid as *mut Layout); }
+                    let grid = create_grid_layout_unsafe(dialog as *mut Widget);
 
                     // Configure the dialog.
                     unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Script Checked!")); }

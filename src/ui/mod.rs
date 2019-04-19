@@ -40,7 +40,7 @@ use qt_core::reg_exp::RegExp;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef, SlotModelIndexRef};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 
-use cpp_utils::StaticCast;
+use cpp_utils::{CppBox, StaticCast};
 
 use chrono::NaiveDateTime;
 use std::collections::BTreeMap;
@@ -148,8 +148,7 @@ impl AddFromPackFileSlots {
 
         // Create the widget that'll act as a container for the view.
         let widget = Widget::new().into_raw();
-        let widget_layout = GridLayout::new().into_raw();
-        unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+        let widget_layout = create_grid_layout_unsafe(widget);
         unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
         
         // Create the stuff.
@@ -320,12 +319,11 @@ pub fn create_rename_dialog(app_ui: &AppUI) -> Option<String> {
     dialog.set_window_title(&QString::from_std_str("Rename Selection"));
     dialog.set_modal(true);
     dialog.resize((400, 50));
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
 
     // Create a little frame with some instructions.
     let instructions_frame = GroupBox::new(&QString::from_std_str("Instructions")).into_raw();
-    let instructions_grid = GridLayout::new().into_raw();
-    unsafe { instructions_frame.as_mut().unwrap().set_layout(instructions_grid as *mut Layout); }
+    let instructions_grid = create_grid_layout_unsafe(instructions_frame as *mut Widget);
     let mut instructions_label = Label::new(&QString::from_std_str(
     "\
 It's easy, but you'll not understand it without an example, so here it's one:
@@ -345,7 +343,6 @@ And, in case you ask, works with numeric cells too, as long as the resulting tex
     unsafe { main_grid.as_mut().unwrap().add_widget((instructions_frame as *mut Widget, 0, 0, 1, 2)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((rewrite_sequence_line_edit.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((accept_button as *mut Widget, 1, 1, 1, 1)); }
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
@@ -363,34 +360,22 @@ pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
     // Creating the New Folder Dialog...
     //-------------------------------------------------------------------------------------------//
 
-    // Create the "New Folder" Dialog.
-    let mut dialog;
-    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
-
-    // Change his title.
+    // Create the "New Folder" Dialog and configure it.
+    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
     dialog.set_window_title(&QString::from_std_str("New Folder"));
-
-    // Set it Modal, so you can't touch the Main Window with this dialog open.
     dialog.set_modal(true);
 
     // Create the main Grid.
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
 
-    // Create the "New Folder" LineEdit.
+    // Create the "New Folder" LineEdit and configure it.
     let mut new_folder_line_edit = LineEdit::new(());
-
-    // Set the current name as default.
     new_folder_line_edit.set_text(&QString::from_std_str("new_folder"));
-
-    // Create the "New Folder" button.
     let new_folder_button = PushButton::new(&QString::from_std_str("New Folder")).into_raw();
 
     // Add all the widgets to the main grid.
     unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_button as *mut Widget, 0, 1, 1, 1)); }
-
-    // And the Main Grid to the Dialog...
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     //-------------------------------------------------------------------------------------------//
     // Actions for the New Folder Dialog...
@@ -399,15 +384,8 @@ pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
     // What happens when we hit the "New Folder" button.
     unsafe { new_folder_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
-    // Show the Dialog and, if we hit the "New Folder" button...
-    if dialog.exec() == 1 {
-
-        // Get the text from the LineEdit.
-        let new_name = new_folder_line_edit.text().to_std_string();
-
-        // Return the new name.
-        Some(new_name)
-    }
+    // Show the Dialog and, if we hit the "New Folder" button, return the new name.
+    if dialog.exec() == 1 { Some(new_folder_line_edit.text().to_std_string()) }
 
     // Otherwise, return None.
     else { None }
@@ -437,14 +415,13 @@ pub fn create_new_packed_file_dialog(
     dialog.set_modal(true);
 
     // Create the main Grid and his widgets.
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
     let mut new_packed_file_name_edit = LineEdit::new(());
     let table_filter_line_edit = LineEdit::new(()).into_raw();
     let create_button = PushButton::new(&QString::from_std_str("Create")).into_raw();
     let mut table_dropdown = ComboBox::new();
     let table_filter = SortFilterProxyModel::new().into_raw();
     let mut table_model = StandardItemModel::new(());
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     new_packed_file_name_edit.set_text(&QString::from_std_str("new_file"));
     unsafe { table_dropdown.set_model(table_model.static_cast_mut()); }
@@ -542,7 +519,7 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     unsafe { dialog.as_mut().unwrap().resize((400, 100)); }
 
     // Create the main Grid and his stuff.
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog as *mut Widget);
     let files_to_import_label = Label::new(&QString::from_std_str("Files to import: 0.")).into_raw();
     let select_files_button = PushButton::new(&QString::from_std_str("...")).into_raw();
     let mut imported_files_name_line_edit = LineEdit::new(());
@@ -556,7 +533,6 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     unsafe { main_grid.as_mut().unwrap().add_widget((select_files_button as *mut Widget, 0, 1, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((imported_files_name_line_edit.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((import_button as *mut Widget, 1, 1, 1, 1)); }
-    unsafe { dialog.as_mut().unwrap().set_layout(main_grid as *mut Layout); }
 
     //-------------------------------------------------------------------------------------------//
     // Actions for the Mass-Import TSV Dialog...
@@ -606,20 +582,18 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
 /// This function creates the entire "Global Search" dialog. It returns the search info (pattern, case_sensitive).
 pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
 
-    let mut dialog;
-    unsafe { dialog = Dialog::new_unsafe(app_ui.window as *mut Widget); }
+    let mut dialog  = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
     dialog.set_window_title(&QString::from_std_str("Global Search"));
     dialog.set_modal(true);
 
     // Create the main Grid.
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
     let mut pattern = LineEdit::new(());
     pattern.set_placeholder_text(&QString::from_std_str("Write here what you want to search."));
 
     let search_button = PushButton::new(&QString::from_std_str("Search")).into_raw();
     unsafe { main_grid.as_mut().unwrap().add_widget((pattern.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((search_button as *mut Widget, 0, 1, 1, 1)); }
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     // What happens when we hit the "Search" button.
     unsafe { search_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
@@ -643,7 +617,7 @@ pub fn create_merge_tables_dialog(app_ui: &AppUI) -> Option<(String, bool)> {
     dialog.set_modal(true);
 
     // Create the main Grid.
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
     let mut name = LineEdit::new(());
     name.set_placeholder_text(&QString::from_std_str("Write the name of the new file here."));
 
@@ -653,7 +627,6 @@ pub fn create_merge_tables_dialog(app_ui: &AppUI) -> Option<(String, bool)> {
     unsafe { main_grid.as_mut().unwrap().add_widget((name.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((delete_source_tables.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((accept_button as *mut Widget, 2, 0, 1, 1)); }
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     // What happens when we hit the "Search" button.
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
@@ -781,8 +754,7 @@ pub fn display_help_tips(app_ui: &AppUI) {
 
     // Create the widget that'll act as a container for the view.
     let widget = Widget::new().into_raw();
-    let widget_layout = GridLayout::new().into_raw();
-    unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+    let widget_layout = create_grid_layout_unsafe(widget);
     unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
 
     let label = Label::new(&QString::from_std_str("Welcome to Rusted PackFile Manager! Here you have some tips on how to use it:
@@ -839,4 +811,26 @@ pub fn are_you_sure(
 
     // Otherwise, we allow the change directly.
     else { true }
+}
+
+/// This function creates a GridLayout for the provided widget with the settings we want.
+///
+/// This is the safe version for CppBox.
+pub fn create_grid_layout_safe(widget: &mut CppBox<Widget>) -> CppBox<GridLayout> {
+    let mut widget_layout = GridLayout::new();
+    unsafe { widget.set_layout(widget_layout.static_cast_mut() as *mut Layout); }
+    widget_layout.set_contents_margins((0, 0, 0, 0));
+    widget_layout.set_spacing(0);
+    widget_layout
+}
+
+/// This function creates a GridLayout for the provided widget with the settings we want.
+///
+/// This is the unsafe version for Pointers.
+pub fn create_grid_layout_unsafe(widget: *mut Widget) -> *mut GridLayout {
+    let widget_layout = GridLayout::new().into_raw();
+    unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+    unsafe { widget_layout.as_mut().unwrap().set_contents_margins((0, 0, 0, 0)) };
+    unsafe { widget_layout.as_mut().unwrap().set_spacing(0) };
+    widget_layout
 }

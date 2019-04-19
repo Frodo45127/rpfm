@@ -255,8 +255,7 @@ pub fn open_packedfile(
 
                 // Create the widget that'll act as a container for the view.
                 let widget = Widget::new().into_raw();
-                let widget_layout = GridLayout::new().into_raw();
-                unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+                let widget_layout = create_grid_layout_unsafe(widget);
 
                 // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
                 let path = Rc::new(RefCell::new(path.to_vec()));

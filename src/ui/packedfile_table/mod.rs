@@ -268,7 +268,7 @@ impl PackedFileTableView {
         let search_widget = Widget::new().into_raw();
 
         // Create the "Search" Grid and his internal widgets.
-        let grid = GridLayout::new().into_raw();
+        let grid = create_grid_layout_unsafe(search_widget);
         let matches_label = Label::new(());
         let search_label = Label::new(&QString::from_std_str("Search Pattern:"));
         let replace_label = Label::new(&QString::from_std_str("Replace Pattern:"));
@@ -327,7 +327,6 @@ impl PackedFileTableView {
         unsafe { grid.as_mut().unwrap().add_widget((case_sensitive_button as *mut Widget, 2, 3, 1, 1)); }
 
         // Add all the stuff to the main grid and hide the search widget.
-        unsafe { search_widget.as_mut().unwrap().set_layout(grid as *mut Layout); }
         unsafe { layout.as_mut().unwrap().add_widget((search_widget as *mut Widget, 1, 0, 1, 3)); }
         unsafe { search_widget.as_mut().unwrap().hide(); }
 

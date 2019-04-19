@@ -13,9 +13,7 @@
 use qt_widgets::dialog::Dialog;
 use qt_widgets::dialog_button_box;
 use qt_widgets::dialog_button_box::DialogButtonBox;
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::group_box::GroupBox;
-use qt_widgets::layout::Layout;
 use qt_widgets::table_view::TableView;
 use qt_widgets::widget::Widget;
 
@@ -56,46 +54,34 @@ impl ShortcutsDialog {
         // Creating the Shortcuts Dialog...
         //-------------------------------------------------------------------------------------------//
 
-        // Create the Shortcuts Dialog.
+        // Create the Shortcuts Dialog and configure it.
         let dialog = unsafe { Dialog::new_unsafe(window as *mut Widget).into_raw() };
-
-        // Change his title.
         unsafe { dialog.as_mut().unwrap().set_window_title(&QString::from_std_str("Shortcuts")); }
-
-        // Set it Modal, so you can't touch the Main Window with this dialog open.
         unsafe { dialog.as_mut().unwrap().set_modal(true); }
-
-        // Resize the Dialog.
         unsafe { dialog.as_mut().unwrap().resize((1100, 700)); }
 
         // Create the main Grid.
-        let main_grid = GridLayout::new().into_raw();
-        unsafe { dialog.as_mut().unwrap().set_layout(main_grid as *mut Layout); }
+        let main_grid = create_grid_layout_unsafe(dialog as *mut Widget);
 
         // Create the `MenuBar` Frame.
         let menu_bar_frame = GroupBox::new(&QString::from_std_str("Menu Bar")).into_raw();
-        let mut menu_bar_grid = GridLayout::new();
-        unsafe { menu_bar_frame.as_mut().unwrap().set_layout(menu_bar_grid.static_cast_mut() as *mut Layout); }
+        let menu_bar_grid = create_grid_layout_unsafe(menu_bar_frame as *mut Widget);
 
         // Create the TreeView Context Menu Frame.
         let tree_view_context_menu_frame = GroupBox::new(&QString::from_std_str("TreeView's Context Menu")).into_raw();
-        let mut tree_view_context_menu_grid = GridLayout::new();
-        unsafe { tree_view_context_menu_frame.as_mut().unwrap().set_layout(tree_view_context_menu_grid.static_cast_mut() as *mut Layout); }
+        let tree_view_context_menu_grid = create_grid_layout_unsafe(tree_view_context_menu_frame as *mut Widget);
 
         // Create the PackFiles List Context Menu Frame.
         let pack_files_list_context_menu_frame = GroupBox::new(&QString::from_std_str("Dependency Manager's Context Menu")).into_raw();
-        let mut pack_files_list_context_menu_grid = GridLayout::new();
-        unsafe { pack_files_list_context_menu_frame.as_mut().unwrap().set_layout(pack_files_list_context_menu_grid.static_cast_mut() as *mut Layout); }
+        let pack_files_list_context_menu_grid = create_grid_layout_unsafe(pack_files_list_context_menu_frame as *mut Widget);
 
         // Create the PackedFile Context Menu Frame.
         let packed_file_context_menu_frame = GroupBox::new(&QString::from_std_str("PackedFile's Context Menu")).into_raw();
-        let mut packed_file_context_menu_grid = GridLayout::new();
-        unsafe { packed_file_context_menu_frame.as_mut().unwrap().set_layout(packed_file_context_menu_grid.static_cast_mut() as *mut Layout); }
+        let packed_file_context_menu_grid = create_grid_layout_unsafe(packed_file_context_menu_frame as *mut Widget);
 
         // Create the DB Decoder Context Menu Frame.
         let db_decoder_context_menu_frame = GroupBox::new(&QString::from_std_str("DB Decoder's Context Menus")).into_raw();
-        let mut db_decoder_context_menu_grid = GridLayout::new();
-        unsafe { db_decoder_context_menu_frame.as_mut().unwrap().set_layout(db_decoder_context_menu_grid.static_cast_mut() as *mut Layout); }
+        let db_decoder_context_menu_grid = create_grid_layout_unsafe(db_decoder_context_menu_frame as *mut Widget);
 
         //-------------------------------------------------------------------------------------------//
         // Creating the MenuBar's `PackFile` List...
@@ -103,8 +89,7 @@ impl ShortcutsDialog {
 
         // Create the `PackFile` frame.
         let packfile_frame = GroupBox::new(&QString::from_std_str("PackFile")).into_raw();
-        let mut packfile_grid = GridLayout::new();
-        unsafe { packfile_frame.as_mut().unwrap().set_layout(packfile_grid.static_cast_mut() as *mut Layout); }
+        let packfile_grid = create_grid_layout_unsafe(packfile_frame as *mut Widget);
 
         // Create the `PackFile` list.
         let menu_bar_packfile_table = TableView::new().into_raw();
@@ -116,8 +101,8 @@ impl ShortcutsDialog {
         unsafe { menu_bar_packfile_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { packfile_grid.add_widget((menu_bar_packfile_table as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { menu_bar_grid.add_widget((packfile_frame as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { packfile_grid.as_mut().unwrap().add_widget((menu_bar_packfile_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { menu_bar_grid.as_mut().unwrap().add_widget((packfile_frame as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the `About` List...
@@ -125,8 +110,7 @@ impl ShortcutsDialog {
 
         // Create the `About` frame.
         let about_frame = GroupBox::new(&QString::from_std_str("About")).into_raw();
-        let mut about_grid = GridLayout::new();
-        unsafe { about_frame.as_mut().unwrap().set_layout(about_grid.static_cast_mut() as *mut Layout); }
+        let about_grid = create_grid_layout_unsafe(about_frame as *mut Widget);
 
         // Create the `PackFile` list.
         let menu_bar_about_table = TableView::new().into_raw();
@@ -138,8 +122,8 @@ impl ShortcutsDialog {
         unsafe { menu_bar_about_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { about_grid.add_widget((menu_bar_about_table as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { menu_bar_grid.add_widget((about_frame as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { about_grid.as_mut().unwrap().add_widget((menu_bar_about_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { menu_bar_grid.as_mut().unwrap().add_widget((about_frame as *mut Widget, 0, 1, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the Main TreeView Context Menu List...
@@ -155,7 +139,7 @@ impl ShortcutsDialog {
         unsafe { tree_view_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { tree_view_context_menu_grid.add_widget((tree_view_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { tree_view_context_menu_grid.as_mut().unwrap().add_widget((tree_view_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the PackFiles List Context Menu List...
@@ -171,7 +155,7 @@ impl ShortcutsDialog {
         unsafe { pack_files_list_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { pack_files_list_context_menu_grid.add_widget((pack_files_list_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { pack_files_list_context_menu_grid.as_mut().unwrap().add_widget((pack_files_list_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the PackedFile Table Context Menu List...
@@ -179,8 +163,7 @@ impl ShortcutsDialog {
 
         // Create the `PackedFile Table` frame.
         let packed_files_table_frame = GroupBox::new(&QString::from_std_str("DB/Loc Table")).into_raw();
-        let mut packed_files_table_grid = GridLayout::new();
-        unsafe { packed_files_table_frame.as_mut().unwrap().set_layout(packed_files_table_grid.static_cast_mut() as *mut Layout); }
+        let packed_files_table_grid = create_grid_layout_unsafe(packed_files_table_frame as *mut Widget);
 
         // Create the `Main TreeView Context Menu` list.
         let packed_files_table_context_menu_table = TableView::new().into_raw();
@@ -192,8 +175,8 @@ impl ShortcutsDialog {
         unsafe { packed_files_table_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { packed_files_table_grid.add_widget((packed_files_table_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { packed_file_context_menu_grid.add_widget((packed_files_table_frame as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { packed_files_table_grid.as_mut().unwrap().add_widget((packed_files_table_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { packed_file_context_menu_grid.as_mut().unwrap().add_widget((packed_files_table_frame as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the DB Decoder Field List Context Menu List...
@@ -201,8 +184,7 @@ impl ShortcutsDialog {
 
         // Create the `Field List` frame.
         let fields_frame = GroupBox::new(&QString::from_std_str("Field List")).into_raw();
-        let mut fields_grid = GridLayout::new();
-        unsafe { fields_frame.as_mut().unwrap().set_layout(fields_grid.static_cast_mut() as *mut Layout); }
+        let fields_grid = create_grid_layout_unsafe(fields_frame as *mut Widget);
 
         // Create the `Field's List` list.
         let fields_context_menu_table = TableView::new().into_raw();
@@ -214,8 +196,8 @@ impl ShortcutsDialog {
         unsafe { fields_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { fields_grid.add_widget((fields_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { db_decoder_context_menu_grid.add_widget((fields_frame as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { fields_grid.as_mut().unwrap().add_widget((fields_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { db_decoder_context_menu_grid.as_mut().unwrap().add_widget((fields_frame as *mut Widget, 0, 0, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Creating the DB Decoder Version List Context Menu List...
@@ -223,8 +205,7 @@ impl ShortcutsDialog {
 
         // Create the `Version List` frame.
         let versions_frame = GroupBox::new(&QString::from_std_str("Version List")).into_raw();
-        let mut versions_grid = GridLayout::new();
-        unsafe { versions_frame.as_mut().unwrap().set_layout(versions_grid.static_cast_mut() as *mut Layout); }
+        let versions_grid = create_grid_layout_unsafe(versions_frame as *mut Widget);
 
         // Create the `Version's List` list.
         let versions_context_menu_table = TableView::new().into_raw();
@@ -236,8 +217,8 @@ impl ShortcutsDialog {
         unsafe { versions_context_menu_table.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
 
         // Add all the Lists to their respective grids.
-        unsafe { versions_grid.add_widget((versions_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { db_decoder_context_menu_grid.add_widget((versions_frame as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { versions_grid.as_mut().unwrap().add_widget((versions_context_menu_table as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { db_decoder_context_menu_grid.as_mut().unwrap().add_widget((versions_frame as *mut Widget, 0, 1, 1, 1)); }
 
         //-------------------------------------------------------------------------------------------//
         // Adding all the frames to the main grid...
