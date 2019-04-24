@@ -10,6 +10,7 @@
 
 // In this file are all the helper functions used by the UI when editing Text PackedFiles.
 
+use qt_widgets::action::Action;
 use qt_widgets::dialog::Dialog;
 use qt_widgets::dialog_button_box::{DialogButtonBox, StandardButton};
 use qt_widgets::plain_text_edit::PlainTextEdit;
@@ -48,6 +49,8 @@ pub enum TextType {
 pub struct PackedFileTextView {
     pub save_changes: SlotNoArgs<'static>,
     pub check_syntax: SlotNoArgs<'static>,
+    pub close_note: SlotNoArgs<'static>,
+    pub close_note_action: *mut Action,
 }
 
 //----------------------------------------------------------------//
@@ -66,6 +69,7 @@ impl PackedFileTextView {
         app_ui: &AppUI,
         layout: *mut GridLayout,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
+        packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
         text_type: &Rc<RefCell<TextType>>,
     ) -> Result<Self> {
 
@@ -77,6 +81,7 @@ impl PackedFileTextView {
         // Create the PlainTextEdit and the checking button.
         let plain_text_edit = PlainTextEdit::new(&QString::from_std_str(&text)).into_raw();
         let check_syntax_button = PushButton::new(&QString::from_std_str("Check Syntax")).into_raw();
+        let close_button = PushButton::new(&QString::from_std_str("Close Note")).into_raw();
 
         // Add it to the view.
         unsafe { layout.as_mut().unwrap().add_widget((plain_text_edit as *mut Widget, 0, 0, 1, 1)); }
@@ -185,11 +190,33 @@ impl PackedFileTextView {
                     unsafe { dialog.as_mut().unwrap().show(); }
                 }
             )),
+            close_note: SlotNoArgs::new(clone!(
+                packedfiles_open_in_packedfile_view,
+                app_ui => move || {
+                    purge_that_one_specifically(&app_ui, 1, &packedfiles_open_in_packedfile_view); 
+                    let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                    let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                    if visible_widgets == 0 { display_help_tips(&app_ui); }
+                }
+            )),
+            close_note_action: Action::new(&QString::from_std_str("&Close")).into_raw(),
         };
 
         // Actions to trigger the slots.
         unsafe { plain_text_edit.as_ref().unwrap().signals().text_changed().connect(&stuff.save_changes); }
         unsafe { check_syntax_button.as_ref().unwrap().signals().released().connect(&stuff.check_syntax); }
+
+        // If it's a note, add the close button to the view.
+        if let TextType::Notes(_) = *text_type.borrow() {
+            unsafe { layout.as_mut().unwrap().add_widget((close_button as *mut Widget, 1, 0, 1, 1)); }
+
+            // Connect the close signal to the button. Also, we want to trigger it with the same "open_notes" shortcut from the text view.
+            unsafe { close_button.as_ref().unwrap().signals().released().connect(&stuff.close_note); }
+            unsafe { stuff.close_note_action.as_ref().unwrap().signals().triggered().connect(&stuff.close_note); }
+            unsafe { stuff.close_note_action.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_notes"]))); }
+            unsafe { stuff.close_note_action.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+            unsafe { plain_text_edit.as_mut().unwrap().add_action(stuff.close_note_action); }
+        }
 
         // Return the slots.
         Ok(stuff)

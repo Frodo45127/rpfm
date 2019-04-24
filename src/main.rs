@@ -3904,6 +3904,7 @@ fn main() {
                     &app_ui,
                     widget_layout,
                     &path,
+                    &packedfiles_open_in_packedfile_view
                 ));
 
                 // Tell the program there is an open PackedFile and finish the table.

@@ -327,7 +327,8 @@ pub fn open_packedfile(
                             &receiver_qt,
                             &app_ui,
                             widget_layout,
-                            &path
+                            &path,
+                            &packedfiles_open_in_packedfile_view
                         ) {
                             Ok(new_text_slots) => { text_slots.borrow_mut().insert(view_position, new_text_slots); },
                             Err(error) => return Err(ErrorKind::TextDecode(format!("{}", error)))?,

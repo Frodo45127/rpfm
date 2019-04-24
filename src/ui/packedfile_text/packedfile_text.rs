@@ -33,6 +33,7 @@ pub fn create_text_view(
     app_ui: &AppUI,
     layout: *mut GridLayout,
     packed_file_path: &Rc<RefCell<Vec<String>>>,
+    packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
 ) -> Result<PackedFileTextView> {
 
     // Get the text of the PackedFile.
@@ -51,6 +52,7 @@ pub fn create_text_view(
         app_ui,
         layout,
         packed_file_path,
+        packedfiles_open_in_packedfile_view,
         &Rc::new(RefCell::new(TextType::PackedFile(text))),
     )
 }
