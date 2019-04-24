@@ -57,6 +57,7 @@ use crate::SHORTCUTS;
 use crate::SETTINGS;
 use crate::SCHEMA;
 use crate::IS_MODIFIED;
+use crate::IS_FOLDER_TREE_VIEW_LOCKED;
 use crate::QString;
 use crate::AppUI;
 use crate::Commands;
@@ -139,7 +140,6 @@ impl AddFromPackFileSlots {
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         app_ui: AppUI,
-        is_folder_tree_view_locked: &Rc<RefCell<bool>>,
         packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
@@ -249,8 +249,7 @@ impl AddFromPackFileSlots {
             // This slot is used to exit the "Add from PackFile" view, returning to the normal state of the program.
             exit: SlotNoArgs::new(clone!(
                 sender_qt,
-                packedfiles_open_in_packedfile_view,
-                is_folder_tree_view_locked => move || {
+                packedfiles_open_in_packedfile_view => move || {
 
                     // Reset the Secondary PackFile.
                     sender_qt.send(Commands::ResetPackFileExtra).unwrap();
@@ -260,9 +259,6 @@ impl AddFromPackFileSlots {
 
                     // Show the "Tips".
                     display_help_tips(&app_ui);
-
-                    // Unlock the TreeView so it can load PackedFiles again.
-                    *is_folder_tree_view_locked.borrow_mut() = false;
                 }
             )),
 
@@ -712,6 +708,9 @@ pub fn purge_them_all(app_ui: &AppUI, packedfiles_open_in_packedfile_view: &Rc<R
 
     // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
     unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }
+
+    // Unlock the TreeView, in case it was locked.
+    *IS_FOLDER_TREE_VIEW_LOCKED.lock().unwrap() = false;
 }
 
 /// This function deletes whatever it's in the specified position of the right side of the screen.

@@ -183,7 +183,6 @@ pub fn open_packedfile(
     app_ui: &AppUI,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
-    is_folder_tree_view_locked: &Rc<RefCell<bool>>,
     db_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTableView>>>,
     loc_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTableView>>>,
     text_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTextView>>>,
@@ -194,7 +193,8 @@ pub fn open_packedfile(
 ) -> Result<()> {
 
     // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here.
-    if !(*is_folder_tree_view_locked.borrow()) {
+    let allow_opening_packedfile = !(*IS_FOLDER_TREE_VIEW_LOCKED.lock().unwrap());
+    if allow_opening_packedfile {
         let selected_items = get_item_types_from_main_treeview_selection(app_ui);
         let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return Ok(()) };
         match item_type {

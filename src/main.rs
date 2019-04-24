@@ -536,6 +536,9 @@ lazy_static! {
     /// History for the filters, search, columns...., so table and loc filters are remembered when zapping files, and cleared when the open PackFile changes.
     /// NOTE: This affects both DB Tables and Loc PackedFiles.
     static ref TABLE_STATES_UI: Mutex<BTreeMap<Vec<String>, TableStateUI>> = Mutex::new(TableStateUI::load().unwrap_or_else(|_| TableStateUI::new()));
+
+    /// Variable to lock/unlock certain actions of the Folder TreeView.
+    static ref IS_FOLDER_TREE_VIEW_LOCKED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -1208,7 +1211,6 @@ fn main() {
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
         let packedfiles_open_in_packedfile_view = Rc::new(RefCell::new(BTreeMap::new()));
-        let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let open_from_submenu_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
@@ -3043,7 +3045,6 @@ fn main() {
             receiver_qt,
             table_state_data,
             packedfiles_open_in_packedfile_view,
-            is_folder_tree_view_locked,
             add_from_packfile_slots => move |_| {
 
                 // Create the FileDialog to get the PackFile to open.
@@ -3072,11 +3073,11 @@ fn main() {
                         // If it's success....
                         Data::Success => {
 
-                            // Block the main `TreeView` from decoding stuff.
-                            *is_folder_tree_view_locked.borrow_mut() = true;
-
                             // Destroy whatever it's in the PackedFile's View.
                             purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+
+                            // Block the main `TreeView` from decoding stuff.
+                            *IS_FOLDER_TREE_VIEW_LOCKED.lock().unwrap() = true;
 
                             // Build the TreeView to hold all the Extra PackFile's data and save his slots.
                             *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
@@ -3084,7 +3085,6 @@ fn main() {
                                 &sender_qt_data,
                                 &receiver_qt,
                                 app_ui,
-                                &is_folder_tree_view_locked,
                                 &packedfiles_open_in_packedfile_view,
                                 &global_search_explicit_paths,
                                 update_global_search_stuff,
@@ -3860,7 +3860,6 @@ fn main() {
             text_slots,
             table_state_data,
             rigid_model_slots,
-            is_folder_tree_view_locked,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 if let Err(error) = open_packedfile(
@@ -3870,7 +3869,6 @@ fn main() {
                     &app_ui,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &is_folder_tree_view_locked,
                     &db_slots,
                     &loc_slots,
                     &text_slots,
@@ -4102,7 +4100,6 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             table_state_data,
-            is_folder_tree_view_locked,
             packedfiles_open_in_packedfile_view => move || {
 
                 if let Err(error) = open_packedfile(
@@ -4112,7 +4109,6 @@ fn main() {
                     &app_ui,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &is_folder_tree_view_locked,
                     &db_slots,
                     &loc_slots,
                     &text_slots,
