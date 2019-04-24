@@ -111,7 +111,7 @@ impl SettingsDialog {
         unsafe { paths_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
 
         // Create the MyMod's path stuff...
-        let mymod_label = Label::new(&QString::from_std_str("MyMod's Path:")).into_raw();
+        let mymod_label = Label::new(&QString::from_std_str("MyMod's Folder:")).into_raw();
         let mymod_line_edit = LineEdit::new(()).into_raw();
         let mymod_button = PushButton::new(&QString::from_std_str("...")).into_raw();
 
@@ -129,7 +129,7 @@ impl SettingsDialog {
         for (index, (folder_name, game_supported)) in SUPPORTED_GAMES.iter().enumerate() {
 
             // Create his fields.
-            let game_label = Label::new(&QString::from_std_str(&format!("TW: {} folder", game_supported.display_name))).into_raw();
+            let game_label = Label::new(&QString::from_std_str(&format!("TW: {} Folder", game_supported.display_name))).into_raw();
             let game_line_edit = LineEdit::new(()).into_raw();
             let game_button = PushButton::new(&QString::from_std_str("...")).into_raw();
 
