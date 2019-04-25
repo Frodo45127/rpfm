@@ -23,6 +23,7 @@ use crate::SUPPORTED_GAMES;
 use crate::GAME_SELECTED;
 use crate::DEPENDENCY_DATABASE;
 use crate::SCHEMA;
+use crate::SETTINGS;
 use crate::common::*;
 use crate::error::{Error, ErrorKind, Result};
 use crate::packfile::{PackFile, PFHVersion, PFHFileType, PathType};
@@ -1092,8 +1093,11 @@ pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<PathType>> {
     // Otherwise, they may have to be decoded multiple times, making this function take ages to finish. 
     let game_locs = DEPENDENCY_DATABASE.lock().unwrap().iter()
         .filter(|x| x.path.last().unwrap().ends_with(".loc"))
-        .filter_map(|x| x.get_data().ok())
-        .filter_map(|x| Loc::read(&x).ok())
+        .map(|x| x.get_data())
+        .filter(|x| x.is_ok())
+        .map(|x| Loc::read(&x.unwrap()))
+        .filter(|x| x.is_ok())
+        .map(|x| x.unwrap())
         .collect::<Vec<Loc>>();
 
     let mut game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
@@ -1101,7 +1105,9 @@ pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<PathType>> {
             .filter(|x| x.path.len() == 3 && x.path[0] == "db")
             .map(|x| (x.get_data(), x.path[1].to_owned()))
             .filter(|x| x.0.is_ok())
-            .filter_map(|x| DB::read(&x.0.unwrap(), &x.1, &schema).ok())
+            .map(|x| (DB::read(&x.0.unwrap(), &x.1, &schema)))
+            .filter(|x| x.is_ok())
+            .map(|x| x.unwrap())
             .collect::<Vec<DB>>()
     } else { vec![] };
 
@@ -1111,7 +1117,12 @@ pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<PathType>> {
         .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
     ));
 
+    let database_path_list = DEPENDENCY_DATABASE.lock().unwrap().iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>();
     for mut packed_file in &mut pack_file.packed_files {
+
+        // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
+        // as those are probably intended to overwrite vanilla files, not to be optimized.
+        if database_path_list.contains(&packed_file.path) && !SETTINGS.lock().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
 
         // If it's a DB table and we have an schema...
         if packed_file.path.len() == 3 && packed_file.path[0] == "db" && !game_dbs.is_empty() {
