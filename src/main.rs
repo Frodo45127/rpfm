@@ -615,10 +615,10 @@ pub struct AppUI {
     pub change_packfile_type_movie: *mut Action,
     pub change_packfile_type_other: *mut Action,
 
-    pub change_packfile_type_data_is_encrypted: *mut Action,
+    pub change_packfile_type_header_is_extended: *mut Action,
     pub change_packfile_type_index_includes_timestamp: *mut Action,
     pub change_packfile_type_index_is_encrypted: *mut Action,
-    pub change_packfile_type_header_is_extended: *mut Action,
+    pub change_packfile_type_data_is_encrypted: *mut Action,
 
     // Action Group for the submenu.
     pub change_packfile_type_group: *mut ActionGroup,
@@ -972,10 +972,10 @@ fn main() {
             change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
             change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
 
-            change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
+            change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
             change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
             change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
-            change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
+            change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
 
             // Action Group for the submenu.
             change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -1107,7 +1107,7 @@ fn main() {
 
         // Put separators in the SubMenu.
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_data_is_encrypted); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_header_is_extended); }
 
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
