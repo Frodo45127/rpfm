@@ -450,7 +450,9 @@ impl PackFile {
         // Ensure the PackFile has all the data needed for the index. If the PackFile's data is encrypted 
         // and the PackFile is PFH5, due to how the encryption works, the data should start in a multiple of 8.
         let mut data_position = (buffer.len() as u32 + pack_file_index_size + packed_file_index_size) as u64;
-        if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && pack_file_decoded.pfh_version == PFHVersion::PFH5 {
+        if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && 
+            pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && 
+            pack_file_decoded.pfh_version == PFHVersion::PFH5 {
             data_position = if (data_position % 8) > 0 { data_position + 8 - (data_position % 8) } else { data_position };
         }
         if pack_file_len < data_position { return Err(ErrorKind::PackFileIndexesNotComplete)? }
