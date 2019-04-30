@@ -699,15 +699,15 @@ pub struct AppUI {
     pub context_menu_create_text: *mut Action,
     pub context_menu_mass_import_tsv: *mut Action,
     pub context_menu_mass_export_tsv: *mut Action,
-    pub context_menu_merge_tables: *mut Action,
+    pub context_menu_rename: *mut Action,
     pub context_menu_delete: *mut Action,
     pub context_menu_extract: *mut Action,
-    pub context_menu_rename: *mut Action,
     pub context_menu_open_decoder: *mut Action,
     pub context_menu_open_dependency_manager: *mut Action,
     pub context_menu_open_with_external_program: *mut Action,
     pub context_menu_open_in_multi_view: *mut Action,
     pub context_menu_open_notes: *mut Action,
+    pub context_menu_merge_tables: *mut Action,
     pub context_menu_global_search: *mut Action,
 
     //-------------------------------------------------------------------------------//
@@ -1062,16 +1062,17 @@ fn main() {
             context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
             context_menu_mass_export_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Export TSV")),
 
-            context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge DBs/LOCs")),
+            context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
             context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
             context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
-            context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
 
             context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
             context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
             context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
             context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
             context_menu_open_notes: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Notes")),
+            
+            context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables")),
             context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
             //-------------------------------------------------------------------------------//
@@ -1144,8 +1145,11 @@ fn main() {
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_content); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_data); }
         
-        // Put a separator in the "Create" contextual menu.
+        // Put separators in the Main TreeView's contextual menu.
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
+        unsafe { folder_tree_view_context_menu.insert_separator(menu_open.as_ref().unwrap().menu_action()); }
+        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_rename); }
+        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_merge_tables); }
 
         // Prepare the TreeView to have a Contextual Menu.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
