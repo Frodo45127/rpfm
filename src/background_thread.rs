@@ -102,34 +102,26 @@ pub fn background_loop(
                         sender.send(Data::U32(pack_file_decoded.pfh_file_type.get_value())).unwrap();
                     }
 
-                    // In case we want to "Open a PackFile"...
-                    Commands::OpenPackFile => {
-                        let path: PathBuf = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match background_thread_extra::open_packfile(path, SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"]) {
+                    // In case we want to "Open one or more PackFiles"...
+                    Commands::OpenPackFiles => {
+                        let paths: Vec<PathBuf> = if let Data::VecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        match background_thread_extra::open_packfiles(&paths, false, SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"], false) {
                             Ok(pack_file) => {
                                 pack_file_decoded = pack_file;
                                 sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
                             }
-                            Err(error) => sender.send(Data::Error(Error::from(ErrorKind::OpenPackFileGeneric(format!("{}", error))))).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
 
                     // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
                     Commands::OpenPackFileExtra => {
-
-                        // Get the path to open.
                         let path: PathBuf = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Open the PackFile as Read-Only (Or die trying it).
-                        match background_thread_extra::open_packfile(path, true) {
-
-                            // If we managed to open it...
+                        match background_thread_extra::open_packfiles(&[path], false, true, false) {
                             Ok(result) => {
                                 pack_file_decoded_extra = result;
                                 sender.send(Data::Success).unwrap();
                             }
-
-                            // If there is an error, send it back to the UI.
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::OpenPackFileGeneric(format!("{}", error))))).unwrap(),
                         }
                     }
@@ -171,16 +163,17 @@ pub fn background_loop(
 
                     // In case we want to "Load All CA PackFiles"...
                     Commands::LoadAllCAPackFiles => {
-                        match background_thread_extra::load_all_ca_packfiles() {
-
-                            // If we succeed at opening the PackFile...
-                            Ok(pack_file) => {
-                                pack_file_decoded = pack_file;
-                                sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
+                        match get_game_selected_data_packfiles_paths() {
+                            Some(paths) => {
+                                match background_thread_extra::open_packfiles(&paths, true, true, true) {
+                                    Ok(pack_file) => {
+                                        pack_file_decoded = pack_file;
+                                        sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
+                                    }
+                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                }
                             }
-
-                            // If there is an error, send it back to the UI.
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::GamePathNotConfigured))).unwrap(),
                         }
                     }
 

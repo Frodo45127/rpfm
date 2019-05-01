@@ -1362,7 +1362,7 @@ fn main() {
 
         // Menu bar, PackFile.
         unsafe { app_ui.new_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Creates a new PackFile and open it. Remember to save it later if you want to keep it!")); }
-        unsafe { app_ui.open_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open an existing PackFile.")); }
+        unsafe { app_ui.open_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open an existing PackFile, or multiple existing PackFiles into one.")); }
         unsafe { app_ui.save_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Save the changes made in the currently open PackFile to disk.")); }
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_status_tip(&QString::from_std_str("Save the currently open PackFile as a new PackFile, instead of overwriting the original one.")); }
         unsafe { app_ui.load_all_ca_packfiles.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to load every PackedFile from every vanilla PackFile of the selected game into RPFM at the same time, using lazy-loading to load the PackedFiles. Keep in mind that if you try to save it, your PC may die.")); }
@@ -1645,35 +1645,30 @@ fn main() {
                 // Check first if there has been changes in the PackFile.
                 if are_you_sure(&app_ui, false) {
 
-                    // Create the FileDialog to get the PackFile to open.
-                    let mut file_dialog;
-                    unsafe { file_dialog = FileDialog::new_unsafe((
+                    // Create the FileDialog to get the PackFile to open and configure it.
+                    let mut file_dialog = unsafe { FileDialog::new_unsafe((
                         app_ui.window as *mut Widget,
-                        &QString::from_std_str("Open PackFile"),
-                    )); }
-
-                    // Filter it so it only shows PackFiles.
+                        &QString::from_std_str("Open PackFiles"),
+                    )) };
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
-
-                    // In case we have a default path for the Game Selected, we use it as base path for opening files.
-                    if let Some(ref path) = get_game_selected_data_path() {
-
-                        // We check that actually exists before setting it.
-                        if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(&path.to_string_lossy().as_ref().to_owned())); }
-                    }
+                    file_dialog.set_file_mode(FileMode::ExistingFiles);
 
                     // Run it and expect a response (1 => Accept, 0 => Cancel).
                     if file_dialog.exec() == 1 {
 
-                        // Get the path of the selected file and turn it in a Rust's PathBuf.
-                        let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                        // Now the fun thing. We have to get all the selected files, and then open them one by one.
+                        // For that we use the same logic as for the "Load All CA PackFiles" feature.
+                        let mut paths = vec![];
+                        for index in 0..file_dialog.selected_files().count(()) {
+                            paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
+                        }
 
                         // Try to open it, and report it case of error.
                         if let Err(error) = open_packfile(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            path,
+                            &paths,
                             &app_ui,
                             &mymod_stuff,
                             &mode,
@@ -4738,7 +4733,7 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    path,
+                    &[path],
                     &app_ui,
                     &mymod_stuff,
                     &mode,

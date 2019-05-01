@@ -38,7 +38,7 @@ pub enum Commands {
     ResetPackFile,
     ResetPackFileExtra,
     NewPackFile,
-    OpenPackFile,
+    OpenPackFiles,
     OpenPackFileExtra,
     SavePackFile,
     SavePackFileAs,
@@ -153,6 +153,7 @@ pub enum Data {
     VecPathType(Vec<PathType>),
     VecStringVecPathType((Vec<String>, Vec<PathType>)),
     VecPathTypePathBuf((Vec<PathType>, PathBuf)),
+    VecPathBuf(Vec<PathBuf>),
 }
 
 /// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.

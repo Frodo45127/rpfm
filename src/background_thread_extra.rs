@@ -44,19 +44,6 @@ pub fn new_packfile(file_name: String, pfh_version: PFHVersion) -> PackFile {
     PackFile::new_with_name(file_name, pfh_version)
 }
 
-/// This function is used to open the PackFiles. It requires the path of the PackFile to open, and
-/// it returns the PackFile decoded (if success) or an error message (if error).
-pub fn open_packfile(pack_file_path: PathBuf, use_lazy_loading: bool) -> Result<PackFile> {
-
-    // If the name doesn't end in ".pack", we don't open it. It works, but it'll break some things.
-    if pack_file_path.file_name().unwrap().to_str().unwrap().ends_with(".pack") {
-        PackFile::read(pack_file_path, use_lazy_loading)
-    }
-
-    // Otherwise, return an error.
-    else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
-}
-
 /// This function is a special open function, to get all the DB and LOC PackedFiles for a game, and a mod if that mode requires another mod.
 /// It returns all the PackedFiles in a big Vec<PackedFile>.
 pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
@@ -74,7 +61,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
     // Get all the DB Tables from the main DB PackFiles, if it's configured.
     if let Some(paths) = main_db_pack_paths {
         for path in &paths {
-            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+            if let Ok(pack_file) = open_packfiles(&[path.to_path_buf()], false, true, false) {
 
                 // For each PackFile in the data.pack...
                 for packed_file in pack_file.packed_files.iter() {
@@ -95,7 +82,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
     // Get all the Loc PackedFiles from the main Loc PackFiles, if it's configured.
     if let Some(paths) = main_loc_pack_paths {
         for path in &paths {
-            if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+            if let Ok(pack_file) = open_packfiles(&[path.to_path_buf()], false, true, false) {
 
                 // For each PackFile in the data.pack...
                 for packed_file in pack_file.packed_files.iter() {
@@ -120,7 +107,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
         if let Some(ref paths) = data_packs_paths {
             for path in paths {
                 if path.file_name().unwrap().to_string_lossy().as_ref() == *packfile {
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+                    if let Ok(pack_file) = open_packfiles(&[path.to_path_buf()], false, true, false) {
 
                         // For each PackFile in the data.pack...
                         for packed_file in pack_file.packed_files.iter() {
@@ -137,7 +124,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
                     }
 
                     // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+                    if let Ok(pack_file) = open_packfiles(&[path.to_path_buf()], false, true, false) {
 
                         // For each PackFile in the data.pack...
                         for packed_file in pack_file.packed_files.iter() {
@@ -162,7 +149,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
                 if path.file_name().unwrap().to_string_lossy().as_ref() == *packfile {
 
                     // Get all the DB Tables from the main DB PackFile, if it's configured.
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+                    if let Ok(pack_file) = open_packfiles(&[path.to_path_buf()], false, true, false) {
 
                         // For each PackFile in the data.pack...
                         for packed_file in pack_file.packed_files.iter() {
@@ -179,7 +166,7 @@ pub fn load_dependency_packfiles(dependencies: &[String]) -> Vec<PackedFile> {
                     }
 
                     // Get all the Loc PackedFiles from the main Loc PackFile, if it's configured.
-                    if let Ok(pack_file) = open_packfile(path.to_path_buf(), true) {
+                    if let Ok(pack_file) = open_packfiles(&[path.to_path_buf()], false, true, false) {
 
                         // For each PackFile in the data.pack...
                         for packed_file in pack_file.packed_files.iter() {
@@ -227,80 +214,119 @@ pub fn load_fake_dependency_packfiles() -> Vec<DB> {
     db_files
 }
 
-/// This function is another special open function, to get all the PackedFiles from every CA PackFile of a game.
-/// It returns a fake PackFile with them.
-pub fn load_all_ca_packfiles() -> Result<PackFile> {
+/// This function allows you to open one PackFile, or multiple PackFiles as one. It also takes care of duplicates, 
+/// loading the duplicate PackedFile that will get loaded by the game itself.
+///
+/// It requires:
+/// - `packs_paths`: Path list of all the PackFiles we want to open.
+/// - `ignore_mods`: If true, all mod packfiles from the provided list will be ignored.
+/// - `use_lazy_loading`: If true, all Packfiles will be loaded using Lazy-Loading.
+/// - `lock_packfile_type`: If true, the PackFile Type will be changed to disable saving.
+pub fn open_packfiles(
+    packs_paths: &[PathBuf],
+    ignore_mods: bool,
+    use_lazy_loading: bool,
+    lock_packfile_type: bool
+) -> Result<PackFile> {
 
-    // Create the fake PackFile.
-    let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id;
-    let mut pack_file = PackFile::new_with_name(GAME_SELECTED.lock().unwrap().to_owned(), pfh_version);
+    // If we just have one PackFile, just open it. No fancy logic needed.
+    if packs_paths.len() == 1 {
+        if packs_paths[0].file_name().unwrap().to_str().unwrap().ends_with(".pack") {
+            PackFile::read(packs_paths[0].to_path_buf(), use_lazy_loading)
+        } else { Err(ErrorKind::OpenPackFileInvalidExtension)? }
 
-    // Get all the paths we need and open them one by one.
-    let packs_paths = if let Some(paths) = get_game_selected_data_packfiles_paths() { paths } else { Err(ErrorKind::GamePathNotConfigured)? };
-    let mut ca_pack_files = vec![];
-    for path in packs_paths {
-        ca_pack_files.push(PackFile::read(path, true)?);
     }
 
-    // Get all the PackedFiles from each PackFile. First Boot type, then Release type, then Patch type, then Movie type.
-    let mut boot_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Boot = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| boot_files.push(x.clone()));
+    // Otherwise, open all of them into a Fake PackFile and take care of the duplicated files like the game will do.
+    else {
+
+        // Create the fake PackFile.
+        let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id;
+        let pfh_name = if ignore_mods { GAME_SELECTED.lock().unwrap().to_owned() } else { String::from("merged_mod.pack")};
+        let mut pack_file = PackFile::new_with_name(pfh_name, pfh_version);
+
+        // Get all the paths we need and open them one by one.
+        let mut pack_files = vec![];
+        for path in packs_paths {
+            if path.file_name().unwrap().to_str().unwrap().ends_with(".pack") {
+                pack_files.push(PackFile::read(path.to_path_buf(), use_lazy_loading)?);
+            } else { Err(ErrorKind::OpenPackFileInvalidExtension)?}
         }
-    }
+
+        // Get all the PackedFiles from each PackFile. First Boot type, then Release type, then Patch type, then Mod type, then Movie type.
+        let mut boot_files = vec![];
+        for pack_file in &pack_files {
+            if let PFHFileType::Boot = pack_file.pfh_file_type {
+                pack_file.packed_files.iter().for_each(|x| boot_files.push(x.clone()));
+            }
+        }
+        
+        let mut release_files = vec![];
+        for pack_file in &pack_files {
+            if let PFHFileType::Release = pack_file.pfh_file_type {
+                pack_file.packed_files.iter().for_each(|x| release_files.push(x.clone()));
+            }
+        }
+
+        let mut patch_files = vec![];
+        for pack_file in &pack_files {
+            if let PFHFileType::Patch = pack_file.pfh_file_type {
+                pack_file.packed_files.iter().for_each(|x| patch_files.push(x.clone()));
+            }
+        }
+
+        let mut mod_files = vec![];
+        if !ignore_mods {
+            for pack_file in &pack_files {
+                if let PFHFileType::Mod = pack_file.pfh_file_type {
+                    pack_file.packed_files.iter().for_each(|x| mod_files.push(x.clone()));
+                }
+            }
+        }
+
+        let mut movie_files = vec![];
+        for pack_file in &pack_files {
+            if let PFHFileType::Movie = pack_file.pfh_file_type {
+                pack_file.packed_files.iter().for_each(|x| movie_files.push(x.clone()));
+            }
+        }
+
+        // The priority in case of collision is:
+        // - Same Type: First to come is the valid one.
+        // - Different Type: Last to come is the valid one.
+        boot_files.sort_by_key(|x| x.path.to_vec());
+        boot_files.dedup_by_key(|x| x.path.to_vec());
+
+        release_files.sort_by_key(|x| x.path.to_vec());
+        release_files.dedup_by_key(|x| x.path.to_vec());
+
+        patch_files.sort_by_key(|x| x.path.to_vec());
+        patch_files.dedup_by_key(|x| x.path.to_vec());
+
+        mod_files.sort_by_key(|x| x.path.to_vec());
+        mod_files.dedup_by_key(|x| x.path.to_vec());
+
+        movie_files.sort_by_key(|x| x.path.to_vec());
+        movie_files.dedup_by_key(|x| x.path.to_vec());
+
+        pack_file.packed_files.append(&mut movie_files);
+        pack_file.packed_files.append(&mut mod_files);
+        pack_file.packed_files.append(&mut patch_files);
+        pack_file.packed_files.append(&mut release_files);
+        pack_file.packed_files.append(&mut boot_files);
+
+        pack_file.packed_files.sort_by_key(|x| x.path.to_vec());
+        pack_file.packed_files.dedup_by_key(|x| x.path.to_vec());
+
+        // Set it as type "Other(200)", so we can easely identify it as fake in other places.
+        // Used to lock the CA Files.
+        if lock_packfile_type {
+            pack_file.pfh_file_type = PFHFileType::Other(200);
+        }
     
-    let mut release_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Release = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| release_files.push(x.clone()));
-        }
+        // Return the new PackedFiles list.
+        Ok(pack_file)
     }
-
-    let mut patch_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Patch = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| patch_files.push(x.clone()));
-        }
-    }
-
-    // This may load custom PackFiles. The only way to fix this is to read the manifest and checking if they are there, but I don't know if it's in all the games.
-    // TODO: Make this only load CA PackFiles.
-    let mut movie_files = vec![];
-    for ca_pack_file in &ca_pack_files {
-        if let PFHFileType::Movie = ca_pack_file.pfh_file_type {
-            ca_pack_file.packed_files.iter().for_each(|x| movie_files.push(x.clone()));
-        }
-    }
-
-    // The priority in case of collision is:
-    // - Same Type: First to come is the valid one.
-    // - Different Type: Last to come is the valid one.
-    boot_files.sort_by_key(|x| x.path.to_vec());
-    boot_files.dedup_by_key(|x| x.path.to_vec());
-
-    release_files.sort_by_key(|x| x.path.to_vec());
-    release_files.dedup_by_key(|x| x.path.to_vec());
-
-    patch_files.sort_by_key(|x| x.path.to_vec());
-    patch_files.dedup_by_key(|x| x.path.to_vec());
-
-    movie_files.sort_by_key(|x| x.path.to_vec());
-    movie_files.dedup_by_key(|x| x.path.to_vec());
-
-    pack_file.packed_files.append(&mut movie_files);
-    pack_file.packed_files.append(&mut patch_files);
-    pack_file.packed_files.append(&mut release_files);
-    pack_file.packed_files.append(&mut boot_files);
-
-    pack_file.packed_files.sort_by_key(|x| x.path.to_vec());
-    pack_file.packed_files.dedup_by_key(|x| x.path.to_vec());
-
-    // Set it as type "Other(200)", so we can easely identify it as fake in other places.
-    pack_file.pfh_file_type = PFHFileType::Other(200);
-
-    // Return the new PackedFiles list.
-    Ok(pack_file)
 }
 
 /// This function is used to take an open PackFile, encode it and save it into the disk. We return

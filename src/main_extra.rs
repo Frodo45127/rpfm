@@ -20,7 +20,7 @@ pub fn open_packfile(
     sender_qt: &Sender<Commands>,
     sender_qt_data: &Sender<Data>,
     receiver_qt: &Rc<RefCell<Receiver<Data>>>,
-    pack_file_path: PathBuf,
+    pack_file_paths: &[PathBuf],
     app_ui: &AppUI,
     mymod_stuff: &Rc<RefCell<MyModStuff>>,
     mode: &Rc<RefCell<Mode>>,
@@ -30,10 +30,10 @@ pub fn open_packfile(
     table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
 ) -> Result<()> {
 
-    // Tell the Background Thread to create a new PackFile.
+    // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-    sender_qt.send(Commands::OpenPackFile).unwrap();
-    sender_qt_data.send(Data::PathBuf(pack_file_path.to_path_buf())).unwrap();
+    sender_qt.send(Commands::OpenPackFiles).unwrap();
+    sender_qt_data.send(Data::VecPathBuf(pack_file_paths.to_vec())).unwrap();
 
     // Check what response we got.
     match check_message_validity_tryrecv(&receiver_qt) {
@@ -70,7 +70,7 @@ pub fn open_packfile(
             );
 
             // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
-            if !game_folder.is_empty() {
+            if !game_folder.is_empty() && pack_file_paths.len() == 1 {
 
                 // NOTE: Arena should never be here.
                 // Change the Game Selected in the UI.
@@ -86,7 +86,7 @@ pub fn open_packfile(
                 }
 
                 // Set the current "Operational Mode" to `MyMod`.
-                set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_path));
+                set_my_mod_mode(&mymod_stuff, mode, Some(pack_file_paths[0].to_path_buf()));
             }
 
             // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
@@ -1019,7 +1019,7 @@ pub fn build_my_mod_menu(
                                                     &sender_qt,
                                                     &sender_qt_data,
                                                     &receiver_qt,
-                                                    pack_file.to_path_buf(),
+                                                    &[pack_file.to_path_buf()],
                                                     &app_ui,
                                                     &mymod_stuff,
                                                     &mode,
@@ -1142,7 +1142,7 @@ pub fn build_open_from_submenus(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            path.to_path_buf(),
+                            &[path.to_path_buf()],
                             &app_ui,
                             &mymod_stuff,
                             &mode,
@@ -1195,7 +1195,7 @@ pub fn build_open_from_submenus(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            path.to_path_buf(),
+                            &[path.to_path_buf()],
                             &app_ui,
                             &mymod_stuff,
                             &mode,
