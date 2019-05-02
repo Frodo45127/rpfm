@@ -58,6 +58,12 @@ use crate::SETTINGS;
 use crate::SCHEMA;
 use crate::IS_MODIFIED;
 use crate::IS_FOLDER_TREE_VIEW_LOCKED;
+use crate::ORANGE;
+use crate::SLIGHTLY_DARKER_GREY;
+use crate::MEDIUM_DARKER_GREY;
+use crate::DARK_GREY;
+use crate::KINDA_WHITY_GREY;
+use crate::EVEN_MORE_WHITY_GREY;
 use crate::QString;
 use crate::AppUI;
 use crate::Commands;
@@ -818,8 +824,17 @@ pub fn are_you_sure(
 pub fn create_grid_layout_safe(widget: &mut CppBox<Widget>) -> CppBox<GridLayout> {
     let mut widget_layout = GridLayout::new();
     unsafe { widget.set_layout(widget_layout.static_cast_mut() as *mut Layout); }
-    widget_layout.set_contents_margins((0, 0, 0, 0));
-    widget_layout.set_spacing(0);
+    
+    // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
+    if cfg!(target_os = "windows") {
+        widget_layout.set_contents_margins((2, 2, 2, 2));
+        widget_layout.set_spacing(1);
+    }
+    else {
+        widget_layout.set_contents_margins((0, 0, 0, 0));
+        widget_layout.set_spacing(0);            
+    }
+
     widget_layout
 }
 
@@ -829,7 +844,154 @@ pub fn create_grid_layout_safe(widget: &mut CppBox<Widget>) -> CppBox<GridLayout
 pub fn create_grid_layout_unsafe(widget: *mut Widget) -> *mut GridLayout {
     let widget_layout = GridLayout::new().into_raw();
     unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
-    unsafe { widget_layout.as_mut().unwrap().set_contents_margins((0, 0, 0, 0)) };
-    unsafe { widget_layout.as_mut().unwrap().set_spacing(0) };
+    
+    // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
+    if cfg!(target_os = "windows") {
+        unsafe { widget_layout.as_mut().unwrap().set_contents_margins((2, 2, 2, 2)) };
+        unsafe { widget_layout.as_mut().unwrap().set_spacing(1) }; 
+    }
+    else {
+        unsafe { widget_layout.as_mut().unwrap().set_contents_margins((0, 0, 0, 0)) };
+        unsafe { widget_layout.as_mut().unwrap().set_spacing(0) };           
+    }
+
     widget_layout
+}
+
+/// This function creates the stylesheet used for the dark theme in windows.
+pub fn create_dark_theme_stylesheet() -> String {
+    format!("
+        /* Normal buttons, with no rounded corners, dark background (darker when enabled), and colored borders. */
+
+        QPushButton {{
+            border-style: solid;
+            border-width: 1px;
+            padding-top: 5px;
+            padding-bottom: 4px;
+            padding-left: 10px;
+            padding-right: 10px;
+            border-color: #{button_bd_off};
+            color: #{text_normal};
+            background-color: #{button_bg_off};
+        }}
+        QPushButton:hover {{
+            border-color: #{button_bd_hover};
+            color: #{text_highlighted};
+            background-color: #{button_bg_hover};
+        }}
+        QPushButton:pressed {{
+            border-color: #{button_bd_hover};
+            color: #{text_highlighted};
+            background-color: #{button_bg_on};
+        }}
+        QPushButton:checked {{
+            border-color: #{button_bd_hover};
+            background-color: #{button_bg_on};
+        }}
+        QPushButton:disabled {{
+            color: #808086;
+            background-color: #{button_bg_off};
+        }}
+
+        /* Normal checkboxes */
+        QCheckBox::indicator:unchecked {{
+            border-style: solid;
+            border-width: 1px;
+            border-color: #{checkbox_bd_off};
+        }}
+
+        QCheckBox::indicator:checked {{
+            height: 12px;
+            width: 12px;
+            border-style: solid;
+            border-width: 1px;
+            border-color: #{checkbox_bd_off};
+            image:url(img/checkbox_check.png);
+        }}
+
+        QCheckBox::indicator:hover {{
+            border-style: solid;
+            border-width: 1px;
+            border-color: #{checkbox_bd_hover};
+        }}
+
+        /* Tweaked TableView, so the Checkboxes are white and easy to see. */
+
+        /* Checkboxes */                    
+        QTableView::indicator:unchecked {{
+            border-style: solid;
+            border-width: 1px;
+            border-color: #{checkbox_bd_off};
+        }}
+
+        QTableView::indicator:hover {{
+            border-style: solid;
+            border-width: 1px;
+            border-color: #{checkbox_bd_hover};
+        }}
+
+        QTableView::indicator:checked {{
+            border-style: solid;
+            border-width: 1px;
+            border-color: #{checkbox_bd_off};
+            image:url(img/checkbox_check.png);
+        }}
+
+        /* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */
+
+        QLineEdit {{
+            border-style: solid;
+            border-width: 1px;
+            padding-top: 3px;
+            padding-bottom: 3px;
+            padding-left: 10px;
+            padding-right: 10px;
+            border-color: #{button_bd_off};
+            color: #{text_normal};
+            background-color: #{button_bg_off};
+        }}
+        QLineEdit:hover {{
+            border-color: #{button_bd_hover};
+            color: #{text_highlighted};
+            background-color: #{button_bg_hover};
+        }}
+
+        QLineEdit:disabled {{
+            color: #808086;
+            background-color: #{button_bg_off};
+        }}
+
+        /* Combos, similar to buttons. */
+
+        QComboBox {{
+            border-style: solid;
+            border-width: 1px;
+            padding-top: 3px;
+            padding-bottom: 3px;
+            padding-left: 10px;
+            padding-right: 10px;
+            border-color: #{button_bd_off};
+            color: #{text_normal};
+            background-color: #{button_bg_off};
+        }}
+
+        /* TreeView, with no rounded corners and darker. */
+        QTreeView {{
+            border-style: solid;
+            border-width: 1px;
+            border-color: #{button_bd_off};
+        }}
+
+        ", 
+        button_bd_hover = *ORANGE,
+        button_bd_off = *SLIGHTLY_DARKER_GREY,
+        button_bg_on = *SLIGHTLY_DARKER_GREY,
+        button_bg_off = *MEDIUM_DARKER_GREY,
+        button_bg_hover = *DARK_GREY,
+        text_normal = *KINDA_WHITY_GREY,
+        text_highlighted = *EVEN_MORE_WHITY_GREY,
+
+        checkbox_bd_off = *KINDA_WHITY_GREY,
+        checkbox_bd_hover = *ORANGE
+    )
 }

@@ -514,6 +514,23 @@ lazy_static! {
         palette
     };
 
+    /// Stylesheet used by the dark theme in Windows.
+    static ref DARK_STYLESHEET: String = create_dark_theme_stylesheet();
+
+    // Colors used all over the program for theming and stuff.
+    static ref MEDIUM_DARK_GREY: &'static str = "333333";            // Medium-Dark Grey. The color of the background of the Main Window.
+    static ref MEDIUM_DARKER_GREY: &'static str = "262626";          // Medium-Darker Grey.
+    static ref DARK_GREY: &'static str = "181818";                   // Dark Grey. The color of the background of the Main TreeView.
+    static ref SLIGHTLY_DARKER_GREY: &'static str = "101010";        // A Bit Darker Grey.
+    static ref KINDA_WHITY_GREY: &'static str = "BBBBBB";            // Light Grey. The color of the normal Text.
+    static ref KINDA_MORE_WHITY_GREY: &'static str = "CCCCCC";       // Lighter Grey. The color of the highlighted Text.
+    static ref EVEN_MORE_WHITY_GREY: &'static str = "FAFAFA";        // Even Lighter Grey.
+    static ref BRIGHT_RED: &'static str = "FF0000";                  // Bright Red, as our Lord.
+    static ref DARK_RED: &'static str = "FF0000";                    // Dark Red, as our face after facing our enemies.
+    static ref LINK_BLUE: &'static str = "2A82DA";                   // Blue, used for Zeldas.
+    static ref ORANGE: &'static str = "E67E22";                      // Orange, used for borders.
+    static ref MEDIUM_GREY: &'static str = "555555";
+
     /// The current Settings and Shortcuts. To avoid reference and lock issues, this should be edited ONLY in the background thread.
     static ref SETTINGS: Arc<Mutex<Settings>> = Arc::new(Mutex::new(Settings::load().unwrap_or_else(|_|Settings::new())));
     static ref SHORTCUTS: Arc<Mutex<Shortcuts>> = Arc::new(Mutex::new(Shortcuts::load().unwrap_or_else(|_|Shortcuts::new())));
@@ -4752,7 +4769,8 @@ fn main() {
         if cfg!(target_os = "windows") {
             if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { 
                 Application::set_style(&QString::from_std_str("fusion"));
-                Application::set_palette(&DARK_PALETTE); 
+                Application::set_palette(&DARK_PALETTE);
+                app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
             } else { 
                 Application::set_style(&QString::from_std_str("windowsvista"));
                 Application::set_palette(&LIGHT_PALETTE);

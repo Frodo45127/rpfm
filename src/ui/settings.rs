@@ -10,10 +10,11 @@
 
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
 
+use qt_widgets::abstract_button::AbstractButton;
 use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::dialog::Dialog;
-use qt_widgets::{dialog_button_box, dialog_button_box::DialogButtonBox};
+use qt_widgets::{dialog_button_box, dialog_button_box::{ButtonRole, DialogButtonBox}};
 use qt_widgets::file_dialog::{FileDialog, FileMode, Option::ShowDirsOnly};
 use qt_widgets::frame::Frame;
 use qt_widgets::group_box::GroupBox;
@@ -103,7 +104,7 @@ impl SettingsDialog {
 
         // Create the main Grid.
         let main_grid = create_grid_layout_unsafe(dialog as *mut Widget);
-        unsafe { main_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 0)); }
+        unsafe { main_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 4)); }
         unsafe { main_grid.as_mut().unwrap().set_spacing(4); }
 
         // Create the Paths Frame.
@@ -184,9 +185,6 @@ impl SettingsDialog {
         let mut remember_column_visual_order_checkbox = CheckBox::new(());
         let mut remember_column_hidden_state_checkbox = CheckBox::new(());
 
-        let mut shortcuts_label = Label::new(&QString::from_std_str("See/Change Shortcuts:"));
-        let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
-
         // Tips for the UI settings.
         let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This can make very big tables take more time to load.");
         let extend_last_column_on_tables_tip = QString::from_std_str("If you enable this, the last column on DB Tables and Loc PackedFiles will extend itself to fill the empty space at his right, if there is any.");
@@ -198,8 +196,6 @@ impl SettingsDialog {
         let remember_column_sorting_tip = QString::from_std_str("Enable this to make RPFM remember for what column was a DB Table/LOC sorted when closing it and opening it again.");
         let remember_column_visual_order_tip = QString::from_std_str("Enable this to make RPFM remember the visual order of the columns of a DB Table/LOC, when closing it and opening it again.");
         let remember_column_hidden_state_tip = QString::from_std_str("Enable this to make RFPM remember what columns of a DB Table/LOC where hidden when closing it and opening it again.");
-
-        let shortcuts_tip = QString::from_std_str("See/change the shortcuts from here if you don't like them. Changes are applied on restart of the program.");
         
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
@@ -221,8 +217,7 @@ impl SettingsDialog {
         remember_column_hidden_state_label.set_tool_tip(&remember_column_hidden_state_tip);
         remember_column_hidden_state_checkbox.set_tool_tip(&remember_column_hidden_state_tip);
 
-        shortcuts_label.set_tool_tip(&shortcuts_tip);
-        shortcuts_button.set_tool_tip(&shortcuts_tip);
+
 
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
@@ -243,9 +238,6 @@ impl SettingsDialog {
             unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_label.static_cast_mut() as *mut Widget, 5, 0, 1, 1)); }
             unsafe { ui_settings_grid.as_mut().unwrap().add_widget((use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 5, 1, 1, 1)); }
         }
-
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_label.static_cast_mut() as *mut Widget, 6, 0, 1, 1)); }
-        unsafe { ui_settings_grid.as_mut().unwrap().add_widget((shortcuts_button.static_cast_mut() as *mut Widget, 6, 1, 1, 1)); }
         
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((ui_table_view_settings_frame as *mut Widget, 99, 0, 1, 2)); }
 
@@ -368,15 +360,12 @@ impl SettingsDialog {
         let mut button_box = DialogButtonBox::new(());
         unsafe { main_grid.as_mut().unwrap().add_widget((button_box.static_cast_mut() as *mut Widget, 2, 0, 1, 2)); }
 
-        // Create the bottom Buttons.
-        let restore_default_button;
-        let cancel_button;
-        let accept_button;
-
-        // Add them to the Dialog.
-        restore_default_button = button_box.add_button(dialog_button_box::StandardButton::RestoreDefaults);
-        cancel_button = button_box.add_button(dialog_button_box::StandardButton::Cancel);
-        accept_button = button_box.add_button(dialog_button_box::StandardButton::Save);
+        // Create the bottom buttons and add them to the dialog.
+        let mut shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
+        let restore_default_button = button_box.add_button(dialog_button_box::StandardButton::RestoreDefaults);
+        unsafe { button_box.add_button_unsafe(shortcuts_button.static_cast_mut() as *mut AbstractButton, ButtonRole::ResetRole); }
+        let cancel_button = button_box.add_button(dialog_button_box::StandardButton::Cancel);
+        let accept_button = button_box.add_button(dialog_button_box::StandardButton::Save);
 
         //-------------------------------------------------------------------------------------------//
         // Slots for the Settings Dialog...
