@@ -1470,7 +1470,7 @@ fn main() {
         //-----------------------------------------------------//
 
         // The list of icons for representing the current "Game Selected" in the UI.
-        let _game_selected_icons: BTreeMap<String, Icon> = {
+        let game_selected_icons: BTreeMap<String, Icon> = {
             let mut map = BTreeMap::new();
 
             for (key, game) in SUPPORTED_GAMES.iter() {
@@ -1525,8 +1525,8 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                 // Change the GameSelected Icon. Disabled until we find better icons.
-                //let image = game_selected_icons.get(&**GAME_SELECTED.lock().unwrap()).unwrap();
-                //unsafe { app_ui.window.as_mut().unwrap().set_window_icon(&image); }
+                let image = game_selected_icons.get(&**GAME_SELECTED.lock().unwrap()).unwrap();
+                unsafe { app_ui.window.as_mut().unwrap().set_window_icon(&image); }
             }
         ));
 
