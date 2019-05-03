@@ -308,10 +308,10 @@ pub fn update_treeview(
                 // First, we reset the parent to the big_parent (the PackFile).
                 // Then, we form the path ("parent -> child" style path) to add to the model.
                 let mut parent = unsafe { model.as_ref().unwrap().item(0) };
-                for name in path.iter() {
+                for (index_in_path, name) in path.iter().enumerate() {
 
                     // If it's the last string in the file path, it's a file, so we add it to the model.
-                    if name == path.last().unwrap() {
+                    if index_in_path == path.len() - 1 {
                         let file = StandardItem::new(&QString::from_std_str(name)).into_raw();
                         unsafe { file.as_mut().unwrap().set_editable(false); }
                         unsafe { file.as_mut().unwrap().set_data((&Variant::new0(1i32), 20)); }
