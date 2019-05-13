@@ -858,11 +858,11 @@ pub fn background_loop(
                         // Wait until we get the needed data from the UI thread.
                         let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let mut data = vec![];
-                        let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
-                        let mut iter = iter.iter_mut();
                         if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                                let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
+                                let mut iter = iter.iter_mut();
+                                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                     if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
                                         if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
                                             for row in table.entries.iter() {
@@ -879,14 +879,10 @@ pub fn background_loop(
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        // The same for our own PackFile.
-                        let mut iter = pack_file_decoded.packed_files.iter_mut();
-                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                                // The same for our own PackFile.
+                                let mut iter = pack_file_decoded.packed_files.iter_mut();
+                                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                                     if let Ok(packed_file_data) = packed_file.get_data_and_keep_it() {
                                         if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
                                             if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
@@ -906,13 +902,11 @@ pub fn background_loop(
                                     }
                                 }
                             }
-                        }
 
-                        // We have to check in the Fake Dependency Database too, just in case.
-                        let mut iter = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
-                        let mut iter = iter.iter_mut();
-                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(table) = iter.find(|x| x.db_type == dependency_data.0) {
+                            // We have to check in the Fake Dependency Database too, just in case.
+                            let mut iter = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
+                            let mut iter = iter.iter_mut();
+                            while let Some(table) = iter.find(|x| x.db_type == format!("{}_tables", dependency_data.0)) {
                                 if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
                                     for row in table.entries.iter() {
 
@@ -927,11 +921,11 @@ pub fn background_loop(
                                     }
                                 }
                             }
-                        }
 
-                        // Sort and dedup the data found.
-                        data.sort_unstable_by(|a, b| a.cmp(&b));
-                        data.dedup();
+                            // Sort and dedup the data found.
+                            data.sort_unstable_by(|a, b| a.cmp(&b));
+                            data.dedup();
+                        }
 
                         sender.send(Data::VecString(data)).unwrap();
                     }
