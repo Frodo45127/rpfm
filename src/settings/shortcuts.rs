@@ -68,6 +68,7 @@ impl Shortcuts {
         tree_view.insert("add_file".to_owned(), "Ctrl+A".to_owned());
         tree_view.insert("add_folder".to_owned(), "Ctrl+Shift+A".to_owned());
         tree_view.insert("add_from_packfile".to_owned(), "Ctrl+Alt+A".to_owned());
+        tree_view.insert("check_tables".to_owned(), "Ctrl+Shift+I".to_owned());
         tree_view.insert("create_folder".to_owned(), "Ctrl+F".to_owned());
         tree_view.insert("create_db".to_owned(), "Ctrl+D".to_owned());
         tree_view.insert("create_loc".to_owned(), "Ctrl+L".to_owned());

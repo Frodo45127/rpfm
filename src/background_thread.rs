@@ -20,7 +20,6 @@ use regex::Regex;
 
 use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
-use crate::SHOW_TABLE_SCHEMA_ERRORS;
 use crate::SHORTCUTS;
 use crate::SETTINGS;
 use crate::SCHEMA;
@@ -288,80 +287,6 @@ pub fn background_loop(
                             let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
                             let mut file = BufWriter::new(File::create(path).unwrap());
                             file.write_all(table_list.as_bytes()).unwrap();
-                        }
-
-                        // Test to check for referenced columns with wrong values on them. This usually means the schema is broken.
-                        // This is a test applied to the dependency database, NOT TO YOUR PACKFILE. That's another feature that'll come later.
-                        if SHOW_TABLE_SCHEMA_ERRORS {
-                            for i in pack_file_decoded.packed_files.iter_mut() {
-                                if i.path.starts_with(&["db".to_owned()]) {
-                                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                                        if let Ok(db_data) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
-                                            use std::collections::BTreeMap;
-                                            let mut dep_data = BTreeMap::new();
-
-                                            for (column, field) in db_data.table_definition.fields.iter().enumerate() {
-                                                if let Some(ref dependency_data) = field.field_is_reference {
-
-                                                    let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
-                                                    let mut iter = iter.iter_mut();
-                                                    if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                                                        let mut data = vec![];
-                                                        while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                                            if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                                                                if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                                                    for row in table.entries.iter() {
-
-                                                                        // For now we assume any dependency is a string.
-                                                                        match row[column_index] { 
-                                                                            DecodedData::StringU8(ref entry) |
-                                                                            DecodedData::StringU16(ref entry) |
-                                                                            DecodedData::OptionalStringU8(ref entry) |
-                                                                            DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                                            _ => {}
-                                                                        }
-                                                                    }
-                
-                                                                }
-                                                            } 
-                                                        }
-
-                                                        // Sort and dedup the data found.
-                                                        data.sort_unstable_by(|a, b| a.cmp(&b));
-                                                        data.dedup();
-
-                                                        dep_data.insert(column, data);
-                                                    }
-                                                }
-                                            }
-
-                                            if !dep_data.is_empty() {
-                                                let mut broken = false;
-                                                for row in db_data.entries {
-                                                    for (column, dep_data) in dep_data.iter() {
-                                                        let field_data = match row[*column as usize] { 
-                                                            DecodedData::StringU8(ref entry) |
-                                                            DecodedData::StringU16(ref entry) |
-                                                            DecodedData::OptionalStringU8(ref entry) |
-                                                            DecodedData::OptionalStringU16(ref entry) => entry.to_owned(),
-                                                            _ => "NoData".to_owned()
-                                                        };
-
-                                                        if !dep_data.contains(&field_data) && !dep_data.is_empty() && &field_data != "NoData" && !field_data.is_empty() {
-                                                            println!("Table: {:?}, Column: {}", &i.path[1], column); 
-                                                            broken = true;
-                                                        }
-
-                                                        if broken { break; }
-                                                    }
-
-                                                    if broken { break; }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
 
@@ -1433,6 +1358,14 @@ pub fn background_loop(
                             None => sender.send(Data::Error(Error::from(ErrorKind::PackedFileNotFound))).unwrap(),
                         }
                     },
+
+                    // In case we want to check the DB tables for dependency errors...
+                    Commands::CheckTables => {
+                        match check_tables(&mut pack_file_decoded) {
+                            Ok(_) => sender.send(Data::Success).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
+                    }
 
                     // In case we want to merge DB or Loc Tables from a PackFile...
                     Commands::MergeTables => {

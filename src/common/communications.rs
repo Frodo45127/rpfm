@@ -89,6 +89,7 @@ pub enum Commands {
     OpenWithExternalProgram,
     ImportTSVPackedFile,
     ExportTSVPackedFile,
+    CheckTables,
     MergeTables,
     GenerateSchemaDiff,
     GetNotes,

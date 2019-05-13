@@ -566,10 +566,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
 
-/// This constant is used to check the references of every table in a PackFile and return the errors. For now it's only to check
-/// if tables have swapped columns, but it may be expanded in the future.
-const SHOW_TABLE_SCHEMA_ERRORS: bool = false;
-
 /// Custom type to deal with QStrings more easely.
 type QString = qt_core::string::String;
 
@@ -724,6 +720,7 @@ pub struct AppUI {
     pub context_menu_open_with_external_program: *mut Action,
     pub context_menu_open_in_multi_view: *mut Action,
     pub context_menu_open_notes: *mut Action,
+    pub context_menu_check_tables: *mut Action,
     pub context_menu_merge_tables: *mut Action,
     pub context_menu_global_search: *mut Action,
 
@@ -1089,6 +1086,7 @@ fn main() {
             context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
             context_menu_open_notes: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Notes")),
             
+            context_menu_check_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables")),
             context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables")),
             context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
@@ -1166,7 +1164,7 @@ fn main() {
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
         unsafe { folder_tree_view_context_menu.insert_separator(menu_open.as_ref().unwrap().menu_action()); }
         unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_rename); }
-        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_merge_tables); }
+        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_check_tables); }
 
         // Prepare the TreeView to have a Contextual Menu.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
@@ -1305,6 +1303,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["add_file"]))); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["add_folder"]))); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["add_from_packfile"]))); }
+        unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["check_tables"]))); }
         unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["create_folder"]))); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["create_db"]))); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["create_loc"]))); }
@@ -1328,6 +1327,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -1351,6 +1351,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_file); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_folder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_from_packfile); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_check_tables); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_folder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_db); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_loc); }
@@ -1441,6 +1442,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add one or more files to the currently open PackFile. Existing files are not overwriten!")); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a folder to the currently open PackFile. Existing files are not overwriten!")); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add files from another PackFile to the currently open PackFile. Existing files are not overwriten!")); }
+        unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_status_tip(&QString::from_std_str("Check all the DB Tables of the currently open PackFile for dependency errors.")); }
         unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create an empty folder. Due to how the PackFiles are done, these are NOT KEPT ON SAVING if they stay empty.")); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a Loc File (used by the game to store the texts you see ingame) in the selected folder.")); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a DB Table (used by the game for... most of the things).")); }
@@ -2312,6 +2314,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2357,6 +2360,7 @@ fn main() {
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
@@ -2386,6 +2390,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2410,6 +2415,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
@@ -2434,6 +2440,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2458,6 +2465,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2481,6 +2489,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2505,6 +2514,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2534,6 +2544,7 @@ fn main() {
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_there_a_schema {
+                    unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false); }
                     unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false); }
                     unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
                     unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false); }
@@ -3317,6 +3328,23 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Check Tables" action in the Contextual Menu.
+        let slot_contextual_menu_check_tables = SlotBool::new(clone!(
+            sender_qt,
+            receiver_qt => move |_| {
+                
+                // Disable the window and trigger the check for all tables in the PackFile.
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                sender_qt.send(Commands::CheckTables).unwrap();
+                match check_message_validity_tryrecv(&receiver_qt) {
+                    Data::Success => show_dialog(app_ui.window, true, "No errors detected."),
+                    Data::Error(error) => show_dialog(app_ui.window, false, error),
+                    _ => panic!(THREADS_MESSAGE_ERROR),
+                }
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        ));
+
         // What happens when we trigger the "Merge" action in the Contextual Menu.
         let slot_contextual_menu_merge_tables = SlotBool::new(clone!(
             sender_qt,
@@ -3946,6 +3974,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
         unsafe { app_ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_from_packfile); }
+        unsafe { app_ui.context_menu_check_tables.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_check_tables); }
         unsafe { app_ui.context_menu_create_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_folder); }
         unsafe { app_ui.context_menu_create_db.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_db); }
         unsafe { app_ui.context_menu_create_loc.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_loc); }
