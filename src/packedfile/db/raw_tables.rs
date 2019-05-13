@@ -86,8 +86,8 @@ pub fn process_raw_tables(
     // For each file, create a DB file from it.
     for definition in &definitions {
 
-        // We just do this in Debug builds, so we use a print to check when a table throws an error.
-        println!("{:?}", definition);
+        // If we have a debug version, print each table we process so, if it fails, we know where.
+        if cfg!(debug_assertions) { println!("{:?}", definition); }
 
         // Depending on the version, we have to use one logic or another.
         match version {
