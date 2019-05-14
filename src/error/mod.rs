@@ -15,6 +15,7 @@ use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
 use toml::ser;
 
+use std::boxed::Box;
 use std::fmt;
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -43,6 +44,12 @@ pub enum ErrorKind {
 
     // Error for when serializing to TOML fails.
     TOMLSerializerError,
+    
+    // Error for when deserializing XML files.
+    XMLDeserializerError,
+
+    // Error for when serializing and deserializing bincode files.
+    BincodeSerializerError,
 
     // Error for when trying to do something to a file that doesn't exists anymore.
     NonExistantFile,
@@ -372,6 +379,8 @@ impl Display for ErrorKind {
         match self {
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::XMLDeserializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::BincodeSerializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
             ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
@@ -613,5 +622,18 @@ impl From<io::Error> for Error {
             io::ErrorKind::PermissionDenied => Error::from(ErrorKind::IOPermissionDenied),
             _ => Error::from(ErrorKind::IOGeneric),
         }
+    }
+}
+
+/// Implementation to create a custom error from a Toml Error.
+impl From<serde_xml_rs::Error> for Error {
+    fn from(_: serde_xml_rs::Error) -> Error {
+        Error::from(ErrorKind::XMLDeserializerError)
+    }
+}
+
+impl From<Box<bincode::ErrorKind>> for Error {
+    fn from(_: Box<bincode::ErrorKind>) -> Error {
+        Error::from(ErrorKind::BincodeSerializerError)
     }
 }
