@@ -1169,22 +1169,6 @@ fn main() {
         // Prepare the TreeView to have a Contextual Menu.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
 
-        // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
-        if GENERATE_NEW_SCHEMA {
-
-            // These are the paths needed for the new schemas. First one should be `assembly_kit/raw_data/db`.
-            // The second one should contain all the tables of the game, extracted directly from `data.pack`.
-            let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/");
-            let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_tables/");
-            match import_schema(&assembly_kit_schemas_path, &testing_tables_path) {
-                Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
-                Err(error) => show_dialog(app_ui.window, false, error),
-            }
-
-            // Close the program with code 69
-            return 69
-        }
-
         //---------------------------------------------------------------------------------------//
         // Shortcuts for the Menu Bar...
         //---------------------------------------------------------------------------------------//
@@ -4811,6 +4795,22 @@ fn main() {
 
         // If we have it enabled in the prefs, check if there are schema updates.
         if SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"] { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };
+
+        // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
+        if GENERATE_NEW_SCHEMA {
+
+            // These are the paths needed for the new schemas. First one should be `assembly_kit/raw_data/db`.
+            // The second one should contain all the tables of the game, extracted directly from `data.pack`.
+            let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_raw");
+            let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_bin/");
+            match import_schema(Schema::load("schema_wh.json").ok(), &assembly_kit_schemas_path, &testing_tables_path) {
+                Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
+                Err(error) => show_dialog(app_ui.window, false, error),
+            }
+
+            // Close the program with code 69
+            return 69
+        }
 
         // And launch it.
         Application::exec()

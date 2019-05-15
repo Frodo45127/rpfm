@@ -363,7 +363,7 @@ impl TableDefinitions {
         }
         if index_found {
             self.versions.remove(index_version);
-            self.versions.insert( index_version, table_definition);
+            self.versions.insert(index_version, table_definition);
         }
         else {
             self.versions.push(table_definition);
