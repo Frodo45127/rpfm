@@ -3133,7 +3133,7 @@ fn main() {
 
                         // Add the folder's name to the list.
                         let mut complete_path = selected_paths[0].to_vec();
-                        complete_path.push(new_folder_name);
+                        complete_path.append(&mut (new_folder_name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
 
                         // Check if the folder exists.
                         sender_qt.send(Commands::FolderExists).unwrap();
