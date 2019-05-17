@@ -10,6 +10,7 @@
 
 // This module is for communication-related stuff.
 
+use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
@@ -111,7 +112,6 @@ pub enum Data {
     I64(i64),
 
     String(String),
-    StringString((String, String)),
     StringVecString((String, Vec<String>)),
     StringVecVecString((String, Vec<Vec<String>>)),
     PathBuf(PathBuf),
@@ -155,6 +155,8 @@ pub enum Data {
     VecStringVecPathType((Vec<String>, Vec<PathType>)),
     VecPathTypePathBuf((Vec<PathType>, PathBuf)),
     VecPathBuf(Vec<PathBuf>),
+    TableDefinition(TableDefinition),
+    BTreeMapI32VecString(BTreeMap<i32, Vec<String>>),
 }
 
 /// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.

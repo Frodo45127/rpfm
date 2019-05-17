@@ -10,6 +10,7 @@
 
 // Here should go just the Background loop.
 
+use std::collections::BTreeMap;
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
 use std::path::PathBuf;
@@ -855,79 +856,26 @@ pub fn background_loop(
                     // In case we want to get the dependency data for a table's column....
                     Commands::DecodeDependencyDB => {
 
-                        // Wait until we get the needed data from the UI thread.
-                        let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-                        let mut data = vec![];
-                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                                let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
-                                let mut iter = iter.iter_mut();
-                                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                    if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                            for row in table.entries.iter() {
+                        // Get the entire dependency data for the provided definition, all at once.
+                        let table_definition = if let Data::TableDefinition(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let dependency_data = match SCHEMA.lock().unwrap().clone() {
+                            Some(schema) => {
+                                let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
+                                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
 
-                                                // For now we assume any dependency is a string.
-                                                match row[column_index] { 
-                                                    DecodedData::StringU8(ref entry) |
-                                                    DecodedData::StringU16(ref entry) |
-                                                    DecodedData::OptionalStringU8(ref entry) |
-                                                    DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                    _ => {}
-                                                }
-                                            }
-                                        }
+                                // Due to how mutability works, we have first to get the data of every table,
+                                // then iterate them and decode them. Ignore any errors.
+                                for packed_file in pack_file_decoded.packed_files.iter_mut() {
+                                    if packed_file.path.starts_with(&["db".to_owned()]) {
+                                        let _x = packed_file.load_data();
                                     }
                                 }
 
-                                // The same for our own PackFile.
-                                let mut iter = pack_file_decoded.packed_files.iter_mut();
-                                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                    if let Ok(packed_file_data) = packed_file.get_data_and_keep_it() {
-                                        if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
-                                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                                for row in table.entries.iter() {
-
-                                                    // For now we assume any dependency is a string.
-                                                    match row[column_index] { 
-                                                        DecodedData::StringU8(ref entry) |
-                                                        DecodedData::StringU16(ref entry) |
-                                                        DecodedData::OptionalStringU8(ref entry) |
-                                                        DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                        _ => {}
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                get_dependency_data(&table_definition, &schema, &mut dep_db, &fake_dep_db, &pack_file_decoded)
                             }
-
-                            // We have to check in the Fake Dependency Database too, just in case.
-                            let mut iter = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
-                            let mut iter = iter.iter_mut();
-                            while let Some(table) = iter.find(|x| x.db_type == format!("{}_tables", dependency_data.0)) {
-                                if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                    for row in table.entries.iter() {
-
-                                        // For now we assume any dependency is a string.
-                                        match row[column_index] { 
-                                            DecodedData::StringU8(ref entry) |
-                                            DecodedData::StringU16(ref entry) |
-                                            DecodedData::OptionalStringU8(ref entry) |
-                                            DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Sort and dedup the data found.
-                            data.sort_unstable_by(|a, b| a.cmp(&b));
-                            data.dedup();
-                        }
-
-                        sender.send(Data::VecString(data)).unwrap();
+                            None => BTreeMap::new(),
+                        };
+                        sender.send(Data::BTreeMapI32VecString(dependency_data)).unwrap();
                     }
 
                     // In case we want to use Kailua to check if your script has errors...

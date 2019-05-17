@@ -683,14 +683,13 @@ pub fn show_dialog<T: Display>(
     let icon = if is_success { Icon::Information } else { Icon::Critical };
 
     // Create the dialog.
-    let mut dialog;
-    unsafe { dialog = MessageBox::new_unsafe((
+    let mut dialog = unsafe { MessageBox::new_unsafe((
         icon,
         &QString::from_std_str(title),
         &QString::from_std_str(&text.to_string()),
         Flags::from_int(1024), // Ok button.
         window as *mut Widget,
-    )); }
+    )) };
 
     // Run the dialog.
     dialog.exec();

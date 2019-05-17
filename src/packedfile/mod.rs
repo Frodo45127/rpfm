@@ -27,7 +27,7 @@ use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::schemas::{FieldType, TableDefinition};
+use crate::packedfile::db::schemas::{FieldType, Schema, TableDefinition};
 
 use crate::SCHEMA;
 pub mod loc;
@@ -193,6 +193,99 @@ pub fn merge_tables(
     Ok((added_path, tree_paths))
 }
 
+/// This function retrieves the entire Dependency Data for a given table definition.
+///
+/// NOTE: It's here and not in DB because we may get an use for this in LOC PackedFiles.
+/// NOTE2: We don't lock the LazyStatics here. We get them as arguments instead. The reason
+/// is that way we can put this in a loop without relocking on every freaking PackedFile,
+/// which can be extremely slow, depending on the situation.
+pub fn get_dependency_data(
+    table_definition: &TableDefinition,
+    schema: &Schema,
+    dep_db: &mut Vec<PackedFile>,
+    fake_dep_db: &[DB],
+    pack_file: &PackFile
+) -> BTreeMap<i32, Vec<String>> {
+
+    // If we reach this point, we build the dependency data of the table.
+    let mut dep_data = BTreeMap::new();
+    for (column, field) in table_definition.fields.iter().enumerate() {
+        if let Some(ref dependency_data) = field.field_is_reference {
+            if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
+
+                // If the column is a reference column, fill his referenced data.
+                let mut data = vec![];
+                let mut iter = dep_db.iter_mut();
+                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                    if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
+                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                            for row in table.entries.iter() {
+
+                                // For now we assume any dependency is a string.
+                                match row[column_index] { 
+                                    DecodedData::StringU8(ref entry) |
+                                    DecodedData::StringU16(ref entry) |
+                                    DecodedData::OptionalStringU8(ref entry) |
+                                    DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    } 
+                }
+
+                // Same thing for the fake dependency list, if exists.
+                let mut iter = fake_dep_db.iter();
+                if let Some(table) = iter.find(|x| x.db_type == format!("{}_tables", dependency_data.0)) {
+                    if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                        for row in table.entries.iter() {
+
+                            // For now we assume any dependency is a string.
+                            match row[column_index] { 
+                                DecodedData::StringU8(ref entry) |
+                                DecodedData::StringU16(ref entry) |
+                                DecodedData::OptionalStringU8(ref entry) |
+                                DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+
+                // The same for our own PackFile.
+                let mut iter = pack_file.packed_files.iter();
+                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                    if let Ok(packed_file_data) = packed_file.get_data() {
+                        if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
+                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                                for row in table.entries.iter() {
+
+                                    // For now we assume any dependency is a string.
+                                    match row[column_index] { 
+                                        DecodedData::StringU8(ref entry) |
+                                        DecodedData::StringU16(ref entry) |
+                                        DecodedData::OptionalStringU8(ref entry) |
+                                        DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Sort and dedup the data found.
+                data.sort_unstable_by(|a, b| a.cmp(&b));
+                data.dedup();
+
+                dep_data.insert(column as i32, data);
+            }
+        }
+    }
+
+    // Return the data, ignoring all possible failures.
+    dep_data
+}
 
 /// This function checks all the DB Tables of the provided PackFile for dependency errors.
 pub fn check_tables( 
@@ -215,90 +308,10 @@ pub fn check_tables(
                 }
             }
 
-            // For each PackedFile in the PackFile, we check:
-            // - If it's a DB.
-            // - If we can decode it.
-            // - If it has dependencies.
-            // - If it has errors.
             for packed_file in pack_file.packed_files.iter() {
                 if packed_file.path.starts_with(&["db".to_owned()]) {
                     if let Ok(db_data) = db::DB::read(&(packed_file.get_data().unwrap()), &packed_file.path[1], &schema) {
-
-                        // If we reach this point, we build the dependency data of the table.
-                        let mut dep_data = BTreeMap::new();
-                        for (column, field) in db_data.table_definition.fields.iter().enumerate() {
-                            if let Some(ref dependency_data) = field.field_is_reference {
-                                if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-
-                                    // If the column is a reference column, fill his referenced data.
-                                    let mut data = vec![];
-                                    let mut iter = dep_db.iter_mut();
-                                    while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                        if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                                for row in table.entries.iter() {
-
-                                                    // For now we assume any dependency is a string.
-                                                    match row[column_index] { 
-                                                        DecodedData::StringU8(ref entry) |
-                                                        DecodedData::StringU16(ref entry) |
-                                                        DecodedData::OptionalStringU8(ref entry) |
-                                                        DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                        _ => {}
-                                                    }
-                                                }
-                                            }
-                                        } 
-                                    }
-
-                                    // Same thing for the fake dependency list, if exists.
-                                    let mut iter = fake_dep_db.iter();
-                                    if let Some(table) = iter.find(|x| x.db_type == format!("{}_tables", dependency_data.0)) {
-                                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                            for row in table.entries.iter() {
-
-                                                // For now we assume any dependency is a string.
-                                                match row[column_index] { 
-                                                    DecodedData::StringU8(ref entry) |
-                                                    DecodedData::StringU16(ref entry) |
-                                                    DecodedData::OptionalStringU8(ref entry) |
-                                                    DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                    _ => {}
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // The same for our own PackFile.
-                                    let mut iter = pack_file.packed_files.iter();
-                                    while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                        if let Ok(packed_file_data) = packed_file.get_data() {
-                                            if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
-                                                if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                                    for row in table.entries.iter() {
-
-                                                        // For now we assume any dependency is a string.
-                                                        match row[column_index] { 
-                                                            DecodedData::StringU8(ref entry) |
-                                                            DecodedData::StringU16(ref entry) |
-                                                            DecodedData::OptionalStringU8(ref entry) |
-                                                            DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                            _ => {}
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Sort and dedup the data found.
-                                    data.sort_unstable_by(|a, b| a.cmp(&b));
-                                    data.dedup();
-
-                                    dep_data.insert(column, data);
-                                }
-                            }
-                        }
+                        let dep_data = get_dependency_data(&db_data.table_definition, &schema, &mut dep_db, &fake_dep_db, &pack_file);
 
                         // If we got some dependency data (the referenced tables actually exists), check every
                         // referenced field of every referenced column for errors.
@@ -315,7 +328,7 @@ pub fn check_tables(
                                     };
 
                                     if field_data != "NoData" && !field_data.is_empty() && !dep_data.contains(&field_data.to_owned()) {
-                                        columns.push(column);
+                                        columns.push(*column);
                                     }
                                 }
                             }
@@ -327,7 +340,7 @@ pub fn check_tables(
                                 columns.dedup();
                                 let mut columns = columns.iter().map(|x| format!("{},", *x + 1)).collect::<String>();
                                 columns.pop();
-                                broken_tables.push(format!("Table: {:?}, Column/s: {}", &packed_file.path[1], columns)); 
+                                broken_tables.push(format!("Table: {}/{}, Column/s: {}", &packed_file.path[1], &packed_file.path[2], columns)); 
                             }
                         }
                     }

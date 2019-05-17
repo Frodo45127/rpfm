@@ -186,24 +186,15 @@ impl PackedFileTableView {
         table_type: &Rc<RefCell<TableType>>,
     ) -> Result<Self> {
 
-        // Create the dependency data for this table and populate it.
-        let mut dependency_data: BTreeMap<i32, Vec<String>> = BTreeMap::new();
-        for (index, field) in table_definition.fields.iter().enumerate() {
-            if let Some(ref dependency) = field.field_is_reference {
-
-                // Send the index back to the background thread, and wait until we get a response.
-                sender_qt.send(Commands::DecodeDependencyDB).unwrap();
-                sender_qt_data.send(Data::StringString(dependency.clone())).unwrap();
-                match check_message_validity_recv2(&receiver_qt) { 
-                    Data::VecString(data) => { dependency_data.insert(index as i32, data); },
-                    Data::Error(_) => {},
-                    _ => panic!(THREADS_MESSAGE_ERROR), 
-                }
-            }
-        }
-
-        let dependency_data = Rc::new(dependency_data);
-
+        // Get the entire dependency data for this table.
+        sender_qt.send(Commands::DecodeDependencyDB).unwrap();
+        sender_qt_data.send(Data::TableDefinition((&**table_definition).clone())).unwrap();
+        let dependency_data: Rc<BTreeMap<i32, Vec<String>>> = Rc::new(match check_message_validity_recv2(&receiver_qt) { 
+            Data::BTreeMapI32VecString(data) => data,
+            Data::Error(_) => BTreeMap::new(),
+            _ => panic!(THREADS_MESSAGE_ERROR), 
+        });
+        
         // Create the "Undo" stuff needed for the Undo/Redo functions to work.
         let undo_lock = Rc::new(RefCell::new(false));
         let undo_redo_enabler = Action::new(()).into_raw();
