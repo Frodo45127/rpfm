@@ -369,12 +369,17 @@ pub fn decode_packedfile_optional_integer_i32(packed_file_data: &[u8], mut index
         match decode_packedfile_bool(packed_file_data[0], &mut index) {
             Ok(result) => {
                 if result {
-                    let result = decode_packedfile_integer_i32(&packed_file_data[1..], &mut index);
+                    if packed_file_data.get(4).is_some() {
+                        let result = decode_packedfile_integer_i32(&packed_file_data[1..5], &mut index);
 
-                    // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
-                    // later in the decoding process, and we want to go back to our original index in that case.
-                    if result.is_err() { *index -= 1 };
-                    result.map(|x| Some(x))
+                        // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                        // later in the decoding process, and we want to go back to our original index in that case.
+                        if result.is_err() { *index -= 1 };
+                        result.map(|x| Some(x))
+                    }
+                    else {
+                        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I32:</p><ul><li>Required bytes: 5.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
+                    }
                 } else { Ok(None) }
 
             }
@@ -396,14 +401,18 @@ pub fn decode_packedfile_optional_integer_i64(packed_file_data: &[u8], mut index
         match decode_packedfile_bool(packed_file_data[0], &mut index) {
             Ok(result) => {
                 if result {
-                    let result = decode_packedfile_integer_i64(&packed_file_data[1..], &mut index);
+                    if packed_file_data.get(8).is_some() {
+                        let result = decode_packedfile_integer_i64(&packed_file_data[1..9], &mut index);
 
-                    // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
-                    // later in the decoding process, and we want to go back to our original index in that case.
-                    if result.is_err() { *index -= 1 };
-                    result.map(|x| Some(x))
+                        // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                        // later in the decoding process, and we want to go back to our original index in that case.
+                        if result.is_err() { *index -= 1 };
+                        result.map(|x| Some(x))
+                    }
+                    else {
+                        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I64:</p><ul><li>Required bytes: 9.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
+                    }
                 } else { Ok(None) }
-
             }
             Err(_) => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I64:</p><p>The first byte is not a boolean.</p>")))?
         }
@@ -423,14 +432,18 @@ pub fn decode_packedfile_optional_float_f32(packed_file_data: &[u8], mut index: 
         match decode_packedfile_bool(packed_file_data[0], &mut index) {
             Ok(result) => {
                 if result {
-                    let result = decode_packedfile_float_f32(&packed_file_data[1..], &mut index);
+                    if packed_file_data.get(4).is_some() {
+                        let result = decode_packedfile_float_f32(&packed_file_data[1..5], &mut index);
 
-                    // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
-                    // later in the decoding process, and we want to go back to our original index in that case.
-                    if result.is_err() { *index -= 1 };
-                    result.map(|x| Some(x))
+                        // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                        // later in the decoding process, and we want to go back to our original index in that case.
+                        if result.is_err() { *index -= 1 };
+                        result.map(|x| Some(x))
+                    }
+                    else {
+                        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional F32:</p><ul><li>Required bytes: 5.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
+                    }
                 } else { Ok(None) }
-
             }
             Err(_) => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional F32:</p><p>The first byte is not a boolean.</p>")))?
         }
