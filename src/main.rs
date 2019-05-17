@@ -2095,16 +2095,20 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let game_selected = GAME_SELECTED.lock().unwrap().clone();
-                let path = match &*game_selected {
-                    "warhammer_2" | "warhammer" | "thrones_of_britannia" | "attila" | "rome_2" => {
+                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
+                let path = match version {
+
+                    // Post-Shogun 2 games.
+                    2 => {
                         let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone().unwrap();
                         path.push("assembly_kit");
                         path.push("raw_data");
                         path.push("db");
                         path
                     }
-                    "shogun_2" => {
+
+                    // Shogun 2.
+                    1 => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let mut file_dialog = unsafe { FileDialog::new_unsafe((
@@ -2124,7 +2128,8 @@ fn main() {
                         path
                     }
 
-                    "napoleon" | "empire" => {
+                    // Empire and Napoleon.
+                    0 => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let mut file_dialog = unsafe { FileDialog::new_unsafe((
@@ -2144,8 +2149,6 @@ fn main() {
                     // For any other game, return an empty path.
                     _ => PathBuf::new(),
                 };
-
-                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
 
                 if path.file_name().is_some() {
                     sender_qt.send(Commands::GeneratePakFile).unwrap();
