@@ -2097,7 +2097,7 @@ fn main() {
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
                 let game_selected = GAME_SELECTED.lock().unwrap().clone();
                 let path = match &*game_selected {
-                    "warhammer_2" | "warhammer" | "thrones" | "attila" | "rome_2" => {
+                    "warhammer_2" | "warhammer" | "thrones_of_britannia" | "attila" | "rome_2" => {
                         let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone().unwrap();
                         path.push("assembly_kit");
                         path.push("raw_data");
