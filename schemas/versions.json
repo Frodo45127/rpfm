@@ -6,5 +6,6 @@
   "schema_rom2.json": 10,
   "schema_sho2.json": 5,
   "schema_tob.json": 7,
-  "schema_wh.json": 16
+  "schema_wh.json": 17,
+  "schema_wh2.json": 17
 }

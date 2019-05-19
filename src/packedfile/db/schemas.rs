@@ -177,9 +177,6 @@ impl Schema {
 
         for (game_name, game) in SUPPORTED_GAMES.iter() {
 
-            // The three warhammer games use the same schema. So we only process the last one.
-            if game_name == &"warhammer_2" || game_name == &"warhammer_3" { continue; }
-
             // Skip all the games with an unchanged version.
             let schema_name = &game.schema;
             let mut schema_version = 0;

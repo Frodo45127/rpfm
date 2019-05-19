@@ -166,7 +166,7 @@ lazy_static! {
         map.insert("warhammer_2", GameInfo {
             display_name: "Warhammer 2".to_owned(),
             id: PFHVersion::PFH5,
-            schema: "schema_wh.json".to_owned(),
+            schema: "schema_wh2.json".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English

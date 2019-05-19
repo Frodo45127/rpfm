@@ -176,7 +176,7 @@ pub fn process_raw_tables(
                 
                 // Only if the table has data we deserialize it.
                 if buffer.contains("</rows>\r\n</dataroot>") {
-                    if cfg!(debug_assertions) { println!("{}", buffer); }
+                    //if cfg!(debug_assertions) { println!("{}", buffer); }
                     let imported_data: dataroot = from_reader(buffer.as_bytes())?;
 
                     // Now we get that mess we've created and make readable data from it.
