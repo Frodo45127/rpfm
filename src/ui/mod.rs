@@ -950,8 +950,8 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-width: 1px;
             padding-top: 3px;
             padding-bottom: 3px;
-            padding-left: 10px;
-            padding-right: 10px;
+            padding-left: 3px;
+            padding-right: 3px;
             border-color: #{button_bd_off};
             color: #{text_normal};
             background-color: #{button_bg_off};
