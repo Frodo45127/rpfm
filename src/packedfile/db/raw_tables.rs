@@ -106,10 +106,14 @@ pub fn process_raw_tables(
             // provide a different path for Shogun 2, so it has his own version.
             2 | 1 => {
 
-                // We read both files and get them to memory.
+                // We read both files (TWad and Table) and get them to memory.
                 let file_name = definition.file_name().unwrap().to_str().unwrap().split_at(5).1;
                 let file_name_no_xml = file_name.split_at(file_name.len() - 4).0;
                 let table_name = format!("{}_tables", file_name_no_xml);
+                
+                // This file is present in Rome 2, Attila and Thrones. It's almost 400mb. And we don't need it.
+                if file_name == "translated_texts.xml" { continue; }
+                
                 let definition_file = File::open(&definition).unwrap();
                 let mut data_file = {
                     let mut result = Err(Error::from(ErrorKind::IOFileNotFound));
