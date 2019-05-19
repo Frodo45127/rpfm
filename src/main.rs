@@ -4001,7 +4001,7 @@ fn main() {
                 // Why? Because I'm sure there is an asshole out there that it's going to try to give the files duplicated
                 // names, and if that happen, we have to stop right there that criminal scum.
                 let selected_items = get_item_types_from_main_treeview_selection(&app_ui);
-                if let Some(rewrite_sequence) = create_rename_dialog(&app_ui) {
+                if let Some(rewrite_sequence) = create_rename_dialog(&app_ui, &selected_items) {
                     let mut renaming_data_background: Vec<(PathType, String)> = vec![];
                     for item_type in selected_items {
                         match item_type {
