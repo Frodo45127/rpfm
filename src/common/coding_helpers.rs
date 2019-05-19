@@ -378,6 +378,7 @@ pub fn decode_packedfile_optional_integer_i32(packed_file_data: &[u8], mut index
                         result.map(|x| Some(x))
                     }
                     else {
+                        *index -= 1;
                         Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I32:</p><ul><li>Required bytes: 5.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
                     }
                 } else { Ok(None) }
@@ -410,6 +411,7 @@ pub fn decode_packedfile_optional_integer_i64(packed_file_data: &[u8], mut index
                         result.map(|x| Some(x))
                     }
                     else {
+                        *index -= 1;
                         Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I64:</p><ul><li>Required bytes: 9.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
                     }
                 } else { Ok(None) }
@@ -441,6 +443,7 @@ pub fn decode_packedfile_optional_float_f32(packed_file_data: &[u8], mut index: 
                         result.map(|x| Some(x))
                     }
                     else {
+                        *index -= 1;
                         Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional F32:</p><ul><li>Required bytes: 5.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
                     }
                 } else { Ok(None) }
