@@ -1,4 +1,4 @@
-# Warhammer 1 Schema's Changelog
+# Warhammer 2 Schema's Changelog
 
 {{ #include ../includes.md:1}}
 
