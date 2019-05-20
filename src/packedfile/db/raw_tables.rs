@@ -141,7 +141,7 @@ pub fn process_raw_tables(
 
                 // Then deserialize the definition of the table into something we can use.
                 let imported_definition: root = from_reader(definition_file)?;
-                let mut imported_table_definition = TableDefinition::new_fake_from_assembly_kit(&imported_definition, -1, &table_name);
+                let imported_table_definition = TableDefinition::new_fake_from_assembly_kit(&imported_definition, -1, &table_name);
 
                 // Before deserializing the data, due to limitations of serde_xml_rs, we have to rename all rows, beacuse unique names for
                 // rows in each file is not supported for deserializing. Same for the fields, we have to change them to something more generic.
@@ -165,14 +165,6 @@ pub fn process_raw_tables(
                 buffer = field_data_regex1.replace_all(&buffer, "\">Frodo Best Waifu</datafield>").to_string();
                 buffer = field_data_regex2.replace_all(&buffer, "\"> Frodo Best Waifu</datafield>").to_string();
                 buffer = field_data_regex3.replace_all(&buffer, "\">  Frodo Best Waifu</datafield>").to_string();
-
-                // The schema's field order IS NOT THE SAME AS THEIR FILE'S FIELD ORDER. This means we have to fix it.
-                // Also, if there is no rows in the table, this can fail, so we must check we got results before sorting them.
-                imported_table_definition.fields.sort_unstable_by(|a, b| 
-                    if let Some(pos) = buffer.find(&format!("field_name=\"{}\"", a.field_name)) { pos } else { 0 }
-                .cmp(
-                    &(if let Some(pos) = buffer.find(&format!("field_name=\"{}\"", b.field_name)) { pos } else { 0 })
-                ));
                 
                 // Only if the table has data we deserialize it.
                 if buffer.contains("</rows>\r\n</dataroot>") {
@@ -183,9 +175,14 @@ pub fn process_raw_tables(
                     let mut entries = vec![];
                     for row in &imported_data.rows {
                         let mut entry = vec![];
-                        for field in &row.datafield {
-                            for field_def in &imported_table_definition.fields {
+
+                        // Some games (Thrones, Attila, Rome 2 and Shogun 2) may have missing fields when said field is empty.
+                        // To compensate it, if we don't find a field from the definition in the table, we add it empty.
+                        for field_def in &imported_table_definition.fields {
+                            let mut exists = false;
+                            for field in &row.datafield {
                                 if field_def.field_name == field.field_name {
+                                    exists = true;
                                     entry.push(match field_def.field_type {
                                         FieldType::Boolean => DecodedData::Boolean(if field.field_data == "true" || field.field_data == "1" { true } else { false }),
                                         FieldType::Float => DecodedData::Float(if let Ok(data) = field.field_data.parse::<f32>() { data } else { 0.0 }),
@@ -198,6 +195,11 @@ pub fn process_raw_tables(
                                     });
                                     break;
                                 }
+                            }
+
+                            // If the field doesn't exist, we create it empty.
+                            if !exists {
+                                entry.push(DecodedData::OptionalStringU8(String::new()));
                             }
                         }
                         entries.push(entry);
