@@ -2102,7 +2102,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "cultures_subculture",
+                "cultures_subcultures",
                 "subculture"
               ],
               "field_description": ""
@@ -9193,7 +9193,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_projectiles_enum",
+                "audio_projectiles_enums",
                 "key"
               ],
               "field_description": ""
@@ -9712,7 +9712,7 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "name",
+              "field_name": "key",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": null,
@@ -16519,7 +16519,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_materials",
+                "audio_materials_enums",
                 "key"
               ],
               "field_description": ""
@@ -17202,10 +17202,13 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "key",
+              "field_name": "autonomous_engine_type",
               "field_type": "StringU8",
-              "field_is_key": true,
-              "field_is_reference": null,
+              "field_is_key": false,
+              "field_is_reference": [
+                "battlefield_engines",
+                "key"
+              ],
               "field_description": ""
             },
             {
@@ -17229,13 +17232,10 @@
               "field_description": ""
             },
             {
-              "field_name": "autonomous_engine_type",
+              "field_name": "key",
               "field_type": "StringU8",
-              "field_is_key": false,
-              "field_is_reference": [
-                "battlefield_engines",
-                "key"
-              ],
+              "field_is_key": true,
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -17548,7 +17548,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "gun_types_enums",
+                "gun_types_enum",
                 "key"
               ],
               "field_description": ""
@@ -19187,7 +19187,7 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "building_shot_description_texts",
+                "building_short_description_texts",
                 "key"
               ],
               "field_description": ""
@@ -24799,7 +24799,7 @@
               "field_is_key": true,
               "field_is_reference": [
                 "cai_personality_cultural_components",
-                "key"
+                "id"
               ],
               "field_description": ""
             },
@@ -28554,7 +28554,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_ai_character_skill_tree_agent_managers",
+                "campaign_ai_character_skill_tree_distributions",
                 "key"
               ],
               "field_description": ""
@@ -28564,7 +28564,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_ai_character_skill_tree_distributions",
+                "campaign_ai_character_skill_tree_agent_managers",
                 "key"
               ],
               "field_description": ""
@@ -28834,7 +28834,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_ai_technologies_paths",
+                "campaign_ai_technology_paths",
                 "key"
               ],
               "field_description": ""
@@ -37809,7 +37809,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "cdir_events_options",
+                "cdir_events_dilemma_options",
                 "option_key"
               ],
               "field_description": ""
@@ -38027,7 +38027,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "cdir_events_options",
+                "cdir_events_dilemma_options",
                 "option_key"
               ],
               "field_description": ""
@@ -38325,7 +38325,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "cdir_events_options",
+                "cdir_events_dilemma_options",
                 "option_key"
               ],
               "field_description": ""
@@ -45021,14 +45021,20 @@
               "field_name": "bonus_value_id",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_unit_category",
+                "key"
+              ],
               "field_description": ""
             },
             {
               "field_name": "unit_category",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "unit_category",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -48559,10 +48565,7 @@
               "field_name": "skin",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": [
-                "unit_banners",
-                "key"
-              ],
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -51145,8 +51148,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -58448,7 +58451,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_armour_types",
+                "audio_materials_enums",
                 "key"
               ],
               "field_description": ""
@@ -58467,10 +58470,7 @@
               "field_name": "event",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": [
-                "movie_events",
-                "event"
-              ],
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -62543,7 +62543,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_explosions",
+                "audio_explosions_enums",
                 "key"
               ],
               "field_description": ""
@@ -68281,8 +68281,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -74557,8 +74557,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -74691,8 +74691,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -76430,8 +76430,8 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             }
