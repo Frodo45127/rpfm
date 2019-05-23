@@ -12035,7 +12035,7 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "key",
+              "field_name": "effect",
               "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": null,
@@ -25371,8 +25371,8 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
-                "main_units",
-                "unit"
+                "units",
+                "key"
               ],
               "field_description": ""
             },
@@ -27460,7 +27460,7 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
-                "cai_strategic_context_types",
+                "cai_personalities_budget_context_types",
                 "key"
               ],
               "field_description": ""
@@ -33780,7 +33780,7 @@
               "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
-                "campaign_ai_character_skill_tree_agent_managers",
+                "campaign_ai_character_skill_tree_distributions",
                 "key"
               ],
               "field_description": ""
@@ -33790,7 +33790,7 @@
               "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
-                "campaign_ai_character_skill_tree_distributions",
+                "campaign_ai_character_skill_tree_agent_managers",
                 "key"
               ],
               "field_description": ""
@@ -34063,7 +34063,7 @@
               "field_type": "StringU16",
               "field_is_key": true,
               "field_is_reference": [
-                "campaign_ai_technologies_paths",
+                "campaign_ai_technology_paths",
                 "key"
               ],
               "field_description": ""
@@ -43949,7 +43949,7 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
-                "cdir_events_options",
+                "cdir_events_dilemma_options",
                 "option_key"
               ],
               "field_description": ""
@@ -44167,7 +44167,7 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
-                "cdir_events_options",
+                "cdir_events_incident_options",
                 "option_key"
               ],
               "field_description": ""
@@ -44465,7 +44465,7 @@
               "field_type": "StringU16",
               "field_is_key": false,
               "field_is_reference": [
-                "cdir_events_options",
+                "cdir_events_mission_options",
                 "option_key"
               ],
               "field_description": ""
@@ -64595,10 +64595,7 @@
               "field_name": "event",
               "field_type": "StringU16",
               "field_is_key": true,
-              "field_is_reference": [
-                "message_events",
-                "event"
-              ],
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -64644,7 +64641,7 @@
               "field_is_key": false,
               "field_is_reference": [
                 "message_event_layout_types",
-                "type"
+                "Type"
               ],
               "field_description": ""
             },
@@ -77414,7 +77411,7 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "key",
+              "field_name": "name",
               "field_type": "OptionalStringU16",
               "field_is_key": false,
               "field_is_reference": null,
@@ -85509,7 +85506,7 @@
               "field_is_key": true,
               "field_is_reference": [
                 "units",
-                "unit"
+                "key"
               ],
               "field_description": ""
             },
