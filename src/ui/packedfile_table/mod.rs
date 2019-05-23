@@ -2056,9 +2056,9 @@ impl PackedFileTableView {
                     if file_dialog.exec() == 1 {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let (name, version, old_data) = match &*table_type.borrow() {
-                            TableType::DependencyManager(data) => ("PackFile List".to_owned(), 1, data.to_vec()),
+                            TableType::DependencyManager(data) => (TSV_HEADER_PACKFILE_LIST.to_owned(), 1, data.to_vec()),
                             TableType::DB(data) => (data.db_type.to_owned(), data.version, data.entries.to_vec()),
-                            TableType::LOC(data) => ("".to_owned(), 1, data.entries.to_vec()),
+                            TableType::LOC(data) => (TSV_HEADER_LOC_PACKEDFILE.to_owned(), 1, data.entries.to_vec()),
                         };
 
                         sender_qt.send(Commands::ImportTSVPackedFile).unwrap();
@@ -2137,9 +2137,9 @@ impl PackedFileTableView {
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         let headers = table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
                         let (name, version, entries) = match &*table_type.borrow() {
-                            TableType::DependencyManager(data) => ("PackFile List".to_owned(), 1, data.to_vec()),
+                            TableType::DependencyManager(data) => (TSV_HEADER_PACKFILE_LIST.to_owned(), 1, data.to_vec()),
                             TableType::DB(data) => (data.db_type.to_owned(), data.version, data.entries.to_vec()),
-                            TableType::LOC(data) => ("Loc PackedFile".to_owned(), 1, data.entries.to_vec()),
+                            TableType::LOC(data) => (TSV_HEADER_LOC_PACKEDFILE.to_owned(), 1, data.entries.to_vec()),
                         };
 
                         sender_qt.send(Commands::ExportTSVPackedFile).unwrap();

@@ -61,6 +61,10 @@ pub enum DecodedData {
     OptionalStringU16(String),
 }
 
+/// Const to use in the header of TSV PackedFiles.
+pub const TSV_HEADER_PACKFILE_LIST: &str = "PackFile List";
+pub const TSV_HEADER_LOC_PACKEDFILE: &str = "Loc PackedFile";
+
 //----------------------------------------------------------------//
 // Generic Functions for PackedFiles.
 //----------------------------------------------------------------//
@@ -382,7 +386,7 @@ pub fn import_tsv(
     for (row, record) in reader.records().enumerate() {
         if let Ok(record) = record {
 
-            // The first line should contain the "table_folder_name"/"Loc PackedFile", and the version (1 for Locs).
+            // The first line should contain the "table_folder_name"/"Loc PackedFile/PackFile List", and the version (1 for Locs).
             if row == 0 { 
                 if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable)?; }
                 if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != version { 
