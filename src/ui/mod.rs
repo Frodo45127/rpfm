@@ -905,7 +905,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-width: 1px;
             border-color: #{checkbox_bd_off};
         }}
-
+        /* Disabled due to the evanesce check bug.
         QCheckBox::indicator:checked {{
             height: 12px;
             width: 12px;
@@ -914,12 +914,12 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-color: #{checkbox_bd_off};
             image:url(img/checkbox_check.png);
         }}
-
         QCheckBox::indicator:hover {{
             border-style: solid;
             border-width: 1px;
             border-color: #{checkbox_bd_hover};
         }}
+        */
 
         /* Tweaked TableView, so the Checkboxes are white and easy to see. */
 
@@ -930,19 +930,19 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-color: #{checkbox_bd_off};
         }}
 
+        /* Disabled due to the evanesce check bug.
         QTableView::indicator:hover {{
             border-style: solid;
             border-width: 1px;
             border-color: #{checkbox_bd_hover};
         }}
-
         QTableView::indicator:checked {{
             border-style: solid;
             border-width: 1px;
             border-color: #{checkbox_bd_off};
             image:url(img/checkbox_check.png);
         }}
-
+        */
         /* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */
 
         QLineEdit {{
