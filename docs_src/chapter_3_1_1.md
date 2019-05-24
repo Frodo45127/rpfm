@@ -4,7 +4,7 @@
 
 Here, we can find the *basic* actions: 
 - `New PackFile`: Creates a new PackFile outtanowhere.
-- `Open PackFile`: Opens a PackFile in RPFM.
+- `Open PackFile`: Opens one or more PackFiles in RPFM.
 - `Save PackFile`: Saves the changes done in a PackFile to disk.
 - `Save PackFile As`: Saves the current PackFile with another name.
 - `Preferences`: Open the Preferences window.
@@ -17,7 +17,7 @@ And some more... *specific* ones:
 - `Change PackFile Type`: Allows you to change the open PackFile's Type and configure some options for it.
 
 About the **PackFile Types**, it's what the game uses to *load in order* all the data of the game. There are the following types, in *the order the game will load them*:
-- `Boot`: Used by **boot.pack**. Not useful for modding. First to load.
+- `Boot`: Used by *boot.pack*. Not useful for modding. First to load.
 - `Release`: Used by most of CA PackFiles. Not useful for modding.
 - `Pactch`: Used by some CA PackFiles, specially in Shogun 2 and older games. Not useful for modding.
 - `Mod`: Used by most mods. This is the one you'll mostly use.
@@ -25,10 +25,10 @@ About the **PackFile Types**, it's what the game uses to *load in order* all the
 - `Other`: Something for RPFM to categorize unrecognized types. Never use it.
 
 There are also a few more options to configure a PackFiles under this menu:
+- `Header Is Extended`: The header of the PackFile is extended (only seen in arena).
 - `Index Includes Timestamp`: There is a timestamp, maybe a *Last Modified Date* in the index of the PackFile.
 - `Index Is Encrypted`: The index of the PackFile is encrypted.
 - `Data Is Encrypted`: The data of the PackFile is encrypted.
-- `Header Is Extended`: The header of the PackFile is extended (only seen in arena).
 
 About these options, just take into account that any PackFile with any of these options enabled will **NOT BE RECOGNIZED** as a mod by the launcher. And RPFM doesn't support saving PackFiles with `Index Is Encrypted`, `Data Is Encrypted` or `Header Is Extended` enabled.
 

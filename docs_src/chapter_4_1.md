@@ -31,10 +31,10 @@ Now, with the Right-Click (or Contextual) Menu:
 
 These are all the actions available for DB Tables:
 
-- ´Add Row`: Appends an empty row at the end of the table.
+- `Add Row`: Appends an empty row at the end of the table.
 - `Insert Row`: Inserts an empty row after every row with a selected cell.
 - `Delete Row`: Uses the computational power of your GPU to mine cryptocurrencies. Joking, it deletes any row with a selected cell.
-- ´Apply…/Apply Maths to Selection`: Allows you to apply a mathemathical operation to the selected cells.
+- `Apply…/Apply Maths to Selection`: Allows you to apply a mathemathical operation to the selected cells.
 - `Apply…/Rewrite Selection`: Allows you to rewrite the contents of a complete selection with whatever you want.
 - `Clone…/Clone and Insert`: Creates a duplicate of every row with a selected cell and inserts the duplicate just below the original row.
 - `Clone…/Clone and Append`: Creates a duplicate of every row with a selected cell and appends the duplicates at the end of the table.
