@@ -39,10 +39,8 @@ use qt_widgets::action_group::ActionGroup;
 use qt_widgets::application::Application;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::file_dialog::{FileDialog, FileMode, Option::ShowDirsOnly};
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::header_view::ResizeMode;
-use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::menu::Menu;
@@ -63,6 +61,7 @@ use qt_gui::icon::Icon;
 use qt_gui::key_sequence::KeySequence;
 use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::palette::{Palette, ColorGroup, ColorRole};
+use qt_gui::slots::SlotStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
@@ -99,6 +98,7 @@ use crate::common::*;
 use crate::common::communications::*;
 use crate::error::{ErrorKind, logger::Report, Result};
 use crate::main_extra::*;
+use crate::packfile::PathType;
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::*;
 use crate::packedfile::db::DB;
@@ -108,13 +108,16 @@ use crate::packfile::{PFHVersion, PFHFileType, PFHFlags};
 use crate::settings::*;
 use crate::settings::shortcuts::Shortcuts;
 use crate::ui::*;
-use crate::ui::dependency_manager::*;
 use crate::ui::packedfile_table::PackedFileTableView;
 use crate::ui::packedfile_table::db_decoder::*;
+use crate::ui::packedfile_table::dependency_manager::*;
 use crate::ui::packedfile_table::packedfile_db::*;
 use crate::ui::packedfile_table::packedfile_loc::*;
-use crate::ui::packedfile_text::*;
+use crate::ui::packedfile_text::PackedFileTextView;
+use crate::ui::packedfile_text::packedfile_text::*;
+use crate::ui::packedfile_text::packfile_notes::*;
 use crate::ui::packedfile_rigidmodel::*;
+use crate::ui::packfile_treeview::*;
 use crate::ui::qt_custom_stuff::*;
 use crate::ui::settings::*;
 use crate::ui::table_state::*;
@@ -159,11 +162,40 @@ lazy_static! {
     static ref SUPPORTED_GAMES: IndexMap<&'static str, GameInfo> = {
         let mut map = IndexMap::new();
 
+        // Three Kingdoms
+        map.insert("three_kingdoms", GameInfo {
+            display_name: "Three Kingdoms".to_owned(),
+            id: PFHVersion::PFH5,
+            schema: "schema_3k.json".to_owned(),
+            db_packs: vec!["database.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
+            steam_id: Some(779_340),
+            raw_db_version: 2,
+            pak_file: Some("3k.pak".to_owned()),
+            ca_types_file: None,
+            supports_editing: true,
+            game_selected_icon: "gs_3k.png".to_owned(),
+        });
+
         // Warhammer 2
         map.insert("warhammer_2", GameInfo {
             display_name: "Warhammer 2".to_owned(),
             id: PFHVersion::PFH5,
-            schema: "schema_wh.json".to_owned(),
+            schema: "schema_wh2.json".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
@@ -511,6 +543,23 @@ lazy_static! {
         palette
     };
 
+    /// Stylesheet used by the dark theme in Windows.
+    static ref DARK_STYLESHEET: String = create_dark_theme_stylesheet();
+
+    // Colors used all over the program for theming and stuff.
+    static ref MEDIUM_DARK_GREY: &'static str = "333333";            // Medium-Dark Grey. The color of the background of the Main Window.
+    static ref MEDIUM_DARKER_GREY: &'static str = "262626";          // Medium-Darker Grey.
+    static ref DARK_GREY: &'static str = "181818";                   // Dark Grey. The color of the background of the Main TreeView.
+    static ref SLIGHTLY_DARKER_GREY: &'static str = "101010";        // A Bit Darker Grey.
+    static ref KINDA_WHITY_GREY: &'static str = "BBBBBB";            // Light Grey. The color of the normal Text.
+    static ref KINDA_MORE_WHITY_GREY: &'static str = "CCCCCC";       // Lighter Grey. The color of the highlighted Text.
+    static ref EVEN_MORE_WHITY_GREY: &'static str = "FAFAFA";        // Even Lighter Grey.
+    static ref BRIGHT_RED: &'static str = "FF0000";                  // Bright Red, as our Lord.
+    static ref DARK_RED: &'static str = "FF0000";                    // Dark Red, as our face after facing our enemies.
+    static ref LINK_BLUE: &'static str = "2A82DA";                   // Blue, used for Zeldas.
+    static ref ORANGE: &'static str = "E67E22";                      // Orange, used for borders.
+    static ref MEDIUM_GREY: &'static str = "555555";
+
     /// The current Settings and Shortcuts. To avoid reference and lock issues, this should be edited ONLY in the background thread.
     static ref SETTINGS: Arc<Mutex<Settings>> = Arc::new(Mutex::new(Settings::load().unwrap_or_else(|_|Settings::new())));
     static ref SHORTCUTS: Arc<Mutex<Shortcuts>> = Arc::new(Mutex::new(Shortcuts::load().unwrap_or_else(|_|Shortcuts::new())));
@@ -527,9 +576,15 @@ lazy_static! {
     /// Currently loaded schema.
     static ref SCHEMA: Arc<Mutex<Option<Schema>>> = Arc::new(Mutex::new(None));
 
+    /// Variable to keep track of the state of the PackFile.
+    static ref IS_MODIFIED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+
     /// History for the filters, search, columns...., so table and loc filters are remembered when zapping files, and cleared when the open PackFile changes.
     /// NOTE: This affects both DB Tables and Loc PackedFiles.
     static ref TABLE_STATES_UI: Mutex<BTreeMap<Vec<String>, TableStateUI>> = Mutex::new(TableStateUI::load().unwrap_or_else(|_| TableStateUI::new()));
+
+    /// Variable to lock/unlock certain actions of the Folder TreeView.
+    static ref IS_FOLDER_TREE_VIEW_LOCKED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -539,10 +594,6 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// This constant is used to enable or disable the generation of a new Schema file in compile time.
 /// If you don't want to explicity create a new Schema for a game, leave this disabled.
 const GENERATE_NEW_SCHEMA: bool = false;
-
-/// This constant is used to check the references of every table in a PackFile and return the errors. For now it's only to check
-/// if tables have swapped columns, but it may be expanded in the future.
-const SHOW_TABLE_SCHEMA_ERRORS: bool = false;
 
 /// Custom type to deal with QStrings more easely.
 type QString = qt_core::string::String;
@@ -606,10 +657,10 @@ pub struct AppUI {
     pub change_packfile_type_movie: *mut Action,
     pub change_packfile_type_other: *mut Action,
 
-    pub change_packfile_type_data_is_encrypted: *mut Action,
+    pub change_packfile_type_header_is_extended: *mut Action,
     pub change_packfile_type_index_includes_timestamp: *mut Action,
     pub change_packfile_type_index_is_encrypted: *mut Action,
-    pub change_packfile_type_header_is_extended: *mut Action,
+    pub change_packfile_type_data_is_encrypted: *mut Action,
 
     // Action Group for the submenu.
     pub change_packfile_type_group: *mut ActionGroup,
@@ -618,6 +669,7 @@ pub struct AppUI {
     // "Game Selected" menu.
     //-------------------------------------------------------------------------------//
 
+    pub three_kingdoms: *mut Action,
     pub warhammer_2: *mut Action,
     pub warhammer: *mut Action,
     pub thrones_of_britannia: *mut Action,
@@ -633,6 +685,10 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // "Special Stuff" menu.
     //-------------------------------------------------------------------------------//
+
+    // Three Kingdoms actions.
+    pub three_k_optimize_packfile: *mut Action,
+    pub three_k_generate_pak_file: *mut Action,
 
     // Warhammer 2's actions.
     pub wh2_patch_siege_ai: *mut Action,
@@ -690,16 +746,16 @@ pub struct AppUI {
     pub context_menu_create_text: *mut Action,
     pub context_menu_mass_import_tsv: *mut Action,
     pub context_menu_mass_export_tsv: *mut Action,
-    pub context_menu_merge_tables: *mut Action,
+    pub context_menu_rename: *mut Action,
     pub context_menu_delete: *mut Action,
     pub context_menu_extract: *mut Action,
-    pub context_menu_rename_current: *mut Action,
-    pub context_menu_apply_prefix_to_selected: *mut Action,
-    pub context_menu_apply_prefix_to_all: *mut Action,
     pub context_menu_open_decoder: *mut Action,
     pub context_menu_open_dependency_manager: *mut Action,
     pub context_menu_open_with_external_program: *mut Action,
     pub context_menu_open_in_multi_view: *mut Action,
+    pub context_menu_open_notes: *mut Action,
+    pub context_menu_check_tables: *mut Action,
+    pub context_menu_merge_tables: *mut Action,
     pub context_menu_global_search: *mut Action,
 
     //-------------------------------------------------------------------------------//
@@ -748,9 +804,7 @@ fn main() {
 
         // Create a Central Widget and populate it.
         let mut central_widget = Widget::new();
-        let mut central_layout = GridLayout::new();
-
-        unsafe { central_widget.set_layout(central_layout.static_cast_mut()); }
+        let mut central_layout = create_grid_layout_safe(&mut central_widget);
         unsafe { window.set_central_widget(central_widget.as_mut_ptr()); }
 
         // Create the layout for the Central Widget.
@@ -762,8 +816,7 @@ fn main() {
 
         // Create the widget to fit in all the TreeView stuff.
         let mut folder_tree_widget = Widget::new();
-        let mut folder_tree_layout = GridLayout::new();
-        unsafe { folder_tree_widget.set_layout(folder_tree_layout.static_cast_mut()); }
+        let mut folder_tree_layout = create_grid_layout_safe(&mut folder_tree_widget);
 
         // Create the TreeView.
         let mut folder_tree_view = TreeView::new();
@@ -800,9 +853,7 @@ fn main() {
 
         // Create the "Global Search" view.
         let global_search_widget = Widget::new().into_raw();
-        let global_search_grid = GridLayout::new().into_raw();
-        unsafe { global_search_widget.as_mut().unwrap().set_layout(global_search_grid as *mut Layout); }
-        unsafe { global_search_grid.as_mut().unwrap().set_margin(3); }
+        let global_search_grid = create_grid_layout_unsafe(global_search_widget);
 
         let close_matches_button = PushButton::new(&QString::from_std_str("Close Matches")).into_raw();
         let table_view_matches_db = TableView::new().into_raw();
@@ -859,12 +910,10 @@ fn main() {
 
         // Create the frames for the matches tables.
         let db_matches_frame = GroupBox::new(&QString::from_std_str("DB Matches")).into_raw();
-        let db_matches_grid = GridLayout::new().into_raw();
-        unsafe { db_matches_frame.as_mut().unwrap().set_layout(db_matches_grid as *mut Layout); }
+        let db_matches_grid = create_grid_layout_unsafe(db_matches_frame as *mut Widget);
 
         let loc_matches_frame = GroupBox::new(&QString::from_std_str("Loc Matches")).into_raw();
-        let loc_matches_grid = GridLayout::new().into_raw();
-        unsafe { loc_matches_frame.as_mut().unwrap().set_layout(loc_matches_grid as *mut Layout); }
+        let loc_matches_grid = create_grid_layout_unsafe(loc_matches_frame as *mut Widget);
 
         unsafe { db_matches_grid.as_mut().unwrap().add_widget((table_view_matches_db as *mut Widget, 0, 0, 1, 3)); }
         unsafe { loc_matches_grid.as_mut().unwrap().add_widget((table_view_matches_loc as *mut Widget, 0, 0, 1, 3)); }
@@ -919,6 +968,7 @@ fn main() {
         // Submenus.
         let menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type")).into_raw();
 
+        let menu_three_kingdoms = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("Three &Kingdoms")) };
         let menu_warhammer_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")) };
         let menu_warhammer = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")) };
         let menu_thrones_of_britannia = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Thrones of Britannia")) };
@@ -933,7 +983,6 @@ fn main() {
         let menu_add = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Add..."));
         let menu_create = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Create..."));
         let menu_open = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Open..."));
-        let menu_rename = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Rename..."));
 
         // Da monsta.
         let app_ui = unsafe { AppUI {
@@ -972,10 +1021,10 @@ fn main() {
             change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
             change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
 
-            change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
+            change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
             change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
             change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
-            change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
+            change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
 
             // Action Group for the submenu.
             change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -984,6 +1033,7 @@ fn main() {
             // "Game Selected" menu.
             //-------------------------------------------------------------------------------//
 
+            three_kingdoms: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Three &Kingdoms")),
             warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
             warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
             thrones_of_britannia: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Thrones of Britannia")),
@@ -999,6 +1049,10 @@ fn main() {
             //-------------------------------------------------------------------------------//
             // "Special Stuff" menu.
             //-------------------------------------------------------------------------------//
+
+            // Three Kingdoms actions.
+            three_k_optimize_packfile: menu_three_kingdoms.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            three_k_generate_pak_file: menu_three_kingdoms.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Warhammer 2's actions.
             wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
@@ -1062,18 +1116,18 @@ fn main() {
             context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
             context_menu_mass_export_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Export TSV")),
 
-            context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge DBs/LOCs")),
+            context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
             context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
             context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
-            
-            context_menu_rename_current: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Rename &Current")),
-            context_menu_apply_prefix_to_selected: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &Selected")),
-            context_menu_apply_prefix_to_all: menu_rename.as_mut().unwrap().add_action(&QString::from_std_str("Apply Prefix to &All")),
 
             context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
             context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
             context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
             context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
+            context_menu_open_notes: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Notes")),
+            
+            context_menu_check_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables")),
+            context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables")),
             context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
 
             //-------------------------------------------------------------------------------//
@@ -1109,9 +1163,10 @@ fn main() {
 
         // Put separators in the SubMenu.
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_data_is_encrypted); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_header_is_extended); }
 
         // The "Game Selected" Menu should be an ActionGroup.
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.three_kingdoms); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.thrones_of_britannia); }
@@ -1121,6 +1176,7 @@ fn main() {
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.napoleon); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.empire); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
+        unsafe { app_ui.three_kingdoms.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().set_checkable(true); }
@@ -1146,27 +1202,14 @@ fn main() {
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_content); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_data); }
         
-        // Put a separator in the "Create" contextual menu.
+        // Put separators in the Main TreeView's contextual menu.
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
+        unsafe { folder_tree_view_context_menu.insert_separator(menu_open.as_ref().unwrap().menu_action()); }
+        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_rename); }
+        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_check_tables); }
 
         // Prepare the TreeView to have a Contextual Menu.
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
-
-        // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
-        if GENERATE_NEW_SCHEMA {
-
-            // These are the paths needed for the new schemas. First one should be `assembly_kit/raw_data/db`.
-            // The second one should contain all the tables of the game, extracted directly from `data.pack`.
-            let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_schemas/");
-            let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/schema_stuff/db_tables/");
-            match import_schema(&assembly_kit_schemas_path, &testing_tables_path) {
-                Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
-                Err(error) => show_dialog(app_ui.window, false, error),
-            }
-
-            // Close the program with code 69
-            return 69
-        }
 
         //---------------------------------------------------------------------------------------//
         // Shortcuts for the Menu Bar...
@@ -1205,23 +1248,22 @@ fn main() {
         //---------------------------------------------------------------------------------------//
         // Preparing initial state of the Main Window...
         //---------------------------------------------------------------------------------------//
+        *IS_MODIFIED.lock().unwrap() = update_packfile_state(None, &app_ui);
 
         // This cannot go into lazy_static because StandardItem is not send.
         let table_state_data = Rc::new(RefCell::new(TableStateData::new()));
 
         // Put the stuff we need to move to the slots in Rc<Refcell<>>, so we can clone it without issues.
         let receiver_qt = Rc::new(RefCell::new(receiver_qt));
-        let is_modified = Rc::new(RefCell::new(set_modified(false, &app_ui, None)));
         let packedfiles_open_in_packedfile_view = Rc::new(RefCell::new(BTreeMap::new()));
-        let is_folder_tree_view_locked = Rc::new(RefCell::new(false));
         let mymod_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let open_from_submenu_menu_needs_rebuild = Rc::new(RefCell::new(false));
         let mode = Rc::new(RefCell::new(Mode::Normal));
 
         // Build the empty structs we need for certain features.
         let add_from_packfile_slots = Rc::new(RefCell::new(AddFromPackFileSlots::new()));
-        let packfiles_list_slots = Rc::new(RefCell::new(DependencyTableView::new()));
         let decoder_slots = Rc::new(RefCell::new(PackedFileDBDecoder::new()));
+        let packfiles_list_slots = Rc::new(RefCell::new(BTreeMap::new()));
         let db_slots = Rc::new(RefCell::new(BTreeMap::new()));
         let loc_slots = Rc::new(RefCell::new(BTreeMap::new()));
         let text_slots = Rc::new(RefCell::new(BTreeMap::new()));
@@ -1249,7 +1291,6 @@ fn main() {
             &receiver_qt,
             app_ui,
             menu_bar_mymod,
-            &is_modified,
             &mode,
             mymod_menu_needs_rebuild.clone(),
             &packedfiles_open_in_packedfile_view,
@@ -1276,19 +1317,19 @@ fn main() {
             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
-            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
-            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
         }
 
         // Set the shortcuts for these actions.
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["add_file"]))); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["add_folder"]))); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["add_from_packfile"]))); }
+        unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["check_tables"]))); }
         unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["create_folder"]))); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["create_db"]))); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["create_loc"]))); }
@@ -1298,13 +1339,12 @@ fn main() {
         unsafe { app_ui.context_menu_merge_tables.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["merge_tables"]))); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["delete"]))); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["extract"]))); }
-        unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["rename_current"]))); }
-        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["apply_prefix_to_selected"]))); }
-        unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["apply_prefix_to_all"]))); }
+        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["rename"]))); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_in_decoder"]))); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_packfiles_list"]))); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_with_external_program"]))); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_in_multi_view"]))); }
+        unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_notes"]))); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["global_search"]))); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["expand_all"]))); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["collapse_all"]))); }
@@ -1313,6 +1353,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -1322,13 +1363,12 @@ fn main() {
         unsafe { app_ui.context_menu_merge_tables.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-        unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-        unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -1337,6 +1377,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_file); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_folder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_add_from_packfile); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_check_tables); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_folder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_db); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_create_loc); }
@@ -1346,13 +1387,12 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_merge_tables); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_delete); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_extract); }
-        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename_current); }
-        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_apply_prefix_to_selected); }
-        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_apply_prefix_to_all); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_with_external_program); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_in_multi_view); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_notes); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_global_search); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_expand_all); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.tree_view_collapse_all); }
@@ -1366,7 +1406,7 @@ fn main() {
 
         // Menu bar, PackFile.
         unsafe { app_ui.new_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Creates a new PackFile and open it. Remember to save it later if you want to keep it!")); }
-        unsafe { app_ui.open_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open an existing PackFile.")); }
+        unsafe { app_ui.open_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open an existing PackFile, or multiple existing PackFiles into one.")); }
         unsafe { app_ui.save_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Save the changes made in the currently open PackFile to disk.")); }
         unsafe { app_ui.save_packfile_as.as_mut().unwrap().set_status_tip(&QString::from_std_str("Save the currently open PackFile as a new PackFile, instead of overwriting the original one.")); }
         unsafe { app_ui.load_all_ca_packfiles.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to load every PackedFile from every vanilla PackFile of the selected game into RPFM at the same time, using lazy-loading to load the PackedFiles. Keep in mind that if you try to save it, your PC may die.")); }
@@ -1385,6 +1425,7 @@ fn main() {
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
         // Menu bar, Game Selected.
+        unsafe { app_ui.three_kingdoms.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Three Kingdoms' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
         unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW: Thrones of Britannia' as 'Game Selected'.")); }
@@ -1399,12 +1440,16 @@ fn main() {
         let patch_siege_ai_tip = QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.");
         let optimize_packfile = QString::from_std_str("Check and remove any data in DB Tables and Locs (Locs only for english users) that is unchanged from the base game. That means your mod will only contain the stuff you change, avoiding incompatibilities with other mods.");
         let generate_pak_file = QString::from_std_str("Generates a PAK File (Processed Assembly Kit File) for the game selected, to help with dependency checking. You should NEVER use this, as these files are automatically redistributed with RPFM.");
+        unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.three_k_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.wh_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
+        unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.tob_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.att_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
@@ -1428,6 +1473,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add one or more files to the currently open PackFile. Existing files are not overwriten!")); }
         unsafe { app_ui.context_menu_add_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a folder to the currently open PackFile. Existing files are not overwriten!")); }
         unsafe { app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add files from another PackFile to the currently open PackFile. Existing files are not overwriten!")); }
+        unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_status_tip(&QString::from_std_str("Check all the DB Tables of the currently open PackFile for dependency errors.")); }
         unsafe { app_ui.context_menu_create_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create an empty folder. Due to how the PackFiles are done, these are NOT KEPT ON SAVING if they stay empty.")); }
         unsafe { app_ui.context_menu_create_loc.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a Loc File (used by the game to store the texts you see ingame) in the selected folder.")); }
         unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a DB Table (used by the game for... most of the things).")); }
@@ -1437,13 +1483,12 @@ fn main() {
         unsafe { app_ui.context_menu_merge_tables.as_mut().unwrap().set_status_tip(&QString::from_std_str("Merge multple DB Tables/Loc PackedFiles into one.")); }
         unsafe { app_ui.context_menu_delete.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete the selected File/Folder.")); }
         unsafe { app_ui.context_menu_extract.as_mut().unwrap().set_status_tip(&QString::from_std_str("Extract the selected File/Folder from the PackFile.")); }
-        unsafe { app_ui.context_menu_rename_current.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename a File/Folder. Remember, whitespaces are NOT ALLOWED.")); }
-        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a Prefix to every File inside the selected folder. Remember, whitespaces are NOT ALLOWED.")); }
-        unsafe { app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_status_tip(&QString::from_std_str("Add a Prefix to every File in the PackFile. Remember, whitespaces are NOT ALLOWED.")); }
+        unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename the selected File/Folder. Remember, whitespaces are NOT ALLOWED and duplicated names in the same folder will NOT BE RENAMED.")); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in an external program.")); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in a secondary view, without closing the currently open one.")); }
+        unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackFile's Notes in a secondary view, without closing the currently open PackedFile in the Main View.")); }
         unsafe { app_ui.context_menu_global_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Performs a search over every DB Table, Loc PackedFile and Text File in the PackFile.")); }
         
         // TreeView Filter buttons.
@@ -1475,7 +1520,7 @@ fn main() {
         //-----------------------------------------------------//
 
         // The list of icons for representing the current "Game Selected" in the UI.
-        let _game_selected_icons: BTreeMap<String, Icon> = {
+        let game_selected_icons: BTreeMap<String, Icon> = {
             let mut map = BTreeMap::new();
 
             for (key, game) in SUPPORTED_GAMES.iter() {
@@ -1530,12 +1575,13 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                 // Change the GameSelected Icon. Disabled until we find better icons.
-                //let image = game_selected_icons.get(&**GAME_SELECTED.lock().unwrap()).unwrap();
-                //unsafe { app_ui.window.as_mut().unwrap().set_window_icon(&image); }
+                let image = game_selected_icons.get(&**GAME_SELECTED.lock().unwrap()).unwrap();
+                unsafe { app_ui.window.as_mut().unwrap().set_window_icon(&image); }
             }
         ));
 
         // "Game Selected" Menu Actions.
+        unsafe { app_ui.three_kingdoms.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.thrones_of_britannia.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
@@ -1549,6 +1595,7 @@ fn main() {
         // Update the "Game Selected" here, so we can skip some steps when initializing.
         let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
         match &*game_selected {
+            "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); }
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
             "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -1566,7 +1613,6 @@ fn main() {
 
         // What happens when we trigger the "New PackFile" action.
         let slot_new_packfile = SlotBool::new(clone!(
-            is_modified,
             mymod_stuff,
             mode,
             table_state_data,
@@ -1576,7 +1622,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if are_you_sure(&app_ui, &is_modified, false) {
+                if are_you_sure(&app_ui, false) {
 
                     // Destroy whatever it's in the PackedFile's view, to avoid data corruption. Also hide the Global Search stuff.
                     purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
@@ -1616,7 +1662,7 @@ fn main() {
                         &sender_qt,
                         &sender_qt_data,
                         &receiver_qt,
-                        app_ui.window,
+                        &app_ui,
                         app_ui.folder_tree_view,
                         Some(app_ui.folder_tree_filter),
                         app_ui.folder_tree_model,
@@ -1625,9 +1671,6 @@ fn main() {
 
                     // Re-enable the Main Window.
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-                    // Set the new mod as "Not modified".
-                    *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
 
                     // Enable the actions available for the PackFile from the `MenuBar`.
                     enable_packfile_actions(&app_ui, &mymod_stuff, true);
@@ -1643,7 +1686,6 @@ fn main() {
 
         // What happens when we trigger the "Open PackFile" action.
         let slot_open_packfile = SlotBool::new(clone!(
-            is_modified,
             mode,
             mymod_stuff,
             table_state_data,
@@ -1653,40 +1695,34 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if are_you_sure(&app_ui, &is_modified, false) {
+                if are_you_sure(&app_ui, false) {
 
-                    // Create the FileDialog to get the PackFile to open.
-                    let mut file_dialog;
-                    unsafe { file_dialog = FileDialog::new_unsafe((
+                    // Create the FileDialog to get the PackFile to open and configure it.
+                    let mut file_dialog = unsafe { FileDialog::new_unsafe((
                         app_ui.window as *mut Widget,
-                        &QString::from_std_str("Open PackFile"),
-                    )); }
-
-                    // Filter it so it only shows PackFiles.
+                        &QString::from_std_str("Open PackFiles"),
+                    )) };
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
-
-                    // In case we have a default path for the Game Selected, we use it as base path for opening files.
-                    if let Some(ref path) = get_game_selected_data_path() {
-
-                        // We check that actually exists before setting it.
-                        if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(&path.to_string_lossy().as_ref().to_owned())); }
-                    }
+                    file_dialog.set_file_mode(FileMode::ExistingFiles);
 
                     // Run it and expect a response (1 => Accept, 0 => Cancel).
                     if file_dialog.exec() == 1 {
 
-                        // Get the path of the selected file and turn it in a Rust's PathBuf.
-                        let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                        // Now the fun thing. We have to get all the selected files, and then open them one by one.
+                        // For that we use the same logic as for the "Load All CA PackFiles" feature.
+                        let mut paths = vec![];
+                        for index in 0..file_dialog.selected_files().count(()) {
+                            paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
+                        }
 
                         // Try to open it, and report it case of error.
                         if let Err(error) = open_packfile(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            path,
+                            &paths,
                             &app_ui,
                             &mymod_stuff,
-                            &is_modified,
                             &mode,
                             "",
                             &packedfiles_open_in_packedfile_view,
@@ -1700,7 +1736,6 @@ fn main() {
 
         // What happens when we trigger the "Save PackFile" action.
         let slot_save_packfile = SlotBool::new(clone!(
-            is_modified,
             mode,
             mymod_stuff,
             table_state_data,
@@ -1711,7 +1746,6 @@ fn main() {
                 if let Err(error) = save_packfile(
                     false,
                     &app_ui,
-                    &is_modified,
                     &mode,
                     &mymod_stuff,
                     &sender_qt,
@@ -1725,7 +1759,6 @@ fn main() {
 
         // What happens when we trigger the "Save PackFile As" action.
         let slot_save_packfile_as = SlotBool::new(clone!(
-            is_modified,
             mode,
             mymod_stuff,
             table_state_data,
@@ -1736,7 +1769,6 @@ fn main() {
                 if let Err(error) = save_packfile(
                     true,
                     &app_ui,
-                    &is_modified,
                     &mode,
                     &mymod_stuff,
                     &sender_qt,
@@ -1750,7 +1782,6 @@ fn main() {
 
         // What happens when we trigger the "Load All CA PackFiles" action.
         let slot_load_all_ca_packfiles = SlotBool::new(clone!(
-            is_modified,
             mode,
             mymod_stuff,
             sender_qt,
@@ -1760,7 +1791,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if are_you_sure(&app_ui, &is_modified, false) {
+                if are_you_sure(&app_ui, false) {
 
                     // Tell the Background Thread to try to load the PackFiles.
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -1783,18 +1814,16 @@ fn main() {
                                 &sender_qt,
                                 &sender_qt_data,
                                 &receiver_qt,
-                                app_ui.window,
+                                &app_ui,
                                 app_ui.folder_tree_view,
                                 Some(app_ui.folder_tree_filter),
                                 app_ui.folder_tree_model,
                                 TreeViewOperation::Build(false),
                             );
 
-                            // Set the new mod as "Not modified".
-                            *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
-
                             let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
                             match &*game_selected {
+                                "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); },
                                 "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); },
                                 "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
                                 "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -1839,26 +1868,36 @@ fn main() {
 
         // What happens when we trigger the "Change PackFile Type" action.
         let slot_change_packfile_type = SlotBool::new(clone!(
-            is_modified,
+            app_ui,
             sender_qt,
-            sender_qt_data => move |_| {
+            sender_qt_data,
+            receiver_qt => move |_| {
 
                 // Get the currently selected PackFile's Type.
-                let packfile_type;
-                unsafe { packfile_type = match &*QString::to_std_string(&app_ui.change_packfile_type_group.as_mut().unwrap().checked_action().as_mut().unwrap().text()) {
+                let packfile_type = unsafe { match &*(app_ui.change_packfile_type_group.as_mut().unwrap().checked_action().as_mut().unwrap().text().to_std_string()) {
                     "&Boot" => PFHFileType::Boot,
                     "&Release" => PFHFileType::Release,
                     "&Patch" => PFHFileType::Patch,
                     "&Mod" => PFHFileType::Mod,
                     "Mo&vie" => PFHFileType::Movie,
                     _ => PFHFileType::Other(99),
-                }; }
+                } };
 
                 // Send the type to the Background Thread.
                 sender_qt.send(Commands::SetPackFileType).unwrap();
                 sender_qt_data.send(Data::PFHFileType(packfile_type)).unwrap();
 
-                unsafe { *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(vec![app_ui.folder_tree_model.as_ref().unwrap().item(0).as_ref().unwrap().text().to_std_string()])); }
+                // Modify the PackFile.
+                update_treeview(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &app_ui,
+                    app_ui.folder_tree_view,
+                    Some(app_ui.folder_tree_filter),
+                    app_ui.folder_tree_model,
+                    TreeViewOperation::Modify(vec![TreePathType::PackFile]),
+                );
             }
         ));
 
@@ -1952,9 +1991,8 @@ fn main() {
 
         // What happens when we trigger the "Quit" action.
         let slot_quit = SlotBool::new(clone!(
-            app_ui,
-            is_modified => move |_| {
-                if are_you_sure(&app_ui, &is_modified, false) {
+            app_ui => move |_| {
+                if are_you_sure(&app_ui, false) {
                     unsafe { app_ui.window.as_mut().unwrap().close(); }
                 }
             }
@@ -1984,7 +2022,6 @@ fn main() {
 
         // What happens when we trigger the "Patch Siege AI" action.
         let slot_patch_siege_ai = SlotBool::new(clone!(
-            is_modified,
             receiver_qt,
             mode,
             table_state_data,
@@ -1997,25 +2034,22 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                 sender_qt.send(Commands::PatchSiegeAI).unwrap();
                 match check_message_validity_tryrecv(&receiver_qt) {
-                    Data::StringVecTreePathType(response) => {
-
+                    Data::StringVecPathType(response) => {
+                        let response = (response.0, response.1.iter().map(|x| From::from(x)).collect::<Vec<TreePathType>>());
                         update_treeview(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            app_ui.window,
+                            &app_ui,
                             app_ui.folder_tree_view,
                             Some(app_ui.folder_tree_filter),
                             app_ui.folder_tree_model,
                             TreeViewOperation::Delete(response.1),
                         );
 
-                        // Save the patched PackFile and report the result.
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
                         if let Err(error) = save_packfile(
                             false,
                             &app_ui,
-                            &is_modified,
                             &mode,
                             &mymod_stuff,
                             &sender_qt,
@@ -2030,7 +2064,7 @@ fn main() {
                     // If the PackFile is empty or is not patchable, report it. Otherwise, praise the nine divines.
                     Data::Error(error) => {
                         match error.kind() {
-                            ErrorKind::PatchSiegeAIEmptyPackFile => show_dialog(app_ui.window, false, error),
+                            ErrorKind::PatchSiegeAIEmptyPackFile |
                             ErrorKind::PatchSiegeAINoPatchableFiles => show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR)
                         }
@@ -2046,7 +2080,6 @@ fn main() {
         // What happens when we trigger the "Optimize PackFile" action.
         let slot_optimize_packfile = SlotBool::new(clone!(
             packedfiles_open_in_packedfile_view,
-            is_modified,
             mode,
             mymod_stuff,
             table_state_data,
@@ -2062,24 +2095,22 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                 sender_qt.send(Commands::OptimizePackFile).unwrap();
                 match check_message_validity_tryrecv(&receiver_qt) {
-                    Data::VecTreePathType(response) => {
+                    Data::VecPathType(response) => {
+                        let response = response.iter().map(|x| From::from(x)).collect::<Vec<TreePathType>>();
                         update_treeview(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            app_ui.window,
+                            &app_ui,
                             app_ui.folder_tree_view,
                             Some(app_ui.folder_tree_filter),
                             app_ui.folder_tree_model,
                             TreeViewOperation::Delete(response),
                         );
 
-                        // Save the optimized PackFile.
-                        *is_modified.borrow_mut() = set_modified(false, &app_ui, None);
                         if let Err(error) = save_packfile(
                             false,
                             &app_ui,
-                            &is_modified,
                             &mode,
                             &mymod_stuff,
                             &sender_qt,
@@ -2114,16 +2145,20 @@ fn main() {
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let game_selected = GAME_SELECTED.lock().unwrap().clone();
-                let path = match &*game_selected {
-                    "warhammer_2" | "warhammer" | "thrones" | "attila" | "rome_2" => {
+                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
+                let path = match version {
+
+                    // Post-Shogun 2 games.
+                    2 => {
                         let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone().unwrap();
                         path.push("assembly_kit");
                         path.push("raw_data");
                         path.push("db");
                         path
                     }
-                    "shogun_2" => {
+
+                    // Shogun 2.
+                    1 => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let mut file_dialog = unsafe { FileDialog::new_unsafe((
@@ -2143,7 +2178,8 @@ fn main() {
                         path
                     }
 
-                    "napoleon" | "empire" => {
+                    // Empire and Napoleon.
+                    0 => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let mut file_dialog = unsafe { FileDialog::new_unsafe((
@@ -2163,8 +2199,6 @@ fn main() {
                     // For any other game, return an empty path.
                     _ => PathBuf::new(),
                 };
-
-                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
 
                 if path.file_name().is_some() {
                     sender_qt.send(Commands::GeneratePakFile).unwrap();
@@ -2188,6 +2222,7 @@ fn main() {
         unsafe { app_ui.wh2_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
         unsafe { app_ui.wh_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
 
+        unsafe { app_ui.three_k_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.wh2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.wh_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.tob_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
@@ -2197,6 +2232,7 @@ fn main() {
         unsafe { app_ui.nap_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.emp_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
 
+        unsafe { app_ui.three_k_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
         unsafe { app_ui.wh2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
         unsafe { app_ui.wh_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
         unsafe { app_ui.tob_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
@@ -2285,30 +2321,21 @@ fn main() {
         // Slot to enable/disable contextual actions depending on the selected item.
         let slot_contextual_menu_enabler = SlotItemSelectionRefItemSelectionRef::new(clone!(
             sender_qt,
-            sender_qt_data,
             receiver_qt => move |_,_| {
 
                 // Get the currently selected paths, and get how many we have of each type.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
+                let selected_items = get_item_types_from_main_treeview_selection(&app_ui);
                 let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
                 let mut item_types = vec![];
-                for path in &selected_paths {
-
-                    // Try to get the TreePathType. This should never fail, so CTD if it does it.
-                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(Data::VecString(path.to_vec())).unwrap();
-                    let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
+                for item_type in &selected_items {
                     match item_type {
                         TreePathType::File(_) => file += 1,
                         TreePathType::Folder(_) => folder += 1,
                         TreePathType::PackFile => packfile += 1,
                         TreePathType::None => none += 1,
                     }
-
                     item_types.push(item_type);
                 }
-
 
                 // Now we do some bitwise magic to get what type of selection combination we have.
                 let mut contents: u8 = 0;
@@ -2326,6 +2353,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2334,16 +2362,15 @@ fn main() {
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
 
                         // These options are limited to only 1 file selected, and should not be usable if multiple files
                         // are selected.
                         let enabled = if file == 1 { true } else { false };
                         unsafe {
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(enabled);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(enabled);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(enabled);
                         }
@@ -2372,17 +2399,17 @@ fn main() {
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
 
                         // These options are limited to only 1 folder selected.
@@ -2394,7 +2421,6 @@ fn main() {
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(enabled);
                             app_ui.context_menu_create_text.as_mut().unwrap().set_enabled(enabled);
                         }
-
                     },
 
                     // One or more files and one or more folders selected.
@@ -2403,6 +2429,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2412,13 +2439,12 @@ fn main() {
                             app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2428,6 +2454,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
@@ -2437,13 +2464,12 @@ fn main() {
                             app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2453,6 +2479,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2462,13 +2489,12 @@ fn main() {
                             app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2478,6 +2504,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2486,13 +2513,12 @@ fn main() {
                             app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2502,6 +2528,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2511,13 +2538,12 @@ fn main() {
                             app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
 
@@ -2527,6 +2553,7 @@ fn main() {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
@@ -2536,13 +2563,12 @@ fn main() {
                             app_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_delete.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_rename_current.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_selected.as_mut().unwrap().set_enabled(false);
-                            app_ui.context_menu_apply_prefix_to_all.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -2557,6 +2583,7 @@ fn main() {
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_there_a_schema {
+                    unsafe { app_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false); }
                     unsafe { app_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false); }
                     unsafe { app_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
                     unsafe { app_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false); }
@@ -2581,7 +2608,6 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_modified,
             table_state_data,
             packedfiles_open_in_packedfile_view,
             mode => move |_| {
@@ -2687,19 +2713,17 @@ fn main() {
                                     Data::Success => {
 
                                         // Update the TreeView.
+                                        let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                                         update_treeview(
                                             &sender_qt,
                                             &sender_qt_data,
                                             &receiver_qt,
-                                            app_ui.window,
+                                            &app_ui,
                                             app_ui.folder_tree_view,
                                             Some(app_ui.folder_tree_filter),
                                             app_ui.folder_tree_model,
-                                            TreeViewOperation::Add(paths_packedfile.to_vec()),
+                                            TreeViewOperation::Add(paths),
                                         );
-
-                                        // Set it as modified. Exception for the Paint System.
-                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                         // Update the global search stuff, if needed.
                                         global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
@@ -2710,8 +2734,7 @@ fn main() {
                                             if table_state_data.borrow().get(path).is_some() {
                                                 table_state_data.borrow_mut().remove(path);
                                             }
-                                            let mut data = TableStateData::new_empty();
-                                            data.not_allow_full_undo = true;
+                                            let data = TableStateData::new_empty();
                                             table_state_data.borrow_mut().insert(path.to_vec(), data);
                                         }
                                     }
@@ -2783,19 +2806,17 @@ fn main() {
                                 Data::Success => {
 
                                     // Update the TreeView.
+                                    let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                                     update_treeview(
                                         &sender_qt,
                                         &sender_qt_data,
                                         &receiver_qt,
-                                        app_ui.window,
+                                        &app_ui,
                                         app_ui.folder_tree_view,
                                         Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Add(paths_packedfile.to_vec()),
+                                        TreeViewOperation::Add(paths),
                                     );
-
-                                    // Set it as modified. Exception for the Paint System.
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                     // Update the global search stuff, if needed.
                                     global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
@@ -2806,8 +2827,7 @@ fn main() {
                                         if table_state_data.borrow().get(path).is_some() {
                                             table_state_data.borrow_mut().remove(path);
                                         }
-                                        let mut data = TableStateData::new_empty();
-                                        data.not_allow_full_undo = true;
+                                        let data = TableStateData::new_empty();
                                         table_state_data.borrow_mut().insert(path.to_vec(), data);
                                     }
                                 }
@@ -2833,7 +2853,6 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_modified,
             table_state_data,
             packedfiles_open_in_packedfile_view,
             mode => move |_| {
@@ -2945,19 +2964,17 @@ fn main() {
                                     Data::Success => {
 
                                         // Update the TreeView.
+                                        let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                                         update_treeview(
                                             &sender_qt,
                                             &sender_qt_data,
                                             &receiver_qt,
-                                            app_ui.window,
+                                            &app_ui,
                                             app_ui.folder_tree_view,
                                             Some(app_ui.folder_tree_filter),
                                             app_ui.folder_tree_model,
-                                            TreeViewOperation::Add(paths_packedfile.to_vec()),
+                                            TreeViewOperation::Add(paths),
                                         );
-
-                                        // Set it as modified. Exception for the Paint System.
-                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                         // Update the global search stuff, if needed.
                                         global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
@@ -2968,8 +2985,8 @@ fn main() {
                                             if table_state_data.borrow().get(path).is_some() {
                                                 table_state_data.borrow_mut().remove(path);
                                             }
-                                            let mut data = TableStateData::new_empty();
-                                            data.not_allow_full_undo = true;
+
+                                            let data = TableStateData::new_empty();
                                             table_state_data.borrow_mut().insert(path.to_vec(), data);
                                         }
                                     }
@@ -3045,19 +3062,17 @@ fn main() {
                                 Data::Success => {
 
                                     // Update the TreeView.
+                                    let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                                     update_treeview(
                                         &sender_qt,
                                         &sender_qt_data,
                                         &receiver_qt,
-                                        app_ui.window,
+                                        &app_ui,
                                         app_ui.folder_tree_view,
                                         Some(app_ui.folder_tree_filter),
                                         app_ui.folder_tree_model,
-                                        TreeViewOperation::Add(paths_packedfile.to_vec()),
+                                        TreeViewOperation::Add(paths),
                                     );
-
-                                    // Set it as modified. Exception for the Paint System.
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                     // Update the global search stuff, if needed.
                                     global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
@@ -3068,8 +3083,7 @@ fn main() {
                                         if table_state_data.borrow().get(path).is_some() {
                                             table_state_data.borrow_mut().remove(path);
                                         }
-                                        let mut data = TableStateData::new_empty();
-                                        data.not_allow_full_undo = true;
+                                        let data = TableStateData::new_empty();
                                         table_state_data.borrow_mut().insert(path.to_vec(), data);
                                     }
                                 }
@@ -3097,8 +3111,6 @@ fn main() {
             receiver_qt,
             table_state_data,
             packedfiles_open_in_packedfile_view,
-            is_folder_tree_view_locked,
-            is_modified,
             add_from_packfile_slots => move |_| {
 
                 // Create the FileDialog to get the PackFile to open.
@@ -3127,11 +3139,11 @@ fn main() {
                         // If it's success....
                         Data::Success => {
 
-                            // Block the main `TreeView` from decoding stuff.
-                            *is_folder_tree_view_locked.borrow_mut() = true;
-
                             // Destroy whatever it's in the PackedFile's View.
                             purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+
+                            // Block the main `TreeView` from decoding stuff.
+                            *IS_FOLDER_TREE_VIEW_LOCKED.lock().unwrap() = true;
 
                             // Build the TreeView to hold all the Extra PackFile's data and save his slots.
                             *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
@@ -3139,8 +3151,6 @@ fn main() {
                                 &sender_qt_data,
                                 &receiver_qt,
                                 app_ui,
-                                &is_folder_tree_view_locked,
-                                &is_modified,
                                 &packedfiles_open_in_packedfile_view,
                                 &global_search_explicit_paths,
                                 update_global_search_stuff,
@@ -3148,23 +3158,12 @@ fn main() {
                             );
                         }
 
-                        // If we got an error...
                         Data::Error(error) => {
-
-                            // We must check what kind of error it's.
                             match error.kind() {
-
-                                // If it's the "Generic" error, re-enable the main window and return it.
-                                ErrorKind::OpenPackFileGeneric(_) => {
-                                    show_dialog(app_ui.window, false, error);
-                                }
-
-                                // In ANY other situation, it's a message problem.
+                                ErrorKind::OpenPackFileGeneric(_) => show_dialog(app_ui.window, false, error),
                                 _ => panic!(THREADS_MESSAGE_ERROR)
                             }
                         }
-
-                        // In ANY other situation, it's a message problem.
                         _ => panic!(THREADS_MESSAGE_ERROR),
                     }
 
@@ -3184,12 +3183,12 @@ fn main() {
                 if let Some(new_folder_name) = create_new_folder_dialog(&app_ui) {
 
                     // Get the currently selected paths, and only continue if there is only one.
-                    let selected_paths = get_path_from_main_treeview_selection(&app_ui, false);
+                    let selected_paths = get_path_from_main_treeview_selection(&app_ui);
                     if selected_paths.len() == 1 {
 
                         // Add the folder's name to the list.
                         let mut complete_path = selected_paths[0].to_vec();
-                        complete_path.push(new_folder_name);
+                        complete_path.append(&mut (new_folder_name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
 
                         // Check if the folder exists.
                         sender_qt.send(Commands::FolderExists).unwrap();
@@ -3199,20 +3198,16 @@ fn main() {
                         // If the folder already exists, return an error.
                         if folder_exists { return show_dialog(app_ui.window, false, ErrorKind::FolderAlreadyInPackFile)}
 
-                        // Add it to the PackFile.
-                        sender_qt.send(Commands::CreateFolder).unwrap();
-                        sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
-
                         // Add the new Folder to the TreeView.
                         update_treeview(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            app_ui.window,
+                            &app_ui,
                             app_ui.folder_tree_view,
                             Some(app_ui.folder_tree_filter),
                             app_ui.folder_tree_model,
-                            TreeViewOperation::Add(vec![complete_path; 1]),
+                            TreeViewOperation::Add(vec![TreePathType::Folder(complete_path); 1]),
                         );
                     }
                 }
@@ -3222,7 +3217,6 @@ fn main() {
         // What happens when we trigger the "Create DB PackedFile" Action.
         let slot_contextual_menu_create_packed_file_db = SlotBool::new(clone!(
             table_state_data,
-            is_modified,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -3230,7 +3224,6 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    &is_modified,
                     &table_state_data,
                     &app_ui,
                     &PackedFileType::DB("".to_owned(), "".to_owned(), 0)
@@ -3241,7 +3234,6 @@ fn main() {
         // What happens when we trigger the "Create Loc PackedFile" Action.
         let slot_contextual_menu_create_packed_file_loc = SlotBool::new(clone!(
             table_state_data,
-            is_modified,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -3249,7 +3241,6 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    &is_modified,
                     &table_state_data,
                     &app_ui,
                     &PackedFileType::Loc(String::new())
@@ -3260,7 +3251,6 @@ fn main() {
         // What happens when we trigger the "Create Text PackedFile" Action.
         let slot_contextual_menu_create_packed_file_text = SlotBool::new(clone!(
             table_state_data,
-            is_modified,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -3268,7 +3258,6 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    &is_modified,
                     &table_state_data,
                     &app_ui,
                     &PackedFileType::Text(String::new())
@@ -3281,7 +3270,6 @@ fn main() {
             packedfiles_open_in_packedfile_view,
             global_search_explicit_paths,
             table_state_data,
-            is_modified,
             sender_qt,
             sender_qt_data,
             receiver_qt => move |_| {
@@ -3309,21 +3297,19 @@ fn main() {
                                 // Get the list of paths to add, removing those we "replaced".
                                 let mut paths_to_add = paths.1.to_vec();
                                 paths_to_add.retain(|x| !paths.0.contains(&x));
+                                let paths_to_add2 = paths_to_add.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
 
                                 // Update the TreeView.
                                 update_treeview(
                                     &sender_qt,
                                     &sender_qt_data,
                                     &receiver_qt,
-                                    app_ui.window,
+                                    &app_ui,
                                     app_ui.folder_tree_view,
                                     Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
-                                    TreeViewOperation::Add(paths_to_add.to_vec()),
+                                    TreeViewOperation::Add(paths_to_add2),
                                 );
-
-                                // Set it as modified. Exception for the paint system.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                 // Update the global search stuff, if needed.
                                 global_search_explicit_paths.borrow_mut().append(&mut paths_to_add);
@@ -3335,8 +3321,7 @@ fn main() {
                                         table_state_data.borrow_mut().remove(path);
                                     }
 
-                                    let mut data = TableStateData::new_empty();
-                                    data.not_allow_full_undo = true;
+                                    let data = TableStateData::new_empty();
                                     table_state_data.borrow_mut().insert(path.to_vec(), data);
                                 }
                             }
@@ -3382,6 +3367,23 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Check Tables" action in the Contextual Menu.
+        let slot_contextual_menu_check_tables = SlotBool::new(clone!(
+            sender_qt,
+            receiver_qt => move |_| {
+                
+                // Disable the window and trigger the check for all tables in the PackFile.
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                sender_qt.send(Commands::CheckTables).unwrap();
+                match check_message_validity_tryrecv(&receiver_qt) {
+                    Data::Success => show_dialog(app_ui.window, true, "No errors detected."),
+                    Data::Error(error) => show_dialog(app_ui.window, false, error),
+                    _ => panic!(THREADS_MESSAGE_ERROR),
+                }
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        ));
+
         // What happens when we trigger the "Merge" action in the Contextual Menu.
         let slot_contextual_menu_merge_tables = SlotBool::new(clone!(
             sender_qt,
@@ -3389,11 +3391,10 @@ fn main() {
             receiver_qt,
             packedfiles_open_in_packedfile_view,
             global_search_explicit_paths,
-            table_state_data,
-            is_modified => move |_| {
+            table_state_data => move |_| {
                 
                 // Get the currently selected paths, and get how many we have of each type.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
+                let selected_paths = get_path_from_main_treeview_selection(&app_ui);
 
                 // First, we check if we're merging locs, as it's far simpler.
                 let mut loc_pass = true;
@@ -3410,13 +3411,13 @@ fn main() {
                 let mut db_pass = true;
                 let mut db_folder = String::new();
                 for path in &selected_paths {
-                    if path.len() == 4 {
-                        if path[1] == "db" {
+                    if path.len() == 3 {
+                        if path[0] == "db" {
                             if db_folder.is_empty() {
                                 db_folder = path[2].to_owned();
                             }
 
-                            if path[2] != db_folder {
+                            if path[1] != db_folder {
                                 db_pass = false;
                                 break;                                
                             }
@@ -3468,14 +3469,15 @@ fn main() {
                         sender_qt.send(Commands::MergeTables).unwrap();
                         sender_qt_data.send(Data::VecVecStringStringBoolBool((selected_paths, name, delete_source_files, if db_pass { true } else { false }))).unwrap();
                         match check_message_validity_recv2(&receiver_qt) {
-                            Data::VecStringVecTreePathType((path_to_add, items_to_remove)) => {
+                            Data::VecStringVecPathType((path_to_add, items_to_remove)) => {
+                                let items_to_remove = items_to_remove.iter().map(|x| From::from(x)).collect::<Vec<TreePathType>>();
 
                                 // First, we need to remove the removed tables, if any.
                                 update_treeview(
                                     &sender_qt,
                                     &sender_qt_data,
                                     &receiver_qt,
-                                    app_ui.window,
+                                    &app_ui,
                                     app_ui.folder_tree_view,
                                     Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
@@ -3487,15 +3489,12 @@ fn main() {
                                     &sender_qt,
                                     &sender_qt_data,
                                     &receiver_qt,
-                                    app_ui.window,
+                                    &app_ui,
                                     app_ui.folder_tree_view,
                                     Some(app_ui.folder_tree_filter),
                                     app_ui.folder_tree_model,
-                                    TreeViewOperation::Add(vec![path_to_add.to_vec()]),
+                                    TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]),
                                 );
-
-                                // Set the mod as "Modified". We don't paint deletions.
-                                *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                                 // Update the global search stuff, if needed.
                                 global_search_explicit_paths.borrow_mut().append(&mut vec![path_to_add.to_vec()]);
@@ -3513,8 +3512,7 @@ fn main() {
                                         table_state_data.borrow_mut().remove(&path);
                                     }
 
-                                    let mut data = TableStateData::new_empty();
-                                    data.not_allow_full_undo = true;
+                                    let data = TableStateData::new_empty();
                                     table_state_data.borrow_mut().insert(path.to_vec(), data);
                                 }
                             }
@@ -3535,54 +3533,73 @@ fn main() {
             sender_qt_data,
             receiver_qt,
             packedfiles_open_in_packedfile_view,
-            table_state_data,
-            is_modified => move |_| {
+            table_state_data => move |_| {
                 
-                // Get the currently selected paths, and get how many we have of each type.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
+                // Get the currently selected items, and get how many we have of each type.
+                let selected_items = get_items_from_main_treeview_selection(&app_ui);
 
                 // First, we prepare the counters for the path types.
                 let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
-                let mut item_types = vec![];
 
                 // We need to "clean" the selected path list to ensure we don't pass stuff already deleted.
-                let mut selected_paths_clean = vec![];
-                let mut packfile_found = false;
-                for path_to_add in &selected_paths {
-                    let mut add_path = true;
-                    for path in &selected_paths {
+                let mut item_types_clean = vec![];
+                for selected_item_to_add in &selected_items {
+                    let item_type_to_add = get_type_of_item(*selected_item_to_add, app_ui.folder_tree_model);
+                    match item_type_to_add {
+                        TreePathType::File(ref path_to_add) => {
+                            let mut add_type = true;
+                            for selected_item in &selected_items {
+                                let item_type = get_type_of_item(*selected_item, app_ui.folder_tree_model);
+                                
+                                // Skip the current file from checks.
+                                if let TreePathType::File(ref path) = item_type {
+                                    if path == path_to_add { continue; }
+                                }
 
-                        // If the len is 1, it's the PackFile. Delete everything in the current list, add this one and stop.
-                        if path_to_add.len() == 1 {
-                            selected_paths_clean.clear();
-                            packfile_found = true;
-                            break;
+                                // If the other one is a folder that contains it, dont add it.
+                                else if let TreePathType::Folder(ref path) = item_type {
+                                    if path_to_add.starts_with(path) { 
+                                        add_type = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            if add_type { item_types_clean.push(item_type_to_add.clone()); }
                         }
 
-                        if path == path_to_add { continue; }
-                        else if path_to_add.starts_with(path) { 
-                            add_path = false;
+                        TreePathType::Folder(ref path_to_add) => {
+                            let mut add_type = true;
+                            for selected_item in &selected_items {
+                                let item_type = get_type_of_item(*selected_item, app_ui.folder_tree_model);
+
+                                // If the other one is a folder that contains it, dont add it.
+                                if let TreePathType::Folder(ref path) = item_type {
+                                    if path == path_to_add { continue; }
+                                    if path_to_add.starts_with(path) { 
+                                        add_type = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            if add_type { item_types_clean.push(item_type_to_add.clone()); }
+                        }
+
+                        // If we got the PackFile, remove everything.
+                        TreePathType::PackFile => {
+                            item_types_clean.clear();
                             break;
                         }
-                    }
-                    if add_path { selected_paths_clean.push(path_to_add.to_vec()); }
-                    if packfile_found { break; }
+                        TreePathType::None => unimplemented!(),
+                    }   
                 }
 
-                // Get the types for all the paths.
-                for path in &selected_paths_clean {
-                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(Data::VecString(path.to_vec())).unwrap();
-                    let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
+                for item_type in &item_types_clean {
                     match item_type {
                         TreePathType::File(_) => file += 1,
                         TreePathType::Folder(_) => folder += 1,
                         TreePathType::PackFile => packfile += 1,
                         TreePathType::None => none += 1,
                     }
-
-                    item_types.push(item_type);
                 }
 
                 // Now we do some bitwise magic to get what type of selection combination we have.
@@ -3597,7 +3614,7 @@ fn main() {
                     1 | 2 | 3 => {
                         let packed_files_open = packedfiles_open_in_packedfile_view.borrow().clone();
                         let mut skaven_confirm = false;
-                        for item_type in &item_types {
+                        for item_type in &item_types_clean {
                             match item_type {
                                 TreePathType::File(path) => {
                                     for (view, open_path) in &packed_files_open {
@@ -3639,10 +3656,12 @@ fn main() {
 
                                         // We check here if the Path is already in one of the folders listed for deletion.
                                         let mut path_is_contained_in_deletion = false;
-                                        for path in &selected_paths_clean {
-                                            if !path.is_empty() && open_path.borrow().starts_with(path) {
-                                                path_is_contained_in_deletion = true;
-                                                break;
+                                        for item_type in &item_types_clean {
+                                            if let TreePathType::File(ref path) | TreePathType::Folder(ref path) = item_type {
+                                                if !path.is_empty() && open_path.borrow().starts_with(path) {
+                                                    path_is_contained_in_deletion = true;
+                                                    break;
+                                                }
                                             }
                                         }
 
@@ -3715,25 +3734,24 @@ fn main() {
                 }
 
                 // Tell the Background Thread to delete the selected stuff.
+                let items_to_send = item_types_clean.iter().map(|x| From::from(x)).collect::<Vec<PathType>>();
                 sender_qt.send(Commands::DeletePackedFile).unwrap();
-                sender_qt_data.send(Data::VecVecString(selected_paths)).unwrap();
+                sender_qt_data.send(Data::VecPathType(items_to_send)).unwrap();
                 match check_message_validity_recv2(&receiver_qt) {
-                    Data::VecTreePathType(path_types) => {
+                    Data::VecPathType(path_types) => {
 
                         // Update the TreeView.
+                        let path_types = path_types.iter().map(|x| From::from(x)).collect::<Vec<TreePathType>>();
                         update_treeview(
                             &sender_qt,
                             &sender_qt_data,
                             &receiver_qt,
-                            app_ui.window,
+                            &app_ui,
                             app_ui.folder_tree_view,
                             Some(app_ui.folder_tree_filter),
                             app_ui.folder_tree_model,
                             TreeViewOperation::Delete(path_types),
                         );
-
-                        // Set the mod as "Modified". We don't paint deletions.
-                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
 
                         // Update the global search stuff, if needed.
                         unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
@@ -3754,7 +3772,8 @@ fn main() {
             mode => move |_| {
 
                 // Get the currently selected paths, and get how many we have of each type.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
+                let selected_items = get_items_from_main_treeview_selection(&app_ui);
+                let selected_types = selected_items.iter().map(|x| From::from(&get_type_of_item(*x, app_ui.folder_tree_model))).collect::<Vec<PathType>>();
                 let extraction_path = match *mode.borrow() {
 
                     // If we have a "MyMod" selected, extract everything to the MyMod folder.
@@ -3795,7 +3814,7 @@ fn main() {
                 // Tell the Background Thread to delete the selected stuff.
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                 sender_qt.send(Commands::ExtractPackedFile).unwrap();
-                sender_qt_data.send(Data::VecVecStringPathBuf((selected_paths, extraction_path))).unwrap();
+                sender_qt_data.send(Data::VecPathTypePathBuf((selected_types, extraction_path))).unwrap();
 
                 // Check what response we got.
                 match check_message_validity_tryrecv(&receiver_qt) {
@@ -3823,14 +3842,9 @@ fn main() {
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Get the currently selected paths, and only continue if there is only one.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
-                if selected_paths.len() == 1 {
-                    let path = selected_paths[0].to_vec();
-
-                    // Send the Path to the Background Thread, and get the type of the item.
-                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(Data::VecString(path)).unwrap();
-                    let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                let selected_items = get_item_types_from_main_treeview_selection(&app_ui);
+                if selected_items.len() == 1 {
+                    let item_type = &selected_items[0];
 
                     // If it's a PackedFile...
                     if let TreePathType::File(path) = item_type {
@@ -3847,7 +3861,7 @@ fn main() {
                             &path
                         ) {
 
-                            // Save the monospace font an the slots.
+                            // Save the monospace font and the slots.
                             *decoder_slots.borrow_mut() = result.0;
                             *monospace_font.borrow_mut() = result.1;
                         }
@@ -3864,24 +3878,38 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
+            table_state_data,
+            global_search_explicit_paths,
             packfiles_list_slots,
-            is_modified,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Destroy any children that the PackedFile's View we use may have, cleaning it.
                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
 
+                // Create the widget that'll act as a container for the view.
+                let widget = Widget::new().into_raw();
+                let widget_layout = create_grid_layout_unsafe(widget);
+
+                // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
+                let path = Rc::new(RefCell::new(vec![]));
+
                 // Build the UI and save the slots.
-                *packfiles_list_slots.borrow_mut() = DependencyTableView::create_table_view(
+                packfiles_list_slots.borrow_mut().insert(0, create_dependency_manager_view(
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    &is_modified,
                     &app_ui,
-                );
+                    widget_layout,
+                    &path,
+                    &global_search_explicit_paths,
+                    update_global_search_stuff,
+                    &table_state_data
+                ));
 
                 // Tell the program there is an open PackedFile.
-                packedfiles_open_in_packedfile_view.borrow_mut().insert(0, Rc::new(RefCell::new(vec![])));
+                purge_that_one_specifically(&app_ui, 0, &packedfiles_open_in_packedfile_view);
+                packedfiles_open_in_packedfile_view.borrow_mut().insert(0, path);
+                unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget as *mut Widget); }
             }
         ));
 
@@ -3892,7 +3920,7 @@ fn main() {
             receiver_qt => move |_| {
 
                 // Get the currently selected paths, and only continue if there is only one.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, false);
+                let selected_paths = get_path_from_main_treeview_selection(&app_ui);
                 if selected_paths.len() == 1 {
                     let path = selected_paths[0].to_vec();
 
@@ -3910,13 +3938,11 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_modified,
             db_slots,
             loc_slots,
             text_slots,
             table_state_data,
             rigid_model_slots,
-            is_folder_tree_view_locked,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 if let Err(error) = open_packedfile(
@@ -3924,10 +3950,8 @@ fn main() {
                     &sender_qt_data,
                     &receiver_qt,
                     &app_ui,
-                    &is_modified,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &is_folder_tree_view_locked,
                     &db_slots,
                     &loc_slots,
                     &text_slots,
@@ -3936,6 +3960,38 @@ fn main() {
                     &table_state_data,
                     1
                 ) { show_dialog(app_ui.window, false, error); }
+            }
+        ));
+
+        // What happens when we trigger the "Open in Multi-View" action in the Contextual Menu.
+        let slot_context_menu_open_notes = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data,
+            receiver_qt,
+            text_slots,
+            packedfiles_open_in_packedfile_view => move |_| {
+
+                // Create the widget that'll act as a container for the view.
+                let widget = Widget::new().into_raw();
+                let widget_layout = create_grid_layout_unsafe(widget);
+                
+                let path = Rc::new(RefCell::new(vec![]));
+                let view_position = 1;
+
+                text_slots.borrow_mut().insert(view_position, create_notes_view(
+                    &sender_qt,
+                    &sender_qt_data,
+                    &receiver_qt,
+                    &app_ui,
+                    widget_layout,
+                    &path,
+                    &packedfiles_open_in_packedfile_view
+                ));
+
+                // Tell the program there is an open PackedFile and finish the table.
+                purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
             }
         ));
 
@@ -3957,6 +4013,7 @@ fn main() {
         unsafe { app_ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_file); }
         unsafe { app_ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_folder); }
         unsafe { app_ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_add_from_packfile); }
+        unsafe { app_ui.context_menu_check_tables.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_check_tables); }
         unsafe { app_ui.context_menu_create_folder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_folder); }
         unsafe { app_ui.context_menu_create_db.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_db); }
         unsafe { app_ui.context_menu_create_loc.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_create_packed_file_loc); }
@@ -3970,6 +4027,7 @@ fn main() {
         unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
         unsafe { app_ui.context_menu_open_with_external_program.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_with_external_program); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_in_multi_view); }
+        unsafe { app_ui.context_menu_open_notes.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_notes); }
 
         // Trigger the filter whenever the "filtered" text changes, the "filtered" column changes or the "Case Sensitive" button changes.
         unsafe { app_ui.folder_tree_filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slot_folder_view_filter_change_text); }
@@ -3983,105 +4041,99 @@ fn main() {
         //-----------------------------------------------------------------------------------------//
 
         // What happens when we trigger the "Rename" Action.
-        let slot_contextual_menu_rename_current = SlotBool::new(clone!(
+        let slot_contextual_menu_rename = SlotBool::new(clone!(
             global_search_explicit_paths,
-            is_modified,
             table_state_data,
             sender_qt,
             sender_qt_data,
             packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
+                
+                // Get the currently selected items, and check how many of them are valid before trying to rewrite them.
+                // Why? Because I'm sure there is an asshole out there that it's going to try to give the files duplicated
+                // names, and if that happen, we have to stop right there that criminal scum.
+                let selected_items = get_item_types_from_main_treeview_selection(&app_ui);
+                if let Some(rewrite_sequence) = create_rename_dialog(&app_ui, &selected_items) {
+                    let mut renaming_data_background: Vec<(PathType, String)> = vec![];
+                    for item_type in selected_items {
+                        match item_type {
+                            TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
+                                let original_name = path.last().unwrap();
+                                let new_name = rewrite_sequence.to_owned().replace("{x}", &original_name).replace("{X}", &original_name);
+                                renaming_data_background.push((From::from(&item_type), new_name));
 
-                // Get the currently selected paths, and only continue if there is only one.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
-                if selected_paths.len() == 1 {
-                    let complete_path = selected_paths[0].to_vec();
+                            },
 
-                    // Send the Path to the Background Thread, and get the type of the item.
-                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(Data::VecString(complete_path.to_vec())).unwrap();
-                    let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                            // These two should, if everything works properly, never trigger.
+                            TreePathType::PackFile | TreePathType::None => unimplemented!(),
+                        }
+                    }
 
-                    // Depending on the type of the selection...
-                    match item_type {
+                    // Send the renaming data to the Background Thread, wait for a response.
+                    sender_qt.send(Commands::RenamePackedFiles).unwrap();
+                    sender_qt_data.send(Data::VecPathTypeString(renaming_data_background)).unwrap();
+                    match check_message_validity_recv2(&receiver_qt) {
 
-                        // If it's a file or a folder...
-                        TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
+                        // We receive the PathTypes that could be renamed. The rest are ignored.
+                        Data::VecPathTypeString(ref renamed_items) => {
+                            
+                            // Update the TreeView.
+                            let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, String)>>();
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Rename(renamed_items.to_vec()),
+                            );
 
-                            // Get the name of the selected item.
-                            let current_name = path.last().unwrap();
+                            // If we have a PackedFile open, we have to rename it in that list too. Note that a path 
+                            // can be empty (the dep manager), so we have to check that too.
+                            for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
+                                if !open_path.borrow().is_empty() { 
+                                    for (item_type, new_name) in &renamed_items {
+                                        match item_type {
+                                            TreePathType::File(ref item_path) => {
+                                                if *item_path == *open_path.borrow() {
 
-                            // Create the "Rename" dialog and wait for a new name (or a cancelation).
-                            if let Some(new_name) = create_rename_dialog(&app_ui, &current_name) {
+                                                    // Get the new path.
+                                                    let mut new_path = item_path.to_vec();
+                                                    *new_path.last_mut().unwrap() = new_name.to_owned();
+                                                    *open_path.borrow_mut() = new_path.to_vec();
 
-                                // Send the New Name to the Background Thread, wait for a response.
-                                sender_qt.send(Commands::RenamePackedFile).unwrap();
-                                sender_qt_data.send(Data::VecStringString((complete_path, new_name.to_owned()))).unwrap();
+                                                    // Update the global search stuff, if needed.
+                                                    global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                                }
+                                            } 
 
-                                // Check what response we got.
-                                match check_message_validity_recv2(&receiver_qt) {
-                                    Data::Success => {
+                                            TreePathType::Folder(ref item_path) => {
+                                                if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) {
 
-                                        // Update the TreeView.
-                                        update_treeview(
-                                            &sender_qt,
-                                            &sender_qt_data,
-                                            &receiver_qt,
-                                            app_ui.window,
-                                            app_ui.folder_tree_view,
-                                            Some(app_ui.folder_tree_filter),
-                                            app_ui.folder_tree_model,
-                                            TreeViewOperation::Rename(item_type.clone(), new_name.to_owned()),
-                                        );
+                                                    let mut new_folder_path = item_path.to_vec();
+                                                    *new_folder_path.last_mut().unwrap() = new_name.to_owned();
 
-                                        // Set the mod as "Modified". This is an exception to the paint system.
-                                        *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
+                                                    let mut new_file_path = new_folder_path.to_vec();
+                                                    new_file_path.append(&mut (&open_path.borrow()[item_path.len()..]).to_vec());
+                                                    *open_path.borrow_mut() = new_file_path.to_vec();
 
-                                        // If we have a PackedFile open, we have to rename it in that list too. Note that a path can be empty (the dep manager), so we have to check that too.
-                                        for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
-                                            if !open_path.borrow().is_empty() { 
-                                                match item_type {
-                                                    TreePathType::File(ref item_path) => {
-                                                        if *item_path == *open_path.borrow() {
-
-                                                            // Get the new path.
-                                                            let mut new_path = path.to_vec();
-                                                            *new_path.last_mut().unwrap() = new_name.to_owned();
-                                                            *open_path.borrow_mut() = new_path.to_vec();
-
-                                                            // Update the global search stuff, if needed.
-                                                            global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
-                                                        }
-                                                    } 
-
-                                                    TreePathType::Folder(ref item_path) => {
-                                                        if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) {
-
-                                                            let mut new_folder_path = item_path.to_vec();
-                                                            *new_folder_path.last_mut().unwrap() = new_name.to_owned();
-
-                                                            let mut new_file_path = new_folder_path.to_vec();
-                                                            new_file_path.append(&mut (&open_path.borrow()[item_path.len()..]).to_vec());
-                                                            *open_path.borrow_mut() = new_file_path.to_vec();
-
-                                                            // Update the global search stuff, if needed.
-                                                            global_search_explicit_paths.borrow_mut().append(&mut vec![new_folder_path; 1]);
-                                                        }
-                                                    }
-                                                    _ => unreachable!(),
+                                                    // Update the global search stuff, if needed.
+                                                    global_search_explicit_paths.borrow_mut().append(&mut vec![new_folder_path; 1]);
                                                 }
                                             }
+                                            _ => unreachable!(),
                                         }
-
+                                        
                                         // Same for the TableStateData stuff. If we find one of the paths in it, we remove it and re-insert it with the new name.
                                         match item_type {
                                             TreePathType::File(ref item_path) => {
                                                 if table_state_data.borrow().get(item_path).is_some() {
-                                                    let mut new_path = path.to_vec();
+                                                    let mut new_path = item_path.to_vec();
                                                     *new_path.last_mut().unwrap() = new_name.to_owned();
                                                     
-                                                    let mut data = table_state_data.borrow_mut().remove(item_path).unwrap();
-                                                    data.not_allow_full_undo = true;
+                                                    let data = table_state_data.borrow_mut().remove(item_path).unwrap();
                                                     table_state_data.borrow_mut().insert(new_path.to_vec(), data);
                                                 }
                                             } 
@@ -4089,245 +4141,20 @@ fn main() {
                                             TreePathType::Folder(ref item_path) => {
                                                 let matches = table_state_data.borrow().keys().filter(|x| x.starts_with(item_path) && !x.is_empty()).cloned().collect::<Vec<Vec<String>>>();
                                                 for old_path in matches {
-                                                    let mut new_path = path.to_vec();
+                                                    let mut new_path = item_path.to_vec();
                                                     *new_path.last_mut().unwrap() = new_name.to_owned();
                                                     
-                                                    let mut data = table_state_data.borrow_mut().remove(&old_path).unwrap();
-                                                    data.not_allow_full_undo = true;
+                                                    let data = table_state_data.borrow_mut().remove(&old_path).unwrap();
                                                     table_state_data.borrow_mut().insert(new_path.to_vec(), data);
                                                 }
                                             }
                                             _ => unreachable!(),
                                         }
-
-                                        unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
-                                    }
-
-                                    // If we got an error...
-                                    Data::Error(error) => {
-
-                                        // We must check what kind of error it's.
-                                        match error.kind() {
-
-                                            // If the new name is empty, report it.
-                                            ErrorKind::EmptyInput => show_dialog(app_ui.window, false, error),
-
-                                            // If the new name contains invalid characters, report it.
-                                            ErrorKind::InvalidInput => show_dialog(app_ui.window, false, error),
-
-                                            // If the new name is the same as the old one, report it.
-                                            ErrorKind::UnchangedInput => show_dialog(app_ui.window, false, error),
-
-                                            // If the new name is already in use in the path, report it.
-                                            ErrorKind::NameAlreadyInUseInThisPath => show_dialog(app_ui.window, false, error),
-
-                                            // In ANY other situation, it's a message problem.
-                                            _ => panic!(THREADS_MESSAGE_ERROR)
-                                        }
-                                    }
-
-                                    // In ANY other situation, it's a message problem.
-                                    _ => panic!(THREADS_MESSAGE_ERROR),
-                                }
-                            }
-                        }
-
-                        // Otherwise, it's the PackFile or None, and we return, as we can't rename that.
-                        _ => return,
-                    }
-                }
-            }
-        ));
-
-        let slot_contextual_menu_apply_prefix_to_selected = SlotBool::new(clone!(
-            global_search_explicit_paths,
-            table_state_data,
-            is_modified,
-            sender_qt,
-            sender_qt_data,
-            packedfiles_open_in_packedfile_view,
-            receiver_qt => move |_| {
-
-                // Get the currently selected paths, and only continue if there is only one.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui, true);
-                if selected_paths.len() == 1 {
-                    let complete_path = selected_paths[0].to_vec();
-
-                    // Send the Path to the Background Thread, and get the type of the item.
-                    sender_qt.send(Commands::GetTypeOfPath).unwrap();
-                    sender_qt_data.send(Data::VecString(complete_path)).unwrap();
-                    let item_type = if let Data::TreePathType(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                    // If it's a folder...
-                    if let TreePathType::Folder(ref path) = item_type {
-
-                        // Create the "Rename" dialog and wait for a prefix (or a cancelation).
-                        if let Some(prefix) = create_apply_prefix_to_packed_files_dialog(&app_ui) {
-
-                            // Send the New Name to the Background Thread, wait for a response.
-                            sender_qt.send(Commands::ApplyPrefixToPackedFilesInPath).unwrap();
-                            sender_qt_data.send(Data::VecStringString((path.to_vec(), prefix.to_owned()))).unwrap();
-
-                            // Check what response we got.
-                            match check_message_validity_recv2(&receiver_qt) {
-                            
-                                // If it's success....
-                                Data::VecVecString(old_paths) => {
-                                    
-                                    // Update the TreeView.
-                                    update_treeview(
-                                        &sender_qt,
-                                        &sender_qt_data,
-                                        &receiver_qt,
-                                        app_ui.window,
-                                        app_ui.folder_tree_view,
-                                        Some(app_ui.folder_tree_filter),
-                                        app_ui.folder_tree_model,
-                                        TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
-                                    );
-
-                                    // Set the mod as "Modified". This is an exception to the paint system.
-                                    *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
-                                    // If we have a PackedFile open, we have to rename it in that list too. Note that a path can be empty (the dep manager), so we have to check that too.
-                                    for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
-                                        if !open_path.borrow().is_empty() && !path.is_empty() && open_path.borrow().starts_with(&path) {
-                                            let new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
-                                            *open_path.borrow_mut().last_mut().unwrap() = new_name.to_owned();
-                                        }
-                                    }
-
-                                    for old_path in &old_paths {
-                                        if table_state_data.borrow().get(old_path).is_some() {
-
-                                            let mut new_path = old_path.to_vec();
-                                            let new_name = format!("{}{}", prefix, *new_path.last().unwrap());
-                                            *new_path.last_mut().unwrap() = new_name.to_owned();
-                                            
-                                            let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
-                                            data.not_allow_full_undo = true;
-                                            table_state_data.borrow_mut().insert(new_path, data);
-                                        }
-                                    }
-
-                                    // Update the global search stuff, if needed.
-                                    let mut new_paths = old_paths.to_vec();
-                                    for path in &mut new_paths {
-                                        let new_name = format!("{}{}", prefix, *path.last().unwrap());
-                                        *path.last_mut().unwrap() = new_name.to_owned();
-                                    }
-                                    global_search_explicit_paths.borrow_mut().append(&mut new_paths);
-                                    unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
-                                }
-
-                                // If we got an error...
-                                Data::Error(error) => {
-
-                                    // We must check what kind of error it's.
-                                    match error.kind() {
-
-                                        // If the new name is empty, contain invalid characters, is already used, or is unchanged, report it.
-                                        ErrorKind::EmptyInput |
-                                        ErrorKind::InvalidInput => show_dialog(app_ui.window, false, error),
-
-                                        // In ANY other situation, it's a message problem.
-                                        _ => panic!(THREADS_MESSAGE_ERROR)
                                     }
                                 }
-
-                                // In ANY other situation, it's a message problem.
-                                _ => panic!(THREADS_MESSAGE_ERROR),
                             }
-                        }
-                    }
-                }
-            }
-        ));
-
-        let slot_contextual_menu_apply_prefix_to_all = SlotBool::new(clone!(
-            global_search_explicit_paths,
-            table_state_data,
-            is_modified,
-            sender_qt,
-            sender_qt_data,
-            packedfiles_open_in_packedfile_view,
-            receiver_qt => move |_| {
-
-                // Create the "Rename" dialog and wait for a prefix (or a cancelation).
-                if let Some(prefix) = create_apply_prefix_to_packed_files_dialog(&app_ui) {
-
-                    // Send the New Name to the Background Thread, wait for a response.
-                    sender_qt.send(Commands::ApplyPrefixToPackedFilesInPath).unwrap();
-                    sender_qt_data.send(Data::VecStringString((vec![], prefix.to_owned()))).unwrap();
-
-                    // Check what response we got.
-                    match check_message_validity_recv2(&receiver_qt) {
-                    
-                        // If it's success....
-                        Data::VecVecString(old_paths) => {
-                            
-                            // Update the TreeView.
-                            update_treeview(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &receiver_qt,
-                                app_ui.window,
-                                app_ui.folder_tree_view,
-                                Some(app_ui.folder_tree_filter),
-                                app_ui.folder_tree_model,
-                                TreeViewOperation::PrefixFiles(old_paths.to_vec(), prefix.to_owned()),
-                            );
-
-                            // Set the mod as "Modified". This is an exception to the paint system.
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, None);
-
-                            // If we have a PackedFile open, we have to rename it in that list too. Note that a path can be empty (the dep manager), so we have to check that too.
-                            for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
-                                if !open_path.borrow().is_empty() {
-                                    let new_name = format!("{}{}", prefix, *open_path.borrow().last().unwrap());
-                                    *open_path.borrow_mut().last_mut().unwrap() = new_name.to_owned();
-                                }
-                            }
-
-                            for old_path in &old_paths {
-                                if table_state_data.borrow().get(old_path).is_some() {
-
-                                    let mut new_path = old_path.to_vec();
-                                    let new_name = format!("{}{}", prefix, *new_path.last().unwrap());
-                                    *new_path.last_mut().unwrap() = new_name.to_owned();
-                                    
-                                    let mut data = table_state_data.borrow_mut().remove(old_path).unwrap();
-                                    data.not_allow_full_undo = true;
-                                    table_state_data.borrow_mut().insert(new_path, data);
-                                }
-                            }
-
-                            // Update the global search stuff, if needed.
-                            let mut new_paths = old_paths.to_vec();
-                            for path in &mut new_paths {
-                                let new_name = format!("{}{}", prefix, *path.last().unwrap());
-                                *path.last_mut().unwrap() = new_name.to_owned();
-                            }
-                            global_search_explicit_paths.borrow_mut().append(&mut new_paths);
                             unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                         }
-
-                        // If we got an error...
-                        Data::Error(error) => {
-
-                            // We must check what kind of error it's.
-                            match error.kind() {
-
-                                // If the new name is empty, contain invalid characters, is already used, or is unchanged, report it.
-                                ErrorKind::EmptyInput |
-                                ErrorKind::InvalidInput => show_dialog(app_ui.window, false, error),
-
-                                // In ANY other situation, it's a message problem.
-                                _ => panic!(THREADS_MESSAGE_ERROR)
-                            }
-                        }
-
-                        // In ANY other situation, it's a message problem.
                         _ => panic!(THREADS_MESSAGE_ERROR),
                     }
                 }
@@ -4335,13 +4162,16 @@ fn main() {
         ));
 
         // Actions to start the Renaming Processes.
-        unsafe { app_ui.context_menu_rename_current.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename_current); }
-        unsafe { app_ui.context_menu_apply_prefix_to_selected.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_apply_prefix_to_selected); }
-        unsafe { app_ui.context_menu_apply_prefix_to_all.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_apply_prefix_to_all); }
+        unsafe { app_ui.context_menu_rename.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_rename); }
 
         //-----------------------------------------------------//
         // Special Actions, like opening a PackedFile...
         //-----------------------------------------------------//
+
+        // What happens when we change the state of an item in the TreeView...
+        let slot_paint_treeview = SlotStandardItemMutPtr::new(move |item| {
+            paint_specific_item_treeview(item);
+        });
 
         // What happens when we try to open a PackedFile...
         let slot_open_packedfile = Rc::new(SlotNoArgs::new(clone!(
@@ -4353,9 +4183,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            is_modified,
             table_state_data,
-            is_folder_tree_view_locked,
             packedfiles_open_in_packedfile_view => move || {
 
                 if let Err(error) = open_packedfile(
@@ -4363,10 +4191,8 @@ fn main() {
                     &sender_qt_data,
                     &receiver_qt,
                     &app_ui,
-                    &is_modified,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &is_folder_tree_view_locked,
                     &db_slots,
                     &loc_slots,
                     &text_slots,
@@ -4548,7 +4374,7 @@ fn main() {
                 let column = unsafe { model_matches_loc.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
 
                 // Expand and select the item in the TreeView.
-                let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+                let item = get_item_from_type(app_ui.folder_tree_model, &TreePathType::File(path.to_vec()));
                 let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
 
                 let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
@@ -4602,7 +4428,7 @@ fn main() {
                 let column = unsafe { model_matches_db.as_mut().unwrap().item((model_index_match.row(), 4)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
 
                 // Expand and select the item in the TreeView.
-                let item = get_item_from_incomplete_path(app_ui.folder_tree_model, &path);
+                let item = get_item_from_type(app_ui.folder_tree_model, &TreePathType::File(path.to_vec()));
                 let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
                 
                 let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
@@ -4873,6 +4699,9 @@ fn main() {
             unsafe { app_ui.folder_tree_view.as_ref().unwrap().signals().clicked().connect(&*slot_open_packedfile); }
         }
 
+        // Action to paint the TreeView.
+        unsafe { app_ui.folder_tree_model.as_mut().unwrap().signals().item_changed().connect(&slot_paint_treeview); }
+        
         // Global search actions.
         unsafe { app_ui.context_menu_global_search.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_global_search); }
         unsafe { table_view_matches_loc.as_mut().unwrap().signals().double_clicked().connect(&slot_load_match_loc); }
@@ -4900,7 +4729,6 @@ fn main() {
             packedfiles_open_in_packedfile_view,
             sender_qt_data,
             receiver_qt,
-            is_modified,
             mode,
             table_state_data,
             close_global_search_action,
@@ -4915,7 +4743,6 @@ fn main() {
                         app_ui,
                         menu_open_from_content,
                         menu_open_from_data,
-                        &is_modified,
                         &mode,
                         &packedfiles_open_in_packedfile_view,
                         &mymod_stuff,
@@ -4937,7 +4764,6 @@ fn main() {
             packedfiles_open_in_packedfile_view,
             sender_qt_data,
             receiver_qt,
-            is_modified,
             table_state_data,
             mode,
             close_global_search_action,
@@ -4953,7 +4779,6 @@ fn main() {
                         &receiver_qt,
                         app_ui,
                         menu_bar_mymod,
-                        &is_modified,
                         &mode,
                         mymod_menu_needs_rebuild.clone(),
                         &packedfiles_open_in_packedfile_view,
@@ -4993,10 +4818,9 @@ fn main() {
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
-                    path,
+                    &[path],
                     &app_ui,
                     &mymod_stuff,
-                    &is_modified,
                     &mode,
                     "",
                     &packedfiles_open_in_packedfile_view,
@@ -5013,7 +4837,8 @@ fn main() {
         if cfg!(target_os = "windows") {
             if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { 
                 Application::set_style(&QString::from_std_str("fusion"));
-                Application::set_palette(&DARK_PALETTE); 
+                Application::set_palette(&DARK_PALETTE);
+                app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
             } else { 
                 Application::set_style(&QString::from_std_str("windowsvista"));
                 Application::set_palette(&LIGHT_PALETTE);
@@ -5025,6 +4850,22 @@ fn main() {
 
         // If we have it enabled in the prefs, check if there are schema updates.
         if SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"] { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };
+
+        // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
+        if GENERATE_NEW_SCHEMA {
+
+            // These are the paths needed for the new schemas. First one should be `assembly_kit/raw_data/db`.
+            // The second one should contain all the tables of the game, extracted directly from `data.pack`.
+            let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_raw");
+            let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_bin/");
+            match import_schema(Schema::load("schema_wh.json").ok(), &assembly_kit_schemas_path, &testing_tables_path) {
+                Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
+                Err(error) => show_dialog(app_ui.window, false, error),
+            }
+
+            // Close the program with code 69
+            return 69
+        }
 
         // And launch it.
         Application::exec()

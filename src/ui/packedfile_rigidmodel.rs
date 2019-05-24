@@ -44,7 +44,6 @@ impl PackedFileRigidModelDataView {
         sender_qt: &Sender<Commands>,
         sender_qt_data: &Sender<Data>,
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
-        is_modified: &Rc<RefCell<bool>>,
         app_ui: &AppUI,
         layout: *mut GridLayout,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
@@ -277,8 +276,8 @@ impl PackedFileRigidModelDataView {
                 texture_paths,
                 texture_paths_index,
                 packed_file,
-                is_modified,
                 app_ui,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data => move || {
 
@@ -297,8 +296,16 @@ impl PackedFileRigidModelDataView {
                     sender_qt.send(Commands::EncodePackedFileRigidModel).unwrap();
                     sender_qt_data.send(Data::RigidModelVecString((packed_file.borrow().clone(), packed_file_path.borrow().to_vec()))).unwrap();
 
-                    // Set the mod as "Modified".
-                    *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+                    update_treeview(
+                        &sender_qt,
+                        &sender_qt_data,
+                        &receiver_qt,
+                        &app_ui,
+                        app_ui.folder_tree_view,
+                        Some(app_ui.folder_tree_filter),
+                        app_ui.folder_tree_model,
+                        TreeViewOperation::Modify(vec![TreePathType::File(packed_file_path.borrow().to_vec())]),
+                    );
                 }
             )),
 
@@ -306,8 +313,8 @@ impl PackedFileRigidModelDataView {
             patch_rigid_model: SlotNoArgs::new(clone!(
                 packed_file_path,
                 packed_file,
-                is_modified,
                 app_ui,
+                receiver_qt,
                 sender_qt,
                 sender_qt_data,
                 receiver_qt => move || {
@@ -331,8 +338,16 @@ impl PackedFileRigidModelDataView {
                             unsafe { rigid_model_compatible_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str("Warhammer 1&2")); }
                             unsafe { patch_attila_to_warhammer_button.as_mut().unwrap().set_enabled(false); }
 
-                            // Set the mod as "Modified".
-                            *is_modified.borrow_mut() = set_modified(true, &app_ui, Some(packed_file_path.borrow().to_vec()));
+                            update_treeview(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                app_ui.folder_tree_view,
+                                Some(app_ui.folder_tree_filter),
+                                app_ui.folder_tree_model,
+                                TreeViewOperation::Modify(vec![TreePathType::File(packed_file_path.borrow().to_vec())]),
+                            );
                         }
 
                         // If we got an error, report it.

@@ -15071,7 +15071,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_materials",
+                "audio_materials_enums",
                 "key"
               ],
               "field_description": ""
@@ -15185,7 +15185,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "battle_buildings_visibility_enums",
+                "battle_building_visibility_enums",
                 "key"
               ],
               "field_description": ""
@@ -15234,7 +15234,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_materials",
+                "audio_materials_enums",
                 "key"
               ],
               "field_description": ""
@@ -15348,7 +15348,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "battle_buildings_visibility_enums",
+                "battle_building_visibility_enums",
                 "key"
               ],
               "field_description": ""
@@ -16174,7 +16174,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "gun_types_enums",
+                "gun_types_enum",
                 "key"
               ],
               "field_description": ""
@@ -17691,7 +17691,7 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "building_shot_description_texts",
+                "building_short_description_texts",
                 "key"
               ],
               "field_description": ""
@@ -25822,7 +25822,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_ai_character_skill_tree_agent_managers",
+                "campaign_ai_character_skill_tree_distributions",
                 "key"
               ],
               "field_description": ""
@@ -25832,7 +25832,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_ai_character_skill_tree_distributions",
+                "campaign_ai_character_skill_tree_agent_managers",
                 "key"
               ],
               "field_description": ""
@@ -26041,7 +26041,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_ai_technologies_paths",
+                "campaign_ai_technology_paths",
                 "key"
               ],
               "field_description": ""
@@ -39215,8 +39215,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "diplomacy_key_groups",
-                "group_id"
+                "diplomacy_keys",
+                "key"
               ],
               "field_description": ""
             },
@@ -43863,10 +43863,7 @@
               "field_name": "skin",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": [
-                "unit_banners",
-                "key"
-              ],
+              "field_is_reference": null,
               "field_description": ""
             },
             {
@@ -44245,7 +44242,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "culture_subcultures",
+                "cultures_subcultures",
                 "subculture"
               ],
               "field_description": "voiceover used by faction may be different to subculture"
@@ -46739,8 +46736,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -51074,11 +51071,11 @@
               "field_description": ""
             },
             {
-              "field_name": "audio_type",
+              "field_name": "audio_material",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_melee_weapon_types",
+                "audio_materials_enums",
                 "key"
               ],
               "field_description": ""
@@ -53505,7 +53502,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_armour_types",
+                "audio_materials_enums",
                 "key"
               ],
               "field_description": ""
@@ -61943,8 +61940,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -67317,8 +67314,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -67424,8 +67421,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             },
@@ -69163,8 +69160,8 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "modifiable_unit_stats",
-                "stat_key"
+                "ui_unit_stats",
+                "key"
               ],
               "field_description": ""
             }

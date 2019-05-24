@@ -11,10 +11,8 @@
 // In this file are all the helper functions used by the PackedFile Tables.
 
 use qt_widgets::dialog::Dialog;
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::label::Label;
-use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::push_button::PushButton;
 use qt_widgets::table_view::TableView;
@@ -38,21 +36,21 @@ use crate::SETTINGS;
 use crate::QString;
 use crate::AppUI;
 use crate::packedfile::db::schemas::{FieldType, TableDefinition};
+use crate::ui::create_grid_layout_unsafe;
 
 /// This function creates the entire "Apply Maths" dialog for tables. It returns the operation to apply.
 pub fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<String> {
 
     // Create and configure the dialog.
     let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
-    dialog.set_window_title(&QString::from_std_str("Rewrite Selection"));
+    dialog.set_window_title(&QString::from_std_str("Apply Maths to Selection"));
     dialog.set_modal(true);
     dialog.resize((400, 50));
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
 
     // Create a little frame with some instructions.
     let instructions_frame = GroupBox::new(&QString::from_std_str("Instructions")).into_raw();
-    let instructions_grid = GridLayout::new().into_raw();
-    unsafe { instructions_frame.as_mut().unwrap().set_layout(instructions_grid as *mut Layout); }
+    let instructions_grid = create_grid_layout_unsafe(instructions_frame as *mut Widget);
     let mut instructions_label = Label::new(&QString::from_std_str(
     "\
 It's easy, but you'll not understand it without an example, so here it's one:
@@ -72,7 +70,6 @@ Easy, isn't?
     unsafe { main_grid.as_mut().unwrap().add_widget((instructions_frame as *mut Widget, 0, 0, 1, 2)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((maths_line_edit.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((accept_button as *mut Widget, 1, 1, 1, 1)); }
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
@@ -90,12 +87,11 @@ pub fn create_rewrite_selection_dialog(app_ui: &AppUI) -> Option<String> {
     dialog.set_window_title(&QString::from_std_str("Rewrite Selection"));
     dialog.set_modal(true);
     dialog.resize((400, 50));
-    let main_grid = GridLayout::new().into_raw();
+    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
 
     // Create a little frame with some instructions.
     let instructions_frame = GroupBox::new(&QString::from_std_str("Instructions")).into_raw();
-    let instructions_grid = GridLayout::new().into_raw();
-    unsafe { instructions_frame.as_mut().unwrap().set_layout(instructions_grid as *mut Layout); }
+    let instructions_grid = create_grid_layout_unsafe(instructions_frame as *mut Widget);
     let mut instructions_label = Label::new(&QString::from_std_str(
     "\
 It's easy, but you'll not understand it without an example, so here it's one:
@@ -115,13 +111,12 @@ And, in case you ask, works with numeric cells too, as long as the resulting tex
     unsafe { main_grid.as_mut().unwrap().add_widget((instructions_frame as *mut Widget, 0, 0, 1, 2)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((rewrite_sequence_line_edit.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((accept_button as *mut Widget, 1, 1, 1, 1)); }
-    unsafe { dialog.set_layout(main_grid as *mut Layout); }
 
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
     if dialog.exec() == 1 { 
-        let prefix = rewrite_sequence_line_edit.text().to_std_string();
-        if prefix.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) } 
+        let new_text = rewrite_sequence_line_edit.text().to_std_string();
+        if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) } 
     } else { None }
 }
 

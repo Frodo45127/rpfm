@@ -22,9 +22,8 @@ use std::io::{BufReader, BufWriter};
 
 use crate::RPFM_PATH;
 use crate::TABLE_STATES_UI;
-
 use crate::error::Result;
-use crate::ui::TableOperations;
+use crate::ui::packedfile_table::TableOperations;
 
 /// Name of the file to load/save from.
 const TABLES_STATE_FILE: &str = "table_state.json";
@@ -70,7 +69,6 @@ pub struct TableStateData {
     pub undo_history: Vec<TableOperations>,
     pub redo_history: Vec<TableOperations>,
     pub undo_model: *mut StandardItemModel,
-    pub not_allow_full_undo: bool,
 }
 
 /// Implementation of TableState.
@@ -120,6 +118,19 @@ impl TableStateUI {
         // Return success.
         Ok(())
     }
+
+    /*/// This function encodes the provided TableStateUI into his item.
+    pub fn to_item(&self, item: *mut StandardItem) {
+        let data = QString::from_std_str(&serde_json::to_string(self).unwrap());
+        unsafe { item.as_mut().unwrap().set_data((&Variant::new0(&data), 30)) };
+    }
+
+    /// This function decodes the TableStateUI from an item and returns it.
+    pub fn from_item(item: *mut StandardItem) -> Self {
+        let data = unsafe { item.as_mut().unwrap().data(30).to_string().to_std_string() };
+        if data.is_empty() { Self::new_empty() }
+        else { serde_json::from_str(&data).unwrap() }
+    }*/
 }
 
 /// Implementation of FilterState.
@@ -176,7 +187,6 @@ impl TableStateData {
             undo_history: vec![],
             redo_history: vec![],
             undo_model: StandardItemModel::new(()).into_raw(),
-            not_allow_full_undo: false,
         }
     }
 }

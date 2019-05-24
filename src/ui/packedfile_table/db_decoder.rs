@@ -205,8 +205,7 @@ impl PackedFileDBDecoder {
 
         // Create the widget that'll act as a container for the view.
         let widget = Widget::new().into_raw();
-        let widget_layout = GridLayout::new().into_raw();
-        unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
+        let widget_layout = create_grid_layout_unsafe(widget);
         unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
 
         // Create the hex view on the left side.
@@ -214,9 +213,7 @@ impl PackedFileDBDecoder {
         let hex_view_index = TextEdit::new(()).into_raw();
         let hex_view_raw = TextEdit::new(()).into_raw();
         let hex_view_decoded = TextEdit::new(()).into_raw();
-        let hex_view_layout = GridLayout::new().into_raw();
-        unsafe { hex_view_group.as_mut().unwrap().set_layout(hex_view_layout as *mut Layout); }
-        unsafe { hex_view_layout.as_mut().unwrap().set_spacing(1); }
+        let hex_view_layout = create_grid_layout_unsafe(hex_view_group as *mut Widget);
         unsafe { hex_view_layout.as_mut().unwrap().add_widget((hex_view_index as *mut Widget, 0, 0, 1, 1)); }
         unsafe { hex_view_layout.as_mut().unwrap().add_widget((hex_view_raw as *mut Widget, 0, 1, 1, 1)); }
         unsafe { hex_view_layout.as_mut().unwrap().add_widget((hex_view_decoded as *mut Widget, 0, 2, 1, 1)); }
@@ -284,14 +281,11 @@ impl PackedFileDBDecoder {
         unsafe { fields_splitter.as_mut().unwrap().add_widget(selected_fields_frame as *mut Widget); }
 
         // Set their layouts.
-        let decoded_fields_layout = GridLayout::new().into_raw();
-        let selected_fields_layout = GridLayout::new().into_raw();
-        let info_layout = GridLayout::new().into_raw();
+        let decoded_fields_layout = create_grid_layout_unsafe(decoded_fields_frame as *mut Widget);
+        let selected_fields_layout = create_grid_layout_unsafe(selected_fields_frame as *mut Widget);
+        let info_layout = create_grid_layout_unsafe(info_frame as *mut Widget);
         unsafe { decoded_fields_layout.as_mut().unwrap().set_column_stretch(1, 10); }
         unsafe { selected_fields_layout.as_mut().unwrap().set_column_stretch(1, 10); }
-        unsafe { decoded_fields_frame.as_mut().unwrap().set_layout(decoded_fields_layout as *mut Layout); }
-        unsafe { selected_fields_frame.as_mut().unwrap().set_layout(selected_fields_layout as *mut Layout); }
-        unsafe { info_frame.as_mut().unwrap().set_layout(info_layout as *mut Layout); }
 
         // Create the stuff for the decoded fields.
         let bool_label = Label::new(&QString::from_std_str("Decoded as \"Bool\":")).into_raw();
@@ -447,8 +441,7 @@ impl PackedFileDBDecoder {
 
         // Create the bottom ButtonBox.
         let button_box = Frame::new().into_raw();
-        let button_box_layout = GridLayout::new().into_raw();
-        unsafe { button_box.as_mut().unwrap().set_layout(button_box_layout as *mut Layout); }
+        let button_box_layout = create_grid_layout_unsafe(button_box as *mut Widget);
 
         // Create the bottom Buttons.
         let generate_pretty_diff_button = PushButton::new(&QString::from_std_str("Generate Diff")).into_raw();

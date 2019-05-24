@@ -1872,7 +1872,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "cultures_subculture",
+                "cultures_subcultures",
                 "subculture"
               ],
               "field_description": ""
@@ -3473,8 +3473,8 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "ancillaries",
-                "categories"
+                "ancillaries_categories",
+                "category"
               ],
               "field_description": ""
             },
@@ -4201,7 +4201,7 @@
               "field_is_key": true,
               "field_is_reference": [
                 "army_special_abilities",
-                "key"
+                "army_special_ability"
               ],
               "field_description": ""
             },
@@ -12561,12 +12561,12 @@
               "field_description": ""
             },
             {
-              "field_name": "battle_path",
+              "field_name": "campaign",
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_battle_paths",
-                "path"
+                "campaign_maps",
+                "mapname"
               ],
               "field_description": ""
             },
@@ -14969,11 +14969,11 @@
               "field_description": "A custom environment to load"
             },
             {
-              "field_name": "battle_enviroment_audio",
+              "field_name": "battle_environment_audio",
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "audio_battle_enviroments",
+                "audio_battle_environments",
                 "name"
               ],
               "field_description": ""
@@ -26095,7 +26095,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "campaign_ai_technologies_paths",
+                "campaign_ai_technology_paths",
                 "key"
               ],
               "field_description": ""
@@ -28855,7 +28855,7 @@
               "field_is_key": true,
               "field_is_reference": [
                 "campaign_group_members",
-                "member"
+                "id"
               ],
               "field_description": ""
             }
@@ -32448,7 +32448,7 @@
           "version": 1,
           "fields": [
             {
-              "field_name": "example_field",
+              "field_name": "type",
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": null,
@@ -35182,8 +35182,8 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "trait_info",
-                "trait"
+                "character_traits",
+                "key"
               ],
               "field_description": ""
             },
@@ -35846,8 +35846,8 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": [
-                "culture_pack_ids",
-                "id"
+                "cultures",
+                "key"
               ],
               "field_description": ""
             }
@@ -38385,7 +38385,7 @@
               "field_type": "StringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "technology",
+                "technologies",
                 "key"
               ],
               "field_description": ""
@@ -49590,7 +49590,7 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "projectile_shrapnels",
+                "projectiles",
                 "key"
               ],
               "field_description": ""
@@ -51609,7 +51609,7 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "cultures_subculture",
+                "cultures_subcultures",
                 "subculture"
               ],
               "field_description": ""
@@ -52693,6 +52693,40 @@
                 "ritual_chains",
                 "key"
               ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sacrifices_to_sotek_rituals_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "order",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ritual",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "rituals",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "tier",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
               "field_description": ""
             }
           ]

@@ -10,6 +10,7 @@
 
 // Here should go just the Background loop.
 
+use std::collections::BTreeMap;
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
 use std::path::PathBuf;
@@ -20,7 +21,6 @@ use regex::Regex;
 
 use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
-use crate::SHOW_TABLE_SCHEMA_ERRORS;
 use crate::SHORTCUTS;
 use crate::SETTINGS;
 use crate::SCHEMA;
@@ -102,34 +102,26 @@ pub fn background_loop(
                         sender.send(Data::U32(pack_file_decoded.pfh_file_type.get_value())).unwrap();
                     }
 
-                    // In case we want to "Open a PackFile"...
-                    Commands::OpenPackFile => {
-                        let path: PathBuf = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match background_thread_extra::open_packfile(path, SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"]) {
+                    // In case we want to "Open one or more PackFiles"...
+                    Commands::OpenPackFiles => {
+                        let paths: Vec<PathBuf> = if let Data::VecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        match background_thread_extra::open_packfiles(&paths, false, SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"], false) {
                             Ok(pack_file) => {
                                 pack_file_decoded = pack_file;
                                 sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
                             }
-                            Err(error) => sender.send(Data::Error(Error::from(ErrorKind::OpenPackFileGeneric(format!("{}", error))))).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
 
                     // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
                     Commands::OpenPackFileExtra => {
-
-                        // Get the path to open.
                         let path: PathBuf = if let Data::PathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Open the PackFile as Read-Only (Or die trying it).
-                        match background_thread_extra::open_packfile(path, true) {
-
-                            // If we managed to open it...
+                        match background_thread_extra::open_packfiles(&[path], false, true, false) {
                             Ok(result) => {
                                 pack_file_decoded_extra = result;
                                 sender.send(Data::Success).unwrap();
                             }
-
-                            // If there is an error, send it back to the UI.
                             Err(error) => sender.send(Data::Error(Error::from(ErrorKind::OpenPackFileGeneric(format!("{}", error))))).unwrap(),
                         }
                     }
@@ -171,16 +163,17 @@ pub fn background_loop(
 
                     // In case we want to "Load All CA PackFiles"...
                     Commands::LoadAllCAPackFiles => {
-                        match background_thread_extra::load_all_ca_packfiles() {
-
-                            // If we succeed at opening the PackFile...
-                            Ok(pack_file) => {
-                                pack_file_decoded = pack_file;
-                                sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
+                        match get_game_selected_data_packfiles_paths() {
+                            Some(paths) => {
+                                match background_thread_extra::open_packfiles(&paths, true, true, true) {
+                                    Ok(pack_file) => {
+                                        pack_file_decoded = pack_file;
+                                        sender.send(Data::PackFileUIData(pack_file_decoded.create_ui_data())).unwrap();
+                                    }
+                                    Err(error) => sender.send(Data::Error(error)).unwrap(),
+                                }
                             }
-
-                            // If there is an error, send it back to the UI.
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                            None => sender.send(Data::Error(Error::from(ErrorKind::GamePathNotConfigured))).unwrap(),
                         }
                     }
 
@@ -296,80 +289,6 @@ pub fn background_loop(
                             let mut file = BufWriter::new(File::create(path).unwrap());
                             file.write_all(table_list.as_bytes()).unwrap();
                         }
-
-                        // Test to check for referenced columns with wrong values on them. This usually means the schema is broken.
-                        // This is a test applied to the dependency database, NOT TO YOUR PACKFILE. That's another feature that'll come later.
-                        if SHOW_TABLE_SCHEMA_ERRORS {
-                            for i in pack_file_decoded.packed_files.iter_mut() {
-                                if i.path.starts_with(&["db".to_owned()]) {
-                                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                                        if let Ok(db_data) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
-                                            use std::collections::BTreeMap;
-                                            let mut dep_data = BTreeMap::new();
-
-                                            for (column, field) in db_data.table_definition.fields.iter().enumerate() {
-                                                if let Some(ref dependency_data) = field.field_is_reference {
-
-                                                    let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
-                                                    let mut iter = iter.iter_mut();
-                                                    if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                                                        let mut data = vec![];
-                                                        while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                                            if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                                                                if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                                                    for row in table.entries.iter() {
-
-                                                                        // For now we assume any dependency is a string.
-                                                                        match row[column_index] { 
-                                                                            DecodedData::StringU8(ref entry) |
-                                                                            DecodedData::StringU16(ref entry) |
-                                                                            DecodedData::OptionalStringU8(ref entry) |
-                                                                            DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                                            _ => {}
-                                                                        }
-                                                                    }
-                
-                                                                }
-                                                            } 
-                                                        }
-
-                                                        // Sort and dedup the data found.
-                                                        data.sort_unstable_by(|a, b| a.cmp(&b));
-                                                        data.dedup();
-
-                                                        dep_data.insert(column, data);
-                                                    }
-                                                }
-                                            }
-
-                                            if !dep_data.is_empty() {
-                                                let mut broken = false;
-                                                for row in db_data.entries {
-                                                    for (column, dep_data) in dep_data.iter() {
-                                                        let field_data = match row[*column as usize] { 
-                                                            DecodedData::StringU8(ref entry) |
-                                                            DecodedData::StringU16(ref entry) |
-                                                            DecodedData::OptionalStringU8(ref entry) |
-                                                            DecodedData::OptionalStringU16(ref entry) => entry.to_owned(),
-                                                            _ => "NoData".to_owned()
-                                                        };
-
-                                                        if !dep_data.contains(&field_data) && !dep_data.is_empty() && &field_data != "NoData" && !field_data.is_empty() {
-                                                            println!("Table: {:?}, Column: {}", &i.path[1], column); 
-                                                            broken = true;
-                                                        }
-
-                                                        if broken { break; }
-                                                    }
-
-                                                    if broken { break; }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
 
                     // In case we want to check if there is a current Dependency Database loaded...
@@ -388,14 +307,10 @@ pub fn background_loop(
 
                     // In case we want to Patch the SiegeAI of a PackFile...
                     Commands::PatchSiegeAI => {
-
+                        
                         // First, we try to patch the PackFile.
                         match background_thread_extra::patch_siege_ai(&mut pack_file_decoded) {
-
-                            // If we succeed, send back the result.
-                            Ok(result) => sender.send(Data::StringVecTreePathType(result)).unwrap(),
-
-                            // Otherwise, return an error.
+                            Ok(result) => sender.send(Data::StringVecPathType(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap()
                         }
                     }
@@ -436,17 +351,17 @@ pub fn background_loop(
 
                     // In case we want to delete PackedFiles from a PackFile...
                     Commands::DeletePackedFile => {
-
+                        
                         // Delete the PackedFiles from the PackFile, changing his return in case of success.
-                        let paths = if let Data::VecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        sender.send(Data::VecTreePathType(background_thread_extra::delete_from_packfile(&mut pack_file_decoded, &paths))).unwrap();
+                        let item_types = if let Data::VecPathType(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        sender.send(Data::VecPathType(background_thread_extra::delete_from_packfile(&mut pack_file_decoded, &item_types))).unwrap();
                     }
 
                     // In case we want to extract PackedFiles from a PackFile...
                     Commands::ExtractPackedFile => {
 
                         // Wait until we get the needed data from the UI thread, and try to extract the PackFile.
-                        let data = if let Data::VecVecStringPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::VecPathTypePathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
                         match background_thread_extra::extract_from_packfile(
                             &pack_file_decoded,
                             &data.0,
@@ -455,19 +370,6 @@ pub fn background_loop(
                             Ok(result) => sender.send(Data::String(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
-                    }
-
-                    // In case we want to get the type of an item in the TreeView, from his path...
-                    Commands::GetTypeOfPath => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Get the type of the selected item.
-                        let path_type = get_type_of_selected_path(&path, &pack_file_decoded);
-
-                        // Send the type back.
-                        sender.send(Data::TreePathType(path_type)).unwrap();
                     }
 
                     // In case we want to know if a PackedFile exists, knowing his path...
@@ -514,24 +416,6 @@ pub fn background_loop(
                         }
                     }
 
-                    // TODO: Move checkings here, from the UI.
-                    // In case we want to create an empty folder...
-                    Commands::CreateFolder => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-
-                        // Add the path to the "empty folder" list.
-                        pack_file_decoded.empty_folders.push(path);
-                    }
-
-                    // In case we want to update the empty folder list...
-                    Commands::UpdateEmptyFolders => {
-
-                        // Update the empty folder list, if needed.
-                        pack_file_decoded.update_empty_folders();
-                    }
-
                     // In case we want to get the data of a PackFile needed to form the TreeView...
                     Commands::GetPackFileDataForTreeView => {
 
@@ -558,34 +442,17 @@ pub fn background_loop(
                     Commands::AddPackedFileFromPackFile => {
 
                         // Wait until we get the needed data from the UI thread.
-                        let path = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let path_type = if let Data::PathType(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
 
                         // Try to add the PackedFile to the main PackFile.
                         match background_thread_extra::add_packedfile_to_packfile(
                             &pack_file_decoded_extra,
                             &mut pack_file_decoded,
-                            &path
+                            &path_type
                         ) {
 
                             // In case of success, get the list of copied PackedFiles and send it back.
-                            Ok(_) => {
-
-                                // Get the "real" path, without the PackFile on it. If the path is just the PackFile, leave it empty.
-                                let real_path = if path.len() > 1 { &path[1..] } else { &[] };
-
-                                // Get all the PackedFiles to copy.
-                                let path_list: Vec<Vec<String>> = pack_file_decoded_extra
-                                    .packed_files
-                                    .iter()
-                                    .filter(|x| x.path.starts_with(&real_path))
-                                    .map(|x| x.path.to_vec())
-                                    .collect();
-
-                                // Send all of it back.
-                                sender.send(Data::VecVecString(path_list)).unwrap();
-                            }
-
-                            // In case of error, report it.
+                            Ok(path_types_added) => sender.send(Data::VecPathType(path_types_added)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -890,29 +757,9 @@ pub fn background_loop(
                     }
 
                     // In case we want to "Rename a PackedFile"...
-                    Commands::RenamePackedFile => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::VecStringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-
-                        // Try to rename it and report the result.
-                        match background_thread_extra::rename_packed_file(&mut pack_file_decoded, &data.0, &data.1) {
-                            Ok(_) => sender.send(Data::Success).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
-                    }
-
-                    // In case we want to "Rename multiple PackedFiles" at once...
-                    Commands::ApplyPrefixToPackedFilesInPath => {
-
-                        // Wait until we get the needed data from the UI thread.
-                        let data = if let Data::VecStringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-
-                        // Try to rename it and report the result.
-                        match background_thread_extra::apply_prefix_to_packed_files(&mut pack_file_decoded, &data.0, &data.1) {
-                            Ok(result) => sender.send(Data::VecVecString(result)).unwrap(),
-                            Err(error) => sender.send(Data::Error(error)).unwrap(),
-                        }
+                    Commands::RenamePackedFiles => {
+                        let data = if let Data::VecPathTypeString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        sender.send(Data::VecPathTypeString(background_thread_extra::rename_packed_files(&mut pack_file_decoded, &data))).unwrap();
                     }
 
                     // In case we want to get a PackedFile's data...
@@ -972,7 +819,7 @@ pub fn background_loop(
                     // In case we want to optimize our PackFile...
                     Commands::OptimizePackFile => {
                         match background_thread_extra::optimize_packfile(&mut pack_file_decoded) {
-                            Ok(deleted_packed_files) => sender.send(Data::VecTreePathType(deleted_packed_files)).unwrap(),
+                            Ok(deleted_packed_files) => sender.send(Data::VecPathType(deleted_packed_files)).unwrap(),
                             Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
                         }
                     }
@@ -1009,85 +856,26 @@ pub fn background_loop(
                     // In case we want to get the dependency data for a table's column....
                     Commands::DecodeDependencyDB => {
 
-                        // Wait until we get the needed data from the UI thread.
-                        let dependency_data = if let Data::StringString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
-                        let mut data = vec![];
-                        let mut iter = DEPENDENCY_DATABASE.lock().unwrap();
-                        let mut iter = iter.iter_mut();
-                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                                    if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                            for row in table.entries.iter() {
+                        // Get the entire dependency data for the provided definition, all at once.
+                        let table_definition = if let Data::TableDefinition(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let dependency_data = match SCHEMA.lock().unwrap().clone() {
+                            Some(schema) => {
+                                let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
+                                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
 
-                                                // For now we assume any dependency is a string.
-                                                match row[column_index] { 
-                                                    DecodedData::StringU8(ref entry) |
-                                                    DecodedData::StringU16(ref entry) |
-                                                    DecodedData::OptionalStringU8(ref entry) |
-                                                    DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                    _ => {}
-                                                }
-                                            }
-                                        }
+                                // Due to how mutability works, we have first to get the data of every table,
+                                // then iterate them and decode them. Ignore any errors.
+                                for packed_file in pack_file_decoded.packed_files.iter_mut() {
+                                    if packed_file.path.starts_with(&["db".to_owned()]) {
+                                        let _x = packed_file.load_data();
                                     }
                                 }
+
+                                get_dependency_data(&table_definition, &schema, &mut dep_db, &fake_dep_db, &pack_file_decoded)
                             }
-                        }
-
-                        // The same for our own PackFile.
-                        let mut iter = pack_file_decoded.packed_files.iter_mut();
-                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
-                                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                                    if let Ok(packed_file_data) = packed_file.get_data_and_keep_it() {
-                                        if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
-                                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                                for row in table.entries.iter() {
-
-                                                    // For now we assume any dependency is a string.
-                                                    match row[column_index] { 
-                                                        DecodedData::StringU8(ref entry) |
-                                                        DecodedData::StringU16(ref entry) |
-                                                        DecodedData::OptionalStringU8(ref entry) |
-                                                        DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                                        _ => {}
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // We have to check in the Fake Dependency Database too, just in case.
-                        let mut iter = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
-                        let mut iter = iter.iter_mut();
-                        if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
-                            while let Some(table) = iter.find(|x| x.db_type == dependency_data.0) {
-                                if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
-                                    for row in table.entries.iter() {
-
-                                        // For now we assume any dependency is a string.
-                                        match row[column_index] { 
-                                            DecodedData::StringU8(ref entry) |
-                                            DecodedData::StringU16(ref entry) |
-                                            DecodedData::OptionalStringU8(ref entry) |
-                                            DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Sort and dedup the data found.
-                        data.sort_unstable_by(|a, b| a.cmp(&b));
-                        data.dedup();
-
-                        sender.send(Data::VecString(data)).unwrap();
+                            None => BTreeMap::new(),
+                        };
+                        sender.send(Data::BTreeMapI32VecString(dependency_data)).unwrap();
                     }
 
                     // In case we want to use Kailua to check if your script has errors...
@@ -1513,13 +1301,21 @@ pub fn background_loop(
                         }
                     },
 
+                    // In case we want to check the DB tables for dependency errors...
+                    Commands::CheckTables => {
+                        match check_tables(&mut pack_file_decoded) {
+                            Ok(_) => sender.send(Data::Success).unwrap(),
+                            Err(error) => sender.send(Data::Error(error)).unwrap(),
+                        }
+                    }
+
                     // In case we want to merge DB or Loc Tables from a PackFile...
                     Commands::MergeTables => {
 
                         // Delete the PackedFiles from the PackFile, changing his return in case of success.
                         let (paths, name, delete_source_files, table_types) = if let Data::VecVecStringStringBoolBool(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
                         match merge_tables(&mut pack_file_decoded, &paths, &name, delete_source_files, table_types) {
-                            Ok(data) => sender.send(Data::VecStringVecTreePathType(data)).unwrap(),
+                            Ok(data) => sender.send(Data::VecStringVecPathType(data)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
                     }
@@ -1530,6 +1326,18 @@ pub fn background_loop(
                             Ok(_) => sender.send(Data::Success).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }
+                    }
+
+                    // In case we want to get the notes of the current PackFile...
+                    Commands::GetNotes => {
+                        let notes = if let Some(ref notes) = pack_file_decoded.notes { notes.to_owned() } else { String::new() };
+                        sender.send(Data::String(notes)).unwrap();
+                    }
+
+                    // In case we want to save notes to the current PackFile...
+                    Commands::SetNotes => {
+                        let notes = if let Data::String(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        pack_file_decoded.notes = Some(notes);
                     }
                 }
             }

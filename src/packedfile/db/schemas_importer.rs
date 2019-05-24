@@ -12,7 +12,7 @@
 // runtime, so we just wired up when we need to create a new schema from scratch.
 
 use serde_derive::Deserialize;
-use serde_xml_rs::deserialize;
+use serde_xml_rs::from_reader;
 
 use std::fs::File;
 use std::io::Read;
@@ -45,40 +45,37 @@ pub struct field {
     pub field_description: Option<String>,
 }
 
-/// This function creates an schema, and decodes all the tables from the folder we say it into it.
-/// This is intended to use just after compilation, providing the needed folders as const from the
-/// main.rs file. The paths are:
+/// This function is the response to our prayers. It takes the Assembly Kit's DB Files to create basic definitions of each 
+/// undecoded table from the folder you provide it.
+/// 
+/// It requires:
+/// - schema: The schema where all the definitions will be put. None to put all the definitions into a new schema.
 /// - assembly_kit_schemas_path: this is the path with the TWaD_*****.xml syntax. They are usually in GameFolder/assembly_kit/raw_data/db/.
-/// - testing_tables_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table.
+/// - db_binary_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table inside.
 pub fn import_schema(
+    schema: Option<Schema>,
     assembly_kit_schemas_path: &PathBuf,
-    testing_tables_path: &PathBuf,
+    db_binary_path: &PathBuf,
 ) -> Result<()> {
 
-    // We get the new schema.
-    let mut schema = Schema::new();
-
-    // Then we get all the schema files. We unwrap it, as we want it to crash on error.
+    // Get the schema, then get all the raw schema files.
+    let mut schema = if let Some(schema) = schema { schema } else { Schema::new() };
     let assembly_kit_schemas = get_raw_definitions(assembly_kit_schemas_path, 2).unwrap();
-
-    // For each file...
     for path in &assembly_kit_schemas {
 
-        // We just do this in Debug builds, so we use a print to check when a table throws an error.
+        // Always print his path. If it breaks, we want to know where.
         println!("{:?}", path);
 
-        // We read the file and deserialize it...
+        // We read the file and deserialize it as a `root`.
         let file = File::open(&path).expect("Couldn't open file");
-        let imported_table_definition: root = deserialize(file).unwrap();
+        let imported_table_definition: root = from_reader(file).unwrap();
 
-        // Then we create a new table_definitions, a new imported table definition, and add it to the schema.
+        // Get his name and version. We only add it if his table actually exists.
         let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
         let table_name = format!("{}_tables", file_name.split_off(5));
-
-        // We need it's version too, so... We only add it if his table actually exists.
-        let mut testing_tables_path = testing_tables_path.clone();
-        testing_tables_path.push(table_name.to_owned());
-        match get_files_from_subdir(&testing_tables_path) {
+        let mut db_binary_path = db_binary_path.clone();
+        db_binary_path.push(table_name.to_owned());
+        match get_files_from_subdir(&db_binary_path) {
             Ok(db_file_path) => {
 
                 // If we found something...
@@ -90,13 +87,24 @@ pub fn import_schema(
                             let mut pack_file_buffered = vec![];
                             file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
 
-                            // Get it's version...
+                            // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
                             let version = DB::get_header_data(&pack_file_buffered).unwrap().0;
+                            if let Some(ref mut table_definitions) = schema.tables_definitions.iter_mut().find(|x| x.name == table_name) {
+                                if table_definitions.versions.iter().find(|x| x.version == version).is_some() {
+                                    continue;
+                                }
+                                else {
+                                    let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                                    table_definitions.add_table_definition(table_definition);
+                                }
+                            }
 
-                            // And add it to the schema.
-                            schema.add_table_definitions(TableDefinitions::new(&table_name));
-                            let index = schema.get_table_definitions(&table_name).unwrap();
-                            schema.tables_definitions[index].add_table_definition(TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name));
+                            else {
+                                let mut table_definitions = TableDefinitions::new(&table_name);
+                                let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                                table_definitions.add_table_definition(table_definition);
+                                schema.add_table_definitions(table_definitions);
+                            }
 
                         }
                         Err(_) => continue,
@@ -107,7 +115,7 @@ pub fn import_schema(
         }
     }
 
-    Schema::save(&schema, "PFH5")?;
+    Schema::save(&schema, "schema_wh.json")?;
 
     Ok(())
 }

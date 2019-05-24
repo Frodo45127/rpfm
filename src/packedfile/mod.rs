@@ -13,18 +13,21 @@
 use csv::{ReaderBuilder, WriterBuilder, QuoteStyle};
 use serde_derive::{Serialize, Deserialize};
 
+use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Write};
 use std::fs::File;
 use std::path::PathBuf;
 
+use crate::DEPENDENCY_DATABASE;
+use crate::FAKE_DEPENDENCY_DATABASE;
 use crate::common::*;
 use crate::common::coding_helpers::*;
 use crate::error::{Error, ErrorKind, Result};
-use crate::packfile::PackFile;
+use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::schemas::{FieldType, TableDefinition};
+use crate::packedfile::db::schemas::{FieldType, Schema, TableDefinition};
 
 use crate::SCHEMA;
 pub mod loc;
@@ -57,6 +60,10 @@ pub enum DecodedData {
     OptionalStringU8(String),
     OptionalStringU16(String),
 }
+
+/// Const to use in the header of TSV PackedFiles.
+pub const TSV_HEADER_PACKFILE_LIST: &str = "PackFile List";
+pub const TSV_HEADER_LOC_PACKEDFILE: &str = "Loc PackedFile";
 
 //----------------------------------------------------------------//
 // Generic Functions for PackedFiles.
@@ -96,28 +103,29 @@ pub fn create_packed_file(
     };
 
     // Create and add the new PackedFile to the PackFile.
-    pack_file.add_packedfiles(vec![PackedFile::read_from_vec(path, get_current_time(), false, data); 1]);
+    let packed_files = vec![PackedFile::read_from_vec(path, get_current_time(), false, data); 1];
+    let added_paths = pack_file.add_packed_files(&packed_files);
+    if added_paths.len() < packed_files.len() { Err(ErrorKind::ReservedFiles)? }
 
     // Return the path to update the UI.
     Ok(())
 }
 
 /// This function merges (if it's possible) the provided DB and LOC tables into one with the name and, if asked,
-/// it deletes the souce files. Table_type means true: DB, false: LOC.
+/// it deletes the source files. Table_type means true: DB, false: LOC.
 pub fn merge_tables( 
     pack_file: &mut PackFile,
     source_paths: &[Vec<String>],
     name: &str,
     delete_source_paths: bool,
     table_type: bool,
-) -> Result<(Vec<String>, Vec<TreePathType>)> {
-
-    let paths_clean = source_paths.iter().map(|x| x[1..].to_vec()).collect::<Vec<Vec<String>>>();
+) -> Result<(Vec<String>, Vec<PathType>)> {
+    
     let mut db_files = vec![];
     let mut loc_files = vec![];
 
     // Decode them depending on their type.
-    for path in &paths_clean {
+    for path in source_paths {
         let packed_file = pack_file.packed_files.iter().find(|x| &x.path == path).ok_or_else(|| Error::from(ErrorKind::PackedFileNotFound))?;
         let packed_file_data = packed_file.get_data()?;
         
@@ -163,7 +171,7 @@ pub fn merge_tables(
     };
 
     // And then, we reach the part where we have to do the "saving to PackFile" stuff.
-    let mut path = paths_clean[0].to_vec();
+    let mut path = source_paths[0].to_vec();
     path.pop();
     path.push(name.to_owned());
     let packed_file = PackedFile::read_from_vec(path, get_current_time(), false, packed_file_data);
@@ -171,7 +179,7 @@ pub fn merge_tables(
     // If we want to remove the source files, this is the moment.
     let mut deleted_paths = vec![];
     if delete_source_paths {
-        for path in &paths_clean {
+        for path in source_paths {
             let index = pack_file.packed_files.iter().position(|x| &x.path == path).unwrap();
             deleted_paths.push(pack_file.packed_files[index].path.to_vec());
             pack_file.remove_packedfile(index);
@@ -179,14 +187,176 @@ pub fn merge_tables(
     }
 
     // Prepare the paths to return.
-    let added_path = pack_file.add_packed_files(vec![packed_file])[0].to_vec();
+    let added_path = pack_file.add_packed_files(&[packed_file]).get(0).ok_or_else(|| Error::from(ErrorKind::ReservedFiles))?.to_vec();
     deleted_paths.retain(|x| x != &added_path);
 
     let mut tree_paths = vec![];
     for path in &deleted_paths {
-        tree_paths.push(TreePathType::File(path.to_vec()));
+        tree_paths.push(PathType::File(path.to_vec()));
     }
     Ok((added_path, tree_paths))
+}
+
+/// This function retrieves the entire Dependency Data for a given table definition.
+///
+/// NOTE: It's here and not in DB because we may get an use for this in LOC PackedFiles.
+/// NOTE2: We don't lock the LazyStatics here. We get them as arguments instead. The reason
+/// is that way we can put this in a loop without relocking on every freaking PackedFile,
+/// which can be extremely slow, depending on the situation.
+pub fn get_dependency_data(
+    table_definition: &TableDefinition,
+    schema: &Schema,
+    dep_db: &mut Vec<PackedFile>,
+    fake_dep_db: &[DB],
+    pack_file: &PackFile
+) -> BTreeMap<i32, Vec<String>> {
+
+    // If we reach this point, we build the dependency data of the table.
+    let mut dep_data = BTreeMap::new();
+    for (column, field) in table_definition.fields.iter().enumerate() {
+        if let Some(ref dependency_data) = field.field_is_reference {
+            if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
+
+                // If the column is a reference column, fill his referenced data.
+                let mut data = vec![];
+                let mut iter = dep_db.iter_mut();
+                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                    if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
+                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                            for row in table.entries.iter() {
+
+                                // For now we assume any dependency is a string.
+                                match row[column_index] { 
+                                    DecodedData::StringU8(ref entry) |
+                                    DecodedData::StringU16(ref entry) |
+                                    DecodedData::OptionalStringU8(ref entry) |
+                                    DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    } 
+                }
+
+                // Same thing for the fake dependency list, if exists.
+                let mut iter = fake_dep_db.iter();
+                if let Some(table) = iter.find(|x| x.db_type == format!("{}_tables", dependency_data.0)) {
+                    if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                        for row in table.entries.iter() {
+
+                            // For now we assume any dependency is a string.
+                            match row[column_index] { 
+                                DecodedData::StringU8(ref entry) |
+                                DecodedData::StringU16(ref entry) |
+                                DecodedData::OptionalStringU8(ref entry) |
+                                DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+
+                // The same for our own PackFile.
+                let mut iter = pack_file.packed_files.iter();
+                while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
+                    if let Ok(packed_file_data) = packed_file.get_data() {
+                        if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
+                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                                for row in table.entries.iter() {
+
+                                    // For now we assume any dependency is a string.
+                                    match row[column_index] { 
+                                        DecodedData::StringU8(ref entry) |
+                                        DecodedData::StringU16(ref entry) |
+                                        DecodedData::OptionalStringU8(ref entry) |
+                                        DecodedData::OptionalStringU16(ref entry) => data.push(entry.to_owned()),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Sort and dedup the data found.
+                data.sort_unstable_by(|a, b| a.cmp(&b));
+                data.dedup();
+
+                dep_data.insert(column as i32, data);
+            }
+        }
+    }
+
+    // Return the data, ignoring all possible failures.
+    dep_data
+}
+
+/// This function checks all the DB Tables of the provided PackFile for dependency errors.
+pub fn check_tables( 
+    pack_file: &mut PackFile,
+) -> Result<()> {
+
+    // Get the schema, or return an error.
+    match SCHEMA.lock().unwrap().clone() {
+        Some(schema) => {
+
+            let mut broken_tables = vec![];
+            let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
+            let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
+
+            // Due to how mutability works, we have first to get the data of every table,
+            // then iterate them and decode them.
+            for packed_file in pack_file.packed_files.iter_mut() {
+                if packed_file.path.starts_with(&["db".to_owned()]) {
+                    packed_file.load_data()?;
+                }
+            }
+
+            for packed_file in pack_file.packed_files.iter() {
+                if packed_file.path.starts_with(&["db".to_owned()]) {
+                    if let Ok(db_data) = db::DB::read(&(packed_file.get_data().unwrap()), &packed_file.path[1], &schema) {
+                        let dep_data = get_dependency_data(&db_data.table_definition, &schema, &mut dep_db, &fake_dep_db, &pack_file);
+
+                        // If we got some dependency data (the referenced tables actually exists), check every
+                        // referenced field of every referenced column for errors.
+                        if !dep_data.is_empty() {
+                            let mut columns = vec![];
+                            for row in db_data.entries {
+                                for (column, dep_data) in dep_data.iter() {
+                                    let field_data = match row[*column as usize] { 
+                                        DecodedData::StringU8(ref entry) |
+                                        DecodedData::StringU16(ref entry) |
+                                        DecodedData::OptionalStringU8(ref entry) |
+                                        DecodedData::OptionalStringU16(ref entry) => &entry,
+                                        _ => "NoData"
+                                    };
+
+                                    if field_data != "NoData" && !field_data.is_empty() && !dep_data.contains(&field_data.to_owned()) {
+                                        columns.push(*column);
+                                    }
+                                }
+                            }
+
+                            // If we got missing refs, sort the columns, dedup them and turn them into a nice string for the error message.
+                            // Columns + 1 is so we don't start counting on zero. Easier for the user to see.
+                            if !columns.is_empty() {
+                                columns.sort();
+                                columns.dedup();
+                                let mut columns = columns.iter().map(|x| format!("{},", *x + 1)).collect::<String>();
+                                columns.pop();
+                                broken_tables.push(format!("Table: {}/{}, Column/s: {}", &packed_file.path[1], &packed_file.path[2], columns)); 
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If all tables are Ok, return Ok. Otherwise, return an error with the list of broken tables.
+            if broken_tables.is_empty() { Ok(()) }
+            else { Err(ErrorKind::DBMissingReferences(broken_tables))? }
+        }
+        None => Err(ErrorKind::SchemaNotFound)?
+    }
 }
 
 //----------------------------------------------------------------//
@@ -216,7 +386,7 @@ pub fn import_tsv(
     for (row, record) in reader.records().enumerate() {
         if let Ok(record) = record {
 
-            // The first line should contain the "table_folder_name"/"Loc PackedFile", and the version (1 for Locs).
+            // The first line should contain the "table_folder_name"/"Loc PackedFile/PackFile List", and the version (1 for Locs).
             if row == 0 { 
                 if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable)?; }
                 if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != version { 
@@ -416,7 +586,8 @@ pub fn tsv_mass_import(
     indexes.iter().rev().for_each(|x| pack_file.remove_packedfile(*x) );
 
     // We add all the files to the PackFile, and return success.
-    pack_file.add_packedfiles(packed_files);
+    let added_paths = pack_file.add_packed_files(&packed_files);
+    if added_paths.len() < packed_files.len() { Err(ErrorKind::ReservedFiles)? }
     Ok((packed_files_to_remove, tree_path))
 }
 

@@ -4,6 +4,8 @@ Here you can find **the changelogs for all the schema versions that got released
 
 Also, Warhammer games all use the same schema, so if you want to check one of them, just click in `Warhammer`.
 
+- [**Three Kingdoms**](./three_kingdoms/changelog.md)
+- [**Warhammer 2**](./warhammer_2/changelog.md)
 - [**Warhammer**](./warhammer/changelog.md)
 - [**Thrones of Britannia**](./thrones_of_britannia/changelog.md)
 - [**Attila**](./attila/changelog.md)

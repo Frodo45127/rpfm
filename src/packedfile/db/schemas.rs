@@ -170,15 +170,14 @@ impl Schema {
         let local_schema_versions: Versions = serde_json::from_reader(BufReader::new(File::open(RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json")))?))?;
         let current_schema_versions: Versions = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json")?.json()?;
         let mut schemas_to_update = vec![];
+
+        // If the game's schema is not in the repo (when adding a new game's support) skip it.
         for (game, version_local) in &local_schema_versions {
-            let version_current = current_schema_versions[game];
-            if version_local != &version_current { schemas_to_update.push((game.to_owned(), version_local)); }
+            let version_current = if let Some(version_current) = current_schema_versions.get(game) { version_current } else { continue };
+            if version_local != version_current { schemas_to_update.push((game.to_owned(), version_local)); }
         }
 
         for (game_name, game) in SUPPORTED_GAMES.iter() {
-
-            // The three warhammer games use the same schema. So we only process the last one.
-            if game_name == &"warhammer_2" || game_name == &"warhammer_3" { continue; }
 
             // Skip all the games with an unchanged version.
             let schema_name = &game.schema;
@@ -216,7 +215,7 @@ impl Schema {
                                     
                                     // If the version has been found, it's a correction for a current version. So we check every
                                     // field for references.
-                                    Some(version_current) => version_local.get_pretty_diff(&version_current, &table_local.name, &mut new_versions),
+                                    Some(version_current) => version_local.get_pretty_diff(&version_current, &table_local.name, &mut new_corrections),
 
                                     // If the version hasn't been found, is a new version. We have to compare it with
                                     // the old one and get his changes.
@@ -226,7 +225,7 @@ impl Schema {
                                         // sorted on save, so we can just get the first one of the current list.
                                         if table_local.versions.len() > 1 {
                                             let old_version = &table_current.versions[0];
-                                            version_local.get_pretty_diff(&old_version, &table_local.name, &mut new_corrections);
+                                            version_local.get_pretty_diff(&old_version, &table_local.name, &mut new_versions);
                                         }
                                     },
                                 }
@@ -242,9 +241,9 @@ impl Schema {
             // Here we put together all the differences.
             for (index, table) in new_tables.iter().enumerate() {
                 if index == 0 {
-                    diff.push_str("New tables decoded:\n");
+                    diff.push_str("- **New tables decoded**:\n");
                 }
-                diff.push_str(&format!("- {}.", table));
+                diff.push_str(&format!("  - *{}*.", table));
                 diff.push_str("\n");
 
                 if index == new_tables.len() - 1 {
@@ -254,7 +253,7 @@ impl Schema {
 
             for (index, version) in new_versions.iter().enumerate() {
                 if index == 0 {
-                    diff.push_str("Updated Tables:\n");
+                    diff.push_str("- **Updated Tables**:\n");
                 }
                 diff.push_str(&format!("{}", version));
                 diff.push_str("\n");
@@ -266,7 +265,7 @@ impl Schema {
 
             for (index, correction) in new_corrections.iter().enumerate() {
                 if index == 0 {
-                    diff.push_str("Fixed Tables:\n");
+                    diff.push_str("- **Fixed Tables**:\n");
                 }
                 diff.push_str(&format!("{}", correction));
                 diff.push_str("\n");
@@ -292,7 +291,7 @@ impl Schema {
                     docs_changelog_path.push("changelog.md");
 
                     // Fix the text so it has the MarkDown title before writing it.
-                    diff.insert_str(0, &format!("# {:03}\n\nIt contains the following changes:\n", schema_version));
+                    diff.insert_str(0, &format!("# {:03}\n\nIt contains the following changes:\n\n", schema_version));
                     let mut file = File::create(docs_path)?;
                     file.write_all(diff.as_bytes())?;
 
@@ -315,7 +314,6 @@ impl Schema {
                     file.write_all(diff.as_bytes())?;
                 }
             }
-            break;
         }
 
         // If everything worked, return success.
@@ -363,7 +361,7 @@ impl TableDefinitions {
         }
         if index_found {
             self.versions.remove(index_version);
-            self.versions.insert( index_version, table_definition);
+            self.versions.insert(index_version, table_definition);
         }
         else {
             self.versions.push(table_definition);
@@ -580,6 +578,14 @@ impl TableDefinition {
         }
     }
 
+    /// This generates a new fake definition for the Dependency PackFile's List.
+    pub fn new_dependency_manager_definition() -> Self {
+        Self {
+            version: 1,
+            fields: vec![Field::new("PackFile's List".to_owned(), FieldType::StringU8, false, None, "".to_owned())],
+        }
+    }
+
     /// This function generates a MarkDown diff of two versions of an specific table and adds it to the provided changes list.
     pub fn get_pretty_diff(
         &self,
@@ -605,15 +611,15 @@ impl TableDefinition {
                     let mut changes = vec![];
                     if field_local != field_current {
                         if field_local.field_type != field_current.field_type {
-                            changes.push(("field_type".to_owned(), (format!("{}", field_current.field_type), format!("{}", field_local.field_type))));
+                            changes.push(("Type".to_owned(), (format!("{}", field_current.field_type), format!("{}", field_local.field_type))));
                         }
 
                         if field_local.field_is_key != field_current.field_is_key {
-                            changes.push(("field_is_key".to_owned(), (format!("{}", field_current.field_is_key), format!("{}", field_local.field_is_key))));
+                            changes.push(("Is Key".to_owned(), (format!("{}", field_current.field_is_key), format!("{}", field_local.field_is_key))));
                         }
 
                         if field_local.field_is_reference != field_current.field_is_reference {
-                            changes.push(("field_is_reference".to_owned(), 
+                            changes.push(("Is Reference".to_owned(), 
                                 (
                                     if let Some((ref_table, ref_column)) = &field_current.field_is_reference { format!("{}, {}", ref_table, ref_column) }
                                     else { String::new() },
@@ -624,7 +630,7 @@ impl TableDefinition {
                         }
 
                         if field_local.field_description != field_current.field_description {
-                            changes.push(("field_description".to_owned(), (field_current.field_description.to_owned(), field_local.field_description.to_owned())));
+                            changes.push(("Description".to_owned(), (field_current.field_description.to_owned(), field_local.field_description.to_owned())));
                         }
                     }
 
@@ -646,34 +652,34 @@ impl TableDefinition {
         }
 
         if !new_fields.is_empty() || !changed_fields.is_empty() || !removed_fields.is_empty() {
-            changes.push(format!("- {}:", table_name));
+            changes.push(format!("  - ***{}***:", table_name));
         } 
 
         for (index, new_field) in new_fields.iter().enumerate() {
-            if index == 0 { changes.push("  - New fields:".to_owned()); }
-            changes.push(format!("    - {}:", new_field.field_name));
-            changes.push(format!("      - Type: {}.", new_field.field_type));
-            changes.push(format!("      - Is Key: {}.", new_field.field_is_key));
+            if index == 0 { changes.push("    - **New fields**:".to_owned()); }
+            changes.push(format!("      - ***{}***:", new_field.field_name));
+            changes.push(format!("        - **Type**: *{}*.", new_field.field_type));
+            changes.push(format!("        - **Is Key**: *{}*.", new_field.field_is_key));
             if let Some((ref_table, ref_column)) = &new_field.field_is_reference {
-                changes.push(format!("      - Is Reference: Table {}, Column {}.", ref_table, ref_column));
+                changes.push(format!("        - **Is Reference**: *{}*/*{}*.", ref_table, ref_column));
             }
             if !new_field.field_description.is_empty() {
-                changes.push(format!("      - Description: {}.", new_field.field_description));
+                changes.push(format!("        - **Description**: *{}*.", new_field.field_description));
             }
         }
 
         for (index, changed_field) in changed_fields.iter().enumerate() {
-            if index == 0 { changes.push("  - Changed fields:".to_owned()); }
-            changes.push(format!("    - {}:", changed_field.0));
+            if index == 0 { changes.push("    - **Changed fields**:".to_owned()); }
+            changes.push(format!("      - **{}**:", changed_field.0));
 
             for changed_variant in &changed_field.1 {
-                changes.push(format!("      - {}: {} => {}.", changed_variant.0, (changed_variant.1).0, (changed_variant.1).1));
+                changes.push(format!("        - ***{}***: *{}* => *{}*.", changed_variant.0, (changed_variant.1).0, (changed_variant.1).1));
             }
         }
 
         for (index, removed_field) in removed_fields.iter().enumerate() {
-            if index == 0 { changes.push("  - Removed fields:".to_owned()); }
-            changes.push(format!("    - {}.", removed_field));
+            if index == 0 { changes.push("    - **Removed fields**:".to_owned()); }
+            changes.push(format!("      - *{}*.", removed_field));
         }
     }
 }

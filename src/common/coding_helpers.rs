@@ -27,6 +27,16 @@ use crate::error::{Error, ErrorKind, Result};
 //          Decoding helpers (Common decoders)
 //-----------------------------------------------------//
 
+/// Common helper. This function allows us to decode an encoded boolean. This is simple: 0 is false, 1 is true. It only uses a byte.
+#[allow(dead_code)]
+pub fn decode_bool(bool_encoded: u8) -> Result<bool> {
+    match bool_encoded {
+        0 => Ok(false),
+        1 => Ok(true),
+        _ => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode \"{}\" as boolean.</p>", bool_encoded)))?,
+    }
+}
+
 /// Common helper. This function allows us to decode an u16 encoded integer.
 #[allow(dead_code)]
 pub fn decode_integer_u16(integer_encoded: &[u8]) -> Result<u16> {
@@ -139,19 +149,15 @@ pub fn decode_string_u16(string_encoded: &[u8]) -> Result<String> {
     String::from_utf16(&u16_characters).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 String.</p>".to_owned())))
 }
 
-/// Common helper. This function allows us to decode an encoded boolean. This is simple: 0 is false, 1 is true. It only uses a byte.
-#[allow(dead_code)]
-pub fn decode_bool(bool_encoded: u8) -> Result<bool> {
-    match bool_encoded {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode \"{}\" as boolean.</p>", bool_encoded)))?,
-    }
-}
-
 //-----------------------------------------------------//
 //          Encoding helpers (Common encoders)
 //-----------------------------------------------------//
+
+/// Common helper. This function allows us to encode a boolean. This is simple: 0 is false, 1 is true. It only uses a byte.
+#[allow(dead_code)]
+pub fn encode_bool(bool_decoded: bool) -> u8 {
+    if bool_decoded { 1 } else { 0 }
+}
 
 /// Common helper. This function allows us to encode an u16 decoded integer.
 #[allow(dead_code)]
@@ -237,15 +243,17 @@ pub fn encode_string_u16(string_decoded: &str) -> Vec<u8> {
     string_encoded
 }
 
-/// Common helper. This function allows us to encode a boolean. This is simple: 0 is false, 1 is true. It only uses a byte.
-#[allow(dead_code)]
-pub fn encode_bool(bool_decoded: bool) -> u8 {
-    if bool_decoded { 1 } else { 0 }
-}
-
 //-----------------------------------------------------//
 //        Decoding helpers (Specific decoders)
 //-----------------------------------------------------//
+
+/// Specific helper. This function allows us to decode a boolean, moving the index to the byte where the next data starts.
+#[allow(dead_code)]
+pub fn decode_packedfile_bool(packed_file_data: u8, index: &mut usize) -> Result<bool> {
+    let result = decode_bool(packed_file_data);
+    if result.is_ok() { *index += 1; }
+    result
+}
 
 /// Specific helper. This function allows us to decode an u16 encoded integer, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
@@ -321,33 +329,6 @@ pub fn decode_packedfile_string_u8(packed_file_data: &[u8], mut index: &mut usiz
     }
 }
 
-/// Specific helper. This function allows us to decode an UTF-8 encoded optional String, moving the index to the byte where the next data starts.
-///
-/// These Strings's first byte it's a boolean that indicates if the string has something. If false, there string it's just that byte.
-/// If true, there is a normal UTF-8 encoded String after that byte.
-#[allow(dead_code)]
-pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
-    if packed_file_data.get(0).is_some() {
-        match decode_packedfile_bool(packed_file_data[0], &mut index) {
-            Ok(result) => {
-                if result {
-                    let result = decode_packedfile_string_u8(&packed_file_data[1..], &mut index);
-
-                    // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
-                    // later in the decoding process, and we want to go back to our original index in that case.
-                    if result.is_err() { *index -= 1 };
-                    result
-                } else { Ok(String::new()) }
-
-            }
-            Err(_) => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 Optional String:</p><p>The first byte is not a boolean.</p>")))?
-        }
-    }
-    else {
-        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 Optional String:</p><p>There are no bytes provided to decode.</p>")))?
-    }
-}
-
 /// Specific helper. This function allows us to decode an UTF-16 encoded String, moving the index to the byte where the next data starts.
 #[allow(dead_code)]
 pub fn decode_packedfile_string_u16(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
@@ -378,9 +359,133 @@ pub fn decode_packedfile_string_u16(packed_file_data: &[u8], mut index: &mut usi
     }
 }
 
+/// Specific helper. This function allows us to decode an i32 encoded integer, moving the index to the byte where the next data starts.
+///
+/// These integer's first byte it's a boolean that indicates if the integer has something. If false, the integer it's just that byte.
+/// If true, there is a normal i32 integer after that byte.
+#[allow(dead_code)]
+pub fn decode_packedfile_optional_integer_i32(packed_file_data: &[u8], mut index: &mut usize) -> Result<Option<i32>> {
+    if packed_file_data.get(0).is_some() {
+        match decode_packedfile_bool(packed_file_data[0], &mut index) {
+            Ok(result) => {
+                if result {
+                    if packed_file_data.get(4).is_some() {
+                        let result = decode_packedfile_integer_i32(&packed_file_data[1..5], &mut index);
+
+                        // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                        // later in the decoding process, and we want to go back to our original index in that case.
+                        if result.is_err() { *index -= 1 };
+                        result.map(|x| Some(x))
+                    }
+                    else {
+                        *index -= 1;
+                        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I32:</p><ul><li>Required bytes: 5.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
+                    }
+                } else { Ok(None) }
+
+            }
+            Err(_) => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I32:</p><p>The first byte is not a boolean.</p>")))?
+        }
+    }
+    else {
+        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I32:</p><p>There are no bytes provided to decode.</p>")))?
+    }
+}
+
+/// Specific helper. This function allows us to decode an i64 encoded integer, moving the index to the byte where the next data starts.
+///
+/// These integer's first byte it's a boolean that indicates if the integer has something. If false, the integer it's just that byte.
+/// If true, there is a normal i64 integer after that byte.
+#[allow(dead_code)]
+pub fn decode_packedfile_optional_integer_i64(packed_file_data: &[u8], mut index: &mut usize) -> Result<Option<i64>> {
+    if packed_file_data.get(0).is_some() {
+        match decode_packedfile_bool(packed_file_data[0], &mut index) {
+            Ok(result) => {
+                if result {
+                    if packed_file_data.get(8).is_some() {
+                        let result = decode_packedfile_integer_i64(&packed_file_data[1..9], &mut index);
+
+                        // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                        // later in the decoding process, and we want to go back to our original index in that case.
+                        if result.is_err() { *index -= 1 };
+                        result.map(|x| Some(x))
+                    }
+                    else {
+                        *index -= 1;
+                        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I64:</p><ul><li>Required bytes: 9.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
+                    }
+                } else { Ok(None) }
+            }
+            Err(_) => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I64:</p><p>The first byte is not a boolean.</p>")))?
+        }
+    }
+    else {
+        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional I64:</p><p>There are no bytes provided to decode.</p>")))?
+    }
+}
+
+/// Specific helper. This function allows us to decode an f32 encoded float, moving the index to the byte where the next data starts.
+///
+/// These float's first byte it's a boolean that indicates if the float has something. If false, the float it's just that byte.
+/// If true, there is a normal f32 float after that byte.
+#[allow(dead_code)]
+pub fn decode_packedfile_optional_float_f32(packed_file_data: &[u8], mut index: &mut usize) -> Result<Option<f32>> {
+    if packed_file_data.get(0).is_some() {
+        match decode_packedfile_bool(packed_file_data[0], &mut index) {
+            Ok(result) => {
+                if result {
+                    if packed_file_data.get(4).is_some() {
+                        let result = decode_packedfile_float_f32(&packed_file_data[1..5], &mut index);
+
+                        // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                        // later in the decoding process, and we want to go back to our original index in that case.
+                        if result.is_err() { *index -= 1 };
+                        result.map(|x| Some(x))
+                    }
+                    else {
+                        *index -= 1;
+                        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional F32:</p><ul><li>Required bytes: 5.</li><li>Provided bytes: {}.</li></ul>", packed_file_data[1..].len())))?
+                    }
+                } else { Ok(None) }
+            }
+            Err(_) => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional F32:</p><p>The first byte is not a boolean.</p>")))?
+        }
+    }
+    else {
+        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an Optional F32:</p><p>There are no bytes provided to decode.</p>")))?
+    }
+}
+
+/// Specific helper. This function allows us to decode an UTF-8 encoded optional String, moving the index to the byte where the next data starts.
+///
+/// These Strings's first byte it's a boolean that indicates if the string has something. If false, the string it's just that byte.
+/// If true, there is a normal UTF-8 encoded String after that byte.
+#[allow(dead_code)]
+pub fn decode_packedfile_optional_string_u8(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
+    if packed_file_data.get(0).is_some() {
+        match decode_packedfile_bool(packed_file_data[0], &mut index) {
+            Ok(result) => {
+                if result {
+                    let result = decode_packedfile_string_u8(&packed_file_data[1..], &mut index);
+
+                    // Reduce the index in 1, because despite the first byte being a boolean, there has been an error
+                    // later in the decoding process, and we want to go back to our original index in that case.
+                    if result.is_err() { *index -= 1 };
+                    result
+                } else { Ok(String::new()) }
+
+            }
+            Err(_) => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 Optional String:</p><p>The first byte is not a boolean.</p>")))?
+        }
+    }
+    else {
+        Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 Optional String:</p><p>There are no bytes provided to decode.</p>")))?
+    }
+}
+
 /// Specific helper. This function allows us to decode an UTF-16 encoded optional String, moving the index to the byte where the next data starts.
 ///
-/// These Strings's first byte it's a boolean that indicates if the string has something. If false, there string it's just that byte.
+/// These Strings's first byte it's a boolean that indicates if the string has something. If false, the string it's just that byte.
 /// If true, there is a normal UTF-16 encoded String after that byte.
 #[allow(dead_code)]
 pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], mut index: &mut usize) -> Result<String> {
@@ -404,14 +509,6 @@ pub fn decode_packedfile_optional_string_u16(packed_file_data: &[u8], mut index:
     }
 }
 
-/// Specific helper. This function allows us to decode a boolean, moving the index to the byte where the next data starts.
-#[allow(dead_code)]
-pub fn decode_packedfile_bool(packed_file_data: u8, index: &mut usize) -> Result<bool> {
-    let result = decode_bool(packed_file_data);
-    if result.is_ok() { *index += 1; }
-    result
-}
-
 //-----------------------------------------------------//
 //        Encoding helpers (Specific encoders)
 //-----------------------------------------------------//
@@ -427,6 +524,67 @@ pub fn encode_packedfile_string_u8(string_u8_decoded: &str) -> Vec<u8> {
     string_u8_encoded.append(&mut string_u8_data);
 
     string_u8_encoded
+}
+
+/// Specific helper. This function allows us to encode an UTF-16 decoded String that requires having his lenght (an u16 integer) encoded before the encoded string.
+#[allow(dead_code)]
+pub fn encode_packedfile_string_u16(string_u16_decoded: &str) -> Vec<u8> {
+    let mut string_u16_encoded = vec![];
+    let mut string_u16_data = encode_string_u16(string_u16_decoded);
+    let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16 / 2);
+
+    string_u16_encoded.append(&mut string_u16_lenght);
+    string_u16_encoded.append(&mut string_u16_data);
+
+    string_u16_encoded
+}
+
+/// Specific helper. This function allows us to encode an I32 that requires having a boolean (one byte, true if exists, 
+/// false if it's empty) encoded before the encoded integer.
+#[allow(dead_code)]
+pub fn encode_packedfile_optional_integer_i32(optional_decoded: &Option<i32>) -> Vec<u8> {
+    let mut optional_encoded = vec![];
+    match optional_decoded {
+        Some(value) => {
+            optional_encoded.push(encode_bool(true));
+            optional_encoded.append(&mut encode_integer_i32(*value));
+        }
+        None => optional_encoded.push(encode_bool(false)),
+    }
+
+    optional_encoded
+}
+
+/// Specific helper. This function allows us to encode an I64 that requires having a boolean (one byte, true if exists, 
+/// false if it's empty) encoded before the encoded integer.
+#[allow(dead_code)]
+pub fn encode_packedfile_optional_integer_i64(optional_decoded: &Option<i64>) -> Vec<u8> {
+    let mut optional_encoded = vec![];
+    match optional_decoded {
+        Some(value) => {
+            optional_encoded.push(encode_bool(true));
+            optional_encoded.append(&mut encode_integer_i64(*value));
+        }
+        None => optional_encoded.push(encode_bool(false)),
+    }
+
+    optional_encoded
+}
+
+/// Specific helper. This function allows us to encode an F32 that requires having a boolean (one byte, true if exists, 
+/// false if it's empty) encoded before the encoded float.
+#[allow(dead_code)]
+pub fn encode_packedfile_optional_float_f32(optional_decoded: &Option<f32>) -> Vec<u8> {
+    let mut optional_encoded = vec![];
+    match optional_decoded {
+        Some(value) => {
+            optional_encoded.push(encode_bool(true));
+            optional_encoded.append(&mut encode_float_f32(*value));
+        }
+        None => optional_encoded.push(encode_bool(false)),
+    }
+
+    optional_encoded
 }
 
 /// Specific helper. This function allows us to encode an UTF-8 decoded String that requires having a boolean (one
@@ -448,19 +606,6 @@ pub fn encode_packedfile_optional_string_u8(optional_string_u8_decoded: &str) ->
     }
 
     optional_string_u8_encoded
-}
-
-/// Specific helper. This function allows us to encode an UTF-16 decoded String that requires having his lenght (an u16 integer) encoded before the encoded string.
-#[allow(dead_code)]
-pub fn encode_packedfile_string_u16(string_u16_decoded: &str) -> Vec<u8> {
-    let mut string_u16_encoded = vec![];
-    let mut string_u16_data = encode_string_u16(string_u16_decoded);
-    let mut string_u16_lenght = encode_integer_u16(string_u16_data.len() as u16 / 2);
-
-    string_u16_encoded.append(&mut string_u16_lenght);
-    string_u16_encoded.append(&mut string_u16_data);
-
-    string_u16_encoded
 }
 
 /// Specific helper. This function allows us to encode an UTF-16 decoded String that requires having a boolean (one
