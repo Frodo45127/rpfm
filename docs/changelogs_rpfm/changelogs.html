@@ -145,14 +145,20 @@
 <hr />
 <ul>
 <li>
-<p><strong><em>1.5 Versions</em></strong>, where the parts became one and one became able of multiple things:</p>
+<p><strong><em>1.6 Versions</em></strong>, when Sun Ce, the Betrayer, tried to take down the mighty Kingdom of Wu, and failed:</p>
+<ul>
+<li><a href="#160"><strong>1.6.0</strong></a></li>
+</ul>
+</li>
+<li>
+<p><strong><em>1.5 Versions</em></strong>, when the parts became one and one became able of multiple things:</p>
 <ul>
 <li><a href="#151"><strong>1.5.1</strong></a></li>
 <li><a href="#150"><strong>1.5.0</strong></a></li>
 </ul>
 </li>
 <li>
-<p><strong><em>1.4 Versions</em></strong>, where the Empire was crushed:</p>
+<p><strong><em>1.4 Versions</em></strong>, when the Empire was crushed:</p>
 <ul>
 <li><a href="#142"><strong>1.4.2</strong></a></li>
 <li><a href="#141"><strong>1.4.1</strong></a></li>
@@ -171,7 +177,7 @@
 </ul>
 </li>
 <li>
-<p><strong><em>1.2 Versions</em></strong>, where RPFM became dark and lazy:</p>
+<p><strong><em>1.2 Versions</em></strong>, when RPFM became dark and lazy:</p>
 <ul>
 <li><a href="#122"><strong>1.2.2</strong></a></li>
 <li><a href="#121"><strong>1.2.1</strong></a></li>
@@ -221,6 +227,45 @@
 </ul>
 <p>Before this, only God, Git and I knew what changes where done. Now, only God and Git know it. And in case you like scrolling, from here you have all the changelogs.</p>
 <hr />
+<a class="header" href="#160" id="160"><h1>1.6.0</h1></a>
+<ul>
+<li>Implemented basic support for <strong><em>Three Kingdoms</em></strong>.</li>
+<li>Implemented <strong><em>Per-PackFile Notes</em></strong> feature.</li>
+<li>Implemented <strong><em>Multi-Renaming support</em></strong> for the Main TreeView.</li>
+<li>Implemented <strong><em>Optimize Non-Renamed PackedFiles</em></strong> setting.</li>
+<li>Implemented <strong><em>Check Tables</em></strong> feature, to check all the tables in your PackFile for broken references.</li>
+<li>Implemented support for creating relative paths with the <code>Create Folder</code> feature.</li>
+<li>Implemented all Table DB/LOC features for the <code>Dependency Manager</code>.</li>
+<li>Improved how the UI looks on Windows on both, light and dark themes.</li>
+<li>Optimized the <code>Generate PAK File</code> feature for Shogun 2, Rome 2, Attila and Thrones.</li>
+<li>Reworked <code>Open PackFile</code> to allow you to open multiple PackFiles as one.</li>
+<li>Reworked <code>Rename PackedFile</code> feature to work like the <code>Rewrite Selection</code> feature.</li>
+<li>Removed both <code>Apply Prefix</code> features (that's done in the <code>Rename PackedFile</code> feature now.</li>
+<li>Now the <code>Rename PackedFile</code> dialog uses the PackedFile's current name in the &quot;New Name&quot; LineEdit.</li>
+<li>Completely reworked the entire code responsible for the Main TreeView. Main benefits:
+<ul>
+<li>Backend and Frontend are now <strong>fully independent</strong> (CLI incoming!).</li>
+<li>Fixed a bug that caused RPFM to hang when deleting an empty folder.</li>
+<li>Fixed a very old bug that caused files inside folders with their same name to not be shown correctly in the TreeView.</li>
+<li>Fixed a ton of oddities with the TreeView coloring in corner cases.</li>
+<li>Fixed a ton of miscellaneous bugs and oddities related to the Main TreeView and all features interacting with it.</li>
+</ul>
+</li>
+<li>Fixed a bug that caused the <code>Load All CA PackFiles</code> feature to fail on Warhammer 2.</li>
+<li>Fixed a bug that caused the Main TreeView to be locked if you changed the current PackFile while having the <code>Add from another PackFile</code> TreeView open.</li>
+<li>Fixed a bug that caused the <code>Generate PAK File</code> feature to not work in Thrones.</li>
+<li>Fixed a bug that caused the <code>Import TSV</code> feature to sometimes fail when importing Loc TSV Files.</li>
+<li>Fixed a CTD when pasting text that requires new rows to be fully pasted.</li>
+<li>Fixed <code>Apply Maths</code> not working on divisions.</li>
+<li>Fixed multiple bugs and issues affecting the <code>Schema Diff Generator</code> feature.</li>
+<li>Fixed multiple bugs and issues affecting the <code>Generate PAK File</code> feature.</li>
+<li>Fixed multiple bugs and issues affecting the <code>Dependency Checker</code> feature.</li>
+<li>Fixed abysmal pasting times on tables.</li>
+<li>Fixed wrong line number reported on DB Table decoding error.</li>
+<li>Fixed multiple wrong references in all schemas since Shogun 2.</li>
+<li>Splitted Warhammer's schema into Warhammer 1 and Warhammer 2 schemas.</li>
+<li>Updated docs to 1.6.0.</li>
+</ul>
 <a class="header" href="#151" id="151"><h1>1.5.1</h1></a>
 <ul>
 <li>Fixed a bug that caused checkbox cells to not be set correctly to <code>Checked</code> when pasting on them.</li>
