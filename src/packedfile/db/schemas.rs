@@ -170,9 +170,11 @@ impl Schema {
         let local_schema_versions: Versions = serde_json::from_reader(BufReader::new(File::open(RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json")))?))?;
         let current_schema_versions: Versions = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json")?.json()?;
         let mut schemas_to_update = vec![];
+
+        // If the game's schema is not in the repo (when adding a new game's support) skip it.
         for (game, version_local) in &local_schema_versions {
-            let version_current = current_schema_versions[game];
-            if version_local != &version_current { schemas_to_update.push((game.to_owned(), version_local)); }
+            let version_current = if let Some(version_current) = current_schema_versions.get(game) { version_current } else { continue };
+            if version_local != version_current { schemas_to_update.push((game.to_owned(), version_local)); }
         }
 
         for (game_name, game) in SUPPORTED_GAMES.iter() {
@@ -312,7 +314,6 @@ impl Schema {
                     file.write_all(diff.as_bytes())?;
                 }
             }
-            break;
         }
 
         // If everything worked, return success.
