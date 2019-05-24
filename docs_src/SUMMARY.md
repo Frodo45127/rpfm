@@ -12,6 +12,7 @@
 	- [PackFile TreeView](./chapter_3_2_0.md)
 		- [Dependency Manager](./chapter_3_2_1.md)
 		- [Global Search](./chapter_3_2_2.md)
+		- [Notes](./chapter_3_2_3.md)
 - [PackedFiles](./chapter_4_0.md)
 	- [DB Tables](./chapter_4_1.md)
 	- [Locs](./chapter_4_2.md)
