@@ -1053,10 +1053,208 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#017">017</a></li>
 <li><a href="#016">016</a></li>
 <li><a href="#015">015</a></li>
 </ul>
 <hr />
+<a class="header" href="#017" id="017"><h1>017</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>agent_string_subculture_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ancillary_salvage_resources_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>category</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>ancillaries, categories</em> =&gt; <em>ancillaries_categories, category</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>army_special_abilities_for_faction_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>army_special_ablility</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>army_special_abilities, key</em> =&gt; <em>army_special_abilities, army_special_ability</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_catchment_override_battle_mappings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>campaign</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_maps</em>/<em>mapname</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_path</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_set_pieces_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>battle_environment_audio</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_battle_environments</em>/<em>name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_enviroment_audio</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_technology_path_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>path_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_technologies_paths, key</em> =&gt; <em>campaign_ai_technology_paths, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_involves_settlements_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>member</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_group_members, member</em> =&gt; <em>campaign_group_members, id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_storm_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>type</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>example_field</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_trait_levels_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>trait</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>trait_info, trait</em> =&gt; <em>character_traits, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>culture_to_battle_animation_tables_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>culture_pack</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>culture_pack_ids, id</em> =&gt; <em>cultures, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>effect_bonus_value_technology_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>technology</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>technology, key</em> =&gt; <em>technologies, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectiles_explosions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>shrapnel_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>projectile_shrapnels, key</em> =&gt; <em>projectiles, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>resource_ui_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>override_subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#016" id="016"><h1>016</h1></a>
 <p>It contains the following changes:</p>
 <ul>
@@ -1438,10 +1636,208 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#017">017</a></li>
 <li><a href="#016">016</a></li>
 <li><a href="#015">015</a></li>
 </ul>
 <hr />
+<a class="header" href="#017-1" id="017-1"><h1>017</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>agent_string_subculture_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ancillary_salvage_resources_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>category</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>ancillaries, categories</em> =&gt; <em>ancillaries_categories, category</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>army_special_abilities_for_faction_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>army_special_ablility</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>army_special_abilities, key</em> =&gt; <em>army_special_abilities, army_special_ability</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_catchment_override_battle_mappings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>campaign</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_maps</em>/<em>mapname</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_path</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_set_pieces_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>battle_environment_audio</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_battle_environments</em>/<em>name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_enviroment_audio</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_technology_path_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>path_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_technologies_paths, key</em> =&gt; <em>campaign_ai_technology_paths, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_involves_settlements_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>member</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_group_members, member</em> =&gt; <em>campaign_group_members, id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_storm_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>type</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>example_field</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_trait_levels_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>trait</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>trait_info, trait</em> =&gt; <em>character_traits, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>culture_to_battle_animation_tables_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>culture_pack</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>culture_pack_ids, id</em> =&gt; <em>cultures, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>effect_bonus_value_technology_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>technology</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>technology, key</em> =&gt; <em>technologies, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectiles_explosions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>shrapnel_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>projectile_shrapnels, key</em> =&gt; <em>projectiles, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>resource_ui_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>override_subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#016-1" id="016-1"><h1>016</h1></a>
 <p>It contains the following changes:</p>
 <ul>
@@ -1823,36 +2219,1022 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#008">008</a></li>
 <li><a href="#007">007</a></li>
 </ul>
 <hr />
+<a class="header" href="#008" id="008"><h1>008</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>battlefield_buildings_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_material</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_materials, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+<li><strong>visibility_mode</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>battle_buildings_visibility_enums, key</em> =&gt; <em>battle_building_visibility_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_buildings_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_material</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_materials, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+<li><strong>visibility_mode</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>battle_buildings_visibility_enums, key</em> =&gt; <em>battle_building_visibility_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_engines_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>engine_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>gun_types_enums, key</em> =&gt; <em>gun_types_enum, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_culture_variants_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>short_description</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>building_shot_description_texts, key</em> =&gt; <em>building_short_description_texts, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_character_skill_tree_distribution_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>distribution_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_agent_managers, key</em> =&gt; <em>campaign_ai_character_skill_tree_distributions, key</em>.</li>
+</ul>
+</li>
+<li><strong>agent_manager_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_distributions, key</em> =&gt; <em>campaign_ai_character_skill_tree_agent_managers, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_technology_path_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>path_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_technologies_paths, key</em> =&gt; <em>campaign_ai_technology_paths, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>diplomacy_negotiation_string_options_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>diplomacy_key_groups, group_id</em> =&gt; <em>diplomacy_keys, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>factions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>skin</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>unit_banners, key</em> =&gt; **.</li>
+</ul>
+</li>
+<li><strong>voiceover_subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>culture_subcultures, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ground_type_to_stat_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>affected_stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>melee_weapons_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>audio_material</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_materials_enums</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>audio_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>mounts_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_armour_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_armour_types, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>special_ability_phase_stat_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_experience_bonuses_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_fatigue_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_stat_modifiers_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#007" id="007"><h1>007</h1></a>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 <a class="header" href="#attila-schemas-changelog" id="attila-schemas-changelog"><h1>Attila Schema's Changelog</h1></a>
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#010">010</a></li>
 <li><a href="#009">009</a></li>
 </ul>
 <hr />
+<a class="header" href="#010" id="010"><h1>010</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>agent_string_subculture_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_buildings_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_material</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_materials, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+<li><strong>visibility_mode</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>battle_buildings_visibility_enums, key</em> =&gt; <em>battle_building_visibility_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_buildings_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_material</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_materials, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+<li><strong>visibility_mode</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>battle_buildings_visibility_enums, key</em> =&gt; <em>battle_building_visibility_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_engines_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>engine_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>gun_types_enums, key</em> =&gt; <em>gun_types_enum, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_culture_variants_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>short_description</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>building_shot_description_texts, key</em> =&gt; <em>building_short_description_texts, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_character_skill_tree_distribution_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>distribution_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_agent_managers, key</em> =&gt; <em>campaign_ai_character_skill_tree_distributions, key</em>.</li>
+</ul>
+</li>
+<li><strong>agent_manager_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_distributions, key</em> =&gt; <em>campaign_ai_character_skill_tree_agent_managers, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_technology_path_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>path_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_technologies_paths, key</em> =&gt; <em>campaign_ai_technology_paths, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_religions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>member</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_group_members, key</em> =&gt; <em>campaign_group_members, id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>diplomacy_negotiation_string_options_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>diplomacy_key_groups, group_id</em> =&gt; <em>diplomacy_keys, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>effect_bonus_value_technology_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>technology</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>technology, key</em> =&gt; <em>technologies, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>factions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>skin</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>unit_banners, key</em> =&gt; **.</li>
+</ul>
+</li>
+<li><strong>voiceover_subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>culture_subcultures, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ground_type_to_stat_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>affected_stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>melee_weapons_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>audio_material</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_materials_enums</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>audio_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>mounts_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_armour_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_armour_types, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>special_ability_phase_stat_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_experience_bonuses_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_fatigue_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_stat_modifiers_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#009" id="009"><h1>009</h1></a>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 <a class="header" href="#rome-2-schemas-changelog" id="rome-2-schemas-changelog"><h1>Rome 2 Schema's Changelog</h1></a>
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#011">011</a></li>
 <li><a href="#010">010</a></li>
 </ul>
 <hr />
-<a class="header" href="#010" id="010"><h1>010</h1></a>
+<a class="header" href="#011" id="011"><h1>011</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>agent_string_subculture_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_projectiles_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_projectile_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_projectiles_enum, key</em> =&gt; <em>audio_projectiles_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_vo_actor_groups_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>key</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_buildings_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_material</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_materials, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_engines_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>engine_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>gun_types_enums, key</em> =&gt; <em>gun_types_enum, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_culture_variants_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>short_description</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>building_shot_description_texts, key</em> =&gt; <em>building_short_description_texts, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personality_cultural_multipliers_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>component_id</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cai_personality_cultural_components, key</em> =&gt; <em>cai_personality_cultural_components, id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_character_skill_tree_distribution_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>distribution_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_agent_managers, key</em> =&gt; <em>campaign_ai_character_skill_tree_distributions, key</em>.</li>
+</ul>
+</li>
+<li><strong>agent_manager_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_distributions, key</em> =&gt; <em>campaign_ai_character_skill_tree_agent_managers, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_technology_path_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>path_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_technologies_paths, key</em> =&gt; <em>campaign_ai_technology_paths, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_dilemma_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>option_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cdir_events_options, option_key</em> =&gt; <em>cdir_events_dilemma_options, option_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_incident_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>option_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cdir_events_options, option_key</em> =&gt; <em>cdir_events_dilemma_options, option_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_mission_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>option_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cdir_events_options, option_key</em> =&gt; <em>cdir_events_dilemma_options, option_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>effect_bonus_value_unit_category_junction_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>bonus_value_id</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: ** =&gt; <em>campaign_bonus_value_ids_unit_category, key</em>.</li>
+</ul>
+</li>
+<li><strong>unit_category</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: ** =&gt; <em>unit_category, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>factions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>skin</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>unit_banners, key</em> =&gt; **.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ground_type_to_stat_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>affected_stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>mounts_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>audio_armour_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_armour_types, key</em> =&gt; <em>audio_materials_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>movie_event_strings_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>event</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>movie_events, event</em> =&gt; **.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectiles_explosions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>explosion_audio</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>audio_explosions, key</em> =&gt; <em>audio_explosions_enums, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>special_ability_phase_stat_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_experience_bonuses_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_fatigue_effects_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_stat_modifiers_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>stat</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>modifiable_unit_stats, stat_key</em> =&gt; <em>ui_unit_stats, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<a class="header" href="#010-1" id="010-1"><h1>010</h1></a>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 <a class="header" href="#shogun-2-schemas-changelog" id="shogun-2-schemas-changelog"><h1>Shogun 2 Schema's Changelog</h1></a>
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#006">006</a></li>
 <li><a href="#005">005</a></li>
 </ul>
 <hr />
+<a class="header" href="#006" id="006"><h1>006</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>avatar_effects_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>effect</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU16</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_units_allowed_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>unit</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>main_units, unit</em> =&gt; <em>units, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personalities_budget_allocation_policy_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>budget_context_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cai_strategic_context_types, key</em> =&gt; <em>cai_personalities_budget_context_types, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_character_skill_tree_distribution_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>distribution_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_agent_managers, key</em> =&gt; <em>campaign_ai_character_skill_tree_distributions, key</em>.</li>
+</ul>
+</li>
+<li><strong>agent_manager_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_character_skill_tree_distributions, key</em> =&gt; <em>campaign_ai_character_skill_tree_agent_managers, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_technology_path_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>path_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_technologies_paths, key</em> =&gt; <em>campaign_ai_technology_paths, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_dilemma_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>option_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cdir_events_options, option_key</em> =&gt; <em>cdir_events_dilemma_options, option_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_incident_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>option_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cdir_events_options, option_key</em> =&gt; <em>cdir_events_incident_options, option_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_mission_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>option_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cdir_events_options, option_key</em> =&gt; <em>cdir_events_mission_options, option_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>message_event_strings_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>event</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>message_events, event</em> =&gt; **.</li>
+</ul>
+</li>
+<li><strong>layout</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>message_event_layout_types, type</em> =&gt; <em>message_event_layout_types, Type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>sound_events_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>name</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU16</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_required_technology_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>unit_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>units, unit</em> =&gt; <em>units, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#005" id="005"><h1>005</h1></a>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 <a class="header" href="#napoleon-schemas-changelog" id="napoleon-schemas-changelog"><h1>Napoleon Schema's Changelog</h1></a>
@@ -1880,7 +3262,7 @@ mdbook build --open
 <li><a href="#006">006</a></li>
 </ul>
 <hr />
-<a class="header" href="#006" id="006"><h1>006</h1></a>
+<a class="header" href="#006-1" id="006-1"><h1>006</h1></a>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 
                     </main>

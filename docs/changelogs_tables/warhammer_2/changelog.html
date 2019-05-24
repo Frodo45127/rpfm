@@ -144,10 +144,208 @@
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#017">017</a></li>
 <li><a href="#016">016</a></li>
 <li><a href="#015">015</a></li>
 </ul>
 <hr />
+<a class="header" href="#017" id="017"><h1>017</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>agent_string_subculture_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ancillary_salvage_resources_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>category</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>ancillaries, categories</em> =&gt; <em>ancillaries_categories, category</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>army_special_abilities_for_faction_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>army_special_ablility</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>army_special_abilities, key</em> =&gt; <em>army_special_abilities, army_special_ability</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_catchment_override_battle_mappings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>campaign</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_maps</em>/<em>mapname</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_path</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_set_pieces_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>battle_environment_audio</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_battle_environments</em>/<em>name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_enviroment_audio</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ai_technology_path_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>path_key</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_ai_technologies_paths, key</em> =&gt; <em>campaign_ai_technology_paths, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_involves_settlements_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>member</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_group_members, member</em> =&gt; <em>campaign_group_members, id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_storm_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>type</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>example_field</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_trait_levels_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>trait</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>trait_info, trait</em> =&gt; <em>character_traits, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>culture_to_battle_animation_tables_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>culture_pack</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>culture_pack_ids, id</em> =&gt; <em>cultures, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>effect_bonus_value_technology_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>technology</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>technology, key</em> =&gt; <em>technologies, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectiles_explosions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>shrapnel_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>projectile_shrapnels, key</em> =&gt; <em>projectiles, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>resource_ui_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>override_subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subculture, subculture</em> =&gt; <em>cultures_subcultures, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#016" id="016"><h1>016</h1></a>
 <p>It contains the following changes:</p>
 <ul>
