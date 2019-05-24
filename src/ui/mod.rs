@@ -968,7 +968,7 @@ pub fn create_dark_theme_stylesheet() -> String {
         }}
 
         /* Combos, similar to buttons. */
-
+        /* Disabled due to the unlimited items bug.
         QComboBox {{
             border-style: solid;
             border-width: 1px;
@@ -979,7 +979,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-color: #{button_bd_off};
             color: #{text_normal};
             background-color: #{button_bg_off};
-        }}
+        }}*/
 
         /* TreeView, with no rounded corners and darker. */
         QTreeView {{
