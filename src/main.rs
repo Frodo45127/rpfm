@@ -162,6 +162,35 @@ lazy_static! {
     static ref SUPPORTED_GAMES: IndexMap<&'static str, GameInfo> = {
         let mut map = IndexMap::new();
 
+        // Three Kingdoms
+        map.insert("three_kingdoms", GameInfo {
+            display_name: "Three Kingdoms".to_owned(),
+            id: PFHVersion::PFH5,
+            schema: "schema_3k.json".to_owned(),
+            db_packs: vec!["database.pack".to_owned()],
+            loc_packs: vec![
+                "local_en.pack".to_owned(),     // English
+                "local_br.pack".to_owned(),     // Brazilian
+                "local_cz.pack".to_owned(),     // Czech
+                "local_ge.pack".to_owned(),     // German
+                "local_sp.pack".to_owned(),     // Spanish
+                "local_fr.pack".to_owned(),     // French
+                "local_it.pack".to_owned(),     // Italian
+                "local_kr.pack".to_owned(),     // Korean
+                "local_pl.pack".to_owned(),     // Polish
+                "local_ru.pack".to_owned(),     // Russian
+                "local_tr.pack".to_owned(),     // Turkish
+                "local_cn.pack".to_owned(),     // Simplified Chinese
+                "local_zh.pack".to_owned(),     // Traditional Chinese
+            ],
+            steam_id: Some(779_340),
+            raw_db_version: 2,
+            pak_file: Some("3k.pak".to_owned()),
+            ca_types_file: None,
+            supports_editing: true,
+            game_selected_icon: "gs_3k.png".to_owned(),
+        });
+
         // Warhammer 2
         map.insert("warhammer_2", GameInfo {
             display_name: "Warhammer 2".to_owned(),
@@ -640,6 +669,7 @@ pub struct AppUI {
     // "Game Selected" menu.
     //-------------------------------------------------------------------------------//
 
+    pub three_kingdoms: *mut Action,
     pub warhammer_2: *mut Action,
     pub warhammer: *mut Action,
     pub thrones_of_britannia: *mut Action,
@@ -655,6 +685,10 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // "Special Stuff" menu.
     //-------------------------------------------------------------------------------//
+
+    // Three Kingdoms actions.
+    pub three_k_optimize_packfile: *mut Action,
+    pub three_k_generate_pak_file: *mut Action,
 
     // Warhammer 2's actions.
     pub wh2_patch_siege_ai: *mut Action,
@@ -934,6 +968,7 @@ fn main() {
         // Submenus.
         let menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type")).into_raw();
 
+        let menu_three_kingdoms = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("Three &Kingdoms")) };
         let menu_warhammer_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")) };
         let menu_warhammer = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")) };
         let menu_thrones_of_britannia = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Thrones of Britannia")) };
@@ -998,6 +1033,7 @@ fn main() {
             // "Game Selected" menu.
             //-------------------------------------------------------------------------------//
 
+            three_kingdoms: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Three &Kingdoms")),
             warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
             warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
             thrones_of_britannia: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Thrones of Britannia")),
@@ -1013,6 +1049,10 @@ fn main() {
             //-------------------------------------------------------------------------------//
             // "Special Stuff" menu.
             //-------------------------------------------------------------------------------//
+
+            // Three Kingdoms actions.
+            three_k_optimize_packfile: menu_three_kingdoms.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
+            three_k_generate_pak_file: menu_three_kingdoms.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
 
             // Warhammer 2's actions.
             wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
@@ -1126,6 +1166,7 @@ fn main() {
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_header_is_extended); }
 
         // The "Game Selected" Menu should be an ActionGroup.
+        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.three_kingdoms); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.thrones_of_britannia); }
@@ -1135,6 +1176,7 @@ fn main() {
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.napoleon); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.empire); }
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
+        unsafe { app_ui.three_kingdoms.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().set_checkable(true); }
@@ -1383,6 +1425,7 @@ fn main() {
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
         // Menu bar, Game Selected.
+        unsafe { app_ui.three_kingdoms.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Three Kingdoms' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
         unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW: Thrones of Britannia' as 'Game Selected'.")); }
@@ -1397,12 +1440,16 @@ fn main() {
         let patch_siege_ai_tip = QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.");
         let optimize_packfile = QString::from_std_str("Check and remove any data in DB Tables and Locs (Locs only for english users) that is unchanged from the base game. That means your mod will only contain the stuff you change, avoiding incompatibilities with other mods.");
         let generate_pak_file = QString::from_std_str("Generates a PAK File (Processed Assembly Kit File) for the game selected, to help with dependency checking. You should NEVER use this, as these files are automatically redistributed with RPFM.");
+        unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.three_k_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
         unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
         unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.wh_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
+        unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
+        unsafe { app_ui.tob_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.att_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
@@ -1534,6 +1581,7 @@ fn main() {
         ));
 
         // "Game Selected" Menu Actions.
+        unsafe { app_ui.three_kingdoms.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer_2.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.warhammer.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
         unsafe { app_ui.thrones_of_britannia.as_ref().unwrap().signals().triggered().connect(&slot_change_game_selected); }
@@ -1547,6 +1595,7 @@ fn main() {
         // Update the "Game Selected" here, so we can skip some steps when initializing.
         let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
         match &*game_selected {
+            "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); }
             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
             "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -1774,6 +1823,7 @@ fn main() {
 
                             let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
                             match &*game_selected {
+                                "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); },
                                 "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); },
                                 "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); },
                                 "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -2172,6 +2222,7 @@ fn main() {
         unsafe { app_ui.wh2_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
         unsafe { app_ui.wh_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
 
+        unsafe { app_ui.three_k_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.wh2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.wh_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.tob_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
@@ -2181,6 +2232,7 @@ fn main() {
         unsafe { app_ui.nap_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
         unsafe { app_ui.emp_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slot_optimize_packfile); }
 
+        unsafe { app_ui.three_k_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
         unsafe { app_ui.wh2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
         unsafe { app_ui.wh_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }
         unsafe { app_ui.tob_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slot_generate_pak_file); }

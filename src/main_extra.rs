@@ -75,6 +75,7 @@ pub fn open_packfile(
                 // NOTE: Arena should never be here.
                 // Change the Game Selected in the UI.
                 match game_folder {
+                    "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); }
                     "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                     "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
                     "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -98,9 +99,19 @@ pub fn open_packfile(
                     // PFH5 is for Warhammer 2/Arena.
                     PFHVersion::PFH5 => {
 
-                        // If the PackFile has the mysterious byte enabled, it's from Arena. Otherwise, it's from Warhammer 2.
-                        if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { unsafe { app_ui.arena.as_mut().unwrap().trigger(); } }
-                        else { unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); } }
+                        // If the PackFile has the mysterious byte enabled, it's from Arena.
+                        if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { 
+                            unsafe { app_ui.arena.as_mut().unwrap().trigger(); } 
+                        }
+
+                        // Otherwise, it's from Three Kingdoms or Warhammer 2.
+                        else { 
+                            let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                            match &*game_selected {
+                                "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); },
+                                "warhammer_2" | _ => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); },
+                            }
+                        }
                     },
 
                     // PFH4 is for Thrones of Britannia/Warhammer 1/Attila/Rome 2.
@@ -621,6 +632,7 @@ pub fn build_my_mod_menu(
                         // Change the Game Selected to match the one we chose for the new "MyMod".
                         // NOTE: Arena should not be on this list.
                         match &*mod_game {
+                            "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); }
                             "warhammer_2" => unsafe { app_ui.warhammer_2.as_mut().unwrap().trigger(); }
                             "warhammer" => unsafe { app_ui.warhammer.as_mut().unwrap().trigger(); }
                             "thrones_of_britannia" => unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -1394,6 +1406,10 @@ pub fn enable_packfile_actions(
 
         // Check the Game Selected and enable the actions corresponding to out game.
         match &**GAME_SELECTED.lock().unwrap() {
+            "three_kingdoms" => {
+                unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.three_k_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+            },
             "warhammer_2" => {
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
@@ -1434,6 +1450,10 @@ pub fn enable_packfile_actions(
 
     // If we are disabling...
     else {
+
+        // Disable Three Kingdoms actions...
+        unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.three_k_generate_pak_file.as_mut().unwrap().set_enabled(false); }
 
         // Disable Warhammer 2 actions...
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }

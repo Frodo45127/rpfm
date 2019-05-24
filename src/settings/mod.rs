@@ -84,7 +84,7 @@ impl Settings {
         }
 
         // Default Game.
-        settings_string.insert("default_game".to_owned(), "warhammer_2".to_owned());
+        settings_string.insert("default_game".to_owned(), "three_kingdoms".to_owned());
 
         // UI Settings.
         settings_bool.insert("adjust_columns_to_content".to_owned(), true);
