@@ -27,6 +27,7 @@
 - [Changelogs](./changelogs.md)
 	- [RPFM Changelogs](./changelogs_rpfm/changelogs.md)
 	- [Schema Changelogs](./changelogs_tables/changelogs.md)
+		- [Three Kingdoms](./changelogs_tables/three_kingdoms/changelog.md)
 		- [Warhammer 2](./changelogs_tables/warhammer_2/changelog.md)
 		- [Warhammer](./changelogs_tables/warhammer/changelog.md)
 		- [Thrones of Britannia](./changelogs_tables/thrones_of_britannia/changelog.md)
