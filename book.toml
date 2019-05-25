@@ -6,3 +6,6 @@ title = "Rusted PackFile Manager Documentation"
 
 [build]
 build-dir = "./docs"
+
+[output.html]
+default-theme = "rust"
