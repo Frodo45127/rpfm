@@ -30,11 +30,11 @@
 
         
     </head>
-    <body class="light">
+    <body class="rust">
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
             var path_to_root = "../../";
-            var default_theme = "light";
+            var default_theme = "rust";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -92,8 +92,8 @@
                                 <i class="fa fa-paint-brush"></i>
                             </button>
                             <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                                <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust (default)</button></li>
                                 <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
                                 <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
                                 <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
@@ -144,10 +144,30 @@
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#009">009</a></li>
 <li><a href="#008">008</a></li>
 <li><a href="#007">007</a></li>
 </ul>
 <hr />
+<a class="header" href="#009" id="009"><h1>009</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li><strong>Fixed Tables</strong>:
+<ul>
+<li><strong><em>unit_sets_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>use_unit_exp_level_range</em>.</li>
+<li><em>min_unit_exp_level_inclusive</em>.</li>
+<li><em>max_unit_exp_level_inclusive</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#008" id="008"><h1>008</h1></a>
 <p>It contains the following changes:</p>
 <ul>

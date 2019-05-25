@@ -67747,27 +67747,6 @@
               "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
-            },
-            {
-              "field_name": "use_unit_exp_level_range",
-              "field_type": "Boolean",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "min_unit_exp_level_inclusive",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
-            },
-            {
-              "field_name": "max_unit_exp_level_inclusive",
-              "field_type": "Integer",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": ""
             }
           ]
         },
