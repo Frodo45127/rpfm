@@ -3414,7 +3414,7 @@ fn main() {
                     if path.len() == 3 {
                         if path[0] == "db" {
                             if db_folder.is_empty() {
-                                db_folder = path[2].to_owned();
+                                db_folder = path[1].to_owned();
                             }
 
                             if path[1] != db_folder {
