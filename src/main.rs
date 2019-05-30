@@ -668,6 +668,9 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // "Game Selected" menu.
     //-------------------------------------------------------------------------------//
+    
+    pub open_game_data_folder: *mut Action,
+    pub open_game_assembly_kit_folder: *mut Action,
 
     pub three_kingdoms: *mut Action,
     pub warhammer_2: *mut Action,
@@ -1034,6 +1037,9 @@ fn main() {
             // "Game Selected" menu.
             //-------------------------------------------------------------------------------//
 
+            open_game_data_folder: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Open Game's Data Folder")),
+            open_game_assembly_kit_folder: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Open &Game's Assembly Kit Folder")),
+        
             three_kingdoms: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Three &Kingdoms")),
             warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
             warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
@@ -1203,6 +1209,9 @@ fn main() {
         let menu_open_from_data = Menu::new(&QString::from_std_str("Open From Data")).into_raw();
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_content); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_data); }
+
+        // FIXME: This needs to be changed every time a new game gets released. DO NOT REMOVE THE FIXME.
+        unsafe { menu_bar_game_seleted.as_mut().unwrap().insert_separator(app_ui.three_kingdoms); }
         
         // Put separators in the Main TreeView's contextual menu.
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
@@ -1226,6 +1235,9 @@ fn main() {
         unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_packfile["preferences"]))); }
         unsafe { app_ui.quit.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_packfile["quit"]))); }
 
+        unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_game_selected["open_game_data_folder"]))); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_game_selected["open_game_assembly_kit_folder"]))); }
+        
         unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_about["about_qt"]))); }
         unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_about["about_rpfm"]))); }
         unsafe { app_ui.open_manual.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_about["open_manual"]))); }
@@ -1241,6 +1253,9 @@ fn main() {
         unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.quit.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
 
+        unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        
         unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.open_manual.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
@@ -1431,6 +1446,9 @@ fn main() {
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
         // Menu bar, Game Selected.
+        unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Tries to open the currently selected game's Data folder (if exists) in the default file manager.")); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.")); }
+        
         unsafe { app_ui.three_kingdoms.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Three Kingdoms' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
@@ -2022,6 +2040,30 @@ fn main() {
 
         unsafe { app_ui.preferences.as_ref().unwrap().signals().triggered().connect(&slot_preferences); }
         unsafe { app_ui.quit.as_ref().unwrap().signals().triggered().connect(&slot_quit); }
+
+        //-----------------------------------------------------//
+        // "Game Selected" Menu (only actions)...
+        //-----------------------------------------------------//
+
+        // What happens when we trigger the "Open Game's Data Folder" action.
+        let slot_open_game_data_folder = SlotBool::new(move |_| {
+            if let Some(path) = get_game_selected_data_path() {
+                if open::that(&path).is_err() { show_dialog(app_ui.window, false, ErrorKind::IOFolderCannotBeOpened); };
+            }
+            else { show_dialog(app_ui.window, false, ErrorKind::GamePathNotConfigured); }
+        });
+
+        // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
+        let slot_open_game_assembly_kit_folder = SlotBool::new(move |_| {
+            if let Some(path) = get_game_selected_assembly_kit_path() {
+                if open::that(&path).is_err() { show_dialog(app_ui.window, false, ErrorKind::IOFolderCannotBeOpened)};
+            }
+            else { show_dialog(app_ui.window, false, ErrorKind::GamePathNotConfigured); }
+        });
+
+        // "Game Selected" menu actions.
+        unsafe { app_ui.open_game_data_folder.as_ref().unwrap().signals().triggered().connect(&slot_open_game_data_folder); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_ref().unwrap().signals().triggered().connect(&slot_open_game_assembly_kit_folder); }
 
         //-----------------------------------------------------//
         // "Special Stuff" Menu...

@@ -1489,6 +1489,17 @@ pub fn enable_packfile_actions(
         unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.emp_generate_pak_file.as_mut().unwrap().set_enabled(false); }
     }
+
+    // The assembly kit thing should only be available for Rome 2 and later games.
+    match &**GAME_SELECTED.lock().unwrap() {
+        "three_kingdoms" |
+        "warhammer_2" |
+        "warhammer" |
+        "thrones_of_britannia" |
+        "attila" |
+        "rome_2" => unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(true); }
+        _ => unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(false); }
+    }
 }
 
 /// This function is used to set the current "Operational Mode". It not only sets the "Operational Mode",
