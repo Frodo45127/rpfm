@@ -82,6 +82,7 @@ impl Shortcuts {
         tree_view.insert("open_in_decoder".to_owned(), "Ctrl+J".to_owned());
         tree_view.insert("open_packfiles_list".to_owned(), "Ctrl+Alt+M".to_owned());
         tree_view.insert("open_with_external_program".to_owned(), "Ctrl+K".to_owned());
+        tree_view.insert("open_containing_folder".to_owned(), "Ctrl+0".to_owned());
         tree_view.insert("open_in_multi_view".to_owned(), "Ctrl+B".to_owned());
         tree_view.insert("open_notes".to_owned(), "Ctrl+Y".to_owned());
         tree_view.insert("global_search".to_owned(), "Ctrl+Shift+F".to_owned());
