@@ -88,6 +88,7 @@ pub enum Commands {
     GlobalSearch,
     UpdateGlobalSearchData,
     OpenWithExternalProgram,
+    OpenContainingFolder,
     ImportTSVPackedFile,
     ExportTSVPackedFile,
     CheckTables,

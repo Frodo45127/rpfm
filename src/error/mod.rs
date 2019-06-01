@@ -94,6 +94,9 @@ pub enum ErrorKind {
     // Error for IO errors when using "read_dir()".
     IOReadFolder(PathBuf),
 
+    // Error for when a folder cannot be open for whatever reason.
+    IOFolderCannotBeOpened,
+
     //-----------------------------------------------------//
     //                TSV-related Errors
     //-----------------------------------------------------//
@@ -402,6 +405,7 @@ impl Display for ErrorKind {
             ErrorKind::IOCreateAssetFolder => write!(f, "<p>The MyMod's asset folder does not exists and it cannot be created.</p>"),
             ErrorKind::IOCreateNestedAssetFolder => write!(f, "<p>The folder does not exists and it cannot be created.</p>"),
             ErrorKind::IOReadFolder(path) => write!(f, "<p>Error while trying to read the following folder:</p><p>{:?}</p>", path),
+            ErrorKind::IOFolderCannotBeOpened => write!(f, "<p>The folder couldn't be opened. This means either it doesn't exist, or RPFM has no access to it.</p>"),
             //-----------------------------------------------------//
             //                TSV-related Errors
             //-----------------------------------------------------//

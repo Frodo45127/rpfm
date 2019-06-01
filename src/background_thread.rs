@@ -1301,6 +1301,19 @@ pub fn background_loop(
                         }
                     },
 
+                     // In case we want to open a PackFile's location in the file manager...
+                    Commands::OpenContainingFolder => {
+
+                        // If the path exists, try to open it. If not, throw an error.
+                        if pack_file_decoded.file_path.exists() {
+                            let mut temp_path = pack_file_decoded.file_path.to_path_buf();
+                            temp_path.pop();
+                            if open::that(&temp_path).is_err() { sender.send(Data::Error(Error::from(ErrorKind::PackFileIsNotAFile))).unwrap(); }
+                            else { sender.send(Data::Success).unwrap(); }
+                        }
+                        else { sender.send(Data::Error(Error::from(ErrorKind::PackFileIsNotAFile))).unwrap(); }
+                    },
+
                     // In case we want to check the DB tables for dependency errors...
                     Commands::CheckTables => {
                         match check_tables(&mut pack_file_decoded) {

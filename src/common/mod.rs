@@ -183,9 +183,23 @@ pub fn get_last_modified_time_from_file(file: &File) -> i64 {
 /// Get the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_data_path() -> Option<PathBuf> {
-    let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone()?;
-    path.push("data");
-    Some(path)
+    if let Some(path) = SETTINGS.lock().unwrap().paths.get(&**GAME_SELECTED.lock().unwrap()) {
+        if let Some(path) = path {
+            Some(path.join(PathBuf::from("data")))
+        }
+        else { None }
+    } else { None }
+}
+
+/// Get the `/assembly_kit` path of the game selected, if supported and it's configured.
+#[allow(dead_code)]
+pub fn get_game_selected_assembly_kit_path() -> Option<PathBuf> {
+    if let Some(path) = SETTINGS.lock().unwrap().paths.get(&**GAME_SELECTED.lock().unwrap()) {
+        if let Some(path) = path {
+            Some(path.join(PathBuf::from("assembly_kit")))
+        }
+        else { None }
+    } else { None }
 }
 
 /// Get the `/data/xxx.pack` path of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.

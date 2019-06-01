@@ -19,6 +19,7 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Create…/Mass-Export TSV`: Allows you to export as TSV every DB Table and Loc PackedFiles in your PackFile at once.
 - `Open…/Open with Decoder`: Allows you to open a table in the `DB Decoder`. Only used to decode new tables, so…. You shouldn't touch this.
 - `Open…/Open Dependency Manager`: Allows you to open the list of dependencies included in the PackFile. Check the next chapter to learn what this `Dependency Manager` thing is about.
+- `Open…/Open Containing Folder`: Allows you to open the folder where your open PackFile is (if it's on disk) with the default file manager of your system.
 - `Open…/Open with External Program`: Allows you to open a PackedFile with an external program. Keep in mind that, if you modify the file, changes will NOT BE INCLUDED in the PackedFile itself, but in a file in the TMP folder of your system. If you want to conserve these changes, save that file somewhere, edit it and then add it back to the PackFile.
 - `Open…/Open in Multi-View`: Allows you to open a PackFile in a "secondary view", so you can have up to two PackedFiles open side-by-side.
 - `Rename`: Allows you to rename whatever is selected, except the PackFile.

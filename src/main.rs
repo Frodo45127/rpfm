@@ -668,6 +668,9 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // "Game Selected" menu.
     //-------------------------------------------------------------------------------//
+    
+    pub open_game_data_folder: *mut Action,
+    pub open_game_assembly_kit_folder: *mut Action,
 
     pub three_kingdoms: *mut Action,
     pub warhammer_2: *mut Action,
@@ -751,6 +754,7 @@ pub struct AppUI {
     pub context_menu_extract: *mut Action,
     pub context_menu_open_decoder: *mut Action,
     pub context_menu_open_dependency_manager: *mut Action,
+    pub context_menu_open_containing_folder: *mut Action,
     pub context_menu_open_with_external_program: *mut Action,
     pub context_menu_open_in_multi_view: *mut Action,
     pub context_menu_open_notes: *mut Action,
@@ -1033,6 +1037,9 @@ fn main() {
             // "Game Selected" menu.
             //-------------------------------------------------------------------------------//
 
+            open_game_data_folder: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Open Game's Data Folder")),
+            open_game_assembly_kit_folder: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Open &Game's Assembly Kit Folder")),
+        
             three_kingdoms: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Three &Kingdoms")),
             warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
             warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
@@ -1121,10 +1128,11 @@ fn main() {
             context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
 
             context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
-            context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Dependency Manager")),
-            context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with External Program")),
-            context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open in Multi-View")),
-            context_menu_open_notes: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open Notes")),
+            context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open &Dependency Manager")),
+            context_menu_open_containing_folder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open &Containing Folder")),
+            context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open with &External Program")),
+            context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open in &Multi-View")),
+            context_menu_open_notes: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open &Notes")),
             
             context_menu_check_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables")),
             context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables")),
@@ -1201,6 +1209,9 @@ fn main() {
         let menu_open_from_data = Menu::new(&QString::from_std_str("Open From Data")).into_raw();
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_content); }
         unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_data); }
+
+        // FIXME: This needs to be changed every time a new game gets released. DO NOT REMOVE THE FIXME.
+        unsafe { menu_bar_game_seleted.as_mut().unwrap().insert_separator(app_ui.three_kingdoms); }
         
         // Put separators in the Main TreeView's contextual menu.
         unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
@@ -1224,6 +1235,9 @@ fn main() {
         unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_packfile["preferences"]))); }
         unsafe { app_ui.quit.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_packfile["quit"]))); }
 
+        unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_game_selected["open_game_data_folder"]))); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_game_selected["open_game_assembly_kit_folder"]))); }
+        
         unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_about["about_qt"]))); }
         unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_about["about_rpfm"]))); }
         unsafe { app_ui.open_manual.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().menu_bar_about["open_manual"]))); }
@@ -1239,6 +1253,9 @@ fn main() {
         unsafe { app_ui.preferences.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.quit.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
 
+        unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
+        
         unsafe { app_ui.about_qt.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.about_rpfm.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
         unsafe { app_ui.open_manual.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
@@ -1320,6 +1337,7 @@ fn main() {
             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
@@ -1342,6 +1360,7 @@ fn main() {
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["rename"]))); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_in_decoder"]))); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_packfiles_list"]))); }
+        unsafe { app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_containing_folder"]))); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_with_external_program"]))); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_in_multi_view"]))); }
         unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().tree_view["open_notes"]))); }
@@ -1366,6 +1385,7 @@ fn main() {
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -1390,6 +1410,7 @@ fn main() {
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_rename); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_decoder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_dependency_manager); }
+        unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_containing_folder); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_with_external_program); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_in_multi_view); }
         unsafe { app_ui.folder_tree_view.as_mut().unwrap().add_action(app_ui.context_menu_open_notes); }
@@ -1425,6 +1446,9 @@ fn main() {
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.")); }
 
         // Menu bar, Game Selected.
+        unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Tries to open the currently selected game's Data folder (if exists) in the default file manager.")); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.")); }
+        
         unsafe { app_ui.three_kingdoms.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Three Kingdoms' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer_2.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer 2' as 'Game Selected'.")); }
         unsafe { app_ui.warhammer.as_mut().unwrap().set_status_tip(&QString::from_std_str("Sets 'TW:Warhammer' as 'Game Selected'.")); }
@@ -1439,7 +1463,7 @@ fn main() {
         // Menu bar, Special Stuff.
         let patch_siege_ai_tip = QString::from_std_str("Patch & Clean an exported map's PackFile. It fixes the Siege AI (if it has it) and remove useless xml files that bloat the PackFile, reducing his size.");
         let optimize_packfile = QString::from_std_str("Check and remove any data in DB Tables and Locs (Locs only for english users) that is unchanged from the base game. That means your mod will only contain the stuff you change, avoiding incompatibilities with other mods.");
-        let generate_pak_file = QString::from_std_str("Generates a PAK File (Processed Assembly Kit File) for the game selected, to help with dependency checking. You should NEVER use this, as these files are automatically redistributed with RPFM.");
+        let generate_pak_file = QString::from_std_str("Generates a PAK File (Processed Assembly Kit File) for the game selected, to help with dependency checking.");
         unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_status_tip(&optimize_packfile); }
         unsafe { app_ui.three_k_generate_pak_file.as_mut().unwrap().set_status_tip(&generate_pak_file); }
         unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_status_tip(&patch_siege_ai_tip); }
@@ -1486,6 +1510,7 @@ fn main() {
         unsafe { app_ui.context_menu_rename.as_mut().unwrap().set_status_tip(&QString::from_std_str("Rename the selected File/Folder. Remember, whitespaces are NOT ALLOWED and duplicated names in the same folder will NOT BE RENAMED.")); }
         unsafe { app_ui.context_menu_open_decoder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the selected table in the DB Decoder. To create/update schemas.")); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the list of PackFiles referenced from this PackFile.")); }
+        unsafe { app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the currently open PackFile's location in your default file manager.")); }
         unsafe { app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in an external program.")); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackedFile in a secondary view, without closing the currently open one.")); }
         unsafe { app_ui.context_menu_open_notes.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the PackFile's Notes in a secondary view, without closing the currently open PackedFile in the Main View.")); }
@@ -2017,6 +2042,30 @@ fn main() {
         unsafe { app_ui.quit.as_ref().unwrap().signals().triggered().connect(&slot_quit); }
 
         //-----------------------------------------------------//
+        // "Game Selected" Menu (only actions)...
+        //-----------------------------------------------------//
+
+        // What happens when we trigger the "Open Game's Data Folder" action.
+        let slot_open_game_data_folder = SlotBool::new(move |_| {
+            if let Some(path) = get_game_selected_data_path() {
+                if open::that(&path).is_err() { show_dialog(app_ui.window, false, ErrorKind::IOFolderCannotBeOpened); };
+            }
+            else { show_dialog(app_ui.window, false, ErrorKind::GamePathNotConfigured); }
+        });
+
+        // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
+        let slot_open_game_assembly_kit_folder = SlotBool::new(move |_| {
+            if let Some(path) = get_game_selected_assembly_kit_path() {
+                if open::that(&path).is_err() { show_dialog(app_ui.window, false, ErrorKind::IOFolderCannotBeOpened)};
+            }
+            else { show_dialog(app_ui.window, false, ErrorKind::GamePathNotConfigured); }
+        });
+
+        // "Game Selected" menu actions.
+        unsafe { app_ui.open_game_data_folder.as_ref().unwrap().signals().triggered().connect(&slot_open_game_data_folder); }
+        unsafe { app_ui.open_game_assembly_kit_folder.as_ref().unwrap().signals().triggered().connect(&slot_open_game_assembly_kit_folder); }
+
+        //-----------------------------------------------------//
         // "Special Stuff" Menu...
         //-----------------------------------------------------//
 
@@ -2364,6 +2413,7 @@ fn main() {
                             app_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
 
@@ -2407,6 +2457,7 @@ fn main() {
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
@@ -2442,6 +2493,7 @@ fn main() {
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
@@ -2467,6 +2519,7 @@ fn main() {
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(true);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
@@ -2492,6 +2545,7 @@ fn main() {
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
@@ -2516,6 +2570,7 @@ fn main() {
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
@@ -2541,6 +2596,7 @@ fn main() {
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
@@ -2566,6 +2622,7 @@ fn main() {
                             app_ui.context_menu_rename.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+                            app_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             app_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
@@ -3414,7 +3471,7 @@ fn main() {
                     if path.len() == 3 {
                         if path[0] == "db" {
                             if db_folder.is_empty() {
-                                db_folder = path[2].to_owned();
+                                db_folder = path[1].to_owned();
                             }
 
                             if path[1] != db_folder {
@@ -3913,6 +3970,15 @@ fn main() {
             }
         ));
 
+        // What happens when we trigger the "Open Containing Folder" action in the Contextual Menu.
+        let slot_context_menu_open_containing_folder = SlotBool::new(clone!(
+            sender_qt,
+            receiver_qt => move |_| {
+                sender_qt.send(Commands::OpenContainingFolder).unwrap();
+                if let Data::Error(error) = check_message_validity_recv2(&receiver_qt) { show_dialog(app_ui.window, false, error) };
+            }
+        ));
+
         // What happens when we trigger the "Open with External Program" action in the Contextual Menu.
         let slot_context_menu_open_with_external_program = SlotBool::new(clone!(
             sender_qt,
@@ -4025,6 +4091,7 @@ fn main() {
         unsafe { app_ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_extract); }
         unsafe { app_ui.context_menu_open_decoder.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_open_decoder); }
         unsafe { app_ui.context_menu_open_dependency_manager.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_dependency_manager); }
+        unsafe { app_ui.context_menu_open_containing_folder.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_containing_folder); }
         unsafe { app_ui.context_menu_open_with_external_program.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_with_external_program); }
         unsafe { app_ui.context_menu_open_in_multi_view.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_in_multi_view); }
         unsafe { app_ui.context_menu_open_notes.as_ref().unwrap().signals().triggered().connect(&slot_context_menu_open_notes); }

@@ -13,3 +13,7 @@ In this menu you can **change the currently selected game**. When opening PackFi
 - `Napoleon`: Almost Full Support. Missing `Generate PAK File` support. 
 - `Empire`: Almost Full Support. Missing `Generate PAK File` support.
 - `Arena`: Read-Only Support for PackFiles. Incomplete schema. 
+
+Also, at the top we have a couple of convenient buttons to open certain folders on the default file manager of your system:
+- `Open Game's Data Folder`: Open your currently selected game's data folder, if it has his path configured in the settings.
+- `Open Game's Assembly Kit Folder`: Open your currently selected game's assembly kit folder, if it has his path configured in the settings. Only for Rome 2 and later games.
