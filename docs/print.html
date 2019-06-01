@@ -1105,9 +1105,4232 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#001">001</a></li>
 <li><a href="#000">000</a></li>
 </ul>
 <hr />
+<a class="header" href="#001" id="001"><h1>001</h1></a>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>ability_colours_tables</em>.</li>
+<li><em>agent_actions_restricted_to_factions_junctions_tables</em>.</li>
+<li><em>agent_string_faction_overrides_tables</em>.</li>
+<li><em>agent_subculture_gender_overrides_tables</em>.</li>
+<li><em>agent_subtype_civil_war_faction_overrides_tables</em>.</li>
+<li><em>agent_subtype_loyalty_factor_junctions_tables</em>.</li>
+<li><em>aide_de_camp_strings_tables</em>.</li>
+<li><em>animation_triggers_tables</em>.</li>
+<li><em>audio_area_of_effects_tables</em>.</li>
+<li><em>audio_building_destruction_levels_tables</em>.</li>
+<li><em>audio_cultures_tables</em>.</li>
+<li><em>audio_vo_actors_tables</em>.</li>
+<li><em>battle_ai_parameter_personality_overrides_tables</em>.</li>
+<li><em>battle_ai_parameters_tables</em>.</li>
+<li><em>battle_ai_personalities_tables</em>.</li>
+<li><em>battle_ai_properties_tables</em>.</li>
+<li><em>battle_ai_property_ceo_junctions_tables</em>.</li>
+<li><em>battle_ai_property_personality_junctions_tables</em>.</li>
+<li><em>battle_ai_usage_group_personality_overrides_tables</em>.</li>
+<li><em>battle_animations_table_allowed_combinations_tables</em>.</li>
+<li><em>battle_building_visibility_enums_tables</em>.</li>
+<li><em>battle_cinematic_events_tables</em>.</li>
+<li><em>battle_duel_abilities_junctions_tables</em>.</li>
+<li><em>battle_duel_effects_tables</em>.</li>
+<li><em>battle_duel_outcomes_tables</em>.</li>
+<li><em>battle_duel_scopes_tables</em>.</li>
+<li><em>battle_events_to_character_relationship_trigger_sets_tables</em>.</li>
+<li><em>battle_result_character_capture_details_tables</em>.</li>
+<li><em>battle_sequences_tables</em>.</li>
+<li><em>battle_set_piece_armies_skills_junctions_tables</em>.</li>
+<li><em>battlefield_civilian_amounts_tables</em>.</li>
+<li><em>battlefield_civilian_behaviour_groups_behaviour_proportions_tables</em>.</li>
+<li><em>battlefield_civilian_behaviour_groups_tables</em>.</li>
+<li><em>battlefield_civilian_behaviours_tables</em>.</li>
+<li><em>battlefield_civilian_group_variations_tables</em>.</li>
+<li><em>battlefield_civilian_groups_tables</em>.</li>
+<li><em>battlefield_civilian_type_civilian_group_junctions_tables</em>.</li>
+<li><em>battlefield_civilian_types_tables</em>.</li>
+<li><em>battlefield_engines_autonomous_tables</em>.</li>
+<li><em>bmd_export_types_to_prefab_type_groups_tables</em>.</li>
+<li><em>bmd_export_types_to_prefab_type_junctions_tables</em>.</li>
+<li><em>bmd_export_types_to_prefab_types_tables</em>.</li>
+<li><em>building_benefit_categories_tables</em>.</li>
+<li><em>building_level_garrison_retinues_tables</em>.</li>
+<li><em>building_level_garrison_wall_mounted_artilleries_tables</em>.</li>
+<li><em>building_level_to_campaign_map_prefab_types_tables</em>.</li>
+<li><em>building_level_to_destruction_zones_tables</em>.</li>
+<li><em>building_level_to_mercenary_retinue_source_junctions_tables</em>.</li>
+<li><em>building_level_ui_positions_tables</em>.</li>
+<li><em>building_levels_campaign_building_slot_groups_tables</em>.</li>
+<li><em>building_levels_settlement_ui_displays_tables</em>.</li>
+<li><em>building_slot_groups_tables</em>.</li>
+<li><em>building_to_building_benefit_junctions_tables</em>.</li>
+<li><em>building_ui_groups_tables</em>.</li>
+<li><em>building_ui_groups_to_superchains_tables</em>.</li>
+<li><em>cai_agent_subtypes_to_aspects_tables</em>.</li>
+<li><em>cai_aspects_tables</em>.</li>
+<li><em>cai_base_building_context_values_tables</em>.</li>
+<li><em>cai_character_roles_tables</em>.</li>
+<li><em>cai_condition_sets_tables</em>.</li>
+<li><em>cai_conditions_tables</em>.</li>
+<li><em>cai_construction_system_strategic_context_faction_status_overrides_tables</em>.</li>
+<li><em>cai_construction_system_template_assignment_policy_faction_status_overrides_tables</em>.</li>
+<li><em>cai_context_types_tables</em>.</li>
+<li><em>cai_contexts_for_context_types_tables</em>.</li>
+<li><em>cai_diplomacy_component_events_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_component_criterion_variable_types_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_component_criterion_variables_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_conditions_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_criterion_type_treaty_component_hints_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_criterion_types_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_deal_component_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_diplomatic_event_parameters_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_diplomatic_event_respondents_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_events_to_calculate_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_factor_and_criterion_junctions_tables</em>.</li>
+<li><em>cai_diplomacy_deal_evaluation_factor_types_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_condition_set_junctions_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_generator_and_goal_junctions_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_goal_failing_relationships_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_goal_names_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_goal_secondary_treaties_global_priorities_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_goal_secondary_treaties_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_goals_tables</em>.</li>
+<li><em>cai_diplomacy_deal_generation_most_important_component_selection_priorities_tables</em>.</li>
+<li><em>cai_diplomacy_events_tables</em>.</li>
+<li><em>cai_diplomacy_treaty_decompositions_tables</em>.</li>
+<li><em>cai_diplomacy_treaty_hints_tables</em>.</li>
+<li><em>cai_hint_profiles_tables</em>.</li>
+<li><em>cai_personalities_budget_allocation_faction_status_overides_tables</em>.</li>
+<li><em>cai_personalities_budget_policy_context_overrides_junctions_tables</em>.</li>
+<li><em>cai_personalities_budget_policy_context_overrides_tables</em>.</li>
+<li><em>cai_personalities_construction_preference_policy_building_junctions_tables</em>.</li>
+<li><em>cai_personalities_income_allocation_policy_context_overrides_junctions_tables</em>.</li>
+<li><em>cai_personalities_income_allocation_policy_context_overrides_tables</em>.</li>
+<li><em>cai_personalities_income_allocation_policy_faction_status_for_context_junctions_tables</em>.</li>
+<li><em>cai_personalities_task_management_system_variable_profile_faction_statuses_junctions_tables</em>.</li>
+<li><em>cai_personalities_task_management_system_variable_profile_strategic_contexts_junctions_tables</em>.</li>
+<li><em>cai_personalities_task_management_system_variable_profiles_tables</em>.</li>
+<li><em>cai_personalities_tms_task_generator_profiles_strategic_contexts_junctions_tables</em>.</li>
+<li><em>cai_personality_captive_components_tables</em>.</li>
+<li><em>cai_personality_character_assignment_priorities_tables</em>.</li>
+<li><em>cai_personality_character_role_component_overrides_tables</em>.</li>
+<li><em>cai_personality_character_role_components_tables</em>.</li>
+<li><em>cai_personality_character_role_priorities_tables</em>.</li>
+<li><em>cai_personality_character_role_values_tables</em>.</li>
+<li><em>cai_personality_cultural_multipliers_tables</em>.</li>
+<li><em>cai_personality_deal_evaluation_treaty_component_values_tables</em>.</li>
+<li><em>cai_personality_deal_generation_generator_values_tables</em>.</li>
+<li><em>cai_personality_diplomatic_attitude_components_tables</em>.</li>
+<li><em>cai_personality_diplomatic_component_values_tables</em>.</li>
+<li><em>cai_personality_financial_context_controls_tables</em>.</li>
+<li><em>cai_personality_occupation_decision_component_overrides_tables</em>.</li>
+<li><em>cai_personality_quirk_junctions_tables</em>.</li>
+<li><em>cai_personality_quirk_trait_junctions_tables</em>.</li>
+<li><em>cai_personality_quirks_tables</em>.</li>
+<li><em>cai_personality_religious_relations_overrides_tables</em>.</li>
+<li><em>cai_personality_strategic_building_values_tables</em>.</li>
+<li><em>cai_personality_strategic_components_strategic_context_band_override_values_tables</em>.</li>
+<li><em>cai_personality_surrender_component_values_tables</em>.</li>
+<li><em>cai_personality_surrender_components_tables</em>.</li>
+<li><em>cai_retinues_to_aspects_tables</em>.</li>
+<li><em>cai_strategic_stances_tables</em>.</li>
+<li><em>cai_target_groups_tables</em>.</li>
+<li><em>cai_task_management_system_task_generator_variable_group_junctions_tables</em>.</li>
+<li><em>cai_task_management_system_task_generator_variable_group_overrides_tables</em>.</li>
+<li><em>cai_task_management_system_task_generator_variable_groups_tables</em>.</li>
+<li><em>cai_task_management_system_task_generator_variables_tables</em>.</li>
+<li><em>cai_task_management_system_variable_group_junctions_tables</em>.</li>
+<li><em>cai_task_management_system_variable_group_overrides_tables</em>.</li>
+<li><em>cai_task_management_system_variable_groups_tables</em>.</li>
+<li><em>cai_task_management_system_variables_tables</em>.</li>
+<li><em>cai_value_sets_per_strategic_context_tables</em>.</li>
+<li><em>cai_value_sets_per_strategic_stance_tables</em>.</li>
+<li><em>cai_value_sets_per_value_type_tables</em>.</li>
+<li><em>cai_value_sets_tables</em>.</li>
+<li><em>cai_value_types_tables</em>.</li>
+<li><em>campaign_ai_technology_manager_path_junctions_tables</em>.</li>
+<li><em>campaign_annex_region_costs_tables</em>.</li>
+<li><em>campaign_area_of_interest_effect_bundles_tables</em>.</li>
+<li><em>campaign_areas_of_interest_tables</em>.</li>
+<li><em>campaign_battle_building_level_tile_upgrades_tables</em>.</li>
+<li><em>campaign_battle_tag_tile_upgrades_tables</em>.</li>
+<li><em>campaign_bonus_value_battle_context_territory_status_tables</em>.</li>
+<li><em>campaign_bonus_value_limits_tables</em>.</li>
+<li><em>campaign_border_materials_tables</em>.</li>
+<li><em>campaign_character_action_shared_per_turn_limits_tables</em>.</li>
+<li><em>campaign_character_actions_tables</em>.</li>
+<li><em>campaign_character_animation_set_overrides_tables</em>.</li>
+<li><em>campaign_character_animation_set_overrides_to_ceos_junctions_tables</em>.</li>
+<li><em>campaign_character_animation_sets_tables</em>.</li>
+<li><em>campaign_character_art_set_campaign_junctions_tables</em>.</li>
+<li><em>campaign_character_pool_group_ids_tables</em>.</li>
+<li><em>campaign_character_pool_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_alliance_name_group_names_tables</em>.</li>
+<li><em>campaign_diplomacy_alliance_name_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_alliance_names_tables</em>.</li>
+<li><em>campaign_diplomacy_alliance_oath_transitions_tables</em>.</li>
+<li><em>campaign_diplomacy_alliance_oaths_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_component_alliance_oath_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_component_alliance_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_component_deal_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_component_faction_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_component_value_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_component_variable_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_components_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_participant_sets_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deal_participants_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_complex_deals_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_deal_participant_factions_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_deal_participant_variables_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_deal_participants_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_deal_situation_deals_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_deal_situations_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_deals_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_simple_deal_alliance_oath_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_simple_deal_alliance_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_simple_deal_deal_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_simple_deal_faction_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_simple_deal_value_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_simple_deal_variable_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_automatic_simple_deals_tables</em>.</li>
+<li><em>campaign_diplomacy_available_initial_alliance_oaths_tables</em>.</li>
+<li><em>campaign_diplomacy_confederation_availability_reasons_tables</em>.</li>
+<li><em>campaign_diplomacy_existing_components_tables</em>.</li>
+<li><em>campaign_diplomacy_filter_elements_tables</em>.</li>
+<li><em>campaign_diplomacy_filter_queries_tables</em>.</li>
+<li><em>campaign_diplomacy_filter_variables_tables</em>.</li>
+<li><em>campaign_diplomacy_filters_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_participant_existing_roles_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_participant_factions_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_participant_variables_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_participants_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_proposed_component_alliance_oath_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_proposed_component_alliance_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_proposed_component_faction_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_proposed_component_value_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_proposed_component_variable_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_proposed_components_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_requirements_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiation_secondary_participants_tables</em>.</li>
+<li><em>campaign_diplomacy_followup_negotiations_tables</em>.</li>
+<li><em>campaign_diplomacy_group_existing_components_tables</em>.</li>
+<li><em>campaign_diplomacy_group_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_group_variables_tables</em>.</li>
+<li><em>campaign_diplomacy_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_movement_option_simple_deal_alliance_oath_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_movement_option_simple_deal_alliance_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_movement_option_simple_deal_faction_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_movement_option_simple_deal_value_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_movement_option_simple_deal_variable_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_movement_option_simple_deals_tables</em>.</li>
+<li><em>campaign_diplomacy_movement_options_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_automatic_responses_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_category_types_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_node_speeches_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_node_transitions_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_node_treaty_component_group_propose_transitions_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_node_treaty_component_group_unpropose_transitions_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_node_votes_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_nodes_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_participant_set_secondary_participants_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_participant_sets_tables</em>.</li>
+<li><em>campaign_diplomacy_negotiation_types_tables</em>.</li>
+<li><em>campaign_diplomacy_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_pool_available_limits_tables</em>.</li>
+<li><em>campaign_diplomacy_pool_pooled_resources_tables</em>.</li>
+<li><em>campaign_diplomacy_pools_tables</em>.</li>
+<li><em>campaign_diplomacy_requirement_parameter_pools_tables</em>.</li>
+<li><em>campaign_diplomacy_requirement_parameter_variables_tables</em>.</li>
+<li><em>campaign_diplomacy_requirement_parameters_tables</em>.</li>
+<li><em>campaign_diplomacy_requirement_set_requirements_tables</em>.</li>
+<li><em>campaign_diplomacy_requirement_sets_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_availability_reasons_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_alliance_names_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_character_relationship_triggers_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_counter_offer_replacements_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_followup_negotiations_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_group_treaty_components_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_hardcoded_effects_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_income_transfer_effects_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_maximum_proposable_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_proposes_treaty_components_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_replacements_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_required_treaties_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_resource_transactions_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_set_treaty_components_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_component_sets_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_components_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_components_to_maximum_proposable_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_durations_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_requirement_civil_war_states_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_requirement_faction_ranks_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_requirement_groups_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_requirement_options_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_requirement_requirement_options_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_requirement_world_leader_states_tables</em>.</li>
+<li><em>campaign_diplomacy_treaty_requirements_tables</em>.</li>
+<li><em>campaign_diplomacy_variables_tables</em>.</li>
+<li><em>campaign_effect_groups_tables</em>.</li>
+<li><em>campaign_effect_scope_character_unit_relationship_junctions_tables</em>.</li>
+<li><em>campaign_effect_scope_ownership_treaty_component_sets_tables</em>.</li>
+<li><em>campaign_effect_scope_ownerships_tables</em>.</li>
+<li><em>campaign_effect_scope_territory_diplomacy_treaty_component_sets_tables</em>.</li>
+<li><em>campaign_effect_scopes_to_campaign_effect_groups_junctions_tables</em>.</li>
+<li><em>campaign_faction_potential_categories_tables</em>.</li>
+<li><em>campaign_faction_potential_handicap_effects_tables</em>.</li>
+<li><em>campaign_ground_type_military_force_effects_tables</em>.</li>
+<li><em>campaign_ground_types_climate_overrides_tables</em>.</li>
+<li><em>campaign_group_agent_cost_pooled_resource_conversion_rates_tables</em>.</li>
+<li><em>campaign_group_campaign_diplomacy_treaty_component_set_queries_tables</em>.</li>
+<li><em>campaign_group_captive_option_requirements_tables</em>.</li>
+<li><em>campaign_group_captive_option_sets_tables</em>.</li>
+<li><em>campaign_group_character_actions_tables</em>.</li>
+<li><em>campaign_group_character_assignments_tables</em>.</li>
+<li><em>campaign_group_character_death_payloads_tables</em>.</li>
+<li><em>campaign_group_character_defection_loyalty_thresholds_tables</em>.</li>
+<li><em>campaign_group_character_generation_templates_tables</em>.</li>
+<li><em>campaign_group_character_loyalty_effects_tables</em>.</li>
+<li><em>campaign_group_character_relationship_diplomatic_situation_effects_tables</em>.</li>
+<li><em>campaign_group_character_relationship_start_of_round_triggers_tables</em>.</li>
+<li><em>campaign_group_character_salaries_tables</em>.</li>
+<li><em>campaign_group_civil_war_defection_loyalty_thresholds_tables</em>.</li>
+<li><em>campaign_group_civil_war_effects_tables</em>.</li>
+<li><em>campaign_group_faction_cosmetic_overrides_tables</em>.</li>
+<li><em>campaign_group_faction_effect_bundles_tables</em>.</li>
+<li><em>campaign_group_governor_defection_dilemmas_tables</em>.</li>
+<li><em>campaign_group_governor_independence_dilemmas_tables</em>.</li>
+<li><em>campaign_group_member_criteria_agent_types_tables</em>.</li>
+<li><em>campaign_group_member_criteria_battle_result_types_tables</em>.</li>
+<li><em>campaign_group_member_criteria_booleans_tables</em>.</li>
+<li><em>campaign_group_member_criteria_building_levels_tables</em>.</li>
+<li><em>campaign_group_member_criteria_building_slot_groups_tables</em>.</li>
+<li><em>campaign_group_member_criteria_campaign_diplomacy_treaty_component_sets_tables</em>.</li>
+<li><em>campaign_group_member_criteria_captive_option_contexts_tables</em>.</li>
+<li><em>campaign_group_member_criteria_ceo_nodes_tables</em>.</li>
+<li><em>campaign_group_member_criteria_ceo_rarities_tables</em>.</li>
+<li><em>campaign_group_member_criteria_ceos_tables</em>.</li>
+<li><em>campaign_group_member_criteria_character_actions_tables</em>.</li>
+<li><em>campaign_group_member_criteria_character_generation_templates_tables</em>.</li>
+<li><em>campaign_group_member_criteria_character_relationships_tables</em>.</li>
+<li><em>campaign_group_member_criteria_faction_resources_tables</em>.</li>
+<li><em>campaign_group_member_criteria_game_modes_tables</em>.</li>
+<li><em>campaign_group_member_criteria_ground_types_tables</em>.</li>
+<li><em>campaign_group_member_criteria_player_game_difficulty_types_tables</em>.</li>
+<li><em>campaign_group_member_criteria_political_actions_tables</em>.</li>
+<li><em>campaign_group_member_criteria_pooled_resource_scopes_tables</em>.</li>
+<li><em>campaign_group_member_criteria_produce_resources_tables</em>.</li>
+<li><em>campaign_group_member_criteria_progression_levels_tables</em>.</li>
+<li><em>campaign_group_member_criteria_religions_tables</em>.</li>
+<li><em>campaign_group_member_criteria_sea_region_control_statuses_tables</em>.</li>
+<li><em>campaign_group_member_criteria_seasons_tables</em>.</li>
+<li><em>campaign_group_member_criteria_settlement_siege_action_option_sets_tables</em>.</li>
+<li><em>campaign_group_member_criteria_settlement_siege_situations_tables</em>.</li>
+<li><em>campaign_group_member_criteria_unit_sets_tables</em>.</li>
+<li><em>campaign_group_member_criteria_vo_actors_tables</em>.</li>
+<li><em>campaign_group_member_criteria_world_power_tokens_tables</em>.</li>
+<li><em>campaign_group_military_force_effects_tables</em>.</li>
+<li><em>campaign_group_pending_death_option_sets_tables</em>.</li>
+<li><em>campaign_group_post_annexation_options_tables</em>.</li>
+<li><em>campaign_group_post_battle_casualty_resources_tables</em>.</li>
+<li><em>campaign_group_post_battle_result_resources_tables</em>.</li>
+<li><em>campaign_group_rebel_shadow_factions_tables</em>.</li>
+<li><em>campaign_group_regional_faction_support_loyalty_effect_bundles_tables</em>.</li>
+<li><em>campaign_group_regional_faction_supports_tables</em>.</li>
+<li><em>campaign_group_settlement_battle_bmd_export_types_tables</em>.</li>
+<li><em>campaign_group_settlement_building_models_tables</em>.</li>
+<li><em>campaign_group_settlement_building_slot_density_values_tables</em>.</li>
+<li><em>campaign_group_settlement_sprawl_density_values_tables</em>.</li>
+<li><em>campaign_group_settlement_sprawl_garrison_models_tables</em>.</li>
+<li><em>campaign_group_settlement_sprawl_models_tables</em>.</li>
+<li><em>campaign_group_settlement_sprawl_siege_models_tables</em>.</li>
+<li><em>campaign_group_siege_effects_tables</em>.</li>
+<li><em>campaign_group_to_personal_loyalty_ranges_tables</em>.</li>
+<li><em>campaign_group_world_leader_effects_tables</em>.</li>
+<li><em>campaign_group_world_power_token_capture_outcomes_tables</em>.</li>
+<li><em>campaign_horde_levy_recruitment_permissions_tables</em>.</li>
+<li><em>campaign_map_areas_of_interest_label_positions_tables</em>.</li>
+<li><em>campaign_map_areas_of_interest_tables</em>.</li>
+<li><em>campaign_map_character_colour_tints_tables</em>.</li>
+<li><em>campaign_map_character_outline_colours_tables</em>.</li>
+<li><em>campaign_map_road_objects_display_groups_tables</em>.</li>
+<li><em>campaign_map_road_objects_display_model_composite_scenes_tables</em>.</li>
+<li><em>campaign_map_road_objects_display_model_group_junctions_tables</em>.</li>
+<li><em>campaign_map_road_objects_display_model_groups_tables</em>.</li>
+<li><em>campaign_map_road_objects_display_models_tables</em>.</li>
+<li><em>campaign_map_road_objects_display_trade_groups_tables</em>.</li>
+<li><em>campaign_map_tooltip_over_context_types_tables</em>.</li>
+<li><em>campaign_map_tooltip_status_types_tables</em>.</li>
+<li><em>campaign_map_zone_of_control_colour_tints_tables</em>.</li>
+<li><em>campaign_mission_objective_treaty_component_sets_tables</em>.</li>
+<li><em>campaign_payload_basic_components_tables</em>.</li>
+<li><em>campaign_payload_basic_value_components_tables</em>.</li>
+<li><em>campaign_payload_ceo_triggers_tables</em>.</li>
+<li><em>campaign_payload_component_type_to_possible_reasons_tables</em>.</li>
+<li><em>campaign_payload_death_type_components_tables</em>.</li>
+<li><em>campaign_payload_effect_bundles_tables</em>.</li>
+<li><em>campaign_payload_grant_ceos_tables</em>.</li>
+<li><em>campaign_payload_loyalty_effects_tables</em>.</li>
+<li><em>campaign_payload_random_sub_payloads_tables</em>.</li>
+<li><em>campaign_payload_relationship_triggers_tables</em>.</li>
+<li><em>campaign_payload_resource_transactions_tables</em>.</li>
+<li><em>campaign_payload_set_items_tables</em>.</li>
+<li><em>campaign_payload_set_sub_payloads_tables</em>.</li>
+<li><em>campaign_payload_sets_tables</em>.</li>
+<li><em>campaign_payload_siege_equipment_components_tables</em>.</li>
+<li><em>campaign_payload_weighted_set_items_tables</em>.</li>
+<li><em>campaign_payload_weighted_sets_tables</em>.</li>
+<li><em>campaign_payloads_tables</em>.</li>
+<li><em>campaign_post_battle_effects_tables</em>.</li>
+<li><em>campaign_progression_level_agent_caps_tables</em>.</li>
+<li><em>campaign_progression_level_details_tables</em>.</li>
+<li><em>campaign_progression_level_group_auto_research_technologies_tables</em>.</li>
+<li><em>campaign_progression_level_group_progression_levels_tables</em>.</li>
+<li><em>campaign_progression_level_groups_tables</em>.</li>
+<li><em>campaign_progression_levels_tables</em>.</li>
+<li><em>campaign_region_additional_adjacency_rules_tables</em>.</li>
+<li><em>campaign_region_gdp_categories_tables</em>.</li>
+<li><em>campaign_region_gdp_types_tables</em>.</li>
+<li><em>campaign_retinue_chain_levels_tables</em>.</li>
+<li><em>campaign_retinue_chains_tables</em>.</li>
+<li><em>campaign_round_sets_tables</em>.</li>
+<li><em>campaign_rounds_tables</em>.</li>
+<li><em>campaign_sea_region_control_statuses_tables</em>.</li>
+<li><em>campaign_settlement_display_buildings_animations_tables</em>.</li>
+<li><em>campaign_settlement_display_settlement_layout_building_slots_tables</em>.</li>
+<li><em>campaign_settlement_display_settlement_layout_buildings_tables</em>.</li>
+<li><em>campaign_settlement_display_settlement_layout_ids_tables</em>.</li>
+<li><em>campaign_settlement_display_settlement_layouts_tables</em>.</li>
+<li><em>campaign_settlement_display_siege_escalation_building_slot_prefab_types_tables</em>.</li>
+<li><em>campaign_settlement_display_siege_escalation_settlement_prefab_types_tables</em>.</li>
+<li><em>campaign_siege_construction_items_tables</em>.</li>
+<li><em>campaign_siege_escalation_levels_tables</em>.</li>
+<li><em>campaign_statistics_affixes_junctions_tables</em>.</li>
+<li><em>campaign_statistics_affixes_tables</em>.</li>
+<li><em>campaign_statistics_diplomacy_treaty_components_tables</em>.</li>
+<li><em>campaign_statistics_pooled_resource_junctions_tables</em>.</li>
+<li><em>campaign_statistics_siege_action_options_junctions_tables</em>.</li>
+<li><em>campaign_subject_evolution_links_tables</em>.</li>
+<li><em>campaign_subject_evolutions_tables</em>.</li>
+<li><em>campaign_subject_faction_restriction_junctions_tables</em>.</li>
+<li><em>campaign_subject_strings_tables</em>.</li>
+<li><em>campaign_subjects_tables</em>.</li>
+<li><em>campaign_tax_administration_costs_tables</em>.</li>
+<li><em>campaign_territory_types_tables</em>.</li>
+<li><em>campaign_ui_diplomatic_cco_states_tables</em>.</li>
+<li><em>campaign_ui_diplomatic_states_tables</em>.</li>
+<li><em>campaign_unit_permission_group_to_permission_junctions_tables</em>.</li>
+<li><em>campaign_unit_permission_groups_tables</em>.</li>
+<li><em>campaign_unit_permission_requirements_tables</em>.</li>
+<li><em>campaign_unit_permissions_tables</em>.</li>
+<li><em>campaign_unit_requirements_tables</em>.</li>
+<li><em>campaign_unit_stat_bonus_types_tables</em>.</li>
+<li><em>captive_option_effect_set_items_tables</em>.</li>
+<li><em>captive_option_effect_sets_tables</em>.</li>
+<li><em>captive_option_effects_tables</em>.</li>
+<li><em>captive_option_family_relationship_requirements_tables</em>.</li>
+<li><em>captive_option_past_experience_requirements_tables</em>.</li>
+<li><em>captive_option_related_character_effect_set_items_tables</em>.</li>
+<li><em>captive_option_relationship_requirements_tables</em>.</li>
+<li><em>captive_option_requirements_tables</em>.</li>
+<li><em>captive_option_set_items_tables</em>.</li>
+<li><em>captive_option_sets_tables</em>.</li>
+<li><em>captive_options_tables</em>.</li>
+<li><em>ccp_balance_values_tables</em>.</li>
+<li><em>ccp_benchmark_units_tables</em>.</li>
+<li><em>ccp_campaign_ground_types_to_ground_type_modifier_junctions_tables</em>.</li>
+<li><em>ccp_delta_overrides_tables</em>.</li>
+<li><em>ccp_situation_deltas_tables</em>.</li>
+<li><em>ccp_situational_deltas_tables</em>.</li>
+<li><em>ccp_starting_values_tables</em>.</li>
+<li><em>ccp_unit_vs_unit_deltas_tables</em>.</li>
+<li><em>ccp_unit_vs_unit_force_melee_deltas_tables</em>.</li>
+<li><em>ccp_units_to_benchmark_units_junctions_tables</em>.</li>
+<li><em>cdir_event_diplomatic_condition_cultures_tables</em>.</li>
+<li><em>cdir_event_diplomatic_condition_factions_tables</em>.</li>
+<li><em>cdir_event_diplomatic_condition_subcultures_tables</em>.</li>
+<li><em>cdir_event_diplomatic_conditions_tables</em>.</li>
+<li><em>cdir_event_option_set_items_tables</em>.</li>
+<li><em>cdir_event_ranged_diplomatic_conditions_tables</em>.</li>
+<li><em>cdir_event_three_party_diplomatic_conditions_tables</em>.</li>
+<li><em>cdir_events_dilemma_post_generation_condition_juntions_tables</em>.</li>
+<li><em>cdir_events_incident_post_generation_condition_junctions_tables</em>.</li>
+<li><em>cdir_events_mission_post_generation_condition_junctions_tables</em>.</li>
+<li><em>cdir_events_option_sets_tables</em>.</li>
+<li><em>cdir_events_post_generation_conditions_tables</em>.</li>
+<li><em>cdir_events_targets_tables</em>.</li>
+<li><em>ceo_initial_datas_tables</em>.</li>
+<li><em>ceo_post_battle_loot_chances_tables</em>.</li>
+<li><em>ceo_set_items_tables</em>.</li>
+<li><em>ceo_sets_tables</em>.</li>
+<li><em>ceo_to_ui_display_junctions_tables</em>.</li>
+<li><em>ceos_to_duel_outcome_modifiers_tables</em>.</li>
+<li><em>ceos_to_equipment_variants_tables</em>.</li>
+<li><em>character_assignment_constraint_set_required_ceos_tables</em>.</li>
+<li><em>character_assignment_constraint_set_required_skill_levels_tables</em>.</li>
+<li><em>character_assignment_constraint_set_required_technologies_tables</em>.</li>
+<li><em>character_assignment_constraint_sets_tables</em>.</li>
+<li><em>character_assignment_effects_tables</em>.</li>
+<li><em>character_assignments_tables</em>.</li>
+<li><em>character_attribute_effects_tables</em>.</li>
+<li><em>character_attribute_sets_tables</em>.</li>
+<li><em>character_attribute_types_tables</em>.</li>
+<li><em>character_attributes_tables</em>.</li>
+<li><em>character_created_past_experiences_tables</em>.</li>
+<li><em>character_created_relationship_triggers_tables</em>.</li>
+<li><em>character_death_distribution_points_tables</em>.</li>
+<li><em>character_death_distributions_tables</em>.</li>
+<li><em>character_generation_spawn_age_ranges_tables</em>.</li>
+<li><em>character_generation_template_game_mode_details_tables</em>.</li>
+<li><em>character_generation_templates_tables</em>.</li>
+<li><em>character_loyalty_difficulty_factor_modifiers_tables</em>.</li>
+<li><em>character_pending_death_option_set_to_option_junctions_tables</em>.</li>
+<li><em>character_pending_death_option_sets_tables</em>.</li>
+<li><em>character_relationship_basic_situations_tables</em>.</li>
+<li><em>character_relationship_caps_tables</em>.</li>
+<li><em>character_relationship_duel_scoped_trigger_set_items_tables</em>.</li>
+<li><em>character_relationship_duel_scoped_trigger_sets_tables</em>.</li>
+<li><em>character_relationship_duel_triggers_tables</em>.</li>
+<li><em>character_relationship_effects_tables</em>.</li>
+<li><em>character_relationship_memories_tables</em>.</li>
+<li><em>character_relationship_opinion_topic_set_to_topics_tables</em>.</li>
+<li><em>character_relationship_opinion_topic_sets_tables</em>.</li>
+<li><em>character_relationship_opinion_topics_tables</em>.</li>
+<li><em>character_relationship_situation_effect_set_effects_tables</em>.</li>
+<li><em>character_relationship_situation_effect_sets_tables</em>.</li>
+<li><em>character_relationship_trigger_condition_required_ceos_tables</em>.</li>
+<li><em>character_relationship_trigger_condition_sets_tables</em>.</li>
+<li><em>character_relationship_trigger_effects_tables</em>.</li>
+<li><em>character_relationship_trigger_set_items_tables</em>.</li>
+<li><em>character_relationship_trigger_sets_tables</em>.</li>
+<li><em>character_relationship_triggers_tables</em>.</li>
+<li><em>character_relationships_tables</em>.</li>
+<li><em>character_relationships_to_duel_outcome_modifiers_tables</em>.</li>
+<li><em>character_skill_level_to_incidents_junctions_tables</em>.</li>
+<li><em>character_skill_level_to_missions_junctions_tables</em>.</li>
+<li><em>character_skill_node_level_unlocks_tables</em>.</li>
+<li><em>colour_lut_types_tables</em>.</li>
+<li><em>composed_entities_tables</em>.</li>
+<li><em>contextual_diplomacy_event_set_items_tables</em>.</li>
+<li><em>contextual_diplomacy_event_sets_tables</em>.</li>
+<li><em>custom_battle_characters_tables</em>.</li>
+<li><em>custom_battle_characters_to_loadouts_tables</em>.</li>
+<li><em>custom_battle_loadout_challenge_levels_tables</em>.</li>
+<li><em>custom_battle_loadouts_tables</em>.</li>
+<li><em>custom_battle_loadouts_to_ceos_tables</em>.</li>
+<li><em>custom_battle_loadouts_to_skills_tables</em>.</li>
+<li><em>custom_battle_loadouts_to_unit_sets_tables</em>.</li>
+<li><em>custom_battle_settings_tables</em>.</li>
+<li><em>custom_battle_settlement_building_groups_tables</em>.</li>
+<li><em>custom_battle_settlement_building_groups_to_buildings_tables</em>.</li>
+<li><em>custom_battle_unit_sets_tables</em>.</li>
+<li><em>custom_battle_unit_sets_to_units_tables</em>.</li>
+<li><em>custom_splines_tables</em>.</li>
+<li><em>destruction_zone_mask_type_to_prefab_types_tables</em>.</li>
+<li><em>dilemma_to_campaign_subject_junctions_tables</em>.</li>
+<li><em>diplomatic_relations_respect_thresholds_tables</em>.</li>
+<li><em>dynamic_loading_screen_event_categories_tables</em>.</li>
+<li><em>dynamic_loading_screen_event_evaluation_types_tables</em>.</li>
+<li><em>dynamic_loading_screen_event_filter_conditions_tables</em>.</li>
+<li><em>dynamic_loading_screen_event_filters_tables</em>.</li>
+<li><em>dynamic_loading_screen_events_tables</em>.</li>
+<li><em>dynamic_loading_screen_starting_faction_events_tables</em>.</li>
+<li><em>effect_bonus_value_agent_subtype_loyalty_factor_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_battlefield_deployables_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_building_chain_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_campaign_diplomacy_treaty_component_records_tables</em>.</li>
+<li><em>effect_bonus_value_campaign_sea_region_control_status_record_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_campaign_territory_type_record_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_character_attribute_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_commodity_junction_tables</em>.</li>
+<li><em>effect_bonus_value_ids_campaign_progression_level_details_records_tables</em>.</li>
+<li><em>effect_bonus_value_ids_world_power_token_records_tables</em>.</li>
+<li><em>effect_bonus_value_loyalty_factor_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_ministerial_position_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_prestige_type_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_province_initiative_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_region_gdp_type_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_retinue_chain_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_shot_type_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_unit_attribute_battle_context_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_unit_caste_junctions_tables</em>.</li>
+<li><em>effect_bonus_value_unit_category_junction_tables</em>.</li>
+<li><em>effect_bonus_value_unit_record_junctions_tables</em>.</li>
+<li><em>effects_generalised_descriptions_tables</em>.</li>
+<li><em>elemental_groups_tables</em>.</li>
+<li><em>encyclopedia_building_redirects_tables</em>.</li>
+<li><em>encyclopedia_unit_redirects_tables</em>.</li>
+<li><em>end_turn_notification_ministerial_position_junctions_tables</em>.</li>
+<li><em>end_turn_notification_mission_issuer_junctions_tables</em>.</li>
+<li><em>end_turn_notifications_pooled_resource_junctions_tables</em>.</li>
+<li><em>end_turn_notifications_tables</em>.</li>
+<li><em>events_tables</em>.</li>
+<li><em>experience_rank_to_effects_sets_tables</em>.</li>
+<li><em>experience_rank_to_effects_tables</em>.</li>
+<li><em>faction_feature_tree_to_transition_junctions_tables</em>.</li>
+<li><em>faction_potential_difficulty_overrides_tables</em>.</li>
+<li><em>faction_resource_ids_tables</em>.</li>
+<li><em>faction_resources_building_levels_permissions_junctions_tables</em>.</li>
+<li><em>faction_resources_building_levels_requirements_junctions_tables</em>.</li>
+<li><em>faction_resources_requirement_set_to_resources_junctions_tables</em>.</li>
+<li><em>faction_resources_requirement_sets_tables</em>.</li>
+<li><em>faction_strategic_threat_levels_tables</em>.</li>
+<li><em>family_relationships_to_duel_outcome_modifiers_tables</em>.</li>
+<li><em>feature_set_to_faction_feature_junctions_tables</em>.</li>
+<li><em>fertility_levels_tables</em>.</li>
+<li><em>frontend_campaign_selection_map_pins_tables</em>.</li>
+<li><em>frontend_faction_leader_playstyles_tables</em>.</li>
+<li><em>frontend_faction_leader_unique_characters_tables</em>.</li>
+<li><em>frontend_faction_leader_unique_features_tables</em>.</li>
+<li><em>frontend_faction_leaders_to_frontend_campaign_selection_map_pins_junctions_tables</em>.</li>
+<li><em>frontend_faction_leaders_to_frontend_faction_leader_unique_features_junctions_tables</em>.</li>
+<li><em>game_modes_tables</em>.</li>
+<li><em>government_types_to_effects_tables</em>.</li>
+<li><em>help_page_strings_tables</em>.</li>
+<li><em>hero_battle_conversation_excluded_strings_tables</em>.</li>
+<li><em>hero_battle_conversation_strings_tables</em>.</li>
+<li><em>historical_battles_ui_locations_tables</em>.</li>
+<li><em>historical_characters_tables</em>.</li>
+<li><em>land_units_templates_tables</em>.</li>
+<li><em>land_units_to_deployables_abilities_junctions_tables</em>.</li>
+<li><em>loading_screen_season_images_tables</em>.</li>
+<li><em>loading_screen_speech_content_to_groups_junctions_tables</em>.</li>
+<li><em>loading_screen_speech_excluded_strings_tables</em>.</li>
+<li><em>loading_screen_speech_group_behaviours_tables</em>.</li>
+<li><em>loading_screen_speech_groups_tables</em>.</li>
+<li><em>loading_screen_speech_strings_tables</em>.</li>
+<li><em>loyalty_effects_tables</em>.</li>
+<li><em>map_pin_icon_types_tables</em>.</li>
+<li><em>map_pin_types_tables</em>.</li>
+<li><em>map_pins_tables</em>.</li>
+<li><em>mens_tables</em>.</li>
+<li><em>mercenary_pool_modifiers_tables</em>.</li>
+<li><em>mercenary_retinue_campaign_groups_to_faction_group_junctions_tables</em>.</li>
+<li><em>mercenary_retinue_categories_tables</em>.</li>
+<li><em>mercenary_retinue_details_tables</em>.</li>
+<li><em>mercenary_retinue_faction_group_to_mercenary_retinue_junctions_tables</em>.</li>
+<li><em>mercenary_retinue_faction_groups_tables</em>.</li>
+<li><em>mercenary_retinue_level_details_tables</em>.</li>
+<li><em>mercenary_retinue_level_sources_tables</em>.</li>
+<li><em>ministerial_position_permission_junctions_tables</em>.</li>
+<li><em>ministerial_position_required_technology_junctions_tables</em>.</li>
+<li><em>ministerial_positions_to_character_effects_tables</em>.</li>
+<li><em>ministerial_positions_to_effects_tables</em>.</li>
+<li><em>ministerial_positions_to_governorships_tables</em>.</li>
+<li><em>ministerial_postion_valid_agent_subtypes_tables</em>.</li>
+<li><em>mission_issuer_to_map_pin_icon_junctions_tables</em>.</li>
+<li><em>models_artillery_tables</em>.</li>
+<li><em>models_naval_tables</em>.</li>
+<li><em>models_oars_tables</em>.</li>
+<li><em>mountable_artillery_units_custom_battles_tables</em>.</li>
+<li><em>mountable_artillery_units_tables</em>.</li>
+<li><em>movie_event_strings_tables</em>.</li>
+<li><em>name_order_overrides_tables</em>.</li>
+<li><em>naval_units_to_unit_abilites_junctions_tables</em>.</li>
+<li><em>past_experience_memory_types_tables</em>.</li>
+<li><em>past_experience_reasons_tables</em>.</li>
+<li><em>political_actions_dilemma_junctions_tables</em>.</li>
+<li><em>political_actions_incidents_junctions_tables</em>.</li>
+<li><em>political_actions_mission_junctions_tables</em>.</li>
+<li><em>pooled_resource_factors_campaign_statistics_junctions_tables</em>.</li>
+<li><em>pooled_resource_overflow_distribution_factors_tables</em>.</li>
+<li><em>post_battle_character_relationship_triggers_tables</em>.</li>
+<li><em>prestige_types_tables</em>.</li>
+<li><em>props_tables</em>.</li>
+<li><em>province_to_emergent_faction_junctions_tables</em>.</li>
+<li><em>provincial_resource_ids_tables</em>.</li>
+<li><em>provincial_resources_building_levels_permissions_junctions_tables</em>.</li>
+<li><em>provincial_resources_building_levels_requirements_junctions_tables</em>.</li>
+<li><em>provincial_resources_requirement_set_to_resources_junctions_tables</em>.</li>
+<li><em>provincial_resources_requirement_sets_tables</em>.</li>
+<li><em>region_area_of_interest_display_junctions_tables</em>.</li>
+<li><em>region_effect_bundles_tables</em>.</li>
+<li><em>resource_transaction_pooled_resource_junctions_tables</em>.</li>
+<li><em>resource_transactions_tables</em>.</li>
+<li><em>retinue_slot_initial_units_tables</em>.</li>
+<li><em>retinue_slot_types_tables</em>.</li>
+<li><em>retinue_slot_upgrade_nodes_tables</em>.</li>
+<li><em>retinue_slot_upgrade_subtree_restrictions_tables</em>.</li>
+<li><em>retinue_slot_upgrade_subtree_to_node_junctions_tables</em>.</li>
+<li><em>retinue_slot_upgrade_subtrees_tables</em>.</li>
+<li><em>retinue_slot_upgrade_tree_restrictions_tables</em>.</li>
+<li><em>retinue_slot_upgrade_tree_to_subtree_junctions_tables</em>.</li>
+<li><em>retinue_slot_upgrade_trees_tables</em>.</li>
+<li><em>retinue_template_slots_tables</em>.</li>
+<li><em>retinue_templates_tables</em>.</li>
+<li><em>retinue_types_tables</em>.</li>
+<li><em>retinues_tables</em>.</li>
+<li><em>season_attritions_tables</em>.</li>
+<li><em>season_province_effect_bundles_tables</em>.</li>
+<li><em>settlement_siege_action_effect_acting_faction_effect_bundles_tables</em>.</li>
+<li><em>settlement_siege_action_effect_acting_force_effect_bundles_tables</em>.</li>
+<li><em>settlement_siege_action_effect_clear_province_fertility_penalties_tables</em>.</li>
+<li><em>settlement_siege_action_effect_cost_resource_transaction_conversion_factors_tables</em>.</li>
+<li><em>settlement_siege_action_effect_cost_resource_transactions_tables</em>.</li>
+<li><em>settlement_siege_action_effect_costs_tables</em>.</li>
+<li><em>settlement_siege_action_effect_damage_acting_units_tables</em>.</li>
+<li><em>settlement_siege_action_effect_diplomatic_deals_tables</em>.</li>
+<li><em>settlement_siege_action_effect_distribute_slave_points_tables</em>.</li>
+<li><em>settlement_siege_action_effect_faction_supports_tables</em>.</li>
+<li><em>settlement_siege_action_effect_group_effect_application_stages_tables</em>.</li>
+<li><em>settlement_siege_action_effect_horde_growth_amounts_tables</em>.</li>
+<li><em>settlement_siege_action_effect_loot_and_damage_buildings_tables</em>.</li>
+<li><em>settlement_siege_action_effect_province_growth_amounts_tables</em>.</li>
+<li><em>settlement_siege_action_effect_public_order_effects_tables</em>.</li>
+<li><em>settlement_siege_action_effect_settlement_owner_faction_effect_bundles_tables</em>.</li>
+<li><em>settlement_siege_action_effect_vandalise_secondary_slot_or_downgrade_primary_slots_tables</em>.</li>
+<li><em>settlement_siege_action_effect_zero_acting_character_action_points_tables</em>.</li>
+<li><em>settlement_siege_action_option_campaign_vfx_events_tables</em>.</li>
+<li><em>settlement_siege_action_option_gift_settlement_to_faction_with_whom_we_have_treaty_components_tables</em>.</li>
+<li><em>settlement_siege_action_option_set_options_tables</em>.</li>
+<li><em>settlement_siege_action_option_sets_tables</em>.</li>
+<li><em>settlement_siege_action_option_tooltips_tables</em>.</li>
+<li><em>settlement_siege_action_options_tables</em>.</li>
+<li><em>settlement_siege_situations_tables</em>.</li>
+<li><em>ship_names_tables</em>.</li>
+<li><em>siege_obstacles_tables</em>.</li>
+<li><em>special_ability_animations_tables</em>.</li>
+<li><em>special_ability_stances_tables</em>.</li>
+<li><em>spline_types_tables</em>.</li>
+<li><em>tax_level_resource_transactions_junctions_tables</em>.</li>
+<li><em>technology_category_parents_tables</em>.</li>
+<li><em>technology_disables_technology_junctions_tables</em>.</li>
+<li><em>technology_required_progression_level_junctions_tables</em>.</li>
+<li><em>time_of_day_interval_season_junctions_tables</em>.</li>
+<li><em>time_of_day_intervals_tables</em>.</li>
+<li><em>time_of_day_modes_tables</em>.</li>
+<li><em>time_of_day_prefab_types_tables</em>.</li>
+<li><em>trade_nodes_tables</em>.</li>
+<li><em>treasury_level_effects_tables</em>.</li>
+<li><em>treasury_levels_tables</em>.</li>
+<li><em>trigger_event_to_excluded_agent_types_tables</em>.</li>
+<li><em>ui_ceo_node_overrides_tables</em>.</li>
+<li><em>ui_character_actions_tables</em>.</li>
+<li><em>ui_character_assignment_categories_tables</em>.</li>
+<li><em>ui_character_assignments_tables</em>.</li>
+<li><em>ui_character_attribute_groups_ceo_nodes_junctions_tables</em>.</li>
+<li><em>ui_character_attribute_groups_character_skills_junctions_tables</em>.</li>
+<li><em>ui_character_attribute_groups_effects_junctions_tables</em>.</li>
+<li><em>ui_character_attributes_groups_character_attribute_types_junctions_tables</em>.</li>
+<li><em>ui_character_attributes_groups_tables</em>.</li>
+<li><em>ui_diplomacy_alliance_oaths_tables</em>.</li>
+<li><em>ui_diplomacy_constants_tables</em>.</li>
+<li><em>ui_diplomacy_deal_signed_animations_tables</em>.</li>
+<li><em>ui_diplomacy_followup_components_to_campaign_components_tables</em>.</li>
+<li><em>ui_diplomacy_followup_negotiation_components_tables</em>.</li>
+<li><em>ui_diplomacy_input_types_tables</em>.</li>
+<li><em>ui_diplomacy_quick_deal_treaty_components_tables</em>.</li>
+<li><em>ui_diplomacy_treaty_component_evaluation_primary_criterias_tables</em>.</li>
+<li><em>ui_diplomacy_treaty_components_automatic_parameters_tables</em>.</li>
+<li><em>ui_diplomacy_treaty_components_tables</em>.</li>
+<li><em>ui_diplomacy_treaty_components_to_campaign_diplomacy_treaty_component_junctions_tables</em>.</li>
+<li><em>ui_diplomacy_treaty_components_to_deal_signed_animations_junctions_tables</em>.</li>
+<li><em>ui_diplomatic_deals_bankruptcy_highlights_tables</em>.</li>
+<li><em>ui_display_set_items_tables</em>.</li>
+<li><em>ui_display_sets_tables</em>.</li>
+<li><em>ui_dynamic_loading_screen_events_tables</em>.</li>
+<li><em>ui_ministerial_position_sets_tables</em>.</li>
+<li><em>ui_ministerial_positions_tables</em>.</li>
+<li><em>ui_ministerial_positions_to_categories_tables</em>.</li>
+<li><em>ui_resource_transaction_pooled_resource_junctions_tables</em>.</li>
+<li><em>ui_siege_item_details_tables</em>.</li>
+<li><em>ui_vfxs_tables</em>.</li>
+<li><em>undercover_actions_additional_actions_ui_filters_tables</em>.</li>
+<li><em>undercover_actions_additional_actions_ui_strings_tables</em>.</li>
+<li><em>undercover_character_discovered_actions_tables</em>.</li>
+<li><em>unit_attribute_battle_context_junctions_tables</em>.</li>
+<li><em>unit_regiment_names_tables</em>.</li>
+<li><em>unit_stats_naval_crew_tables</em>.</li>
+<li><em>units_tables</em>.</li>
+<li><em>units_to_gov_type_permissions_tables</em>.</li>
+<li><em>units_to_gov_types_conversion_jcts_tables</em>.</li>
+<li><em>world_power_tokens_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><strong><em>action_results_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>agent_actions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>attribute</em>.</li>
+<li><em>target_attribute</em>.</li>
+<li><em>show_action_info_in_ui</em>.</li>
+<li><em>subculture</em>.</li>
+<li><em>succeed_always_override</em>.</li>
+<li><em>order</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>agent_subtype_subculture_overrides_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>icon</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>agent_subtypes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>audio_voiceover_actor_group</em>.</li>
+<li><em>show_in_ui</em>.</li>
+<li><em>cap</em>.</li>
+<li><em>has_female_name</em>.</li>
+<li><em>can_gain_xp</em>.</li>
+<li><em>loyalty_is_applicable</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>agents_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>primary_attribute</em>.</li>
+<li><em>faction_total_cap</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ai_usage_groups_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>aide_de_camp_speeches_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>animals_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>variant</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>animation_set_prebattle_group_view_configurations_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>army_special_abilities_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>enables_siege_assault</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_ability_phases_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_battle_environment_loops_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_entity_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>should_use_unique_entity_switches</em>.</li>
+<li><em>max_unique_entity_switches</em>.</li>
+<li><em>use_focus_rtpc</em>.</li>
+<li><em>max_camera_distance_for_focus</em>.</li>
+<li><em>min_camera_distance_for_focus</em>.</li>
+<li><em>focus_rtpc</em>.</li>
+<li><em>unique_entity_switch</em>.</li>
+<li><em>ignore_moving_outside_combat</em>.</li>
+<li><em>ignore_moving</em>.</li>
+<li><em>group_idle_shoot</em>.</li>
+<li><em>group_idle_combat_ready</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_missile_weapon_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_vo_actor_groups_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>name</em>.</li>
+<li><em>vo_actor_1</em>.</li>
+<li><em>vo_actor_2</em>.</li>
+<li><em>vo_actor_3</em>.</li>
+<li><em>vo_actor_4</em>.</li>
+<li><em>vo_actor_5</em>.</li>
+<li><em>vo_actor_6</em>.</li>
+<li><em>vo_actor_7</em>.</li>
+<li><em>vo_actor_8</em>.</li>
+<li><em>vo_actor_9</em>.</li>
+<li><em>vo_actor_10</em>.</li>
+<li><em>vo_actor_11</em>.</li>
+<li><em>vo_actor_12</em>.</li>
+<li><em>vo_actor_13</em>.</li>
+<li><em>vo_actor_14</em>.</li>
+<li><em>vo_actor_15</em>.</li>
+<li><em>cooldown_overlap</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_entity_effects_junctions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_set_piece_armies_characters_items_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>character_item</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_set_pieces_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_environment_audio</em>.</li>
+<li><em>catchment_area</em>.</li>
+<li><em>campaign_pre_battle_intro_movie</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_skeletons_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>cinematic</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_buildings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_siege_vehicles_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>image_path</em>.</li>
+<li><em>recruitment_cap</em>.</li>
+<li><em>cost</em>.</li>
+<li><em>category_image_path</em>.</li>
+<li><em>selection_priority</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battles_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>tile_upgrade</em>.</li>
+<li><em>battle_environment</em>.</li>
+<li><em>battle_environment_audio</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>bmd_layer_groups_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_effects_junction_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>building</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_levels_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>food_cost</em>.</li>
+<li><em>slave_cap_contribution</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_superchains_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_diplomacy_complex_treacheries_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_diplomacy_simple_treacheries_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personalities_budget_allocations_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personalities_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>religion_change_management_policy</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personality_group_overrides_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>difficulty_handicap</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personality_groups_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personality_negotiation_components_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>max_interactions</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>Integer</em> =&gt; <em>Float</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>angry_reject_max</em>.</li>
+<li><em>angry_reject_min</em>.</li>
+<li><em>initial_decline</em>.</li>
+<li><em>initial_counter</em>.</li>
+<li><em>irrelevant_accept</em>.</li>
+<li><em>irrelevant_decline</em>.</li>
+<li><em>irrelevant_counter_new</em>.</li>
+<li><em>irrelevant_counter_last</em>.</li>
+<li><em>max_steps_above_acceptable</em>.</li>
+<li><em>failed_payment_mod</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personality_strategic_components_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>friendly_towards_enemy_multiplier</em>.</li>
+<li><em>friendly_towards_friend_multiplier</em>.</li>
+<li><em>hostile_towards_enemy_multiplier</em>.</li>
+<li><em>hostile_towards_friend_multiplier</em>.</li>
+<li><em>max_friendly_attitude</em>.</li>
+<li><em>max_hostile_attitude</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_task_management_system_task_generator_groups_generators_junctions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_battle_presets_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_character_arts_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>land_animation_vfx_filter</em>.</li>
+<li><em>sea_animation_vfx_filter</em>.</li>
+<li><em>navy_animation_vfx_filter</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_effect_scopes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>source</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_ground_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_cultures_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_factions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_numeric_ranges_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_subcultures_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_map_attritions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>message_event_association</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_movement_spline_materials_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>head_material</em>.</li>
+<li><em>shaft_material</em>.</li>
+<li><em>id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_payload_ui_details_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_post_battle_captive_options_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>resource_transaction</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_settlement_display_buildings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>key</em>.</li>
+<li><em>port_bmd</em>.</li>
+<li><em>construction_bmd</em>.</li>
+<li><em>damaged_bmd</em>.</li>
+<li><em>destroyed_bmd</em>.</li>
+<li><em>port_construction_bmd</em>.</li>
+<li><em>port_walled_bmd</em>.</li>
+<li><em>wall_bmd</em>.</li>
+<li><em>on_sea_bmd</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_statistics_strings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_tree_ids_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>season</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_tree_variants_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>tree_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaigns_campaign_variables_junctions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>optional_difficulty_level</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>capture_point_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_dilemma_choice_details_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_dilemma_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_dilemma_payloads_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_incident_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_incident_payloads_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_mission_option_junctions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_mission_payloads_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_military_generator_unit_qualities_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_skill_categories_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>agent_subtype_override</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_skill_level_to_dilemmas_junctions_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>random_selection</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_skill_node_sets_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_skill_nodes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>climates_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>deployment_area_displays_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>spline_height</em>.</li>
+<li><em>material</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>diplomatic_relations_attitudes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>value</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>effect_bundles_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>effects_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>icon_negative</em>.</li>
+<li><em>is_positive_value_good</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>event_feed_targeted_events_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>faction_agent_permitted_subtypes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>faction_groups_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>factions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>republican_flag_path</em>.</li>
+<li><em>same_gov_type_revolution_flag_path</em>.</li>
+<li><em>alt_primary_colour_r</em>.</li>
+<li><em>alt_primary_colour_g</em>.</li>
+<li><em>alt_primary_colour_b</em>.</li>
+<li><em>alt_secondary_colour_r</em>.</li>
+<li><em>alt_secondary_colour_g</em>.</li>
+<li><em>alt_secondary_colour_b</em>.</li>
+<li><em>alt_uniform_colour_r</em>.</li>
+<li><em>alt_uniform_colour_g</em>.</li>
+<li><em>alt_uniform_colour_b</em>.</li>
+<li><em>mp_use_republic_early</em>.</li>
+<li><em>mp_use_republic_late</em>.</li>
+<li><em>default_audio_actor_vo_group</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>fonts_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>size</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>Integer</em> =&gt; <em>Float</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>frontend_faction_leaders_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>character_image</em>.</li>
+<li><em>show_full_intro_option</em>.</li>
+<li><em>difficulty</em>.</li>
+<li><em>startpos_map</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>frontend_factions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>sort_order</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>government_types_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>active_upper_class</em>.</li>
+<li><em>active_lower_class</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ground_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>land_units_officers_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>officer_1</em>.</li>
+<li><em>officer_2</em>.</li>
+<li><em>standard_bearer_1</em>.</li>
+<li><em>standard_bearer_2</em>.</li>
+<li><em>musician_1</em>.</li>
+<li><em>musician_2</em>.</li>
+<li><em>personality_location</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>land_units_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>man_animation</em>.</li>
+<li><em>man_entity</em>.</li>
+<li><em>bonus_hit_points</em>.</li>
+<li><em>mount</em>.</li>
+<li><em>animal</em>.</li>
+<li><em>num_animals</em>.</li>
+<li><em>num_mounts</em>.</li>
+<li><em>strengths_&amp;_weaknesses_text</em>.</li>
+<li><em>articulated_record</em>.</li>
+<li><em>engine</em>.</li>
+<li><em>reload</em>.</li>
+<li><em>num_engines</em>.</li>
+<li><em>mounted_draughts</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>loyalty_factors_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>main_units_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>num_men</em>.</li>
+<li><em>use_hitpoints_in_campaign</em>.</li>
+<li><em>audio_voiceover_actor_group</em>.</li>
+<li><em>food_cost</em>.</li>
+<li><em>has_spoken_vo</em>.</li>
+<li><em>is_monstrous</em>.</li>
+<li><em>multiplayer_qb_cap</em>.</li>
+<li><em>vo_is_dragon</em>.</li>
+<li><em>vo_is_dinosaur</em>.</li>
+<li><em>optional_ui_element</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>military_force_types_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>spawn_on_sea</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ministerial_positions_culture_details_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>unique_id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ministerial_positions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>required_loyalty</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>mission_issuers_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>icon_path</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>missions_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>ui_icon</em>.</li>
+<li><em>quest_mission_final</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>models_building_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>collision_file</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>StringU8</em> =&gt; <em>OptionalStringU8</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>logic_file_override</em>.</li>
+<li><em>collision_file_override</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>mounts_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>variant</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>pooled_resource_factor_junctions_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>unique_id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>pooled_resource_factors_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>minimum</em>.</li>
+<li><em>maximum</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>pooled_resources_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>optional_icon_path</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>prefab_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectile_displays_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectiles_explosions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>fuse_distance_from_target</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>Float</em> =&gt; <em>Integer</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectiles_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>trail_always_on</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>regions_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>owner_bundle</em>.</li>
+<li><em>faction_swapping_id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>seasons_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>onscreen</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ship_dbs_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>special_ability_phases_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>heal_amount_duplicate</em>.</li>
+<li><em>replenish_ammo</em>.</li>
+<li><em>composite_scene_group</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>taxes_effects_jct_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>optional_difficulty_level</em>.</li>
+<li><em>specific_feature_set</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>technologies_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>military_prestige</em>.</li>
+<li><em>naval_prestige</em>.</li>
+<li><em>economic_prestige</em>.</li>
+<li><em>enlightenment_prestige</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ui_unit_groupings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ui_unit_stats_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_abilities_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>source_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_attributes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_spacings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>horde</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_variant_upgrades_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>ancillary_primary</em>.</li>
+<li><em>ancillary_secondary</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_variants_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>unit</em>.</li>
+<li><em>variant</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>victory_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>videos_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Fixed Tables</strong>:</p>
+<ul>
+<li><strong><em>action_results_additional_outcomes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>opportune_failure_weighting</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>Integer</em> =&gt; <em>OptionalStringU8</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>FIXME</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ancillary_salvage_resources_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>category</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>ancillaries_categories, category</em> =&gt; <em>ancillaries, categories</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>area_of_effect_displays_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>spline</em>.</li>
+<li><em>spline_width</em>.</li>
+<li><em>spline_vertical</em>.</li>
+<li><em>use_model_time</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>army_special_abilities_for_faction_junctions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>army_special_ablility</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>army_special_abilities, army_special_ability</em> =&gt; <em>army_special_abilities, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>audio_metadata_tags_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>use_limitation_type_override</em>.</li>
+<li><em>limitation_type_override</em>.</li>
+<li><em>culling_distance_override</em>.</li>
+<li><em>ignore_alpha_check</em>.</li>
+<li><em>override_vo</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_catchment_override_battle_mappings_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>battle_path</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_battle_paths</em>/<em>path</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>campaign</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_entities_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>hit_points</em>.</li>
+<li><em>jump_attack_chance</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battle_set_pieces_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>battle_enviroment_audio</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_battle_enviroments</em>/<em>name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>battle_environment_audio</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>battlefield_engines_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>destruct_model</strong>:
+<ul>
+<li><strong><em>Description</em></strong>: ** =&gt; <em>Defines model to use while the engine gets destroyed</em>.</li>
+</ul>
+</li>
+<li><strong>destruct_anim</strong>:
+<ul>
+<li><strong><em>Description</em></strong>: ** =&gt; <em>Defines animation to use while the engine gets destroyed</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>building_chains_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>optional_required_horde_commander</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personality_occupation_decision_components_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>food_excess_cap</em>.</li>
+<li><em>food_shortage_cap</em>.</li>
+<li><em>min_attitude</em>.</li>
+<li><em>squalor_cap</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cai_personality_occupation_decision_priorities_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>last_stand_priority</em>.</li>
+<li><em>option</em>.</li>
+<li><em>total_war_priority</em>.</li>
+<li><em>war_priority</em>.</li>
+<li><em>tension_priority</em>.</li>
+<li><em>peace_priority</em>.</li>
+<li><em>policy_id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_building_chain_slot_unlocks_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>secondary_building_slot_unlock_count</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_group_member_criteria_involves_settlements_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>member</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>campaign_group_members, id</em> =&gt; <em>campaign_group_members, member</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_map_playable_areas_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>is_mpc_available</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_markers_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_mercenary_unit_character_level_restrictions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>character_level</strong>:
+<ul>
+<li><strong><em>Is Key</em></strong>: <em>false</em> =&gt; <em>true</em>.</li>
+</ul>
+</li>
+<li><strong>unit</strong>:
+<ul>
+<li><strong><em>Is Key</em></strong>: <em>true</em> =&gt; <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>campaign_storm_types_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>example_field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_configs_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>value</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>OptionalStringU8</em> =&gt; <em>Integer</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>faction_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cdir_events_options_tables</em></strong>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>notes</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>character_trait_levels_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>trait</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>character_traits, key</em> =&gt; <em>trait_info, trait</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cultures_subcultures_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>subculture</strong>:
+<ul>
+<li><strong><em>Is Key</em></strong>: <em>true</em> =&gt; <em>false</em>.</li>
+</ul>
+</li>
+<li><strong>index</strong>:
+<ul>
+<li><strong><em>Is Key</em></strong>: <em>false</em> =&gt; <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>confederation_screen_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>cultures_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>audio_state</em>.</li>
+<li><em>ui_group_by_culture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>loading_screen_quotes_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>category</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: ** =&gt; <em>loading_screen_quotes_categories, category</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>mercenary_unit_groups_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>unit_record</strong>:
+<ul>
+<li><strong><em>Is Key</em></strong>: <em>false</em> =&gt; <em>true</em>.</li>
+<li><strong><em>Is Reference</em></strong>: <em>main_units, unit</em> =&gt; **.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>projectiles_explosions_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>shrapnel_type</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>projectiles, key</em> =&gt; <em>projectile_shrapnels, key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>resource_ui_overrides_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>override_subculture</strong>:
+<ul>
+<li><strong><em>Is Reference</em></strong>: <em>cultures_subcultures, subculture</em> =&gt; <em>cultures_subculture, subculture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>technology_nodes_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>food_cost</em>.</li>
+<li><em>optional_ui_group</em>.</li>
+<li><em>resource_cost</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>ui_colours_tables</em></strong>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>description</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>StringU8</em> =&gt; <em>OptionalStringU8</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>unit_special_abilities_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>voiceover_state</strong>:
+<ul>
+<li><strong><em>Type</em></strong>: <em>StringU8</em> =&gt; <em>OptionalStringU8</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>parent_ability</em>.</li>
+<li><em>composite_scene_group_on_wind_up</em>.</li>
+<li><em>composite_scene_group_on_active</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong><em>variants_tables</em></strong>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><strong><em>New field</em></strong>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>super_low_poly_filename</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <a class="header" href="#000" id="000"><h1>000</h1></a>
 <p>Initial schema, derived from Warhammer 2 Schema.</p>
 <a class="header" href="#warhammer-2-schemas-changelog" id="warhammer-2-schemas-changelog"><h1>Warhammer 2 Schema's Changelog</h1></a>
