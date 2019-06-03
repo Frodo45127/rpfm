@@ -197,6 +197,12 @@ pub fn background_loop(
                         pack_file_decoded.bitmask.set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, state);
                     }
 
+                    // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
+                    Commands::ChangeDataIsCompressed => {
+                        let state: bool = if let Data::Bool(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        pack_file_decoded.enable_compresion(state);
+                    }
+
                     // In case we want to save an schema...
                     Commands::SaveSchema => {
 

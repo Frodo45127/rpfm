@@ -46,6 +46,7 @@ pub enum Commands {
     LoadAllCAPackFiles,
     SetPackFileType,
     ChangeIndexIncludesTimestamp,
+    ChangeDataIsCompressed,
     SaveSchema,
     SetSettings,
     SetShortcuts,

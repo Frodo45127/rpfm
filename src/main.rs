@@ -98,7 +98,7 @@ use crate::common::*;
 use crate::common::communications::*;
 use crate::error::{ErrorKind, logger::Report, Result};
 use crate::main_extra::*;
-use crate::packfile::PathType;
+use crate::packfile::{CompressionState, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::*;
 use crate::packedfile::db::DB;
@@ -662,6 +662,9 @@ pub struct AppUI {
     pub change_packfile_type_index_is_encrypted: *mut Action,
     pub change_packfile_type_data_is_encrypted: *mut Action,
 
+    // Action to enable/disable compression on PackFiles. Only for PFH5+ PackFiles.
+    pub change_packfile_type_data_is_compressed: *mut Action,
+
     // Action Group for the submenu.
     pub change_packfile_type_group: *mut ActionGroup,
 
@@ -1029,6 +1032,9 @@ fn main() {
             change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
             change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
             change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
+            
+            // Action for the PackFile compression.
+            change_packfile_type_data_is_compressed: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Data Is &Compressed")),
 
             // Action Group for the submenu.
             change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -1164,14 +1170,17 @@ fn main() {
         unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checkable(true); }
 
         unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
 
         // Put separators in the SubMenu.
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_header_is_extended); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_data_is_compressed); }
 
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.three_kingdoms); }
@@ -1444,6 +1453,8 @@ fn main() {
         unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. Note that PackFiles with this enabled WILL NOT SHOW UP as mods in the official launcher.")); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.")); }
+        
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the data of each PackedFile in the open PackFile will be compressed on save. If you want to decompress a PackFile, disable this, then save it.")); }
 
         // Menu bar, Game Selected.
         unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Tries to open the currently selected game's Data folder (if exists) in the default file manager.")); }
@@ -1682,6 +1693,9 @@ fn main() {
                     unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                     unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
 
+                    // We also disable compression by default.
+                    unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
+
                     // Update the TreeView.
                     update_treeview(
                         &sender_qt,
@@ -1824,7 +1838,7 @@ fn main() {
                     match check_message_validity_tryrecv(&receiver_qt) {
                     
                         // If it's success....
-                        Data::PackFileUIData(_) => {
+                        Data::PackFileUIData(data) => {
 
                             // This PackFile is a special one. It'll always be type "Other(200)" with every special stuff as false.
                             // TODO: Encrypted PackedFiles haven't been tested with this.
@@ -1833,6 +1847,13 @@ fn main() {
                             unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+
+                            // Set the compression level correctly, because otherwise we may fuckup some files.
+                            let compression_state = match data.compression_state {
+                                CompressionState::Enabled => true,
+                                CompressionState::Partial | CompressionState::Disabled => false,
+                            };
+                            unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(compression_state); }
 
                             // Update the TreeView.
                             update_treeview(
@@ -1932,11 +1953,21 @@ fn main() {
             sender_qt_data => move |_| {
 
                 // Get the current value of the action.
-                let state;
-                unsafe { state = app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked(); }
+                let state = unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked() };
 
                 // Send the new state to the background thread.
                 sender_qt.send(Commands::ChangeIndexIncludesTimestamp).unwrap();
+                sender_qt_data.send(Data::Bool(state)).unwrap();
+            }
+        ));
+
+        // What happens when we enable/disable compression on the current PackFile.
+        let slot_data_is_compressed = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data => move |_| {
+
+                let state = unsafe { app_ui.change_packfile_type_data_is_compressed.as_ref().unwrap().is_checked() };
+                sender_qt.send(Commands::ChangeDataIsCompressed).unwrap();
                 sender_qt_data.send(Data::Bool(state)).unwrap();
             }
         ));
@@ -2037,6 +2068,7 @@ fn main() {
         unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().signals().triggered().connect(&slot_index_includes_timestamp); }
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_ref().unwrap().signals().triggered().connect(&slot_data_is_compressed); }
 
         unsafe { app_ui.preferences.as_ref().unwrap().signals().triggered().connect(&slot_preferences); }
         unsafe { app_ui.quit.as_ref().unwrap().signals().triggered().connect(&slot_quit); }

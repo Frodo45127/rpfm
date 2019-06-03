@@ -57,6 +57,13 @@ pub fn open_packfile(
             unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX)); }
             unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER)); }
 
+            // Set the compression level correctly, because otherwise we may fuckup some files.
+            let compression_state = match ui_data.compression_state {
+                CompressionState::Enabled => true,
+                CompressionState::Partial | CompressionState::Disabled => false,
+            };
+            unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(compression_state); }
+
             // Update the TreeView.
             update_treeview(
                 sender_qt,
@@ -1407,40 +1414,49 @@ pub fn enable_packfile_actions(
         // Check the Game Selected and enable the actions corresponding to out game.
         match &**GAME_SELECTED.lock().unwrap() {
             "three_kingdoms" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.three_k_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer_2" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "thrones_of_britannia" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.tob_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "attila" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.att_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "rome_2" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.rom2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "shogun_2" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.sho2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "napoleon" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.nap_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "empire" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.emp_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
@@ -1450,6 +1466,9 @@ pub fn enable_packfile_actions(
 
     // If we are disabling...
     else {
+
+        // Universal Actions.
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
 
         // Disable Three Kingdoms actions...
         unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_enabled(false); }

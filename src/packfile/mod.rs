@@ -107,6 +107,14 @@ pub enum PathType {
     None,
 }
 
+/// This `Enum` indicates the current state of the compression in the current PackFile.
+#[derive(Debug, Clone)]
+pub enum CompressionState {
+    Enabled,
+    Partial,
+    Disabled,
+}
+
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
 ///
 /// It stores the following data from the header:
@@ -144,6 +152,7 @@ pub struct PackFileUIData {
     pub pfh_version: PFHVersion,
     pub pfh_file_type: PFHFileType,
     pub bitmask: PFHFlags,
+    pub compression_state: CompressionState,
     pub timestamp: i64,
 }
 
@@ -298,7 +307,30 @@ impl PackFile {
             pfh_file_type: self.pfh_file_type,
             bitmask: self.bitmask,
             timestamp: self.timestamp,
+            compression_state: self.get_compression_state(),
         }
+    }
+
+    /// This function returns the compression state of the provided PackFile.
+    pub fn get_compression_state(&self) -> CompressionState {
+        let mut has_files_compressed = false;
+        let mut has_files_uncompressed = false;
+        for packed_file in &self.packed_files {
+            if !has_files_compressed && packed_file.is_compressed {
+                has_files_compressed = true;
+            }
+
+            if !has_files_uncompressed && !packed_file.is_compressed {
+                has_files_uncompressed = true;
+            }
+
+            if has_files_uncompressed && has_files_compressed {
+                break;
+            }
+        }
+        if has_files_compressed && has_files_uncompressed { CompressionState::Partial }
+        else if has_files_compressed { CompressionState::Enabled }
+        else { CompressionState::Disabled }
     }
 
     /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
@@ -341,6 +373,15 @@ impl PackFile {
     /// - `index`: the index of the PackedFile we want to remove from the PackFile.
     pub fn remove_packedfile(&mut self, index: usize) {
         self.packed_files.remove(index);
+    }
+
+    /// This function enables/disables Full-PackFile compression. Partial compression is not supported.
+    ///
+    /// It requires:
+    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// - `enable`: the bool that says if we want it to be enabled or not.
+    pub fn enable_compresion(&mut self, enable: bool) {
+        self.packed_files.iter_mut().for_each(|x| x.is_compressed = enable);
     }
 
     /// This function remove all PackedFiles from a PackFile.
@@ -617,11 +658,14 @@ impl PackFile {
             // Remember: first compress (only PFH5), then encrypt.
             let (data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_data_and_info_from_memory()?;
             
-            // Compression is not yet supported (stupid xz). Uncompress everything.
-            if *is_compressed {
+            // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile.
+            if *should_be_compressed && !*is_compressed {
+                *data = compress_data(&data).unwrap();
+                *is_compressed = true;
+            }
+            else if !*should_be_compressed && *is_compressed {
                 *data = decompress_data(&data)?;
                 *is_compressed = false;
-                *should_be_compressed = false;
             }
 
             // Encryption is not yet supported. Unencrypt everything.
@@ -649,8 +693,7 @@ impl PackFile {
             match self.pfh_version {
                 PFHVersion::PFH5 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
-                    //if packed_file.is_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
-                    packed_file_index.push(0);
+                    if packed_file.is_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
                 }
                 PFHVersion::PFH4 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
