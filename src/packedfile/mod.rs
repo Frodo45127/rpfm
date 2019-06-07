@@ -48,6 +48,19 @@ pub enum PackedFileType {
     Text(String),
 }
 
+/// This enum specifies the PackedFile types we can decode.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum DecodeablePackedFileType {
+    DB,
+    Loc,
+    Text,
+    Image,
+    RigidModel,
+    
+    // Wildcard for undecodeable PackFiles.
+    None
+}
+
 /// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB/Loc PackedFile.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
@@ -68,6 +81,50 @@ pub const TSV_HEADER_LOC_PACKEDFILE: &str = "Loc PackedFile";
 //----------------------------------------------------------------//
 // Generic Functions for PackedFiles.
 //----------------------------------------------------------------//
+
+/// Function to get the type of a PackedFile.
+pub fn get_packed_file_type(path: &[String]) -> DecodeablePackedFileType {
+
+    let packedfile_name = path.last().unwrap().to_owned();
+
+    // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+    if path[0] == "db" { DecodeablePackedFileType::DB }
+
+    // If it ends in ".loc", it's a localisation PackedFile.
+    else if packedfile_name.ends_with(".loc") { DecodeablePackedFileType::Loc }
+
+    // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+    else if packedfile_name.ends_with(".rigid_model_v2") { DecodeablePackedFileType::RigidModel }
+
+    // If it ends in any of these, it's a plain text PackedFile.
+    else if packedfile_name.ends_with(".lua") ||
+            packedfile_name.ends_with(".xml") ||
+            packedfile_name.ends_with(".xml.shader") ||
+            packedfile_name.ends_with(".xml.material") ||
+            packedfile_name.ends_with(".variantmeshdefinition") ||
+            packedfile_name.ends_with(".environment") ||
+            packedfile_name.ends_with(".lighting") ||
+            packedfile_name.ends_with(".wsmodel") ||
+            packedfile_name.ends_with(".csv") ||
+            packedfile_name.ends_with(".tsv") ||
+            packedfile_name.ends_with(".inl") ||
+            packedfile_name.ends_with(".battle_speech_camera") ||
+            packedfile_name.ends_with(".bob") ||
+            packedfile_name.ends_with(".cindyscene") ||
+            packedfile_name.ends_with(".cindyscenemanager") ||
+            //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+            packedfile_name.ends_with(".txt") { DecodeablePackedFileType::Text }
+
+    // If it ends in any of these, it's an image.
+    else if packedfile_name.ends_with(".jpg") ||
+            packedfile_name.ends_with(".jpeg") ||
+            packedfile_name.ends_with(".tga") ||
+            packedfile_name.ends_with(".dds") ||
+            packedfile_name.ends_with(".png") { DecodeablePackedFileType::Image }
+
+    // Otherwise, we don't have a decoder for that PackedFile... yet.
+    else { DecodeablePackedFileType::None }
+}
 
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(

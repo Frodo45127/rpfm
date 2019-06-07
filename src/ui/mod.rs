@@ -9,6 +9,7 @@
 //---------------------------------------------------------------------------//
 
 // In this file are all the helper functions used by the UI (mainly Qt here)
+
 use qt_widgets::action::Action;
 use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
@@ -76,6 +77,10 @@ use crate::packedfile::db::*;
 use crate::packedfile::db::schemas::*;
 use crate::ui::packfile_treeview::*;
 use crate::ui::table_state::TableStateData;
+use crate::ui::packedfile_table::PackedFileTableView;
+use crate::ui::packedfile_table::db_decoder::PackedFileDBDecoder;
+use crate::ui::packedfile_text::PackedFileTextView;
+use crate::ui::packedfile_rigidmodel::PackedFileRigidModelDataView;
 
 pub mod packedfile_table;
 pub mod packedfile_text;
@@ -91,6 +96,18 @@ pub mod qt_custom_stuff;
 //----------------------------------------------------------------------------//
 //             UI Structs (to hold slots, actions and what not)
 //----------------------------------------------------------------------------//
+
+/// One slot to rule them all, 
+/// One slot to find them, 
+/// One slot to bring them all 
+/// and in the darkness bind them.
+pub enum TheOneSlot {
+    Table(PackedFileTableView),
+    Text(PackedFileTextView),
+    TreeView(AddFromPackFileSlots),
+    Decoder(PackedFileDBDecoder),
+    RigidModel(PackedFileRigidModelDataView),
+}
 
 /// This struct holds all the "MyMod" actions from the Menu Bar.
 #[derive(Copy, Clone)]

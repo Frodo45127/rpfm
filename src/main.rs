@@ -113,7 +113,6 @@ use crate::ui::packedfile_table::db_decoder::*;
 use crate::ui::packedfile_table::dependency_manager::*;
 use crate::ui::packedfile_table::packedfile_db::*;
 use crate::ui::packedfile_table::packedfile_loc::*;
-use crate::ui::packedfile_text::PackedFileTextView;
 use crate::ui::packedfile_text::packedfile_text::*;
 use crate::ui::packedfile_text::packfile_notes::*;
 use crate::ui::packedfile_rigidmodel::*;
@@ -1287,14 +1286,7 @@ fn main() {
         let mode = Rc::new(RefCell::new(Mode::Normal));
 
         // Build the empty structs we need for certain features.
-        let add_from_packfile_slots = Rc::new(RefCell::new(AddFromPackFileSlots::new()));
-        let decoder_slots = Rc::new(RefCell::new(PackedFileDBDecoder::new()));
-        let packfiles_list_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let db_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let loc_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let text_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let rigid_model_slots = Rc::new(RefCell::new(BTreeMap::new()));
-
+        let slots = Rc::new(RefCell::new(vec![]));
         let monospace_font = Rc::new(RefCell::new(Font::new(&QString::from_std_str("monospace [Consolas]"))));
 
         // Here we store the pattern for the global search, and paths whose files have been changed/are new and need to be checked.
@@ -3200,7 +3192,7 @@ fn main() {
             receiver_qt,
             table_state_data,
             packedfiles_open_in_packedfile_view,
-            add_from_packfile_slots => move |_| {
+            slots => move |_| {
 
                 // Create the FileDialog to get the PackFile to open.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
@@ -3235,7 +3227,7 @@ fn main() {
                             *IS_FOLDER_TREE_VIEW_LOCKED.lock().unwrap() = true;
 
                             // Build the TreeView to hold all the Extra PackFile's data and save his slots.
-                            *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
+                            slots.borrow_mut().push(TheOneSlot::TreeView(AddFromPackFileSlots::new_with_grid(
                                 &sender_qt,
                                 &sender_qt_data,
                                 &receiver_qt,
@@ -3244,7 +3236,7 @@ fn main() {
                                 &global_search_explicit_paths,
                                 update_global_search_stuff,
                                 &table_state_data
-                            );
+                            )));
                         }
 
                         Data::Error(error) => {
@@ -3928,6 +3920,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
+            slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Get the currently selected paths, and only continue if there is only one.
@@ -3951,7 +3944,7 @@ fn main() {
                         ) {
 
                             // Save the monospace font and the slots.
-                            *decoder_slots.borrow_mut() = result.0;
+                            slots.borrow_mut().push(TheOneSlot::Decoder(result.0));
                             *monospace_font.borrow_mut() = result.1;
                         }
 
@@ -3969,7 +3962,7 @@ fn main() {
             receiver_qt,
             table_state_data,
             global_search_explicit_paths,
-            packfiles_list_slots,
+            slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Destroy any children that the PackedFile's View we use may have, cleaning it.
@@ -3983,7 +3976,7 @@ fn main() {
                 let path = Rc::new(RefCell::new(vec![]));
 
                 // Build the UI and save the slots.
-                packfiles_list_slots.borrow_mut().insert(0, create_dependency_manager_view(
+                slots.borrow_mut().push(TheOneSlot::Table(create_dependency_manager_view(
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
@@ -3993,7 +3986,7 @@ fn main() {
                     &global_search_explicit_paths,
                     update_global_search_stuff,
                     &table_state_data
-                ));
+                )));
 
                 // Tell the program there is an open PackedFile.
                 purge_that_one_specifically(&app_ui, 0, &packedfiles_open_in_packedfile_view);
@@ -4036,11 +4029,8 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            db_slots,
-            loc_slots,
-            text_slots,
+            slots,
             table_state_data,
-            rigid_model_slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 if let Err(error) = open_packedfile(
@@ -4050,10 +4040,7 @@ fn main() {
                     &app_ui,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &db_slots,
-                    &loc_slots,
-                    &text_slots,
-                    &rigid_model_slots,
+                    &slots,
                     update_global_search_stuff,
                     &table_state_data,
                     1
@@ -4066,7 +4053,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            text_slots,
+            slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Create the widget that'll act as a container for the view.
@@ -4076,7 +4063,7 @@ fn main() {
                 let path = Rc::new(RefCell::new(vec![]));
                 let view_position = 1;
 
-                text_slots.borrow_mut().insert(view_position, create_notes_view(
+                slots.borrow_mut().push(TheOneSlot::Text(create_notes_view(
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
@@ -4084,7 +4071,7 @@ fn main() {
                     widget_layout,
                     &path,
                     &packedfiles_open_in_packedfile_view
-                ));
+                )));
 
                 // Tell the program there is an open PackedFile and finish the table.
                 purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
@@ -4275,10 +4262,7 @@ fn main() {
         // What happens when we try to open a PackedFile...
         let slot_open_packedfile = Rc::new(SlotNoArgs::new(clone!(
             global_search_explicit_paths,
-            db_slots,
-            loc_slots,
-            text_slots,
-            rigid_model_slots,
+            slots,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -4292,10 +4276,7 @@ fn main() {
                     &app_ui,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &db_slots,
-                    &loc_slots,
-                    &text_slots,
-                    &rigid_model_slots,
+                    &slots,
                     update_global_search_stuff,
                     &table_state_data,
                     0
