@@ -37,9 +37,9 @@ use crate::packfile::{PackFile, PFHFlags};
 use crate::packedfile::*;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::raw_tables::*;
-use crate::packedfile::db::schemas::*;
 use crate::packedfile::rigidmodel::*;
+use crate::schema::*;
+use crate::schema::assembly_kit::*;
 use crate::updater::*;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.

@@ -74,7 +74,7 @@ use crate::common::communications::*;
 use crate::error::{Error, ErrorKind, Result};
 use crate::packedfile::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::schemas::*;
+use crate::schema::*;
 use crate::ui::packfile_treeview::*;
 use crate::ui::table_state::TableStateData;
 use crate::ui::packedfile_table::PackedFileTableView;
@@ -143,19 +143,6 @@ pub struct AddFromPackFileSlots {
 
 /// Implementation of "AddFromPackFileSlots".
 impl AddFromPackFileSlots {
-
-    /// This function creates a new "AddFromPackFileSlots" struct and returns it. This is just for
-    /// initialization when starting the program.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return them.
-        Self {
-            copy: SlotModelIndexRef::new(|_| {}),
-            exit: SlotNoArgs::new(|| {}),
-            slot_tree_view_expand_all: SlotNoArgs::new(|| {}),
-            slot_tree_view_collapse_all: SlotNoArgs::new(|| {}),
-        }
-    }
 
     /// This function creates a new "Add From PackFile" struct and returns it.
     pub fn new_with_grid(

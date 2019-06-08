@@ -155,40 +155,6 @@ pub struct PackedFileDBDecoderStuffNonUI {
 /// Implementation of PackedFileDBDecoder.
 impl PackedFileDBDecoder {
 
-    /// This functin returns a dummy struct. Use it for initialization.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return it.
-        Self {
-            slot_hex_view_scroll_sync: SlotCInt::new(|_| {}),
-            slot_hex_view_raw_selection_sync: SlotNoArgs::new(|| {}),
-            slot_hex_view_decoded_selection_sync: SlotNoArgs::new(|| {}),
-            slot_hex_view_raw_selection_decoding: SlotNoArgs::new(|| {}),
-            slot_hex_view_decoded_selection_decoding: SlotNoArgs::new(|| {}),
-            slot_use_this_bool: SlotNoArgs::new(|| {}),
-            slot_use_this_float: SlotNoArgs::new(|| {}),
-            slot_use_this_integer: SlotNoArgs::new(|| {}),
-            slot_use_this_long_integer: SlotNoArgs::new(|| {}),
-            slot_use_this_string_u8: SlotNoArgs::new(|| {}),
-            slot_use_this_string_u16: SlotNoArgs::new(|| {}),
-            slot_use_this_optional_string_u8: SlotNoArgs::new(|| {}),
-            slot_use_this_optional_string_u16: SlotNoArgs::new(|| {}),
-            slot_table_change_field_type: SlotModelIndexRefModelIndexRefVectorVectorCIntRef::new(|_,_,_| {}),
-            slot_table_view_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
-            slot_table_view_context_menu: SlotQtCorePointRef::new(|_| {}),
-            slot_table_view_context_menu_move_up: SlotBool::new(|_| {}),
-            slot_table_view_context_menu_move_down: SlotBool::new(|_| {}),
-            slot_table_view_context_menu_delete: SlotBool::new(|_| {}),
-            slot_generate_pretty_diff: SlotNoArgs::new(|| {}),
-            slot_remove_all_fields: SlotNoArgs::new(|| {}),
-            slot_save_definition: SlotNoArgs::new(|| {}),
-            slot_table_view_old_versions_context_menu_enabler: SlotItemSelectionRefItemSelectionRef::new(|_,_| {}),
-            slot_table_view_old_versions_context_menu: SlotQtCorePointRef::new(|_| {}),
-            slot_table_view_old_versions_context_menu_load: SlotBool::new(|_| {}),
-            slot_table_view_old_versions_context_menu_delete: SlotBool::new(|_| {}),
-        }
-    }
-
     /// This function creates the "Decoder View" with all the stuff needed to decode a table, and it
     /// returns it if it succeed. It can fail if the provided PackedFile is not a DB Table.
     pub fn create_decoder_view(

@@ -21,8 +21,8 @@ use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
 use crate::updater::Versions;
 use crate::error::{ErrorKind, Result};
-use super::schemas_importer;
-use super::raw_tables;
+
+pub mod assembly_kit;
 
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
 /// Type).
@@ -83,7 +83,7 @@ pub enum FieldType {
     StringU8,
     StringU16,
     OptionalStringU8,
-    OptionalStringU16,
+    OptionalStringU16
 }
 
 /// Implementation of "Schema"
@@ -384,7 +384,7 @@ impl TableDefinition {
     /// This function creates a new table definition from an imported definition from the assembly kit.
     /// Note that this import the loc fields (they need to be removed manually later) and it doesn't
     /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: &schemas_importer::root, version: i32, table_name: &str) -> TableDefinition {
+    pub fn new_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 
@@ -486,7 +486,7 @@ impl TableDefinition {
         
     /// This function creates a new fake table definition from an imported definition from the assembly kit.
     /// For use with the raw tables processing.
-    pub fn new_fake_from_assembly_kit(imported_table_definition: &raw_tables::root, version: i32, table_name: &str) -> TableDefinition {
+    pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 

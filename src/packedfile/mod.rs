@@ -27,7 +27,7 @@ use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::schemas::{FieldType, Schema, TableDefinition};
+use crate::schema::{FieldType, Schema, TableDefinition};
 
 use crate::SCHEMA;
 pub mod loc;

@@ -19,8 +19,8 @@ use std::fs::File;
 use std::io::{Write, BufWriter};
 
 use crate::RPFM_PATH;
+use crate::schema::Schema;
 use crate::error;
-use crate::packedfile::db::schemas::Schema;
 
 /// Custom type for the versions of the schemas.
 pub type Versions = BTreeMap<String, u32>;
