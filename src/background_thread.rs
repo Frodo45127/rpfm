@@ -273,18 +273,25 @@ pub fn background_loop(
                             for i in pack_file_decoded.packed_files.iter_mut() {
                                 if i.path.starts_with(&["db".to_owned()]) {
                                     if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                                        if let Err(error) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
-                                            if error.kind() != ErrorKind::DBTableContainsListField {
-                                                match db::DB::get_header_data(&i.get_data().unwrap()) {
-                                                    Ok((_, entry_count, _)) => {
-                                                        if entry_count > 0 {
-                                                            counter += 1;
-                                                            table_list.push_str(&format!("{}, {:?}\n", counter, i.path))
+
+                                        // For some stupid reason, this fails with decompresion sometimes.
+                                        match i.get_data_and_keep_it() {
+                                            Ok(data) => {
+                                                if let Err(error) = db::DB::read(&data, &i.path[1], &schema) {
+                                                    if error.kind() != ErrorKind::DBTableContainsListField {
+                                                        match db::DB::get_header_data(&data) {
+                                                            Ok((_, entry_count, _)) => {
+                                                                if entry_count > 0 {
+                                                                    counter += 1;
+                                                                    table_list.push_str(&format!("{}, {:?}\n", counter, i.path))
+                                                                }
+                                                            }
+                                                            Err(_) => table_list.push_str(&format!("Error in {:?}", i.path)),
                                                         }
                                                     }
-                                                    Err(_) => table_list.push_str(&format!("Error in {:?}", i.path)),
                                                 }
                                             }
+                                            Err(_) => println!("Error while trying to read {:?} from disk.", i.path),
                                         }
                                     }
                                 }

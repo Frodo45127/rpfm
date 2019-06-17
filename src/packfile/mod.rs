@@ -316,11 +316,12 @@ impl PackFile {
         let mut has_files_compressed = false;
         let mut has_files_uncompressed = false;
         for packed_file in &self.packed_files {
-            if !has_files_compressed && packed_file.is_compressed {
+            let is_compressed = packed_file.get_compression_state();
+            if !has_files_compressed && is_compressed {
                 has_files_compressed = true;
             }
 
-            if !has_files_uncompressed && !packed_file.is_compressed {
+            if !has_files_uncompressed && !is_compressed {
                 has_files_uncompressed = true;
             }
 
@@ -381,7 +382,7 @@ impl PackFile {
     /// - `&mut self`: the PackFile we are going to manipulate.
     /// - `enable`: the bool that says if we want it to be enabled or not.
     pub fn enable_compresion(&mut self, enable: bool) {
-        self.packed_files.iter_mut().for_each(|x| x.is_compressed = enable);
+        self.packed_files.iter_mut().for_each(|x| x.should_be_compressed = enable);
     }
 
     /// This function remove all PackedFiles from a PackFile.
@@ -593,7 +594,9 @@ impl PackFile {
                 PackedFileData::OnDisk(
                     pack_file.clone(), 
                     data_position, 
-                    size
+                    size,
+                    is_compressed,
+                    if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(pack_file_decoded.pfh_version) } else { None },
                 )
             );
 
@@ -669,9 +672,9 @@ impl PackFile {
             }
 
             // Encryption is not yet supported. Unencrypt everything.
-            if *is_encrypted { 
+            if is_encrypted.is_some() { 
                 *data = decrypt_packed_file(&data);
-                *is_encrypted = false;
+                *is_encrypted = None;
                 *should_be_encrypted = None;
             }
         }
@@ -693,7 +696,7 @@ impl PackFile {
             match self.pfh_version {
                 PFHVersion::PFH5 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
-                    if packed_file.is_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
+                    if packed_file.should_be_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
                 }
                 PFHVersion::PFH4 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
