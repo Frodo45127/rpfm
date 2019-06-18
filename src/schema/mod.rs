@@ -122,44 +122,31 @@ impl Schema {
 
     /// This functions returns the index of the definitions for a table.
     pub fn get_table_definitions(&self, table_name: &str) -> Option<usize> {
-        for (index, table_definitions) in self.tables_definitions.iter().enumerate() {
-            if table_definitions.name == table_name {
-               return Some(index);
-            }
-        }
-        None
+        self.tables_definitions.iter().position(|x| x.name == table_name)
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
     pub fn load(schema_file: &str) -> Result<Self> {
 
-        let mut schemas_path = RPFM_PATH.to_path_buf();
-        schemas_path.push("schemas");
+        let mut path = RPFM_PATH.to_path_buf();
+        path.push("schemas");
+        path.push(schema_file);
 
-        // We load the provided schema file.
-        let schema_file = BufReader::new(File::open(PathBuf::from(format!("{}/{}", schemas_path.to_string_lossy(), schema_file)))?);
-
-        let schema = serde_json::from_reader(schema_file)?;
-        Ok(schema)
+        let file = BufReader::new(File::open(&path)?);
+        serde_json::from_reader(file).map_err(|x| From::from(x))
     }
 
     /// This function takes an "Schema" object and saves it into a schema file.
     pub fn save(&self, schema_file: &str) -> Result<()> {
 
-        let schema_json = serde_json::to_string_pretty(&self);
-        let mut schema_path = RPFM_PATH.to_path_buf();
-        schema_path.push("schemas");
-        schema_path.push(schema_file);
+        let json = serde_json::to_string_pretty(&self)?;
+        let mut path = RPFM_PATH.to_path_buf();
+        path.push("schemas");
+        path.push(schema_file);
 
-        match File::create(schema_path.to_path_buf()) {
-            Ok(mut file) => {
-                match file.write_all(schema_json.unwrap().as_bytes()) {
-                    Ok(_) => Ok(()),
-                    Err(_) => Err(ErrorKind::IOGenericWrite(vec![schema_path.display().to_string();1]))?
-                }
-            },
-            Err(_) => Err(ErrorKind::IOGenericWrite(vec![schema_path.display().to_string();1]))?
-        }
+        let mut file = File::create(&path)?;
+        file.write_all(json.as_bytes())?;
+        Ok(())
     }
 
     /// This function generates the diff between the local schemas and the remote ones and, if it detects
