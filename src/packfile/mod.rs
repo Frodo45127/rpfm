@@ -663,7 +663,7 @@ impl PackFile {
             
             // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile.
             if *should_be_compressed && !*is_compressed {
-                *data = compress_data(&data).unwrap();
+                *data = compress_data(&data)?;
                 *is_compressed = true;
             }
             else if !*should_be_compressed && *is_compressed {
