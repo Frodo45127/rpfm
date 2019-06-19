@@ -20,9 +20,15 @@ use std::{fmt, fmt::Display};
 use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
 use crate::updater::Versions;
-use crate::error::{ErrorKind, Result};
+use crate::error::Result;
 
 pub mod assembly_kit;
+
+/// Name of the schemas versions file.
+const SCHEMA_VERSIONS_FILE: &'static str = "versions.json";
+
+/// URL used to download new schemas.
+pub const SCHEMA_UPDATE_URL_MASTER: &'static str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
 
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
 /// Type).
@@ -100,23 +106,9 @@ impl Schema {
     /// This function adds a new TableDefinitions to the schema. This checks if that table definitions
     /// already exists, and replace it in that case.
     pub fn add_table_definitions(&mut self, table_definitions: TableDefinitions) {
-
-        let name = table_definitions.name.to_owned();
-        let mut index_name = 0;
-        let mut index_found = false;
-        for (index, definitions) in self.tables_definitions.iter().enumerate() {
-            if definitions.name == name {
-                index_name = index;
-                index_found = true;
-                break;
-            }
-        }
-        if index_found {
-            self.tables_definitions.remove(index_name);
-            self.tables_definitions.insert(index_name, table_definitions);
-        }
-        else {
-            self.tables_definitions.push(table_definitions);
+        match self.tables_definitions.iter().position(|x| x.name == table_definitions.name) {
+            Some(position) => { self.tables_definitions.splice(position..position + 1, [table_definitions].iter().cloned()); },
+            None => self.tables_definitions.push(table_definitions),
         }
     }
 
@@ -155,7 +147,7 @@ impl Schema {
 
         // To avoid doing a lot of useless checking, we only check for schemas with different version.
         let local_schema_versions: Versions = serde_json::from_reader(BufReader::new(File::open(RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json")))?))?;
-        let current_schema_versions: Versions = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json")?.json()?;
+        let current_schema_versions: Versions = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.json()?;
         let mut schemas_to_update = vec![];
 
         // If the game's schema is not in the repo (when adding a new game's support) skip it.
@@ -180,9 +172,10 @@ impl Schema {
             if skip_it { continue; }
 
             // For this, first we get both schemas. Then, compare them table by table looking for differences.
+            // Uncomment and tweak the commented schema_current to test against a local schema.
             let schema_local = Schema::load(schema_name).unwrap();
             //let schema_current = Schema::load("schema_att.json").unwrap();
-            let schema_current: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema_name))?.json()?;
+            let schema_current: Schema = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, schema_name))?.json()?;
 
             // Lists to store the different types of differences.
             let mut diff = String::new();

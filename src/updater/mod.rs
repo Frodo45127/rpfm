@@ -19,7 +19,7 @@ use std::fs::File;
 use std::io::{Write, BufWriter};
 
 use crate::RPFM_PATH;
-use crate::schema::Schema;
+use crate::schema::{SCHEMA_UPDATE_URL_MASTER, Schema};
 use crate::error;
 
 /// Custom type for the versions of the schemas.
@@ -60,14 +60,14 @@ pub fn update_schemas(
             // If it's an update over our own schema, we download it and overwrite the current schema.
             // NOTE: Github's API has a limit of 1MB per file, so we take it directly from raw.githubusercontent.com instead.
             if remote_schema_version > local_schema_version {
-                let response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
+                let response: Schema = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, remote_schema_name))?.json()?;
                 response.save(remote_schema_name)?;
             }
         }
 
         // Otherwise, it's a new schema, so we just download it.
         else {
-            let response: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", remote_schema_name))?.json()?;
+            let response: Schema = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, remote_schema_name))?.json()?;
             response.save(remote_schema_name)?;
         }
     }
