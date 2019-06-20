@@ -145,27 +145,50 @@
 <a class="header" href="#windows" id="windows"><h2>Windows</h2></a>
 <p>You need to download and install:</p>
 <ul>
-<li><strong><em>Qt 5.8</em></strong> (or superior).</li>
-<li><strong><em>MSVC</em></strong>.</li>
+<li><strong><em>Qt 5.8 for MSVC</em></strong> (or superior).</li>
+<li><a href="https://developer.microsoft.com/en-US/windows/downloads/windows-10-sdk"><strong><em>Windows SDK</em></strong></a>.</li>
+<li><strong><em>MSVC</em></strong> (with C++ support from the Visual Studio installer).</li>
 <li>The <strong><em>LZMA lib</em></strong> (find it, or get it compiled yourself).</li>
-<li><strong><em>Rust 1.32</em></strong> (or superior).</li>
+<li><strong><em>Rust 1.32 with the MSVC toolchain</em></strong> (or superior).</li>
 </ul>
-<p>TODO</p>
+<p>Then you need to:</p>
+<ul>
+<li>Add the LZMA lib location to your PATH.</li>
+<li>Put this on a .bat file and execute it on cmd:</li>
+</ul>
+<pre><code class="language-dos">@echo off
+@call &quot;K:\msvc\VC\Auxiliary\Build\vcvarsall.bat&quot; x64 %*
+echo Setting up environment for MSVC/Qt usage...
+set PATH=K:\Qt\5.11.2\msvc2017_64\bin;%PATH%
+cd /D K:\Repos\RustedPackFileManager
+echo Remember to call vcvarsall.bat to complete environment setup!
+</code></pre>
+<p>Now you can call from that terminal:</p>
+<pre><code class="language-bash"># To build the executable without optimisations.
+cargo build
+
+# To run the executable without optimisations (debug mode).
+cargo run
+
+# To build the executable with optimisations (release mode).
+cargo build --release
+</code></pre>
 <a class="header" href="#linux" id="linux"><h2>Linux</h2></a>
 <p>You need to install the following packages on your distro:</p>
 <ul>
 <li><strong><em>Qt 5.8</em></strong> (or superior).</li>
 <li><strong><em>xz</em></strong>.</li>
+<li><strong><em>p7zip</em></strong>.</li>
 <li><strong><em>Rust 1.32</em></strong> (or superior).</li>
 </ul>
 <p>Then just move to RPFM's source code and execute:</p>
 <pre><code class="language-bash"># To build the executable without optimisations.
 cargo build
 
-# To run the executable without optimisations.
+# To run the executable without optimisations (debug mode).
 cargo run
 
-# To build the executable with optimisations.
+# To build the executable with optimisations (release mode).
 cargo build --release
 </code></pre>
 <a class="header" href="#macos" id="macos"><h2>MacOS</h2></a>
@@ -178,7 +201,7 @@ cargo install mdbook
 # To build the docs and open them in a browser.
 mdbook build --open
 </code></pre>
-<p>These last instructions should work in any OS where you can install Rust.</p>
+<p>These last instructions should work in any OS where you can install Rust on.</p>
 
                     </main>
 
