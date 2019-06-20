@@ -71,8 +71,7 @@ pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
     compressed_path.push("frodo_bestest_waifu.7z");
 
     // Get the data into the uncompressed file, and launch 7z.
-    let mut file = File::create(&uncompressed_path)?;
-    file.write_all(data)?;
+    File::create(&uncompressed_path)?.write_all(data)?;
     Command::new("7z").arg("a").arg("-m0=lzma").arg("-mx=3").arg(&compressed_path).arg(&uncompressed_path).output()?;
 
     // Get the compressed LZMA data (and only that data) from the compressed file. To get it, we know:
