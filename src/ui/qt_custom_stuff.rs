@@ -10,10 +10,13 @@
 
 // Here it goes ffi stuff, like subclassing and stuff like that.
 
+use qt_widgets::table_view::TableView;
+
 use qt_core::object::Object;
 use qt_core::reg_exp::RegExp;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::string_list::StringList;
+use qt_core::abstract_item_model::AbstractItemModel;
 
 /// This function gives the column you want of the given TableView a custom StyledItemDelegate using Combos instead of LineEdits.
 /// You can pass it a list of strings to populate the Combos and can make it editable or non-editable. 
@@ -23,3 +26,5 @@ extern "C" { pub fn new_doublespinbox_item_delegate(table_view: *mut Object, col
 extern "C" { pub fn new_treeview_filter(parent: *mut Object) -> *mut SortFilterProxyModel; }
 
 extern "C" { pub fn trigger_treeview_filter(filter: *mut SortFilterProxyModel, pattern: *mut RegExp, filter_by_folder: bool); }
+
+extern "C" { pub fn new_tableview_frozen(model: *mut AbstractItemModel, frozen_table: *mut TableView) -> *mut TableView; }

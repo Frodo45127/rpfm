@@ -108,7 +108,6 @@ impl Settings {
         // TableView Specific Settings.
         settings_bool.insert("remember_column_sorting".to_owned(), true);
         settings_bool.insert("remember_column_visual_order".to_owned(), true);
-        settings_bool.insert("remember_column_hidden_state".to_owned(), true);
 
         // Return it.
         Self {
