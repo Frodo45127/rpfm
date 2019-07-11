@@ -528,7 +528,7 @@ pub fn export_tsv(
 /// existing PackedFile that has a name conflict with the TSV files provided.
 pub fn tsv_mass_import(
     tsv_paths: &[PathBuf],
-    name: &str,
+    name: Option<String>,
     pack_file: &mut PackFile
 ) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
 
@@ -581,6 +581,13 @@ pub fn tsv_mass_import(
                                 let mut loc = Loc::new();
                                 loc.entries = data;
                                 let raw_data = loc.save();
+
+                                // Depending on the name received, call it one thing or another.
+                                let name = match name {
+                                    Some(ref name) => name.to_string(),
+                                    None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                };
+
                                 let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
 
                                 // If that path already exists in the list of new PackedFiles to add, change it using the index.
@@ -602,15 +609,22 @@ pub fn tsv_mass_import(
                                 let mut db = DB::new(table_type, table_version, table_definition);
                                 db.entries = data;
                                 let raw_data = db.save();
+
+                                // Depending on the name received, call it one thing or another.
+                                let name = match name {
+                                    Some(ref name) => name.to_string(),
+                                    None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                };
+
                                 let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
-                                
+                        
                                 // If that path already exists in the list of new PackedFiles to add, change it using the index.
                                 let mut index = 1;
                                 while packed_files.iter().any(|x| x.path == path) {
                                     path[2] = format!("{}_{}", name, index);
                                     index += 1;
                                 }
-
+                                
                                 // If that path already exists in the PackFile, add it to the "remove" list.
                                 if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 

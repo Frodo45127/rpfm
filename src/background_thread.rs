@@ -474,8 +474,8 @@ pub fn background_loop(
                     Commands::MassImportTSV => {
 
                         // Try to import all the importable files from the provided path.
-                        let data = if let Data::StringVecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match tsv_mass_import(&data.1, &data.0, &mut pack_file_decoded) {
+                        let data = if let Data::OptionStringVecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        match tsv_mass_import(&data.1, data.0, &mut pack_file_decoded) {
                             Ok(result) => sender.send(Data::VecVecStringVecVecString(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }

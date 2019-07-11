@@ -3362,14 +3362,16 @@ fn main() {
                 if let Some(data) = create_mass_import_tsv_dialog(&app_ui) {
 
                     // If there is no name provided, nor TSV file selected, return an error.
-                    if data.0.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
-                    else if data.1.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::NoFilesToImport) }
+                    if let Some(ref name) = data.0 {
+                        if name.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
+                    }
+                    if data.1.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::NoFilesToImport) }
 
                     // Otherwise, try to import all of them and report the result.
                     else {
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         sender_qt.send(Commands::MassImportTSV).unwrap();
-                        sender_qt_data.send(Data::StringVecPathBuf(data)).unwrap();
+                        sender_qt_data.send(Data::OptionStringVecPathBuf(data)).unwrap();
                         match check_message_validity_tryrecv(&receiver_qt) {
                             
                             // If it's success....

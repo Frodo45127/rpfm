@@ -519,7 +519,7 @@ pub fn create_new_packed_file_dialog(
 
 /// This function creates the "Mass-Import TSV" dialog. Nothing too massive. It returns the name of
 /// the new imported PackedFiles & their Paths, or None in case of closing the dialog.
-pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<PathBuf>)> {
+pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(Option<String>, Vec<PathBuf>)> {
 
     //-------------------------------------------------------------------------------------------//
     // Creating the Mass-Import TSV Dialog...
@@ -536,6 +536,8 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     let files_to_import_label = Label::new(&QString::from_std_str("Files to import: 0.")).into_raw();
     let select_files_button = PushButton::new(&QString::from_std_str("...")).into_raw();
     let mut imported_files_name_line_edit = LineEdit::new(());
+    let use_original_filenames_label = Label::new(&QString::from_std_str("Use original filename:")).into_raw();
+    let use_original_filenames_checkbox = CheckBox::new(()).into_raw();
     let import_button = PushButton::new(&QString::from_std_str("Import")).into_raw();
 
     // Set a dummy name as default.
@@ -544,8 +546,10 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     // Add all the widgets to the main grid, and the main grid to the dialog.
     unsafe { main_grid.as_mut().unwrap().add_widget((files_to_import_label as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((select_files_button as *mut Widget, 0, 1, 1, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((imported_files_name_line_edit.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((import_button as *mut Widget, 1, 1, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((use_original_filenames_label as *mut Widget, 1, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((use_original_filenames_checkbox as *mut Widget, 1, 1, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((imported_files_name_line_edit.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((import_button as *mut Widget, 2, 1, 1, 1)); }
 
     //-------------------------------------------------------------------------------------------//
     // Actions for the Mass-Import TSV Dialog...
@@ -582,10 +586,15 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     unsafe { select_files_button.as_mut().unwrap().signals().released().connect(&slot_select_files); }
     unsafe { import_button.as_mut().unwrap().signals().released().connect(&dialog.as_mut().unwrap().slots().accept()); }
 
-    // If we hit the "Create" button, take the name you wrote and the list of files, and return them.
+    // If we hit the "Create" button, check if we want to use their native name and send the info back.
     if unsafe { dialog.as_mut().unwrap().exec() } == 1 {
-        let packed_file_name = imported_files_name_line_edit.text().to_std_string();
-        Some((packed_file_name, files_to_import.borrow().to_vec()))
+        if unsafe { use_original_filenames_checkbox.as_ref().unwrap().is_checked() } {
+            Some((None, files_to_import.borrow().to_vec()))
+        }
+        else {
+            let packed_file_name = imported_files_name_line_edit.text().to_std_string();
+            Some((Some(packed_file_name), files_to_import.borrow().to_vec()))
+        }
     }
 
     // In any other case, we return None.

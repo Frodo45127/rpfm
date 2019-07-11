@@ -142,8 +142,8 @@ pub enum Data {
 
     PathType(PathType),
 
+    OptionStringVecPathBuf((Option<String>, Vec<PathBuf>)),
     StringI64VecVecString((String, i64, Vec<Vec<String>>)),
-    StringVecPathBuf((String, Vec<PathBuf>)),
     StringVecPathType((String, Vec<PathType>)),
     VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),
     VecString(Vec<String>),
