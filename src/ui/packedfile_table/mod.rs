@@ -126,6 +126,7 @@ pub struct PackedFileTableView {
     pub slot_context_menu_paste: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_paste_to_fill_selection: SlotBool<'static>,
+    pub slot_context_menu_selection_invert: SlotBool<'static>,
     pub slot_context_menu_search: SlotBool<'static>,
     pub slot_context_menu_sidebar: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
@@ -383,11 +384,12 @@ impl PackedFileTableView {
         let context_menu_paste_to_fill_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste to Fill Selection"));
 
         let context_menu_search = context_menu.add_action(&QString::from_std_str("&Search"));
+        let context_menu_sidebar = context_menu.add_action(&QString::from_std_str("Si&debar"));
 
         let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
-        let context_menu_sidebar = context_menu.add_action(&QString::from_std_str("Si&debar"));
+        let context_menu_selection_invert = context_menu.add_action(&QString::from_std_str("Inver&t Selection"));
         
         let context_menu_undo = context_menu.add_action(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
@@ -405,6 +407,7 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste"]))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_as_new_row"]))); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_to_fill_selection"]))); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["selection_invert"]))); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["search"]))); }
         unsafe { context_menu_sidebar.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["sidebar"]))); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["import_tsv"]))); }
@@ -426,6 +429,7 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_sidebar.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -447,6 +451,7 @@ impl PackedFileTableView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_to_fill_selection); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_selection_invert); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_search); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_sidebar); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
@@ -468,6 +473,7 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. If the data of a cell is incompatible with the content to paste, the cell is ignored.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard in EVERY CELL selected. Does nothing if the data is not compatible with the cell.")); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Inverts the current selection.")); }
         unsafe { context_menu_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Search what you want in the table. Also allows you to replace coincidences.")); }
         unsafe { context_menu_sidebar.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open/Close the sidebar with the controls to hide/show/freeze columns.")); }
         unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
@@ -2117,6 +2123,18 @@ impl PackedFileTableView {
                 }
             )),
 
+            slot_context_menu_selection_invert: SlotBool::new(move |_| {
+                let rows = unsafe { filter_model.as_mut().unwrap().row_count(()) };
+                let columns = unsafe { filter_model.as_mut().unwrap().column_count(()) };
+                if rows > 0 && columns > 0 {
+                    let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                    let first_item = unsafe { filter_model.as_mut().unwrap().index((0, 0)) };
+                    let last_item = unsafe { filter_model.as_mut().unwrap().index((rows - 1, columns - 1)) } ;
+                    let selection = ItemSelection::new((&first_item, &last_item));
+                    unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Toggle))); }
+                }
+            }),
+
             slot_context_menu_sidebar: SlotBool::new(move |_| {
                 unsafe {
                     if sidebar_scroll_area.as_mut().unwrap().is_visible() { sidebar_scroll_area.as_mut().unwrap().hide(); } 
@@ -2883,6 +2901,7 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_to_fill_selection); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_selection_invert); }
         unsafe { context_menu_sidebar.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_sidebar); }
         unsafe { context_menu_search.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_search); }
         unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
@@ -2920,6 +2939,7 @@ impl PackedFileTableView {
             context_menu_paste.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
             context_menu_paste_to_fill_selection.as_mut().unwrap().set_enabled(true);
+            context_menu_selection_invert.as_mut().unwrap().set_enabled(true);
             context_menu_import.as_mut().unwrap().set_enabled(true);
             context_menu_export.as_mut().unwrap().set_enabled(true);
             undo_redo_enabler.as_mut().unwrap().trigger();
