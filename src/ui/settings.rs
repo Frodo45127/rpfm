@@ -60,7 +60,6 @@ pub struct SettingsDialog {
     pub ui_use_dark_theme: *mut CheckBox,
     pub ui_table_view_remember_column_sorting: *mut CheckBox,
     pub ui_table_view_remember_column_visual_order: *mut CheckBox,
-    pub ui_table_view_remember_column_hidden_state: *mut CheckBox,
     pub extra_default_game_combobox: *mut ComboBox,
     pub extra_allow_editing_of_ca_packfiles: *mut CheckBox,
     pub extra_check_updates_on_start: *mut CheckBox,
@@ -172,7 +171,6 @@ impl SettingsDialog {
 
         let mut remember_column_sorting_label = Label::new(&QString::from_std_str("Remember Column's Sorting State:"));
         let mut remember_column_visual_order_label = Label::new(&QString::from_std_str("Remember Column's Visual Order:"));
-        let mut remember_column_hidden_state_label = Label::new(&QString::from_std_str("Remember Hidden Columns:"));
 
         let mut adjust_columns_to_content_checkbox = CheckBox::new(());
         let mut extend_last_column_on_tables_checkbox = CheckBox::new(());
@@ -183,7 +181,6 @@ impl SettingsDialog {
 
         let mut remember_column_sorting_checkbox = CheckBox::new(());
         let mut remember_column_visual_order_checkbox = CheckBox::new(());
-        let mut remember_column_hidden_state_checkbox = CheckBox::new(());
 
         // Tips for the UI settings.
         let adjust_columns_to_content_tip = QString::from_std_str("If you enable this, when you open a DB Table or Loc File, all columns will be automatically resized depending on their content's size.\nOtherwise, columns will have a predefined size. Either way, you'll be able to resize them manually after the initial resize.\nNOTE: This can make very big tables take more time to load.");
@@ -195,8 +192,7 @@ impl SettingsDialog {
         
         let remember_column_sorting_tip = QString::from_std_str("Enable this to make RPFM remember for what column was a DB Table/LOC sorted when closing it and opening it again.");
         let remember_column_visual_order_tip = QString::from_std_str("Enable this to make RPFM remember the visual order of the columns of a DB Table/LOC, when closing it and opening it again.");
-        let remember_column_hidden_state_tip = QString::from_std_str("Enable this to make RFPM remember what columns of a DB Table/LOC where hidden when closing it and opening it again.");
-        
+
         adjust_columns_to_content_label.set_tool_tip(&adjust_columns_to_content_tip);
         adjust_columns_to_content_checkbox.set_tool_tip(&adjust_columns_to_content_tip);
         extend_last_column_on_tables_label.set_tool_tip(&extend_last_column_on_tables_tip);
@@ -214,10 +210,6 @@ impl SettingsDialog {
         remember_column_sorting_checkbox.set_tool_tip(&remember_column_sorting_tip);
         remember_column_visual_order_label.set_tool_tip(&remember_column_visual_order_tip);
         remember_column_visual_order_checkbox.set_tool_tip(&remember_column_visual_order_tip);
-        remember_column_hidden_state_label.set_tool_tip(&remember_column_hidden_state_tip);
-        remember_column_hidden_state_checkbox.set_tool_tip(&remember_column_hidden_state_tip);
-
-
 
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { ui_settings_grid.as_mut().unwrap().add_widget((adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
@@ -246,9 +238,6 @@ impl SettingsDialog {
 
         unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_visual_order_label.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
         unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_visual_order_checkbox.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
-        
-        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_hidden_state_label.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
-        unsafe { ui_table_view_settings_grid.as_mut().unwrap().add_widget((remember_column_hidden_state_checkbox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
 
         // Create the "Extra Settings" frame and Grid.
         let extra_settings_frame = GroupBox::new(&QString::from_std_str("Extra Settings")).into_raw();
@@ -451,7 +440,6 @@ impl SettingsDialog {
             ui_use_dark_theme: use_dark_theme_checkbox.into_raw(),
             ui_table_view_remember_column_sorting: remember_column_sorting_checkbox.into_raw(),
             ui_table_view_remember_column_visual_order: remember_column_visual_order_checkbox.into_raw(),
-            ui_table_view_remember_column_hidden_state: remember_column_hidden_state_checkbox.into_raw(),
             extra_default_game_combobox: default_game_combobox.into_raw(),
             extra_allow_editing_of_ca_packfiles: allow_editing_of_ca_packfiles_checkbox.into_raw(),
             extra_check_updates_on_start: check_updates_on_start_checkbox.into_raw(),
@@ -521,7 +509,6 @@ impl SettingsDialog {
         // Load the UI TableView Stuff.
         unsafe { self.ui_table_view_remember_column_sorting.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_sorting"]); }
         unsafe { self.ui_table_view_remember_column_visual_order.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_visual_order"]); }
-        unsafe { self.ui_table_view_remember_column_hidden_state.as_mut().unwrap().set_checked(settings.settings_bool["remember_column_hidden_state"]); }
 
         // Load the Extra Stuff.
         unsafe { self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]); }
@@ -543,8 +530,7 @@ impl SettingsDialog {
         let mut settings = Settings::new();
 
         // Only if we have a valid directory, we save it. Otherwise we wipe it out.
-        let mymod_new_path;
-        unsafe { mymod_new_path = PathBuf::from(self.paths_mymod_line_edit.as_mut().unwrap().text().to_std_string()); }
+        let mymod_new_path = unsafe { PathBuf::from(self.paths_mymod_line_edit.as_mut().unwrap().text().to_std_string()) };
         settings.paths.insert("mymods_base_path".to_owned(), match mymod_new_path.is_dir() {
             true => Some(mymod_new_path),
             false => None,
@@ -552,8 +538,7 @@ impl SettingsDialog {
 
         // For each entry, we check if it's a valid directory and save it into Settings.
         for (key, line_edit) in self.paths_games_line_edits.iter() {
-            let new_path;
-            unsafe { new_path = PathBuf::from(line_edit.as_mut().unwrap().text().to_std_string()); }
+            let new_path = unsafe { PathBuf::from(line_edit.as_mut().unwrap().text().to_std_string()) };
             settings.paths.insert(key.to_owned(), match new_path.is_dir() {
                 true => Some(new_path),
                 false => None,
@@ -561,8 +546,7 @@ impl SettingsDialog {
         }
 
         // We get his game's folder, depending on the selected game.
-        let mut game;
-        unsafe { game = self.extra_default_game_combobox.as_mut().unwrap().current_text().to_std_string(); }
+        let mut game = unsafe { self.extra_default_game_combobox.as_mut().unwrap().current_text().to_std_string() };
         if let Some(index) = game.find('&') { game.remove(index); }
         game = game.replace(' ', "_").to_lowercase();
         settings.settings_string.insert("default_game".to_owned(), game);
@@ -578,7 +562,6 @@ impl SettingsDialog {
         // Get the UI TableView Settings.
         unsafe { settings.settings_bool.insert("remember_column_sorting".to_owned(), self.ui_table_view_remember_column_sorting.as_mut().unwrap().is_checked()); }
         unsafe { settings.settings_bool.insert("remember_column_visual_order".to_owned(), self.ui_table_view_remember_column_visual_order.as_mut().unwrap().is_checked()); }
-        unsafe { settings.settings_bool.insert("remember_column_hidden_state".to_owned(), self.ui_table_view_remember_column_hidden_state.as_mut().unwrap().is_checked()); }
 
         // Get the Extra Settings.
         unsafe { settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_allow_editing_of_ca_packfiles.as_mut().unwrap().is_checked()); }

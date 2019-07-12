@@ -115,7 +115,9 @@ impl Shortcuts {
         packed_files_table.insert("paste_to_fill_selection".to_owned(), "Ctrl+Alt+V".to_owned());
         packed_files_table.insert("apply_maths_to_selection".to_owned(), "Ctrl+B".to_owned());
         packed_files_table.insert("rewrite_selection".to_owned(), "Ctrl+Y".to_owned());
+        packed_files_table.insert("selection_invert".to_owned(), "Ctrl+-".to_owned());
         packed_files_table.insert("search".to_owned(), "Ctrl+F".to_owned());
+        packed_files_table.insert("sidebar".to_owned(), "Ctrl+A".to_owned());
         packed_files_table.insert("import_tsv".to_owned(), "Ctrl+W".to_owned());
         packed_files_table.insert("export_tsv".to_owned(), "Ctrl+E".to_owned());
         packed_files_table.insert("smart_delete".to_owned(), "Del".to_owned());

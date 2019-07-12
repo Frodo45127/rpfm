@@ -9,6 +9,7 @@
 //---------------------------------------------------------------------------//
 
 // In this file are all the helper functions used by the UI (mainly Qt here)
+
 use qt_widgets::action::Action;
 use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
@@ -73,9 +74,13 @@ use crate::common::communications::*;
 use crate::error::{Error, ErrorKind, Result};
 use crate::packedfile::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::schemas::*;
+use crate::schema::*;
 use crate::ui::packfile_treeview::*;
 use crate::ui::table_state::TableStateData;
+use crate::ui::packedfile_table::PackedFileTableView;
+use crate::ui::packedfile_table::db_decoder::PackedFileDBDecoder;
+use crate::ui::packedfile_text::PackedFileTextView;
+use crate::ui::packedfile_rigidmodel::PackedFileRigidModelDataView;
 
 pub mod packedfile_table;
 pub mod packedfile_text;
@@ -91,6 +96,18 @@ pub mod qt_custom_stuff;
 //----------------------------------------------------------------------------//
 //             UI Structs (to hold slots, actions and what not)
 //----------------------------------------------------------------------------//
+
+/// One slot to rule them all, 
+/// One slot to find them, 
+/// One slot to bring them all 
+/// and in the darkness bind them.
+pub enum TheOneSlot {
+    Table(PackedFileTableView),
+    Text(PackedFileTextView),
+    TreeView(AddFromPackFileSlots),
+    Decoder(PackedFileDBDecoder),
+    RigidModel(PackedFileRigidModelDataView),
+}
 
 /// This struct holds all the "MyMod" actions from the Menu Bar.
 #[derive(Copy, Clone)]
@@ -126,19 +143,6 @@ pub struct AddFromPackFileSlots {
 
 /// Implementation of "AddFromPackFileSlots".
 impl AddFromPackFileSlots {
-
-    /// This function creates a new "AddFromPackFileSlots" struct and returns it. This is just for
-    /// initialization when starting the program.
-    pub fn new() -> Self {
-
-        // Create some dummy slots and return them.
-        Self {
-            copy: SlotModelIndexRef::new(|_| {}),
-            exit: SlotNoArgs::new(|| {}),
-            slot_tree_view_expand_all: SlotNoArgs::new(|| {}),
-            slot_tree_view_collapse_all: SlotNoArgs::new(|| {}),
-        }
-    }
 
     /// This function creates a new "Add From PackFile" struct and returns it.
     pub fn new_with_grid(
@@ -515,7 +519,7 @@ pub fn create_new_packed_file_dialog(
 
 /// This function creates the "Mass-Import TSV" dialog. Nothing too massive. It returns the name of
 /// the new imported PackedFiles & their Paths, or None in case of closing the dialog.
-pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<PathBuf>)> {
+pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(Option<String>, Vec<PathBuf>)> {
 
     //-------------------------------------------------------------------------------------------//
     // Creating the Mass-Import TSV Dialog...
@@ -532,6 +536,8 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     let files_to_import_label = Label::new(&QString::from_std_str("Files to import: 0.")).into_raw();
     let select_files_button = PushButton::new(&QString::from_std_str("...")).into_raw();
     let mut imported_files_name_line_edit = LineEdit::new(());
+    let use_original_filenames_label = Label::new(&QString::from_std_str("Use original filename:")).into_raw();
+    let use_original_filenames_checkbox = CheckBox::new(()).into_raw();
     let import_button = PushButton::new(&QString::from_std_str("Import")).into_raw();
 
     // Set a dummy name as default.
@@ -540,8 +546,10 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     // Add all the widgets to the main grid, and the main grid to the dialog.
     unsafe { main_grid.as_mut().unwrap().add_widget((files_to_import_label as *mut Widget, 0, 0, 1, 1)); }
     unsafe { main_grid.as_mut().unwrap().add_widget((select_files_button as *mut Widget, 0, 1, 1, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((imported_files_name_line_edit.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((import_button as *mut Widget, 1, 1, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((use_original_filenames_label as *mut Widget, 1, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((use_original_filenames_checkbox as *mut Widget, 1, 1, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((imported_files_name_line_edit.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
+    unsafe { main_grid.as_mut().unwrap().add_widget((import_button as *mut Widget, 2, 1, 1, 1)); }
 
     //-------------------------------------------------------------------------------------------//
     // Actions for the Mass-Import TSV Dialog...
@@ -578,10 +586,15 @@ pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(String, Vec<Path
     unsafe { select_files_button.as_mut().unwrap().signals().released().connect(&slot_select_files); }
     unsafe { import_button.as_mut().unwrap().signals().released().connect(&dialog.as_mut().unwrap().slots().accept()); }
 
-    // If we hit the "Create" button, take the name you wrote and the list of files, and return them.
+    // If we hit the "Create" button, check if we want to use their native name and send the info back.
     if unsafe { dialog.as_mut().unwrap().exec() } == 1 {
-        let packed_file_name = imported_files_name_line_edit.text().to_std_string();
-        Some((packed_file_name, files_to_import.borrow().to_vec()))
+        if unsafe { use_original_filenames_checkbox.as_ref().unwrap().is_checked() } {
+            Some((None, files_to_import.borrow().to_vec()))
+        }
+        else {
+            let packed_file_name = imported_files_name_line_edit.text().to_std_string();
+            Some((Some(packed_file_name), files_to_import.borrow().to_vec()))
+        }
     }
 
     // In any other case, we return None.

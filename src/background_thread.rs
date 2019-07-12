@@ -37,9 +37,9 @@ use crate::packfile::{PackFile, PFHFlags};
 use crate::packedfile::*;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::raw_tables::*;
-use crate::packedfile::db::schemas::*;
 use crate::packedfile::rigidmodel::*;
+use crate::schema::*;
+use crate::schema::assembly_kit::*;
 use crate::updater::*;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
@@ -197,6 +197,12 @@ pub fn background_loop(
                         pack_file_decoded.bitmask.set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, state);
                     }
 
+                    // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
+                    Commands::ChangeDataIsCompressed => {
+                        let state: bool = if let Data::Bool(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        pack_file_decoded.enable_compresion(state);
+                    }
+
                     // In case we want to save an schema...
                     Commands::SaveSchema => {
 
@@ -267,18 +273,25 @@ pub fn background_loop(
                             for i in pack_file_decoded.packed_files.iter_mut() {
                                 if i.path.starts_with(&["db".to_owned()]) {
                                     if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                                        if let Err(error) = db::DB::read(&(i.get_data_and_keep_it().unwrap()), &i.path[1], &schema) {
-                                            if error.kind() != ErrorKind::DBTableContainsListField {
-                                                match db::DB::get_header_data(&i.get_data().unwrap()) {
-                                                    Ok((_, entry_count, _)) => {
-                                                        if entry_count > 0 {
-                                                            counter += 1;
-                                                            table_list.push_str(&format!("{}, {:?}\n", counter, i.path))
+
+                                        // For some stupid reason, this fails with decompresion sometimes.
+                                        match i.get_data_and_keep_it() {
+                                            Ok(data) => {
+                                                if let Err(error) = db::DB::read(&data, &i.path[1], &schema) {
+                                                    if error.kind() != ErrorKind::DBTableContainsListField {
+                                                        match db::DB::get_header_data(&data) {
+                                                            Ok((_, entry_count, _)) => {
+                                                                if entry_count > 0 {
+                                                                    counter += 1;
+                                                                    table_list.push_str(&format!("{}, {:?}\n", counter, i.path))
+                                                                }
+                                                            }
+                                                            Err(_) => table_list.push_str(&format!("Error in {:?}", i.path)),
                                                         }
                                                     }
-                                                    Err(_) => table_list.push_str(&format!("Error in {:?}", i.path)),
                                                 }
                                             }
+                                            Err(_) => println!("Error while trying to read {:?} from disk.", i.path),
                                         }
                                     }
                                 }
@@ -461,8 +474,8 @@ pub fn background_loop(
                     Commands::MassImportTSV => {
 
                         // Try to import all the importable files from the provided path.
-                        let data = if let Data::StringVecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        match tsv_mass_import(&data.1, &data.0, &mut pack_file_decoded) {
+                        let data = if let Data::OptionStringVecPathBuf(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        match tsv_mass_import(&data.1, data.0, &mut pack_file_decoded) {
                             Ok(result) => sender.send(Data::VecVecStringVecVecString(result)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
                         }

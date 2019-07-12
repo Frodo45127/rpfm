@@ -22,7 +22,7 @@ use crate::Commands;
 use crate::Data;
 use crate::common::*;
 use crate::common::communications::*;
-use crate::packedfile::db::schemas::TableDefinition;
+use crate::schema::TableDefinition;
 use crate::ui::*;
 
 use super::*;

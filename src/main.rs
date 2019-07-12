@@ -98,22 +98,20 @@ use crate::common::*;
 use crate::common::communications::*;
 use crate::error::{ErrorKind, logger::Report, Result};
 use crate::main_extra::*;
-use crate::packfile::PathType;
+use crate::packfile::{CompressionState, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::*;
 use crate::packedfile::db::DB;
-use crate::packedfile::db::schemas::Schema;
-use crate::packedfile::db::schemas_importer::*;
 use crate::packfile::{PFHVersion, PFHFileType, PFHFlags};
+use crate::schema::assembly_kit::*;
+use crate::schema::Schema;
 use crate::settings::*;
 use crate::settings::shortcuts::Shortcuts;
 use crate::ui::*;
-use crate::ui::packedfile_table::PackedFileTableView;
 use crate::ui::packedfile_table::db_decoder::*;
 use crate::ui::packedfile_table::dependency_manager::*;
 use crate::ui::packedfile_table::packedfile_db::*;
 use crate::ui::packedfile_table::packedfile_loc::*;
-use crate::ui::packedfile_text::PackedFileTextView;
 use crate::ui::packedfile_text::packedfile_text::*;
 use crate::ui::packedfile_text::packfile_notes::*;
 use crate::ui::packedfile_rigidmodel::*;
@@ -150,6 +148,7 @@ mod main_extra;
 mod packfile;
 mod packedfile;
 mod settings;
+mod schema;
 mod updater;
 mod ui;
 
@@ -585,6 +584,10 @@ lazy_static! {
 
     /// Variable to lock/unlock certain actions of the Folder TreeView.
     static ref IS_FOLDER_TREE_VIEW_LOCKED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+
+    /// Docs & Patreon URLs.
+    static ref DOCS_BASE_URL: &'static str = "https://frodo45127.github.io/rpfm/";
+    static ref PATREON_URL: &'static str = "https://www.patreon.com/RPFM";
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -661,6 +664,9 @@ pub struct AppUI {
     pub change_packfile_type_index_includes_timestamp: *mut Action,
     pub change_packfile_type_index_is_encrypted: *mut Action,
     pub change_packfile_type_data_is_encrypted: *mut Action,
+
+    // Action to enable/disable compression on PackFiles. Only for PFH5+ PackFiles.
+    pub change_packfile_type_data_is_compressed: *mut Action,
 
     // Action Group for the submenu.
     pub change_packfile_type_group: *mut ActionGroup,
@@ -1029,6 +1035,9 @@ fn main() {
             change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
             change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
             change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
+            
+            // Action for the PackFile compression.
+            change_packfile_type_data_is_compressed: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Data Is &Compressed")),
 
             // Action Group for the submenu.
             change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
@@ -1164,14 +1173,17 @@ fn main() {
         unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checkable(true); }
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checkable(true); }
 
         unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_enabled(false); }
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
 
         // Put separators in the SubMenu.
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
         unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_header_is_extended); }
+        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_data_is_compressed); }
 
         // The "Game Selected" Menu should be an ActionGroup.
         unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.three_kingdoms); }
@@ -1278,14 +1290,7 @@ fn main() {
         let mode = Rc::new(RefCell::new(Mode::Normal));
 
         // Build the empty structs we need for certain features.
-        let add_from_packfile_slots = Rc::new(RefCell::new(AddFromPackFileSlots::new()));
-        let decoder_slots = Rc::new(RefCell::new(PackedFileDBDecoder::new()));
-        let packfiles_list_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let db_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let loc_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let text_slots = Rc::new(RefCell::new(BTreeMap::new()));
-        let rigid_model_slots = Rc::new(RefCell::new(BTreeMap::new()));
-
+        let slots = Rc::new(RefCell::new(vec![]));
         let monospace_font = Rc::new(RefCell::new(Font::new(&QString::from_std_str("monospace [Consolas]"))));
 
         // Here we store the pattern for the global search, and paths whose files have been changed/are new and need to be checked.
@@ -1444,6 +1449,8 @@ fn main() {
         unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile includes the 'Last Modified' date of every PackedFile. Note that PackFiles with this enabled WILL NOT SHOW UP as mods in the official launcher.")); }
         unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the PackedFile Index of this PackFile is encrypted. Saving this kind of PackFiles is NOT SUPPORTED.")); }
         unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.")); }
+        
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_status_tip(&QString::from_std_str("If checked, the data of each PackedFile in the open PackFile will be compressed on save. If you want to decompress a PackFile, disable this, then save it.")); }
 
         // Menu bar, Game Selected.
         unsafe { app_ui.open_game_data_folder.as_mut().unwrap().set_status_tip(&QString::from_std_str("Tries to open the currently selected game's Data folder (if exists) in the default file manager.")); }
@@ -1682,6 +1689,9 @@ fn main() {
                     unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                     unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
 
+                    // We also disable compression by default.
+                    unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
+
                     // Update the TreeView.
                     update_treeview(
                         &sender_qt,
@@ -1824,7 +1834,7 @@ fn main() {
                     match check_message_validity_tryrecv(&receiver_qt) {
                     
                         // If it's success....
-                        Data::PackFileUIData(_) => {
+                        Data::PackFileUIData(data) => {
 
                             // This PackFile is a special one. It'll always be type "Other(200)" with every special stuff as false.
                             // TODO: Encrypted PackedFiles haven't been tested with this.
@@ -1833,6 +1843,13 @@ fn main() {
                             unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
                             unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+
+                            // Set the compression level correctly, because otherwise we may fuckup some files.
+                            let compression_state = match data.compression_state {
+                                CompressionState::Enabled => true,
+                                CompressionState::Partial | CompressionState::Disabled => false,
+                            };
+                            unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(compression_state); }
 
                             // Update the TreeView.
                             update_treeview(
@@ -1932,11 +1949,21 @@ fn main() {
             sender_qt_data => move |_| {
 
                 // Get the current value of the action.
-                let state;
-                unsafe { state = app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked(); }
+                let state = unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked() };
 
                 // Send the new state to the background thread.
                 sender_qt.send(Commands::ChangeIndexIncludesTimestamp).unwrap();
+                sender_qt_data.send(Data::Bool(state)).unwrap();
+            }
+        ));
+
+        // What happens when we enable/disable compression on the current PackFile.
+        let slot_data_is_compressed = SlotBool::new(clone!(
+            sender_qt,
+            sender_qt_data => move |_| {
+
+                let state = unsafe { app_ui.change_packfile_type_data_is_compressed.as_ref().unwrap().is_checked() };
+                sender_qt.send(Commands::ChangeDataIsCompressed).unwrap();
                 sender_qt_data.send(Data::Bool(state)).unwrap();
             }
         ));
@@ -2037,6 +2064,7 @@ fn main() {
         unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slot_change_packfile_type); }
         unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().signals().triggered().connect(&slot_index_includes_timestamp); }
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_ref().unwrap().signals().triggered().connect(&slot_data_is_compressed); }
 
         unsafe { app_ui.preferences.as_ref().unwrap().signals().triggered().connect(&slot_preferences); }
         unsafe { app_ui.quit.as_ref().unwrap().signals().triggered().connect(&slot_quit); }
@@ -2341,10 +2369,10 @@ fn main() {
         );
 
         // What happens when we trigger the "Open Manual" action.
-        let slot_open_manual = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://frodo45127.github.io/rpfm/"))); });
+        let slot_open_manual = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(*DOCS_BASE_URL))); });
 
         // What happens when we trigger the "Support me on Patreon" action.
-        let slot_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://www.patreon.com/RPFM"))); });
+        let slot_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(*PATREON_URL))); });
 
         // What happens when we trigger the "Check Updates" action.
         let slot_check_updates = SlotBool::new(move |_| { check_updates(&app_ui, true); });
@@ -3168,7 +3196,7 @@ fn main() {
             receiver_qt,
             table_state_data,
             packedfiles_open_in_packedfile_view,
-            add_from_packfile_slots => move |_| {
+            slots => move |_| {
 
                 // Create the FileDialog to get the PackFile to open.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
@@ -3203,7 +3231,7 @@ fn main() {
                             *IS_FOLDER_TREE_VIEW_LOCKED.lock().unwrap() = true;
 
                             // Build the TreeView to hold all the Extra PackFile's data and save his slots.
-                            *add_from_packfile_slots.borrow_mut() = AddFromPackFileSlots::new_with_grid(
+                            slots.borrow_mut().push(TheOneSlot::TreeView(AddFromPackFileSlots::new_with_grid(
                                 &sender_qt,
                                 &sender_qt_data,
                                 &receiver_qt,
@@ -3212,7 +3240,7 @@ fn main() {
                                 &global_search_explicit_paths,
                                 update_global_search_stuff,
                                 &table_state_data
-                            );
+                            )));
                         }
 
                         Data::Error(error) => {
@@ -3338,14 +3366,16 @@ fn main() {
                 if let Some(data) = create_mass_import_tsv_dialog(&app_ui) {
 
                     // If there is no name provided, nor TSV file selected, return an error.
-                    if data.0.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
-                    else if data.1.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::NoFilesToImport) }
+                    if let Some(ref name) = data.0 {
+                        if name.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::EmptyInput) }
+                    }
+                    if data.1.is_empty() { return show_dialog(app_ui.window, false, ErrorKind::NoFilesToImport) }
 
                     // Otherwise, try to import all of them and report the result.
                     else {
                         unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         sender_qt.send(Commands::MassImportTSV).unwrap();
-                        sender_qt_data.send(Data::StringVecPathBuf(data)).unwrap();
+                        sender_qt_data.send(Data::OptionStringVecPathBuf(data)).unwrap();
                         match check_message_validity_tryrecv(&receiver_qt) {
                             
                             // If it's success....
@@ -3896,6 +3926,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
+            slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Get the currently selected paths, and only continue if there is only one.
@@ -3919,7 +3950,7 @@ fn main() {
                         ) {
 
                             // Save the monospace font and the slots.
-                            *decoder_slots.borrow_mut() = result.0;
+                            slots.borrow_mut().push(TheOneSlot::Decoder(result.0));
                             *monospace_font.borrow_mut() = result.1;
                         }
 
@@ -3937,7 +3968,7 @@ fn main() {
             receiver_qt,
             table_state_data,
             global_search_explicit_paths,
-            packfiles_list_slots,
+            slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Destroy any children that the PackedFile's View we use may have, cleaning it.
@@ -3951,7 +3982,7 @@ fn main() {
                 let path = Rc::new(RefCell::new(vec![]));
 
                 // Build the UI and save the slots.
-                packfiles_list_slots.borrow_mut().insert(0, create_dependency_manager_view(
+                slots.borrow_mut().push(TheOneSlot::Table(create_dependency_manager_view(
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
@@ -3961,7 +3992,7 @@ fn main() {
                     &global_search_explicit_paths,
                     update_global_search_stuff,
                     &table_state_data
-                ));
+                )));
 
                 // Tell the program there is an open PackedFile.
                 purge_that_one_specifically(&app_ui, 0, &packedfiles_open_in_packedfile_view);
@@ -4004,11 +4035,8 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            db_slots,
-            loc_slots,
-            text_slots,
+            slots,
             table_state_data,
-            rigid_model_slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 if let Err(error) = open_packedfile(
@@ -4018,10 +4046,7 @@ fn main() {
                     &app_ui,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &db_slots,
-                    &loc_slots,
-                    &text_slots,
-                    &rigid_model_slots,
+                    &slots,
                     update_global_search_stuff,
                     &table_state_data,
                     1
@@ -4034,7 +4059,7 @@ fn main() {
             sender_qt,
             sender_qt_data,
             receiver_qt,
-            text_slots,
+            slots,
             packedfiles_open_in_packedfile_view => move |_| {
 
                 // Create the widget that'll act as a container for the view.
@@ -4044,7 +4069,7 @@ fn main() {
                 let path = Rc::new(RefCell::new(vec![]));
                 let view_position = 1;
 
-                text_slots.borrow_mut().insert(view_position, create_notes_view(
+                slots.borrow_mut().push(TheOneSlot::Text(create_notes_view(
                     &sender_qt,
                     &sender_qt_data,
                     &receiver_qt,
@@ -4052,7 +4077,7 @@ fn main() {
                     widget_layout,
                     &path,
                     &packedfiles_open_in_packedfile_view
-                ));
+                )));
 
                 // Tell the program there is an open PackedFile and finish the table.
                 purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
@@ -4243,10 +4268,7 @@ fn main() {
         // What happens when we try to open a PackedFile...
         let slot_open_packedfile = Rc::new(SlotNoArgs::new(clone!(
             global_search_explicit_paths,
-            db_slots,
-            loc_slots,
-            text_slots,
-            rigid_model_slots,
+            slots,
             sender_qt,
             sender_qt_data,
             receiver_qt,
@@ -4260,10 +4282,7 @@ fn main() {
                     &app_ui,
                     &packedfiles_open_in_packedfile_view,
                     &global_search_explicit_paths,
-                    &db_slots,
-                    &loc_slots,
-                    &text_slots,
-                    &rigid_model_slots,
+                    &slots,
                     update_global_search_stuff,
                     &table_state_data,
                     0

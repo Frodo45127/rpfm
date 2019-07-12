@@ -20,9 +20,15 @@ use std::{fmt, fmt::Display};
 use crate::RPFM_PATH;
 use crate::SUPPORTED_GAMES;
 use crate::updater::Versions;
-use crate::error::{ErrorKind, Result};
-use super::schemas_importer;
-use super::raw_tables;
+use crate::error::Result;
+
+pub mod assembly_kit;
+
+/// Name of the schemas versions file.
+const SCHEMA_VERSIONS_FILE: &'static str = "versions.json";
+
+/// URL used to download new schemas.
+pub const SCHEMA_UPDATE_URL_MASTER: &'static str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
 
 /// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
 /// Type).
@@ -83,7 +89,7 @@ pub enum FieldType {
     StringU8,
     StringU16,
     OptionalStringU8,
-    OptionalStringU16,
+    OptionalStringU16
 }
 
 /// Implementation of "Schema"
@@ -100,66 +106,39 @@ impl Schema {
     /// This function adds a new TableDefinitions to the schema. This checks if that table definitions
     /// already exists, and replace it in that case.
     pub fn add_table_definitions(&mut self, table_definitions: TableDefinitions) {
-
-        let name = table_definitions.name.to_owned();
-        let mut index_name = 0;
-        let mut index_found = false;
-        for (index, definitions) in self.tables_definitions.iter().enumerate() {
-            if definitions.name == name {
-                index_name = index;
-                index_found = true;
-                break;
-            }
-        }
-        if index_found {
-            self.tables_definitions.remove(index_name);
-            self.tables_definitions.insert(index_name, table_definitions);
-        }
-        else {
-            self.tables_definitions.push(table_definitions);
+        match self.tables_definitions.iter().position(|x| x.name == table_definitions.name) {
+            Some(position) => { self.tables_definitions.splice(position..position + 1, [table_definitions].iter().cloned()); },
+            None => self.tables_definitions.push(table_definitions),
         }
     }
 
     /// This functions returns the index of the definitions for a table.
     pub fn get_table_definitions(&self, table_name: &str) -> Option<usize> {
-        for (index, table_definitions) in self.tables_definitions.iter().enumerate() {
-            if table_definitions.name == table_name {
-               return Some(index);
-            }
-        }
-        None
+        self.tables_definitions.iter().position(|x| x.name == table_name)
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
     pub fn load(schema_file: &str) -> Result<Self> {
 
-        let mut schemas_path = RPFM_PATH.to_path_buf();
-        schemas_path.push("schemas");
+        let mut path = RPFM_PATH.to_path_buf();
+        path.push("schemas");
+        path.push(schema_file);
 
-        // We load the provided schema file.
-        let schema_file = BufReader::new(File::open(PathBuf::from(format!("{}/{}", schemas_path.to_string_lossy(), schema_file)))?);
-
-        let schema = serde_json::from_reader(schema_file)?;
-        Ok(schema)
+        let file = BufReader::new(File::open(&path)?);
+        serde_json::from_reader(file).map_err(|x| From::from(x))
     }
 
     /// This function takes an "Schema" object and saves it into a schema file.
     pub fn save(&self, schema_file: &str) -> Result<()> {
 
-        let schema_json = serde_json::to_string_pretty(&self);
-        let mut schema_path = RPFM_PATH.to_path_buf();
-        schema_path.push("schemas");
-        schema_path.push(schema_file);
+        let json = serde_json::to_string_pretty(&self)?;
+        let mut path = RPFM_PATH.to_path_buf();
+        path.push("schemas");
+        path.push(schema_file);
 
-        match File::create(schema_path.to_path_buf()) {
-            Ok(mut file) => {
-                match file.write_all(schema_json.unwrap().as_bytes()) {
-                    Ok(_) => Ok(()),
-                    Err(_) => Err(ErrorKind::IOGenericWrite(vec![schema_path.display().to_string();1]))?
-                }
-            },
-            Err(_) => Err(ErrorKind::IOGenericWrite(vec![schema_path.display().to_string();1]))?
-        }
+        let mut file = File::create(&path)?;
+        file.write_all(json.as_bytes())?;
+        Ok(())
     }
 
     /// This function generates the diff between the local schemas and the remote ones and, if it detects
@@ -168,7 +147,7 @@ impl Schema {
 
         // To avoid doing a lot of useless checking, we only check for schemas with different version.
         let local_schema_versions: Versions = serde_json::from_reader(BufReader::new(File::open(RPFM_PATH.to_path_buf().join(PathBuf::from("schemas/versions.json")))?))?;
-        let current_schema_versions: Versions = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json")?.json()?;
+        let current_schema_versions: Versions = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.json()?;
         let mut schemas_to_update = vec![];
 
         // If the game's schema is not in the repo (when adding a new game's support) skip it.
@@ -193,9 +172,10 @@ impl Schema {
             if skip_it { continue; }
 
             // For this, first we get both schemas. Then, compare them table by table looking for differences.
+            // Uncomment and tweak the commented schema_current to test against a local schema.
             let schema_local = Schema::load(schema_name).unwrap();
             //let schema_current = Schema::load("schema_att.json").unwrap();
-            let schema_current: Schema = reqwest::get(&format!("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/{}", schema_name))?.json()?;
+            let schema_current: Schema = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, schema_name))?.json()?;
 
             // Lists to store the different types of differences.
             let mut diff = String::new();
@@ -384,7 +364,7 @@ impl TableDefinition {
     /// This function creates a new table definition from an imported definition from the assembly kit.
     /// Note that this import the loc fields (they need to be removed manually later) and it doesn't
     /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: &schemas_importer::root, version: i32, table_name: &str) -> TableDefinition {
+    pub fn new_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 
@@ -486,7 +466,7 @@ impl TableDefinition {
         
     /// This function creates a new fake table definition from an imported definition from the assembly kit.
     /// For use with the raw tables processing.
-    pub fn new_fake_from_assembly_kit(imported_table_definition: &raw_tables::root, version: i32, table_name: &str) -> TableDefinition {
+    pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 

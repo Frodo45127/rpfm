@@ -8,6 +8,10 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+// Here it goes all the code related with the schema integration with the Assembly Kit.
+// And by `integration` I mean the code that parses Assembly Kit tables and schemas 
+// to a format we can actually read, and everything else related to the Assembly Kit.
+
 // Here will go all the code needed for the parsing of raw table files and their fake schemas, and putting them into pak files.
 // There are multiple types of tables due to CA changing their format for them:
 // V0: Empire and Napoleon.
@@ -23,30 +27,29 @@ use std::fs::{File, DirBuilder};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use crate::error::{Result, Error, ErrorKind};
-use super::{DB, DecodedData};
-use super::schemas::*;
 use crate::common::*;
+use crate::error::{Result, Error, ErrorKind};
+use crate::packedfile::db::DB;
+use crate::packedfile::DecodedData;
+use crate::schema::*;
 use crate::DEPENDENCY_DATABASE;
 use crate::RPFM_PATH;
 use crate::GAME_SELECTED;
 use crate::SUPPORTED_GAMES;
 
-/// This is the base "table definition" file. From here we just want to save the field vector.
+//---------------------------------------------------------------------------//
+// Types for parsing the Assembly Kit Schema Files into.
+//---------------------------------------------------------------------------//
+
+/// This is the base `table definition` file. In files, this is the equivalent to a `TWaD_` file. 
+/// It contains a vector with all the fields that forms it.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct root {
     pub field: Vec<field>,
 }
 
-/// This is the base "table data" file. From here we just want to save the rows with the data.
-#[allow(non_camel_case_types)]
-#[derive(Debug, Deserialize)]
-pub struct dataroot {
-	pub rows: Vec<datarow>,
-}
-
-/// This is the "field" fields decoded.
+/// This struct holds a decoded `field` structure.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct field {
@@ -63,14 +66,26 @@ pub struct field {
     pub field_description: Option<String>,
 }
 
-/// This is the "datarow", for decoding rows of data
+//---------------------------------------------------------------------------//
+// Types for parsing the Assembly Kit DB Files into.
+//---------------------------------------------------------------------------//
+
+/// This is the base `table data` file. In files, this is the equivalent to the xml file with all the data in the table.
+/// It contains a vector with all the rows of data in the xml table file.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Deserialize)]
+pub struct dataroot {
+	pub rows: Vec<datarow>,
+}
+
+/// This is the "datarow", for decoding rows of data.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct datarow {
     pub datafield: Vec<datafield>,
 }
 
-/// This is the "datafield", for decoding data fields.
+/// This is the "datafield", for decoding data of fields.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct datafield {
@@ -79,6 +94,10 @@ pub struct datafield {
     #[serde(rename = "$value")]
     pub field_data: String,
 }
+
+//---------------------------------------------------------------------------//
+// Functions to process the Raw DB Tables from the Assembly Kit.
+//---------------------------------------------------------------------------//
 
 /// This function process all the tables from the game's raw table folder and it turns them into a single processed file,
 /// as fake tables with version -1. That will allow us to use them for dependency checking and for populating combos.
@@ -237,5 +256,80 @@ pub fn process_raw_tables(
     file.write_all(&bincode::serialize(&processed_db_files)?)?;
 
     // If we reach this point, return success.
+    Ok(())
+}
+
+/// This function is the response to our prayers. It takes the Assembly Kit's DB Files to create basic definitions of each 
+/// undecoded table from the folder you provide it.
+/// 
+/// It requires:
+/// - schema: The schema where all the definitions will be put. None to put all the definitions into a new schema.
+/// - assembly_kit_schemas_path: this is the path with the TWaD_*****.xml syntax. They are usually in GameFolder/assembly_kit/raw_data/db/.
+/// - db_binary_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table inside.
+pub fn import_schema(
+    schema: Option<Schema>,
+    assembly_kit_schemas_path: &PathBuf,
+    db_binary_path: &PathBuf,
+) -> Result<()> {
+
+    // Get the schema, then get all the raw schema files.
+    let mut schema = if let Some(schema) = schema { schema } else { Schema::new() };
+    let assembly_kit_schemas = get_raw_definitions(assembly_kit_schemas_path, 2).unwrap();
+    for path in &assembly_kit_schemas {
+
+        // Always print his path. If it breaks, we want to know where.
+        println!("{:?}", path);
+
+        // We read the file and deserialize it as a `root`.
+        let file = File::open(&path).expect("Couldn't open file");
+        let imported_table_definition: root = from_reader(file).unwrap();
+
+        // Get his name and version. We only add it if his table actually exists.
+        let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
+        let table_name = format!("{}_tables", file_name.split_off(5));
+        let mut db_binary_path = db_binary_path.clone();
+        db_binary_path.push(table_name.to_owned());
+        match get_files_from_subdir(&db_binary_path) {
+            Ok(db_file_path) => {
+
+                // If we found something...
+                if !db_file_path.is_empty() {
+                    match File::open(&db_file_path[0]) {
+                        Ok(ref mut file) => {
+
+                            // Read the table...
+                            let mut pack_file_buffered = vec![];
+                            file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
+
+                            // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
+                            let version = DB::get_header_data(&pack_file_buffered).unwrap().0;
+                            if let Some(ref mut table_definitions) = schema.tables_definitions.iter_mut().find(|x| x.name == table_name) {
+                                if table_definitions.versions.iter().find(|x| x.version == version).is_some() {
+                                    continue;
+                                }
+                                else {
+                                    let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                                    table_definitions.add_table_definition(table_definition);
+                                }
+                            }
+
+                            else {
+                                let mut table_definitions = TableDefinitions::new(&table_name);
+                                let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                                table_definitions.add_table_definition(table_definition);
+                                schema.add_table_definitions(table_definitions);
+                            }
+
+                        }
+                        Err(_) => continue,
+                    }
+                }
+            }
+            Err(_) => continue,
+        }
+    }
+
+    Schema::save(&schema, "schema_wh.json")?;
+
     Ok(())
 }

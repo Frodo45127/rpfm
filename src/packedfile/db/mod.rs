@@ -23,14 +23,10 @@ use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
 use super::DecodedData;
-use self::schemas::*;
 use crate::GAME_SELECTED;
 use crate::common::coding_helpers::*;
 use crate::error::{ErrorKind, Result};
-
-pub mod raw_tables;
-pub mod schemas;
-pub mod schemas_importer;
+use crate::schema::*;
 
 /// These two const are the markers we need to check in the header of every DB file.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -71,7 +67,7 @@ impl DB {
     pub fn read(
         packed_file_data: &[u8],
         db_type: &str,
-        master_schema: &schemas::Schema
+        master_schema: &Schema
     ) -> Result<Self> {
 
         // Create the index that we'll use to decode the entire table.
@@ -266,7 +262,7 @@ impl DB {
     }
 
     /// This function gets the schema corresponding to the table we passed it, if it exists.
-    pub fn get_schema(db_name: &str, version: i32, schema: &schemas::Schema) -> Option<schemas::TableDefinition> {
+    pub fn get_schema(db_name: &str, version: i32, schema: &Schema) -> Option<TableDefinition> {
         if let Some(index_table_definitions) = schema.get_table_definitions(db_name) {
             if let Some(index_table_versions) = schema.tables_definitions[index_table_definitions].get_table_version(version) {
                 if !schema.tables_definitions[index_table_definitions].versions[index_table_versions].fields.is_empty() {
@@ -278,7 +274,7 @@ impl DB {
     }
 
     /// This function gets all the schemas corresponding to the table we passed it, if any of them exists.
-    pub fn get_schema_versions_list(db_name: &str, schema: &schemas::Schema) -> Option<Vec<schemas::TableDefinition>> {
+    pub fn get_schema_versions_list(db_name: &str, schema: &Schema) -> Option<Vec<TableDefinition>> {
         if let Some(index_table_definitions) = schema.get_table_definitions(db_name) {
             if !schema.tables_definitions[index_table_definitions].versions.is_empty() {
                 return Some(schema.tables_definitions[index_table_definitions].versions.to_vec())
@@ -288,7 +284,7 @@ impl DB {
     }
 
     /// This function removes from the schema the version of a table with the provided version.
-    pub fn remove_table_version(table_name: &str, version: i32, schema: &mut schemas::Schema) -> Result<()> {
+    pub fn remove_table_version(table_name: &str, version: i32, schema: &mut Schema) -> Result<()> {
         if let Some(index_table_definitions) = schema.get_table_definitions(table_name) {
             if let Some(index_table_versions) = schema.tables_definitions[index_table_definitions].get_table_version(version) {
                 schema.tables_definitions[index_table_definitions].versions.remove(index_table_versions);

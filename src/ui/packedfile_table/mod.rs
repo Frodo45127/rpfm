@@ -12,7 +12,6 @@
 // to reduce duplicated code. It also houses the DB Decoder, because thatś 
 // related with the tables.
 
-use qt_widgets::abstract_item_view::ScrollMode;
 use qt_widgets::action::Action;
 use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::header_view::ResizeMode;
@@ -20,6 +19,7 @@ use qt_widgets::menu::Menu;
 use qt_widgets::label::Label;
 use qt_widgets::slots::{SlotQtCorePointRef, SlotCIntQtCoreQtSortOrder};
 use qt_widgets::table_view::TableView;
+use qt_widgets::scroll_area::ScrollArea;
 use qt_widgets::widget::Widget;
 
 use qt_gui::cursor::Cursor;
@@ -30,6 +30,7 @@ use qt_gui::slots::{SlotStandardItemMutPtr, SlotCIntCIntCInt};
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
+use qt_core::flags::Flags;
 use qt_core::signal_blocker::SignalBlocker;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::abstract_item_model::AbstractItemModel;
@@ -41,7 +42,7 @@ use qt_core::object::Object;
 use qt_core::reg_exp::RegExp;
 use qt_core::slots::{SlotBool, SlotCInt, SlotStringRef, SlotItemSelectionRefItemSelectionRef, SlotModelIndexRefModelIndexRefVectorVectorCIntRef};
 use qt_core::string_list::StringList;
-use qt_core::qt::{CaseSensitivity, CheckState, ContextMenuPolicy, ShortcutContext, SortOrder, GlobalColor, MatchFlag};
+use qt_core::qt::{AlignmentFlag, CaseSensitivity, CheckState, ShortcutContext, SortOrder, GlobalColor, MatchFlag};
 
 use regex::Regex;
 use meval;
@@ -55,6 +56,7 @@ use crate::QString;
 use crate::ui::*;
 use crate::packedfile::db::DB;
 use crate::packedfile::loc::Loc;
+use crate::ui::qt_custom_stuff::*;
 use crate::ui::table_state::*;
 use crate::ui::packedfile_table::packedfile_table_undo::*;
 use crate::ui::packedfile_table::packedfile_table_extras::*;
@@ -124,11 +126,14 @@ pub struct PackedFileTableView {
     pub slot_context_menu_paste: SlotBool<'static>,
     pub slot_context_menu_paste_as_new_lines: SlotBool<'static>,
     pub slot_context_menu_paste_to_fill_selection: SlotBool<'static>,
+    pub slot_context_menu_selection_invert: SlotBool<'static>,
     pub slot_context_menu_search: SlotBool<'static>,
+    pub slot_context_menu_sidebar: SlotBool<'static>,
     pub slot_context_menu_import: SlotBool<'static>,
     pub slot_context_menu_export: SlotBool<'static>,
     pub slot_smart_delete: SlotBool<'static>,
-    pub slots_hide_show_column: Vec<SlotBool<'static>>,
+    pub slots_hide_show_column: Vec<SlotCInt<'static>>,
+    pub slots_freeze_unfreeze_column: Vec<SlotCInt<'static>>,
 
     pub slot_update_search_stuff: SlotNoArgs<'static>,
     pub slot_search: SlotNoArgs<'static>,
@@ -205,10 +210,14 @@ impl PackedFileTableView {
         // Create the "Paste Lock", so we don't save in every freaking edit.
         let save_lock = Rc::new(RefCell::new(false));
 
-        // Create the TableView.
-        let table_view = TableView::new().into_raw();
+        // Prepare the model and the filter..
         let filter_model = SortFilterProxyModel::new().into_raw();
         let model = StandardItemModel::new(()).into_raw();
+        unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
+        
+        // Prepare the TableViews.
+        let table_view_frozen = TableView::new().into_raw();
+        let table_view = unsafe { new_tableview_frozen(filter_model as *mut AbstractItemModel, table_view_frozen) };
 
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] { 
@@ -233,33 +242,29 @@ impl PackedFileTableView {
         let row_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive")).into_raw();
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
 
-        // Prepare the TableView to have a Contextual Menu.
-        unsafe { table_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
-        unsafe { table_view.as_mut().unwrap().set_horizontal_scroll_mode(ScrollMode::Pixel); }
-
-        // Enable sorting the columns and make them movables.
-        unsafe { table_view.as_mut().unwrap().set_sorting_enabled(true); }
-        unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)); }
-        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_sections_movable(true); }
-        unsafe { table_view.as_mut().unwrap().set_alternating_row_colors(true); };
-
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
         Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
 
         // Add Table to the Grid.
-        unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
-        unsafe { table_view.as_mut().unwrap().set_model(filter_model as *mut AbstractItemModel); }
         unsafe { layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
         unsafe { layout.as_mut().unwrap().add_widget((row_filter_line_edit as *mut Widget, 2, 0, 1, 1)); }
         unsafe { layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 2, 1, 1, 1)); }
         unsafe { layout.as_mut().unwrap().add_widget((row_filter_column_selector as *mut Widget, 2, 2, 1, 1)); }
 
-        // Create the main search widget.
+        // Create the search and hide/show/freeze widgets.
         let search_widget = Widget::new().into_raw();
+        let sidebar_widget = Widget::new().into_raw();
+        let sidebar_scroll_area = ScrollArea::new().into_raw();
+        let grid = create_grid_layout_unsafe(search_widget);
+        let sidebar_grid = create_grid_layout_unsafe(sidebar_widget);
+        unsafe { sidebar_scroll_area.as_mut().unwrap().set_widget(sidebar_widget); }
+        unsafe { sidebar_scroll_area.as_mut().unwrap().set_widget_resizable(true); }
+        unsafe { sidebar_scroll_area.as_mut().unwrap().horizontal_scroll_bar().as_mut().unwrap().set_enabled(false); }
+        unsafe { sidebar_grid.as_mut().unwrap().set_contents_margins((4, 0, 4, 4)); }
+        unsafe { sidebar_grid.as_mut().unwrap().set_spacing(4); }
 
         // Create the "Search" Grid and his internal widgets.
-        let grid = create_grid_layout_unsafe(search_widget);
         let matches_label = Label::new(());
         let search_label = Label::new(&QString::from_std_str("Search Pattern:"));
         let replace_label = Label::new(&QString::from_std_str("Replace Pattern:"));
@@ -318,8 +323,12 @@ impl PackedFileTableView {
         unsafe { grid.as_mut().unwrap().add_widget((case_sensitive_button as *mut Widget, 2, 3, 1, 1)); }
 
         // Add all the stuff to the main grid and hide the search widget.
+        unsafe { layout.as_mut().unwrap().add_widget((sidebar_scroll_area as *mut Widget, 0, 3, 3, 1)); }
         unsafe { layout.as_mut().unwrap().add_widget((search_widget as *mut Widget, 1, 0, 1, 3)); }
+        unsafe { layout.as_mut().unwrap().set_column_stretch(0, 10); }
         unsafe { search_widget.as_mut().unwrap().hide(); }
+        unsafe { sidebar_scroll_area.as_mut().unwrap().hide(); }
+        unsafe { sidebar_grid.as_mut().unwrap().set_row_stretch(999, 10); }
 
         // Store the search results and the currently selected search item.
         let matches: Rc<RefCell<BTreeMap<ModelIndexWrapped, Option<ModelIndexWrapped>>>> = Rc::new(RefCell::new(BTreeMap::new()));
@@ -332,7 +341,7 @@ impl PackedFileTableView {
         let update_search_stuff = Action::new(()).into_raw();
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        Self::build_columns(table_view, model, &table_definition, enable_header_popups.clone());
+        Self::build_columns(table_view, table_view_frozen, model, &table_definition, enable_header_popups.clone());
 
         {
             let mut table_state_data = table_state_data.borrow_mut();
@@ -342,10 +351,6 @@ impl PackedFileTableView {
             if unsafe { undo_model.as_ref().unwrap().row_count(()) > 0 && undo_model.as_ref().unwrap().column_count(()) > 0 } { load_colors_from_undo_model(model, undo_model); }
             else { update_undo_model(model, undo_model); }
         }
-
-        // Set both headers visible.
-        unsafe { table_view.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
-        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
 
         // If we want to let the columns resize themselfs...
         if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
@@ -379,11 +384,12 @@ impl PackedFileTableView {
         let context_menu_paste_to_fill_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste to Fill Selection"));
 
         let context_menu_search = context_menu.add_action(&QString::from_std_str("&Search"));
+        let context_menu_sidebar = context_menu.add_action(&QString::from_std_str("Si&debar"));
 
         let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
-        let context_menu_hide_show_submenu = Menu::new(&QString::from_std_str("&Hide/Show...")).into_raw();
+        let context_menu_selection_invert = context_menu.add_action(&QString::from_std_str("Inver&t Selection"));
         
         let context_menu_undo = context_menu.add_action(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
@@ -401,7 +407,9 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste"]))); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_as_new_row"]))); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["paste_to_fill_selection"]))); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["selection_invert"]))); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["search"]))); }
+        unsafe { context_menu_sidebar.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["sidebar"]))); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["import_tsv"]))); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["export_tsv"]))); }
         unsafe { smart_delete.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&SHORTCUTS.lock().unwrap().packed_files_table["smart_delete"]))); }
@@ -421,7 +429,9 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+        unsafe { context_menu_sidebar.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_import.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { context_menu_export.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
         unsafe { smart_delete.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -441,7 +451,9 @@ impl PackedFileTableView {
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_as_new_lines); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_paste_to_fill_selection); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_selection_invert); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_search); }
+        unsafe { table_view.as_mut().unwrap().add_action(context_menu_sidebar); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_import); }
         unsafe { table_view.as_mut().unwrap().add_action(context_menu_export); }
         unsafe { table_view.as_mut().unwrap().add_action(smart_delete); }
@@ -461,7 +473,9 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard. If the data of a cell is incompatible with the content to paste, the cell is ignored.")); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell.")); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().set_status_tip(&QString::from_std_str("Try to paste whatever is in the Clipboard in EVERY CELL selected. Does nothing if the data is not compatible with the cell.")); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().set_status_tip(&QString::from_std_str("Inverts the current selection.")); }
         unsafe { context_menu_search.as_mut().unwrap().set_status_tip(&QString::from_std_str("Search what you want in the table. Also allows you to replace coincidences.")); }
+        unsafe { context_menu_sidebar.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open/Close the sidebar with the controls to hide/show/freeze columns.")); }
         unsafe { context_menu_import.as_mut().unwrap().set_status_tip(&QString::from_std_str("Import a TSV file into this table, replacing all the data.")); }
         unsafe { context_menu_export.as_mut().unwrap().set_status_tip(&QString::from_std_str("Export this table's data into a TSV file.")); }
         unsafe { context_menu_undo.as_mut().unwrap().set_status_tip(&QString::from_std_str("A classic.")); }
@@ -475,73 +489,157 @@ impl PackedFileTableView {
         unsafe { context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw()); }
         unsafe { context_menu.insert_separator(context_menu_search); }
         unsafe { context_menu.insert_separator(context_menu_import); }
-        unsafe { context_menu.insert_separator(context_menu_undo); }
-        unsafe { context_menu.insert_menu(context_menu_undo, context_menu_hide_show_submenu); }
+        unsafe { context_menu.insert_separator(context_menu_sidebar); }
         unsafe { context_menu.insert_separator(context_menu_undo); }
 
-        // Create the "Hide/Show" slots and actions and connect them.
+        // Create the "Hide/Show" and "Freeze/Unfreeze" slots and actions and connect them.
         let mut slots_hide_show_column = vec![];
-        let mut actions_hide_show_column = vec![];
+        let mut slots_freeze_unfreeze_column = vec![];
+        let actions_hide_show_column: Rc<RefCell<Vec<*mut CheckBox>>> = Rc::new(RefCell::new(vec![]));
+        let actions_freeze_unfreeze_column: Rc<RefCell<Vec<*mut CheckBox>>> = Rc::new(RefCell::new(vec![]));
+
+        let header_column = Label::new(&QString::from_std_str("<b><i>Column Name</i></b>")).into_raw();
+        let header_hidden = Label::new(&QString::from_std_str("<b><i>Hidden</i></b>")).into_raw();
+        let header_frozen = Label::new(&QString::from_std_str("<b><i>Frozen</i></b>")).into_raw();
+
+        unsafe { sidebar_grid.as_mut().unwrap().add_widget((header_column as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { sidebar_grid.as_mut().unwrap().add_widget((header_hidden as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { sidebar_grid.as_mut().unwrap().add_widget((header_frozen as *mut Widget, 0, 2, 1, 1)); }
+
+        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_column as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
+        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_hidden as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
+        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_frozen as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
         for (index, column) in table_definition.fields.iter().enumerate() {
 
-            let hide_show_slot = SlotBool::new(clone!(
-                packed_file_path => move |state| {
+            // Hide all columns in the frozen table by default.
+            unsafe { table_view_frozen.as_mut().unwrap().set_column_hidden(index as i32, true); }
+
+            // Prepare the hide/show slot, taking into account the Frozen TableView when hiding/showing.
+            // Logic here: If we hide something, it cannot be frozen.
+            let hide_show_slot = SlotCInt::new(clone!(
+                packed_file_path,
+                actions_freeze_unfreeze_column => move |state| {
+
+
+                    // Hide the column and disable Freezing for it.
+                    let state = if state == 2 { true } else { false };
                     unsafe { table_view.as_mut().unwrap().set_column_hidden(index as i32, state); }
+                    unsafe { actions_freeze_unfreeze_column.borrow()[index].as_mut().unwrap().set_enabled(!state); }
 
                     // Update the state of the column in the table history.
-                    if let Some(history_state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
-                        if state {
-                            if !history_state.columns_state.hidden_columns.contains(&(index as i32)) {
-                                history_state.columns_state.hidden_columns.push(index as i32);
-                            }
-                        }
-                        else {
-                            let pos = history_state.columns_state.hidden_columns.iter().position(|x| *x as usize == index).unwrap();
-                            history_state.columns_state.hidden_columns.remove(pos);
-                        }
+                    if let Some(state_ui) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
+                        state_ui.columns_state.visual_history.push(VisualHistory::ColumnHidden(state, index as i32));
                     }
                 }
             ));
 
-            let hide_show_action = unsafe { context_menu_hide_show_submenu.as_mut().unwrap().add_action(&QString::from_std_str(&Self::clean_column_names(&column.field_name))) };
-            unsafe { hide_show_action.as_mut().unwrap().set_checkable(true); }
-            unsafe { hide_show_action.as_mut().unwrap().signals().toggled().connect(&hide_show_slot); }
+            // Logic here: If we freeze something, it cannot be hidden.
+            let freeze_unfreeze_slot = SlotCInt::new(clone!(
+                packed_file_path,
+                actions_hide_show_column => move |state| {
+                    let state = if state == 2 { true } else { false };
+                    unsafe { table_view_frozen.as_mut().unwrap().set_column_hidden(index as i32, !state); }
+                    unsafe { actions_hide_show_column.borrow()[index].as_mut().unwrap().set_enabled(!state); }
+
+                    // Due to locking issues, we have to block the header, then move the columns.
+                    let header = unsafe { table_view.as_ref().unwrap().horizontal_header() };
+                    let mut blocker = unsafe { SignalBlocker::new( header.as_mut().unwrap().static_cast_mut() as &mut Object) };
+                    if let Some(state_ui) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
+                        let visual_index_source = unsafe { header.as_ref().unwrap().visual_index(index as i32) };
+
+                        // If we're freezing, just move the columns on both tables, and then keep track of the movement.
+                        if state {
+                            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(visual_index_source, 0); }
+                            unsafe { table_view_frozen.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(visual_index_source, 0); }
+                            state_ui.columns_state.visual_history.push(VisualHistory::ColumnFrozen(true, index as i32, visual_index_source));
+                        }
+
+                        // Otherwise, get the last time we moved that column, then move it to the position where it was before.
+                        else {
+                            let mut visual_index_destination = 0;
+                            for i in state_ui.columns_state.visual_history.iter().rev() {
+                                match i {
+                                    VisualHistory::ColumnFrozen(_, logical_index, original_position) => {
+                                        if *logical_index == index as i32 {
+                                            visual_index_destination = *original_position;
+                                            break;
+                                        }
+                                    },
+                                    _ => {},
+                                }
+                            }
+                            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(visual_index_source, visual_index_destination); }
+                            unsafe { table_view_frozen.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(visual_index_source, visual_index_destination); }
+                            state_ui.columns_state.visual_history.push(VisualHistory::ColumnFrozen(false, index as i32,  visual_index_destination));
+                        }
+                    }
+                    blocker.unblock();
+
+                    // Stupid problems require stupid solutions. This fixes the "Frozen Table doesn't update until I resize it" bug.
+                    let column_width = unsafe { table_view.as_mut().unwrap().column_width(index as i32) };
+                    unsafe { header.as_mut().unwrap().resize_section(index as i32, column_width + 1); }
+                    unsafe { header.as_mut().unwrap().resize_section(index as i32, column_width - 1); }
+                }
+            ));
+
+            let column_name = Label::new(&QString::from_std_str(&Self::clean_column_names(&column.field_name)));
+            let hide_show_checkbox = CheckBox::new(()).into_raw();
+            let freeze_unfreeze_checkbox = CheckBox::new(()).into_raw();
+
+            unsafe { hide_show_checkbox.as_mut().unwrap().signals().state_changed().connect(&hide_show_slot); }
+            unsafe { freeze_unfreeze_checkbox.as_mut().unwrap().signals().state_changed().connect(&freeze_unfreeze_slot); }
+            unsafe { sidebar_grid.as_mut().unwrap().add_widget((column_name.into_raw() as *mut Widget, (index + 1) as i32, 0, 1, 1)); }
+            unsafe { sidebar_grid.as_mut().unwrap().add_widget((hide_show_checkbox as *mut Widget, (index + 1) as i32, 1, 1, 1)); }
+            unsafe { sidebar_grid.as_mut().unwrap().add_widget((freeze_unfreeze_checkbox as *mut Widget, (index + 1) as i32, 2, 1, 1)); } 
+            
+            unsafe { sidebar_grid.as_mut().unwrap().set_alignment((hide_show_checkbox as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
+            unsafe { sidebar_grid.as_mut().unwrap().set_alignment((freeze_unfreeze_checkbox as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
 
             slots_hide_show_column.push(hide_show_slot);
-            actions_hide_show_column.push(hide_show_action);
+            slots_freeze_unfreeze_column.push(freeze_unfreeze_slot);
+            actions_hide_show_column.borrow_mut().push(hide_show_checkbox);
+            actions_freeze_unfreeze_column.borrow_mut().push(freeze_unfreeze_checkbox);
         }
 
         // Slots for the TableView...
         let slots = Self {
             slot_column_moved: SlotCIntCIntCInt::new(clone!(
-                packed_file_path => move |_, visual_base, visual_new| {
+                packed_file_path => move |_, visual_old, visual_new| {
                     if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
-                        state.columns_state.visual_order.push((visual_base, visual_new));
+                        state.columns_state.visual_history.push(VisualHistory::ColumnMoved(visual_old, visual_new));
+                        unsafe { table_view_frozen.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(visual_old, visual_new); }
                     }
                 }
             )),
 
             slot_sort_order_column_changed: SlotCIntQtCoreQtSortOrder::new(clone!(
                 packed_file_path => move |column, _| {
-                    let mut needs_cleaning = false;
-                    if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
-                        
-                        // We only change the order if it's less than 3. Otherwise, we reset it.
-                        let mut old_order = state.columns_state.sorting_column.1;
-                        if old_order < 2 {
-                            old_order += 1;
+                    if let Ok(mut state) = TABLE_STATES_UI.try_lock() {
+                        if let Some(state) = state.get_mut(&*packed_file_path.borrow()) {
+                            let mut needs_cleaning = false;
+                            
+                            // We only change the order if it's less than 2. Otherwise, we reset it.
+                            let mut old_order = if state.columns_state.sorting_column.0 == column { 
+                                state.columns_state.sorting_column.1 
+                            } else { 0 };
 
-                            if old_order == 0 { state.columns_state.sorting_column = (-1, old_order); }
-                            else { state.columns_state.sorting_column = (column, old_order); }
+                            if old_order < 2 {
+                                old_order += 1;
+
+                                if old_order == 0 { state.columns_state.sorting_column = (-1, old_order); }
+                                else { state.columns_state.sorting_column = (column, old_order); }
+                            }
+                            else {
+                                needs_cleaning = true;
+                                old_order = -1;
+                                state.columns_state.sorting_column = (-1, old_order);   
+                            }
+
+                            if needs_cleaning {
+                                unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_sort_indicator(-1, SortOrder::Ascending) };
+                                unsafe { table_view_frozen.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_sort_indicator(-1, SortOrder::Ascending) };
+                            }
                         }
-                        else {
-                            needs_cleaning = true;
-                            old_order = -1;
-                            state.columns_state.sorting_column = (-1, old_order);   
-                        }
-                    }
-                    if needs_cleaning {
-                        unsafe { table_view.as_mut().unwrap().sort_by_column((-1, SortOrder::Ascending)) };
                     }
                 }
             )),
@@ -571,6 +669,7 @@ impl PackedFileTableView {
                             &receiver_qt,
                             &packed_file_path,
                             table_view,
+                            table_view_frozen,
                             model,
                             filter_model,
                             &mut table_state_data.undo_history,
@@ -616,6 +715,7 @@ impl PackedFileTableView {
                             &receiver_qt,
                             &packed_file_path,
                             table_view,
+                            table_view_frozen,
                             model,
                             filter_model,
                             &mut table_state_data.redo_history,
@@ -2023,6 +2123,25 @@ impl PackedFileTableView {
                 }
             )),
 
+            slot_context_menu_selection_invert: SlotBool::new(move |_| {
+                let rows = unsafe { filter_model.as_mut().unwrap().row_count(()) };
+                let columns = unsafe { filter_model.as_mut().unwrap().column_count(()) };
+                if rows > 0 && columns > 0 {
+                    let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                    let first_item = unsafe { filter_model.as_mut().unwrap().index((0, 0)) };
+                    let last_item = unsafe { filter_model.as_mut().unwrap().index((rows - 1, columns - 1)) } ;
+                    let selection = ItemSelection::new((&first_item, &last_item));
+                    unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Toggle))); }
+                }
+            }),
+
+            slot_context_menu_sidebar: SlotBool::new(move |_| {
+                unsafe {
+                    if sidebar_scroll_area.as_mut().unwrap().is_visible() { sidebar_scroll_area.as_mut().unwrap().hide(); } 
+                    else { sidebar_scroll_area.as_mut().unwrap().show(); }
+                }
+            }),
+
             slot_context_menu_search: SlotBool::new(move |_| {
                 unsafe {
                     if search_widget.as_mut().unwrap().is_visible() { search_widget.as_mut().unwrap().hide(); } 
@@ -2078,7 +2197,7 @@ impl PackedFileTableView {
                         }
 
                         // Build the Column's "Data".
-                        Self::build_columns(table_view, model, &table_definition, enable_header_popups.clone());
+                        Self::build_columns(table_view, table_view_frozen, model, &table_definition, enable_header_popups.clone());
 
                         if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
                             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
@@ -2154,6 +2273,7 @@ impl PackedFileTableView {
                     }
                 }
             )),
+
             slot_smart_delete: SlotBool::new(clone!(
                 global_search_explicit_paths,
                 app_ui,
@@ -2305,8 +2425,9 @@ impl PackedFileTableView {
                 }
             )),
 
-            // This is the list of slots to hide/show columns. Is created before all this, so here we just add it.
+            // This is the list of slots to toggle things in columns. Is created before all this, so here we just add it.
             slots_hide_show_column,
+            slots_freeze_unfreeze_column,
 
             // Slot to close the search widget.
             slot_update_search_stuff: SlotNoArgs::new(clone!(
@@ -2762,8 +2883,10 @@ impl PackedFileTableView {
 
         // Actions for the TableView...
         unsafe { (table_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.slot_context_menu); }
+        unsafe { (table_view_frozen as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.slot_context_menu); }
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().signals().section_moved().connect(&slots.slot_column_moved); }
         unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().signals().sort_indicator_changed().connect(&slots.slot_sort_order_column_changed); }
+        //unsafe { table_view_frozen.as_mut().unwrap().horizontal_header().as_mut().unwrap().signals().sort_indicator_changed().connect(&slots.slot_sort_order_column_changed); }
         unsafe { model.as_mut().unwrap().signals().data_changed().connect(&slots.save_changes); }
         unsafe { model.as_mut().unwrap().signals().item_changed().connect(&slots.slot_item_changed); }
         unsafe { context_menu_add.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_add); }
@@ -2778,6 +2901,8 @@ impl PackedFileTableView {
         unsafe { context_menu_paste.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste); }
         unsafe { context_menu_paste_as_new_lines.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_as_new_lines); }
         unsafe { context_menu_paste_to_fill_selection.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_paste_to_fill_selection); }
+        unsafe { context_menu_selection_invert.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_selection_invert); }
+        unsafe { context_menu_sidebar.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_sidebar); }
         unsafe { context_menu_search.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_search); }
         unsafe { context_menu_import.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_import); }
         unsafe { context_menu_export.as_mut().unwrap().signals().triggered().connect(&slots.slot_context_menu_export); }
@@ -2814,6 +2939,7 @@ impl PackedFileTableView {
             context_menu_paste.as_mut().unwrap().set_enabled(true);
             context_menu_paste_as_new_lines.as_mut().unwrap().set_enabled(true);
             context_menu_paste_to_fill_selection.as_mut().unwrap().set_enabled(true);
+            context_menu_selection_invert.as_mut().unwrap().set_enabled(true);
             context_menu_import.as_mut().unwrap().set_enabled(true);
             context_menu_export.as_mut().unwrap().set_enabled(true);
             undo_redo_enabler.as_mut().unwrap().trigger();
@@ -2824,72 +2950,81 @@ impl PackedFileTableView {
 
         // If we got an entry for this PackedFile in the state's history, use it.
         if TABLE_STATES_UI.lock().unwrap().get(&*packed_file_path.borrow()).is_some() {
-            if let Some(state_data) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
+            let state_data;
+            {
+                let ts = TABLE_STATES_UI.lock().unwrap().clone();
+                state_data = ts.get(&*packed_file_path.borrow()).clone().unwrap().clone();
+            }
+            // Ensure that the selected column actually exists in the table.
+            let column = if state_data.filter_state.column < table_definition.fields.len() as i32 { state_data.filter_state.column } else { 0 };
 
-                // Ensure that the selected column actually exists in the table.
-                let column = if state_data.filter_state.column < table_definition.fields.len() as i32 { state_data.filter_state.column } else { 0 };
+            // Block the signals during this, so we don't trigger a borrow error.
+            let mut blocker1 = unsafe { SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            let mut blocker2 = unsafe { SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            let mut blocker3 = unsafe { SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.filter_state.text)); }
+            unsafe { row_filter_column_selector.as_mut().unwrap().set_current_index(column); }
+            unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(state_data.filter_state.is_case_sensitive); }
+            blocker1.unblock();
+            blocker2.unblock();
+            blocker3.unblock();
 
-                // Block the signals during this, so we don't trigger a borrow error.
-                let mut blocker1 = unsafe { SignalBlocker::new(row_filter_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                let mut blocker2 = unsafe { SignalBlocker::new(row_filter_column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                let mut blocker3 = unsafe { SignalBlocker::new(row_filter_case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                unsafe { row_filter_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.filter_state.text)); }
-                unsafe { row_filter_column_selector.as_mut().unwrap().set_current_index(column); }
-                unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checked(state_data.filter_state.is_case_sensitive); }
-                blocker1.unblock();
-                blocker2.unblock();
-                blocker3.unblock();
+            // Ensure that the selected column actually exists in the table.
+            let column = if state_data.search_state.column < table_definition.fields.len() as i32 { state_data.search_state.column } else { 0 };
 
-                // Ensure that the selected column actually exists in the table.
-                let column = if state_data.search_state.column < table_definition.fields.len() as i32 { state_data.search_state.column } else { 0 };
+            // Same with everything inside the search widget.
+            let mut blocker1 = unsafe { SignalBlocker::new(search_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            let mut blocker2 = unsafe { SignalBlocker::new(replace_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            let mut blocker3 = unsafe { SignalBlocker::new(column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            let mut blocker4 = unsafe { SignalBlocker::new(case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            unsafe { search_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.search_state.search_text)); }
+            unsafe { replace_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.search_state.replace_text)); }
+            unsafe { column_selector.as_mut().unwrap().set_current_index(column); }
+            unsafe { case_sensitive_button.as_mut().unwrap().set_checked(state_data.search_state.is_case_sensitive); }
+            blocker1.unblock();
+            blocker2.unblock();
+            blocker3.unblock();
+            blocker4.unblock();
 
-                // Same with everything inside the search widget.
-                let mut blocker1 = unsafe { SignalBlocker::new(search_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                let mut blocker2 = unsafe { SignalBlocker::new(replace_line_edit.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                let mut blocker3 = unsafe { SignalBlocker::new(column_selector.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                let mut blocker4 = unsafe { SignalBlocker::new(case_sensitive_button.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                unsafe { search_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.search_state.search_text)); }
-                unsafe { replace_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(&state_data.search_state.replace_text)); }
-                unsafe { column_selector.as_mut().unwrap().set_current_index(column); }
-                unsafe { case_sensitive_button.as_mut().unwrap().set_checked(state_data.search_state.is_case_sensitive); }
-                blocker1.unblock();
-                blocker2.unblock();
-                blocker3.unblock();
-                blocker4.unblock();
+            // Same with the columns, if we opted to keep their state.
+            let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
+            let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
+            
+            // Depending on the current settings, load the current state of the table or not.
+            if SETTINGS.lock().unwrap().settings_bool["remember_column_sorting"] {
+                let sort_order = match state_data.columns_state.sorting_column.1 { 
+                    1 => (state_data.columns_state.sorting_column.0, SortOrder::Ascending),
+                    2 => (state_data.columns_state.sorting_column.0, SortOrder::Descending),
+                    _ => (-1, SortOrder::Ascending),
+                };
+                unsafe { table_view.as_mut().unwrap().sort_by_column(sort_order); }
+            }
 
-                // Same with the columns, if we opted to keep their state.
-                let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
-                let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
-                
-                // Depending on the current settings, load the current state of the table or not.
-                if SETTINGS.lock().unwrap().settings_bool["remember_column_sorting"] {
-                    let sort_order = match state_data.columns_state.sorting_column.1 { 
-                        1 => (state_data.columns_state.sorting_column.0, SortOrder::Ascending),
-                        2 => (state_data.columns_state.sorting_column.0, SortOrder::Descending),
-                        _ => (-1, SortOrder::Ascending),
-                    };
-                    unsafe { table_view.as_mut().unwrap().sort_by_column(sort_order); }
-                }
- 
-                if SETTINGS.lock().unwrap().settings_bool["remember_column_visual_order"] {
-                    for (visual_old, visual_new) in &state_data.columns_state.visual_order {
-                        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*visual_old, *visual_new); }
+            if SETTINGS.lock().unwrap().settings_bool["remember_column_visual_order"] {
+                for change in &state_data.columns_state.visual_history {
+                    match change {
+                        VisualHistory::ColumnFrozen(_, logical_index, _) => {
+                            unsafe { actions_freeze_unfreeze_column.borrow()[*logical_index as usize].as_mut().unwrap().toggle(); }
+                            if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
+                                state.columns_state.visual_history.pop();
+                            }
+                        }
+                        VisualHistory::ColumnMoved(old, new) => {
+                            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*old, *new); }
+                            unsafe { table_view_frozen.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*old, *new); }
+                        }
+                        VisualHistory::ColumnHidden(_, logical_index) => {
+                            unsafe { actions_hide_show_column.borrow()[*logical_index as usize].as_mut().unwrap().toggle(); }
+                            if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
+                                state.columns_state.visual_history.pop();
+                            }
+                        }
                     }
                 }
-
-                    // For this we have to "block" the action before checking it, to avoid borrowmut errors. There is no need to unblock, because the blocker will die after the action.
-                if SETTINGS.lock().unwrap().settings_bool["remember_column_hidden_state"] {
-                    for hidden_column in &state_data.columns_state.hidden_columns {
-                        unsafe { table_view.as_mut().unwrap().set_column_hidden(*hidden_column, true); }
-
-                        let mut _blocker = unsafe { SignalBlocker::new(actions_hide_show_column[*hidden_column as usize].as_mut().unwrap() as &mut Object) };
-                        unsafe { actions_hide_show_column[*hidden_column as usize].as_mut().unwrap().set_checked(true); }
-                    }      
-                }
-                
-                blocker1.unblock();
-                blocker2.unblock();
             }
+            
+            blocker1.unblock();
+            blocker2.unblock();
         }
 
         // Otherwise, we create a basic state.
@@ -3162,6 +3297,7 @@ impl PackedFileTableView {
         receiver_qt: &Rc<RefCell<Receiver<Data>>>,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         table_view: *mut TableView,
+        table_view_frozen: *mut TableView,
         model: *mut StandardItemModel,
         filter_model: *mut SortFilterProxyModel,
         history_source: &mut Vec<TableOperations>, 
@@ -3455,7 +3591,7 @@ impl PackedFileTableView {
                 }
 
                 Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
-                Self::build_columns(table_view, model, table_definition, enable_header_popups);
+                Self::build_columns(table_view, table_view_frozen, model, table_definition, enable_header_popups);
 
                 // If we want to let the columns resize themselfs...
                 if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
@@ -3487,6 +3623,7 @@ impl PackedFileTableView {
                         &receiver_qt,
                         &packed_file_path,
                         table_view,
+                        table_view_frozen,
                         model,
                         filter_model,
                         history_source,
@@ -3554,6 +3691,7 @@ impl PackedFileTableView {
     /// His intended use is for just after we load/reload the data to the table.
     fn build_columns(
         table_view: *mut TableView,
+        table_view_frozen: *mut TableView,
         model: *mut StandardItemModel,
         definition: &TableDefinition,
         enable_header_popups: Option<String>,
@@ -3641,6 +3779,7 @@ impl PackedFileTableView {
         if !keys.is_empty() {
             for (position, column) in keys.iter().enumerate() {
                 unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*column as i32, position as i32); }
+                unsafe { table_view_frozen.as_mut().unwrap().horizontal_header().as_mut().unwrap().move_section(*column as i32, position as i32); }
             }
         }
     }

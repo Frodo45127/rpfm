@@ -57,6 +57,13 @@ pub fn open_packfile(
             unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX)); }
             unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER)); }
 
+            // Set the compression level correctly, because otherwise we may fuckup some files.
+            let compression_state = match ui_data.compression_state {
+                CompressionState::Enabled => true,
+                CompressionState::Partial | CompressionState::Disabled => false,
+            };
+            unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(compression_state); }
+
             // Update the TreeView.
             update_treeview(
                 sender_qt,
@@ -194,10 +201,7 @@ pub fn open_packedfile(
     app_ui: &AppUI,
     packedfiles_open_in_packedfile_view: &Rc<RefCell<BTreeMap<i32, Rc<RefCell<Vec<String>>>>>>,
     global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
-    db_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTableView>>>,
-    loc_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTableView>>>,
-    text_slots: &Rc<RefCell<BTreeMap<i32, PackedFileTextView>>>,
-    rigid_model_slots: &Rc<RefCell<BTreeMap<i32, PackedFileRigidModelDataView>>>,
+    slots: &Rc<RefCell<Vec<TheOneSlot>>>,
     update_global_search_stuff: *mut Action,
     table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
     view_position: i32,
@@ -220,49 +224,8 @@ pub fn open_packedfile(
                     }
                 }
 
-                // Get the name of the PackedFile (we are going to use it a lot).
-                let packedfile_name = path.last().unwrap().to_owned();
-
                 // We get his type to decode it properly
-                let packed_file_type: &str =
-
-                    // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-                    if path[0] == "db" { "DB" }
-
-                    // If it ends in ".loc", it's a localisation PackedFile.
-                    else if packedfile_name.ends_with(".loc") { "LOC" }
-
-                    // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-                    else if packedfile_name.ends_with(".rigid_model_v2") { "RIGIDMODEL" }
-
-                    // If it ends in any of these, it's a plain text PackedFile.
-                    else if packedfile_name.ends_with(".lua") ||
-                            packedfile_name.ends_with(".xml") ||
-                            packedfile_name.ends_with(".xml.shader") ||
-                            packedfile_name.ends_with(".xml.material") ||
-                            packedfile_name.ends_with(".variantmeshdefinition") ||
-                            packedfile_name.ends_with(".environment") ||
-                            packedfile_name.ends_with(".lighting") ||
-                            packedfile_name.ends_with(".wsmodel") ||
-                            packedfile_name.ends_with(".csv") ||
-                            packedfile_name.ends_with(".tsv") ||
-                            packedfile_name.ends_with(".inl") ||
-                            packedfile_name.ends_with(".battle_speech_camera") ||
-                            packedfile_name.ends_with(".bob") ||
-                            packedfile_name.ends_with(".cindyscene") ||
-                            packedfile_name.ends_with(".cindyscenemanager") ||
-                            //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                            packedfile_name.ends_with(".txt") { "TEXT" }
-
-                    // If it ends in any of these, it's an image.
-                    else if packedfile_name.ends_with(".jpg") ||
-                            packedfile_name.ends_with(".jpeg") ||
-                            packedfile_name.ends_with(".tga") ||
-                            packedfile_name.ends_with(".dds") ||
-                            packedfile_name.ends_with(".png") { "IMAGE" }
-
-                    // Otherwise, we don't have a decoder for that PackedFile... yet.
-                    else { "None" };
+                let packed_file_type = get_packed_file_type(&path);
 
                 // Create the widget that'll act as a container for the view.
                 let widget = Widget::new().into_raw();
@@ -276,7 +239,7 @@ pub fn open_packedfile(
                 match packed_file_type {
 
                     // If the file is a Loc PackedFile...
-                    "LOC" => {
+                    DecodeablePackedFileType::Loc => {
 
                         // Try to get the view build, or return error.
                         match create_loc_view(
@@ -290,7 +253,7 @@ pub fn open_packedfile(
                             update_global_search_stuff,
                             table_state_data,
                         ) {
-                            Ok(new_loc_slots) => { loc_slots.borrow_mut().insert(view_position, new_loc_slots); },
+                            Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::Table(new_slots)); },
                             Err(error) => return Err(ErrorKind::LocDecode(format!("{}", error)))?,
                         }
 
@@ -301,7 +264,7 @@ pub fn open_packedfile(
                     }
 
                     // If the file is a DB PackedFile...
-                    "DB" => {
+                    DecodeablePackedFileType::DB => {
 
                         // Try to get the view build, or return error.
                         match create_db_view(
@@ -315,7 +278,7 @@ pub fn open_packedfile(
                             update_global_search_stuff,
                             table_state_data
                         ) {
-                            Ok(new_db_slots) => { db_slots.borrow_mut().insert(view_position, new_db_slots); },
+                            Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::Table(new_slots)); },
                             Err(error) => return Err(ErrorKind::DBTableDecode(format!("{}", error)))?,
                         }
 
@@ -329,7 +292,7 @@ pub fn open_packedfile(
                     }
 
                     // If the file is a Text PackedFile...
-                    "TEXT" => {
+                    DecodeablePackedFileType::Text => {
                         
                         // Try to get the view build, or return error.
                         match create_text_view(
@@ -341,7 +304,7 @@ pub fn open_packedfile(
                             &path,
                             &packedfiles_open_in_packedfile_view
                         ) {
-                            Ok(new_text_slots) => { text_slots.borrow_mut().insert(view_position, new_text_slots); },
+                            Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::Text(new_slots)); },
                             Err(error) => return Err(ErrorKind::TextDecode(format!("{}", error)))?,
                         }
 
@@ -352,7 +315,7 @@ pub fn open_packedfile(
                     }
 
                     // If the file is a Text PackedFile...
-                    "RIGIDMODEL" => {
+                    DecodeablePackedFileType::RigidModel => {
 
                         // Try to get the view build, or return error.
                         match PackedFileRigidModelDataView::create_data_view(
@@ -363,7 +326,7 @@ pub fn open_packedfile(
                             widget_layout,
                             &path
                         ) {
-                            Ok(new_rigid_model_slots) => { rigid_model_slots.borrow_mut().insert(view_position, new_rigid_model_slots); },
+                            Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::RigidModel(new_slots)); },
                             Err(error) => return Err(ErrorKind::RigidModelDecode(format!("{}", error)))?,
                         }
 
@@ -374,7 +337,7 @@ pub fn open_packedfile(
                     }
 
                     // If the file is a Text PackedFile...
-                    "IMAGE" => {
+                    DecodeablePackedFileType::Image => {
 
                         // Try to get the view build, or return error.
                         if let Err(error) = ui::packedfile_image::create_image_view(
@@ -1407,40 +1370,49 @@ pub fn enable_packfile_actions(
         // Check the Game Selected and enable the actions corresponding to out game.
         match &**GAME_SELECTED.lock().unwrap() {
             "three_kingdoms" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.three_k_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer_2" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "warhammer" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.wh_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "thrones_of_britannia" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.tob_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.tob_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "attila" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.att_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.att_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "rome_2" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.rom2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.rom2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "shogun_2" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.sho2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "napoleon" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.nap_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
             "empire" => {
+                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                 unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 unsafe { app_ui.emp_generate_pak_file.as_mut().unwrap().set_enabled(true); }
             },
@@ -1450,6 +1422,9 @@ pub fn enable_packfile_actions(
 
     // If we are disabling...
     else {
+
+        // Universal Actions.
+        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
 
         // Disable Three Kingdoms actions...
         unsafe { app_ui.three_k_optimize_packfile.as_mut().unwrap().set_enabled(false); }

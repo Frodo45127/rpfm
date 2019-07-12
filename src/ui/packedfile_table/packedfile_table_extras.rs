@@ -35,7 +35,7 @@ use std::cmp::Ordering;
 use crate::SETTINGS;
 use crate::QString;
 use crate::AppUI;
-use crate::packedfile::db::schemas::{FieldType, TableDefinition};
+use crate::schema::{FieldType, TableDefinition};
 use crate::ui::create_grid_layout_unsafe;
 
 /// This function creates the entire "Apply Maths" dialog for tables. It returns the operation to apply.

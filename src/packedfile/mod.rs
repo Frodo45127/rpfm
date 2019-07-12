@@ -27,7 +27,7 @@ use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
-use crate::packedfile::db::schemas::{FieldType, Schema, TableDefinition};
+use crate::schema::{FieldType, Schema, TableDefinition};
 
 use crate::SCHEMA;
 pub mod loc;
@@ -46,6 +46,19 @@ pub enum PackedFileType {
 
     // Name of the File.
     Text(String),
+}
+
+/// This enum specifies the PackedFile types we can decode.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum DecodeablePackedFileType {
+    DB,
+    Loc,
+    Text,
+    Image,
+    RigidModel,
+    
+    // Wildcard for undecodeable PackFiles.
+    None
 }
 
 /// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB/Loc PackedFile.
@@ -68,6 +81,50 @@ pub const TSV_HEADER_LOC_PACKEDFILE: &str = "Loc PackedFile";
 //----------------------------------------------------------------//
 // Generic Functions for PackedFiles.
 //----------------------------------------------------------------//
+
+/// Function to get the type of a PackedFile.
+pub fn get_packed_file_type(path: &[String]) -> DecodeablePackedFileType {
+
+    let packedfile_name = path.last().unwrap().to_owned();
+
+    // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+    if path[0] == "db" { DecodeablePackedFileType::DB }
+
+    // If it ends in ".loc", it's a localisation PackedFile.
+    else if packedfile_name.ends_with(".loc") { DecodeablePackedFileType::Loc }
+
+    // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+    else if packedfile_name.ends_with(".rigid_model_v2") { DecodeablePackedFileType::RigidModel }
+
+    // If it ends in any of these, it's a plain text PackedFile.
+    else if packedfile_name.ends_with(".lua") ||
+            packedfile_name.ends_with(".xml") ||
+            packedfile_name.ends_with(".xml.shader") ||
+            packedfile_name.ends_with(".xml.material") ||
+            packedfile_name.ends_with(".variantmeshdefinition") ||
+            packedfile_name.ends_with(".environment") ||
+            packedfile_name.ends_with(".lighting") ||
+            packedfile_name.ends_with(".wsmodel") ||
+            packedfile_name.ends_with(".csv") ||
+            packedfile_name.ends_with(".tsv") ||
+            packedfile_name.ends_with(".inl") ||
+            packedfile_name.ends_with(".battle_speech_camera") ||
+            packedfile_name.ends_with(".bob") ||
+            packedfile_name.ends_with(".cindyscene") ||
+            packedfile_name.ends_with(".cindyscenemanager") ||
+            //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+            packedfile_name.ends_with(".txt") { DecodeablePackedFileType::Text }
+
+    // If it ends in any of these, it's an image.
+    else if packedfile_name.ends_with(".jpg") ||
+            packedfile_name.ends_with(".jpeg") ||
+            packedfile_name.ends_with(".tga") ||
+            packedfile_name.ends_with(".dds") ||
+            packedfile_name.ends_with(".png") { DecodeablePackedFileType::Image }
+
+    // Otherwise, we don't have a decoder for that PackedFile... yet.
+    else { DecodeablePackedFileType::None }
+}
 
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
@@ -471,7 +528,7 @@ pub fn export_tsv(
 /// existing PackedFile that has a name conflict with the TSV files provided.
 pub fn tsv_mass_import(
     tsv_paths: &[PathBuf],
-    name: &str,
+    name: Option<String>,
     pack_file: &mut PackFile
 ) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
 
@@ -490,71 +547,91 @@ pub fn tsv_mass_import(
         // We get his first line, if it have it. Otherwise, we return an error in this file.
         if let Some(line) = tsv.lines().next() {
 
-            // Split the first line by \t so we can get the info of the table.
+            // Split the first line by \t so we can get the info of the table. Only if we have 2 items, continue.
             let tsv_info = line.split('\t').collect::<Vec<&str>>();
+            if tsv_info.len() == 2 {
 
-            // If it's a Loc PackedFile, use loc importing logic to try to import it.
-            if tsv_info.len() == 1 && tsv_info[0] == "Loc PackedFile" {
-
-                let definition = TableDefinition::new_loc_definition();
-                match import_tsv(&definition, &path, tsv_info[0], 1) {
-                    Ok(data) => {
-
-                        let mut loc = Loc::new();
-                        loc.entries = data;
-                        let raw_data = loc.save();
-                        let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
-
-                        // If that path already exists in the list of new PackedFiles to add, change it using the index.
-                        let mut index = 1;
-                        while packed_files.iter().any(|x| x.path == path) {
-                            path[2] = format!("{}_{}.loc", name, index);
-                            index += 1;
-                        }
-
-                        // If that path already exist in the PackFile, add it to the "remove" list.
-                        if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
-
-                        // Create and add the new PackedFile to the list of PackedFiles to add.
-                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, raw_data));
-                    }
-                    Err(_) => error_files.push(path.to_string_lossy().to_string()),
-                }
-            }
-
-            // If there are two fields in the header, either it's a table or an invalid TSV.
-            else if tsv_info.len() == 2 {
-
-                // Get the type and the version of the table and check if it's in the schema.
+                // Get the type and the version of the table, and with that, get his definition.
                 let table_type = tsv_info[0];
-                let table_version = tsv_info[1].parse::<i32>().unwrap();
+                let table_version = match tsv_info[1].parse::<i32>() {
+                    Ok(version) => version,
+                    Err(_) => {
+                        error_files.push(path.to_string_lossy().to_string()); 
+                        continue
+                    }
+                };
                 
-                let table_definition = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                    if let Some(table_definition) = DB::get_schema(&table_type, table_version, &schema) { table_definition }
-                    else { error_files.push(path.to_string_lossy().to_string()); continue }
-                } else { error_files.push(path.to_string_lossy().to_string()); continue };
+                let table_definition = match table_type {
+                    "Loc PackedFile" => TableDefinition::new_loc_definition(),
+                    _ => {
+                        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                            if let Some(table_definition) = DB::get_schema(&table_type, table_version, &schema) { table_definition }
+                            else { error_files.push(path.to_string_lossy().to_string()); continue }
+                        } else { error_files.push(path.to_string_lossy().to_string()); continue }
+                    }
+                };
 
-                // If it's a DB Table, use their logic for the importing.
+                // Then, import whatever we have and, depending on what we have, save it.
                 match import_tsv(&table_definition, &path, &table_type, table_version) {
                     Ok(data) => {
+                        match table_type {
 
-                        let mut db = DB::new(table_type, table_version, table_definition);
-                        db.entries = data;
-                        let raw_data = db.save();
-                        let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
+                            // Loc Tables.
+                            "Loc PackedFile" => {
+                                let mut loc = Loc::new();
+                                loc.entries = data;
+                                let raw_data = loc.save();
+
+                                // Depending on the name received, call it one thing or another.
+                                let name = match name {
+                                    Some(ref name) => name.to_string(),
+                                    None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                };
+
+                                let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
+
+                                // If that path already exists in the list of new PackedFiles to add, change it using the index.
+                                let mut index = 1;
+                                while packed_files.iter().any(|x| x.path == path) {
+                                    path[2] = format!("{}_{}.loc", name, index);
+                                    index += 1;
+                                }
+
+                                // If that path already exist in the PackFile, add it to the "remove" list.
+                                if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+
+                                // Create and add the new PackedFile to the list of PackedFiles to add.
+                                packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, raw_data));
+                            }
+        
+                            // DB Tables.
+                            _ => {
+                                let mut db = DB::new(table_type, table_version, table_definition);
+                                db.entries = data;
+                                let raw_data = db.save();
+
+                                // Depending on the name received, call it one thing or another.
+                                let name = match name {
+                                    Some(ref name) => name.to_string(),
+                                    None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                };
+
+                                let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
                         
-                        // If that path already exists in the list of new PackedFiles to add, change it using the index.
-                        let mut index = 1;
-                        while packed_files.iter().any(|x| x.path == path) {
-                            path[2] = format!("{}_{}.loc", name, index);
-                            index += 1;
+                                // If that path already exists in the list of new PackedFiles to add, change it using the index.
+                                let mut index = 1;
+                                while packed_files.iter().any(|x| x.path == path) {
+                                    path[2] = format!("{}_{}", name, index);
+                                    index += 1;
+                                }
+                                
+                                // If that path already exists in the PackFile, add it to the "remove" list.
+                                if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+
+                                // Create and add the new PackedFile to the list of PackedFiles to add.
+                                packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, raw_data));
+                            }
                         }
-
-                        // If that path already exists in the PackFile, add it to the "remove" list.
-                        if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
-
-                        // Create and add the new PackedFile to the list of PackedFiles to add.
-                        packed_files.push(PackedFile::read_from_vec(path, get_current_time(), false, raw_data));
                     }
                     Err(_) => error_files.push(path.to_string_lossy().to_string()),
                 }
