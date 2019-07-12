@@ -4,6 +4,7 @@ Here you can find **all the changelogs for every RPFM update** since... since I 
 
 -----------------------------------
 - ***1.6 Versions***, when Sun Ce, the Betrayer, tried to take down the mighty Kingdom of Wu, and failed:
+	- [**1.6.2**](#162)
 	- [**1.6.1**](#161)
 	- [**1.6.0**](#160)
 
@@ -57,6 +58,7 @@ Here you can find **all the changelogs for every RPFM update** since... since I 
 Before this, only God, Git and I knew what changes where done. Now, only God and Git know it. And in case you like scrolling, from here you have all the changelogs.
 
 -----------------------------------
+{{ #include 1.6.2.md }}
 {{ #include 1.6.1.md }}
 {{ #include 1.6.0.md }}
 
