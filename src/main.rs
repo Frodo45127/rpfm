@@ -585,8 +585,9 @@ lazy_static! {
     /// Variable to lock/unlock certain actions of the Folder TreeView.
     static ref IS_FOLDER_TREE_VIEW_LOCKED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 
-    /// Docs URL.
+    /// Docs & Patreon URLs.
     static ref DOCS_BASE_URL: &'static str = "https://frodo45127.github.io/rpfm/";
+    static ref PATREON_URL: &'static str = "https://www.patreon.com/RPFM";
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -2368,10 +2369,10 @@ fn main() {
         );
 
         // What happens when we trigger the "Open Manual" action.
-        let slot_open_manual = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://frodo45127.github.io/rpfm/"))); });
+        let slot_open_manual = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(*DOCS_BASE_URL))); });
 
         // What happens when we trigger the "Support me on Patreon" action.
-        let slot_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str("https://www.patreon.com/RPFM"))); });
+        let slot_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(*PATREON_URL))); });
 
         // What happens when we trigger the "Check Updates" action.
         let slot_check_updates = SlotBool::new(move |_| { check_updates(&app_ui, true); });
