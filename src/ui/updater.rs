@@ -29,6 +29,8 @@ use std::io::BufReader;
 
 use crate::RPFM_PATH;
 use crate::VERSION;
+use crate::DOCS_BASE_URL;
+use crate::SUPPORTED_GAMES;
 use crate::AppUI;
 use crate::QString;
 use crate::Commands;
@@ -172,9 +174,10 @@ pub fn check_schema_updates(
                     message.push_str(&format!("<td>{}:</td>", remote_schema_name));
 
                     // If the game exist in the local version, show both versions.
+                    let game_name = SUPPORTED_GAMES.iter().find(|x| &x.1.schema == remote_schema_name).unwrap().0;
                     if let Some(local_schema_version) = local_versions.get(remote_schema_name) {
-                        message.push_str(&format!("<td>{} => {}</td>", local_schema_version, remote_schema_version));
-                    } else { message.push_str(&format!("<td>0 => {}</td>", remote_schema_version)); }
+                        message.push_str(&format!("<td>{lsv} => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, lsv = local_schema_version, rsv = remote_schema_version));
+                    } else { message.push_str(&format!("<td>0 => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, rsv = remote_schema_version)); }
 
                     message.push_str("</tr>");
                 }
@@ -224,9 +227,10 @@ pub fn check_schema_updates(
                     message.push_str("<tr>");
                     message.push_str(&format!("<td>{}:</td>", remote_schema_name));
 
+                    let game_name = SUPPORTED_GAMES.iter().find(|x| &x.1.schema == remote_schema_name).unwrap().0;
                     if let Some(local_schema_version) = local_versions.get(remote_schema_name) {
-                        message.push_str(&format!("<td>{} => {}</td>", local_schema_version, remote_schema_version));
-                    } else { message.push_str(&format!("<td>0 => {}</td>", remote_schema_version)); }
+                        message.push_str(&format!("<td>{lsv} => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, lsv = local_schema_version, rsv = remote_schema_version));
+                    } else { message.push_str(&format!("<td>0 => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, rsv = remote_schema_version)); }
                     message.push_str("</tr>");
                 }
                 message.push_str("</table>");

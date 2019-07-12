@@ -584,6 +584,9 @@ lazy_static! {
 
     /// Variable to lock/unlock certain actions of the Folder TreeView.
     static ref IS_FOLDER_TREE_VIEW_LOCKED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+
+    /// Docs URL.
+    static ref DOCS_BASE_URL: &'static str = "https://frodo45127.github.io/rpfm/";
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
