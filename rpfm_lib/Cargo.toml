@@ -1,0 +1,47 @@
+[package]
+name = "rpfm_lib"
+version = "1.6.2"
+build = "build.rs"
+authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
+description = "RPFM Lib, where all the magic happens."
+edition = "2018"
+
+[dependencies]
+# Internal dependencies.
+rpfm_error = { path = "../rpfm_error" }
+
+# Configuration support.
+directories = "^2.0"
+indexmap = "^1.0"
+lazy_static = "^1.2"
+
+# Decoding/Encoding support.
+byteorder = "^1.2"
+encoding = "^0.2"
+bitflags = "^1.0"
+regex = "^1"
+
+# UUID Generation support.
+uuid = { version = "^0.7", features = ["v4"] }
+
+# Date manipulation support.
+chrono = "^0.4"
+
+# Update support.
+restson = "^0.5"
+reqwest = "^0.9"
+
+# Serialization support.
+serde = "^1.0"
+serde_derive = "^1.0"
+serde_json = "^1.0"
+serde-xml-rs = "^0.3"
+bincode = "^1.1"
+csv = "=1.0.5" # Fixed because 1.0.6 or above broke float handling.
+
+# Compression support.
+xz2 = "^0.1"
+
+[profile.release]
+lto = true
+debug = true

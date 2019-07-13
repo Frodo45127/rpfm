@@ -1,0 +1,37 @@
+[package]
+name = "rpfm_cli"
+version = "1.6.2"
+authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
+description = "A CLI tool to automate all your modding needs."
+edition = "2018"
+
+[dependencies]
+byteorder = "^1.2"
+encoding = "^0.2"
+num = "^0.2"
+csv = "=1.0.5"
+serde = "^1.0"
+serde_derive = "^1.0"
+serde_json = "^1.0"
+serde-xml-rs = "^0.3"
+bincode = "^1.1"
+chrono = "^0.4"
+failure = "^0.1"
+uuid = { version = "^0.7", features = ["v4"] }
+restson = "^0.5"
+reqwest = "^0.9"
+indexmap = "^1.0"
+regex = "^1"
+
+cpp_utils = "^0.2"
+lazy_static = "^1.2"
+os_info = "^1.1"
+toml = "^0.5"
+
+meval = "^0.2"
+
+bitflags = "^1.0"
+
+[profile.release]
+lto = true
+debug = true
