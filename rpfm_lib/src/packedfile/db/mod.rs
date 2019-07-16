@@ -53,12 +53,12 @@ pub struct DB {
 impl DB {
 
     /// This function creates a new empty DB PackedFile.
-    pub fn new(db_type: &str, version: i32, table_definition: TableDefinition) -> Self {
+    pub fn new(db_type: &str, version: i32, table_definition: &TableDefinition) -> Self {
         Self{
             db_type: db_type.to_owned(),
             version,
             mysterious_byte: 1,
-            table_definition,
+            table_definition: table_definition.clone(),
             entries: vec![],
         }
     }

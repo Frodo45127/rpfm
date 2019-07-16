@@ -16,7 +16,8 @@ use serde_derive::{Serialize, Deserialize};
 use rpfm_error::{Error, ErrorKind, Result};
 
 use std::collections::BTreeMap;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
+use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::path::PathBuf;
 
@@ -82,6 +83,20 @@ pub const TSV_HEADER_LOC_PACKEDFILE: &str = "Loc PackedFile";
 //----------------------------------------------------------------//
 // Generic Functions for PackedFiles.
 //----------------------------------------------------------------//
+
+/// Display implementation of DecodeablePackedFileType.
+impl Display for DecodeablePackedFileType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DecodeablePackedFileType::DB => write!(f, "DB"),
+            DecodeablePackedFileType::Loc => write!(f, "LOC"),
+            DecodeablePackedFileType::Text => write!(f, "Text"),
+            DecodeablePackedFileType::Image => write!(f, "Image"),
+            DecodeablePackedFileType::RigidModel => write!(f, "RigidModel"),
+            DecodeablePackedFileType::None => write!(f, "Unknown"),
+        }
+    }
+}
 
 /// Function to get the type of a PackedFile.
 pub fn get_packed_file_type(path: &[String]) -> DecodeablePackedFileType {
@@ -151,7 +166,7 @@ pub fn create_packed_file(
 
             // If there is a table definition, create the new table. Otherwise, return error.
             match table_definition {
-                Some(table_definition) => DB::new(&table, version, table_definition).save(),
+                Some(table_definition) => DB::new(&table, version, &table_definition).save(),
                 None => return Err(ErrorKind::SchemaTableDefinitionNotFound)?
             }
         }
@@ -212,7 +227,7 @@ pub fn merge_tables(
             final_entries_list.append(&mut table.entries);
         }
 
-        let mut new_table = DB::new(&db_files[0].db_type, version, table_definition);
+        let mut new_table = DB::new(&db_files[0].db_type, version, &table_definition);
         new_table.entries = final_entries_list;
         new_table.save()
     }
@@ -490,6 +505,93 @@ pub fn import_tsv(
     Ok(entries)
 }
 
+/// This function imports a TSV file into a new DB File, using the provided schema to find out the correct format.
+pub fn import_tsv_to_binary_file(
+    schema: &Schema,
+    source_path: &PathBuf,
+    destination_path: &PathBuf,
+) -> Result<()> {
+
+    // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
+    // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+    let mut reader = ReaderBuilder::new()
+        .delimiter(b'\t')
+        .quoting(false)
+        .has_headers(true)
+        .flexible(true)
+        .from_path(&source_path)?;
+
+    // If we succesfully load the TSV file into a reader, check the first line to ensure it's a valid TSV file.
+    let table_type;
+    let table_version;
+    {
+        let headers = reader.headers()?;
+        table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable)? };
+        table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion)? };
+    }
+
+    // Get his definition depending on his first line's contents.
+    let definition = if table_type == "Loc PackedFile" { TableDefinition::new_loc_definition() }
+    else { schema.get_definitions(&table_type)?.get_version(table_version)?.clone() };
+
+    // Try to import the entries of the file.
+    let mut entries = vec![];
+    for (row, record) in reader.records().enumerate() {
+        if let Ok(record) = record {
+
+            // The second line contains the column headers. Is just to help people in other programs, not needed to be check.
+            if row == 0 { continue }
+
+            // Then read the rest of the rows as a normal TSV.
+            else if record.len() == definition.fields.len() {
+                let mut entry = vec![];
+                for (column, field) in record.iter().enumerate() {
+                    match definition.fields[column].field_type {
+                        FieldType::Boolean => {
+                            let value = field.to_lowercase();
+                            if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
+                            else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
+                            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?; }
+                        }
+                        FieldType::Float => entry.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                        FieldType::Integer => entry.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                        FieldType::LongInteger => entry.push(DecodedData::LongInteger(field.parse::<i64>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
+                        FieldType::StringU8 => entry.push(DecodedData::StringU8(field.to_owned())),
+                        FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
+                        FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
+                        FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
+                    }
+                }
+                entries.push(entry);
+            }
+
+            // If it fails here, return an error with the len of the record instead a field.
+            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()))?; }
+        }
+
+        else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0))?; }
+    }
+
+    // If we reached this point without errors, we create the File in memory and add the entries to it.
+    let data = if table_type == "Loc PackedFile" {
+        let mut file = Loc::new();
+        file.entries = entries;
+        file.save()
+    }
+    else {
+        let mut file = DB::new(&table_type, table_version, &definition);
+        file.entries = entries;
+        file.save()   
+    };
+
+    // Then, we try to write it on disk. If there is an error, report it.
+    let mut file = BufWriter::new(File::create(&destination_path)?);
+    file.write_all(&data)?;
+
+    // If all worked, return success.
+    Ok(())
+}
+
 /// This function creates a TSV file with the contents of the DB/Loc PackedFile.
 pub fn export_tsv(
     data: &[Vec<DecodedData>], 
@@ -519,6 +621,47 @@ pub fn export_tsv(
     file.write_all(String::from_utf8(writer.into_inner().unwrap())?.as_bytes())?;
 
     Ok(())
+}
+
+/// This function creates a TSV file with the contents of the DB/Loc File.
+pub fn export_tsv_from_binary_file(
+    schema: &Schema,
+    source_path: &PathBuf,
+    destination_path: &PathBuf
+) -> Result<()> {
+
+    // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
+    // Excel, Libreoffice and all the programs that edit this kind of files break them on save.
+    let mut writer = WriterBuilder::new()
+        .delimiter(b'\t')
+        .quote_style(QuoteStyle::Never)
+        .has_headers(false)
+        .flexible(true)
+        .from_path(destination_path)?;
+
+    // We don't know what type this file is, so we try to decode it as a Loc. If that fails, we try
+    // to decode it as a DB using the name of his parent folder. If that fails too, run before it explodes! 
+    let mut file = BufReader::new(File::open(source_path)?);
+    let mut data = vec![];
+    file.read_to_end(&mut data)?;
+
+    let (table_type, version, entries) = if let Ok(data) = Loc::read(&data) { ("Loc PackedFile", 1, data.entries) }
+    else {
+        let table_type = source_path.parent().unwrap().file_name().unwrap().to_str().unwrap();
+        if let Ok(data) = DB::read(&data, table_type, schema) { (table_type, data.version, data.entries) }
+        else { return Err(ErrorKind::ImportTSVWrongTypeTable)? }
+    };
+
+    let definition = if table_type == "Loc PackedFile" { TableDefinition::new_loc_definition() }
+    else { schema.get_definitions(&table_type)?.get_version(version)?.clone() };
+
+    // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
+    writer.serialize((table_type, version))?;
+    writer.serialize(definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>())?;
+
+    // Then we serialize each entry in the DB Table.
+    for entry in entries { writer.serialize(&entry)?; }
+    writer.flush().map_err(|x| From::from(x))
 }
 
 //----------------------------------------------------------------//
@@ -607,7 +750,7 @@ pub fn tsv_mass_import(
         
                             // DB Tables.
                             _ => {
-                                let mut db = DB::new(table_type, table_version, table_definition);
+                                let mut db = DB::new(table_type, table_version, &table_definition);
                                 db.entries = data;
                                 let raw_data = db.save();
 

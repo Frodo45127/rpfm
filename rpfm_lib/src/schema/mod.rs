@@ -19,7 +19,7 @@ use std::{fmt, fmt::Display};
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
 use crate::updater::Versions;
-use rpfm_error::Result;
+use rpfm_error::{ErrorKind, Result};
 
 pub mod assembly_kit;
 
@@ -112,8 +112,16 @@ impl Schema {
     }
 
     /// This functions returns the index of the definitions for a table.
+    #[deprecated(since="1.7.0", note="Please use `get_definitions` instead")]
     pub fn get_table_definitions(&self, table_name: &str) -> Option<usize> {
         self.tables_definitions.iter().position(|x| x.name == table_name)
+    }
+
+    // This function returns a definition under the provided name if it exists. Otherwise it return `Error`.
+    pub fn get_definitions(&self, table_name: &str) -> Result<&TableDefinitions> {
+        if let Some(index) = self.tables_definitions.iter().position(|x| x.name == table_name) {
+            Ok(&self.tables_definitions[index])
+        } else { Err(ErrorKind::SchemaTableDefinitionNotFound)? }
     }
 
     /// This function takes an schema file and reads it into a "Schema" object.
@@ -315,6 +323,7 @@ impl TableDefinitions {
     }
 
     /// This functions returns the index of the definitions for a table.
+    #[deprecated(since="1.7.0", note="Please use `get_version` instead")]
     pub fn get_table_version(&self, table_version: i32) -> Option<usize> {
         for (index, table) in self.versions.iter().enumerate() {
             if table.version == table_version {
@@ -323,6 +332,14 @@ impl TableDefinitions {
         }
         None
     }
+
+    // This function returns a definition under the provided version if it exists. Otherwise it return `Error`.
+    pub fn get_version(&self, version: i32) -> Result<&TableDefinition> {
+        if let Some(index) = self.versions.iter().position(|x| x.version == version) {
+            Ok(&self.versions[index])
+        } else { Err(ErrorKind::SchemaTableNotFound)? }
+    }
+
 
     /// This functions adds a new TableDefinition to the list. This checks if that version of the table
     /// already exists, and replace it in that case.

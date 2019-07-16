@@ -199,6 +199,9 @@ pub enum ErrorKind {
     // Error for when we don't have a table definition for an specific version of a table.
     SchemaTableDefinitionNotFound,
 
+    // Error for when we don't have any definition of a table.
+    SchemaTableNotFound,
+
     //--------------------------------//
     // RigidModel Errors
     //--------------------------------//
@@ -344,12 +347,28 @@ pub enum ErrorKind {
 
     // Error for unexpected EOF.
     JsonErrorEOF,
+
+    // Error to parse non-html errors.
+    NoHTMLError(String),
 }
 
 /// Implementation of our custom Error Type.
 impl Error {
     pub fn kind(&self) -> ErrorKind {
         self.context.get_context().clone()
+    }
+
+    // This function removes the html tags from the error messages, to make them "Terminal Friendly".
+    pub fn to_terminal(&self) -> String {
+        format!("{}", self)
+            .replace("<p>", "")         // Remove start of paragraph.
+            .replace("</p>", "\n")      // Replace end of paragraph with a jump line.
+            .replace("<ul>", "\n")      // Replace start of list with a jump line.
+            .replace("</ul>", "\n")     // Replace end of list with a jump line.
+            .replace("<li>", "")        // Remove start of list entry.
+            .replace("</li>", "\n")     // Replace end of list entry with a jump line.
+            .replace("<i>", "")         // Replace start of italics.
+            .replace("</i>", "")        // Replace end of italics.
     }
 }
 
@@ -479,6 +498,7 @@ impl Display for ErrorKind {
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
             ErrorKind::SchemaTableDefinitionNotFound => write!(f, "<p>There is no Table Definition for this specific version of the table in the Schema.</p>"),
+            ErrorKind::SchemaTableNotFound => write!(f, "<p>There is no Table Definition of the table in the Schema.</p>"),
 
             //--------------------------------//
             // RigidModel Errors
@@ -563,6 +583,7 @@ impl Display for ErrorKind {
             ErrorKind::JsonErrorSyntax => write!(f, "<p>Error while trying to read JSON data:</p><p>Invalid syntax found.</p>"),
             ErrorKind::JsonErrorData => write!(f, "<p>Error while trying to read JSON data:</p><p>Semantically incorrect data found.</p>"),
             ErrorKind::JsonErrorEOF => write!(f,"<p>Error while trying to read JSON data:</p><p>Unexpected EOF found.</p>"),
+            ErrorKind::NoHTMLError(error) => write!(f,"{}", error),
         }
     }
 }
@@ -570,6 +591,13 @@ impl Display for ErrorKind {
 //------------------------------------------------------------//
 //         Extra Implementations for the From Trait
 //------------------------------------------------------------//
+
+/// Implementation to create a custom error from an ErrorKind.
+impl From<String> for Error {
+    fn from(error: String) -> Error {
+        Error { context: Context::new(ErrorKind::NoHTMLError(error)) }
+    }
+}
 
 /// Implementation to create a custom error from an ErrorKind.
 impl From<ErrorKind> for Error {

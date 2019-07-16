@@ -224,7 +224,7 @@ pub fn process_raw_tables(
                     }
 
                     // Then create the DB object, and add it to the list.
-                    let mut processed_db_file = DB::new(&table_name, -1, imported_table_definition);
+                    let mut processed_db_file = DB::new(&table_name, -1, &imported_table_definition);
                     processed_db_file.entries = entries;
                     processed_db_files.push(processed_db_file);
                 }
