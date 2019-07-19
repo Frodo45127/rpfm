@@ -11,6 +11,8 @@
 // In this file goes all the stuff needed for the schema decoder to work.
 
 use serde_derive::{Serialize, Deserialize};
+use ron::ser::{to_string_pretty, PrettyConfig};
+use ron::de::from_reader;
 
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
@@ -21,64 +23,68 @@ use crate::config::get_config_path;
 use crate::updater::Versions;
 use rpfm_error::{ErrorKind, Result};
 
+/// Module with all the code to interact with the Assembly Kit's DB Files and Schemas.
 pub mod assembly_kit;
 
-/// Name of the schemas versions file.
+/// Name of the schema versions file.
 const SCHEMA_VERSIONS_FILE: &'static str = "versions.json";
 
-/// URL used to download new schemas.
+/// URL used to download new schema files.
 pub const SCHEMA_UPDATE_URL_MASTER: &'static str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
 
-/// This struct holds the entire schema for the currently selected game (by "game" I mean the PackFile
-/// Type).
-/// It has:
-/// - game: the game for what the loaded definitions are intended.
-/// - version: custom variable to keep track of the updates to the schema.
-/// - tables_definition: the actual definitions.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Schema {
-    pub tables_definitions: Vec<TableDefinitions>,
-}
+/// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Schema(Vec<VersionedFile>);
 
-/// This struct holds the definitions for a table. It has:
-/// - name: the name of the table.
-/// - versions: the different versions this table has.
+/// This enum defines all types of versioned files that the schema system supports.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct TableDefinitions {
-    pub name: String,
-    pub versions: Vec<TableDefinition>,
+pub enum VersionedFile {
+    
+    /// It stores the name of the table, and a `Vec<TableDefinition>` with the definitions for each version of that table decoded.
+    DB(String, Vec<TableDefinition>),
+    
+    /// It stores a `Vec<TableDefinition>` to decode the dependencies of a PackFile.
+    DepManager(Vec<TableDefinition>),
+
+    /// It stores a `Vec<TableDefinition>` with the definitions for each version of Loc files decoded (currently, only version `1`).
+    Loc(Vec<TableDefinition>),
 }
 
-/// This struct holds the definitions for a version of a table. It has:
-/// - version: the version of the table these definitions are for.
-/// - fields: the different fields this table has.
-///
-/// NOTE: the versions are:
-/// - 0: for unversioned tables.
-/// - 1+: for versioned tables.
-/// - 1: for LOC Definitions.
-/// - -1: for Fake Definitions.
+/// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct TableDefinition {
+
+    /// The version of the PackedFile the definition is for. These versions are:
+    /// - `-1`: for fake `TableDefinition`, used for dependency resolving stuff.
+    /// - `0`: for unversioned PackedFiles.
+    /// - `1+`: for versioned PackedFiles.
     pub version: i32,
+
+    /// This is a collection of all `Field`s the PackedFile uses, in the order it uses them.
     pub fields: Vec<Field>,
 }
 
-/// This struct holds the type of a field of a table. It has:
-/// - field_name: the name of the field.
-/// - field_is_key: true if the field is a key field and his column needs to be put in the beginning of the TreeView.
-/// - field_is_reference: if this field is a reference of another, this has (table name, field name).
-/// - field_type: the type of the field.
+/// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Field {
+    
+    /// Name of the field. Should contain no spaces, using `_` instead.
     pub field_name: String,
+
+    /// Type of the field.
     pub field_type: FieldType,
+    
+    /// `True` if the field is a `Key` field of a table. `False` otherwise.
     pub field_is_key: bool,
+
+    /// `Some(referenced_table, referenced_column)` if the field is referencing another table/column. `None` otherwise.
     pub field_is_reference: Option<(String, String)>,
+
+    /// Aclarative description of what the field is for.
     pub field_description: String,
 }
 
-/// Enum FieldType: This enum is used to define the possible types of a field in the schema.
+/// This enum defines every type of field the lib can encode/decode.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
@@ -91,63 +97,110 @@ pub enum FieldType {
     OptionalStringU16
 }
 
-/// Implementation of "Schema"
+/// Implementation of `Schema`.
 impl Schema {
 
-    /// This function creates a new schema. It should only be needed to create the first table definition
-    /// of a game, as the rest will continue using the same schema.
+    /// This function creates a new empty schema. Similar to `Schema::default()`.
     pub fn new() -> Self {
-        Self {
-            tables_definitions: vec![],
+        Self(vec![])
+    }
+
+    /// This function adds a new `VersionedFile` to the schema. This checks if the provided `VersionedFile`
+    /// already exists, and replace it if neccesary.
+    pub fn add_versioned_file(&mut self, versioned_file: &VersionedFile) {
+        match self.0.iter().position(|x| x.conflict(versioned_file)) {
+            Some(position) => { self.0.splice(position..position + 1, [versioned_file.clone()].iter().cloned()); },
+            None => self.0.push(versioned_file.clone()),
         }
     }
 
-    /// This function adds a new TableDefinitions to the schema. This checks if that table definitions
-    /// already exists, and replace it in that case.
-    pub fn add_table_definitions(&mut self, table_definitions: TableDefinitions) {
-        match self.tables_definitions.iter().position(|x| x.name == table_definitions.name) {
-            Some(position) => { self.tables_definitions.splice(position..position + 1, [table_definitions].iter().cloned()); },
-            None => self.tables_definitions.push(table_definitions),
-        }
+    /// This function returns a reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
+    pub fn get_versioned_file_db(&self, table_name: &str) -> Result<&VersionedFile> {
+        self.0.iter().filter(|x| x.is_db())
+            .find(|x| if let VersionedFile::DB(name,_) = x { 
+                if name == table_name { true } else { false }
+            } else { false }
+        ).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
-    /// This functions returns the index of the definitions for a table.
-    #[deprecated(since="1.7.0", note="Please use `get_definitions` instead")]
-    pub fn get_table_definitions(&self, table_name: &str) -> Option<usize> {
-        self.tables_definitions.iter().position(|x| x.name == table_name)
+    /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
+    pub fn get_mut_versioned_file_db(&mut self, table_name: &str) -> Result<&mut VersionedFile> {
+        self.0.iter_mut().filter(|x| x.is_db())
+            .find(|x| if let VersionedFile::DB(name,_) = x { 
+                if name == table_name { true } else { false }
+            } else { false }
+        ).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
-    // This function returns a definition under the provided name if it exists. Otherwise it return `Error`.
-    pub fn get_definitions(&self, table_name: &str) -> Result<&TableDefinitions> {
-        if let Some(index) = self.tables_definitions.iter().position(|x| x.name == table_name) {
-            Ok(&self.tables_definitions[index])
-        } else { Err(ErrorKind::SchemaTableDefinitionNotFound)? }
+    /// This function returns a reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_dep_manager(&self) -> Result<&VersionedFile> {
+        self.0.iter().find(|x| x.is_dep_manager()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
-    /// This function takes an schema file and reads it into a "Schema" object.
+    /// This function returns a mutable reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_mut_versioned_file_dep_manager(&mut self) -> Result<&mut VersionedFile> {
+        self.0.iter_mut().find(|x| x.is_dep_manager()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_loc(&self) -> Result<&VersionedFile> {
+        self.0.iter().find(|x| x.is_loc()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_mut_versioned_file_loc(&mut self) -> Result<&mut VersionedFile> {
+        self.0.iter_mut().find(|x| x.is_loc()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
     pub fn load(schema_file: &str) -> Result<Self> {
-
         let mut file_path = get_config_path()?.join("schemas");
         file_path.push(schema_file);
 
         let file = BufReader::new(File::open(&file_path)?);
-        serde_json::from_reader(file).map_err(|x| From::from(x))
+        from_reader(file).map_err(|x| From::from(x))
     }
 
-    /// This function takes an "Schema" object and saves it into a schema file.
+    /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
     pub fn save(&self, schema_file: &str) -> Result<()> {
-
         let mut file_path = get_config_path()?.join("schemas");
         file_path.push(schema_file);
 
         let mut file = File::create(&file_path)?;
-        let json = serde_json::to_string_pretty(&self)?;
-        file.write_all(json.as_bytes())?;
+        let mut config = PrettyConfig::default();
+        config.enumerate_arrays = true;
+        file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
     }
 
-    /// This function generates the diff between the local schemas and the remote ones and, if it detects
-    /// that you're using the git repo (debug), it adds the diff to the proper place in the docs. 
+    /// This function exports all the schema files from the `schemas/` folder to `.json`.
+    ///
+    /// For compatibility purpouses.
+    pub fn export_to_json(&self) -> Result<()> {
+        for schema_file in SUPPORTED_GAMES.iter().map(|x| &x.1.schema) {
+            let schema = Schema::load(&schema_file)?;
+
+            let mut file_path = get_config_path()?.join("schemas");
+            file_path.push(schema_file);
+            file_path.set_extension("json");
+
+            let mut file = File::create(&file_path)?;
+            file.write_all(serde_json::to_string_pretty(&schema)?.as_bytes())?;
+        }
+        Ok(())
+    }
+
+    /// This function generates a diff between the local schema files and the remote ones and drops it in the config folder.
+    ///
+    /// If it detects that you're using the git repo (debug), it adds the diff to the proper place in the docs_src folder instead. 
     pub fn generate_schema_diff() -> Result<()> {
 
         // To avoid doing a lot of useless checking, we only check for schemas with different version.
@@ -189,37 +242,41 @@ impl Schema {
             let mut new_corrections: Vec<String> = vec![];
 
             // For each table, we need to check EVERY possible difference.
-            for table_local in &schema_local.tables_definitions {
-                match schema_current.tables_definitions.iter().find(|x| x.name == table_local.name) {
+            for table_local in schema_local.0.iter().filter(|x| x.is_db()) {
+                if let VersionedFile::DB(name_local, versions_local) = table_local {
+                    match schema_current.get_versioned_file_db(name_local) {
 
-                    // If we find it, we have to check if it has changes. If it has them, then we analize them.
-                    Some(table_current) => {
-                        if table_local != table_current {
-                            for version_local in &table_local.versions {
-                                match table_current.versions.iter().find(|x| x.version == version_local.version) {
-                                    
-                                    // If the version has been found, it's a correction for a current version. So we check every
-                                    // field for references.
-                                    Some(version_current) => version_local.get_pretty_diff(&version_current, &table_local.name, &mut new_corrections),
+                        // If we find it, we have to check if it has changes. If it has them, then we analize them.
+                        Ok(table_current) => {
+                            if let VersionedFile::DB(_, versions_current) = table_current {
+                                if table_local != table_current {
+                                    for version_local in versions_local {
+                                        match versions_current.iter().find(|x| x.version == version_local.version) {
+                                            
+                                            // If the version has been found, it's a correction for a current version. So we check every
+                                            // field for references.
+                                            Some(version_current) => version_local.get_pretty_diff(&version_current, &name_local, &mut new_corrections),
 
-                                    // If the version hasn't been found, is a new version. We have to compare it with
-                                    // the old one and get his changes.
-                                    None => {
+                                            // If the version hasn't been found, is a new version. We have to compare it with
+                                            // the old one and get his changes.
+                                            None => {
 
-                                        // If we have more versions, get the highest one before the one we have. Tables are automatically
-                                        // sorted on save, so we can just get the first one of the current list.
-                                        if table_local.versions.len() > 1 {
-                                            let old_version = &table_current.versions[0];
-                                            version_local.get_pretty_diff(&old_version, &table_local.name, &mut new_versions);
+                                                // If we have more versions, get the highest one before the one we have. Tables are automatically
+                                                // sorted on save, so we can just get the first one of the current list.
+                                                if versions_local.len() > 1 {
+                                                    let old_version = &versions_current[0];
+                                                    version_local.get_pretty_diff(&old_version, &name_local, &mut new_versions);
+                                                }
+                                            },
                                         }
-                                    },
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // If the table hasn't been found, it's a new table we decoded.
-                    None => new_tables.push(table_local.name.to_owned()),
+                        // If the table hasn't been found, it's a new table we decoded.
+                        Err(_) => new_tables.push(name_local.to_owned()),
+                    }
                 }
             }
 
@@ -307,68 +364,98 @@ impl Schema {
     }
 }
 
-/// Implementation of "TableDefinitions"
-impl TableDefinitions {
+/// Implementation of `VersionedFile`.
+impl VersionedFile {
 
-    /// This function creates a new table definition. We need to call it when we don't have a definition
-    /// of the table we are trying to decode.
-    pub fn new(name: &str) -> TableDefinitions {
-        let name = name.to_string();
-        let versions = vec![];
-
-        TableDefinitions {
-            name,
-            versions,
+    /// This function returns true if the provided `VersionedFile` is a DB Definition. Otherwise, it returns false.
+    pub fn is_db(&self) -> bool {
+        match *self {
+            VersionedFile::DB(_,_) => true,
+            _ => false,
         }
     }
 
-    /// This functions returns the index of the definitions for a table.
-    #[deprecated(since="1.7.0", note="Please use `get_version` instead")]
-    pub fn get_table_version(&self, table_version: i32) -> Option<usize> {
-        for (index, table) in self.versions.iter().enumerate() {
-            if table.version == table_version {
-                return Some(index);
-            }
+    /// This function returns true if the provided `VersionedFile` is a Dependency Manager Definition. Otherwise, it returns false.
+    pub fn is_dep_manager(&self) -> bool {
+        match *self {
+            VersionedFile::DepManager(_) => true,
+            _ => false,
         }
-        None
     }
 
-    // This function returns a definition under the provided version if it exists. Otherwise it return `Error`.
+    /// This function returns true if the provided `VersionedFile` is a Loc Definition. Otherwise, it returns false.
+    pub fn is_loc(&self) -> bool {
+        match *self {
+            VersionedFile::Loc(_) => true,
+            _ => false,
+        }
+    }
+
+    /// This function returns true if both `VersionFile` are conflicting (they're the same, but their definitions may be different).
+    pub fn conflict(&self, secondary: &VersionedFile) -> bool {
+        match &self {
+            VersionedFile::DB(table_name, _) => match &secondary {
+                VersionedFile::DB(secondary_table_name, _) => if table_name == secondary_table_name { true } else { false },
+                VersionedFile::DepManager( _) => false,
+                VersionedFile::Loc( _) => false,
+            },
+            VersionedFile::Loc(_) => if secondary.is_loc() { true } else { false },
+            VersionedFile::DepManager( _) => if secondary.is_dep_manager() { true } else { false },
+        }
+    }
+
+    /// This function returns a reference to a specific version of a definition, if it finds it.
     pub fn get_version(&self, version: i32) -> Result<&TableDefinition> {
-        if let Some(index) = self.versions.iter().position(|x| x.version == version) {
-            Ok(&self.versions[index])
-        } else { Err(ErrorKind::SchemaTableNotFound)? }
+        match &self {
+            VersionedFile::DB(_, versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::DepManager(versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::Loc(versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
+        }
     }
 
+    /// This function returns the list of the versions in the provided `VersionedFile`.
+    pub fn get_version_list(&self) -> &[TableDefinition] {
+        match &self {
+            VersionedFile::DB(_, versions) => versions,
+            VersionedFile::DepManager(versions) => versions,
+            VersionedFile::Loc(versions) => versions,
+        }
+    }
 
-    /// This functions adds a new TableDefinition to the list. This checks if that version of the table
-    /// already exists, and replace it in that case.
-    pub fn add_table_definition(&mut self, table_definition: TableDefinition) {
-        let version = table_definition.version;
-        let mut index_version = 0;
-        let mut index_found = false;
-        for (index, definition) in self.versions.iter().enumerate() {
-            if definition.version == version {
-                index_version = index;
-                index_found = true;
-                break;
+    /// This function adds the provided version to the provided `VersionedFile`, replacing an existing version if there is a conflict.
+    pub fn add_version(&mut self, version: &TableDefinition) {
+        match self {
+            VersionedFile::DB(_, ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
+                Some(position) => { versions.splice(position..position + 1, [version].iter().cloned().cloned()); },
+                None => versions.push(version.clone()),
+            }
+            VersionedFile::DepManager(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
+                Some(position) => { versions.splice(position..position + 1, [version].iter().cloned().cloned()); },
+                None => versions.push(version.clone()),
+            }
+            VersionedFile::Loc(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
+                Some(position) => { versions.splice(position..position + 1, [version].iter().cloned().cloned()); },
+                None => versions.push(version.clone()),
             }
         }
-        if index_found {
-            self.versions.remove(index_version);
-            self.versions.insert(index_version, table_definition);
-        }
-        else {
-            self.versions.push(table_definition);
+    }
+
+    /// This function tries to remove a specific version from the provided `VersionedFile`.
+    ///
+    /// If the version doesn't exist, it does nothing.
+    pub fn remove_version(&mut self, version: i32) {
+        match self {
+            VersionedFile::DB(_, versions) =>  if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
+            VersionedFile::DepManager(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
+            VersionedFile::Loc(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
         }
     }
 }
 
-/// Implementation of "TableDefinition"
+/// Implementation of `TableDefinition`.
 impl TableDefinition {
 
-    /// This function creates a new table definition. We need to call it when we don't have a definition
-    /// of the table we are trying to decode with the version we have.
+    /// This function creates a new empty `TableDefinition` for the version provided.
     pub fn new(version: i32) -> TableDefinition {
         TableDefinition {
             version,
@@ -376,8 +463,9 @@ impl TableDefinition {
         }
     }
 
-    /// This function creates a new table definition from an imported definition from the assembly kit.
-    /// Note that this import the loc fields (they need to be removed manually later) and it doesn't
+    /// This function creates a new `TableDefinition` from an imported definition from the Assembly Kit.
+    ///
+    /// Note that this imports the loc fields (they need to be removed manually later) and it doesn't
     /// import the version (this... I think I can do some trick for it).
     pub fn new_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
@@ -479,8 +567,9 @@ impl TableDefinition {
         }
     }
         
-    /// This function creates a new fake table definition from an imported definition from the assembly kit.
-    /// For use with the raw tables processing.
+    /// This function creates a new fake `TableDefinition` from an imported definition from the Assembly Kit.
+    ///
+    /// For use with the raw table processing.
     pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
@@ -560,28 +649,7 @@ impl TableDefinition {
         }
     }
 
-    /// This generates a new fake definition for LOC PackedFiles.
-    pub fn new_loc_definition() -> Self {
-        let version = 1;
-        let mut fields = vec![];
-        fields.push(Field::new("key".to_owned(), FieldType::StringU16, false, None, "".to_owned()));
-        fields.push(Field::new("text".to_owned(), FieldType::StringU16, false, None, "".to_owned()));
-        fields.push(Field::new("tooltip".to_owned(), FieldType::Boolean, false, None, "".to_owned()));
-        Self {
-            version,
-            fields,
-        }
-    }
-
-    /// This generates a new fake definition for the Dependency PackFile's List.
-    pub fn new_dependency_manager_definition() -> Self {
-        Self {
-            version: 1,
-            fields: vec![Field::new("PackFile's List".to_owned(), FieldType::StringU8, false, None, "".to_owned())],
-        }
-    }
-
-    /// This function generates a MarkDown diff of two versions of an specific table and adds it to the provided changes list.
+    /// This function generates a MarkDown-encoded diff of two versions of an specific table and adds it to the provided changes list.
     pub fn get_pretty_diff(
         &self,
         version_current: &Self,
@@ -679,14 +747,12 @@ impl TableDefinition {
     }
 }
 
-/// Implementation of "Field".
+/// Implementation of `Field`.
 impl Field {
 
-    /// This function creates a new table definition. We need to call it when we don't have a definition
-    /// of the table we are trying to decode with the version we have.
-    pub fn new(field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>, field_description: String) -> Field {
-
-        Field {
+    /// This function creates a `Field` using the provided data.
+    pub fn new(field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>, field_description: String) -> Self {
+        Self {
             field_name,
             field_type,
             field_is_key,
@@ -696,7 +762,7 @@ impl Field {
     }
 }
 
-/// Display implementation of FieldType.
+/// Display implementation of `FieldType`.
 impl Display for FieldType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

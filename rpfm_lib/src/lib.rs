@@ -36,6 +36,8 @@ pub mod common;
 pub mod config;
 pub mod packedfile;
 pub mod packfile;
+
+/// This module contains all the stuff needed for managing `Schemas`.
 pub mod schema;
 pub mod settings;
 pub mod updater;
@@ -53,7 +55,7 @@ lazy_static! {
         map.insert("three_kingdoms", GameInfo {
             display_name: "Three Kingdoms".to_owned(),
             id: PFHVersion::PFH5,
-            schema: "schema_3k.json".to_owned(),
+            schema: "schema_3k.ron".to_owned(),
             db_packs: vec!["database.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
@@ -82,7 +84,7 @@ lazy_static! {
         map.insert("warhammer_2", GameInfo {
             display_name: "Warhammer 2".to_owned(),
             id: PFHVersion::PFH5,
-            schema: "schema_wh2.json".to_owned(),
+            schema: "schema_wh2.ron".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
@@ -111,7 +113,7 @@ lazy_static! {
         map.insert("warhammer", GameInfo {
             display_name: "Warhammer".to_owned(),
             id: PFHVersion::PFH4,
-            schema: "schema_wh.json".to_owned(),
+            schema: "schema_wh.ron".to_owned(),
             db_packs: vec![
                 "data.pack".to_owned(),         // Central data PackFile
                 "data_bl.pack".to_owned(),      // Blood DLC Data
@@ -144,7 +146,7 @@ lazy_static! {
         map.insert("thrones_of_britannia", GameInfo {
             display_name: "Thrones of Britannia".to_owned(),
             id: PFHVersion::PFH4,
-            schema: "schema_tob.json".to_owned(),
+            schema: "schema_tob.ron".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
@@ -173,7 +175,7 @@ lazy_static! {
         map.insert("attila", GameInfo {
             display_name: "Attila".to_owned(),
             id: PFHVersion::PFH4,
-            schema: "schema_att.json".to_owned(),
+            schema: "schema_att.ron".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
@@ -202,7 +204,7 @@ lazy_static! {
         map.insert("rome_2", GameInfo {
             display_name: "Rome 2".to_owned(),
             id: PFHVersion::PFH4,
-            schema: "schema_rom2.json".to_owned(),
+            schema: "schema_rom2.ron".to_owned(),
             db_packs: vec!["data_rome2.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
@@ -231,7 +233,7 @@ lazy_static! {
         map.insert("shogun_2", GameInfo {
             display_name: "Shogun 2".to_owned(),
             id: PFHVersion::PFH3,
-            schema: "schema_sho2.json".to_owned(),
+            schema: "schema_sho2.ron".to_owned(),
             db_packs: vec!["data.pack".to_owned()],
             loc_packs: vec![
                 "local_en.pack".to_owned(),     // English
@@ -260,7 +262,7 @@ lazy_static! {
         map.insert("napoleon", GameInfo {
             display_name: "Napoleon".to_owned(),
             id: PFHVersion::PFH0,
-            schema: "schema_nap.json".to_owned(),
+            schema: "schema_nap.ron".to_owned(),
             db_packs: vec![                     // NOTE: Patches 5 and 7 has no table changes, so they should not be here.
                 "data.pack".to_owned(),         // Main DB PackFile
                 "patch.pack".to_owned(),        // First Patch
@@ -309,7 +311,7 @@ lazy_static! {
         map.insert("empire", GameInfo {
             display_name: "Empire".to_owned(),
             id: PFHVersion::PFH0,
-            schema: "schema_emp.json".to_owned(),
+            schema: "schema_emp.ron".to_owned(),
             db_packs: vec![
                 "main.pack".to_owned(),         // Main DB PackFile
                 "models.pack".to_owned(),       // Models PackFile (contains model-related DB Tables)
@@ -361,7 +363,7 @@ lazy_static! {
         map.insert("arena", GameInfo {
             display_name: "Arena".to_owned(),
             id: PFHVersion::PFH5,
-            schema: "schema_are.json".to_owned(),
+            schema: "schema_are.ron".to_owned(),
             db_packs: vec!["wad.pack".to_owned()],
             loc_packs: vec!["local_ex.pack".to_owned()],
             steam_id: None,

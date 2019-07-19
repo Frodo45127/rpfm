@@ -8,12 +8,17 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Here should go all the stuff needed to get the damn error system working, so we can provide precise
-// error reports instead of what we had before.
+/*!
+This crate is the old `Error` module of RPFM, who fought in the splitting war and gained independence. 
+
+It has been put into his own lib so there is no need to keep a couple of duplicated `Error` modules 
+for `rpfm-ui` and `rpfm-cli`. As such, **this lib is not intended to be standalone, but a dependency of the `rpfm-lib` crate.
+
+If you need a custom `From` implementation for any error of any lib, add it here. 
+!*/
 
 use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
-use toml::ser;
 
 use std::boxed::Box;
 use std::fmt;
@@ -28,337 +33,370 @@ pub mod logger;
 /// Alias for handling errors more easely.
 pub type Result<T> = result::Result<T, Error>;
 
-/// Custom Error Type. Were the magic begins.
+//---------------------------------------------------------------------------//
+//                      Definition of the Types
+//---------------------------------------------------------------------------//
+
+/// Custom `Error` Type. One type to hold them all...
+///
+/// This type implements the `Display` trait to return a meaningful, user-readable error message.
+/// Most of the messages contain HTML tags for formatting. If you don't want the HTML tags, use the `Error::to_terminal()` function to remove them.
 #[derive(Debug)]
 pub struct Error {
     context: Context<ErrorKind>,
 }
 
-/// Custom ErrorKind Type. To be able to differentiate errors. All these errors are supposed to have
-/// an String inside, with "user-readable" information about the error in HTML.
+/// Custom `ErrorKind` Type. To be able to return different errors using the same `Error` type. 
+/// 
+/// This type implements the `Display` trait to return a meaningful, user-readable error message.
+/// Most of the messages contain HTML tags for formatting. If you don't want the HTML tags, use the `Error::to_terminal()` function to remove them.
 #[derive(Clone, Eq, PartialEq, Debug, Fail)]
 pub enum ErrorKind {
 
-    // Generic error. For a situation where you just need to throw an error, doesn't matter what kind of error.
-    Generic,
+    //-----------------------------------------------------//
+    //                Ser/Deserializer Errors
+    //-----------------------------------------------------//
 
-    // Error for when serializing to TOML fails.
+    /// Error for when serializing to `TOML` fails.
     TOMLSerializerError,
+
+    /// Error for when serializing to `RON` fails.
+    RonSerializerError,
+
+    /// Error for when deserializing from `RON` fails.
+    RonDeserializerError,
     
-    // Error for when deserializing XML files.
+    /// Error for when deserializing from `XML` fails.
     XMLDeserializerError,
 
-    // Error for when serializing and deserializing bincode files.
+    /// Error for when serializing and deserializing to/from `Bincode` fails.
     BincodeSerializerError,
 
-    // Error for when trying to do something to a file that doesn't exists anymore.
-    NonExistantFile,
+    /// Error for invalid Json syntax.
+    JsonErrorSyntax,
 
-    // Error for when we're trying to merge two invalid files.
-    InvalidFilesForMerging,
+    /// Error for semantically incorrect Json data.
+    JsonErrorData,
 
-    // Error for when we're trying add/rename/whatever a file with a reserved path.
-    ReservedFiles,
+    /// Error for unexpected EOF.
+    JsonErrorEOF,
+
+    /// Error for when there is an problem while importing a TSV. It contains the row and column of the problematic field.
+    ImportTSVIncorrectRow(usize, usize),
+    
+    /// Error for when the first field of a TSV file is incorrect.
+    ImportTSVWrongTypeTable,
+
+    /// Error for when the second field of a TSV file is not a valid number.
+    ImportTSVInvalidVersion,
+
+    /// Error for when the version of a TSV file is not the one we're trying to import to.
+    ImportTSVWrongVersion,
+
+    /// Generic TSV import/export error.
+    TSVErrorGeneric,
 
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
 
-    // Generic network error.
+    /// Generic network error.
     NetworkGeneric,
 
     //-----------------------------------------------------//
     //                     IO Errors
     //-----------------------------------------------------//
 
-    // These errors are errors for when dealing with IO problems.
-    IOPermissionDenied,
-    IOFileNotFound,
+    /// Generic IO Error.
     IOGeneric,
 
-    // Error for when copying a file fails.
+    /// Error for when we received a `PermissionDenied` error from the system.
+    IOPermissionDenied,
+
+    /// Error for when the file we tried to access doesn't exist.
+    IOFileNotFound,
+
+    /// Error for when copying a file fails. Contains the path of the file.
     IOGenericCopy(PathBuf),
 
-    // Error for when we fail in deleting something from the disk.
+    /// Error for when deleting something from the disk fails. Contains the paths that failed to be deleted.
     IOGenericDelete(Vec<PathBuf>),
 
-    // Generic error for when we can't write a file to disk.
+    /// Generic error for when we can't write a PackedFile to disk. Contains the path of the PackedFile.
     IOGenericWrite(Vec<String>),
 
-    // Error for when the Assets folder does not exists and it cannot be created.
+    /// Error for when the Assets folder does not exists and it cannot be created.
     IOCreateAssetFolder,
 
-    // Error for when a folder inside the Assets folder does not exists and it cannot be created.
+    /// Error for when a folder inside the Assets folder does not exists and it cannot be created.
     IOCreateNestedAssetFolder,
 
-    // Error for IO errors when using "read_dir()".
-    IOReadFolder(PathBuf),
+    /// Error for IO errors when reading files using `read_dir()`. Contains the path of the file.
     IOReadFile(PathBuf),
+    
+    /// Error for IO errors when reading folders using `read_dir()`. Contains the path of the folder.
+    IOReadFolder(PathBuf),
 
-    // Error for when a folder cannot be open for whatever reason.
+    /// Error for when a folder cannot be open for whatever reason.
     IOFolderCannotBeOpened,
-
-    //-----------------------------------------------------//
-    //                TSV-related Errors
-    //-----------------------------------------------------//
-
-    // These errors are to be used when importing TSV files. The last one is for any other error it can happen not already covered.
-    ImportTSVIncorrectRow(usize, usize),
-    ImportTSVWrongTypeTable,
-    ImportTSVWrongVersion,
-    ImportTSVInvalidVersion,
-    TSVErrorGeneric,
 
     //-----------------------------------------------------//
     //                 PackFile Errors
     //-----------------------------------------------------//
 
-    // Generic error to hold any other error triggered when opening a PackFile.
+    /// Generic error to hold any other error triggered when opening a PackFile. Contains the error message.
     OpenPackFileGeneric(String),
 
-    // Generic error to hold any other error triggered when saving a PackFile.
+    /// Generic error to hold any other error triggered when saving a PackFile. Contains the error message.
     SavePackFileGeneric(String),
 
     // Error for when we try to load an unsupported PackFile.
     //PackFileNotSupported,
 
-    // Error for when the PackFile's header can be read but it's not decodeable.
+    /// Error for when the PackFile's header can be read but it's incomplete.
     PackFileHeaderNotComplete,
 
-    // Error for when the PackFile Indexes are incomplete.
+    /// Error for when the PackFile Indexes are incomplete.
     PackFileIndexesNotComplete,
 
-    // Error for when we try to open a PackFile and his extension is not ".pack".
+    /// Error for when we try to open a PackFile and his extension is not ".pack".
     OpenPackFileInvalidExtension,
 
-    // Error for when trying to save a non-editable PackFile.
+    /// Error for when trying to save a non-editable PackFile.
     PackFileIsNonEditable,
 
-    // Error for when the PackFile is not a file in the disk.
+    /// Error for when the PackFile is not a file in the disk.
     PackFileIsNotAFile,
 
-    // Error for when the PackFile is not a valid PackFile.
+    /// Error for when the PackFile is not a valid PackFile.
     PackFileIsNotAPackFile,
 
-    // Error for when the PackFile size doesn't match what we expect.
+    /// Error for when the PackFile size doesn't match what we expect. Contains both, the real size and the expected size.
     PackFileSizeIsNotWhatWeExpect(u64, u64),
 
     //-----------------------------------------------------//
     //                PackedFile Errors
     //-----------------------------------------------------//
 
-    // Error for when the PackedFile we want to get doesn't exists.
+    /// Error for when the PackedFile we want to get doesn't exists.
     PackedFileNotFound,
 
-    // Error for when we are trying to do an operation that cannot be done with the PackedFile open.
+    /// Error for when we are trying to do an operation that cannot be done with the PackedFile open.
     PackedFileIsOpen,
 
-    // Error for when we are trying to open a PackedFile in two different views at the same time.
+    /// Error for when we are trying to open a PackedFile in two different views at the same time.
     PackedFileIsOpenInAnotherView,
 
-    // Error for when a load_data or get_data fails.
+    /// Error for when a load_data or get_data operation fails.
     PackedFileDataCouldNotBeLoaded,
 
-    // Error for when the PackedFile size doesn't match what we expect.
+    /// Error for when the PackedFile size doesn't match what we expect. Contains the real size and the expected size.
     PackedFileSizeIsNotWhatWeExpect(usize, usize),
 
-    // Error for when the compressed PackedFile is either incomplete (<9 bytes) or the decompression failed.
+    /// Error for when the compressed PackedFile is either incomplete (<9 bytes) or the decompression failed.
     PackedFileDataCouldNotBeDecompressed,
 
-    // Error for when we expect data to be in memory, but it isn't.
+    /// Error for when we expect data to be in memory, but it isn't.
     PackedFileDataIsNotInMemory,
 
-    // Error for when we try to open a PackedFile not in the filter from the GlobalSearch.
+    /// Error for when we try to open a PackedFile not in the filter from the GlobalSearch.
     PackedFileNotInFilter,
 
     //--------------------------------//
     // DB Table Errors
     //--------------------------------//
 
-    // Error for when we try to decode something as a DB Table and it fails.
+    /// Error for when we try to decode something as a DB Table and it fails.
     DBTableIsNotADBTable,
 
-    // Error for when we try to open a table with a List field on it.
+    /// Error for when we try to open a table with a List field on it.
     DBTableContainsListField,
 
-    // Error for when we are trying to use "Search&Replace" to place invalid data into a cell.
+    /// Error for when we are trying to use "Search&Replace" to place invalid data into a cell.
     DBTableReplaceInvalidData,
 
-    // Error for when a DB Table fails to decode.
+    /// Error for when a DB Table fails to decode. Contains the error returned by the decoding process.
     DBTableDecode(String),
 
-    // Error for when a DB Table is empty and it doesn't have an schema, so it's undecodeable.
+    /// Error for when a DB Table is empty and it doesn't have an `TableDefinition`, so it's undecodeable.
     DBTableEmptyWithNoTableDefinition,
 
-    // Error for when we find missing references when checking a DB Table.
+    /// Error for when we find missing references when checking a DB Table. Contains a list with the tables with missing references.
     DBMissingReferences(Vec<String>),
 
-    // Error for when we don't have an schema to use.
+    /// Error for when we don't have an `Schema` to use.
     SchemaNotFound,
 
-    // Error for when we don't have a table definition for an specific version of a table.
-    SchemaTableDefinitionNotFound,
+    /// Error for when we don't have a `VersionedFile` for a PackedFile.
+    SchemaVersionedFileNotFound,
 
-    // Error for when we don't have any definition of a table.
-    SchemaTableNotFound,
+    /// Error for when we don't have a `TableDefinition` for a specific version of a `VersionedFile`.
+    SchemaDefinitionNotFound,
 
     //--------------------------------//
     // RigidModel Errors
     //--------------------------------//
 
-    // Error for when a RigidModel fails to decode.
+    /// Error for when a RigidModel fails to decode. Contains the error message.
     RigidModelDecode(String),
 
-    // Errors for when decoding a RigidModel File.
+    /// Error for when we try to decode an unsupported RigidModel File.
     RigidModelNotSupportedFile,
+
+    /// Error for when we try to decode a unsupported RigidModel type.
     RigidModelNotSupportedType,
 
-    // Error for when the process of patching a RigidModel to Warhammer format fails.
+    /// Error for when the process of patching a RigidModel to Warhammer format fails. Contains the error message.
     RigidModelPatchToWarhammer(String),
 
-    // Error for when one of the textures of a rigidmodel represent an unknown mask type.
+    /// Error for when one of the textures of a rigidmodel represent an unknown mask type.
     RigidModelUnknownMaskTypeFound,
 
-    // Error for when the texture directory hasn't been found while examining a rigidmodel.
+    /// Error for when the texture directory hasn't been found while examining a rigidmodel.
     RigidModelTextureDirectoryNotFound,
 
-    // Error for when the texture directory hasn't been found while examining a rigidmodel.
+    /// Error for when the decal texture directory hasn't been found while examining a rigidmodel.
     RigidModelDecalTextureDirectoryNotFound,
 
     //--------------------------------//
     // Text Errors
     //--------------------------------//
 
-    // Error for when a Text PackedFile fails to decode.
+    /// Error for when a Text PackedFile fails to decode. Contains the error message.
     TextDecode(String),
 
-    // Error for when we try to use Kailua without a types file.
+    /// Error for when we try to use Kailua without a types file.
     NoTypesFileFound,
 
-    // Error for when Kailua is not installed.
+    /// Error for when Kailua is not installed.
     KailuaNotFound,
 
     //--------------------------------//
     // Loc Errors
     //--------------------------------//
 
-    // Error for when a Loc PackedFile fails to decode.
+    /// Error for when a Loc PackedFile fails to decode. Contains the error message.
     LocDecode(String),
 
-    // Error for when we try to decode something as a Loc PackedFile and it fails.
+    /// Error for when we try to decode something as a Loc PackedFile and it fails.
     LocPackedFileIsNotALocPackedFile,
 
-    // Error for when we try to decode a Loc PackedFile and fails for corruption.
+    /// Error for when we try to decode a Loc PackedFile and fails for corruption.
     LocPackedFileCorrupted,
 
     //--------------------------------//
     // Image Errors
     //--------------------------------//
 
-    // Error for when an Image fails to decode.
+    /// Error for when an Image fails to decode. Contains the error message.
     ImageDecode(String),
 
     //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
-    // Error for when we try to get the PAK file of a game for which we have no support for PAK files.
+    /// Error for when we try to get the PAK file of a game for which we have no support for PAK files.
     PAKFileNotSupportedForThisGame,
 
     //-----------------------------------------------------//
     //                Decoding Errors
     //-----------------------------------------------------//
 
-    // Error for when we fail to get an UTF-8 string from data.
+    /// Error for when we fail to get an UTF-8 string from data.
     StringFromUTF8,
 
-    // This error is to be used when a decoding/encodinPackg operation using the decoding/encoding helpers fails.
+    /// This error is to be used when a decoding/encoding operation using the decoding/encoding helpers fails. Contain the error message.
     HelperDecodingEncodingError(String),
 
     //-----------------------------------------------------//
     //                  MyMod Errors
     //-----------------------------------------------------//
 
-    // Error for when we try to uninstall a MyMod that's not currently installed.
+    /// Error for when we try to uninstall a MyMod that's not currently installed.
     MyModNotInstalled,
 
-    // Error for when the destination folder for installing a MyMod doesn't exists.
+    /// Error for when the destination folder for installing a MyMod doesn't exists.
     MyModInstallFolderDoesntExists,
 
-    // Error for when the path of a Game is not configured.
+    /// Error for when the path of a game is not configured.
     GamePathNotConfigured,
 
-    // Error for when the MyMod path is not configured and it needs it to be.
+    /// Error for when the MyMod path is not configured and it needs it to be.
     MyModPathNotConfigured,
 
-    // Error for when you try to delete a MyMod without having a MyMod selected in the first place.
+    /// Error for when you try to delete a MyMod without having a MyMod selected in the first place.
     MyModDeleteWithoutMyModSelected,
 
-    // Error for when the MyMod PackFile has been deleted, but his folder is nowhere to be found.
+    /// Error for when the MyMod PackFile has been deleted, but his folder is nowhere to be found.
     MyModPackFileDeletedFolderNotFound,
 
-    // Error for when trying to remove a non-existant MyMod PackFile.
+    /// Error for when trying to remove a non-existant MyMod PackFile.
     MyModPackFileDoesntExist,
 
     //-----------------------------------------------------//
     //                 Special Errors
     //-----------------------------------------------------//
 
-    // Error for when trying to patch the SiegeAI and there is nothing in the PackFile.
+    /// Error for when trying to patch the SiegeAI and there is nothing in the PackFile.
     PatchSiegeAIEmptyPackFile,
 
-    // Error for when trying to patch the SiegeAI and there is no patchable files in the PackFile.
+    /// Error for when trying to patch the SiegeAI and there is no patchable files in the PackFile.
     PatchSiegeAINoPatchableFiles,
 
-    // Error for when you can't do something with a PackedFile open in the right side.
+    /// Error for when you can't do something with a PackedFile open in the right side.
     OperationNotAllowedWithPackedFileOpen,
 
     //-----------------------------------------------------//
     //                Contextual Errors
     //-----------------------------------------------------//
 
-    // Error for when extracting one or more PackedFiles from a PackFile.
+    /// Error for when extracting one or more PackedFiles from a PackFile fails. Contains the path of the PackedFiles.
     ExtractError(Vec<String>),
 
-    // Errors for when we fail to mass-import/export TSV files.
+    /// Errors for when we fail to mass-import/export TSV files. Contains the error message.
     MassImport(String),
 
-    // Error for when the introduced input (usually, a name) is empty and it cannot be empty.
+    /// Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
 
-    // Error for when mass-importing TSV file without selecting any file.
+    /// Error for when mass-importing TSV file without selecting any file.
     NoFilesToImport,
 
-    // Error for when the file we are trying to create already exist in the current path.
+    /// Error for when the file we are trying to create already exist in the current path.
     FileAlreadyInPackFile,
 
-    // Error for when the folder we are trying to create already exist in the current path.
+    /// Error for when the folder we are trying to create already exist in the current path.
     FolderAlreadyInPackFile,
 
     //-----------------------------------------------------//
     //                  Common Errors
     //-----------------------------------------------------//
 
-    // Error for invalid Json syntax.
-    JsonErrorSyntax,
+    /// Generic error. For a situation where you just need to throw an error, doesn't matter what kind of error. Try not to use it.
+    Generic,
 
-    // Error for semantically incorrect Json data.
-    JsonErrorData,
-
-    // Error for unexpected EOF.
-    JsonErrorEOF,
-
-    // Error to parse non-html errors.
+    /// Error to returning non-html errors.
     NoHTMLError(String),
+
+    /// Error for when we're trying add/rename/whatever a file with a reserved path.
+    ReservedFiles,
+    
+    /// Error for when trying to do something to a file that doesn't exists anymore.
+    NonExistantFile,
+
+    /// Error for when we're trying to merge two invalid files.
+    InvalidFilesForMerging,
 }
 
-/// Implementation of our custom Error Type.
+/// Implementation of `Error`.
 impl Error {
+
+    /// This function returns the `ErrorKind` of the provided `Error`. 
     pub fn kind(&self) -> ErrorKind {
         self.context.get_context().clone()
     }
 
-    // This function removes the html tags from the error messages, to make them "Terminal Friendly".
+    /// This function removes the HTML tags from the error messages, to make them *"Terminal Friendly"*.
     pub fn to_terminal(&self) -> String {
         format!("{}", self)
             .replace("<p>", "")         // Remove start of paragraph.
@@ -372,19 +410,19 @@ impl Error {
     }
 }
 
-//------------------------------------------------------------//
-//              Implementations of Fail Trait
-//------------------------------------------------------------//
+//---------------------------------------------------------------------------//
+//                      Implementations of Fail Trait
+//---------------------------------------------------------------------------//
 
-/// Implementation of the "Fail" Trait for our custom Error Type.
+/// Implementation of the `Fail` Trait for our `Error`.
 impl Fail for Error {
 
-    /// Implementation of "cause()" for our custom Error Type.
+    /// Implementation of `cause()` for our `Error`.
     fn cause(&self) -> Option<&Fail> {
         self.context.cause()
     }
 
-    /// Implementation of "backtrace()" for our custom Error Type.
+    /// Implementation of `backtrace()` for our `Error`.
     fn backtrace(&self) -> Option<&Backtrace> {
         self.context.backtrace()
     }
@@ -394,26 +432,36 @@ impl Fail for Error {
 //            Extra Implementations for Traits
 //------------------------------------------------------------//
 
-/// Implementation of the "Display" Trait for our custom Error Type.
+/// Implementation of the `Display` Trait for our `Error`.
+///
+/// This allow us to directly show the error message corresponding to the underlying `ErrorKind`, instead of returning `ErrorKind` to show the message.
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         Display::fmt(&self.context, f)
     }
 }
 
-/// Implementation of the "Display" Trait for our custom ErrorKind Type.
-/// NOTE: There are so many reasons the decoding/encoding helpers can fail, that we have to group them
-/// into one error.
+/// Implementation of the `Display` Trait for our `ErrorKind`.
 impl Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
+
+            //-----------------------------------------------------//
+            //                Ser/Deserializer Errors
+            //-----------------------------------------------------//
             ErrorKind::TOMLSerializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::RonSerializerError => write!(f, "<p>This should never happen.</p>"),
+            ErrorKind::RonDeserializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::XMLDeserializerError => write!(f, "<p>This should never happen.</p>"),
             ErrorKind::BincodeSerializerError => write!(f, "<p>This should never happen.</p>"),
-            ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
-            ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
-            ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
+            ErrorKind::JsonErrorSyntax => write!(f, "<p>Error while trying to read JSON data:</p><p>Invalid syntax found.</p>"),
+            ErrorKind::JsonErrorData => write!(f, "<p>Error while trying to read JSON data:</p><p>Semantically incorrect data found.</p>"),
+            ErrorKind::JsonErrorEOF => write!(f,"<p>Error while trying to read JSON data:</p><p>Unexpected EOF found.</p>"),
+            ErrorKind::ImportTSVIncorrectRow(row, column) => write!(f, "<p>This TSV file has an error in the <b>row <i>{}</i></b>, <b>field <i>{}</i></b> (both starting at 1). Please, check it and make sure the value in that field is a valid value for that column.</p>", row + 1, column + 1),
+            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file either belongs to another table, to a localisation PackedFile, it's broken or it's incompatible with RPFM.</p>"),
+            ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
+            ErrorKind::ImportTSVInvalidVersion => write!(f, "<p>This TSV file has an invalid version value at line 1.</p>"),
+            ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -423,9 +471,9 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                     IO Errors
             //-----------------------------------------------------//
+            ErrorKind::IOGeneric => write!(f, "<p>Error while trying to do an IO operation. This means RPFM failed to read/write something from/to the disk.</p>"),
             ErrorKind::IOPermissionDenied => write!(f, "<p>Error while trying to read/write a file from disk. This can be caused by two reasons:</p><ul><li>It's a file in the data folder of Warhammer 2 and you haven't close the Assembly Kit.</li><li>You don't have permission to read/write the file in question.</li></ul>"),
             ErrorKind::IOFileNotFound => write!(f, "<p>Error while trying to use a file from disk:</p><p>The file with the specified path hasn't been found.</p>"),
-            ErrorKind::IOGeneric => write!(f, "<p>Error while trying to do an IO operation. This means RPFM failed to read/write something from/to the disk.</p>"),
             ErrorKind::IOGenericCopy(path) => write!(f, "<p>Error while trying to copy one or more files to the following folder:</p><ul>{:#?}</ul>", path),
             ErrorKind::IOGenericDelete(paths) => write!(f, "<p>Error while trying to delete from disk the following files/folders:</p><ul>{:#?}</ul>", paths),
             ErrorKind::IOGenericWrite(paths) => write!(f, "<p>Error while trying to write to disk the following file/s:</p><ul>{:#?}</ul>", paths),
@@ -434,14 +482,6 @@ impl Display for ErrorKind {
             ErrorKind::IOReadFolder(path) => write!(f, "<p>Error while trying to read the following folder:</p><p>{:?}</p>", path),
             ErrorKind::IOReadFile(path) => write!(f, "<p>Error while trying to read the following file:</p><p>{:?}</p>", path),
             ErrorKind::IOFolderCannotBeOpened => write!(f, "<p>The folder couldn't be opened. This means either it doesn't exist, or RPFM has no access to it.</p>"),
-            //-----------------------------------------------------//
-            //                TSV-related Errors
-            //-----------------------------------------------------//
-            ErrorKind::ImportTSVIncorrectRow(row, column) => write!(f, "<p>This TSV file has an error in the <b>row <i>{}</i></b>, <b>field <i>{}</i></b> (both starting at 1). Please, check it and make sure the value in that field is a valid value for that column.</p>", row + 1, column + 1),
-            ErrorKind::ImportTSVWrongTypeTable => write!(f, "<p>This TSV file either belongs to another table, to a localisation PackedFile, it's broken or it's incompatible with RPFM.</p>"),
-            ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
-            ErrorKind::ImportTSVInvalidVersion => write!(f, "<p>This TSV file has an invalid version value at line 1.</p>"),
-            ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
 
             //-----------------------------------------------------//
             //                 PackFile Errors
@@ -497,8 +537,8 @@ impl Display for ErrorKind {
             ErrorKind::DBTableEmptyWithNoTableDefinition => write!(f, "<p>This DB Table is empty and there is not a Table Definition for it. That means is undecodeable.</p>"),
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
-            ErrorKind::SchemaTableDefinitionNotFound => write!(f, "<p>There is no Table Definition for this specific version of the table in the Schema.</p>"),
-            ErrorKind::SchemaTableNotFound => write!(f, "<p>There is no Table Definition of the table in the Schema.</p>"),
+            ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),
+            ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),
 
             //--------------------------------//
             // RigidModel Errors
@@ -580,108 +620,133 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                  Common Errors
             //-----------------------------------------------------//
-            ErrorKind::JsonErrorSyntax => write!(f, "<p>Error while trying to read JSON data:</p><p>Invalid syntax found.</p>"),
-            ErrorKind::JsonErrorData => write!(f, "<p>Error while trying to read JSON data:</p><p>Semantically incorrect data found.</p>"),
-            ErrorKind::JsonErrorEOF => write!(f,"<p>Error while trying to read JSON data:</p><p>Unexpected EOF found.</p>"),
+            ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::NoHTMLError(error) => write!(f,"{}", error),
+            ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
+            ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
+            ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
+
         }
     }
 }
 
 //------------------------------------------------------------//
-//         Extra Implementations for the From Trait
+//   Implementations for internal types for the From Trait
 //------------------------------------------------------------//
 
-/// Implementation to create a custom error from an ErrorKind.
+/// Implementation to create an `Error` from a `String`.
 impl From<String> for Error {
-    fn from(error: String) -> Error {
-        Error { context: Context::new(ErrorKind::NoHTMLError(error)) }
+    fn from(error: String) -> Self {
+        Self { context: Context::new(ErrorKind::NoHTMLError(error)) }
     }
 }
 
-/// Implementation to create a custom error from an ErrorKind.
+/// Implementation to create an `Error` from an `ErrorKind`.
 impl From<ErrorKind> for Error {
-    fn from(kind: ErrorKind) -> Error {
-        Error { context: Context::new(kind) }
+    fn from(kind: ErrorKind) -> Self {
+        Self { context: Context::new(kind) }
     }
 }
 
-/// Implementation to create a custom error from an Context.
+/// Implementation to create a `Error` from a `Context`.
 impl From<Context<ErrorKind>> for Error {
-    fn from(context: Context<ErrorKind>) -> Error {
-        Error { context }
+    fn from(context: Context<ErrorKind>) -> Self {
+        Self { context }
     }
 }
 
-/// Implementation to create a custom error from a serde_json::Error. Based on the "From" used to convert it to std::io::Error.
+//------------------------------------------------------------//
+//      Implementations for std types for the From Trait
+//------------------------------------------------------------//
+
+/// Implementation to create an `Error` from a `FromUTF8Error`.
+impl From<string::FromUtf8Error> for Error {
+    fn from(_: string::FromUtf8Error) -> Self {
+        Self::from(ErrorKind::StringFromUTF8)
+    }
+}
+
+/// Implementation to create an `Error` from a `std::io::Error`.
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Self {
+
+        // Get his category, and create an error based on that.
+        match error.kind() {
+            io::ErrorKind::NotFound => Self::from(ErrorKind::IOFileNotFound),
+            io::ErrorKind::PermissionDenied => Self::from(ErrorKind::IOPermissionDenied),
+            _ => Self::from(ErrorKind::IOGeneric),
+        }
+    }
+}
+
+//------------------------------------------------------------//
+//   Implementations for external types for the From Trait
+//------------------------------------------------------------//
+
+/// Implementation to create an `Error` from a `reqwest::Error`.
+impl From<reqwest::Error> for Error {
+    fn from(_: reqwest::Error) -> Self {
+        Self::from(ErrorKind::NetworkGeneric)
+    }
+}
+
+/// Implementation to create an `Error` from a `serde_json::Error`.
 impl From<serde_json::Error> for Error {
-    fn from(error: serde_json::Error) -> Error {
+    fn from(error: serde_json::Error) -> Self {
 
         // Get his category, and create an error based on that.
         match error.classify() {
-            Category::Io => Error::from(ErrorKind::IOGeneric),
-            Category::Syntax => Error::from(ErrorKind::JsonErrorSyntax),
-            Category::Data => Error::from(ErrorKind::JsonErrorData),
-            Category::Eof => Error::from(ErrorKind::JsonErrorEOF),
+            Category::Io => Self::from(ErrorKind::IOGeneric),
+            Category::Syntax => Self::from(ErrorKind::JsonErrorSyntax),
+            Category::Data => Self::from(ErrorKind::JsonErrorData),
+            Category::Eof => Self::from(ErrorKind::JsonErrorEOF),
         }
     }
 }
 
-/// Implementation to create a custom error from a csv::Error. Based on the "From" used to convert it to std::io::Error.
+/// Implementation to create an `Error` from a `csv::Error`.
 impl From<csv::Error> for Error {
-    fn from(error: csv::Error) -> Error {
+    fn from(error: csv::Error) -> Self {
 
         // Get his category, and create an error based on that.
         match error.kind() {
-            csv::ErrorKind::Io(_) => Error::from(ErrorKind::IOGeneric),
-            _ => Error::from(ErrorKind::TSVErrorGeneric)
+            csv::ErrorKind::Io(_) => Self::from(ErrorKind::IOGeneric),
+            _ => Self::from(ErrorKind::TSVErrorGeneric)
         }
     }
 }
 
-/// Implementation to create a custom error from a FromUTF8Error.
-impl From<string::FromUtf8Error> for Error {
-    fn from(_: string::FromUtf8Error) -> Error {
-        Error::from(ErrorKind::StringFromUTF8)
+/// Implementation to create an `Error` from a `toml::ser::Error`.
+impl From<toml::ser::Error> for Error {
+    fn from(_: toml::ser::Error) -> Self {
+        Self::from(ErrorKind::TOMLSerializerError)
     }
 }
 
-/// Implementation to create a custom error from a Reqwest Error.
-impl From<reqwest::Error> for Error {
-    fn from(_: reqwest::Error) -> Error {
-        Error::from(ErrorKind::NetworkGeneric)
-    }
-}
-
-/// Implementation to create a custom error from a Toml Error.
-impl From<ser::Error> for Error {
-    fn from(_: ser::Error) -> Error {
-        Error::from(ErrorKind::TOMLSerializerError)
-    }
-}
-
-/// Implementation to create a custom error from a std::io::Error. Based on the "From" used to convert it to std::io::Error.
-impl From<io::Error> for Error {
-    fn from(error: io::Error) -> Error {
-
-        // Get his category, and create an error based on that.
-        match error.kind() {
-            io::ErrorKind::NotFound => Error::from(ErrorKind::IOFileNotFound),
-            io::ErrorKind::PermissionDenied => Error::from(ErrorKind::IOPermissionDenied),
-            _ => Error::from(ErrorKind::IOGeneric),
-        }
-    }
-}
-
-/// Implementation to create a custom error from a Toml Error.
+/// Implementation to create an `Error` from a `serde_xml_rs::Error`.
 impl From<serde_xml_rs::Error> for Error {
-    fn from(_: serde_xml_rs::Error) -> Error {
-        Error::from(ErrorKind::XMLDeserializerError)
+    fn from(_: serde_xml_rs::Error) -> Self {
+        Self::from(ErrorKind::XMLDeserializerError)
     }
 }
 
+/// Implementation to create an `Error` from a `Box<bincode::ErrorKind>`.
 impl From<Box<bincode::ErrorKind>> for Error {
-    fn from(_: Box<bincode::ErrorKind>) -> Error {
-        Error::from(ErrorKind::BincodeSerializerError)
+    fn from(_: Box<bincode::ErrorKind>) -> Self {
+        Self::from(ErrorKind::BincodeSerializerError)
+    }
+}
+
+/// Implementation to create an `Error` from a `ron::ser::Error`.
+impl From<ron::ser::Error> for Error {
+    fn from(_: ron::ser::Error) -> Self {
+        Self::from(ErrorKind::RonSerializerError)
+    }
+}
+
+/// Implementation to create an `Error` from a `ron::de::Error`.
+impl From<ron::de::Error> for Error {
+    fn from(_: ron::de::Error) -> Self {
+        Self::from(ErrorKind::RonDeserializerError)
     }
 }

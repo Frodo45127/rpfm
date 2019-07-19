@@ -159,16 +159,14 @@ pub fn create_packed_file(
         PackedFileType::DB(_, table, version) => {
 
             // Try to get his table definition.
-            let table_definition = match *SCHEMA.lock().unwrap() {
-                Some(ref schema) => DB::get_schema(&table, version, &schema),
+            let schema = SCHEMA.lock().unwrap();
+            let table_definition = match *schema {
+                Some(ref schema) => schema.get_versioned_file_db(&table)?.get_version(version)?,
                 None => return Err(ErrorKind::SchemaNotFound)?
             };
 
             // If there is a table definition, create the new table. Otherwise, return error.
-            match table_definition {
-                Some(table_definition) => DB::new(&table, version, &table_definition).save(),
-                None => return Err(ErrorKind::SchemaTableDefinitionNotFound)?
-            }
+            DB::new(&table, version, &table_definition).save()
         }
 
         // If it's a Text PackedFile, return an empty encoded string.
@@ -531,8 +529,8 @@ pub fn import_tsv_to_binary_file(
     }
 
     // Get his definition depending on his first line's contents.
-    let definition = if table_type == "Loc PackedFile" { TableDefinition::new_loc_definition() }
-    else { schema.get_definitions(&table_type)?.get_version(table_version)?.clone() };
+    let definition = if table_type == "Loc PackedFile" { schema.get_versioned_file_loc()?.get_version(table_version)?.clone() }
+    else { schema.get_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
 
     // Try to import the entries of the file.
     let mut entries = vec![];
@@ -652,8 +650,8 @@ pub fn export_tsv_from_binary_file(
         else { return Err(ErrorKind::ImportTSVWrongTypeTable)? }
     };
 
-    let definition = if table_type == "Loc PackedFile" { TableDefinition::new_loc_definition() }
-    else { schema.get_definitions(&table_type)?.get_version(version)?.clone() };
+    let definition = if table_type == "Loc PackedFile" { schema.get_versioned_file_loc()?.get_version(version)?.clone() }
+    else { schema.get_versioned_file_db(&table_type)?.get_version(version)?.clone() };
 
     // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
     writer.serialize((table_type, version))?;
@@ -705,15 +703,9 @@ pub fn tsv_mass_import(
                     }
                 };
                 
-                let table_definition = match table_type {
-                    "Loc PackedFile" => TableDefinition::new_loc_definition(),
-                    _ => {
-                        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-                            if let Some(table_definition) = DB::get_schema(&table_type, table_version, &schema) { table_definition }
-                            else { error_files.push(path.to_string_lossy().to_string()); continue }
-                        } else { error_files.push(path.to_string_lossy().to_string()); continue }
-                    }
-                };
+                let table_definition = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                    schema.get_versioned_file_db(&table_type)?.get_version(table_version)?.clone()
+                } else { error_files.push(path.to_string_lossy().to_string()); continue };
 
                 // Then, import whatever we have and, depending on what we have, save it.
                 match import_tsv(&table_definition, &path, &table_type, table_version) {
@@ -830,9 +822,9 @@ pub fn tsv_mass_export(
         if !packed_file.path.is_empty() {
 
             // If the PackedFile is a DB Table and we have an schema, try to decode it and export it.
-            if packed_file.path.starts_with(&["db".to_owned()]) && packed_file.path.len() == 3 {
-                match *SCHEMA.lock().unwrap() {
-                    Some(ref schema) => {
+            match *SCHEMA.lock().unwrap() {
+                Some(ref schema) => {
+                    if packed_file.path.starts_with(&["db".to_owned()]) && packed_file.path.len() == 3 {
                         match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.path[1], &schema) {
                             Ok(db) => {
 
@@ -857,35 +849,35 @@ pub fn tsv_mass_export(
                             Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),
                         }
                     }
-                    None => error_list.push((packed_file.path.to_vec().join("\\"), Error::from(ErrorKind::SchemaNotFound))),
-                }
-            }
+                    
+                    // Otherwise, we check if it's a Loc PackedFile, and try to decode it and export it.
+                    else if packed_file.path.last().unwrap().ends_with(".loc") {
+                        match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
+                            Ok(loc) => {
 
-            // Otherwise, we check if it's a Loc PackedFile, and try to decode it and export it.
-            else if packed_file.path.last().unwrap().ends_with(".loc") {
-                match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
-                    Ok(loc) => {
+                                // His name will be "file_name.tsv". If that's taken, we'll add an index until we find one available.
+                                let mut name = format!("{}.tsv", packed_file.path.last().unwrap().to_owned());
+                                let mut export_path = export_path.to_path_buf();
 
-                        // His name will be "file_name.tsv". If that's taken, we'll add an index until we find one available.
-                        let mut name = format!("{}.tsv", packed_file.path.last().unwrap().to_owned());
-                        let mut export_path = export_path.to_path_buf();
+                                // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
+                                let mut index = 1;
+                                while exported_files.contains(&name) {
+                                    name = format!("{}_{}.tsv", packed_file.path.last().unwrap().to_owned(), index);
+                                    index += 1;
+                                }
 
-                        // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
-                        let mut index = 1;
-                        while exported_files.contains(&name) {
-                            name = format!("{}_{}.tsv", packed_file.path.last().unwrap().to_owned(), index);
-                            index += 1;
-                        }
-
-                        export_path.push(name.to_owned());
-                        let headers = TableDefinition::new_loc_definition().fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
-                        match export_tsv(&loc.entries, &export_path, &headers, ("Loc PackedFile", 1)) {
-                            Ok(_) => exported_files.push(name.to_owned()),
+                                export_path.push(name.to_owned());
+                                let headers = schema.get_versioned_file_loc()?.get_version(1)?.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
+                                match export_tsv(&loc.entries, &export_path, &headers, ("Loc PackedFile", 1)) {
+                                    Ok(_) => exported_files.push(name.to_owned()),
+                                    Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),
+                                }
+                            }
                             Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),
                         }
                     }
-                    Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),
                 }
+                None => error_list.push((packed_file.path.to_vec().join("\\"), Error::from(ErrorKind::SchemaNotFound))),
             }
         }
     }

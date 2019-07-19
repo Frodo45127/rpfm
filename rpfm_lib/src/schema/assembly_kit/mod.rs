@@ -302,23 +302,21 @@ pub fn import_schema(
 
                             // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
                             let version = DB::get_header_data(&pack_file_buffered).unwrap().0;
-                            if let Some(ref mut table_definitions) = schema.tables_definitions.iter_mut().find(|x| x.name == table_name) {
-                                if table_definitions.versions.iter().find(|x| x.version == version).is_some() {
-                                    continue;
-                                }
-                                else {
+
+                            if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
+                                if versioned_file.get_version(version).is_err() {
                                     let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                                    table_definitions.add_table_definition(table_definition);
+                                    versioned_file.add_version(&table_definition);
+                                } else {
+                                    continue;
                                 }
                             }
 
                             else {
-                                let mut table_definitions = TableDefinitions::new(&table_name);
                                 let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                                table_definitions.add_table_definition(table_definition);
-                                schema.add_table_definitions(table_definitions);
+                                let versioned_file = VersionedFile::DB(table_name, vec![table_definition]);
+                                schema.add_versioned_file(&versioned_file);
                             }
-
                         }
                         Err(_) => continue,
                     }
