@@ -8,15 +8,22 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// In this file are all the helper functions used by the encoding/decoding PackedFiles process.
-// As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
-// var set, so the compiler doesn't spam us every time we try to compile.
-//
-// Common helpers are used to just decode/encode data.
-// Specific helpers are used to decode/encode data, returning the position from where continue to
-// decode/encode. These are used specially in PackedFiles.
-//
-// Note: the specific decoders return tuples with (value, index of the new thing to decode).
+/*!
+Module with all the encoding/decoding functions used by this crate.
+
+This module contains all the helper functions used by the encoding/decoding PackedFiles process.
+As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
+var set, so the compiler doesn't spam us every time we try to compile.
+
+There are two types of helpers:
+- `Common Helpers`: used to just decode/encode data.
+- `Specific Helpers`: are used to decode/encode data, returning the position from where continue to
+decode/encode. These are used specially in PackedFiles.
+
+Note: the specific decoders return tuples with (value, index of the new thing to decode).
+
+Note2: This entire module has his own sibling `tests.rs` module containing multiple tests for each function here.
+!*/
 
 use byteorder::{ByteOrder, LittleEndian};
 use encoding::{Encoding, DecoderTrap};

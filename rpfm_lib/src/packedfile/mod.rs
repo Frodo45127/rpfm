@@ -29,7 +29,7 @@ use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
 use crate::packedfile::db::*;
-use crate::schema::{FieldType, Schema, TableDefinition};
+use crate::schema::{FieldType, Schema, Definition};
 
 use crate::SCHEMA;
 pub mod loc;
@@ -64,6 +64,9 @@ pub enum DecodeablePackedFileType {
 }
 
 /// `DecodedData`: This enum is used to store the data from the different fields of a row of a DB/Loc PackedFile.
+///
+/// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
+/// inside a single field. Used, for example, in certain model tables.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
@@ -74,6 +77,7 @@ pub enum DecodedData {
     StringU16(String),
     OptionalStringU8(String),
     OptionalStringU16(String),
+    Sequence(Vec<Vec<DecodedData>>)
 }
 
 /// Const to use in the header of TSV PackedFiles.
@@ -213,7 +217,7 @@ pub fn merge_tables(
     let packed_file_data = if table_type {
         let mut final_entries_list = vec![];
         let mut version = -2;
-        let mut table_definition = TableDefinition::new(0);
+        let mut table_definition = Definition::new(0);
 
         for table in &mut db_files {
             if version == -2 { 
@@ -275,7 +279,7 @@ pub fn merge_tables(
 /// is that way we can put this in a loop without relocking on every freaking PackedFile,
 /// which can be extremely slow, depending on the situation.
 pub fn get_dependency_data(
-    table_definition: &TableDefinition,
+    table_definition: &Definition,
     schema: &Schema,
     dep_db: &mut Vec<PackedFile>,
     fake_dep_db: &[DB],
@@ -285,7 +289,7 @@ pub fn get_dependency_data(
     // If we reach this point, we build the dependency data of the table.
     let mut dep_data = BTreeMap::new();
     for (column, field) in table_definition.fields.iter().enumerate() {
-        if let Some(ref dependency_data) = field.field_is_reference {
+        if let Some(ref dependency_data) = field.is_reference {
             if !dependency_data.0.is_empty() && !dependency_data.1.is_empty() {
 
                 // If the column is a reference column, fill his referenced data.
@@ -293,7 +297,7 @@ pub fn get_dependency_data(
                 let mut iter = dep_db.iter_mut();
                 while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                     if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.name == dependency_data.1) {
                             for row in table.entries.iter() {
 
                                 // For now we assume any dependency is a string.
@@ -312,7 +316,7 @@ pub fn get_dependency_data(
                 // Same thing for the fake dependency list, if exists.
                 let mut iter = fake_dep_db.iter();
                 if let Some(table) = iter.find(|x| x.db_type == format!("{}_tables", dependency_data.0)) {
-                    if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                    if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.name == dependency_data.1) {
                         for row in table.entries.iter() {
 
                             // For now we assume any dependency is a string.
@@ -332,7 +336,7 @@ pub fn get_dependency_data(
                 while let Some(packed_file) = iter.find(|x| x.path.starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                     if let Ok(packed_file_data) = packed_file.get_data() {
                         if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
-                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.field_name == dependency_data.1) {
+                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.name == dependency_data.1) {
                                 for row in table.entries.iter() {
 
                                     // For now we assume any dependency is a string.
@@ -436,7 +440,7 @@ pub fn check_tables(
 
 /// This function imports a TSV file and loads his contents into a DB Table.
 pub fn import_tsv(
-    definition: &TableDefinition,
+    definition: &Definition,
     path: &PathBuf,
     name: &str,
     version: i32,
@@ -487,6 +491,7 @@ pub fn import_tsv(
                         FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
                         FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
                         FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
+                        FieldType::Sequence(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?
                     }
                 }
                 entries.push(entry);
@@ -558,6 +563,7 @@ pub fn import_tsv_to_binary_file(
                         FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
                         FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
                         FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
+                        FieldType::Sequence(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?
                     }
                 }
                 entries.push(entry);
@@ -655,7 +661,7 @@ pub fn export_tsv_from_binary_file(
 
     // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
     writer.serialize((table_type, version))?;
-    writer.serialize(definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>())?;
+    writer.serialize(definition.fields.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>())?;
 
     // Then we serialize each entry in the DB Table.
     for entry in entries { writer.serialize(&entry)?; }
@@ -840,7 +846,7 @@ pub fn tsv_mass_export(
                                 }
 
                                 export_path.push(name.to_owned());
-                                let headers = db.table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
+                                let headers = db.table_definition.fields.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>();
                                 match export_tsv(&db.entries, &export_path, &headers, (&packed_file.path[1], db.version)) {
                                     Ok(_) => exported_files.push(name.to_owned()),
                                     Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),
@@ -867,7 +873,7 @@ pub fn tsv_mass_export(
                                 }
 
                                 export_path.push(name.to_owned());
-                                let headers = schema.get_versioned_file_loc()?.get_version(1)?.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
+                                let headers = schema.get_versioned_file_loc()?.get_version(1)?.fields.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>();
                                 match export_tsv(&loc.entries, &export_path, &headers, ("Loc PackedFile", 1)) {
                                     Ok(_) => exported_files.push(name.to_owned()),
                                     Err(error) => error_list.push((packed_file.path.to_vec().join("\\"), error)),

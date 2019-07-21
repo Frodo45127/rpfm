@@ -8,39 +8,45 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Here it goes all the code related with the schema integration with the Assembly Kit.
-// And by `integration` I mean the code that parses Assembly Kit tables and schemas 
-// to a format we can actually read, and everything else related to the Assembly Kit.
+/*!
+Module with all the code to interact with the Assembly Kit's DB Files and Schemas.
 
-// Here will go all the code needed for the parsing of raw table files and their fake schemas, and putting them into pak files.
-// There are multiple types of tables due to CA changing their format for them:
-// V0: Empire and Napoleon.
-// V1: Shogun 2.
-// V2: Anything since Rome 2.
+This module contains all the code related with the *schema integration* with the Assembly Kit.
+And by *integration* I mean the code that parses Assembly Kit tables and schemas to a format we can actually read.
+
+Also, here is the code responsible for the creation of fake schemas from Assembly Kit files, and for putting them into PAK (Processed Assembly Kit) files.
+For more information about PAK files, check the `generate_pak_file()` function. There are multiple types of Assembly Kit table files due to CA changing their format:
+- `0`: Empire and Napoleon.
+- `1`: Shogun 2.
+- `2`: Anything since Rome 2.
+
+Currently, due to the complexity of parsing the table type `0`, we don't have support for PAK files in Empire and Napoleon.
+!*/
 
 use regex::Regex;
 use serde_derive::Deserialize;
 use serde_xml_rs::from_reader;
-use bincode;
 
-use std::fs::{File, DirBuilder};
+use std::fs::{File, DirBuilder, read_dir};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use crate::common::*;
 use rpfm_error::{Result, Error, ErrorKind};
+
+use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
+use crate::common::*;
+use crate::open_packfiles;
 use crate::packedfile::db::DB;
 use crate::packedfile::DecodedData;
+
 use crate::schema::*;
-use crate::DEPENDENCY_DATABASE;
-use crate::GAME_SELECTED;
-use crate::SUPPORTED_GAMES;
 
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit Schema Files into.
 //---------------------------------------------------------------------------//
 
-/// This is the base `table definition` file. In files, this is the equivalent to a `TWaD_` file. 
+/// This is the raw equivalent to a `Definition` struct. In files, this is the equivalent to a `TWaD_` file.
+/// 
 /// It contains a vector with all the fields that forms it.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
@@ -48,43 +54,72 @@ pub struct root {
     pub field: Vec<field>,
 }
 
-/// This struct holds a decoded `field` structure.
+/// This is the raw equivalent to a `Field` struct.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct field {
+
+    /// Ìf the field is primary key. `1` for `true`, `0` for false.
     pub primary_key: String,
+
+    /// The name of the field.
     pub name: String,
+
+    /// The type of the field in the Assembly Kit.
     pub field_type: String,
+
+    /// If the field is required or can be blank.
     pub required: String,
+
+    /// The default value of the field.
+    pub default_value: Option<String>,
+
+    /// The max allowed lenght for the data in the field.
     pub max_length: Option<String>,
 
-    // There can be multiple source_columns, but we just take the first one. The second one is usually the lookup one,
-    // and we don't support lookup columns yet.
+    /// If the field's data corresponds to a filename.
+    pub is_filename: Option<String>,
+
+    /// Path where the file in the data of the field can be, if it's restricted to one path.
+    pub filename_relative_path: Option<String>,
+
+    /// No idea, but for what I saw, it's not useful for modders.
+    pub fragment_path: Option<String>,
+
+    /// Reference source column. First one is the referenced column, the rest, if exists, are the lookup columns concatenated.
     pub column_source_column: Option<Vec<String>>,
+
+    /// Reference source table.
     pub column_source_table: Option<String>,
+
+    /// Description of what the field does.
     pub field_description: Option<String>,
+
+    /// If it has to be exported for the encyclopaedia? No idea really. `1` for `true`, `0` for false.
+    pub encyclopaedia_export: Option<String>
 }
 
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit DB Files into.
 //---------------------------------------------------------------------------//
 
-/// This is the base `table data` file. In files, this is the equivalent to the xml file with all the data in the table.
-/// It contains a vector with all the rows of data in the xml table file.
+/// This is the raw equivalent to the `entries` field in a `DB` struct. In files, this is the equivalent to the `.xml` file with all the data in the table.
+///
+/// It contains a vector with all the rows of data in the `.xml` table file.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct dataroot {
 	pub rows: Vec<datarow>,
 }
 
-/// This is the "datarow", for decoding rows of data.
+/// This is the raw equivalent to a row of data from a DB file.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct datarow {
     pub datafield: Vec<datafield>,
 }
 
-/// This is the "datafield", for decoding data of fields.
+/// This is the raw equivalent to a `DecodedData`.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
 pub struct datafield {
@@ -98,9 +133,13 @@ pub struct datafield {
 // Functions to process the Raw DB Tables from the Assembly Kit.
 //---------------------------------------------------------------------------//
 
-/// This function process all the tables from the game's raw table folder and it turns them into a single processed file,
+/// This function generates a PAK (Processed Assembly Kit) file from the raw tables found in the provided path.
+///
+/// This works by processing all the tables from the game's raw table folder and turning them into a single processed file,
 /// as fake tables with version -1. That will allow us to use them for dependency checking and for populating combos.
-pub fn process_raw_tables(
+///
+/// To keep things fast, only undecoded or missing (from the game files) tables will be included into the PAK file.
+pub fn generate_pak_file(
     raw_db_path: &PathBuf,
     version: i16,
 ) -> Result<()> {
@@ -159,7 +198,7 @@ pub fn process_raw_tables(
 
                 // Then deserialize the definition of the table into something we can use.
                 let imported_definition: root = from_reader(definition_file)?;
-                let imported_table_definition = TableDefinition::new_fake_from_assembly_kit(&imported_definition, -1, &table_name);
+                let imported_table_definition = Definition::new_fake_from_assembly_kit(&imported_definition, -1, &table_name);
 
                 // Before deserializing the data, due to limitations of serde_xml_rs, we have to rename all rows, beacuse unique names for
                 // rows in each file is not supported for deserializing. Same for the fields, we have to change them to something more generic.
@@ -169,11 +208,11 @@ pub fn process_raw_tables(
                 buffer = buffer.replace(&format!("<{}>", file_name_no_xml), "<rows>"); 
                 buffer = buffer.replace(&format!("</{}>", file_name_no_xml), "</rows>");
                 for field in &imported_table_definition.fields {
-                    let field_name_regex = Regex::new(&format!("\n<{}>", field.field_name)).unwrap();
-                    let field_name_regex2 = Regex::new(&format!("\n<{} .+?\">", field.field_name)).unwrap();
-                    buffer = field_name_regex.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.field_name)).to_string();
-                    buffer = field_name_regex2.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.field_name)).to_string();
-                    buffer = buffer.replace(&format!("</{}>", field.field_name), "</datafield>");
+                    let field_name_regex = Regex::new(&format!("\n<{}>", field.name)).unwrap();
+                    let field_name_regex2 = Regex::new(&format!("\n<{} .+?\">", field.name)).unwrap();
+                    buffer = field_name_regex.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.name)).to_string();
+                    buffer = field_name_regex2.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.name)).to_string();
+                    buffer = buffer.replace(&format!("</{}>", field.name), "</datafield>");
                 }
 
                 // Serde shits itself if it sees an empty field, so we have to work around that.
@@ -199,7 +238,7 @@ pub fn process_raw_tables(
                         for field_def in &imported_table_definition.fields {
                             let mut exists = false;
                             for field in &row.datafield {
-                                if field_def.field_name == field.field_name {
+                                if field_def.name == field.field_name {
                                     exists = true;
                                     entry.push(match field_def.field_type {
                                         FieldType::Boolean => DecodedData::Boolean(if field.field_data == "true" || field.field_data == "1" { true } else { false }),
@@ -210,6 +249,9 @@ pub fn process_raw_tables(
                                         FieldType::StringU16 => DecodedData::StringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
                                         FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
                                         FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+                                        
+                                        // This type is not used in the raw tables so, if we find it, we skip it.
+                                        FieldType::Sequence(_) => continue,
                                     });
                                     break;
                                 }
@@ -258,75 +300,168 @@ pub fn process_raw_tables(
     Ok(())   
 }
 
-/// This function is the response to our prayers. It takes the Assembly Kit's DB Files to create basic definitions of each 
-/// undecoded table from the folder you provide it.
+/// This function uses the provided Assembly Kit path to *complete* our schema's missing data.
+///
+/// It takes the Assembly Kit's DB Files and matches them against our own schema files, filling missing info, 
+/// or even generating new definitions if there are none for the tables.
 /// 
 /// It requires:
 /// - schema: The schema where all the definitions will be put. None to put all the definitions into a new schema.
 /// - assembly_kit_schemas_path: this is the path with the TWaD_*****.xml syntax. They are usually in GameFolder/assembly_kit/raw_data/db/.
 /// - db_binary_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table inside.
-pub fn import_schema(
-    schema: Option<Schema>,
-    assembly_kit_schemas_path: &PathBuf,
-    db_binary_path: &PathBuf,
-) -> Result<()> {
+pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()> {
+    if let Some(mut schema) = SCHEMA.lock().unwrap().clone() {
+        
+        // This has to do a different process depending on the `raw_db_version`.
+        let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].raw_db_version;
+        match raw_db_version {
+            2 | 1 => {
+                let packfile_db_path = get_game_selected_db_pack_path(&**GAME_SELECTED.lock().unwrap()).ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
+                let packfile_db = open_packfiles(&packfile_db_path, false, true, false)?;
 
-    // Get the schema, then get all the raw schema files.
-    let mut schema = if let Some(schema) = schema { schema } else { Schema::new() };
-    let assembly_kit_schemas = get_raw_definitions(assembly_kit_schemas_path, 2).unwrap();
-    for path in &assembly_kit_schemas {
+                let mut ass_kit_schemas_path = 
+                    if raw_db_version == 1 { 
+                        if let Some(path) = ass_kit_path { path }
+                        else { return Err(ErrorKind::SchemaNotFound)? }
+                    }
+                    else {
+                        if let Some(path) = get_game_selected_assembly_kit_path(&**GAME_SELECTED.lock().unwrap()) { path }
+                        else { return Err(ErrorKind::SchemaNotFound)? }
+                    };
+                    
+                ass_kit_schemas_path.push("raw_data");
+                ass_kit_schemas_path.push("db");
 
-        // Always print his path. If it breaks, we want to know where.
-        println!("{:?}", path);
+                for path in &get_raw_definitions(&ass_kit_schemas_path, raw_db_version)? {
 
-        // We read the file and deserialize it as a `root`.
-        let file = File::open(&path).expect("Couldn't open file");
-        let imported_table_definition: root = from_reader(file).unwrap();
+                    // Always print his path. If it breaks, we want to know where.
+                    println!("{:?}", path);
 
-        // Get his name and version. We only add it if his table actually exists.
-        let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-        let table_name = format!("{}_tables", file_name.split_off(5));
-        let mut db_binary_path = db_binary_path.clone();
-        db_binary_path.push(table_name.to_owned());
-        match get_files_from_subdir(&db_binary_path) {
-            Ok(db_file_path) => {
+                    // We read the file and deserialize it as a `root`.
+                    let file = BufReader::new(File::open(&path)?);
+                    let imported_table_definition: root = from_reader(file).unwrap();
 
-                // If we found something...
-                if !db_file_path.is_empty() {
-                    match File::open(&db_file_path[0]) {
-                        Ok(ref mut file) => {
+                    // Get his name and version. We only add it if his table actually exists.
+                    let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
+                    let table_name = format!("{}_tables", file_name.split_off(5));
 
-                            // Read the table...
-                            let mut pack_file_buffered = vec![];
-                            file.read_to_end(&mut pack_file_buffered).expect("Error reading file.");
+                    // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
+                    let packed_file = packfile_db.packed_files.iter().find(|x| !x.path.is_empty() && x.path.starts_with(&["db".to_owned(), table_name.to_owned()])).ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
+                    let version = DB::get_header_data(&packed_file.get_data()?).unwrap().0;
 
-                            // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
-                            let version = DB::get_header_data(&pack_file_buffered).unwrap().0;
-
-                            if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
-                                if versioned_file.get_version(version).is_err() {
-                                    let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                                    versioned_file.add_version(&table_definition);
-                                } else {
-                                    continue;
-                                }
-                            }
-
-                            else {
-                                let table_definition = TableDefinition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                                let versioned_file = VersionedFile::DB(table_name, vec![table_definition]);
-                                schema.add_versioned_file(&versioned_file);
-                            }
+                    if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
+                        if versioned_file.get_version(version).is_err() {
+                            let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                            versioned_file.add_version(&table_definition);
+                        } else {
+                            continue;
                         }
-                        Err(_) => continue,
+                    }
+
+                    else {
+                        let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                        let versioned_file = VersionedFile::DB(table_name, vec![table_definition]);
+                        schema.add_versioned_file(&versioned_file);
                     }
                 }
+
+                Schema::save(&schema, &SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].schema)?;
+
+                Ok(())
             }
-            Err(_) => continue,
+            0 => { Err(ErrorKind::SchemaNotFound)? }
+            _ => { Err(ErrorKind::SchemaNotFound)? }
         }
     }
 
-    Schema::save(&schema, "schema_wh.json")?;
+    else { Err(ErrorKind::SchemaNotFound)? }
+}
 
-    Ok(())
+//---------------------------------------------------------------------------//
+// Utility functions to process raw files from the Assembly Kit.
+//---------------------------------------------------------------------------//
+
+/// This function returns you all the raw Assembly Kit Table Definition files from the provided folder.
+pub fn get_raw_definitions(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
+
+    let mut file_list: Vec<PathBuf> = vec![];
+    match read_dir(current_path) {
+
+        // If we don't have any problems reading it...
+        Ok(files_in_current_path) => {
+            for file in files_in_current_path {
+                match file {
+                    Ok(file) => {
+                        let file_path = file.path();
+                        
+                        // If it's a file and starts with "TWaD_", to the file_list it goes (except if it's one of those special files).
+                        if version == 1 || version == 2 {
+                            if file_path.is_file() &&
+                                file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") &&
+                                !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_TExc") &&
+                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_schema_validation" &&
+                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_relationships" &&
+                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_validation" &&
+                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_tables" &&
+                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_queries" {
+                                file_list.push(file_path);
+                            }
+                        }
+
+                        // In this case, we just catch all the xsd files on the folder.
+                        else if version == 0 && 
+                            file_path.is_file() &&
+                            file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xsd") {
+                            file_list.push(file_path);   
+                        }
+                    }
+                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
+                }
+            }
+        }
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
+    }
+
+    // Sort the files alphabetically.
+    file_list.sort();
+    Ok(file_list)
+}
+
+/// This function returns you all the raw Assembly Kit Table Data files from the provided folder.
+pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
+
+    let mut file_list: Vec<PathBuf> = vec![];
+    match read_dir(current_path) {
+
+        // If we don't have any problems reading it...
+        Ok(files_in_current_path) => {
+            for file in files_in_current_path {
+                match file {
+                    Ok(file) => {
+                        let file_path = file.path();
+                        
+                        // If it's a file and it doesn't start with "TWaD_", to the file_list it goes.
+                        if version == 1 || version == 2 {
+                            if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") {
+                                file_list.push(file_path);
+                            }
+                        }
+
+                        // In this case, if it's an xml, to the file_list it goes.
+                        else if version == 0 &&
+                            file_path.is_file() && 
+                            !file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xml") {
+                            file_list.push(file_path);
+                        }
+                    }
+                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
+                }
+            }
+        }
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
+    }
+
+    // Sort the files alphabetically.
+    file_list.sort();
+    Ok(file_list)
 }

@@ -36,8 +36,6 @@ pub mod common;
 pub mod config;
 pub mod packedfile;
 pub mod packfile;
-
-/// This module contains all the stuff needed for managing `Schemas`.
 pub mod schema;
 pub mod settings;
 pub mod updater;

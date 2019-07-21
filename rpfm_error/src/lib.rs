@@ -21,8 +21,7 @@ use failure::{Backtrace, Context, Fail};
 use serde_json::error::Category;
 
 use std::boxed::Box;
-use std::fmt;
-use std::fmt::Display;
+use std::{fmt, fmt::Display};
 use std::io;
 use std::path::PathBuf;
 use std::result;
@@ -218,8 +217,8 @@ pub enum ErrorKind {
     /// Error for when a DB Table fails to decode. Contains the error returned by the decoding process.
     DBTableDecode(String),
 
-    /// Error for when a DB Table is empty and it doesn't have an `TableDefinition`, so it's undecodeable.
-    DBTableEmptyWithNoTableDefinition,
+    /// Error for when a DB Table is empty and it doesn't have an `Definition`, so it's undecodeable.
+    DBTableEmptyWithNoDefinition,
 
     /// Error for when we find missing references when checking a DB Table. Contains a list with the tables with missing references.
     DBMissingReferences(Vec<String>),
@@ -230,7 +229,7 @@ pub enum ErrorKind {
     /// Error for when we don't have a `VersionedFile` for a PackedFile.
     SchemaVersionedFileNotFound,
 
-    /// Error for when we don't have a `TableDefinition` for a specific version of a `VersionedFile`.
+    /// Error for when we don't have a `Definition` for a specific version of a `VersionedFile`.
     SchemaDefinitionNotFound,
 
     //--------------------------------//
@@ -534,7 +533,7 @@ impl Display for ErrorKind {
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
             ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
-            ErrorKind::DBTableEmptyWithNoTableDefinition => write!(f, "<p>This DB Table is empty and there is not a Table Definition for it. That means is undecodeable.</p>"),
+            ErrorKind::DBTableEmptyWithNoDefinition => write!(f, "<p>This DB Table is empty and there is not a Definition for it. That means is undecodeable.</p>"),
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
             ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),

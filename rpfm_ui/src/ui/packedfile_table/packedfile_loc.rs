@@ -22,7 +22,7 @@ use crate::Commands;
 use crate::Data;
 use crate::communications::*;
 use rpfm_error::Result;
-use rpfm_lib::schema::TableDefinition;
+use rpfm_lib::schema::Definition;
 use crate::ui::*;
 
 use super::*;
@@ -50,7 +50,7 @@ pub fn create_loc_view(
         _ => panic!(THREADS_MESSAGE_ERROR), 
     };
 
-    let table_definition = Rc::new(TableDefinition::new_loc_definition());
+    let table_definition = Rc::new(Definition::new_loc_definition());
 
     PackedFileTableView::create_table_view(
         sender_qt,

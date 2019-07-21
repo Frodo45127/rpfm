@@ -8,22 +8,65 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// In this file goes all the stuff needed for the schema decoder to work.
+/*!
+Module with all the code to interact with Schemas.
 
-use serde_derive::{Serialize, Deserialize};
-use ron::ser::{to_string_pretty, PrettyConfig};
+This module contains all the code related with the schemas used by this lib to decode many PackedFile types. 
+
+The basic structure of an `Schema` is:
+```rust
+([
+    DB("_kv_battle_ai_ability_usage_variables_tables", [
+        (
+            version: 0,
+            fields: [
+                (
+                    name: "key",
+                    field_type: StringU8,
+                    is_key: true,
+                    default_value: None,
+                    max_length: 0,
+                    is_filename: false,
+                    filename_relative_path: None,
+                    is_reference: None,
+                    lookup: None,
+                    description: "",
+                ),// [0]
+                (
+                    name: "value",
+                    field_type: Float,
+                    is_key: false,
+                    default_value: None,
+                    max_length: 0,
+                    is_filename: false,
+                    filename_relative_path: None,
+                    is_reference: None,
+                    lookup: None,
+                    description: "",
+                ),// [1]
+            ],
+        ),// [0]
+    ]),// [2]
+])
+```
+
+Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
+!*/
+
 use ron::de::from_reader;
+use ron::ser::{to_string_pretty, PrettyConfig};
+use serde_derive::{Serialize, Deserialize};
 
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::{fmt, fmt::Display};
 
+use rpfm_error::{ErrorKind, Result};
+
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
 use crate::updater::Versions;
-use rpfm_error::{ErrorKind, Result};
 
-/// Module with all the code to interact with the Assembly Kit's DB Files and Schemas.
 pub mod assembly_kit;
 
 /// Name of the schema versions file.
@@ -40,22 +83,22 @@ pub struct Schema(Vec<VersionedFile>);
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum VersionedFile {
     
-    /// It stores the name of the table, and a `Vec<TableDefinition>` with the definitions for each version of that table decoded.
-    DB(String, Vec<TableDefinition>),
+    /// It stores the name of the table, and a `Vec<Definition>` with the definitions for each version of that table decoded.
+    DB(String, Vec<Definition>),
     
-    /// It stores a `Vec<TableDefinition>` to decode the dependencies of a PackFile.
-    DepManager(Vec<TableDefinition>),
+    /// It stores a `Vec<Definition>` to decode the dependencies of a PackFile.
+    DepManager(Vec<Definition>),
 
-    /// It stores a `Vec<TableDefinition>` with the definitions for each version of Loc files decoded (currently, only version `1`).
-    Loc(Vec<TableDefinition>),
+    /// It stores a `Vec<Definition>` with the definitions for each version of Loc files decoded (currently, only version `1`).
+    Loc(Vec<Definition>),
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-pub struct TableDefinition {
+pub struct Definition {
 
     /// The version of the PackedFile the definition is for. These versions are:
-    /// - `-1`: for fake `TableDefinition`, used for dependency resolving stuff.
+    /// - `-1`: for fake `Definition`, used for dependency resolving stuff.
     /// - `0`: for unversioned PackedFiles.
     /// - `1+`: for versioned PackedFiles.
     pub version: i32,
@@ -65,27 +108,42 @@ pub struct TableDefinition {
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Field {
     
     /// Name of the field. Should contain no spaces, using `_` instead.
-    pub field_name: String,
+    pub name: String,
 
     /// Type of the field.
     pub field_type: FieldType,
     
     /// `True` if the field is a `Key` field of a table. `False` otherwise.
-    pub field_is_key: bool,
+    pub is_key: bool,
+
+    /// The default value of the field.
+    pub default_value: Option<String>,
+
+    /// The max allowed lenght for the data in the field.
+    pub max_length: i32,
+
+    /// If the field's data corresponds to a filename.
+    pub is_filename: bool,
+
+    /// Path where the file in the data of the field can be, if it's restricted to one path.
+    pub filename_relative_path: Option<String>,
 
     /// `Some(referenced_table, referenced_column)` if the field is referencing another table/column. `None` otherwise.
-    pub field_is_reference: Option<(String, String)>,
+    pub is_reference: Option<(String, String)>,
+
+    /// `Some(referenced_columns)` if the field is using another column/s from the referenced table for lookup values.
+    pub lookup: Option<Vec<String>>,
 
     /// Aclarative description of what the field is for.
-    pub field_description: String,
+    pub description: String,
 }
 
 /// This enum defines every type of field the lib can encode/decode.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
     Float,
@@ -94,7 +152,8 @@ pub enum FieldType {
     StringU8,
     StringU16,
     OptionalStringU8,
-    OptionalStringU16
+    OptionalStringU16,
+    Sequence(Vec<Field>)
 }
 
 /// Implementation of `Schema`.
@@ -405,7 +464,7 @@ impl VersionedFile {
     }
 
     /// This function returns a reference to a specific version of a definition, if it finds it.
-    pub fn get_version(&self, version: i32) -> Result<&TableDefinition> {
+    pub fn get_version(&self, version: i32) -> Result<&Definition> {
         match &self {
             VersionedFile::DB(_, versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
             VersionedFile::DepManager(versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
@@ -414,7 +473,7 @@ impl VersionedFile {
     }
 
     /// This function returns the list of the versions in the provided `VersionedFile`.
-    pub fn get_version_list(&self) -> &[TableDefinition] {
+    pub fn get_version_list(&self) -> &[Definition] {
         match &self {
             VersionedFile::DB(_, versions) => versions,
             VersionedFile::DepManager(versions) => versions,
@@ -423,7 +482,7 @@ impl VersionedFile {
     }
 
     /// This function adds the provided version to the provided `VersionedFile`, replacing an existing version if there is a conflict.
-    pub fn add_version(&mut self, version: &TableDefinition) {
+    pub fn add_version(&mut self, version: &Definition) {
         match self {
             VersionedFile::DB(_, ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
                 Some(position) => { versions.splice(position..position + 1, [version].iter().cloned().cloned()); },
@@ -452,27 +511,28 @@ impl VersionedFile {
     }
 }
 
-/// Implementation of `TableDefinition`.
-impl TableDefinition {
+/// Implementation of `Definition`.
+impl Definition {
 
-    /// This function creates a new empty `TableDefinition` for the version provided.
-    pub fn new(version: i32) -> TableDefinition {
-        TableDefinition {
+    /// This function creates a new empty `Definition` for the version provided.
+    pub fn new(version: i32) -> Definition {
+        Definition {
             version,
             fields: vec![],
         }
     }
 
-    /// This function creates a new `TableDefinition` from an imported definition from the Assembly Kit.
+    /// This function creates a new `Definition` from an imported definition from the Assembly Kit.
     ///
     /// Note that this imports the loc fields (they need to be removed manually later) and it doesn't
     /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
+    pub fn new_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> Self {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 
             // First, we need to disable a number of known fields that are not in the final tables. We
             // check if the current field is one of them, and ignore it if it's.
+            // TODO: Get this list directly from the Assembly Kit.
             if field.name == "game_expansion_key" || // This one exists in one of the advices tables.
                 field.name == "localised_text" ||
                 field.name == "localised_name" ||
@@ -555,22 +615,27 @@ impl TableDefinition {
                 field_name,
                 field_type,
                 field_is_key,
+                None,
+                0,
+                false,
+                None,
                 field_is_reference,
+                None,
                 field_description
             );
             fields.push(new_field);
         }
 
-        TableDefinition {
+        Self {
             version,
             fields,
         }
     }
         
-    /// This function creates a new fake `TableDefinition` from an imported definition from the Assembly Kit.
+    /// This function creates a new fake `Definition` from an imported definition from the Assembly Kit.
     ///
     /// For use with the raw table processing.
-    pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> TableDefinition {
+    pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> Definition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 
@@ -637,13 +702,18 @@ impl TableDefinition {
                 field_name,
                 field_type,
                 field_is_key,
+                None,
+                0,
+                false,
+                None,
                 field_is_reference,
+                None,
                 field_description
             );
             fields.push(new_field);
         }
 
-        TableDefinition {
+        Definition {
             version,
             fields,
         }
@@ -666,7 +736,7 @@ impl TableDefinition {
         let mut changed_fields: Vec<(String, Vec<(String, (String, String))>)> = vec![];
         let mut removed_fields: Vec<String> = vec![];
         for field_local in &self.fields {
-            match version_current.fields.iter().find(|x| x.field_name == field_local.field_name) {
+            match version_current.fields.iter().find(|x| x.name == field_local.name) {
                 Some(field_current) => {
 
                     // If they are different, we have to find what do they have different, so we
@@ -677,28 +747,28 @@ impl TableDefinition {
                             changes.push(("Type".to_owned(), (format!("{}", field_current.field_type), format!("{}", field_local.field_type))));
                         }
 
-                        if field_local.field_is_key != field_current.field_is_key {
-                            changes.push(("Is Key".to_owned(), (format!("{}", field_current.field_is_key), format!("{}", field_local.field_is_key))));
+                        if field_local.is_key != field_current.is_key {
+                            changes.push(("Is Key".to_owned(), (format!("{}", field_current.is_key), format!("{}", field_local.is_key))));
                         }
 
-                        if field_local.field_is_reference != field_current.field_is_reference {
+                        if field_local.is_reference != field_current.is_reference {
                             changes.push(("Is Reference".to_owned(), 
                                 (
-                                    if let Some((ref_table, ref_column)) = &field_current.field_is_reference { format!("{}, {}", ref_table, ref_column) }
+                                    if let Some((ref_table, ref_column)) = &field_current.is_reference { format!("{}, {}", ref_table, ref_column) }
                                     else { String::new() },
-                                    if let Some((ref_table, ref_column)) = &field_local.field_is_reference { format!("{}, {}", ref_table, ref_column) }
-                                    else { String::new() }        
+                                    if let Some((ref_table, ref_column)) = &field_local.is_reference { format!("{}, {}", ref_table, ref_column) }
+                                    else { String::new() }
                                 )
                             ));
                         }
 
-                        if field_local.field_description != field_current.field_description {
-                            changes.push(("Description".to_owned(), (field_current.field_description.to_owned(), field_local.field_description.to_owned())));
+                        if field_local.description != field_current.description {
+                            changes.push(("Description".to_owned(), (field_current.description.to_owned(), field_local.description.to_owned())));
                         }
                     }
 
                     if !changes.is_empty() {
-                        changed_fields.push((field_local.field_name.to_owned(), changes));
+                        changed_fields.push((field_local.name.to_owned(), changes));
                     }
                 },
 
@@ -709,8 +779,8 @@ impl TableDefinition {
 
         // We have to check for removed fields too.
         for field_current in &version_current.fields {
-            if self.fields.iter().find(|x| x.field_name == field_current.field_name).is_none() {
-                removed_fields.push(field_current.field_name.to_owned());
+            if self.fields.iter().find(|x| x.name == field_current.name).is_none() {
+                removed_fields.push(field_current.name.to_owned());
             }
         }
 
@@ -720,14 +790,14 @@ impl TableDefinition {
 
         for (index, new_field) in new_fields.iter().enumerate() {
             if index == 0 { changes.push("    - **New fields**:".to_owned()); }
-            changes.push(format!("      - ***{}***:", new_field.field_name));
+            changes.push(format!("      - ***{}***:", new_field.name));
             changes.push(format!("        - **Type**: *{}*.", new_field.field_type));
-            changes.push(format!("        - **Is Key**: *{}*.", new_field.field_is_key));
-            if let Some((ref_table, ref_column)) = &new_field.field_is_reference {
+            changes.push(format!("        - **Is Key**: *{}*.", new_field.is_key));
+            if let Some((ref_table, ref_column)) = &new_field.is_reference {
                 changes.push(format!("        - **Is Reference**: *{}*/*{}*.", ref_table, ref_column));
             }
-            if !new_field.field_description.is_empty() {
-                changes.push(format!("        - **Description**: *{}*.", new_field.field_description));
+            if !new_field.description.is_empty() {
+                changes.push(format!("        - **Description**: *{}*.", new_field.description));
             }
         }
 
@@ -751,13 +821,47 @@ impl TableDefinition {
 impl Field {
 
     /// This function creates a `Field` using the provided data.
-    pub fn new(field_name: String, field_type: FieldType, field_is_key: bool, field_is_reference: Option<(String, String)>, field_description: String) -> Self {
+    pub fn new(
+        name: String, 
+        field_type: FieldType, 
+        is_key: bool, 
+        default_value: Option<String>,
+        max_length: i32,
+        is_filename: bool,
+        filename_relative_path: Option<String>,
+        is_reference: Option<(String, String)>, 
+        lookup: Option<Vec<String>>,
+        description: String
+    ) -> Self {
         Self {
-            field_name,
+            name,
             field_type,
-            field_is_key,
-            field_is_reference,
-            field_description
+            is_key,
+            default_value,
+            max_length,
+            is_filename,
+            filename_relative_path,
+            is_reference,
+            lookup,
+            description
+        }
+    }
+}
+
+/// Default implementation of `FieldType`.
+impl Default for Field {
+    fn default() -> Self {
+        Self {
+            name: String::from("new_field"),
+            field_type: FieldType::StringU8,
+            is_key: false,
+            default_value: None,
+            max_length: 0,
+            is_filename: false,
+            filename_relative_path: None,
+            is_reference: None,
+            lookup: None,
+            description: String::from(""),
         }
     }
 }
@@ -774,6 +878,7 @@ impl Display for FieldType {
             FieldType::StringU16 => write!(f, "StringU16"),
             FieldType::OptionalStringU8 => write!(f, "OptionalStringU8"),
             FieldType::OptionalStringU16 => write!(f, "OptionalStringU16"),
+            FieldType::Sequence(sequence) => write!(f, "Sequence of: {:#?}", sequence),
         }
     }
 }

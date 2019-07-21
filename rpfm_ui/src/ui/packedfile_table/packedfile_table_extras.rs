@@ -35,7 +35,7 @@ use std::cmp::Ordering;
 use crate::SETTINGS;
 use crate::QString;
 use crate::AppUI;
-use rpfm_lib::schema::{FieldType, TableDefinition};
+use rpfm_lib::schema::{FieldType, Definition};
 use crate::ui::create_grid_layout_unsafe;
 
 /// This function creates the entire "Apply Maths" dialog for tables. It returns the operation to apply.
@@ -177,7 +177,7 @@ pub fn dedup_indexes_per_row(indexes: &mut Vec<ModelIndex>) {
 }
 
 /// This function creates as many new empty rows with default values for each column type as you ask it for.
-pub fn create_empty_rows(table_definition: &TableDefinition, amount: u32) -> Vec<ListStandardItemMutPtr> {
+pub fn create_empty_rows(table_definition: &Definition, amount: u32) -> Vec<ListStandardItemMutPtr> {
 
     // For each field we have, just create a cell of his type with default values, and add it to the list.
     let mut rows = vec![];

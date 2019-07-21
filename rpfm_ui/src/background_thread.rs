@@ -588,7 +588,7 @@ pub fn background_loop(
 
                     // In case we want to import a TSV file into a DB Table/Loc PackedFile...
                     Commands::ImportTSVPackedFile => {
-                        let data = if let Data::TableDefinitionPathBufStringI32(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
+                        let data = if let Data::DefinitionPathBufStringI32(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
                         match import_tsv(&data.0, &data.1, &data.2, data.3) {
                             Ok(data) => sender.send(Data::VecVecDecodedData(data)).unwrap(),
                             Err(error) => sender.send(Data::Error(error)).unwrap(),
@@ -825,7 +825,7 @@ pub fn background_loop(
                             }
 
                             // If there is no table in the schema, we return an error.
-                            else { sender.send(Data::Error(Error::from(ErrorKind::SchemaTableDefinitionNotFound))).unwrap(); }
+                            else { sender.send(Data::Error(Error::from(ErrorKind::SchemaDefinitionNotFound))).unwrap(); }
 
                         }
 
@@ -874,7 +874,7 @@ pub fn background_loop(
                     Commands::DecodeDependencyDB => {
 
                         // Get the entire dependency data for the provided definition, all at once.
-                        let table_definition = if let Data::TableDefinition(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
+                        let table_definition = if let Data::Definition(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let dependency_data = match SCHEMA.lock().unwrap().clone() {
                             Some(schema) => {
                                 let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
@@ -965,7 +965,7 @@ pub fn background_loop(
                         let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
                         let mut error = false;
-                        let loc_definition = TableDefinition::new_loc_definition();
+                        let loc_definition = Definition::new_loc_definition();
                         for packed_file in &mut pack_file_decoded.packed_files {
                             let path = packed_file.path.to_vec();
                             let packedfile_name = path.last().unwrap().to_owned();
@@ -1118,7 +1118,7 @@ pub fn background_loop(
                         let (pattern, paths) = if let Data::StringVecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let regex = Regex::new(&pattern);
                         let mut matches: Vec<GlobalMatch> = vec![];
-                        let loc_definition = TableDefinition::new_loc_definition();
+                        let loc_definition = Definition::new_loc_definition();
                         let mut error = false;
                         for packed_file in &mut pack_file_decoded.packed_files {
 

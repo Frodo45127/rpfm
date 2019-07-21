@@ -186,14 +186,14 @@ impl PackedFileTableView {
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
         table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
-        table_definition: &Rc<TableDefinition>,
+        table_definition: &Rc<Definition>,
         enable_header_popups: Option<String>,
         table_type: &Rc<RefCell<TableType>>,
     ) -> Result<Self> {
 
         // Get the entire dependency data for this table.
         sender_qt.send(Commands::DecodeDependencyDB).unwrap();
-        sender_qt_data.send(Data::TableDefinition((&**table_definition).clone())).unwrap();
+        sender_qt_data.send(Data::Definition((&**table_definition).clone())).unwrap();
         let dependency_data: Rc<BTreeMap<i32, Vec<String>>> = Rc::new(match check_message_validity_recv2(&receiver_qt) { 
             Data::BTreeMapI32VecString(data) => data,
             Data::Error(_) => BTreeMap::new(),
@@ -2181,7 +2181,7 @@ impl PackedFileTableView {
                         };
 
                         sender_qt.send(Commands::ImportTSVPackedFile).unwrap();
-                        sender_qt_data.send(Data::TableDefinitionPathBufStringI32(((*table_definition).clone(), path, name, version))).unwrap();
+                        sender_qt_data.send(Data::DefinitionPathBufStringI32(((*table_definition).clone(), path, name, version))).unwrap();
 
                         match check_message_validity_recv2(&receiver_qt) {
                             Data::VecVecDecodedData(new_data) => {
@@ -3043,7 +3043,7 @@ impl PackedFileTableView {
         table_view: *mut TableView,
         model: *mut StandardItemModel,
         data: &TableType,
-        table_definition: &TableDefinition,
+        table_definition: &Definition,
         dependency_data: &BTreeMap<i32, Vec<String>>,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
@@ -3186,7 +3186,7 @@ impl PackedFileTableView {
     /// into the table, so this should be safe. Should.
     pub fn return_data_from_table_view(
         table_type: &mut TableType,
-        definition: &TableDefinition,
+        definition: &Definition,
         model: *mut StandardItemModel,
     ) {
 
@@ -3238,7 +3238,7 @@ impl PackedFileTableView {
         model: *mut StandardItemModel,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
-        definition: &TableDefinition,
+        definition: &Definition,
         mut table_type: &mut TableType,
     ) {
 
@@ -3306,7 +3306,7 @@ impl PackedFileTableView {
         update_global_search_stuff: *mut Action,
         undo_lock: &Rc<RefCell<bool>>,
         save_lock: &Rc<RefCell<bool>>,
-        table_definition: &TableDefinition,
+        table_definition: &Definition,
         table_type: &Rc<RefCell<TableType>>,
         enable_header_popups: Option<String>,
     ) {
@@ -3693,7 +3693,7 @@ impl PackedFileTableView {
         table_view: *mut TableView,
         table_view_frozen: *mut TableView,
         model: *mut StandardItemModel,
-        definition: &TableDefinition,
+        definition: &Definition,
         enable_header_popups: Option<String>,
     ) {
         // Create a list of "Key" columns.
@@ -3802,7 +3802,7 @@ impl PackedFileTableView {
 
     /// This function checks if the data in the clipboard is suitable for be pasted in all selected cells.
     fn check_clipboard_to_fill_selection(
-        definition: &TableDefinition,
+        definition: &Definition,
         table_view: *mut TableView,
         model: *mut StandardItemModel,
         filter_model: *mut SortFilterProxyModel,
@@ -3846,7 +3846,7 @@ impl PackedFileTableView {
     /// This function checks if the data in the clipboard is suitable to be appended as rows at the end of the Table.
     fn check_clipboard_append_rows(
         table_view: *mut TableView,
-        definition: &TableDefinition
+        definition: &Definition
     ) -> bool {
 
         // Get the text from the clipboard.

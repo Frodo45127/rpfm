@@ -15,15 +15,15 @@ This module is a custom CTD logging module, heavely inspired in the `human-panic
 But otherwise, feel free to check it out if you need an easy-to-use simple error logger.
 !*/
 
+use directories::ProjectDirs;
 use failure::Backtrace;
-use uuid::Uuid;
 use serde_derive::Serialize;
+use uuid::Uuid;
 
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::panic::PanicInfo;
 
-use directories::ProjectDirs;
 use crate::{ErrorKind, Result};
 
 /// This struct contains all the info to write into a `bug report` file.

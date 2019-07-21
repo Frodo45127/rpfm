@@ -22,7 +22,7 @@ use crate::Commands;
 use crate::Data;
 
 use crate::communications::*;
-use rpfm_lib::schema::TableDefinition;
+use rpfm_lib::schema::Definition;
 use crate::ui::*;
 
 use super::*;
@@ -45,7 +45,7 @@ pub fn create_dependency_manager_view(
     sender_qt.send(Commands::GetPackFilesList).unwrap();
     let pack_files = if let Data::VecString(data) = check_message_validity_recv2(&receiver_qt) { data } else { panic!(THREADS_MESSAGE_ERROR); };
     let table_type = Rc::new(RefCell::new(TableType::DependencyManager(pack_files.iter().map(|x| vec![DecodedData::StringU8(x.to_owned())]).collect())));
-    let table_definition = Rc::new(TableDefinition::new_dependency_manager_definition());
+    let table_definition = Rc::new(Definition::new_dependency_manager_definition());
 
     // This cannot fail, so unwrap it.
     PackedFileTableView::create_table_view(

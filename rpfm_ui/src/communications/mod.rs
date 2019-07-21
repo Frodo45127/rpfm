@@ -132,7 +132,7 @@ pub enum Data {
     PackFileUIData(PackFileUIData),
 
     PackedFile(PackedFile),
-    TableDefinitionPathBufStringI32((TableDefinition, PathBuf, String, i32)),
+    DefinitionPathBufStringI32((Definition, PathBuf, String, i32)),
     VecVecDecodedData((Vec<Vec<DecodedData>>)),
     VecVecDecodedDataPathBufVecStringTupleStrI32((Vec<Vec<DecodedData>>, PathBuf, Vec<String>, (String, i32))),
 
@@ -162,7 +162,7 @@ pub enum Data {
     VecStringVecPathType((Vec<String>, Vec<PathType>)),
     VecPathTypePathBuf((Vec<PathType>, PathBuf)),
     VecPathBuf(Vec<PathBuf>),
-    TableDefinition(TableDefinition),
+    Definition(Definition),
     BTreeMapI32VecString(BTreeMap<i32, Vec<String>>),
 }
 

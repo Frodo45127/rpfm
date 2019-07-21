@@ -8,9 +8,11 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// In this file are all the "Generic" helper functions used by RPFM (no UI code here).
-// As we may or may not use them, all functions here should have the "#[allow(dead_code)]"
-// var set, so the compiler doesn't spam us every time we try to compile.
+/*!
+Module with utility functions that don't fit anywhere else.
+
+Basically, if you need a function, but it's kinda a generic function, it goes here.
+!*/
 
 use chrono::{Utc, DateTime};
 
@@ -20,8 +22,7 @@ use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
 use crate::config::get_config_path;
-use crate::SETTINGS;
-use crate::SUPPORTED_GAMES;
+use crate::{SETTINGS, SUPPORTED_GAMES};
 
 pub mod coding_helpers;
 
@@ -29,8 +30,7 @@ pub mod coding_helpers;
 #[cfg(test)]
 pub mod tests;
 
-/// This function takes a &Path and returns a Vec<PathBuf> with the paths of every file under the &Path.
-/// If it fails to read any folder, it returns a generic error.
+/// This function retuns a `Vec<PathBuf>` containing all the files in the provided folder.
 #[allow(dead_code)]
 pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
     let mut file_list: Vec<PathBuf> = vec![];
@@ -63,123 +63,20 @@ pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
     Ok(file_list)
 }
 
-/// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
-/// every table definition from the assembly kit. Well, from the folder you tell it to search.
-/// Version 0 means Empire/Nappy format. Version 1 or 2 is everything after them.
-#[allow(dead_code)]
-pub fn get_raw_definitions(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
-
-    let mut file_list: Vec<PathBuf> = vec![];
-    match read_dir(current_path) {
-
-        // If we don't have any problems reading it...
-        Ok(files_in_current_path) => {
-            for file in files_in_current_path {
-
-                // Get his path and continue, or return an error if it can't be read.
-                match file {
-                    Ok(file) => {
-                        let file_path = file.path();
-                        
-                        // If it's a file and starts with "TWaD_", to the file_list it goes (except if it's one of those special files).
-                        if version == 1 || version == 2 {
-                            if file_path.is_file() &&
-                                file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") &&
-                                !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_TExc") &&
-                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_schema_validation" &&
-                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_relationships" &&
-                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_validation" &&
-                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_tables" &&
-                                file_path.file_stem().unwrap().to_str().unwrap() != "TWaD_queries" {
-                                file_list.push(file_path);
-                            }
-                        }
-
-                        // In this case, we just catch all the xsd files on the folder.
-                        else if version == 0 && 
-                            file_path.is_file() &&
-                            file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xsd") {
-                            file_list.push(file_path);   
-                        }
-                    }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
-                }
-            }
-        }
-
-        // In case of reading error, report it.
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
-    }
-
-    // Sort the files alphabetically.
-    file_list.sort();
-
-    // Return the list of paths.
-    Ok(file_list)
-}
-
-/// This is a modification of the normal "get_files_from_subdir" used to get a list with the path of
-/// every raw table data from the assembly kit. Well, from the folder you tell it to search.
-/// Version 0 means Empire/Nappy format. Version 1 or 2 is everything after them.
-#[allow(dead_code)]
-pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
-
-    let mut file_list: Vec<PathBuf> = vec![];
-    match read_dir(current_path) {
-
-        // If we don't have any problems reading it...
-        Ok(files_in_current_path) => {
-            for file in files_in_current_path {
-
-                // Get his path and continue, or return an error if it can't be read.
-                match file {
-                    Ok(file) => {
-                        let file_path = file.path();
-                        
-                        // If it's a file and it doesn't start with "TWaD_", to the file_list it goes.
-                        if version == 1 || version == 2 {
-                            if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") {
-                                file_list.push(file_path);
-                            }
-                        }
-
-                        // In this case, if it's an xml, to the file_list it goes.
-                        else if version == 0 &&
-                            file_path.is_file() && 
-                            !file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xml") {
-                            file_list.push(file_path);
-                        }
-                    }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
-                }
-            }
-        }
-
-        // In case of reading error, report it.
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
-    }
-
-    // Sort the files alphabetically.
-    file_list.sort();
-
-    // Return the list of paths.
-    Ok(file_list)
-}
-
-/// Get the current date and return it, as a decoded u32.
+/// This function gets the current date and return it, as a decoded u32.
 #[allow(dead_code)]
 pub fn get_current_time() -> i64 {
     Utc::now().naive_utc().timestamp()
 }
 
-/// Get the last modified date from a file and return it, as a decoded u32.
+/// This function gets the last modified date from a file and return it, as a decoded u32.
 #[allow(dead_code)]
 pub fn get_last_modified_time_from_file(file: &File) -> i64 {
     let last_modified_time: DateTime<Utc> = DateTime::from(file.metadata().unwrap().modified().unwrap());
     last_modified_time.naive_utc().timestamp()
 }
 
-/// Get the `/data` path of the game selected, straighoutta settings, if it's configured.
+/// This function gets the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_data_path(game_selected: &str) -> Option<PathBuf> {
     if let Some(path) = SETTINGS.lock().unwrap().paths.get(game_selected) {
@@ -191,7 +88,7 @@ pub fn get_game_selected_data_path(game_selected: &str) -> Option<PathBuf> {
 }
 
 
-/// Get the `/assembly_kit` path of the game selected, if supported and it's configured.
+/// This function gets the `/assembly_kit` path of the game selected, if supported and it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_assembly_kit_path(game_selected: &str) -> Option<PathBuf> {
     if let Some(path) = SETTINGS.lock().unwrap().paths.get(game_selected) {
@@ -202,7 +99,7 @@ pub fn get_game_selected_assembly_kit_path(game_selected: &str) -> Option<PathBu
     } else { None }
 }
 
-/// Get the `/data/xxx.pack` path of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.
+/// This function gets the `/data/xxx.pack` paths of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_db_pack_path(game_selected: &str) -> Option<Vec<PathBuf>> {
 
@@ -218,7 +115,7 @@ pub fn get_game_selected_db_pack_path(game_selected: &str) -> Option<Vec<PathBuf
     Some(db_paths)
 }
 
-/// Get the `/data/xxx.pack` path of the PackFile with the english loc files of the game selected, straighoutta settings, if it's configured.
+/// This function gets the `/data/xxx.pack` paths of the PackFile with the loc files of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_loc_pack_path(game_selected: &str) -> Option<Vec<PathBuf>> {
 
@@ -234,7 +131,7 @@ pub fn get_game_selected_loc_pack_path(game_selected: &str) -> Option<Vec<PathBu
     Some(loc_paths)
 }
 
-/// Get a list of all the PackFiles in the `/data` folder of the game straighoutta settings, if it's configured.
+/// This function gets a list of all the PackFiles in the `/data` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_data_packfiles_paths(game_selected: &str) -> Option<Vec<PathBuf>> {
 
@@ -252,7 +149,7 @@ pub fn get_game_selected_data_packfiles_paths(game_selected: &str) -> Option<Vec
     Some(paths)
 }
 
-/// Get a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
+/// This function gets a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_content_packfiles_paths(game_selected: &str) -> Option<Vec<PathBuf>> {
 
@@ -278,7 +175,7 @@ pub fn get_game_selected_content_packfiles_paths(game_selected: &str) -> Option<
     Some(paths)
 }
 
-/// Get the `/rpfm_path/pak_files/xxx.pak` path of the Game Selected, if it has one.
+/// This function gets the `/rpfm_path/pak_files/xxx.pak` path of the Game Selected, if it has one.
 #[allow(dead_code)]
 pub fn get_game_selected_pak_file(game_selected: &str) -> Result<PathBuf> {
 
