@@ -8,19 +8,28 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// In this file are all the Structs and Impls required to decode and encode the PackFiles.
+/*!
+Module with all the code to interact with PackFiles.
+
+This module contains all the code related with PackFiles. If you want to do anything with a PackFile,
+this is the place you have to come.
+
+Also, something to take into account. RPFM supports PackFile compression/decompression and decryption,
+and that is handled automagically by RPFM. All the data you'll ever see will be decompressed/decrypted,
+so you don't have to worry about that.
+!*/
 
 use bitflags::bitflags;
 
-use std::path::PathBuf;
-use std::io::prelude::*;
-use std::io::{ BufReader, BufWriter, Read, Write, SeekFrom };
 use std::fs::File;
+use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+
+use rpfm_error::{ErrorKind, Result};
 
 use crate::common::*;
 use crate::common::coding_helpers::*;
-use rpfm_error::{ErrorKind, Result};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
@@ -39,6 +48,9 @@ const PFH4_PREAMBLE: &str = "PFH4"; // PFH4
 const PFH3_PREAMBLE: &str = "PFH3"; // PFH3
 const PFH0_PREAMBLE: &str = "PFH0"; // PFH0
 
+/// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special porpouses.
+pub const RESERVED_PACKED_FILE_NAMES: [&str; 1] = ["frodos_biggest_secret.rpfm-notes"];
+
 /// These are the types the PackFiles can have.
 const FILE_TYPE_BOOT: u32 = 0;
 const FILE_TYPE_RELEASE: u32 = 1;
@@ -49,113 +61,170 @@ bitflags! {
 
     /// This represents the bitmasks a PackFile can have applied to his type.
     ///
-    /// The possible bitmasks are:
-    /// - `HAS_EXTENDED_HEADER`: Used to specify that the header of the PackFile is extended by 20 bytes. Used in Arena.
-    /// - `HAS_ENCRYPTED_INDEX`: Used to specify that the PackedFile Index is encrypted. Used in Arena.
-    /// - `HAS_INDEX_WITH_TIMESTAMPS`: Used to specify that the PackedFile Index contains a timestamp of evey PackFile.
-    /// - `HAS_ENCRYPTED_DATA`: Used to specify that the PackedFile's data is encrypted. Seen in `music.pack` PackFiles and in Arena.
+    /// Keep in mind that this lib supports decoding PackFiles with any of these flags enabled, 
+    /// but it only supports enconding for the `HAS_INDEX_WITH_TIMESTAMPS` flag.
     pub struct PFHFlags: u32 {
+        
+        /// Used to specify that the header of the PackFile is extended by 20 bytes. Used in Arena.
         const HAS_EXTENDED_HEADER       = 0b0000_0001_0000_0000;
+        
+        /// Used to specify that the PackedFile Index is encrypted. Used in Arena.
         const HAS_ENCRYPTED_INDEX       = 0b0000_0000_1000_0000;
+    
+        /// Used to specify that the PackedFile Index contains a timestamp of every PackFile.
         const HAS_INDEX_WITH_TIMESTAMPS = 0b0000_0000_0100_0000;
+        
+        /// Used to specify that the PackedFile's data is encrypted. Seen in `music.pack` PackFiles and in Arena.
         const HAS_ENCRYPTED_DATA        = 0b0000_0000_0001_0000;
     }
 }
 
-/// This enum represents the **Version** of a PackFile.
+//---------------------------------------------------------------------------//
+//                              Enum & Structs
+//---------------------------------------------------------------------------//
+
+/// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
+#[derive(Debug)]
+pub struct PackFile {
+    
+    /// The path of the PackFile on disk, if exists. If not, then this should be empty.
+    file_path: PathBuf,
+
+    /// The version of the PackFile.
+    pfh_version: PFHVersion,
+
+    /// The type of the PackFile.
+    pfh_file_type: PFHFileType,
+
+    /// The bitmasks applied to the PackFile.
+    bitmask: PFHFlags,
+
+    /// The timestamp of the last time the PackFile was saved.
+    timestamp: i64,
+
+    /// The list of PackFiles this PackFile requires to be loaded before himself when starting the game.
+    ///
+    /// In other places, we refer to this as the `Dependency List`.
+    pack_files: Vec<String>,
+
+    /// The list of PackedFiles this PackFile contains.
+    packed_files: Vec<PackedFile>,
+
+    /// Notes added to the PackFile. Exclusive of this lib.
+    notes: Option<String>,
+}
+
+/// This struct is a reduced version of the `PackFile` one, used to pass just the needed data to an UI.
 ///
-/// The possible values are:
-/// - `PFH5`: Used in Warhammer 2 and Arena.
-/// - `PFH4`: Used in Warhammer 1, Attila, Rome 2, and Thrones of Brittania.
-/// - `PFH3`: Used in Shogun 2.
-/// - `PFH0`: Used in Napoleon and Empire.
+/// Don't create this one manually. Get it `From` the `PackFile` one, and use it as you need it.
+#[derive(Debug)]
+pub struct PackFileInfo {
+
+    /// The path of the PackFile on disk, if exists. If not, then this should be empty.
+    pub file_path: PathBuf,
+
+    /// The version of the PackFile.
+    pub pfh_version: PFHVersion,
+
+    /// The type of the PackFile.
+    pub pfh_file_type: PFHFileType,
+
+    /// The bitmasks applied to the PackFile.
+    pub bitmask: PFHFlags,
+
+    /// The current state of the compression inside the PackFile.
+    pub compression_state: CompressionState,
+
+    /// The timestamp of the last time the PackFile was saved.
+    pub timestamp: i64,
+}
+
+
+/// This enum represents the **Version** of a PackFile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PFHVersion {
+    
+    /// Used in Warhammer 2, Three Kingdoms and Arena.
     PFH5,
+
+    /// Used in Warhammer 1, Attila, Rome 2, and Thrones of Brittania.
     PFH4,
+
+    /// Used in Shogun 2.
     PFH3,
+
+    /// Used in Napoleon and Empire.
     PFH0
 }
 
-/// This enum represents the **Type** of a PackFile. 
+/// This enum represents the **Type** of a PackFile.
 ///
-/// The possible types are, in the order they'll load when the game starts (their numeric value is the number besides them):
-/// - `Boot` **(0)**: Used in CA PackFiles, not useful for modding.
-/// - `Release` **(1)**: Used in CA PackFiles, not useful for modding.
-/// - `Patch` **(2)**: Used in CA PackFiles, not useful for modding.
-/// - `Mod` **(3)**: Used for mods. PackFiles of this type are only loaded in the game if they are enabled in the Mod Manager/Launcher.
-/// - `Movie` **(4)**: Used in CA PackFiles and for some special mods. Unlike `Mod` PackFiles, these ones always get loaded.
-/// - `Other(u32)`: Wildcard for any type that doesn't fit in any of the other categories. The type's value is stored in the Variant.
+/// The types here are sorted in the same order they'll load when the game starts. 
+/// The number in their docs is their numeric value when read from a PackFile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PFHFileType {
+
+    /// **(0)**: Used in CA PackFiles, not useful for modding.
     Boot,
+
+    /// **(1)**: Used in CA PackFiles, not useful for modding.
     Release,
+
+    /// **(2)**: Used in CA PackFiles, not useful for modding.
     Patch,
+
+    /// **(3)**: Used for mods. PackFiles of this type are only loaded in the game if they are enabled in the Mod Manager/Launcher.
     Mod,
+
+    /// **(4)** Used in CA PackFiles and for some special mods. Unlike `Mod` PackFiles, these ones always get loaded.
     Movie,
+
+    /// Wildcard for any type that doesn't fit in any of the other categories. The type's value is stored in the Variant.
     Other(u32),
 }
 
-/// This `Enum` is the background equivalent to the `TreePathType` Enum from the UI.
-/// We keep them separated so we have a version of it to use to only background stuff.
+/// This enum represents the type of a path in a PackFile.
+///
+/// Keep in mind that, in the lib we don't have a reliable way to determine if a path is a file or a folder if their path conflicts.
+/// For example, if we have the folder "x/y/z/" and the file "x/y/z", and we ask the lib what type of path it's, we'll default to a file.
 #[derive(Debug, Clone)]
 pub enum PathType {
+
+    /// Used for PackedFile paths. Contains the path of the PackedFile.
     File(Vec<String>),
+
+    /// Used for folder paths. Contains the path of the folder.
     Folder(Vec<String>),
+
+    /// Used for the PackFile itself.
     PackFile,
+
+    /// Used for any other situation. Usually, if this is used, there is a detection problem somewhere else.
     None,
 }
 
-/// This `Enum` indicates the current state of the compression in the current PackFile.
+/// This enum indicates the current state of the compression in the current PackFile.
+///
+/// Despite compression being per-packedfile, we only support applying it to the full PackFile for now.
+/// Also, compression is only supported by `PFHVersion::PFH5` PackFiles.
 #[derive(Debug, Clone)]
 pub enum CompressionState {
+
+    /// All the PackedFiles in the PackFile are compressed.
     Enabled,
+
+    /// Some of the PackedFiles in the PackFile are compressed.
     Partial,
+
+    /// None of the files in the PackFile are compressed.
     Disabled,
 }
 
-/// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
-///
-/// It stores the following data from the header:
-/// - `file_path`: the path of the PackFile on disk.
-/// - `pfh_version`: the version/id of the PackFile. Usually it's PFHX.
-/// - `pfh_file_type`: the type of the PackFile.
-/// - `bitmask`: the bitmasks applied to this PackFile.
-/// - `timestamp`: that `Last Modified Date` of the PackFile. It's usually that or all zeros.
-///
-/// And the following data from the *data* part of the PackFile:
-/// - `pack_files`: the list of PackFiles in the PackFile Index.
-/// - `packed_files`: the list of PackedFiles inside this PackFile.
-///
-/// And about the custom stuff (exclusive of RPFM).
-/// - `notes`: a String to store all the notes you have on the same Packfile.
-#[derive(Debug)]
-pub struct PackFile {
-    pub file_path: PathBuf,
-    pub pfh_version: PFHVersion,
-    pub pfh_file_type: PFHFileType,
-    pub bitmask: PFHFlags,
-    pub timestamp: i64,
+//---------------------------------------------------------------------------//
+//                             Enum Implementations
+//---------------------------------------------------------------------------//
 
-    pub pack_files: Vec<String>,
-    pub packed_files: Vec<PackedFile>,
-
-    // Custom Stuff goes here.
-    pub notes: Option<String>,
-}
-
-/// This `Struct` is a reduced version of the `PackFile` Struct, used to pass data to the UI.
-#[derive(Debug)]
-pub struct PackFileUIData {
-    pub file_path: PathBuf,
-    pub pfh_version: PFHVersion,
-    pub pfh_file_type: PFHFileType,
-    pub bitmask: PFHFlags,
-    pub compression_state: CompressionState,
-    pub timestamp: i64,
-}
-
-/// Implementation of PFHFileType.
+/// Implementation of `PFHFileType`.
 impl PFHFileType {
 
     /// This function returns the PackFile's **Type** in `u32` format. To know what value corresponds with what type, check their definition's comment.
@@ -170,7 +239,7 @@ impl PFHFileType {
         }
     }
 
-    /// This function returns the PackFile's Type or an Error if the Type is invalid.
+    /// This function returns the PackFile's Type corresponding to the provided value.
     pub fn get_type(value: u32) -> Self {
         match value {
             FILE_TYPE_BOOT => PFHFileType::Boot,
@@ -183,10 +252,10 @@ impl PFHFileType {
     }
 }
 
-/// Implementation of PFHVersion.
+/// Implementation of `PFHVersion`.
 impl PFHVersion {
 
-    /// This function returns the PackFile's **Preamble** or **Id** (his 4 first bytes) in `u32` format.
+    /// This function returns the PackFile's *Id/Preamble* (his 4 first bytes) as a `&str`.
     pub fn get_value(&self) -> &str {
         match *self {
             PFHVersion::PFH5 => PFH5_PREAMBLE,
@@ -196,9 +265,9 @@ impl PFHVersion {
         }
     }
 
-    /// This function returns the PackFile's Version or an Error if the version is invalid.
-    pub fn get_version(version: &str) -> Result<Self> {
-        match version {
+    /// This function returns the PackFile's `PFHVersion` corresponding to the provided value, or an error if the provided value is not a valid `PFHVersion`.
+    pub fn get_version(value: &str) -> Result<Self> {
+        match value {
             PFH5_PREAMBLE => Ok(PFHVersion::PFH5),
             PFH4_PREAMBLE => Ok(PFHVersion::PFH4),
             PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
@@ -208,11 +277,14 @@ impl PFHVersion {
     }
 }
 
+//---------------------------------------------------------------------------//
+//                           Structs Implementations
+//---------------------------------------------------------------------------//
 
 /// Implementation of `PackFile`.
 impl PackFile {
 
-    /// This function creates a new empty `PackFile`. This is used for creating a *dummy* PackFile.
+    /// This function creates a new empty `PackFile`. This is used for creating a *dummy* PackFile we'll later populate.
     pub fn new() -> Self {
         Self {
             file_path: PathBuf::new(),
@@ -228,15 +300,13 @@ impl PackFile {
         }
     }
 
-    /// This function creates a new empty `PackFile` with a name and an specific id.
-    pub fn new_with_name(file_name: String, pfh_version: PFHVersion) -> Self {
-        let mut file_path = PathBuf::new();
-        file_path.set_file_name(file_name);
+    /// This function creates a new empty `PackFile` with a name and a specific `PFHVersion`.
+    pub fn new_with_name(file_name: &str, pfh_version: PFHVersion) -> Self {
         Self {
-            file_path,
+            file_path: PathBuf::from(file_name),
             pfh_version,
-            bitmask: PFHFlags::empty(),
             pfh_file_type: PFHFileType::Mod,
+            bitmask: PFHFlags::empty(),
             timestamp: 0,
 
             pack_files: vec![],
@@ -246,31 +316,39 @@ impl PackFile {
         }
     }
 
-    /// This function replaces the current `PackFile List` with a new one.
-    ///
-    /// It requires:
-    /// - `&mut self`: the PackFile we are going to manipulate.
-    /// - `pack_files`: a Vec<String> we are going to use as new list.
-    pub fn save_packfiles_list(&mut self, pack_files: Vec<String>) {
-        self.pack_files = pack_files;
+    /// This function returns a list of reserved PackedFile names, used by RPFM for special porpouses.
+    pub fn get_reserved_packed_file_names() -> Vec<Vec<String>> {
+        RESERVED_PACKED_FILE_NAMES.iter().map(|x| vec![x.to_string()]).collect()
     }
 
-    /// This function adds one or more `PackedFiles` to an existing `PackFile`.
+    /// This function returns the `PackFile List` of the provided `PackFile`.
+    pub fn get_packfiles_list(&self) -> &[String] {
+        &self.pack_files
+    }
+
+    /// This function replaces the `PackFile List` of our `PackFile` with the provided one.
+    pub fn set_packfiles_list(&mut self, pack_files: &[String]) {
+        self.pack_files = pack_files.to_vec();
+    }
+
+    /// This function retuns the list of PackedFiles inside a `PackFile`.
+    pub fn list_packed_files(&self) -> Vec<Vec<String>> {
+        self.packed_files.iter().map(|x| x.get_path().to_vec()).collect()
+    }
+
+    /// This function adds one or more `PackedFiles` to an existing `PackFile`. In case of conflict, the PackedFiles are overwritten.
     ///
-    /// It requires:
-    /// - `&mut self`: the PackFile we are going to manipulate.
-    /// - `packed_files`: a Vec<PackedFile> we are going to add.
-    ///
-    /// It returns the list of paths with PackedFiles changed.
+    /// This function is not a "do and forget" type of function. It returns the paths of the PackedFiles which got added succesfully,
+    /// and it's up to you to check it against the paths you provided to ensure all the PackedFiles got added correctly.
     pub fn add_packed_files(&mut self, packed_files: &[PackedFile]) -> Vec<Vec<String>> {
+        let reserved_packed_file_names = Self::get_reserved_packed_file_names();
         let mut new_paths = vec![];
-        let ignored_files = Self::get_reserved_packed_file_list();
         for packed_file in packed_files {
 
             // If it's one of the reserved paths, ignore the file.
-            if ignored_files.contains(&packed_file.path) { continue; }
-            new_paths.push(packed_file.path.to_vec());
-            match self.packed_files.iter().position(|x| x.path == packed_file.path) {
+            if reserved_packed_file_names.contains(&packed_file.get_path().to_vec()) { continue; }
+            new_paths.push(packed_file.get_path().to_vec());
+            match self.packed_files.iter().position(|x| x.get_path() == packed_file.get_path()) {
                 Some(index) => self.packed_files[index] = packed_file.clone(),
                 None => self.packed_files.push(packed_file.clone()),
             }           
@@ -278,7 +356,7 @@ impl PackFile {
         new_paths
     }
 
-    /// This function returns the name of the PackedFile. If it's empty, it's a dummy PackFile. 
+    /// This function returns the name of the PackFile. If it's empty, it's an in-memory only PackFile. 
     pub fn get_file_name(&self) -> String {
         match self.file_path.file_name() {
             Some(s) => s.to_string_lossy().to_string(),
@@ -286,19 +364,27 @@ impl PackFile {
         }
     }
 
-    /// This function copies the data needed by the UI to load a PackFile.
-    pub fn create_ui_data(&self) -> PackFileUIData {
-        PackFileUIData {
-            file_path: self.file_path.to_path_buf(),
-            pfh_version: self.pfh_version,
-            pfh_file_type: self.pfh_file_type,
-            bitmask: self.bitmask,
-            timestamp: self.timestamp,
-            compression_state: self.get_compression_state(),
-        }
+    /// This function returns the path of the PackFile. If it's empty, it's an in-memory only PackFile. 
+    pub fn get_file_path(&self) -> &PathBuf {
+        &self.file_path
     }
 
-    /// This function returns the compression state of the provided PackFile.
+    /// This function changes the path of the PackFile.
+    ///
+    /// This can fail if you pass it an empty path.
+    pub fn set_file_path(&mut self, path: &Path) -> Result<()> {
+        if path.components().count() == 0 { return Err(ErrorKind::EmptyInput)? }
+        self.file_path = path.to_path_buf();
+
+        // We have to change the name of the PackFile in all his `PackedFiles` too.
+        let file_name = self.get_file_name();
+        self.packed_files.iter_mut().for_each(|x| x.set_packfile_name(&file_name));
+        Ok(())
+    }    
+
+    /// This function returns the current compression state of the provided `PackFile`.
+    ///
+    /// To get more info about the different compression states, check the `CompressionState` enum.
     pub fn get_compression_state(&self) -> CompressionState {
         let mut has_files_compressed = false;
         let mut has_files_uncompressed = false;
@@ -321,11 +407,15 @@ impl PackFile {
         else { CompressionState::Disabled }
     }
 
-    /// This function returns if the PackFile is editable or not, depending on the type of the PackFile.
-    /// Basically, if the PackFile is not one of the known types OR it has any of the `pack_file_type` bitmasks
-    /// as true, this'll return false. Use it to disable saving functions for PackFiles we can read but not
-    /// save. Also, if the `is_editing_of_ca_packfiles_allowed` argument is false, return false for everything
-    /// except types "Mod" and "Movie".
+    /// This function returns if the `PackFile` is editable or not.
+    ///
+    /// By *if is editable or not* I mean *If you can save it or not*. The conditions under which a PackFile is not editable are:
+    /// - All PackFiles with extended header or encrypted parts are not editable.
+    /// - All PackFiles of type `Mod` or `Movie` are editable. 
+    /// - If you say CA PackFiles are not editable:
+    ///   - All PackFiles of type `Boot`, `Release` or `Patch` are not editable.
+    /// - If you say CA PackFiles are editable:
+    ///   - All PackFiles of type `Boot`, `Release` or `Patch` are editable.
     pub fn is_editable(&self, is_editing_of_ca_packfiles_allowed: bool) -> bool {
 
         // If it's this very specific type, don't save under any circunstance.
@@ -344,81 +434,172 @@ impl PackFile {
         else { false }
     }
 
-    /// This function returns a list of reserved PackedFile names, used by RPFM to keep
-    /// some per-PackFile data stored inside the PackFiles.
-    ///
-    /// It requires nothing.
-    pub fn get_reserved_packed_file_list() -> Vec<Vec<String>> {
-        let mut packed_file_list = vec![];
-        packed_file_list.push(vec!["frodos_biggest_secret.rpfm-notes".to_owned()]);    // This one is the notes file.
-        packed_file_list
+    /// This function returns a reference to the `PackedFile` with the provided path, if exists.
+    pub fn get_ref_packed_file_by_path(&self, path: &[String]) -> Option<&PackedFile> {
+        self.packed_files.iter().find(|x| x.get_path() == path)
     }
 
-    /// This function removes a PackedFile from a PackFile.
-    ///
-    /// It requires:
-    /// - `&mut self`: the PackFile we are going to manipulate.
-    /// - `index`: the index of the PackedFile we want to remove from the PackFile.
-    pub fn remove_packedfile(&mut self, index: usize) {
-        self.packed_files.remove(index);
+    /// This function returns a mutable reference to the `PackedFile` with the provided path, if exists.
+    pub fn get_ref_mut_packed_file_by_path(&mut self, path: &[String]) -> Option<&mut PackedFile> {
+        self.packed_files.iter_mut().find(|x| x.get_path() == path)
     }
 
-    /// This function enables/disables Full-PackFile compression. Partial compression is not supported.
-    ///
-    /// It requires:
-    /// - `&mut self`: the PackFile we are going to manipulate.
-    /// - `enable`: the bool that says if we want it to be enabled or not.
-    pub fn enable_compresion(&mut self, enable: bool) {
-        self.packed_files.iter_mut().for_each(|x| x.should_be_compressed = enable);
+    /// This function returns a reference of all the `PackedFiles` starting with the provided path.
+    pub fn get_ref_packed_files_by_path_start(&self, path: &[String]) -> Vec<&PackedFile> {
+        self.packed_files.iter().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).collect()
     }
 
-    /// This function remove all PackedFiles from a PackFile.
-    ///
-    /// It requires:
-    /// - `&mut self`: the PackFile we are going to manipulate.
+    /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path.
+    pub fn get_ref_mut_packed_files_by_path_start(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
+        self.packed_files.iter_mut().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).collect()
+    }
+    
+    /// This function returns a reference of all the `PackedFiles` ending with the provided path.
+    pub fn get_ref_packed_files_by_path_end(&self, path: &[String]) -> Vec<&PackedFile> {
+        self.packed_files.iter().filter(|x| x.get_path().ends_with(path) && !path.is_empty()).collect()
+    }
+
+    /// This function returns a mutable reference of all the `PackedFiles` ending with the provided path.
+    pub fn get_ref_mut_packed_files_by_path_end(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
+        self.packed_files.iter_mut().filter(|x| x.get_path().ends_with(path) && !path.is_empty()).collect()
+    }
+
+    /// This function returns a copy of all `PackedFiles` in the provided `PackFile`.
+    pub fn get_all_packed_files(&self) -> Vec<PackedFile> {
+        self.packed_files.clone()
+    }
+
+    /// This function returns a reference of all the `PackedFiles` in the provided `PackFile`.
+    pub fn get_ref_all_packed_files(&self) -> Vec<&PackedFile> {
+        self.packed_files.iter().collect()
+    }
+
+    /// This function returns a mutable reference of all the `PackedFiles` in the provided `PackFile`.
+    pub fn get_ref_mut_all_packed_files(&mut self) -> Vec<&mut PackedFile> {
+        self.packed_files.iter_mut().collect()
+    }
+
+    /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
+    pub fn remove_packed_file_by_path(&mut self, path: &[String]) {
+        if let Some(position) = self.packed_files.iter().position(|x| x.get_path() == path) {
+            self.packed_files.remove(position);
+        }
+    }
+
+    /// This function removes, if exists, all `PackedFile` starting with the provided path from the `PackFile`.
+    pub fn remove_packed_files_by_path_start(&mut self, path: &[String]) {
+        let positions: Vec<usize> = self.packed_files.iter()
+            .enumerate()
+            .filter(|x| x.1.get_path().starts_with(path) && !path.is_empty() && x.1.get_path().len() > path.len())
+            .map(|x| x.0)
+            .collect();
+        for position in positions.iter().rev() {
+            self.packed_files.remove(*position);
+        }
+    }
+
+    /// This function removes, if exists, all `PackedFile` ending with the provided path from the `PackFile`.
+    pub fn remove_packed_files_by_path_end(&mut self, path: &[String]) {
+        let positions: Vec<usize> = self.packed_files.iter()
+            .enumerate()
+            .filter(|x| x.1.get_path().ends_with(path) && !path.is_empty())
+            .map(|x| x.0)
+            .collect();
+        for position in positions.iter().rev() {
+            self.packed_files.remove(*position);
+        }
+    }
+
+    /// This function enables/disables compression in all `PackedFiles` inside the `PackFile`. Partial compression is not supported.
+    pub fn toggle_compression(&mut self, enable: bool) {
+        self.packed_files.iter_mut().for_each(|x| x.set_should_be_compressed(enable));
+    }
+
+    /// This function returns the notes contained within the provided `PackFile`.
+    pub fn get_notes(&self) -> &Option<String> {
+        &self.notes
+    }
+
+    /// This function saves your notes within the provided `PackFile`.
+    pub fn set_notes(&mut self, notes: &Option<String>) {
+        self.notes = notes.clone();
+    }
+
+    /// This function returns the timestamp of the provided `PackFile`.
+    pub fn get_timestamp(&self) -> i64 {
+        self.timestamp
+    }
+
+    /// This function sets the timestamp of the provided `PackFile`.
+    pub fn set_timestamp(&mut self, timestamp: i64) {
+        self.timestamp = timestamp;
+    }
+
+    /// This function returns the `PFHVersion` of the provided `PackFile`.
+    pub fn get_pfh_version(&self) -> PFHVersion {
+        self.pfh_version
+    }
+
+    /// This function sets the `PFHVersion` of the provided `PackFile`.
+    pub fn set_pfh_version(&mut self, pfh_version: PFHVersion) {
+        self.pfh_version = pfh_version;
+    }
+
+    /// This function returns the `PFHFileType` of the provided `PackFile`.
+    pub fn get_pfh_file_type(&self) -> PFHFileType {
+        self.pfh_file_type
+    }
+
+    /// This function sets the `PFHFileType` of the provided `PackFile`.
+    pub fn set_pfh_file_type(&mut self, pfh_file_type: PFHFileType) {
+        self.pfh_file_type = pfh_file_type;
+    }
+
+    /// This function returns the `Bitmask` of the provided `PackFile`.
+    pub fn get_bitmask(&self) -> PFHFlags {
+        self.bitmask
+    }
+
+    /// This function sets the `Bitmask` of the provided `PackFile`.
+    pub fn set_bitmask(&mut self, bitmask: PFHFlags) {
+        self.bitmask = bitmask;
+    }
+
+    /// This function remove all `PackedFiles` from a `PackFile`.
     pub fn remove_all_packedfiles(&mut self) {
         self.packed_files = vec![];
     }
 
-    /// This function checks if a `PackedFile` exists in a `PackFile`.
+    /// This function allows you to change the path of a `PackedFile` inside a `PackFile`. It there is already a file using the new Path, it gets overwritten.
     ///
-    /// It requires:
-    /// - `&self`: a `PackFileData` to check for the `PackedFile`.
-    /// - `path`: the path of the `PackedFile` we want to check.
+    /// This can fail if you pass it an empty path, so make sure you check the result.
+    pub fn move_packedfile(&mut self, source_path: &[String], destination_path: &[String]) -> Result<()> {
+        if destination_path.len() == 0 { return Err(ErrorKind::EmptyInput)? }
+        
+        // If there is already a `PackedFile` with that name, and the source exists (it wont fail later for not finding it), we remove it.
+        let source_exists = self.packedfile_exists(source_path);
+        let destination_exists = self.packedfile_exists(destination_path);
+        if source_exists && destination_exists {
+            self.remove_packed_file_by_path(destination_path);
+        }
+
+        if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(source_path) {
+            packed_file.set_path(destination_path)?;
+        }
+        Ok(())
+    }
+
+    /// This function checks if a `PackedFile` with a certain path exists in a `PackFile`.
     pub fn packedfile_exists(&self, path: &[String]) -> bool {
-        for packed_file in &self.packed_files {
-            if packed_file.path == path {
-                return true;
-            }
-        }
-        false
+        self.packed_files.iter().find(|x| x.get_path() == path).is_some()
     }
 
-    /// This function checks if a folder with `PackedFiles` exists in a `PackFile`.
-    ///
-    /// It requires:
-    /// - `&elf`: a `PackFileData` to check for the folder.
-    /// - `path`: the path of the folder we want to check.
+    /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
     pub fn folder_exists(&self, path: &[String]) -> bool {
-
-        // If the path is empty, this triggers a false positive, so it needs to be checked here.
-        if path.is_empty() { false }
-        else {
-            for packed_file in &self.packed_files {
-                if packed_file.path.starts_with(path) && packed_file.path.len() > path.len() {
-                    return true;
-                }
-            }
-
-            false
-        }
+        self.packed_files.iter().find(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).is_some()
     }
 
-    /// This function reads the content of a PackFile and returns a `PackFile` with all the contents of the PackFile decoded.
-    ///
-    /// It requires:
-    /// - `file_path`: a `PathBuf` with the path of the PackFile.
-    /// - `use_lazy_loading`: if yes, don't load to memory his data.
+    /// This function reads the content of a PackFile into a `PackFile` struct.
     pub fn read(
         file_path: PathBuf,
         use_lazy_loading: bool
@@ -426,6 +607,7 @@ impl PackFile {
 
         // Prepare the PackFile to be read and the virtual PackFile to be written.
         let mut pack_file = BufReader::new(File::open(&file_path)?);
+        let pack_file_name = file_path.file_name().unwrap().to_string_lossy().to_string();
         let mut pack_file_decoded = Self::new();
 
         // First, we do some quick checkings to ensure it's a valid PackFile. 
@@ -575,6 +757,7 @@ impl PackFile {
             // Once we are done, we create the and add it to the PackedFile list.
             let packed_file = PackedFile::read_from_data(
                 path, 
+                pack_file_name.to_string(),
                 timestamp,
                 is_compressed,
                 if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(pack_file_decoded.pfh_version) } else { None },
@@ -588,7 +771,7 @@ impl PackFile {
             );
 
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
-            if packed_file.path == &["frodos_biggest_secret.rpfm-notes"] {
+            if packed_file.get_path() == &["frodos_biggest_secret.rpfm-notes"] {
                 if let Ok(data) = packed_file.get_data() {
                     if let Ok(data) = decode_string_u8(&data) {
                         pack_file_decoded.notes = Some(data);
@@ -624,21 +807,18 @@ impl PackFile {
         Ok(pack_file_decoded)
     }
 
-    /// This function takes a decoded `PackFile` and tries to encode it and write it on disk.
-    ///
-    /// It requires:
-    /// - `&mut self`: the `PackFile` we are trying to save.
+    /// This function tries to save a `PackFile` to a file in the filesystem.
     pub fn save(&mut self) -> Result<()> {
 
-        // Before everything else, add the file for the notes if we have them.
+        // Before everything else, add the file for the notes if we have them. We'll remove it later, after the file has been saved.
         if let Some(data) = &self.notes {
-            self.packed_files.push(PackedFile::read_from_vec(vec!["frodos_biggest_secret.rpfm-notes".to_owned()], 0, false, encode_string_u8(&data)));
+            self.packed_files.push(PackedFile::read_from_vec(vec!["frodos_biggest_secret.rpfm-notes".to_owned()], self.get_file_name(), 0, false, encode_string_u8(&data)));
         }
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
         // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
-        self.packed_files.sort_unstable_by(|a, b| a.path.join("\\").to_lowercase().cmp(&b.path.join("\\").to_lowercase()));
+        self.packed_files.sort_unstable_by(|a, b| a.get_path().join("\\").to_lowercase().cmp(&b.get_path().join("\\").to_lowercase()));
         
         // We ensure that all the data is loaded and in his right form (compressed/encrypted) before attempting to save.
         // We need to do this here because we need later on their compressed size.
@@ -682,21 +862,21 @@ impl PackFile {
             // In PFH5 case, we don't support saving encrypted PackFiles for Arena. So we'll default to Warhammer 2 format.
             match self.pfh_version {
                 PFHVersion::PFH5 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
-                    if packed_file.should_be_compressed { packed_file_index.push(1); } else { packed_file_index.push(0); } 
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.get_timestamp() as u32)); }
+                    if packed_file.get_should_be_compressed() { packed_file_index.push(1); } else { packed_file_index.push(0); } 
                 }
                 PFHVersion::PFH4 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.timestamp as u32)); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.get_timestamp() as u32)); }
                 }
                 PFHVersion::PFH3 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_i64(packed_file.timestamp)); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_i64(packed_file.get_timestamp())); }
                 }
 
                 // This one doesn't have timestamps, so we just skip this step.
                 PFHVersion::PFH0 => {}
             }
 
-            packed_file_index.append(&mut packed_file.path.join("\\").as_bytes().to_vec());
+            packed_file_index.append(&mut packed_file.get_path().join("\\").as_bytes().to_vec());
             packed_file_index.push(0);
         }
 
@@ -723,16 +903,28 @@ impl PackFile {
         file.write_all(&pack_file_index)?;
         file.write_all(&packed_file_index)?;
         for packed_file in &mut self.packed_files { 
-            let (data,_,_,_,_) = packed_file.get_data_and_info_from_memory()?;
+            let data = packed_file.get_data()?;
             file.write_all(&data)?;
         }
 
-        // Remove again the notes PackedFile.
-        if let Some(pos) = self.packed_files.iter().position(|x| x.path == vec!["frodos_biggest_secret.rpfm-notes".to_owned()]) {
-            self.remove_packedfile(pos);
-        }
+        // Remove again the notes PackedFile, as that one is stored separated from the rest.
+        self.remove_packed_file_by_path(&["frodos_biggest_secret.rpfm-notes".to_owned()]);
 
         // If nothing has failed, return success.
         Ok(())
+    }
+}
+
+/// Implementation to create a `PackFileInfo` from a `PackFile`.
+impl From<PackFile> for PackFileInfo {
+    fn from(packfile: PackFile) -> Self {
+        Self {
+            file_path: packfile.file_path.to_path_buf(),
+            pfh_version: packfile.pfh_version,
+            pfh_file_type: packfile.pfh_file_type,
+            bitmask: packfile.bitmask,
+            timestamp: packfile.timestamp,
+            compression_state: packfile.get_compression_state(),
+        }
     }
 }

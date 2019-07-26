@@ -8,7 +8,14 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Here it goes the logic (Encoding/Decoding) to deal with individual PackedFiles.
+/*!
+Module with all the code to interact with infividual PackedFiles.
+
+This module contains all the code related with the interaction with individual PackFiles, 
+meaning the code that takes care of loading/writing their data from/to disk. 
+
+You'll rarely have to touch anything here.
+!*/
 
 use std::io::prelude::*;
 use std::io::{BufReader, Read, SeekFrom};
@@ -18,41 +25,63 @@ use std::sync::{Arc, Mutex};
 use crate::packfile::*;
 use crate::packfile::compression::decompress_data;
 
-/// This `Struct` stores the data of a PackedFile.
-///
-/// It contains:
-/// - `path`: path of the PackedFile inside the PackFile.
-/// - `timestamp`: the '*Last Modified Date*' of the PackedFile, encoded in `i64`.
-/// - `is_compressed`: if the data is compressed. Only available from PFH5 onwards.
-/// - `is_encrypted`: if the data is encrypted. If some, it contains the PFHVersion of his original PackFile (needed for decryption).
-/// - `data`: the data of the PackedFile.
+//---------------------------------------------------------------------------//
+//                              Enum & Structs
+//---------------------------------------------------------------------------//
+
+/// This struct represents a PackedFile in memory.
 #[derive(Clone, Debug)]
 pub struct PackedFile {
-    pub path: Vec<String>,
-    pub timestamp: i64,
-    pub should_be_compressed: bool,
-    pub should_be_encrypted: Option<PFHVersion>,
+
+    /// The path of the `PackedFile` inside the `PackFile`.
+    path: Vec<String>,
+
+    /// Name of the original `PackFile` containing it. To know from where a `PackedFile` came when loading multiple PackFiles as one.
+    packfile_name: String,
+
+    /// The '*Last Modified Date*' of the `PackedFile`, encoded in `i64`. Only in PackFiles with the appropiate flag enabled..
+    timestamp: i64,
+
+    /// If the data should be compressed when saving it to disk. Only available from `PFHVersion::PFH5` onwards.
+    should_be_compressed: bool,
+
+    /// If the data should be encrypted when saving it to disk. If it should, it contains `Some(PFHVersion)`, being `PFHVersion` the one of the game this `PackedFile` is for.
+    should_be_encrypted: Option<PFHVersion>,
+
+    /// the data of the PackedFile. Use the getter/setter functions to interact with it.
     data: PackedFileData,
 }
 
-/// This enum represents the data of a PackedFile.
-///
-/// - `OnMemory`: the data is loaded to memory and the variant holds the data and info about the current state of the data (is_compressed, is_encrypted).
-/// - `OnDisk`: the data is not loaded to memory and the variant holds the file, position and size of the data on the disk, and info about the current 
-///   state of the data (is_compressed, is_encrypted).
+/// This enum represents the data of a `PackedFile`, in his current state.
 #[derive(Clone, Debug)]
 pub enum PackedFileData {
+
+    /// The data is loaded to memory and the variant holds the data and info about the current state of the data (data, is_compressed, is_encrypted).
     OnMemory(Vec<u8>, bool, Option<PFHVersion>),
+
+    /// The data is not loaded to memory and the variant holds the info needed to get the data loaded to memory on demand 
+    /// (reader of the file, position of the start of the data, size of the data, is_compressed, is_encrypted).
     OnDisk(Arc<Mutex<BufReader<File>>>, u64, u32, bool, Option<PFHVersion>),
 } 
+
+//---------------------------------------------------------------------------//
+//                       Enum & Structs Implementations
+//---------------------------------------------------------------------------//
 
 /// Implementation of `PackedFile`.
 impl PackedFile {
 
-    /// This function receive all the info of a PackedFile and creates a `PackedFile` with it, getting his data from a `Vec<u8>`.
-    pub fn read_from_vec(path: Vec<String>, timestamp: i64, should_be_compressed: bool, data: Vec<u8>) -> Self {
+    /// This function creates a new `PackedFile` from a `Vec<u8>` and some extra data.
+    pub fn read_from_vec(
+        path: Vec<String>,
+        packfile_name: String,
+        timestamp: i64,
+        should_be_compressed: bool, 
+        data: Vec<u8>
+    ) -> Self {
         Self {
             path,
+            packfile_name,
             timestamp,
             should_be_compressed,
             should_be_encrypted: None,
@@ -60,10 +89,18 @@ impl PackedFile {
         }
     }
 
-    /// This function receive all the info of a PackedFile and creates a `PackedFile` with it, getting his data from a `PackedFileData`.
-    pub fn read_from_data(path: Vec<String>, timestamp: i64, should_be_compressed: bool, should_be_encrypted: Option<PFHVersion>, data: PackedFileData) -> Self {
+    /// This function creates a new `PackedFile` from a another's `PackedFile`'s data, and some extra data. What an asshole.
+    pub fn read_from_data(
+        path: Vec<String>,
+        packfile_name: String, 
+        timestamp: i64,
+        should_be_compressed: bool, 
+        should_be_encrypted: Option<PFHVersion>, 
+        data: PackedFileData
+    ) -> Self {
         Self {
             path,
+            packfile_name,
             timestamp,
             should_be_compressed,
             should_be_encrypted,
@@ -71,8 +108,7 @@ impl PackedFile {
         }
     }
 
-    /// This function loads the data from the disk if it's not loaded yet. It just loads the data to memory, without decrypting/decompressing it.
-    /// This means we need to take care of that while opening the file.
+    /// This function loads the data of a `PackedFile` to memory, if it isn't loaded already.
     pub fn load_data(&mut self) -> Result<()> {
         let data_on_memory = if let PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) = self.data {
             let mut data = vec![0; size as usize];
@@ -85,7 +121,9 @@ impl PackedFile {
         Ok(())
     }
 
-    /// This function reads the data from the disk if it's not loaded yet, and return it. This does not store the data in memory.
+    /// This function returns the data of the `PackedFile` without loading it to memory.
+    ///
+    /// It's for those situations where you just need to check the data once, then forget about it.
     pub fn get_data(&self) -> Result<Vec<u8>> {
         match self.data {
             PackedFileData::OnMemory(ref data, is_compressed, is_encrypted) => {
@@ -105,7 +143,9 @@ impl PackedFile {
         }
     }
 
-    /// This function reads the data from the disk if it's not loaded yet (or from memory otherwise), and keep it in memory for faster access.
+    /// This function returns the data of the provided `PackedFile` loading it to memory in the process if it isn't already loaded.
+    ///
+    /// It's for when you need to keep the data for multiple uses.
     pub fn get_data_and_keep_it(&mut self) -> Result<Vec<u8>> {
         let data = match self.data {
             PackedFileData::OnMemory(ref mut data, ref mut is_compressed, ref mut is_encrypted) => {
@@ -129,8 +169,9 @@ impl PackedFile {
         Ok(data)
     }
 
-    /// This function gets the data and info from memory. Returns an error if the data is not already in memory.
-    /// The data returned is "data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted".
+    /// This function returns the data of the provided `PackedFile` from memory. together with his state info.
+    ///
+    /// The data returned is `data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted`.
     pub fn get_data_and_info_from_memory(&mut self) -> Result<(&mut Vec<u8>, &mut bool, &mut Option<PFHVersion>, &mut bool, &mut Option<PFHVersion>)> {
         match self.data {
             PackedFileData::OnMemory(ref mut data, ref mut is_compressed, ref mut is_encrypted) => {
@@ -142,12 +183,12 @@ impl PackedFile {
         }
     }
 
-    /// This function loads the data from the disk if it's not loaded yet.
+    /// This function replaces the data on the `PackedFile` with the provided one.
     pub fn set_data(&mut self, data: Vec<u8>) {
         self.data = PackedFileData::OnMemory(data, false, None);
     }
 
-    /// This function returns the size of the data of the PackedFile.
+    /// This function returns the size of the data of the provided `PackedFile`.
     pub fn get_size(&self) -> u32 {
         match self.data {
             PackedFileData::OnMemory(ref data, _, _) => data.len() as u32,
@@ -155,11 +196,69 @@ impl PackedFile {
         }
     }
 
-    /// This function returns the compression state of a PackedFile.
+    /// This function returns the current compression state of the provided `PackedFile`.
     pub fn get_compression_state(&self) -> bool {
         match self.data {
             PackedFileData::OnMemory(_, state, _) => state,
             PackedFileData::OnDisk(_, _, _, state, _) => state,
         }
+    }
+
+    /// This function returns if the `PackedFile` should be compressed or not.
+    pub fn get_should_be_compressed(&self) -> bool{
+        self.should_be_compressed
+    }
+
+    /// This function sets if the `PackedFile` should be compressed or not.
+    pub fn set_should_be_compressed(&mut self, state: bool) {
+        self.should_be_compressed = state;
+    }
+
+    /// This function returns the name of the PackFile this `PackedFile` belongs to.
+    pub fn get_packfile_name(&self) -> &str {
+        &self.packfile_name
+    }
+
+    /// This function sets the name of the PackFile this `PackedFile` belongs to.
+    pub fn set_packfile_name(&mut self, name: &str) {
+        self.packfile_name = name.to_owned();
+    }
+
+    /// This function returns if the `PackedFile` should be encrypted or not.
+    ///
+    /// If it should, it'll return the `PFHVersion` to encrypt to.
+    pub fn get_should_be_encrypted(&self) -> &Option<PFHVersion> {
+        &self.should_be_encrypted
+    }
+
+    /// This function sets if the `PackedFile` should be encrypted or not.
+    pub fn set_should_be_encrypted(&mut self, state: &Option<PFHVersion>) {
+        self.should_be_encrypted = state.clone();
+    }
+
+    /// This function returns the timestamp of the provided `PackedFile`.
+    pub fn get_timestamp(&self) -> i64 {
+        self.timestamp
+    }
+
+    /// This function sets the timestamp of the provided `PackedFile`.
+    pub fn set_timestamp(&mut self, timestamp: i64) {
+        self.timestamp = timestamp;
+    }
+
+    /// This function returns a reference to the path of the provided `PackedFile`.
+    pub fn get_path(&self) -> &[String] {
+        &self.path
+    }
+
+    /// This function sets the path of the provided `PackedFile`.
+    ///
+    /// This can fail if you pass it an empty path, so make sure you check the result.
+    ///
+    /// ***WARNING***: DON'T USE THIS IF YOUR PACKEDFILE IS INSIDE A PACKFILE. USE THE `move_packedfile` FUNCTION INSTEAD.
+    pub fn set_path(&mut self, path: &[String]) -> Result<()> {
+        if path.len() == 0 { return Err(ErrorKind::EmptyInput)? }
+        self.path = path.to_vec();
+        Ok(())
     }
 }

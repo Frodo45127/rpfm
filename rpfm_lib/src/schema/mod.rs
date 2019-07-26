@@ -75,6 +75,10 @@ const SCHEMA_VERSIONS_FILE: &'static str = "versions.json";
 /// URL used to download new schema files.
 pub const SCHEMA_UPDATE_URL_MASTER: &'static str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
 
+//---------------------------------------------------------------------------//
+//                              Enum & Structs
+//---------------------------------------------------------------------------//
+
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Schema(Vec<VersionedFile>);
@@ -155,6 +159,10 @@ pub enum FieldType {
     OptionalStringU16,
     Sequence(Vec<Field>)
 }
+
+//---------------------------------------------------------------------------//
+//                       Enum & Structs Implementations
+//---------------------------------------------------------------------------//
 
 /// Implementation of `Schema`.
 impl Schema {

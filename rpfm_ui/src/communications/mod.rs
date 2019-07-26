@@ -19,7 +19,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 
 use crate::GlobalMatch;
 use rpfm_error::Error;
-use rpfm_lib::packfile::{PFHFileType, PackFileUIData, PathType};
+use rpfm_lib::packfile::{PFHFileType, PackFileInfo, PathType};
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::loc::*;
@@ -129,7 +129,7 @@ pub enum Data {
     Schema(Schema),
 
     PFHFileType(PFHFileType),
-    PackFileUIData(PackFileUIData),
+    PackFileUIData(PackFileInfo),
 
     PackedFile(PackedFile),
     DefinitionPathBufStringI32((Definition, PathBuf, String, i32)),

@@ -188,7 +188,7 @@ pub fn generate_pak_file(
                 // If the table already exist in the data.pack, skip it.
                 let mut exist = false;
                 for table in &*dep_db {
-                    if table.path[1] == table_name {
+                    if table.get_path()[1] == table_name {
                         exist = true;
                         break;
                     }
@@ -346,22 +346,25 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                     let table_name = format!("{}_tables", file_name.split_off(5));
 
                     // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
-                    let packed_file = packfile_db.packed_files.iter().find(|x| !x.path.is_empty() && x.path.starts_with(&["db".to_owned(), table_name.to_owned()])).ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
-                    let version = DB::get_header_data(&packed_file.get_data()?).unwrap().0;
+                    let packed_files = packfile_db.get_ref_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
+                    if !packed_files.is_empty() {
+                        let packed_file = packed_files[0];
+                        let version = DB::get_header_data(&packed_file.get_data()?).unwrap().0;
 
-                    if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
-                        if versioned_file.get_version(version).is_err() {
-                            let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                            versioned_file.add_version(&table_definition);
-                        } else {
-                            continue;
+                        if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
+                            if versioned_file.get_version(version).is_err() {
+                                let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                                versioned_file.add_version(&table_definition);
+                            } else {
+                                continue;
+                            }
                         }
-                    }
 
-                    else {
-                        let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                        let versioned_file = VersionedFile::DB(table_name, vec![table_definition]);
-                        schema.add_versioned_file(&versioned_file);
+                        else {
+                            let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
+                            let versioned_file = VersionedFile::DB(table_name, vec![table_definition]);
+                            schema.add_versioned_file(&versioned_file);
+                        }
                     }
                 }
 
