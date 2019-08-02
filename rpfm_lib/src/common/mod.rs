@@ -24,11 +24,16 @@ use std::path::{Path, PathBuf};
 use crate::config::get_config_path;
 use crate::{SETTINGS, SUPPORTED_GAMES};
 
-pub mod coding_helpers;
+pub mod decoder;
+pub mod encoder;
 
-// This tells the compiler to only compile this mod when testing. It's just to make sure the "coders" don't break.
+// This tells the compiler to only compile these mods when testing. It's just to make sure 
+// the encoders and decoders don't break between updates.
 #[cfg(test)]
-pub mod tests;
+mod decoder_test;
+
+#[cfg(test)]
+mod encoder_test;
 
 /// This function retuns a `Vec<PathBuf>` containing all the files in the provided folder.
 #[allow(dead_code)]

@@ -11,12 +11,11 @@
 // In this file we define the PackedFile type RigidModel for decoding and encoding it.
 // This is the type used by 3D model files of units and buildings. Both are different, so we need to
 // take the type in count while processing them.
-
+use crate::common::encoder::Encoder;
+use crate::common::decoder::Decoder;
 use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::{ErrorKind, Result};
-
-use crate::common::coding_helpers;
 
 /// Struct "RigidModel". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
@@ -100,7 +99,7 @@ impl RigidModelHeader {
             packed_file_data_base_skeleton: (String::new(), 0),
         };
 
-        match coding_helpers::decode_string_u8(&packed_file_data[0..4]) {
+        match packed_file_data.decode_string_u8(0, 4) {
             Ok(data) => packed_file_header.packed_file_header_signature = data,
             Err(error) => return Err(error)
         }
@@ -111,17 +110,17 @@ impl RigidModelHeader {
             return Err(ErrorKind::RigidModelNotSupportedFile)?
         }
 
-        match coding_helpers::decode_integer_u32(&packed_file_data[4..8]) {
+        match packed_file_data.decode_integer_u32(4) {
             Ok(data) => packed_file_header.packed_file_header_model_type = data,
             Err(error) => return Err(error)
         }
 
-        match coding_helpers::decode_integer_u32(&packed_file_data[8..12]) {
+        match packed_file_data.decode_integer_u32(8) {
             Ok(data) => packed_file_header.packed_file_header_lods_count = data,
             Err(error) => return Err(error)
         }
 
-        match coding_helpers::decode_string_u8_0padded(&packed_file_data[12..140]) {
+        match packed_file_data.decode_string_u8_0padded(12, 128) {
             Ok(data) => packed_file_header.packed_file_data_base_skeleton = data,
             Err(error) => return Err(error)
         }
@@ -133,15 +132,11 @@ impl RigidModelHeader {
     pub fn save(rigid_model_header: &RigidModelHeader) -> Result<Vec<u8>> {
         let mut packed_file_data: Vec<u8> = vec![];
 
-        let mut packed_file_header_signature = coding_helpers::encode_string_u8(&rigid_model_header.packed_file_header_signature);
-        let mut packed_file_header_model_type = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_model_type);
-        let mut packed_file_header_lods_count = coding_helpers::encode_integer_u32(rigid_model_header.packed_file_header_lods_count);
-        let mut packed_file_data_base_skeleton = coding_helpers::encode_string_u8_0padded(&rigid_model_header.packed_file_data_base_skeleton)?;
+        packed_file_data.encode_string_u8(&rigid_model_header.packed_file_header_signature);
+        packed_file_data.encode_integer_u32(rigid_model_header.packed_file_header_model_type);
+        packed_file_data.encode_integer_u32(rigid_model_header.packed_file_header_lods_count);
+        packed_file_data.encode_string_u8_0padded(&rigid_model_header.packed_file_data_base_skeleton)?;
 
-        packed_file_data.append(&mut packed_file_header_signature);
-        packed_file_data.append(&mut packed_file_header_model_type);
-        packed_file_data.append(&mut packed_file_header_lods_count);
-        packed_file_data.append(&mut packed_file_data_base_skeleton);
         Ok(packed_file_data)
     }
 }
@@ -209,23 +204,23 @@ impl RigidModelLodHeader {
             mysterious_data_1: None,
             mysterious_data_2: None,
         };
-        match coding_helpers::decode_integer_u32(&packed_file_data[0..4]) {
+        match packed_file_data.decode_integer_u32(0) {
             Ok(data) => header.groups_count = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_integer_u32(&packed_file_data[4..8]) {
+        match packed_file_data.decode_integer_u32(4) {
             Ok(data) => header.vertices_data_length = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_integer_u32(&packed_file_data[8..12]) {
+        match packed_file_data.decode_integer_u32(8) {
             Ok(data) => header.indices_data_length = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_integer_u32(&packed_file_data[12..16]) {
+        match packed_file_data.decode_integer_u32(12) {
             Ok(data) => header.start_offset = data,
             Err(error) => return Err(error)
         }
-        match coding_helpers::decode_float_f32(&packed_file_data[16..20]) {
+        match packed_file_data.decode_float_f32(16) {
             Ok(data) => header.lod_zoom_factor = data,
             Err(error) => return Err(error)
         }
@@ -233,11 +228,11 @@ impl RigidModelLodHeader {
         // These two we only decode them if the RigidModel is v7 (Warhammer 1&2), as these doesn't exist
         // in Attila's RigidModels.
         if packed_file_data.len() == 28 {
-            match coding_helpers::decode_integer_u32(&packed_file_data[20..24]) {
+            match packed_file_data.decode_integer_u32(20) {
                 Ok(data) => header.mysterious_data_1 = Some(data),
                 Err(error) => return Err(error)
             }
-            match coding_helpers::decode_integer_u32(&packed_file_data[24..28]) {
+            match packed_file_data.decode_integer_u32(24) {
                 Ok(data) => header.mysterious_data_2 = Some(data),
                 Err(error) => return Err(error)
             }
@@ -250,11 +245,11 @@ impl RigidModelLodHeader {
     pub fn save(rigid_model_lod: &RigidModelLodHeader) -> Vec<u8> {
         let mut packed_file_data: Vec<u8> = vec![];
 
-        let mut groups_count = coding_helpers::encode_integer_u32(rigid_model_lod.groups_count);
-        let mut vertex_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.vertices_data_length);
-        let mut index_data_length = coding_helpers::encode_integer_u32(rigid_model_lod.indices_data_length);
-        let mut start_offset = coding_helpers::encode_integer_u32(rigid_model_lod.start_offset);
-        let mut lod_zoom_factor = coding_helpers::encode_float_f32(rigid_model_lod.lod_zoom_factor);
+        packed_file_data.encode_integer_u32(rigid_model_lod.groups_count);
+        packed_file_data.encode_integer_u32(rigid_model_lod.vertices_data_length);
+        packed_file_data.encode_integer_u32(rigid_model_lod.indices_data_length);
+        packed_file_data.encode_integer_u32(rigid_model_lod.start_offset);
+        packed_file_data.encode_float_f32(rigid_model_lod.lod_zoom_factor);
 
         let mysterious_data_1 = match rigid_model_lod.mysterious_data_1 {
             Some(data) => Some(data),
@@ -266,20 +261,12 @@ impl RigidModelLodHeader {
             None => None,
         };
 
-        packed_file_data.append(&mut groups_count);
-        packed_file_data.append(&mut vertex_data_length);
-        packed_file_data.append(&mut index_data_length);
-        packed_file_data.append(&mut start_offset);
-        packed_file_data.append(&mut lod_zoom_factor);
-
         // These two are only added if they are something (Warhammer1&2 RigidModels).
         if mysterious_data_1 != None {
-            let mut mysterious_data_1 = coding_helpers::encode_integer_u32(mysterious_data_1.unwrap());
-            packed_file_data.append(&mut mysterious_data_1);
+            packed_file_data.encode_integer_u32(mysterious_data_1.unwrap());
         }
         if mysterious_data_2 != None {
-            let mut mysterious_data_2 = coding_helpers::encode_integer_u32(mysterious_data_2.unwrap());
-            packed_file_data.append(&mut mysterious_data_2);
+            packed_file_data.encode_integer_u32(mysterious_data_2.unwrap());
         }
         packed_file_data
     }

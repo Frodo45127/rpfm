@@ -11,10 +11,12 @@
 // In this file we define the PackedFile type Loc for decoding and encoding it.
 // This is the type used by localisation files.
 
+
 use rpfm_error::{ErrorKind, Result};
 
-use crate::common::coding_helpers::*;
 use super::DecodedData;
+use crate::common::encoder::Encoder;
+use crate::common::decoder::Decoder;
 
 /// This const represents the value that every LOC PackedFile has in their first 2 bytes.
 const BYTEORDER_MARK: u16 = 65279; // FF FE
@@ -47,10 +49,10 @@ impl Loc {
         if packed_file_data.len() < 14 { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
 
         // More checks to ensure this is a valid Loc PAckedFile.
-        if BYTEORDER_MARK != decode_integer_u16(&packed_file_data[0..2])? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
-        if PACKED_FILE_TYPE != decode_string_u8(&packed_file_data[2..5])? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
-        if PACKED_FILE_VERSION != decode_integer_u32(&packed_file_data[6..10])? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
-        let entry_count = decode_integer_u32(&packed_file_data[10..14])?;
+        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        if PACKED_FILE_VERSION != packed_file_data.decode_integer_u32(6)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        let entry_count = packed_file_data.decode_integer_u32(10)?;
 
         // Get all the entries and return the Loc.
         let mut entries = vec![];
@@ -60,19 +62,19 @@ impl Loc {
             // Decode the three fields escaping \t and \n to avoid weird behavior.
             let mut entry = vec![];
             if index < packed_file_data.len() { 
-                let mut key = decode_packedfile_string_u16(&packed_file_data[index..], &mut index)?;
+                let mut key = packed_file_data.decode_packedfile_string_u16(index, &mut index)?;
                 key = key.replace("\t", "\\t").replace("\n", "\\n");
                 entry.push(DecodedData::StringU16(key));
             } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
 
             if index < packed_file_data.len() { 
-                let mut text = decode_packedfile_string_u16(&packed_file_data[index..], &mut index)?;
+                let mut text = packed_file_data.decode_packedfile_string_u16(index, &mut index)?;
                 text = text.replace("\t", "\\t").replace("\n", "\\n");
                 entry.push(DecodedData::StringU16(text));
             } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
             
             if index < packed_file_data.len() { 
-                let tooltip = decode_packedfile_bool(packed_file_data[index], &mut index)?;
+                let tooltip = packed_file_data.decode_packedfile_bool(index, &mut index)?;
                 entry.push(DecodedData::Boolean(tooltip));
             } else { return Err(ErrorKind::LocPackedFileCorrupted)? };
             
@@ -94,18 +96,18 @@ impl Loc {
         let mut packed_file: Vec<u8> = vec![];
 
         // Encode the header.
-        packed_file.extend_from_slice(&encode_integer_u16(BYTEORDER_MARK));
-        packed_file.extend_from_slice(&encode_string_u8(PACKED_FILE_TYPE));
+        packed_file.encode_integer_u16(BYTEORDER_MARK);
+        packed_file.encode_string_u8(PACKED_FILE_TYPE);
         packed_file.push(0);
-        packed_file.extend_from_slice(&encode_integer_u32(PACKED_FILE_VERSION));
-        packed_file.extend_from_slice(&encode_integer_u32(self.entries.len() as u32));
+        packed_file.encode_integer_u32(PACKED_FILE_VERSION);
+        packed_file.encode_integer_u32(self.entries.len() as u32);
 
         // Encode the data. In Locs we only have StringU16 and Booleans, so we can safetly ignore the rest.
         for row in &self.entries {        
             for cell in row {
                 match *cell {
-                    DecodedData::Boolean(data) => packed_file.push(encode_bool(data)),
-                    DecodedData::StringU16(ref data) => packed_file.extend_from_slice(&encode_packedfile_string_u16(&data.replace("\\t", "\t").replace("\\n", "\n"))),
+                    DecodedData::Boolean(data) => packed_file.encode_bool(data),
+                    DecodedData::StringU16(ref data) => packed_file.encode_packedfile_string_u16(&data.replace("\\t", "\t").replace("\\n", "\n")),
                     _ => unreachable!()
                 }
             }

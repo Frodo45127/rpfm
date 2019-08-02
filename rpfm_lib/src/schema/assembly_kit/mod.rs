@@ -198,7 +198,7 @@ pub fn generate_pak_file(
 
                 // Then deserialize the definition of the table into something we can use.
                 let imported_definition: root = from_reader(definition_file)?;
-                let imported_table_definition = Definition::new_fake_from_assembly_kit(&imported_definition, -1, &table_name);
+                let imported_table_definition = Definition::new_fake_from_assembly_kit(&imported_definition, &table_name);
 
                 // Before deserializing the data, due to limitations of serde_xml_rs, we have to rename all rows, beacuse unique names for
                 // rows in each file is not supported for deserializing. Same for the fields, we have to change them to something more generic.
@@ -266,7 +266,7 @@ pub fn generate_pak_file(
                     }
 
                     // Then create the DB object, and add it to the list.
-                    let mut processed_db_file = DB::new(&table_name, -1, &imported_table_definition);
+                    let mut processed_db_file = DB::new(&table_name, &imported_table_definition);
                     processed_db_file.entries = entries;
                     processed_db_files.push(processed_db_file);
                 }
@@ -349,7 +349,7 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                     let packed_files = packfile_db.get_ref_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
                     if !packed_files.is_empty() {
                         let packed_file = packed_files[0];
-                        let version = DB::get_header_data(&packed_file.get_data()?).unwrap().0;
+                        let version = DB::get_header(&packed_file.get_data()?).unwrap().0;
 
                         if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
                             if versioned_file.get_version(version).is_err() {

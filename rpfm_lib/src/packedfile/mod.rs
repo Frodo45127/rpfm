@@ -24,7 +24,6 @@ use std::path::PathBuf;
 use crate::DEPENDENCY_DATABASE;
 use crate::FAKE_DEPENDENCY_DATABASE;
 use crate::common::*;
-use crate::common::coding_helpers::*;
 use crate::packfile::{PackFile, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::packedfile::loc::*;
@@ -170,11 +169,11 @@ pub fn create_packed_file(
             };
 
             // If there is a table definition, create the new table. Otherwise, return error.
-            DB::new(&table, version, &table_definition).save()
+            DB::new(&table, &table_definition).save()
         }
 
         // If it's a Text PackedFile, return an empty encoded string.
-        PackedFileType::Text(_) => encode_string_u8(""),
+        PackedFileType::Text(_) => vec![],
     };
 
     // Create and add the new PackedFile to the PackFile.
@@ -222,15 +221,15 @@ pub fn merge_tables(
 
         for table in &mut db_files {
             if version == -2 { 
-                version = table.version; 
-                table_definition = table.table_definition.clone();
+                version = table.definition.version; 
+                table_definition = table.definition.clone();
             }
-            else if table.version != version { return Err(ErrorKind::InvalidFilesForMerging)? }
+            else if table.definition.version != version { return Err(ErrorKind::InvalidFilesForMerging)? }
 
             final_entries_list.append(&mut table.entries);
         }
 
-        let mut new_table = DB::new(&db_files[0].db_type, version, &table_definition);
+        let mut new_table = DB::new(&db_files[0].name, &table_definition);
         new_table.entries = final_entries_list;
         new_table.save()
     }
@@ -297,7 +296,7 @@ pub fn get_dependency_data(
                 let mut iter = dep_db.iter_mut();
                 while let Some(packed_file) = iter.find(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                     if let Ok(table) = DB::read(&packed_file.get_data_and_keep_it().unwrap(), &format!("{}_tables", dependency_data.0), &schema) {
-                        if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.name == dependency_data.1) {
+                        if let Some(column_index) = table.definition.fields.iter().position(|x| x.name == dependency_data.1) {
                             for row in table.entries.iter() {
 
                                 // For now we assume any dependency is a string.
@@ -315,8 +314,8 @@ pub fn get_dependency_data(
 
                 // Same thing for the fake dependency list, if exists.
                 let mut iter = fake_dep_db.iter();
-                if let Some(table) = iter.find(|x| x.db_type == format!("{}_tables", dependency_data.0)) {
-                    if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.name == dependency_data.1) {
+                if let Some(table) = iter.find(|x| x.name == format!("{}_tables", dependency_data.0)) {
+                    if let Some(column_index) = table.definition.fields.iter().position(|x| x.name == dependency_data.1) {
                         for row in table.entries.iter() {
 
                             // For now we assume any dependency is a string.
@@ -336,7 +335,7 @@ pub fn get_dependency_data(
                 while let Some(packed_file) = iter.iter().find(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", dependency_data.0)])) {
                     if let Ok(packed_file_data) = packed_file.get_data() {
                         if let Ok(table) = DB::read(&packed_file_data, &format!("{}_tables", dependency_data.0), &schema) {
-                            if let Some(column_index) = table.table_definition.fields.iter().position(|x| x.name == dependency_data.1) {
+                            if let Some(column_index) = table.definition.fields.iter().position(|x| x.name == dependency_data.1) {
                                 for row in table.entries.iter() {
 
                                     // For now we assume any dependency is a string.
@@ -388,7 +387,7 @@ pub fn check_tables(
             for packed_file in pack_file.get_ref_packed_files_by_path_start(&["db".to_owned()]) {
                 if packed_file.get_path().starts_with(&["db".to_owned()]) {
                     if let Ok(db_data) = db::DB::read(&(packed_file.get_data().unwrap()), &packed_file.get_path()[1], &schema) {
-                        let dep_data = get_dependency_data(&db_data.table_definition, &schema, &mut dep_db, &fake_dep_db, &pack_file);
+                        let dep_data = get_dependency_data(&db_data.definition, &schema, &mut dep_db, &fake_dep_db, &pack_file);
 
                         // If we got some dependency data (the referenced tables actually exists), check every
                         // referenced field of every referenced column for errors.
@@ -581,7 +580,7 @@ pub fn import_tsv_to_binary_file(
         file.save()
     }
     else {
-        let mut file = DB::new(&table_type, table_version, &definition);
+        let mut file = DB::new(&table_type, &definition);
         file.entries = entries;
         file.save()   
     };
@@ -650,7 +649,7 @@ pub fn export_tsv_from_binary_file(
     let (table_type, version, entries) = if let Ok(data) = Loc::read(&data) { ("Loc PackedFile", 1, data.entries) }
     else {
         let table_type = source_path.parent().unwrap().file_name().unwrap().to_str().unwrap();
-        if let Ok(data) = DB::read(&data, table_type, schema) { (table_type, data.version, data.entries) }
+        if let Ok(data) = DB::read(&data, table_type, schema) { (table_type, data.definition.version, data.entries) }
         else { return Err(ErrorKind::ImportTSVWrongTypeTable)? }
     };
 
@@ -746,7 +745,7 @@ pub fn tsv_mass_import(
         
                             // DB Tables.
                             _ => {
-                                let mut db = DB::new(table_type, table_version, &table_definition);
+                                let mut db = DB::new(table_type, &table_definition);
                                 db.entries = data;
                                 let raw_data = db.save();
 
@@ -840,8 +839,8 @@ pub fn tsv_mass_export(
                                 }
 
                                 export_path.push(name.to_owned());
-                                let headers = db.table_definition.fields.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>();
-                                match export_tsv(&db.entries, &export_path, &headers, (&packed_file.get_path()[1], db.version)) {
+                                let headers = db.definition.fields.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>();
+                                match export_tsv(&db.entries, &export_path, &headers, (&packed_file.get_path()[1], db.definition.version)) {
                                     Ok(_) => exported_files.push(name.to_owned()),
                                     Err(error) => error_list.push((packed_file.get_path().to_vec().join("\\"), error)),
                                 }

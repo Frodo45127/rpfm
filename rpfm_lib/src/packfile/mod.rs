@@ -28,8 +28,7 @@ use std::sync::{Arc, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
 
-use crate::common::*;
-use crate::common::coding_helpers::*;
+use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
@@ -621,15 +620,15 @@ impl PackFile {
 
         // Start populating our decoded PackFile struct.
         pack_file_decoded.file_path = file_path;
-        pack_file_decoded.pfh_version = PFHVersion::get_version(&decode_string_u8(&buffer[..4])?)?; 
-        pack_file_decoded.pfh_file_type = PFHFileType::get_type(decode_integer_u32(&buffer[4..8])? & 15);
-        pack_file_decoded.bitmask = PFHFlags::from_bits_truncate(decode_integer_u32(&buffer[4..8])? & !15);
+        pack_file_decoded.pfh_version = PFHVersion::get_version(&buffer.decode_string_u8(0, 4)?)?; 
+        pack_file_decoded.pfh_file_type = PFHFileType::get_type(buffer.decode_integer_u32(4)? & 15);
+        pack_file_decoded.bitmask = PFHFlags::from_bits_truncate(buffer.decode_integer_u32(4)? & !15);
 
         // Read the data about the indexes to use it later.
-        let pack_file_count = decode_integer_u32(&buffer[8..12])?;
-        let pack_file_index_size = decode_integer_u32(&buffer[12..16])?;
-        let packed_file_count = decode_integer_u32(&buffer[16..20])?;
-        let packed_file_index_size = decode_integer_u32(&buffer[20..24])?;
+        let pack_file_count = buffer.decode_integer_u32(8)?;
+        let pack_file_index_size = buffer.decode_integer_u32(12)?;
+        let packed_file_count = buffer.decode_integer_u32(16)?;
+        let packed_file_index_size = buffer.decode_integer_u32(20)?;
 
         // Depending on the data we got, prepare to read the header and ensure we have all the bytes we need.
         match pack_file_decoded.pfh_version {
@@ -653,8 +652,8 @@ impl PackFile {
         // The creation time is a bit of an asshole. Depending on the PackFile Version/Id/Preamble, it uses a type, another or it doesn't exists.
         // Keep in mind that we store his raw value. If you want his legible value, you have to convert it yourself. PFH0 doesn't have it.
         pack_file_decoded.timestamp = match pack_file_decoded.pfh_version {
-            PFHVersion::PFH5 | PFHVersion::PFH4 => decode_integer_u32(&buffer[24..28])? as i64,
-            PFHVersion::PFH3 => (decode_integer_i64(&buffer[24..32])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+            PFHVersion::PFH5 | PFHVersion::PFH4 => buffer.decode_integer_u32(24)? as i64,
+            PFHVersion::PFH3 => (buffer.decode_integer_i64(24)? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
             PFHVersion::PFH0 => 0
         };
 
@@ -683,7 +682,7 @@ impl PackFile {
         // so we just read them char by char until hitting 0, then decode the next one and so on.
         // NOTE: This doesn't deal with encryption, as we haven't seen any encrypted PackFile with data in this index.
         for _ in 0..pack_file_count {
-            let pack_file_name = decode_string_u8_0terminated(&pack_file_index[pack_file_index_position..], &mut pack_file_index_position)?;
+            let pack_file_name = pack_file_index.decode_packedfile_string_u8_0terminated(pack_file_index_position, &mut pack_file_index_position)?;
             pack_file_decoded.pack_files.push(pack_file_name);
         }
 
@@ -717,10 +716,10 @@ impl PackFile {
 
             // Get his size. If it's encrypted, decrypt it first.
             let size = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
-                let encrypted_size = decode_integer_u32(&packed_file_index[index_position..(index_position + 4)])?;
+                let encrypted_size = packed_file_index.decode_integer_u32(index_position)?;
                 decrypt_index_item_file_length(encrypted_size, packed_files_to_decode as u32)
             } else {
-                decode_integer_u32(&packed_file_index[index_position..index_position + 4])?
+                packed_file_index.decode_integer_u32(index_position)?
             };
 
             // If we have the last modified date of the PackedFiles in the Index, get it. Otherwise, default to 0,
@@ -728,14 +727,14 @@ impl PackFile {
             let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                 match pack_file_decoded.pfh_version {
                     PFHVersion::PFH5 | PFHVersion::PFH4 => {
-                        let timestamp = decode_integer_u32(&packed_file_index[(index_position + 4)..(index_position + 8)])? as i64;
+                        let timestamp = packed_file_index.decode_integer_u32(index_position + 4)? as i64;
                         if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
                             decrypt_index_item_file_length(timestamp as u32, packed_files_to_decode as u32) as i64
                         } else { timestamp }
                     }
 
                     // We haven't found a single encrypted PFH3/PFH0 PackFile to test, so always assume these are unencrypted. Also, PFH0 doesn't seem to have a timestamp.
-                    PFHVersion::PFH3 => (decode_integer_i64(&packed_file_index[(index_position + 4)..(index_position + 12)])? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
+                    PFHVersion::PFH3 => (packed_file_index.decode_integer_i64(index_position + 4)? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
                     PFHVersion::PFH0 => 0,
                 }
             } else { 0 };
@@ -743,7 +742,7 @@ impl PackFile {
             // Update his offset, and get his compression data if it has it.
             index_position += packed_file_index_path_offset;
             let is_compressed = if let PFHVersion::PFH5 = pack_file_decoded.pfh_version {
-                if let Ok(true) = decode_bool(packed_file_index[(index_position - 1)]) { true } 
+                if let Ok(true) = packed_file_index.decode_bool(index_position - 1) { true } 
                 else { false }
             } else { false };
             
@@ -751,7 +750,7 @@ impl PackFile {
             let path = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
                 decrypt_index_item_filename(&packed_file_index[index_position..], size as u8, &mut index_position)
             }
-            else { decode_string_u8_0terminated(&packed_file_index[index_position..], &mut index_position)? };
+            else { packed_file_index.decode_packedfile_string_u8_0terminated(index_position, &mut index_position)? };
             let path = path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
 
             // Once we are done, we create the and add it to the PackedFile list.
@@ -773,7 +772,7 @@ impl PackFile {
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
             if packed_file.get_path() == &["frodos_biggest_secret.rpfm-notes"] {
                 if let Ok(data) = packed_file.get_data() {
-                    if let Ok(data) = decode_string_u8(&data) {
+                    if let Ok(data) = data.decode_string_u8(0, data.len()) {
                         pack_file_decoded.notes = Some(data);
                     }
                 }
@@ -811,8 +810,10 @@ impl PackFile {
     pub fn save(&mut self) -> Result<()> {
 
         // Before everything else, add the file for the notes if we have them. We'll remove it later, after the file has been saved.
-        if let Some(data) = &self.notes {
-            self.packed_files.push(PackedFile::read_from_vec(vec!["frodos_biggest_secret.rpfm-notes".to_owned()], self.get_file_name(), 0, false, encode_string_u8(&data)));
+        if let Some(note) = &self.notes {
+            let mut data = vec![];
+            data.encode_string_u8(&note);
+            self.packed_files.push(PackedFile::read_from_vec(vec!["frodos_biggest_secret.rpfm-notes".to_owned()], self.get_file_name(), 0, false, data));
         }
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
@@ -856,20 +857,20 @@ impl PackFile {
         }
 
         for packed_file in &self.packed_files {
-            packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.get_size()));
+            packed_file_index.encode_integer_u32(packed_file.get_size());
 
             // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
             // In PFH5 case, we don't support saving encrypted PackFiles for Arena. So we'll default to Warhammer 2 format.
             match self.pfh_version {
                 PFHVersion::PFH5 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.get_timestamp() as u32)); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_u32(packed_file.get_timestamp() as u32); }
                     if packed_file.get_should_be_compressed() { packed_file_index.push(1); } else { packed_file_index.push(0); } 
                 }
                 PFHVersion::PFH4 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_u32(packed_file.get_timestamp() as u32)); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_u32(packed_file.get_timestamp() as u32); }
                 }
                 PFHVersion::PFH3 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.extend_from_slice(&encode_integer_i64(packed_file.get_timestamp())); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_i64(packed_file.get_timestamp()); }
                 }
 
                 // This one doesn't have timestamps, so we just skip this step.
@@ -884,22 +885,24 @@ impl PackFile {
         let mut file = BufWriter::new(File::create(&self.file_path)?);
 
         // Write the entire header.
-        file.write_all(&encode_string_u8(&self.pfh_version.get_value()))?;
-        file.write_all(&encode_integer_u32(self.bitmask.bits | self.pfh_file_type.get_value()))?;
-        file.write_all(&encode_integer_u32(self.pack_files.len() as u32))?;
-        file.write_all(&encode_integer_u32(pack_file_index.len() as u32))?;
-        file.write_all(&encode_integer_u32(self.packed_files.len() as u32))?;
-        file.write_all(&encode_integer_u32(packed_file_index.len() as u32))?;
+        let mut header = vec![];
+        header.encode_string_u8(&self.pfh_version.get_value());
+        header.encode_integer_u32(self.bitmask.bits | self.pfh_file_type.get_value());
+        header.encode_integer_u32(self.pack_files.len() as u32);
+        header.encode_integer_u32(pack_file_index.len() as u32);
+        header.encode_integer_u32(self.packed_files.len() as u32);
+        header.encode_integer_u32(packed_file_index.len() as u32);
 
         // Update the creation time, then save it. PFH0 files don't have timestamp in the headers.
         self.timestamp = get_current_time();
         match self.pfh_version {
-            PFHVersion::PFH5 | PFHVersion::PFH4 => file.write_all(&encode_integer_u32(self.timestamp as u32))?,
-            PFHVersion::PFH3 => file.write_all(&encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK))?,
+            PFHVersion::PFH5 | PFHVersion::PFH4 => header.encode_integer_u32(self.timestamp as u32),
+            PFHVersion::PFH3 => header.encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK),
             PFHVersion::PFH0 => {}
         };
 
         // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
+        file.write_all(&header)?;
         file.write_all(&pack_file_index)?;
         file.write_all(&packed_file_index)?;
         for packed_file in &mut self.packed_files { 

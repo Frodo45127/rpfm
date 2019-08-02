@@ -643,7 +643,7 @@ impl Definition {
     /// This function creates a new fake `Definition` from an imported definition from the Assembly Kit.
     ///
     /// For use with the raw table processing.
-    pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> Definition {
+    pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, table_name: &str) -> Definition {
         let mut fields = vec![];
         for field in &imported_table_definition.field {
 
@@ -722,7 +722,7 @@ impl Definition {
         }
 
         Definition {
-            version,
+            version: -1,
             fields,
         }
     }

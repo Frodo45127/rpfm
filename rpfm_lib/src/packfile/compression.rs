@@ -22,7 +22,8 @@ use std::process::Command;
 use std::u64;
 
 use rpfm_error::{Error, ErrorKind, Result};
-use crate::common::coding_helpers::{decode_integer_u32, encode_integer_i32};
+use crate::common::encoder::Encoder;
+use crate::common::decoder::Decoder;
 
 /// This function decompress the data of a PackedFile, returning the decompressed data.
 pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
@@ -83,13 +84,14 @@ pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
     let mut footer_offset = vec![0; 4];
     reader.seek(SeekFrom::Start(12))?;
     reader.read_exact(&mut footer_offset)?;
-    let compressed_data_lenght = decode_integer_u32(&footer_offset)?;
+    let compressed_data_lenght = footer_offset.decode_integer_u32(0)?;
 
     let mut compressed_data = vec![0; compressed_data_lenght as usize];
     reader.seek(SeekFrom::Start(32))?;
     reader.read_exact(&mut compressed_data)?;
 
-    let mut fixed_data = encode_integer_i32(data.len() as i32);
+    let mut fixed_data = vec![];
+    fixed_data.encode_integer_i32(data.len() as i32);
     fixed_data.extend_from_slice(&[0x5D, 0x00, 0x00, 0x40, 0x00]);
     fixed_data.append(&mut compressed_data);
 

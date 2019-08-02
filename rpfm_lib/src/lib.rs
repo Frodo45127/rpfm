@@ -1503,7 +1503,7 @@ pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<PathType>> {
 
                 // For each vanilla DB Table that coincide with our own, compare it row by row, cell by cell, with our own DB Table. Then delete in reverse every coincidence.
                 for game_db in &game_dbs {
-                    if game_db.db_type == optimized_table.db_type && game_db.version == optimized_table.version {
+                    if game_db.name == optimized_table.name && game_db.definition.version == optimized_table.definition.version {
                         let rows_to_delete = optimized_table.entries.iter().enumerate().filter(|(_, entry)| game_db.entries.contains(entry)).map(|(row, _)| row).collect::<Vec<usize>>();
                         for row in rows_to_delete.iter().rev() {
                             optimized_table.entries.remove(*row);
@@ -1517,7 +1517,7 @@ pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<PathType>> {
             }
 
             // Otherwise, we just check if it's empty. In that case, we delete it.
-            else if let Ok((_, entry_count, _)) = DB::get_header_data(&(packed_file.get_data()?)) {
+            else if let Ok((_, _, entry_count, _)) = DB::get_header(&(packed_file.get_data()?)) {
                 if entry_count == 0 { files_to_delete.push(packed_file.get_path().to_vec()); }
             }
         }
