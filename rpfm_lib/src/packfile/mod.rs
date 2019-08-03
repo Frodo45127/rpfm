@@ -38,6 +38,9 @@ mod compression;
 mod crypto;
 pub mod packedfile;
 
+#[cfg(test)]
+mod packfile_test;
+
 /// These consts are used for dealing with Time-related operations.
 const WINDOWS_TICK: i64 = 10_000_000;
 const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
@@ -84,7 +87,7 @@ bitflags! {
 //---------------------------------------------------------------------------//
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PackFile {
     
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.

@@ -30,7 +30,7 @@ use crate::packfile::compression::decompress_data;
 //---------------------------------------------------------------------------//
 
 /// This struct represents a PackedFile in memory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PackedFile {
 
     /// The path of the `PackedFile` inside the `PackFile`.
@@ -260,5 +260,18 @@ impl PackedFile {
         if path.len() == 0 { return Err(ErrorKind::EmptyInput)? }
         self.path = path.to_vec();
         Ok(())
+    }
+}
+
+/// Implementation of `PartialEq` for `PackedFileData`.
+impl PartialEq for PackedFileData {
+    fn eq(&self, other: &PackedFileData) -> bool {
+        match (self, other) {
+            (
+                &PackedFileData::OnMemory(ref data, is_compressed, is_encrypted), 
+                &PackedFileData::OnMemory(ref data_2, is_compressed_2, is_encrypted_2)) => 
+                if data == data_2 && is_compressed == is_compressed_2 && is_encrypted == is_encrypted_2 { true } else { false },
+            _ => false,
+        }
     }
 }
