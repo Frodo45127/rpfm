@@ -154,7 +154,10 @@ fn main() {
     }
 
     // Build the Config struct to remember the current configuration when processing stuff.
-    let config = Config::new(game_selected, settings, verbosity_level).unwrap();
+    let config = match Config::new(game_selected, settings, verbosity_level) {
+        Ok(config) => config,
+        Err(error) => { println!("{} {}","Error:".red().bold(), error.to_terminal()); exit(1) }
+    };
 
     // Code for PackFile commands.
     let result = match matches.subcommand() {

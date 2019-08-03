@@ -22,8 +22,6 @@ use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 
-pub mod logger;
-
 /// Qualifier for the config folder. Only affects MacOS.
 const QUALIFIER: &str = "";
 
@@ -31,7 +29,7 @@ const QUALIFIER: &str = "";
 const ORGANISATION: &str = "";
 
 /// Name of the config folder.
-const PROGRAM_NAME: &str = "Rusted PackFile Manager";
+const PROGRAM_NAME: &str = "rpfm";
 
 /// Function to initialize the config folder, so RPFM can use it to store his stuff.
 ///
@@ -41,9 +39,13 @@ pub fn init_config_path() -> Result<()> {
 	match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
 		Some(proj_dirs) => {
 			let config_path = proj_dirs.config_dir();
+			let error_path = config_path.to_path_buf().join("error");
+			let schemas_path = config_path.to_path_buf().join("schemas");
+
 	        DirBuilder::new().recursive(true).create(&config_path)?;
-	        if config_path.is_dir() { Ok(()) }
-            else { Err(ErrorKind::IOFolderCannotBeOpened)? }
+	        DirBuilder::new().recursive(true).create(&error_path)?;
+	        DirBuilder::new().recursive(true).create(&schemas_path)?;
+	        Ok(())
 		},
 		None => Err(ErrorKind::IOFolderCannotBeOpened)?
 	}

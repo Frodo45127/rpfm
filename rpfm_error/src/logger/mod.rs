@@ -21,6 +21,8 @@ use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
 
+pub mod ctd;
+
 /// This struct is what takes care of logging everything in this crate.
 ///
 /// The way it works is, you initialize it, then just use his functions to log message.
@@ -74,7 +76,6 @@ impl Logger {
 		self.logg(LogLevel::Stop);
 	}
 }
-
 
 /// This function initializes the logging thread.
 fn logger(receiver: Receiver<LogLevel>) {

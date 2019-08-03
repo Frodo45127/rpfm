@@ -21,9 +21,9 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_error::logger::Logger;
 
 use crate::common::*;
-use crate::config::logger::Logger;
 use crate::schema::Schema;
 use crate::packedfile::DecodedData;
 use crate::packedfile::db::DB;

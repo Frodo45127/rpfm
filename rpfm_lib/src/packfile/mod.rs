@@ -335,7 +335,7 @@ impl PackFile {
     }
 
     /// This function retuns the list of PackedFiles inside a `PackFile`.
-    pub fn list_packed_files(&self) -> Vec<Vec<String>> {
+    pub fn get_packedfiles_list(&self) -> Vec<Vec<String>> {
         self.packed_files.iter().map(|x| x.get_path().to_vec()).collect()
     }
 

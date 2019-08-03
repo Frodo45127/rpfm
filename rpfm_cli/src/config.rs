@@ -8,7 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-use rpfm_error::Result;
+use rpfm_error::{Error, ErrorKind, Result};
 use rpfm_lib::settings::Settings;
 use rpfm_lib::schema::Schema;
 use rpfm_lib::SUPPORTED_GAMES;
@@ -28,7 +28,7 @@ impl Config {
 	/// This function creates a new Config struct configured for the provided game.
 	pub fn new(game_selected: String, settings: Settings, verbosity_level: u64) -> Result<Self> {
 		Ok(Self {
-			schema: Schema::load(&SUPPORTED_GAMES[&*game_selected].schema)?,
+			schema: Schema::load(&SUPPORTED_GAMES[&*game_selected].schema).map_err(|_|Error::from(ErrorKind::SchemaNotFoundAndNotDownloaded))?,
 			game_selected,
 			settings,
 			verbosity_level,

@@ -15,7 +15,6 @@ This module is a custom CTD logging module, heavely inspired in the `human-panic
 But otherwise, feel free to check it out if you need an easy-to-use simple error logger.
 !*/
 
-use directories::ProjectDirs;
 use failure::Backtrace;
 use serde_derive::Serialize;
 use uuid::Uuid;
@@ -23,8 +22,9 @@ use uuid::Uuid;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::panic::PanicInfo;
+use std::path::Path;
 
-use crate::{ErrorKind, Result};
+use crate::{Result};
 
 /// This struct contains all the info to write into a `bug report` file.
 #[derive(Debug, Serialize)]
@@ -80,19 +80,14 @@ impl Report {
 		}
 	}
 
-	/// This function tries to save the `Report` to the disk.
+	/// This function tries to save the `Report` to the provided folder.
 	///
 	/// TODO: Make this use a more common folder.
-	pub fn save(&self) -> Result<()> {
-		match ProjectDirs::from("", "",  "Rusted PackFile Manager") {
-			Some(proj_dirs) => {
-				let uuid = Uuid::new_v4().to_hyphenated().to_string();
-	    		let file_path = proj_dirs.config_dir().join(format!("error/error-report-{}.toml", &uuid));
-				let mut file = BufWriter::new(File::create(&file_path)?);
-				file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
-				Ok(())
-			}
-			None => Err(ErrorKind::IOFolderCannotBeOpened)?,
-		}
+	pub fn save(&self, path: &Path) -> Result<()> {
+		let uuid = Uuid::new_v4().to_hyphenated().to_string();
+		let file_path = path.to_path_buf().join(format!("error/error-report-{}.toml", &uuid));
+		let mut file = BufWriter::new(File::create(&file_path)?);
+		file.write_all(toml::to_string_pretty(&self)?.as_bytes())?;
+		Ok(())
 	}
 }

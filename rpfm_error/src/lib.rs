@@ -223,6 +223,9 @@ pub enum ErrorKind {
     /// Error for when we find missing references when checking a DB Table. Contains a list with the tables with missing references.
     DBMissingReferences(Vec<String>),
 
+    /// Error for when we don't have schema files and we couldn't download them.
+    SchemaNotFoundAndNotDownloaded,
+
     /// Error for when we don't have an `Schema` to use.
     SchemaNotFound,
 
@@ -538,6 +541,7 @@ impl Display for ErrorKind {
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
             ErrorKind::DBTableEmptyWithNoDefinition => write!(f, "<p>This DB Table is empty and there is not a Definition for it. That means is undecodeable.</p>"),
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
+            ErrorKind::SchemaNotFoundAndNotDownloaded => write!(f, "<p>There is no Schema file to load on the disk, and the tries to download one have failed.</p>"),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
             ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),
             ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),

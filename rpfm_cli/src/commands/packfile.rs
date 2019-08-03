@@ -79,11 +79,10 @@ pub fn list_packfile_contents(config: &Config, packfile: &str) -> Result<()> {
     
 	let mut table = Table::new();
     table.add_row(row!["PackedFile Path", "Type", "Size"]);
-
-    for file in &packfile.packed_files {
-    	let packedfile_type = get_packed_file_type(&file.path);
+    for file in packfile.get_ref_all_packed_files() {
+    	let packedfile_type = get_packed_file_type(&file.get_path());
     	let size = ByteSize::kib((file.get_size() / 1024).into());
-    	table.add_row(row![file.path.join("/"), packedfile_type, size]);
+    	table.add_row(row![file.get_path().join("/"), packedfile_type, size]);
     }
 
 	table.printstd();
