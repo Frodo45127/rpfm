@@ -6,6 +6,10 @@ authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
 edition = "2018"
 
+[lib]
+# Disable doctest, as we have none of them but still `cargo test` tries to execute `RON` code as doctests, and fails.
+doctest = false
+
 [dependencies]
 # Internal dependencies.
 rpfm_error = { path = "../rpfm_error" }
@@ -45,6 +49,7 @@ xz2 = "^0.1"
 
 # Logging support.
 log = "^0.4"
+
 [profile.release]
 lto = true
 debug = true
