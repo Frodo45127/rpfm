@@ -16,9 +16,13 @@ Many things depend on being able to read and write files in that folder, so alwa
 !*/
 
 use directories::ProjectDirs;
-use rpfm_error::{ErrorKind, Result};
-use std::path::PathBuf;
+
 use std::fs::DirBuilder;
+use std::path::PathBuf;
+
+use rpfm_error::{ErrorKind, Result};
+
+pub mod logger;
 
 /// Qualifier for the config folder. Only affects MacOS.
 const QUALIFIER: &str = "";

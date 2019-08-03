@@ -21,6 +21,7 @@ so you don't have to worry about that.
 
 use bitflags::bitflags;
 
+use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
@@ -928,6 +929,32 @@ impl From<PackFile> for PackFileInfo {
             bitmask: packfile.bitmask,
             timestamp: packfile.timestamp,
             compression_state: packfile.get_compression_state(),
+        }
+    }
+}
+
+/// Display implementation of `PFHVersion`.
+impl Display for PFHVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PFHVersion::PFH5 => write!(f, "PFH5"),
+            PFHVersion::PFH4 => write!(f, "PFH4"),
+            PFHVersion::PFH3 => write!(f, "PFH3"),
+            PFHVersion::PFH0 => write!(f, "PFH0"),
+        }
+    }
+}
+
+/// Display implementation of `PFHFileType`.
+impl Display for PFHFileType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PFHFileType::Boot => write!(f, "Boot"),
+            PFHFileType::Release => write!(f, "Release"),
+            PFHFileType::Patch => write!(f, "Patch"),
+            PFHFileType::Mod => write!(f, "Mod"),
+            PFHFileType::Movie => write!(f, "Movie"),
+            PFHFileType::Other(version) => write!(f, "Other: {}", version),
         }
     }
 }

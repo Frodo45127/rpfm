@@ -130,7 +130,7 @@ pub trait Decoder {
 impl Decoder for [u8] {
     
     fn get_byte_checked(&self, byte: usize) -> Result<&u8> {
-        self.get(byte).ok_or(Error::from(ErrorKind::NotEnoughBytesToDecode))
+        self.get(byte).ok_or_else(||Error::from(ErrorKind::NotEnoughBytesToDecode))
     }
 
     fn get_bytes_checked(&self, offset: usize, size: usize) -> Result<&[u8]> {
@@ -213,7 +213,7 @@ impl Decoder for [u8] {
             let size = self[offset..].iter().position(|x| *x == 0).map_or(self.len(), |x| x);
             let string_decoded = String::from_utf8(self[offset..offset + size].to_vec()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String.</p>".to_owned())))?;
             Ok((string_decoded, size))
-        } else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 0-Terminated String:</p><p>Not enough bytes to decode.</p>")))? }
+        } else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String:</p><p>Not enough bytes to decode.</p>".to_owned()))? }
     }
 
     fn decode_string_u16(&self, offset: usize, size: usize) -> Result<String> {
@@ -310,7 +310,7 @@ impl Decoder for [u8] {
                 result
             } else { Ok(String::new()) }
         }
-        else{ Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 Optional String:</p><p>The first byte is not a boolean.</p>")))? }
+        else{ Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 Optional String:</p><p>The first byte is not a boolean.</p>".to_owned()))? }
     }
 
     fn decode_packedfile_optional_string_u16(&self, offset: usize, mut index: &mut usize) -> Result<String> {
@@ -321,6 +321,6 @@ impl Decoder for [u8] {
                 result
             } else { Ok(String::new()) }
         }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 Optional String:</p><p>The first byte is not a boolean.</p>")))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 Optional String:</p><p>The first byte is not a boolean.</p>".to_owned()))? }
     }
 }

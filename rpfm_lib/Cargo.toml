@@ -43,6 +43,8 @@ ron = "^0.5"
 # Compression support.
 xz2 = "^0.1"
 
+# Logging support.
+log = "^0.4"
 [profile.release]
 lto = true
 debug = true

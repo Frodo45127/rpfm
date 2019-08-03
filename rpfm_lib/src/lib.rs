@@ -23,6 +23,7 @@ use std::sync::Mutex;
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::common::*;
+use crate::config::logger::Logger;
 use crate::schema::Schema;
 use crate::packedfile::DecodedData;
 use crate::packedfile::db::DB;
@@ -389,6 +390,9 @@ lazy_static! {
 
     /// Currently loaded schema.
     pub static ref SCHEMA: Arc<Mutex<Option<Schema>>> = Arc::new(Mutex::new(None));
+
+    /// Logger.
+    pub static ref LOGGER: Logger = Logger::init_logger();
 
     /// Docs & Patreon URLs.
     pub static ref DOCS_BASE_URL: &'static str = "https://frodo45127.github.io/rpfm/";
