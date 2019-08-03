@@ -232,8 +232,8 @@ impl PackedFile {
     }
 
     /// This function sets if the `PackedFile` should be encrypted or not.
-    pub fn set_should_be_encrypted(&mut self, state: &Option<PFHVersion>) {
-        self.should_be_encrypted = state.clone();
+    pub fn set_should_be_encrypted(&mut self, state: Option<PFHVersion>) {
+        self.should_be_encrypted = state;
     }
 
     /// This function returns the timestamp of the provided `PackedFile`.
@@ -257,7 +257,7 @@ impl PackedFile {
     ///
     /// ***WARNING***: DON'T USE THIS IF YOUR PACKEDFILE IS INSIDE A PACKFILE. USE THE `move_packedfile` FUNCTION INSTEAD.
     pub fn set_path(&mut self, path: &[String]) -> Result<()> {
-        if path.len() == 0 { return Err(ErrorKind::EmptyInput)? }
+        if path.is_empty() { return Err(ErrorKind::EmptyInput)? }
         self.path = path.to_vec();
         Ok(())
     }
@@ -270,7 +270,9 @@ impl PartialEq for PackedFileData {
             (
                 &PackedFileData::OnMemory(ref data, is_compressed, is_encrypted), 
                 &PackedFileData::OnMemory(ref data_2, is_compressed_2, is_encrypted_2)) => 
-                if data == data_2 && is_compressed == is_compressed_2 && is_encrypted == is_encrypted_2 { true } else { false },
+                    data == data_2 && 
+                    is_compressed == is_compressed_2 &&
+                    is_encrypted == is_encrypted_2,
             _ => false,
         }
     }

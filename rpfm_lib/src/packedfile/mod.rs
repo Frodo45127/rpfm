@@ -662,7 +662,7 @@ pub fn export_tsv_from_binary_file(
 
     // Then we serialize each entry in the DB Table.
     for entry in entries { writer.serialize(&entry)?; }
-    writer.flush().map_err(|x| From::from(x))
+    writer.flush().map_err(From::from)
 }
 
 //----------------------------------------------------------------//

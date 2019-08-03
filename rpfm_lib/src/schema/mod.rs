@@ -70,10 +70,10 @@ use crate::updater::Versions;
 pub mod assembly_kit;
 
 /// Name of the schema versions file.
-const SCHEMA_VERSIONS_FILE: &'static str = "versions.json";
+const SCHEMA_VERSIONS_FILE: &str = "versions.json";
 
 /// URL used to download new schema files.
-pub const SCHEMA_UPDATE_URL_MASTER: &'static str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
+pub const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -176,7 +176,7 @@ impl Schema {
     /// already exists, and replace it if neccesary.
     pub fn add_versioned_file(&mut self, versioned_file: &VersionedFile) {
         match self.0.iter().position(|x| x.conflict(versioned_file)) {
-            Some(position) => { self.0.splice(position..position + 1, [versioned_file.clone()].iter().cloned()); },
+            Some(position) => { self.0.splice(position..=position, [versioned_file.clone()].iter().cloned()); },
             None => self.0.push(versioned_file.clone()),
         }
     }
@@ -184,47 +184,43 @@ impl Schema {
     /// This function returns a reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
     pub fn get_versioned_file_db(&self, table_name: &str) -> Result<&VersionedFile> {
         self.0.iter().filter(|x| x.is_db())
-            .find(|x| if let VersionedFile::DB(name,_) = x { 
-                if name == table_name { true } else { false }
-            } else { false }
-        ).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+            .find(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
+        ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
     pub fn get_mut_versioned_file_db(&mut self, table_name: &str) -> Result<&mut VersionedFile> {
         self.0.iter_mut().filter(|x| x.is_db())
-            .find(|x| if let VersionedFile::DB(name,_) = x { 
-                if name == table_name { true } else { false }
-            } else { false }
-        ).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+            .find(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
+        ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_versioned_file_dep_manager(&self) -> Result<&VersionedFile> {
-        self.0.iter().find(|x| x.is_dep_manager()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.0.iter().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a mutable reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_mut_versioned_file_dep_manager(&mut self) -> Result<&mut VersionedFile> {
-        self.0.iter_mut().find(|x| x.is_dep_manager()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.0.iter_mut().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_versioned_file_loc(&self) -> Result<&VersionedFile> {
-        self.0.iter().find(|x| x.is_loc()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.0.iter().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a mutable reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_mut_versioned_file_loc(&mut self) -> Result<&mut VersionedFile> {
-        self.0.iter_mut().find(|x| x.is_loc()).ok_or(From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.0.iter_mut().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
@@ -233,7 +229,7 @@ impl Schema {
         file_path.push(schema_file);
 
         let file = BufReader::new(File::open(&file_path)?);
-        from_reader(file).map_err(|x| From::from(x))
+        from_reader(file).map_err(From::from)
     }
 
     /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
@@ -364,7 +360,7 @@ impl Schema {
                 if index == 0 {
                     diff.push_str("- **Updated Tables**:\n");
                 }
-                diff.push_str(&format!("{}", version));
+                diff.push_str(version);
                 diff.push_str("\n");
 
                 if index == new_versions.len() - 1 {
@@ -376,7 +372,7 @@ impl Schema {
                 if index == 0 {
                     diff.push_str("- **Fixed Tables**:\n");
                 }
-                diff.push_str(&format!("{}", correction));
+                diff.push_str(correction);
                 diff.push_str("\n");
 
                 if index == new_corrections.len() - 1 {
@@ -462,21 +458,21 @@ impl VersionedFile {
     pub fn conflict(&self, secondary: &VersionedFile) -> bool {
         match &self {
             VersionedFile::DB(table_name, _) => match &secondary {
-                VersionedFile::DB(secondary_table_name, _) => if table_name == secondary_table_name { true } else { false },
+                VersionedFile::DB(secondary_table_name, _) => table_name == secondary_table_name,
                 VersionedFile::DepManager( _) => false,
                 VersionedFile::Loc( _) => false,
             },
-            VersionedFile::Loc(_) => if secondary.is_loc() { true } else { false },
-            VersionedFile::DepManager( _) => if secondary.is_dep_manager() { true } else { false },
+            VersionedFile::Loc(_) => secondary.is_loc(),
+            VersionedFile::DepManager( _) => secondary.is_dep_manager(),
         }
     }
 
     /// This function returns a reference to a specific version of a definition, if it finds it.
     pub fn get_version(&self, version: i32) -> Result<&Definition> {
         match &self {
-            VersionedFile::DB(_, versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::DepManager(versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::Loc(versions) => versions.iter().find(|x| x.version == version).ok_or(From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::DB(_, versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::DepManager(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::Loc(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
         }
     }
 
@@ -493,15 +489,15 @@ impl VersionedFile {
     pub fn add_version(&mut self, version: &Definition) {
         match self {
             VersionedFile::DB(_, ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..position + 1, [version].iter().cloned().cloned()); },
+                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
                 None => versions.push(version.clone()),
             }
             VersionedFile::DepManager(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..position + 1, [version].iter().cloned().cloned()); },
+                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
                 None => versions.push(version.clone()),
             }
             VersionedFile::Loc(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..position + 1, [version].iter().cloned().cloned()); },
+                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
                 None => versions.push(version.clone()),
             }
         }

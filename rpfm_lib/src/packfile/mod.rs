@@ -425,16 +425,14 @@ impl PackFile {
         if let PFHFileType::Other(_) = self.pfh_file_type { false }
 
         // If ANY of these bitmask is detected in the PackFile, disable all saving.
-        else if self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) || self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || self.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { false }
-
-        // These types are always editable.
-        else if self.pfh_file_type == PFHFileType::Mod || self.pfh_file_type == PFHFileType::Movie { true }
-
-        // If the "Allow Editing of CA PackFiles" is enabled, these types are also enabled.
-        else if is_editing_of_ca_packfiles_allowed && self.pfh_file_type.get_value() <= 2 { true }
-
-        // Otherwise, always return false.
-        else { false }
+        else if self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) || 
+            self.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) || 
+            self.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { false }
+        else {
+            self.pfh_file_type == PFHFileType::Mod || 
+            self.pfh_file_type == PFHFileType::Movie ||
+            (is_editing_of_ca_packfiles_allowed && self.pfh_file_type.get_value() <= 2)
+        }
     }
 
     /// This function returns a reference to the `PackedFile` with the provided path, if exists.
@@ -577,7 +575,7 @@ impl PackFile {
     ///
     /// This can fail if you pass it an empty path, so make sure you check the result.
     pub fn move_packedfile(&mut self, source_path: &[String], destination_path: &[String]) -> Result<()> {
-        if destination_path.len() == 0 { return Err(ErrorKind::EmptyInput)? }
+        if destination_path.is_empty() { return Err(ErrorKind::EmptyInput)? }
         
         // If there is already a `PackedFile` with that name, and the source exists (it wont fail later for not finding it), we remove it.
         let source_exists = self.packedfile_exists(source_path);
@@ -594,12 +592,12 @@ impl PackFile {
 
     /// This function checks if a `PackedFile` with a certain path exists in a `PackFile`.
     pub fn packedfile_exists(&self, path: &[String]) -> bool {
-        self.packed_files.iter().find(|x| x.get_path() == path).is_some()
+        self.packed_files.iter().any(|x| x.get_path() == path)
     }
 
     /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
     pub fn folder_exists(&self, path: &[String]) -> bool {
-        self.packed_files.iter().find(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).is_some()
+        self.packed_files.iter().any(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len())
     }
 
     /// This function reads the content of a PackFile into a `PackFile` struct.
@@ -656,14 +654,14 @@ impl PackFile {
         // The creation time is a bit of an asshole. Depending on the PackFile Version/Id/Preamble, it uses a type, another or it doesn't exists.
         // Keep in mind that we store his raw value. If you want his legible value, you have to convert it yourself. PFH0 doesn't have it.
         pack_file_decoded.timestamp = match pack_file_decoded.pfh_version {
-            PFHVersion::PFH5 | PFHVersion::PFH4 => buffer.decode_integer_u32(24)? as i64,
+            PFHVersion::PFH5 | PFHVersion::PFH4 => i64::from(buffer.decode_integer_u32(24)?),
             PFHVersion::PFH3 => (buffer.decode_integer_i64(24)? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
             PFHVersion::PFH0 => 0
         };
 
         // Ensure the PackFile has all the data needed for the index. If the PackFile's data is encrypted 
         // and the PackFile is PFH5, due to how the encryption works, the data should start in a multiple of 8.
-        let mut data_position = (buffer.len() as u32 + pack_file_index_size + packed_file_index_size) as u64;
+        let mut data_position = u64::from(buffer.len() as u32 + pack_file_index_size + packed_file_index_size);
         if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) && 
             pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && 
             pack_file_decoded.pfh_version == PFHVersion::PFH5 {
@@ -731,9 +729,9 @@ impl PackFile {
             let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                 match pack_file_decoded.pfh_version {
                     PFHVersion::PFH5 | PFHVersion::PFH4 => {
-                        let timestamp = packed_file_index.decode_integer_u32(index_position + 4)? as i64;
+                        let timestamp = i64::from(packed_file_index.decode_integer_u32(index_position + 4)?);
                         if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
-                            decrypt_index_item_file_length(timestamp as u32, packed_files_to_decode as u32) as i64
+                            i64::from(decrypt_index_item_file_length(timestamp as u32, packed_files_to_decode as u32))
                         } else { timestamp }
                     }
 
@@ -774,7 +772,7 @@ impl PackFile {
             );
 
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
-            if packed_file.get_path() == &["frodos_biggest_secret.rpfm-notes"] {
+            if packed_file.get_path() == ["frodos_biggest_secret.rpfm-notes"] {
                 if let Ok(data) = packed_file.get_data() {
                     if let Ok(data) = data.decode_string_u8(0, data.len()) {
                         pack_file_decoded.notes = Some(data);
@@ -791,9 +789,9 @@ impl PackFile {
                 pack_file_decoded.pfh_version == PFHVersion::PFH5 {
                 let padding = 8 - (size % 8);
                 let padded_size = if padding < 8 { size + padding } else { size };
-                data_position += padded_size as u64;
+                data_position += u64::from(padded_size);
             }
-            else { data_position += size as u64; }
+            else { data_position += u64::from(size); }
         }
 
         // If at this point we have not reached the end of the PackFile, there is something wrong with it.
@@ -919,6 +917,17 @@ impl PackFile {
 
         // If nothing has failed, return success.
         Ok(())
+    }
+}
+
+/// Implementaion of trait `Default` for `PackFile`.
+impl Default for PackFile {
+
+    /// This function creates a new empty `PackFile`.
+    ///
+    /// In reality, this just calls the `new()` function. It's just here for completeness.
+    fn default() -> Self {
+        Self::new()
     }
 }
 

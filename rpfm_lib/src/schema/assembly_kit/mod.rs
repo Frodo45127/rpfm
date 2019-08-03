@@ -176,7 +176,7 @@ pub fn generate_pak_file(
                     let mut result = Err(Error::from(ErrorKind::IOFileNotFound));
                     for file in &data {
                         if file.file_name().unwrap().to_str().unwrap() == file_name {
-                            result = File::open(&file).map_err(|error| From::from(error));
+                            result = File::open(&file).map_err(From::from);
                             break;
                         }
                     }
@@ -241,7 +241,7 @@ pub fn generate_pak_file(
                                 if field_def.name == field.field_name {
                                     exists = true;
                                     entry.push(match field_def.field_type {
-                                        FieldType::Boolean => DecodedData::Boolean(if field.field_data == "true" || field.field_data == "1" { true } else { false }),
+                                        FieldType::Boolean => DecodedData::Boolean(field.field_data == "true" || field.field_data == "1"),
                                         FieldType::Float => DecodedData::Float(if let Ok(data) = field.field_data.parse::<f32>() { data } else { 0.0 }),
                                         FieldType::Integer => DecodedData::Integer(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
                                         FieldType::LongInteger => DecodedData::LongInteger(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
@@ -324,10 +324,8 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                         if let Some(path) = ass_kit_path { path }
                         else { return Err(ErrorKind::SchemaNotFound)? }
                     }
-                    else {
-                        if let Some(path) = get_game_selected_assembly_kit_path(&**GAME_SELECTED.lock().unwrap()) { path }
-                        else { return Err(ErrorKind::SchemaNotFound)? }
-                    };
+                    else if let Some(path) = get_game_selected_assembly_kit_path(&**GAME_SELECTED.lock().unwrap()) { path }
+                    else { return Err(ErrorKind::SchemaNotFound)? };
                     
                 ass_kit_schemas_path.push("raw_data");
                 ass_kit_schemas_path.push("db");

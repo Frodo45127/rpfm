@@ -63,7 +63,7 @@ pub fn decrypt_packed_file(ciphertext: &[u8]) -> Vec<u8> {
     let mut edi: u32 = 0;
     for _ in 0..ciphertext.len()/8 {
 
-        let mut prod = (DATA_KEY * Wrapping(!edi as u64)).0;
+        let mut prod = (DATA_KEY * Wrapping(u64::from(!edi))).0;
         let esi = edi as usize;
         prod ^= (&ciphertext[esi..esi + 8]).read_u64::<LittleEndian>().unwrap();
         plaintext.write_u64::<LittleEndian>(prod).unwrap();

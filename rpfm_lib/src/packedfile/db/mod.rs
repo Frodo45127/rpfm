@@ -104,9 +104,9 @@ impl DB {
 
         // Try to get the table_definition for this table, if exists.
         let versioned_file = master_schema.get_versioned_file_db(&name);
-        if versioned_file.is_err() { if entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoDefinition)? }}
+        if versioned_file.is_err() && entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoDefinition)? }
         let definition = versioned_file?.get_version(version);
-        if definition.is_err() { if entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoDefinition)? }}
+        if definition.is_err() && entry_count == 0 { Err(ErrorKind::DBTableEmptyWithNoDefinition)? }
         let definition = definition?;
 
         // Then try to decode all the entries. 
@@ -164,7 +164,7 @@ impl DB {
 
         // If there is a GUID_MARKER, skip it together with the GUID itself (4 bytes for the marker, 74 for the GUID).
         // About this GUID, it's something that gets randomly generated every time you export a table with DAVE. Not useful.
-        if &packed_file_data.get_bytes_checked(0, 4)? == &GUID_MARKER { index += 78; }
+        if packed_file_data.get_bytes_checked(0, 4)? == GUID_MARKER { index += 78; }
 
         // If there is a VERSION_MARKER, we get the version (4 bytes for the marker, 4 for the version). Otherwise, we default to 0.
         let version = if packed_file_data.get_bytes_checked(index, 4)? == VERSION_MARKER {
