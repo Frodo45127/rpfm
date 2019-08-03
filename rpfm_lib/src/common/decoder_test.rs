@@ -128,6 +128,32 @@ fn test_decode_string_u8_0padded() {
     assert_eq!(Decoder::decode_string_u8_0padded([87, 97, 104, 97, 104, 97, 104, 97, 104, 97].as_ref(), 0, 10).unwrap().1, 10);
 }
 
+/// Test to make sure the u8 0-terminated string decoder (`decode_string_u8_0terminated()`) 
+/// works and fails properly.
+#[test]
+fn test_decode_string_u8_0terminated() {
+
+    // Check the decoding works for a proper encoded string.
+    {
+        let result = Decoder::decode_string_u8_0terminated([87, 97, 104, 97, 104, 97, 104, 97, 0, 97].as_ref(), 0).unwrap();
+        assert_eq!(result.0, "Wahahaha".to_owned());
+        assert_eq!(result.1, 9);
+    }
+
+    // Check the decoder works for a string that doesn't end in zero, but in end of slice.
+    {
+        let result = Decoder::decode_string_u8_0terminated([87, 97, 104, 97, 104, 97, 104, 97, 104, 97].as_ref(), 0).unwrap();
+        assert_eq!(result.0, "Wahahahaha".to_owned());
+        assert_eq!(result.1, 10);
+    }
+
+    // Check the decoder returns an error for a slice with non-UTF8 characters (255).
+    {
+        let result = Decoder::decode_string_u8_0terminated([87, 97, 104, 97, 255, 104, 97, 104, 97, 104, 97].as_ref(), 0);
+        assert_eq!(result.is_err(), true);
+    }
+}
+
 /// Test to make sure the u16 string decoder (`decode_string_u16()`) works and fails properly.
 #[test]
 fn test_decode_string_u16() {
@@ -329,7 +355,7 @@ fn test_decode_packedfile_string_u8_0terminated() {
     {
         let mut index = 0;
         assert_eq!(Decoder::decode_packedfile_string_u8_0terminated([87, 97, 104, 97, 104, 97, 104, 97, 0, 97].as_ref(), 0, &mut index).unwrap(), "Wahahaha".to_owned());
-        assert_eq!(index, 8);
+        assert_eq!(index, 9);
     }
 
     // Check the decoder works for a string that doesn't end in zero, but in end of slice.
