@@ -15,14 +15,15 @@ This module contains all the code related with logging. Note that logs are gener
 but it's up to you to save them somewhere.
 !*/
 
+use directories::ProjectDirs;
 use log::{info, warn, error};
 
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
 use std::panic;
-use std::path::Path;
 
+use crate::{ErrorKind, Result};
 use crate::VERSION;
 
 pub mod ctd;
@@ -47,19 +48,24 @@ pub enum LogLevel {
 impl Logger {
 
 	/// This function initialize the entire logger as a multithread logger.
-	pub fn init_logger(config_path: &'static Path) -> Self {
+	pub fn init_logger() -> Result<Self> {
 
 		// Register the CTD logger if we're not in a debug build.
 		if !cfg!(debug_assertions) { 
+			let config_path = match ProjectDirs::from("", "", "rpfm") {
+				Some(proj_dirs) => proj_dirs.config_dir().to_path_buf(),
+				None => return Err(ErrorKind::IOFolderCannotBeOpened)?
+			};
+
 			panic::set_hook(Box::new(move |info: &panic::PanicInfo| { 
-				ctd::Report::new(info, VERSION).save(config_path).unwrap(); 
+				ctd::Report::new(info, VERSION).save(&config_path).unwrap(); 
 			})); 
 		}
 
 		// Start the normal logger.
 		let (sender, receiver) = channel();
 	    thread::spawn(move || { logger(receiver); });
-	    Self(Arc::new(Mutex::new(sender)))
+	    Ok(Self(Arc::new(Mutex::new(sender))))
 	}
 	
 	/// This function sends the provided `LogLevel` to the logger thread, so it can be logged.

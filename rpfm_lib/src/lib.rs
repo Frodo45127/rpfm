@@ -391,7 +391,7 @@ lazy_static! {
     pub static ref SCHEMA: Arc<Mutex<Option<Schema>>> = Arc::new(Mutex::new(None));
 
     /// Logger.
-    //pub static ref LOGGER: Logger = Logger::init_logger(&config::get_config_path_static().unwrap());
+    pub static ref LOGGER: Logger = Logger::init_logger().unwrap();
 
     /// Docs & Patreon URLs.
     pub static ref DOCS_BASE_URL: &'static str = "https://frodo45127.github.io/rpfm/";
