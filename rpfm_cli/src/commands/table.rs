@@ -8,6 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use log::info;
 use std::path::PathBuf;
 
 use rpfm_error::Result;
@@ -24,7 +25,7 @@ use crate::config::Config;
 /// If no destination path was provided, it leaves the DB/Loc File in the same place as the tsv file, with the same name.
 pub fn import_tsv(config: &Config, source_path: &str, destination_path: Option<&str>) -> Result<()> {
 	if config.verbosity_level > 0 {
-		println!("Operation: Import TSV File into Binary DB/Loc File.");
+		info!("Operation: Import TSV File into Binary DB/Loc File.");
 	}
 
 	// Get the paths to pass to the import function.
@@ -46,7 +47,7 @@ pub fn import_tsv(config: &Config, source_path: &str, destination_path: Option<&
 /// If no destination path was provided, it leaves the DB/Loc File in the same place as the tsv file, with the same name.
 pub fn export_tsv(config: &Config, source_path: &str, destination_path: Option<&str>) -> Result<()> {
 	if config.verbosity_level > 0 {
-		println!("Operation: Export Binary DB/Loc File into a TSV File.");
+		info!("Operation: Export Binary DB/Loc File into a TSV File.");
 	}
 
 	// Get the paths to pass to the import function.

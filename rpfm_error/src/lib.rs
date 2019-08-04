@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use std::result;
 use std::string;
 
-pub mod logger;
+pub mod ctd;
 
 /// Alias for handling errors more easely.
 pub type Result<T> = result::Result<T, Error>;

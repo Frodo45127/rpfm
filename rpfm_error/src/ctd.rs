@@ -15,6 +15,7 @@ This module is a custom CTD logging module, heavely inspired in the `human-panic
 But otherwise, feel free to check it out if you need an easy-to-use simple error logger.
 !*/
 
+use directories::ProjectDirs;
 use failure::Backtrace;
 use serde_derive::Serialize;
 use uuid::Uuid;
@@ -23,12 +24,13 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::panic::PanicInfo;
 use std::path::Path;
+use std::panic;
 
-use crate::{Result};
+use crate::{ErrorKind, Result, VERSION};
 
-/// This struct contains all the info to write into a `bug report` file.
+/// This struct contains all the info to write into a `CrashReport` file.
 #[derive(Debug, Serialize)]
-pub struct Report {
+pub struct CrashReport {
 
 	/// Name of the Program. To know what of the programs crashed.
     name: String,
@@ -49,12 +51,29 @@ pub struct Report {
     backtrace: String,
 }
 
-/// Implementation of `Report`.
-impl Report {
+/// Implementation of `CrashReport`.
+impl CrashReport {
 
-	/// Create a new `Report` from a `Panic`.
+	/// This function initialize the `CrashReport` to log crashes.
+	pub fn init() -> Result<()> {
+
+		// Register the CTD logger if we're not in a debug build.
+		if !cfg!(debug_assertions) { 
+			let config_path = match ProjectDirs::from("", "", "rpfm") {
+				Some(proj_dirs) => proj_dirs.config_dir().to_path_buf(),
+				None => return Err(ErrorKind::IOFolderCannotBeOpened)?
+			};
+
+			panic::set_hook(Box::new(move |info: &panic::PanicInfo| { 
+				Self::new(info, VERSION).save(&config_path).unwrap(); 
+			})); 
+		}
+		Ok(())
+	}
+
+	/// Create a new `CrashReport` from a `Panic`.
 	///
-	/// Remember that this creates the `Report` in memory. If you want to save it to disk, you've to do it later.
+	/// Remember that this creates the `CrashReport` in memory. If you want to save it to disk, you've to do it later.
 	pub fn new(panic_info: &PanicInfo, version: &str) -> Self {
 
 		let info = os_info::get();
@@ -80,9 +99,7 @@ impl Report {
 		}
 	}
 
-	/// This function tries to save the `Report` to the provided folder.
-	///
-	/// TODO: Make this use a more common folder.
+	/// This function tries to save the `CrashReport` to the provided folder.
 	pub fn save(&self, path: &Path) -> Result<()> {
 		let uuid = Uuid::new_v4().to_hyphenated().to_string();
 		let file_path = path.to_path_buf().join(format!("error/error-report-{}.toml", &uuid));

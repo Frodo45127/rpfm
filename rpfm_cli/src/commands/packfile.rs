@@ -9,6 +9,7 @@
 //---------------------------------------------------------------------------//
 
 use bytesize::ByteSize;
+use log::info;
 use prettytable::{Table, row, cell};
 
 use std::path::PathBuf;
@@ -33,7 +34,7 @@ pub fn add_to_packfile(
 	destination_path: Option<&str>
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
-		println!("Operation: Add File/Folder to PackFile.");
+		info!("Operation: Add File/Folder to PackFile.");
 	}
 
 	// Load the PackFile and the different PackedFiles to memory.
@@ -57,7 +58,7 @@ pub fn delete_file_from_packfile(
 	path: &str, 
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
-		println!("Operation: Add File/Folder to PackFile.");
+		info!("Operation: Add File/Folder to PackFile.");
 	}
 
 	// Load the PackFile and the different PackedFiles to memory.
@@ -72,7 +73,7 @@ pub fn delete_file_from_packfile(
 /// This function list the contents of the provided Packfile.
 pub fn list_packfile_contents(config: &Config, packfile: &str) -> Result<()> {
 	if config.verbosity_level > 0 {
-		println!("Operation: List PackFile Contents.");
+		info!("Operation: List PackFile Contents.");
 	}
 	let packfile_path = PathBuf::from(packfile);
 	let packfile = rpfm_lib::open_packfiles(&[packfile_path], false, true, false)?;

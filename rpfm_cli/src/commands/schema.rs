@@ -8,6 +8,7 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+use log::info;
 
 use rpfm_error::Result;
 use rpfm_lib::schema::VersionsFile;
@@ -20,7 +21,7 @@ use crate::config::Config;
 
 pub fn update(config: &Config) -> Result<()> {
 	if config.verbosity_level > 0 {
-		println!("Operation: Update schemas.");
+		info!("Operation: Update schemas.");
 	}
 
 	VersionsFile::update()

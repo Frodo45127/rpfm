@@ -12,6 +12,7 @@
 
 use clap::{Arg, App, SubCommand};
 use colored::*;
+use log::{error, info, warn};
 use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
 use simple_logger;
 
@@ -19,7 +20,7 @@ use std::env;
 use std::process::exit;
 use std::fs::File;
 
-use rpfm_lib::LOGGER;
+use rpfm_error::ctd::CrashReport;
 use rpfm_lib::settings::Settings;
 use rpfm_lib::config::get_config_path;
 
@@ -38,10 +39,11 @@ fn main() {
 
     // In Release Builds, initiallize the logger, so we get messages in the terminal and recorded to disk.
     if !cfg!(debug_assertions) { 
+        CrashReport::init().unwrap();
         CombinedLogger::init(
             vec![
                 TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed).unwrap(),
-                WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm.log")).unwrap()),
+                WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm_cli.log")).unwrap()),
             ]
         ).unwrap();
     }
@@ -150,14 +152,14 @@ fn main() {
     let settings = match matches.value_of("settings") {
         Some(settings_path) => {
             match Settings::load_from_file(settings_path) {
-                Ok(settings) => { if verbosity_level > 0 { LOGGER.info(&format!("Loaded settings from: {}", settings_path)); } settings },
-                Err(_) => { if verbosity_level > 0 { LOGGER.warn(&format!("Failed to load settings from: {}. Loaded default settings instead.", settings_path)); } Settings::new() },
+                Ok(settings) => { if verbosity_level > 0 { info!("Loaded settings from: {}", settings_path); } settings },
+                Err(_) => { if verbosity_level > 0 { warn!("Failed to load settings from: {}. Loaded default settings instead.", settings_path); } Settings::new() },
             }
         },
         None => {
             match Settings::load() {
-                Ok(settings) => { if verbosity_level > 0 { LOGGER.info(&format!("Loaded settings from RPFM settings folder.")); } settings },
-                Err(_) => { if verbosity_level > 0 { LOGGER.warn(&format!("Failed to load settings from RPFM settings folder. Loaded default settings instead.")); } Settings::new() },
+                Ok(settings) => { if verbosity_level > 0 { info!("Loaded settings from RPFM settings folder."); } settings },
+                Err(_) => { if verbosity_level > 0 { warn!("Failed to load settings from RPFM settings folder. Loaded default settings instead."); } Settings::new() },
             }
         }
     };
@@ -170,14 +172,14 @@ fn main() {
 
     // By default, print the game selected we're using, just in case some asshole starts complaining about broken PackFiles.
     if verbosity_level > 0 {
-        LOGGER.info(&format!("Game Selected: {}", game_selected));
-        LOGGER.info(&format!("Verbosity level: {}", if verbosity_level > 3 { 3 } else { verbosity_level }));
+        info!("Game Selected: {}", game_selected);
+        info!("Verbosity level: {}", if verbosity_level > 3 { 3 } else { verbosity_level });
     }
 
     // Build the Config struct to remember the current configuration when processing stuff.
     let config = match Config::new(game_selected, settings, verbosity_level) {
         Ok(config) => config,
-        Err(error) => { LOGGER.error(&format!("{} {}","Error:".red().bold(), error.to_terminal())); exit(1) }
+        Err(error) => { error!("{} {}","Error:".red().bold(), error.to_terminal()); exit(1) }
     };
 
     // Code for PackFile commands.
@@ -190,6 +192,6 @@ fn main() {
 
     match result {
         Ok(_) => exit(0),
-        Err(error) => { LOGGER.error(&format!("{} {}","Error:".red().bold(), error.to_terminal())); exit(1) },
+        Err(error) => { error!("{}", error.to_terminal()); exit(1) },
     }
 }
