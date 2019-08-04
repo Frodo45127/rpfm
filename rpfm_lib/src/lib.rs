@@ -10,8 +10,9 @@
 
 // This is the RPFM Lib, a lib to decode/encode any kind of PackFile CA has to offer, including his contents.
 
+
 use bincode::deserialize;
-use indexmap::map::IndexMap;
+
 use lazy_static::lazy_static;
 
 use std::fs::{File, DirBuilder};
@@ -30,10 +31,12 @@ use crate::packedfile::loc::Loc;
 use crate::packedfile::rigidmodel::RigidModel;
 use crate::packfile::{PackFile, PFHVersion, PFHFileType, PathType};
 use crate::packfile::packedfile::PackedFile;
-use crate::settings::{GameInfo, Settings};
+use crate::settings::Settings;
+use crate::games::{SupportedGames, get_supported_games_list};
 
 pub mod common;
 pub mod config;
+pub mod games;
 pub mod packedfile;
 pub mod packfile;
 pub mod schema;
@@ -45,334 +48,7 @@ lazy_static! {
     /// List of supported games and their configuration. Their key is what we know as `folder_name`, used to identify the game and
     /// for "MyMod" folders.
     #[derive(Debug)]
-    pub static ref SUPPORTED_GAMES: IndexMap<&'static str, GameInfo> = {
-        let mut map = IndexMap::new();
-
-        // Three Kingdoms
-        map.insert("three_kingdoms", GameInfo {
-            display_name: "Three Kingdoms".to_owned(),
-            id: PFHVersion::PFH5,
-            schema: "schema_3k.ron".to_owned(),
-            db_packs: vec!["database.pack".to_owned()],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "local_br.pack".to_owned(),     // Brazilian
-                "local_cz.pack".to_owned(),     // Czech
-                "local_ge.pack".to_owned(),     // German
-                "local_sp.pack".to_owned(),     // Spanish
-                "local_fr.pack".to_owned(),     // French
-                "local_it.pack".to_owned(),     // Italian
-                "local_kr.pack".to_owned(),     // Korean
-                "local_pl.pack".to_owned(),     // Polish
-                "local_ru.pack".to_owned(),     // Russian
-                "local_tr.pack".to_owned(),     // Turkish
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-            ],
-            steam_id: Some(779_340),
-            raw_db_version: 2,
-            pak_file: Some("3k.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_3k.png".to_owned(),
-        });
-
-        // Warhammer 2
-        map.insert("warhammer_2", GameInfo {
-            display_name: "Warhammer 2".to_owned(),
-            id: PFHVersion::PFH5,
-            schema: "schema_wh2.ron".to_owned(),
-            db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "local_br.pack".to_owned(),     // Brazilian
-                "local_cz.pack".to_owned(),     // Czech
-                "local_ge.pack".to_owned(),     // German
-                "local_sp.pack".to_owned(),     // Spanish
-                "local_fr.pack".to_owned(),     // French
-                "local_it.pack".to_owned(),     // Italian
-                "local_kr.pack".to_owned(),     // Korean
-                "local_pl.pack".to_owned(),     // Polish
-                "local_ru.pack".to_owned(),     // Russian
-                "local_tr.pack".to_owned(),     // Turkish
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-            ],
-            steam_id: Some(594_570),
-            raw_db_version: 2,
-            pak_file: Some("wh2.pak".to_owned()),
-            ca_types_file: Some("ca_types_wh2".to_owned()),
-            supports_editing: true,
-            game_selected_icon: "gs_wh2.png".to_owned(),
-        });
-
-        // Warhammer
-        map.insert("warhammer", GameInfo {
-            display_name: "Warhammer".to_owned(),
-            id: PFHVersion::PFH4,
-            schema: "schema_wh.ron".to_owned(),
-            db_packs: vec![
-                "data.pack".to_owned(),         // Central data PackFile
-                "data_bl.pack".to_owned(),      // Blood DLC Data
-                "data_bm.pack".to_owned()       // Beastmen DLC Data
-            ],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "local_br.pack".to_owned(),     // Brazilian
-                "local_cz.pack".to_owned(),     // Czech
-                "local_ge.pack".to_owned(),     // German
-                "local_sp.pack".to_owned(),     // Spanish
-                "local_fr.pack".to_owned(),     // French
-                "local_it.pack".to_owned(),     // Italian
-                "local_kr.pack".to_owned(),     // Korean
-                "local_pl.pack".to_owned(),     // Polish
-                "local_ru.pack".to_owned(),     // Russian
-                "local_tr.pack".to_owned(),     // Turkish
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-            ],
-            steam_id: Some(364_360),
-            raw_db_version: 2,
-            pak_file: Some("wh.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_wh.png".to_owned(),
-        });
-
-        // Thrones of Britannia
-        map.insert("thrones_of_britannia", GameInfo {
-            display_name: "Thrones of Britannia".to_owned(),
-            id: PFHVersion::PFH4,
-            schema: "schema_tob.ron".to_owned(),
-            db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "local_br.pack".to_owned(),     // Brazilian
-                "local_cz.pack".to_owned(),     // Czech
-                "local_ge.pack".to_owned(),     // German
-                "local_sp.pack".to_owned(),     // Spanish
-                "local_fr.pack".to_owned(),     // French
-                "local_it.pack".to_owned(),     // Italian
-                "local_kr.pack".to_owned(),     // Korean
-                "local_pl.pack".to_owned(),     // Polish
-                "local_ru.pack".to_owned(),     // Russian
-                "local_tr.pack".to_owned(),     // Turkish
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-            ],
-            steam_id: Some(712_100),
-            raw_db_version: 2,
-            pak_file: Some("tob.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_tob.png".to_owned(),
-        });
-
-        // Attila
-        map.insert("attila", GameInfo {
-            display_name: "Attila".to_owned(),
-            id: PFHVersion::PFH4,
-            schema: "schema_att.ron".to_owned(),
-            db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "local_br.pack".to_owned(),     // Brazilian
-                "local_cz.pack".to_owned(),     // Czech
-                "local_ge.pack".to_owned(),     // German
-                "local_sp.pack".to_owned(),     // Spanish
-                "local_fr.pack".to_owned(),     // French
-                "local_it.pack".to_owned(),     // Italian
-                "local_kr.pack".to_owned(),     // Korean
-                "local_pl.pack".to_owned(),     // Polish
-                "local_ru.pack".to_owned(),     // Russian
-                "local_tr.pack".to_owned(),     // Turkish
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-            ],
-            steam_id: Some(325_610),
-            raw_db_version: 2,
-            pak_file: Some("att.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_att.png".to_owned(),
-        });
-
-        // Rome 2
-        map.insert("rome_2", GameInfo {
-            display_name: "Rome 2".to_owned(),
-            id: PFHVersion::PFH4,
-            schema: "schema_rom2.ron".to_owned(),
-            db_packs: vec!["data_rome2.pack".to_owned()],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "local_br.pack".to_owned(),     // Brazilian
-                "local_cz.pack".to_owned(),     // Czech
-                "local_ge.pack".to_owned(),     // German
-                "local_sp.pack".to_owned(),     // Spanish
-                "local_fr.pack".to_owned(),     // French
-                "local_it.pack".to_owned(),     // Italian
-                "local_kr.pack".to_owned(),     // Korean
-                "local_pl.pack".to_owned(),     // Polish
-                "local_ru.pack".to_owned(),     // Russian
-                "local_tr.pack".to_owned(),     // Turkish
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-            ],
-            steam_id: Some(214_950),
-            raw_db_version: 2,
-            pak_file: Some("rom2.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_rom2.png".to_owned(),
-        });
-
-        // Shogun 2
-        map.insert("shogun_2", GameInfo {
-            display_name: "Shogun 2".to_owned(),
-            id: PFHVersion::PFH3,
-            schema: "schema_sho2.ron".to_owned(),
-            db_packs: vec!["data.pack".to_owned()],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "local_br.pack".to_owned(),     // Brazilian
-                "local_cz.pack".to_owned(),     // Czech
-                "local_ge.pack".to_owned(),     // German
-                "local_sp.pack".to_owned(),     // Spanish
-                "local_fr.pack".to_owned(),     // French
-                "local_it.pack".to_owned(),     // Italian
-                "local_kr.pack".to_owned(),     // Korean
-                "local_pl.pack".to_owned(),     // Polish
-                "local_ru.pack".to_owned(),     // Russian
-                "local_tr.pack".to_owned(),     // Turkish
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-            ],
-            steam_id: Some(34330),
-            raw_db_version: 1,
-            pak_file: Some("sho2.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_sho2.png".to_owned(),
-        });
-
-        // Napoleon
-        map.insert("napoleon", GameInfo {
-            display_name: "Napoleon".to_owned(),
-            id: PFHVersion::PFH0,
-            schema: "schema_nap.ron".to_owned(),
-            db_packs: vec![                     // NOTE: Patches 5 and 7 has no table changes, so they should not be here.
-                "data.pack".to_owned(),         // Main DB PackFile
-                "patch.pack".to_owned(),        // First Patch
-                "patch2.pack".to_owned(),       // Second Patch
-                "patch3.pack".to_owned(),       // Third Patch
-                "patch4.pack".to_owned(),       // Fourth Patch
-                "patch6.pack".to_owned(),       // Six Patch
-            ],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),         // English
-                "local_en_patch.pack".to_owned(),   // English Patch
-                "local_br.pack".to_owned(),         // Brazilian
-                "local_br_patch.pack".to_owned(),   // Brazilian Patch
-                "local_cz.pack".to_owned(),         // Czech
-                "local_cz_patch.pack".to_owned(),   // Czech Patch
-                "local_ge.pack".to_owned(),         // German
-                "local_ge_patch.pack".to_owned(),   // German Patch
-                "local_sp.pack".to_owned(),         // Spanish
-                "local_sp_patch.pack".to_owned(),   // Spanish Patch
-                "local_fr.pack".to_owned(),         // French
-                "local_fr_patch.pack".to_owned(),   // French Patch
-                "local_it.pack".to_owned(),         // Italian
-                "local_it_patch.pack".to_owned(),   // Italian Patch
-                "local_kr.pack".to_owned(),         // Korean
-                "local_kr_patch.pack".to_owned(),   // Korean Patch
-                "local_pl.pack".to_owned(),         // Polish
-                "local_pl_patch.pack".to_owned(),   // Polish Patch
-                "local_ru.pack".to_owned(),         // Russian
-                "local_ru_patch.pack".to_owned(),   // Russian Patch
-                "local_tr.pack".to_owned(),         // Turkish
-                "local_tr_patch.pack".to_owned(),   // Turkish Patch
-                "local_cn.pack".to_owned(),         // Simplified Chinese
-                "local_cn_patch.pack".to_owned(),   // Simplified Chinese Patch
-                "local_zh.pack".to_owned(),         // Traditional Chinese
-                "local_zh_patch.pack".to_owned(),   // Traditional Chinese Patch
-            ],
-            steam_id: Some(34030),
-            raw_db_version: 0,
-            pak_file: Some("nap.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_nap.png".to_owned(),
-        });
-
-        // Empire
-        map.insert("empire", GameInfo {
-            display_name: "Empire".to_owned(),
-            id: PFHVersion::PFH0,
-            schema: "schema_emp.ron".to_owned(),
-            db_packs: vec![
-                "main.pack".to_owned(),         // Main DB PackFile
-                "models.pack".to_owned(),       // Models PackFile (contains model-related DB Tables)
-                "patch.pack".to_owned(),        // First Patch
-                "patch2.pack".to_owned(),       // Second Patch
-                "patch3.pack".to_owned(),       // Third Patch
-                "patch4.pack".to_owned(),       // Fourth Patch
-                "patch5.pack".to_owned(),       // Fifth Patch
-            ],
-            loc_packs: vec![
-                "local_en.pack".to_owned(),     // English
-                "patch_en.pack".to_owned(),     // English Patch
-                "local_br.pack".to_owned(),     // Brazilian
-                "patch_br.pack".to_owned(),     // Brazilian Patch
-                "local_cz.pack".to_owned(),     // Czech
-                "patch_cz.pack".to_owned(),     // Czech Patch
-                "local_ge.pack".to_owned(),     // German
-                "patch_ge.pack".to_owned(),     // German Patch
-                "local_sp.pack".to_owned(),     // Spanish
-                "patch_sp.pack".to_owned(),     // Spanish Patch
-                "local_fr.pack".to_owned(),     // French
-                "patch_fr.pack".to_owned(),     // French Patch
-                "local_it.pack".to_owned(),     // Italian
-                "patch_it.pack".to_owned(),     // Italian Patch
-                "local_kr.pack".to_owned(),     // Korean
-                "patch_kr.pack".to_owned(),     // Korean Patch
-                "local_pl.pack".to_owned(),     // Polish
-                "patch_pl.pack".to_owned(),     // Polish Patch
-                "local_ru.pack".to_owned(),     // Russian
-                "patch_ru.pack".to_owned(),     // Russian Patch
-                "local_tr.pack".to_owned(),     // Turkish
-                "patch_tr.pack".to_owned(),     // Turkish Patch
-                "local_cn.pack".to_owned(),     // Simplified Chinese
-                "patch_cn.pack".to_owned(),     // Simplified Chinese Patch
-                "local_zh.pack".to_owned(),     // Traditional Chinese
-                "patch_zh.pack".to_owned(),     // Traditional Chinese Patch
-            ],
-            steam_id: Some(10500),
-            raw_db_version: 0,
-            pak_file: Some("emp.pak".to_owned()),
-            ca_types_file: None,
-            supports_editing: true,
-            game_selected_icon: "gs_emp.png".to_owned(),
-        });
-
-        // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
-        // Otherwise, stuff that uses this list will probably break.
-        // Arena
-        map.insert("arena", GameInfo {
-            display_name: "Arena".to_owned(),
-            id: PFHVersion::PFH5,
-            schema: "schema_are.ron".to_owned(),
-            db_packs: vec!["wad.pack".to_owned()],
-            loc_packs: vec!["local_ex.pack".to_owned()],
-            steam_id: None,
-            raw_db_version: -1,
-            pak_file: None,
-            ca_types_file: None,
-            supports_editing: false,
-            game_selected_icon: "gs_are.png".to_owned(),
-        });
-
-        map
-    };
+    pub static ref SUPPORTED_GAMES: SupportedGames = get_supported_games_list();
 
     /// The current Settings and Shortcuts. To avoid reference and lock issues, this should be edited ONLY in the background thread.
     pub static ref SETTINGS: Arc<Mutex<Settings>> = Arc::new(Mutex::new(Settings::load().unwrap_or_else(|_|Settings::new())));
@@ -601,7 +277,7 @@ pub fn open_packfiles(
     else {
 
         // Create the fake PackFile.
-        let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id;
+        let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version;
         let pfh_name = if ignore_mods { GAME_SELECTED.lock().unwrap().to_owned() } else { String::from("merged_mod.pack")};
         let mut pack_file = PackFile::new_with_name(&pfh_name, pfh_version);
 

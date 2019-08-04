@@ -21,37 +21,8 @@ use rpfm_error::Result;
 
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
-use crate::packfile::PFHVersion;
 
 const SETTINGS_FILE: &str = "settings.json";
-
-/// `GameInfo`: This struct holds all the info needed for a game to be "supported" by RPFM features.
-/// It's stores the following data:
-/// - `display_name`: This is the name it'll show up in the UI. For example, in a dropdown (Warhammer 2).
-/// - `id`: This is the ID used at the start of every PackFile for that game. (PFH5)
-/// - `schema`: This is the name of the schema file used for the game. (wh2.json)
-/// - `db_packs`: These are the PackFiles from where we load the data for db references. Since 1.0, we use data.pack or equivalent for this.
-/// - `loc_packs`: These are the PackFiles from where we load the data for loc special stuff. This should be the one for english. For other languages, we'll have to search it.
-/// - `steam_id`: This is the "SteamID" used by the game, if it's on steam. If not, it's just None.
-/// - `raw_files_version`: This is the **type** of raw files the game uses. -1 is "Don't have Assembly Kit". 0 is Empire/Nappy. 1 is Shogun 2. 2 is anything newer than Shogun 2.
-/// - `pak_file`: This is the file containing the processed data from the raw db files from the Assembly Kit. If no Asskit is released for the game, set this to none.
-/// - `ca_types_file`: This is the file used for checking scripts with Kailua. If there is no file, set it as None.
-/// - `supports_editing`: True if we can save PackFiles for this game. False if we cannot (Arena). This also affect if we can use this game for "MyMod" stuff.
-/// - `game_selected_icon`: Name of the icon used to display the game as `Game Selected` in the status bar.
-#[derive(Clone, Debug)]
-pub struct GameInfo {
-    pub display_name: String,
-    pub id: PFHVersion,
-    pub schema: String,
-    pub db_packs: Vec<String>,
-    pub loc_packs: Vec<String>,
-    pub steam_id: Option<u64>,
-    pub raw_db_version: i16,
-    pub pak_file: Option<String>,
-    pub ca_types_file: Option<String>,
-    pub supports_editing: bool,
-    pub game_selected_icon: String,
-}
 
 /// This struct hold every setting of the program, and it's the one that we are going to serialize.
 #[derive(Clone, Debug, Serialize, Deserialize)]

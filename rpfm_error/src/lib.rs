@@ -394,6 +394,9 @@ pub enum ErrorKind {
 
     /// Error for when we're trying to decode more bytes than we have.
     NotEnoughBytesToDecode,
+
+    // Error for when we try to get the `GameInfo` from an unsupported Game.
+    GameNotSupported,
 }
 
 /// Implementation of `Error`.
@@ -635,6 +638,7 @@ impl Display for ErrorKind {
             ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
             ErrorKind::NotEnoughBytesToDecode => write!(f, "<p>There are not enough bytes to decode in the data you provided.</p>"),
+            ErrorKind::GameNotSupported => write!(f, "<p>The game you tried to get the info is not supported.</p>"),
 
         }
     }

@@ -16,7 +16,6 @@ rpfm_error = { path = "../rpfm_error" }
 
 # Configuration support.
 directories = "^2.0"
-indexmap = "^1.0"
 lazy_static = "^1.2"
 
 # Decoding/Encoding support.

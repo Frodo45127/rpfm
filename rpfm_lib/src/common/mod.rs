@@ -16,7 +16,7 @@ Basically, if you need a function, but it's kinda a generic function, it goes he
 
 use chrono::{Utc, DateTime};
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_error::{Error, ErrorKind, Result};
 
 use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
@@ -109,7 +109,7 @@ pub fn get_game_selected_assembly_kit_path(game_selected: &str) -> Option<PathBu
 pub fn get_game_selected_db_pack_path(game_selected: &str) -> Option<Vec<PathBuf>> {
 
     let base_path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
-    let db_packs = &SUPPORTED_GAMES[game_selected].db_packs;
+    let db_packs = &SUPPORTED_GAMES.get(game_selected)?.db_packs;
     let mut db_paths = vec![];
     for pack in db_packs {
         let mut path = base_path.to_path_buf();
@@ -125,7 +125,7 @@ pub fn get_game_selected_db_pack_path(game_selected: &str) -> Option<Vec<PathBuf
 pub fn get_game_selected_loc_pack_path(game_selected: &str) -> Option<Vec<PathBuf>> {
 
     let base_path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
-    let loc_packs = &SUPPORTED_GAMES[game_selected].loc_packs;
+    let loc_packs = &SUPPORTED_GAMES.get(game_selected)?.loc_packs;
     let mut loc_paths = vec![];
     for pack in loc_packs {
         let mut path = base_path.to_path_buf();
@@ -159,7 +159,7 @@ pub fn get_game_selected_data_packfiles_paths(game_selected: &str) -> Option<Vec
 pub fn get_game_selected_content_packfiles_paths(game_selected: &str) -> Option<Vec<PathBuf>> {
 
     let mut path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
-    let id = SUPPORTED_GAMES[game_selected].steam_id?.to_string();
+    let id = SUPPORTED_GAMES.get(game_selected)?.steam_id?.to_string();
 
     path.pop();
     path.pop();
@@ -184,7 +184,7 @@ pub fn get_game_selected_content_packfiles_paths(game_selected: &str) -> Option<
 #[allow(dead_code)]
 pub fn get_game_selected_pak_file(game_selected: &str) -> Result<PathBuf> {
 
-    if let Some(pak_file) = &SUPPORTED_GAMES[game_selected].pak_file {
+    if let Some(pak_file) = &SUPPORTED_GAMES.get(game_selected).ok_or_else(|| Error::from(ErrorKind::GameNotSupported) )?.pak_file {
         let mut base_path = get_config_path()?;
         base_path.push("pak_files");
         base_path.push(pak_file);
