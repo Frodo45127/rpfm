@@ -51,7 +51,7 @@ lazy_static! {
     pub static ref SUPPORTED_GAMES: SupportedGames = get_supported_games_list();
 
     /// The current Settings and Shortcuts. To avoid reference and lock issues, this should be edited ONLY in the background thread.
-    pub static ref SETTINGS: Arc<Mutex<Settings>> = Arc::new(Mutex::new(Settings::load().unwrap_or_else(|_|Settings::new())));
+    pub static ref SETTINGS: Arc<Mutex<Settings>> = Arc::new(Mutex::new(Settings::load(None).unwrap_or_else(|_|Settings::new())));
 
     /// The current GameSelected. Same as the one above, only edited from the background thread.
     pub static ref GAME_SELECTED: Arc<Mutex<String>> = Arc::new(Mutex::new(SETTINGS.lock().unwrap().settings_string["default_game"].to_owned()));
