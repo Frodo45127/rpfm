@@ -53,31 +53,41 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
-use ron::de::from_reader;
+use ron::de::{from_str, from_reader};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
+use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::{fmt, fmt::Display};
 
 use rpfm_error::{ErrorKind, Result};
 
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
-use crate::updater::Versions;
 
 pub mod assembly_kit;
 
 /// Name of the schema versions file.
-const SCHEMA_VERSIONS_FILE: &str = "versions.json";
+const SCHEMA_VERSIONS_FILE: &str = "versions.ron";
 
-/// URL used to download new schema files.
-pub const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
+/// Name of the folder containing all the schemas.
+const SCHEMA_FOLDER: &str = "schemas";
+
+/// URL of the remote repository's schema folder. Master branch.
+const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
+
+/// URL of the remote repository's schema folder. Develop branch.
+const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
+
+/// This struct represents a Versions File in memory, keeping track of the local version of each schema.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct VersionsFile(BTreeMap<String, u32>);
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -225,7 +235,7 @@ impl Schema {
 
     /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
     pub fn load(schema_file: &str) -> Result<Self> {
-        let mut file_path = get_config_path()?.join("schemas");
+        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
         file_path.push(schema_file);
 
         let file = BufReader::new(File::open(&file_path)?);
@@ -234,7 +244,7 @@ impl Schema {
 
     /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
     pub fn save(&self, schema_file: &str) -> Result<()> {
-        let mut file_path = get_config_path()?.join("schemas");
+        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
         file_path.push(schema_file);
 
         let mut file = File::create(&file_path)?;
@@ -251,7 +261,7 @@ impl Schema {
         for schema_file in SUPPORTED_GAMES.iter().map(|x| &x.1.schema) {
             let schema = Schema::load(&schema_file)?;
 
-            let mut file_path = get_config_path()?.join("schemas");
+            let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
             file_path.push(schema_file);
             file_path.set_extension("json");
 
@@ -267,13 +277,13 @@ impl Schema {
     pub fn generate_schema_diff() -> Result<()> {
 
         // To avoid doing a lot of useless checking, we only check for schemas with different version.
-        let local_schema_versions: Versions = serde_json::from_reader(BufReader::new(File::open(get_config_path()?.join("schemas/versions.json"))?))?;
-        let current_schema_versions: Versions = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.json()?;
+        let local_schema_versions: VersionsFile = from_reader(BufReader::new(File::open(get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE))?))?;
+        let current_schema_versions: VersionsFile = from_str(&reqwest::get(&format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.text()?)?;
         let mut schemas_to_update = vec![];
 
         // If the game's schema is not in the repo (when adding a new game's support) skip it.
-        for (game, version_local) in &local_schema_versions {
-            let version_current = if let Some(version_current) = current_schema_versions.get(game) { version_current } else { continue };
+        for (game, version_local) in &local_schema_versions.0 {
+            let version_current = if let Some(version_current) = current_schema_versions.0.get(game) { version_current } else { continue };
             if version_local != version_current { schemas_to_update.push((game.to_owned(), version_local)); }
         }
 
@@ -883,6 +893,71 @@ impl Display for FieldType {
             FieldType::OptionalStringU8 => write!(f, "OptionalStringU8"),
             FieldType::OptionalStringU16 => write!(f, "OptionalStringU16"),
             FieldType::Sequence(sequence) => write!(f, "Sequence of: {:#?}", sequence),
+        }
+    }
+}
+
+/// Implementation of `VersionsFile`.
+impl VersionsFile {
+
+    /// This function loads the local `VersionsFile` to memory.
+    pub fn load() -> Result<Self> {
+        let file_path = get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE);
+        let file = BufReader::new(File::open(&file_path)?);
+        from_reader(file).map_err(From::from)
+    }
+
+    /// This function saves the provided `VersionsFile` to disk.
+    fn save(&self) -> Result<()> {
+        let file_path = get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE);
+        let mut file = BufWriter::new(File::create(file_path)?);
+        let config = PrettyConfig::default();
+        file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
+        Ok(())
+    }
+
+    /// This function match your local schemas against the remote ones, and downloads any updated ones.
+    ///
+    /// If no local `VersionsFile` is found, it downloads it from the repo, along with all the schema files.
+    pub fn update() -> Result<()> {
+
+        // If there is a local schema, match it against the remote one, download the different schemas, 
+        // then update our local schema with the remote one's data.
+        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
+        match Self::load() {
+            Ok(local) => {
+                let remote: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
+                for (remote_file_name, remote_version) in &remote.0 {
+                    let schema_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, remote_file_name);
+                    match local.0.get(remote_file_name) {
+                        Some(local_version) => {
+
+                            // If it's an update over our own schema, we download it and overwrite the current schema.
+                            // NOTE: Github's API has a limit of 1MB per file, so we take it directly from raw.githubusercontent.com instead.
+                            if remote_version > local_version {
+                                let schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
+                                schema.save(remote_file_name)?;
+                            }
+                        }
+                        None => {
+                            let schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
+                            schema.save(remote_file_name)?;
+                        }
+                    }
+                }
+
+                local.save()
+            },
+
+            // If there is no local `VersionsFile`, download all the schemas, then save the new local `VersionsFile`.
+            Err(_) => {
+                let local: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
+                for (file_name,_) in &local.0 {
+                    let schema: Schema = from_str(&reqwest::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
+                    schema.save(file_name)?;
+                }
+                local.save()
+            }
         }
     }
 }

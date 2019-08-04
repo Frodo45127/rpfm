@@ -20,6 +20,10 @@ use log::{info, warn, error};
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
+use std::panic;
+use std::path::Path;
+
+use crate::VERSION;
 
 pub mod ctd;
 
@@ -43,7 +47,16 @@ pub enum LogLevel {
 impl Logger {
 
 	/// This function initialize the entire logger as a multithread logger.
-	pub fn init_logger() -> Self {
+	pub fn init_logger(config_path: &'static Path) -> Self {
+
+		// Register the CTD logger if we're not in a debug build.
+		if !cfg!(debug_assertions) { 
+			panic::set_hook(Box::new(move |info: &panic::PanicInfo| { 
+				ctd::Report::new(info, VERSION).save(config_path).unwrap(); 
+			})); 
+		}
+
+		// Start the normal logger.
 		let (sender, receiver) = channel();
 	    thread::spawn(move || { logger(receiver); });
 	    Self(Arc::new(Mutex::new(sender)))

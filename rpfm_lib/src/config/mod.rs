@@ -62,4 +62,3 @@ pub fn get_config_path() -> Result<PathBuf> {
 		}
 	}
 }
-

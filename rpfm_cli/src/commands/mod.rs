@@ -16,6 +16,7 @@ use crate::config::Config;
 
 mod table;
 mod packfile;
+mod schema;
 
 //---------------------------------------------------------------------------//
 // 								Command Variants
@@ -63,5 +64,14 @@ pub fn command_table(config: &Config, matches: &ArgMatches) -> Result<()> {
     }
 	
 	//else if matches.is_present("export") { packfile::list_packfile_contents(config, packfile_path) }
+	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))? }
+}
+
+/// This function triggers functions that require the `Schema` command.
+pub fn command_schema(config: &Config, matches: &ArgMatches) -> Result<()> { 
+    if matches.is_present("update") {
+		schema::update(config)
+    }
+	
 	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))? }
 }

@@ -32,6 +32,9 @@ pub mod logger;
 /// Alias for handling errors more easely.
 pub type Result<T> = result::Result<T, Error>;
 
+/// Current version of the crate.
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 //---------------------------------------------------------------------------//
 //                      Definition of the Types
 //---------------------------------------------------------------------------//

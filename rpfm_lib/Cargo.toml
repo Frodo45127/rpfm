@@ -32,7 +32,6 @@ uuid = { version = "^0.7", features = ["v4"] }
 chrono = "^0.4"
 
 # Update support.
-restson = "^0.5"
 reqwest = "^0.9"
 
 # Serialization support.

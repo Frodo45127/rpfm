@@ -108,7 +108,7 @@ fn main() {
                 .max_values(2)))
 
         // `Schemas` Subcommand. Basically, here goes commands destined to keep schemas up-to-date.
-        .subcommand(SubCommand::with_name("schemas")
+        .subcommand(SubCommand::with_name("schema")
             .about("Allows you to keep your schemas up-to-date.")
             .arg(Arg::with_name("update")
                 .short("u")
@@ -163,6 +163,7 @@ fn main() {
     let result = match matches.subcommand() {
         ("packfile", Some(matches)) => commands::command_packfile(&config, matches),
         ("table", Some(matches)) => commands::command_table(&config, matches),
+        ("schema", Some(matches)) => commands::command_schema(&config, matches),
         _ => { app.print_help().unwrap(); Ok(()) }
     };
 
