@@ -106,7 +106,7 @@ impl RigidModel {
                     lod.mysterious_data_2 = Some(0);
                     lod.start_offset += 8 * self.packed_file_header.packed_file_header_lods_count;
                 }
-                Ok(format!("RigidModel patched succesfully."))
+                Ok("RigidModel patched succesfully.".to_owned())
             },
             7 => Err(ErrorKind::RigidModelPatchToWarhammer("This is not an Attila's RigidModel, but a Warhammer one.".to_owned()))?,
             _ => Err(ErrorKind::RigidModelPatchToWarhammer("I don't even know from what game is this RigidModel.".to_owned()))?,

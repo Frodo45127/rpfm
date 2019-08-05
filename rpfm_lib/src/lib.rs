@@ -20,15 +20,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_error::{ErrorKind, Result};
 
 use crate::common::*;
 use crate::schema::Schema;
-use crate::packedfile::DecodedData;
 use crate::packedfile::db::DB;
-use crate::packedfile::loc::Loc;
-use crate::packedfile::rigidmodel::RigidModel;
-use crate::packfile::{PackFile, PFHVersion, PFHFileType, PathType};
+use crate::packfile::{PackFile, PFHFileType, PathType};
 use crate::packfile::packedfile::PackedFile;
 use crate::settings::Settings;
 use crate::games::{SupportedGames, get_supported_games_list};
@@ -65,8 +62,8 @@ lazy_static! {
     pub static ref SCHEMA: Arc<Mutex<Option<Schema>>> = Arc::new(Mutex::new(None));
 }
 
-pub const DOCS_BASE_URL: &'static str = "https://frodo45127.github.io/rpfm/";
-pub const PATREON_URL: &'static str = "https://www.patreon.com/RPFM";
+pub const DOCS_BASE_URL: &str = "https://frodo45127.github.io/rpfm/";
+pub const PATREON_URL: &str = "https://www.patreon.com/RPFM";
 
 /*
 --------------------------------------------------------
@@ -402,7 +399,7 @@ pub fn add_file_to_packfile(
         theorical_path.insert(0, pack_file.get_file_name());
 
         // Get the destination PackedFile.
-        let mut packed_file = pack_file.get_ref_mut_packed_file_by_path(&tree_path).unwrap();
+        let packed_file = pack_file.get_ref_mut_packed_file_by_path(&tree_path).unwrap();
 
         // We get the data and his size...
         let mut file = BufReader::new(File::open(&file_path)?);

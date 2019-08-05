@@ -952,7 +952,7 @@ impl VersionsFile {
             // If there is no local `VersionsFile`, download all the schemas, then save the new local `VersionsFile`.
             Err(_) => {
                 let local: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
-                for (file_name,_) in &local.0 {
+                for file_name in local.0.keys() {
                     let schema: Schema = from_str(&reqwest::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
                     schema.save(file_name)?;
                 }
