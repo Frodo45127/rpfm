@@ -151,13 +151,13 @@ fn main() {
     // - A default settings set.
     let settings = match matches.value_of("settings") {
         Some(settings_path) => {
-            match Settings::load_from_file(settings_path) {
+            match Settings::load(Some(settings_path)) {
                 Ok(settings) => { if verbosity_level > 0 { info!("Loaded settings from: {}", settings_path); } settings },
                 Err(_) => { if verbosity_level > 0 { warn!("Failed to load settings from: {}. Loaded default settings instead.", settings_path); } Settings::new() },
             }
         },
         None => {
-            match Settings::load() {
+            match Settings::load(None) {
                 Ok(settings) => { if verbosity_level > 0 { info!("Loaded settings from RPFM settings folder."); } settings },
                 Err(_) => { if verbosity_level > 0 { warn!("Failed to load settings from RPFM settings folder. Loaded default settings instead."); } Settings::new() },
             }

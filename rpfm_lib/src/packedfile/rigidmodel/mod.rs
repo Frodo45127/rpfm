@@ -83,6 +83,35 @@ impl RigidModel {
 
         Ok(packed_file_encoded)
     }
+
+    /// This function is used to patch a RigidModel 3D model from Total War: Attila to work in Total War:
+    /// Warhammer 1 and 2. The process to patch a RigidModel is simple:
+    /// - We update the version of the RigidModel from 6(Attila) to 7(Warhammer 1&2).
+    /// - We add 2 u32 to the Lods: a counter starting at 0, and a 0.
+    /// - We increase the start_offset of every Lod by (8*amount_of_lods).
+    /// - We may need to increase the zoom_factor of the first Lod to 1000.0, because otherwise sometimes the models
+    ///   disappear when you move the camera far from them.
+    /// It requires a mut ref to a decoded PackFile, and returns an String (Result<Success, Error>).
+    pub fn patch_rigid_model_attila_to_warhammer (&mut self) -> Result<String> {
+
+        // If the RigidModel is an Attila RigidModel, we continue. Otherwise, return Error.
+        match self.packed_file_header.packed_file_header_model_type {
+            6 => {
+                // We update his version.
+                self.packed_file_header.packed_file_header_model_type = 7;
+
+                // Next, we change the needed data for every Lod.
+                for (index, lod) in self.packed_file_data.packed_file_data_lods_header.iter_mut().enumerate() {
+                    lod.mysterious_data_1 = Some(index as u32);
+                    lod.mysterious_data_2 = Some(0);
+                    lod.start_offset += 8 * self.packed_file_header.packed_file_header_lods_count;
+                }
+                Ok(format!("RigidModel patched succesfully."))
+            },
+            7 => Err(ErrorKind::RigidModelPatchToWarhammer("This is not an Attila's RigidModel, but a Warhammer one.".to_owned()))?,
+            _ => Err(ErrorKind::RigidModelPatchToWarhammer("I don't even know from what game is this RigidModel.".to_owned()))?,
+        }
+    }
 }
 
 /// Implementation of "RigidModelHeader"

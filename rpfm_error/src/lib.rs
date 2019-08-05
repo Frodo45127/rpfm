@@ -364,6 +364,9 @@ pub enum ErrorKind {
     /// Error for when the introduced input (usually, a name) is empty and it cannot be empty.
     EmptyInput,
 
+    /// Error for when we're trying to use two paths and both are the same.
+    PathsAreEqual,
+    
     /// Error for when mass-importing TSV file without selecting any file.
     NoFilesToImport,
 
@@ -625,6 +628,7 @@ impl Display for ErrorKind {
             ErrorKind::ExtractError(errors) => write!(f, "<p>There has been a problem extracting the following files:</p><ul>{:#?}</ul>", errors),
             ErrorKind::MassImport(errors) => write!(f, "<p>The following files returned error when trying to import them:</p><ul>{}</ul><p>No files have been imported.</p>", errors),
             ErrorKind::EmptyInput => write!(f, "<p>Only my hearth can be empty.</p>"),
+            ErrorKind::PathsAreEqual => write!(f, "<p>Both paths (source and destination) are the same.</p>"),
             ErrorKind::NoFilesToImport => write!(f, "<p>It's mathematically impossible to successfully import zero TSV files.</p>"),
             ErrorKind::FileAlreadyInPackFile => write!(f, "<p>The provided file/s already exists in the current path.</p>"),
             ErrorKind::FolderAlreadyInPackFile => write!(f, "<p>That folder already exists in the current path.</p>"),

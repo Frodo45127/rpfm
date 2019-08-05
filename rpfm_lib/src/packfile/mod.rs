@@ -571,25 +571,6 @@ impl PackFile {
         self.packed_files = vec![];
     }
 
-    /// This function allows you to change the path of a `PackedFile` inside a `PackFile`. It there is already a file using the new Path, it gets overwritten.
-    ///
-    /// This can fail if you pass it an empty path, so make sure you check the result.
-    pub fn move_packedfile(&mut self, source_path: &[String], destination_path: &[String]) -> Result<()> {
-        if destination_path.is_empty() { return Err(ErrorKind::EmptyInput)? }
-        
-        // If there is already a `PackedFile` with that name, and the source exists (it wont fail later for not finding it), we remove it.
-        let source_exists = self.packedfile_exists(source_path);
-        let destination_exists = self.packedfile_exists(destination_path);
-        if source_exists && destination_exists {
-            self.remove_packed_file_by_path(destination_path);
-        }
-
-        if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(source_path) {
-            packed_file.set_path(destination_path)?;
-        }
-        Ok(())
-    }
-
     /// This function checks if a `PackedFile` with a certain path exists in a `PackFile`.
     pub fn packedfile_exists(&self, path: &[String]) -> bool {
         self.packed_files.iter().any(|x| x.get_path() == path)
@@ -598,6 +579,136 @@ impl PackFile {
     /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
     pub fn folder_exists(&self, path: &[String]) -> bool {
         self.packed_files.iter().any(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len())
+    }
+
+    /// This function allows you to change the path of a `PackedFile` inside a `PackFile`.
+    ///
+    /// By default this append a `_number` to the file name in case of collision. If you want it to overwrite instead,
+    /// pass `overwrite` as `true`. This can fail if you pass it an empty or reserved path, so make sure you check the result.
+    ///
+    /// We return the final destination path of the PackedFile, if it worked, or an error.
+    pub fn move_packedfile(
+        &mut self, 
+        source_path: &[String], 
+        destination_path: &[String],
+        overwrite: bool,
+    ) -> Result<Vec<String>> {
+
+        // First, ensure we can move between the paths.
+        let reserved_names = Self::get_reserved_packed_file_names();
+        if destination_path.is_empty() { return Err(ErrorKind::EmptyInput)? }
+        if source_path == destination_path { return Err(ErrorKind::PathsAreEqual)? }
+        if reserved_names.contains(&destination_path.to_vec()) { return Err(ErrorKind::ReservedFiles)? }
+        
+        // We may need to modify his destination path if we're not overwriting so...
+        let mut destination_path = destination_path.to_vec();
+
+        // First, we check if BOTH, the source and destination, exist.
+        let source_exists = self.packedfile_exists(source_path);
+        let destination_exists = self.packedfile_exists(&destination_path);
+        
+        // If both exists, we do some name resolving:
+        // - If we want to overwrite the destination file, we simply remove it.
+        // - If not, we check until we find a free path using "_X". This also takes into account extensions, so "m.loc" will become "m_1.loc".
+        if source_exists && destination_exists {
+            if overwrite { self.remove_packed_file_by_path(&destination_path); }
+            else {
+                let name_current = destination_path.last().unwrap().to_owned(); 
+                let name_splitted = name_current.split('.').collect::<Vec<&str>>();
+                let name = name_splitted[0];
+                let extension = if name_splitted.len() > 1 { name_splitted[1..].join(".") } else { "".to_owned() };
+                for number in 0.. {
+                    let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
+                    *destination_path.last_mut().unwrap() = name;
+                    if !self.packedfile_exists(&destination_path) && !reserved_names.contains(&destination_path) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Then just change the path of the `PackedFile` if exists. Return error if it doesn't.
+        match self.get_ref_mut_packed_file_by_path(source_path) {
+            Some(packed_file) => {
+                packed_file.set_path(&destination_path)?; 
+                Ok(destination_path) 
+            },
+            None => Err(ErrorKind::PackedFileNotFound)?
+        }
+    }
+
+    /// This function allows you to change the name of a folder inside a `PackFile`.
+    ///
+    /// By default this append a `_number` to the file names in case of collision. If you want it to overwrite instead,
+    /// pass `overwrite` as `true`. This can fail if you pass it an empty or reserved path, so make sure you check the result.
+    ///
+    /// We return the list of source/final paths of each moved PackedFile, if it worked, or an error.
+    pub fn move_folder(
+        &mut self, 
+        source_path: &[String], 
+        destination_path: &[String],
+        overwrite: bool,
+    ) -> Result<Vec<(Vec<String>, Vec<String>)>> {
+
+        // First, ensure we can move between the paths.
+        if source_path.is_empty() || destination_path.is_empty() { return Err(ErrorKind::EmptyInput)? }
+        if source_path == destination_path { return Err(ErrorKind::PathsAreEqual)? }
+
+        // Next... just get all the PackedFiles to move, and move them one by one.
+        let mut successes = vec![];
+        for packed_file_current_path in self.get_ref_packed_files_by_path_start(source_path).iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>() {
+            let new_path = packed_file_current_path.to_vec().splice(..source_path.len(), destination_path.iter().cloned()).collect::<Vec<String>>();
+            if let Ok(new_path) = self.move_packedfile(&packed_file_current_path, &new_path, overwrite) {
+                successes.push((packed_file_current_path, new_path))
+            }
+        }
+        
+        Ok(successes)
+    }
+
+    /// This function is used to rename one or more `PackedFile`/Folder inside a `PackFile`.
+    ///
+    /// This doesn't stop on failure. Instead, it continues. Then we return the list of paths that errored out.
+    /// If `overwrite` is set to `true`, in case of destination `PackedFile` already existing, it'll be overwritten.
+    /// If set to `false`, the file will be renamed to 'xxx_1', or the first number available. Extensions are taken 
+    /// into account when doing this, so 'x.loc' will become 'x_1.loc'.
+    pub fn rename_packedfiles(
+        &mut self, 
+        renaming_data: &[(PathType, String)], 
+        overwrite: bool
+    ) -> Vec<(PathType, String)> {
+
+        let mut successes = vec![];
+        for (item_type, new_name) in renaming_data {
+
+            // Skip items with empty new names.
+            if new_name.is_empty() { continue; }
+
+            // We only allow to rename files and folders.
+            match item_type {
+                PathType::File(ref path) => {
+                    let mut new_path = path.to_vec();
+                    *new_path.last_mut().unwrap() = new_name.to_owned();
+                    if let Ok(destination_path) = self.move_packedfile(path, &new_path, overwrite) {
+                        successes.push((item_type.clone(), destination_path.last().unwrap().to_owned()));
+                    }
+                }
+                
+                PathType::Folder(ref path) => {
+                    let mut new_path = path.to_vec();
+                    *new_path.last_mut().unwrap() = new_name.to_owned();
+                    if let Ok(result) = self.move_folder(path, &new_path, overwrite) {
+                        result.iter().map(|x| (PathType::File(x.0.to_vec()), new_path.last().unwrap().to_owned())).for_each(|x| successes.push(x));
+                    }
+                }
+
+                // PackFiles and errors are skipped.
+                PathType::PackFile | PathType::None => continue,
+            }
+        }
+
+        // Return the list of errors.
+        successes
     }
 
     /// This function reads the content of a PackFile into a `PackFile` struct.

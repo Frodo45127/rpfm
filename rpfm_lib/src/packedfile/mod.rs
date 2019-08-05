@@ -21,6 +21,7 @@ use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::path::PathBuf;
 
+use crate::SETTINGS;
 use crate::DEPENDENCY_DATABASE;
 use crate::FAKE_DEPENDENCY_DATABASE;
 use crate::common::*;
@@ -35,18 +36,24 @@ pub mod loc;
 pub mod db;
 pub mod rigidmodel;
 
-/// This enum specifies the PackedFile types we can create.
+//---------------------------------------------------------------------------//
+//                              Enum & Structs
+//---------------------------------------------------------------------------//
+
+/// This enum specifies the different types of `PackedFile` we can find in a `PackFile`.
+///
+/// Some of his variants contain useful information about the PackedFile itself.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PackedFileType {
 
-    // Name of the File.
-    Loc(String),
-
-    // Name of the File, Name of the table, version of the table.
-    DB(String, String, i32),
+    // Contains his *table name* (name of his parent folder in the PackFile), and his version.
+    DB(String, i32),
 
     // Name of the File.
-    Text(String),
+    Loc,
+
+    // Name of the File.
+    Text,
 }
 
 /// This enum specifies the PackedFile types we can decode.
@@ -84,10 +91,10 @@ pub const TSV_HEADER_PACKFILE_LIST: &str = "PackFile List";
 pub const TSV_HEADER_LOC_PACKEDFILE: &str = "Loc PackedFile";
 
 //----------------------------------------------------------------//
-// Generic Functions for PackedFiles.
+// Implementations for `DecodeablePackedFileType`.
 //----------------------------------------------------------------//
 
-/// Display implementation of DecodeablePackedFileType.
+/// Display implementation of `DecodeablePackedFileType`.
 impl Display for DecodeablePackedFileType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -101,47 +108,54 @@ impl Display for DecodeablePackedFileType {
     }
 }
 
-/// Function to get the type of a PackedFile.
+//----------------------------------------------------------------//
+// Generic Functions for PackedFiles.
+//----------------------------------------------------------------//
+
+/// This function returns the type of the provided PackedFile path.
 pub fn get_packed_file_type(path: &[String]) -> DecodeablePackedFileType {
+    if let Some(packedfile_name) = path.last() {
 
-    let packedfile_name = path.last().unwrap().to_owned();
+        // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+        if path[0] == "db" { DecodeablePackedFileType::DB }
 
-    // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-    if path[0] == "db" { DecodeablePackedFileType::DB }
+        // If it ends in ".loc", it's a localisation PackedFile.
+        else if packedfile_name.ends_with(".loc") { DecodeablePackedFileType::Loc }
 
-    // If it ends in ".loc", it's a localisation PackedFile.
-    else if packedfile_name.ends_with(".loc") { DecodeablePackedFileType::Loc }
+        // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+        else if packedfile_name.ends_with(".rigid_model_v2") { DecodeablePackedFileType::RigidModel }
 
-    // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-    else if packedfile_name.ends_with(".rigid_model_v2") { DecodeablePackedFileType::RigidModel }
+        // If it ends in any of these, it's a plain text PackedFile.
+        else if packedfile_name.ends_with(".lua") ||
+                packedfile_name.ends_with(".xml") ||
+                packedfile_name.ends_with(".xml.shader") ||
+                packedfile_name.ends_with(".xml.material") ||
+                packedfile_name.ends_with(".variantmeshdefinition") ||
+                packedfile_name.ends_with(".environment") ||
+                packedfile_name.ends_with(".lighting") ||
+                packedfile_name.ends_with(".wsmodel") ||
+                packedfile_name.ends_with(".csv") ||
+                packedfile_name.ends_with(".tsv") ||
+                packedfile_name.ends_with(".inl") ||
+                packedfile_name.ends_with(".battle_speech_camera") ||
+                packedfile_name.ends_with(".bob") ||
+                packedfile_name.ends_with(".cindyscene") ||
+                packedfile_name.ends_with(".cindyscenemanager") ||
+                //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                packedfile_name.ends_with(".txt") { DecodeablePackedFileType::Text }
 
-    // If it ends in any of these, it's a plain text PackedFile.
-    else if packedfile_name.ends_with(".lua") ||
-            packedfile_name.ends_with(".xml") ||
-            packedfile_name.ends_with(".xml.shader") ||
-            packedfile_name.ends_with(".xml.material") ||
-            packedfile_name.ends_with(".variantmeshdefinition") ||
-            packedfile_name.ends_with(".environment") ||
-            packedfile_name.ends_with(".lighting") ||
-            packedfile_name.ends_with(".wsmodel") ||
-            packedfile_name.ends_with(".csv") ||
-            packedfile_name.ends_with(".tsv") ||
-            packedfile_name.ends_with(".inl") ||
-            packedfile_name.ends_with(".battle_speech_camera") ||
-            packedfile_name.ends_with(".bob") ||
-            packedfile_name.ends_with(".cindyscene") ||
-            packedfile_name.ends_with(".cindyscenemanager") ||
-            //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-            packedfile_name.ends_with(".txt") { DecodeablePackedFileType::Text }
+        // If it ends in any of these, it's an image.
+        else if packedfile_name.ends_with(".jpg") ||
+                packedfile_name.ends_with(".jpeg") ||
+                packedfile_name.ends_with(".tga") ||
+                packedfile_name.ends_with(".dds") ||
+                packedfile_name.ends_with(".png") { DecodeablePackedFileType::Image }
 
-    // If it ends in any of these, it's an image.
-    else if packedfile_name.ends_with(".jpg") ||
-            packedfile_name.ends_with(".jpeg") ||
-            packedfile_name.ends_with(".tga") ||
-            packedfile_name.ends_with(".dds") ||
-            packedfile_name.ends_with(".png") { DecodeablePackedFileType::Image }
+        // Otherwise, we don't have a decoder for that PackedFile... yet.
+        else { DecodeablePackedFileType::None }
+    }
 
-    // Otherwise, we don't have a decoder for that PackedFile... yet.
+    // If we didn't got a name, it means something broke. Return none.
     else { DecodeablePackedFileType::None }
 }
 
@@ -156,10 +170,10 @@ pub fn create_packed_file(
     let data = match packed_file_type {
 
         // If it's a Loc PackedFile, create it and generate his data.
-        PackedFileType::Loc(_) => Loc::new().save(),
+        PackedFileType::Loc => Loc::new().save(),
 
         // If it's a DB table...
-        PackedFileType::DB(_, table, version) => {
+        PackedFileType::DB(table, version) => {
 
             // Try to get his table definition.
             let schema = SCHEMA.lock().unwrap();
@@ -173,7 +187,7 @@ pub fn create_packed_file(
         }
 
         // If it's a Text PackedFile, return an empty encoded string.
-        PackedFileType::Text(_) => vec![],
+        PackedFileType::Text => vec![],
     };
 
     // Create and add the new PackedFile to the PackFile.
@@ -889,4 +903,118 @@ pub fn tsv_mass_export(
 
     // Otherwise, just return success and an empty error list.
     else { Ok("<p>All exportable files have been exported.</p>".to_owned()) }
+}
+
+/// This function is used to optimize the size of a PackFile. It does two things: removes unchanged rows
+/// from tables (and if the table is empty, it removes it too) and it cleans the PackFile of extra .xml files 
+/// often created by map editors. It requires just the PackFile to optimize and the dependency PackFile.
+pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<Vec<String>>> {
+    
+    // List of PackedFiles to delete. This includes empty DB Tables and empty Loc PackedFiles.
+    let mut files_to_delete: Vec<Vec<String>> = vec![];
+
+    // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
+    // Otherwise, they may have to be decoded multiple times, making this function take ages to finish. 
+    let game_locs = DEPENDENCY_DATABASE.lock().unwrap().iter()
+        .filter(|x| x.get_path().last().unwrap().ends_with(".loc"))
+        .map(|x| x.get_data())
+        .filter(|x| x.is_ok())
+        .map(|x| Loc::read(&x.unwrap()))
+        .filter(|x| x.is_ok())
+        .map(|x| x.unwrap())
+        .collect::<Vec<Loc>>();
+
+    let mut game_dbs = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+        DEPENDENCY_DATABASE.lock().unwrap().iter()
+            .filter(|x| x.get_path().len() == 3 && x.get_path()[0] == "db")
+            .map(|x| (x.get_data(), x.get_path()[1].to_owned()))
+            .filter(|x| x.0.is_ok())
+            .map(|x| (DB::read(&x.0.unwrap(), &x.1, &schema)))
+            .filter(|x| x.is_ok())
+            .map(|x| x.unwrap())
+            .collect::<Vec<DB>>()
+    } else { vec![] };
+
+    // Due to precision issues with float fields, we have to round every float field from the tables to 3 decimals max.
+    game_dbs.iter_mut().for_each(|x| x.entries.iter_mut()
+        .for_each(|x| x.iter_mut()
+        .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
+    ));
+
+    let database_path_list = DEPENDENCY_DATABASE.lock().unwrap().iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>();
+    for packed_file in &mut pack_file.get_ref_mut_all_packed_files() {
+
+        // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
+        // as those are probably intended to overwrite vanilla files, not to be optimized.
+        if database_path_list.contains(&packed_file.get_path().to_vec()) && !SETTINGS.lock().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
+
+        // If it's a DB table and we have an schema...
+        if packed_file.get_path().len() == 3 && packed_file.get_path()[0] == "db" && !game_dbs.is_empty() {
+            if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+
+                // Try to decode our table.
+                let mut optimized_table = match DB::read(&(packed_file.get_data_and_keep_it()?), &packed_file.get_path()[1], &schema) {
+                    Ok(table) => table,
+                    Err(_) => continue,
+                };
+
+                // We have to round our floats too.
+                optimized_table.entries.iter_mut()
+                    .for_each(|x| x.iter_mut()
+                    .for_each(|x| if let DecodedData::Float(data) = x { *data = (*data * 1000f32).round() / 1000f32 })
+                );
+
+                // For each vanilla DB Table that coincide with our own, compare it row by row, cell by cell, with our own DB Table. Then delete in reverse every coincidence.
+                for game_db in &game_dbs {
+                    if game_db.name == optimized_table.name && game_db.definition.version == optimized_table.definition.version {
+                        let rows_to_delete = optimized_table.entries.iter().enumerate().filter(|(_, entry)| game_db.entries.contains(entry)).map(|(row, _)| row).collect::<Vec<usize>>();
+                        for row in rows_to_delete.iter().rev() {
+                            optimized_table.entries.remove(*row);
+                        } 
+                    }
+                }
+
+                // Save the data to the PackFile and, if it's empty, add it to the deletion list.
+                packed_file.set_data(optimized_table.save());
+                if optimized_table.entries.is_empty() { files_to_delete.push(packed_file.get_path().to_vec()); }
+            }
+
+            // Otherwise, we just check if it's empty. In that case, we delete it.
+            else if let Ok((_, _, entry_count, _)) = DB::get_header(&(packed_file.get_data()?)) {
+                if entry_count == 0 { files_to_delete.push(packed_file.get_path().to_vec()); }
+            }
+        }
+
+        // If it's a Loc PackedFile and there are some Locs in our dependencies...
+        else if packed_file.get_path().last().unwrap().ends_with(".loc") && !game_locs.is_empty() {
+
+            // Try to decode our Loc. If it's empty, skip it and continue with the next one.
+            let mut optimized_loc = match Loc::read(&(packed_file.get_data_and_keep_it()?)) {
+                Ok(loc) => if !loc.entries.is_empty() { loc } else { continue },
+                Err(_) => continue,
+            };
+
+            // For each vanilla Loc, compare it row by row, cell by cell, with our own Loc. Then delete in reverse every coincidence.
+            for game_loc in &game_locs {
+                let rows_to_delete = optimized_loc.entries.iter().enumerate().filter(|(_, entry)| game_loc.entries.contains(entry)).map(|(row, _)| row).collect::<Vec<usize>>();
+                for row in rows_to_delete.iter().rev() {
+                    optimized_loc.entries.remove(*row);
+                } 
+            }
+
+            // Save the data to the PackFile and, if it's empty, add it to the deletion list.
+            packed_file.set_data(optimized_loc.save());
+            if optimized_loc.entries.is_empty() { files_to_delete.push(packed_file.get_path().to_vec()); }
+        }
+    }
+
+    // If there are files to delete, get his type and delete them
+    if !files_to_delete.is_empty() {
+        for tree_path in &files_to_delete {
+            pack_file.remove_packed_file_by_path(tree_path);
+        }
+    }
+
+    // Return the deleted file's types.
+    Ok(files_to_delete)
 }
