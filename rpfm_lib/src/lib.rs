@@ -340,10 +340,10 @@ pub fn open_packfiles(
         movie_files.sort_by_key(|x| x.get_path().to_vec());
         movie_files.dedup_by_key(|x| x.get_path().to_vec());
 
-        pack_file.add_packed_files(&movie_files);
-        pack_file.add_packed_files(&patch_files);
-        pack_file.add_packed_files(&release_files);
-        pack_file.add_packed_files(&boot_files);
+        pack_file.add_packed_files(&movie_files, true);
+        pack_file.add_packed_files(&patch_files, true);
+        pack_file.add_packed_files(&release_files, true);
+        pack_file.add_packed_files(&boot_files, true);
 
         // Set it as type "Other(200)", so we can easely identify it as fake in other places.
         // Used to lock the CA Files.
@@ -377,54 +377,6 @@ pub fn save_packfile(
     
     // And we try to save it.
     PackFile::save(&mut pack_file)
-}
-
-/// This function is used to add a file to a PackFile, processing it and turning it into a PackedFile.
-/// It returns a success or error message, depending on whether the file has been added, or not.
-/// It requires:
-/// - pack_file: a &mut pack_file::PackFile. It's the PackFile where we are going add the file.
-/// - file_path: a PathBuf with the current path of the file.
-/// - tree_path: a Vec<String> with the path in the TreeView where we are going to add the file.
-pub fn add_file_to_packfile(
-    pack_file: &mut PackFile,
-    file_path: &PathBuf,
-    tree_path: Vec<String>
-) -> Result<()> {
-
-    // If there is already a PackedFile in that path...
-    if pack_file.packedfile_exists(&tree_path) {
-
-        // Create the theorical path of the PackedFile.
-        let mut theorical_path = tree_path.to_vec();
-        theorical_path.insert(0, pack_file.get_file_name());
-
-        // Get the destination PackedFile.
-        let packed_file = pack_file.get_ref_mut_packed_file_by_path(&tree_path).unwrap();
-
-        // We get the data and his size...
-        let mut file = BufReader::new(File::open(&file_path)?);
-        let mut data = vec![];
-        file.read_to_end(&mut data)?;
-        packed_file.set_data(data);
-
-        // Change his last modified time.
-        packed_file.set_timestamp(get_last_modified_time_from_file(&file.get_ref()));
-    }
-
-    // Otherwise, we add it as a new PackedFile.
-    else {
-
-        // We get the data and his size...
-        let mut file = BufReader::new(File::open(&file_path)?);
-        let mut data = vec![];
-        file.read_to_end(&mut data)?;
-
-        // And then we make a PackedFile with it and save it.
-        let packed_files = vec![PackedFile::read_from_vec(tree_path, pack_file.get_file_name(), get_last_modified_time_from_file(&file.get_ref()), false, data); 1];
-        let added_paths = pack_file.add_packed_files(&packed_files);
-        if added_paths.len() < packed_files.len() { Err(ErrorKind::ReservedFiles)? }
-    }
-    Ok(())
 }
 
 /// This function is used to add one or more PackedFiles to a PackFile (from another PackFile).
@@ -463,7 +415,7 @@ pub fn add_packedfile_to_packfile(
                     // We get the PackedFile, clone it and add it to our own PackFile.
                     let mut packed_file = pack_file_source.get_ref_packed_file_by_path(path).unwrap().clone();
                     packed_file.load_data()?;
-                    pack_file_destination.add_packed_files(&[packed_file]);
+                    pack_file_destination.add_packed_files(&[packed_file], true);
                 }
                 path_types_added.push(path_type.clone());
             }
@@ -496,7 +448,7 @@ pub fn add_packedfile_to_packfile(
                             // We get the PackedFile, clone it and add it to our own PackFile.
                             let mut packed_file = pack_file_source.get_ref_packed_file_by_path(packed_file.get_path()).unwrap().clone();
                             packed_file.load_data()?;
-                            pack_file_destination.add_packed_files(&[packed_file]);
+                            pack_file_destination.add_packed_files(&[packed_file], true);
                         }
                         path_types_added.push(PathType::File(packed_file.get_path().to_vec()));
                     }
@@ -525,7 +477,7 @@ pub fn add_packedfile_to_packfile(
                         // We get the PackedFile.
                         let mut packed_file = pack_file_source.get_ref_packed_file_by_path(packed_file.get_path()).unwrap().clone();
                         packed_file.load_data()?;
-                        pack_file_destination.add_packed_files(&[packed_file]);
+                        pack_file_destination.add_packed_files(&[packed_file], true);
                     }
                     path_types_added.push(PathType::File(packed_file.get_path().to_vec()));
                 }
@@ -538,290 +490,12 @@ pub fn add_packedfile_to_packfile(
     Ok(path_types_added)
 }
 
-/// This function is used to delete a PackedFile or a group of PackedFiles of the provided types
-/// from the PackFile. We just need the open PackFile and the PathTypes of the files/folders to delete.
-pub fn delete_from_packfile(
-    pack_file: &mut PackFile,
-    item_types: &[PathType]
-) -> Vec<PathType> {
-    
-    // First, we prepare the counters for the path types.
-    let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
-
-    // We need to "clean" the selected path list to ensure we don't pass stuff already deleted.
-    let mut item_types_clean = vec![];
-    for item_type_to_add in item_types {
-        match item_type_to_add {
-            PathType::File(ref path_to_add) => {
-                let mut add_type = true;
-                for item_type in item_types {
-                    
-                    // Skip the current file from checks.
-                    if let PathType::File(ref path) = item_type {
-                        if path == path_to_add { continue; }
-                    }
-
-                    // If the other one is a folder that contains it, dont add it.
-                    else if let PathType::Folder(ref path) = item_type {
-                        if path_to_add.starts_with(path) { 
-                            add_type = false;
-                            break;
-                        }
-                    }
-                }
-                if add_type { item_types_clean.push(item_type_to_add.clone()); }
-            }
-
-            PathType::Folder(ref path_to_add) => {
-                let mut add_type = true;
-                for item_type in item_types {
-
-                    // If the other one is a folder that contains it, dont add it.
-                    if let PathType::Folder(ref path) = item_type {
-                        if path == path_to_add { continue; }
-                        if path_to_add.starts_with(path) { 
-                            add_type = false;
-                            break;
-                        }
-                    }
-                }
-                if add_type { item_types_clean.push(item_type_to_add.clone()); }
-            }
-
-            // If we got the PackFile, remove everything.
-            PathType::PackFile => {
-                item_types_clean.clear();
-                item_types_clean.push(item_type_to_add.clone());
-                break;
-            }
-            PathType::None => unimplemented!(),
-        }   
-    }
-
-    for item_type in &item_types_clean {
-        match item_type {
-            PathType::File(_) => file += 1,
-            PathType::Folder(_) => folder += 1,
-            PathType::PackFile => packfile += 1,
-            PathType::None => none += 1,
-        }
-    }
-    
-    // Now we do some bitwise magic to get what type of selection combination we have.
-    let mut contents: u8 = 0;
-    if file != 0 { contents |= 1; } 
-    if folder != 0 { contents |= 2; } 
-    if packfile != 0 { contents |= 4; } 
-    if none != 0 { contents |= 8; } 
-    match contents {
-
-        // Any combination of files and folders.
-        1 | 2 | 3 => {
-            for item_type in &item_types_clean {
-                match item_type {
-                    PathType::File(path) => pack_file.remove_packed_file_by_path(path),
-                    PathType::Folder(path) => pack_file.remove_packed_files_by_path_start(path),
-                    _ => unreachable!(),
-                } 
-            }
-        },
-
-        // If the PackFile is selected, get it just extract the PackFile and everything will get extracted with it.
-        4 | 5 | 6 | 7 => pack_file.remove_all_packedfiles(),
-
-        // No paths selected, none selected, invalid path selected, or invalid value. 
-        0 | 8..=255 => {},
-    }
-
-    // Return the TreePathType list so the UI can delete them.
-    item_types_clean
-}
-
-/// This function is used to extract a PackedFile or a folder from the PackFile.
-/// It requires:
-/// - pack_file: the PackFile from where we want to extract the PackedFile.
-/// - item_types: the PathType of the PackedFiles we want to extract.
-/// - extracted_path: the destination path of the file we want to extract.
-///
-/// NOTE: By COMPLETE I mean with the PackFile's name included.
-pub fn extract_from_packfile(
-    pack_file: &PackFile,
-    item_types: &[PathType],
-    extracted_path: &PathBuf,
-) -> Result<String> {
-
-    // These variables are here to keep track of what we have extracted and what files failed.
-    let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
-    let mut files_extracted = 0;
-    let mut error_files = vec![];
-
-    // We need to "clean" the selected path list to ensure we don't pass stuff already deleted.
-    let mut item_types_clean = vec![];
-    for item_type_to_add in item_types {
-        match item_type_to_add {
-            PathType::File(ref path_to_add) => {
-                let mut add_type = true;
-                for item_type in item_types {
-                    
-                    // Skip the current file from checks.
-                    if let PathType::File(ref path) = item_type {
-                        if path == path_to_add { continue; }
-                    }
-
-                    // If the other one is a folder that contains it, dont add it.
-                    else if let PathType::Folder(ref path) = item_type {
-                        if path_to_add.starts_with(path) { 
-                            add_type = false;
-                            break;
-                        }
-                    }
-                }
-                if add_type { item_types_clean.push(item_type_to_add.clone()); }
-            }
-
-            PathType::Folder(ref path_to_add) => {
-                let mut add_type = true;
-                for item_type in item_types {
-
-                    // If the other one is a folder that contains it, dont add it.
-                    if let PathType::Folder(ref path) = item_type {
-                        if path == path_to_add { continue; }
-                        if path_to_add.starts_with(path) { 
-                            add_type = false;
-                            break;
-                        }
-                    }
-                }
-                if add_type { item_types_clean.push(item_type_to_add.clone()); }
-            }
-
-            // If we got the PackFile, remove everything.
-            PathType::PackFile => {
-                item_types_clean.clear();
-                item_types_clean.push(item_type_to_add.clone());
-                break;
-            }
-            PathType::None => unimplemented!(),
-        }   
-    }
-
-    for item_type in &item_types_clean {
-        match item_type {
-            PathType::File(_) => file += 1,
-            PathType::Folder(_) => folder += 1,
-            PathType::PackFile => packfile += 1,
-            PathType::None => none += 1,
-        }
-    }
-
-    // Now we do some bitwise magic to get what type of selection combination we have.
-    let mut contents: u8 = 0;
-    if file != 0 { contents |= 1; } 
-    if folder != 0 { contents |= 2; } 
-    if packfile != 0 { contents |= 4; } 
-    if none != 0 { contents |= 8; } 
-    match contents {
-
-        // Any combination of files and folders.
-        1 | 2 | 3 => {
-
-            // For folders we check each PackedFile to see if it starts with the folder's path (it's in the folder).
-            // There should be no duplicates here thanks to the filters from before.
-            for item_type in &item_types_clean {
-                match item_type {
-                    PathType::File(path) => {
-   
-                        // We remove everything from his path up to the folder we want to extract (not included).
-                        let packed_file = pack_file.get_ref_packed_file_by_path(path).unwrap();
-                        let mut additional_path = packed_file.get_path().to_vec();
-                        let file_name = additional_path.pop().unwrap();
-
-                        // Get the destination path of our file, without the file at the end, and create his folder.
-                        let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
-                        DirBuilder::new().recursive(true).create(&current_path)?;
-
-                        // Finish the path and save the file.
-                        current_path.push(&file_name);
-                        let mut file = BufWriter::new(File::create(&current_path)?);
-                        match file.write_all(&packed_file.get_data()?){
-                            Ok(_) => files_extracted += 1,
-                            Err(_) => error_files.push(format!("{:?}", current_path)),
-                        }
-                    },
-
-                    PathType::Folder(path) => {
-                    
-                        for packed_file in pack_file.get_ref_packed_files_by_path_start(path) {
-                            if !path.is_empty() && packed_file.get_path().starts_with(&path) {
-                               
-                                // We remove everything from his path up to the folder we want to extract (not included).
-                                let mut additional_path = packed_file.get_path().to_vec();
-                                let file_name = additional_path.pop().unwrap();
-
-                                // Get the destination path of our file, without the file at the end, and create his folder.
-                                let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
-                                DirBuilder::new().recursive(true).create(&current_path)?;
-
-                                // Finish the path and save the file.
-                                current_path.push(&file_name);
-                                let mut file = BufWriter::new(File::create(&current_path)?);
-                                match file.write_all(&packed_file.get_data()?){
-                                    Ok(_) => files_extracted += 1,
-                                    Err(_) => error_files.push(format!("{:?}", current_path)),
-                                }
-                            }
-                        }
-                    },
-
-                    _ => unreachable!(),
-                } 
-            }            
-        },
-
-        // If the PackFile is selected, get it just extract the PackFile and everything will get extracted with it.
-        4 | 5 | 6 | 7 => {
-
-            // For each PackedFile we have, just extracted in the folder we got, under the PackFile's folder.
-            for packed_file in pack_file.get_ref_all_packed_files() {
-
-                // We remove everything from his path up to the folder we want to extract (not included).
-                let mut additional_path = packed_file.get_path().to_vec();
-                let file_name = additional_path.pop().unwrap();
-
-                // Get the destination path of our file, without the file at the end, and create his folder.
-                let mut current_path = extracted_path.clone().join(additional_path.iter().collect::<PathBuf>());
-                DirBuilder::new().recursive(true).create(&current_path)?;
-
-                // Finish the path and save the file.
-                current_path.push(&file_name);
-                let mut file = BufWriter::new(File::create(&current_path)?);
-                match file.write_all(&packed_file.get_data()?){
-                    Ok(_) => files_extracted += 1,
-                    Err(_) => error_files.push(format!("{:?}", current_path)),
-                }
-            }
-        },
-
-        // No paths selected, none selected, invalid path selected, or invalid value. 
-        0 | 8..=255 => return Err(ErrorKind::NonExistantFile)?,
-    }
-
-    // If there is any error in the list, report it.
-    if !error_files.is_empty() {
-        let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
-        return Err(ErrorKind::ExtractError(error_files_string))?
-    }
-
-    // If we reach this, return success.
-    Ok(format!("{} files extracted. No errors detected.", files_extracted))
-}
-
 /*
 --------------------------------------------------------
          Special PackedFile-Related Functions
 --------------------------------------------------------
 */
-
+/*
 /// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
 /// is SiegeAI implemented in the map) is patched and the extra useless .xml files are deleted.
 /// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
@@ -948,4 +622,4 @@ pub fn patch_siege_ai (
         }
     }
 }
-
+*/
