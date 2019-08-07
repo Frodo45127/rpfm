@@ -108,6 +108,19 @@ impl PackedFile {
         }
     }
 
+    /// This function creates a new `PackedFile` from a file in the filesystem.
+    ///
+    /// Keep in mind that you have to set the name of his `PackFile` if you add it to one.
+    pub fn read_from_path(
+        path_as_file: &Path,
+        path_as_packed_file: Vec<String>,
+    ) -> Result<Self> {
+        let mut file = BufReader::new(File::open(&path_as_file)?);
+        let mut data = vec![];
+        file.read_to_end(&mut data)?;
+        Ok(PackedFile::read_from_vec(path_as_packed_file, String::new(), get_last_modified_time_from_file(&file.get_ref()), false, data))
+    }
+
     /// This function loads the data of a `PackedFile` to memory, if it isn't loaded already.
     pub fn load_data(&mut self) -> Result<()> {
         let data_on_memory = if let PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) = self.data {

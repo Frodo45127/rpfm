@@ -430,65 +430,113 @@ impl PackFile {
         self.packed_files.iter().map(|x| x.get_path().to_vec()).collect()
     }
 
-    /// This function adds one or more `PackedFiles` to an existing `PackFile`.
+    /// This function adds a `PackedFiles` to an existing `PackFile`.
     ///
-    /// This function returns the paths of the PackedFiles which got added succesfully. Also, if you set `overwrite` to `true`, 
-    /// in case of conflict, the `PackedFiles` are overwritten. If set to false, they'll be renamed instead.
-    pub fn add_packed_files(&mut self, packed_files: &[PackedFile], overwrite: bool) -> Result<Vec<Vec<String>>> {
+    /// This function returns the paths of the `PackedFile` which got added succesfully. Also, if you set `overwrite` to `true`, 
+    /// in case of conflict, the `PackedFile` is overwritten. If set to false, it'll be renamed instead.
+    pub fn add_packed_file(&mut self, packed_file: &PackedFile, overwrite: bool) -> Result<Vec<String>> {
 
         // If we hit a reserved name, stop. Don't add anything.
-        let reserved_names = Self::get_reserved_packed_file_names();
-        if packed_files.iter().any(|x| reserved_names.contains(&x.get_path().to_vec())) { return Err(ErrorKind::ReservedFiles)? }
+        if packed_file.get_path() == RESERVED_PACKED_FILE_NAMES { return Err(ErrorKind::ReservedFiles)? }
 
-        // If there is no problem, start adding `PackedFiles` like there is no tomorrow.
-        let mut new_paths = vec![];
-        for packed_file in packed_files {
+        // Get his path, and update his `PackFile` name.
+        let mut packed_file = packed_file.clone();
+        let mut destination_path = packed_file.get_path().to_vec();
+        packed_file.set_packfile_name(&self.get_file_name());
+        match self.packed_files.iter().position(|x| x.get_path() == packed_file.get_path()) {
 
-            let mut destination_path = packed_file.get_path().to_vec();
-            match self.packed_files.iter().position(|x| x.get_path() == packed_file.get_path()) {
-
-                // Here is were the fun starts. If there is a conflict, we act depending on the `overwrite` value.
-                Some(index) => {
-                    if overwrite { self.packed_files[index] = packed_file.clone() }
-                    else {
-                        let name_current = destination_path.last().unwrap().to_owned(); 
-                        let name_splitted = name_current.split('.').collect::<Vec<&str>>();
-                        let name = name_splitted[0];
-                        let extension = if name_splitted.len() > 1 { name_splitted[1..].join(".") } else { "".to_owned() };
-                        for number in 0.. {
-                            let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
-                            *destination_path.last_mut().unwrap() = name;
-                            if !self.packedfile_exists(&destination_path) && !reserved_names.contains(&destination_path) {
-                                break;
-                            }
+            // Here is were the fun starts. If there is a conflict, we act depending on the `overwrite` value.
+            Some(index) => {
+                if overwrite { self.packed_files[index] = packed_file }
+                else {
+                    let reserved_names = Self::get_reserved_packed_file_names();
+                    let name_current = destination_path.last().unwrap().to_owned(); 
+                    let name_splitted = name_current.split('.').collect::<Vec<&str>>();
+                    let name = name_splitted[0];
+                    let extension = if name_splitted.len() > 1 { name_splitted[1..].join(".") } else { "".to_owned() };
+                    for number in 0.. {
+                        let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
+                        *destination_path.last_mut().unwrap() = name;
+                        if !self.packedfile_exists(&destination_path) && !reserved_names.contains(&destination_path) {
+                            break;
                         }
                     }
                 }
-
-                // If there is no conflict, just add the `PackedFile`.
-                None => self.packed_files.push(packed_file.clone()),
             }
-            new_paths.push(destination_path);    
-        }
-        Ok(new_paths)
+
+            // If there is no conflict, just add the `PackedFile`.
+            None => self.packed_files.push(packed_file),
+        }  
+        Ok(destination_path)
     }
 
     /// This function is used to add a file from disk to a `PackFile`, turning it into a `PackedFile`.
     ///
     /// In case of conflict, if overwrite is set to true, the current `PackedFile` in the conflicting path
     /// will be overwritten with the new one. If set to false, the new `PackFile` will be called `xxxx_1.extension`.
-    pub fn add_file(
+    pub fn add_from_file(
         &mut self,
         path_as_file: &PathBuf,
         path_as_packed_file: Vec<String>,
         overwrite: bool,
-    ) -> Result<Vec<Vec<String>>> {
-        let mut file = BufReader::new(File::open(&path_as_file)?);
-        let mut data = vec![];
-        file.read_to_end(&mut data)?;
-        let packed_file = PackedFile::read_from_vec(path_as_packed_file, self.get_file_name(), get_last_modified_time_from_file(&file.get_ref()), false, data);
-        self.add_packed_files(&[packed_file], overwrite)
+    ) -> Result<Vec<String>> {
+        let packed_file = PackedFile::read_from_path(path_as_file, path_as_packed_file)?;
+        self.add_packed_file(&packed_file, overwrite)
     }
+
+
+    /// This function is used to add a `PackedFile` from one `PackFile` into another. 
+    ///
+    /// It's a ***Copy from another PackFile*** kind of function. It returns the paths 
+    /// of whatever got added to our `PackFile`, and the paths that failed.
+    pub fn add_from_packfile(
+        &mut self,
+        source: &Self,
+        path_type: &PathType,
+        overwrite: bool,
+    ) -> (Vec<Vec<String>>, Vec<Vec<String>>) {
+
+        // Keep the PathTypes added so we can return them to the UI easely.
+        let mut paths_ok = vec![];
+        let mut paths_err = vec![];
+        match path_type {
+
+            // If the `PathType` is a file, we just get the `PackedFile` and add it to our `PackFile`.
+            PathType::File(path) => {
+                if let Some(packed_file) = source.get_ref_packed_file_by_path(path) {
+                    match self.add_packed_file(&packed_file, overwrite) {
+                        Ok(path) => paths_ok.push(path),
+                        Err(_) => paths_err.push(path.to_vec()),
+                    }
+                }
+            }
+
+            // If the `PathType` is a folder we just replicate the file behavior in a loop.
+            PathType::Folder(ref path) => {
+                for packed_file in source.get_ref_packed_files_by_path_start(path) {
+                    match self.add_packed_file(&packed_file, overwrite) {
+                        Ok(path) => paths_ok.push(path),
+                        Err(_) => paths_err.push(packed_file.get_path().to_vec()),
+                    }
+                }
+            }
+
+            // If we want to add an entire PackedFile, just repeat the process with all the `PackedFiles`.
+            PathType::PackFile => {
+                for packed_file in source.get_ref_all_packed_files() {
+                    match self.add_packed_file(&packed_file, overwrite) {
+                        Ok(path) => paths_ok.push(path),
+                        Err(_) =>  paths_err.push(packed_file.get_path().to_vec()),
+                    }
+                }
+            },
+
+            // In any other case, there is a problem somewhere. Otherwise, this is unreachable.
+            _ => unreachable!()
+        }
+        (paths_ok, paths_err)
+    }
+
 
     /// This function returns the name of the PackFile. If it's empty, it's an in-memory only PackFile. 
     pub fn get_file_name(&self) -> String {
