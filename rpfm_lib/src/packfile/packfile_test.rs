@@ -43,7 +43,7 @@ fn test_encode_pfh5() {
 	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH5_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH5_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
-	pack_file_new.save().unwrap();
+	pack_file_new.save(None).unwrap();
 
 	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH5_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);
@@ -59,7 +59,7 @@ fn test_encode_pfh4() {
 	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH4_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH4_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
-	pack_file_new.save().unwrap();
+	pack_file_new.save(None).unwrap();
 
 	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH4_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);
@@ -75,7 +75,7 @@ fn test_encode_pfh3() {
 	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH3_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH3_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
-	pack_file_new.save().unwrap();
+	pack_file_new.save(None).unwrap();
 
 	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH3_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);
@@ -91,7 +91,7 @@ fn test_encode_pfh0() {
 	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH0_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH0_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
-	pack_file_new.save().unwrap();
+	pack_file_new.save(None).unwrap();
 
 	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH0_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);

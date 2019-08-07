@@ -29,6 +29,7 @@ use std::sync::{Arc, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
 
+use crate::SETTINGS;
 use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
@@ -1256,8 +1257,18 @@ impl PackFile {
     }
 
     /// This function tries to save a `PackFile` to a file in the filesystem.
-    pub fn save(&mut self) -> Result<()> {
+    ///
+    /// If no path is passed, the `PackFile` will be saved in his current path. 
+    /// If a path is passed as `new_path` the `PackFile` will be saved in that path.
+    pub fn save(&mut self, new_path: Option<PathBuf>) -> Result<()> {
 
+        // If any of the problematic masks in the header is set or is one of CA's, return an error.
+        if !self.is_editable(*SETTINGS.lock().unwrap().settings_bool.get("is_editing_of_ca_packfiles_allowed").unwrap()) { return Err(ErrorKind::PackFileIsNonEditable)? }
+
+        // If we receive a new path, update it. Otherwise, ensure the file actually exists on disk.
+        if let Some(path) = new_path { self.set_file_path(&path)?; }
+        else if !self.get_file_path().is_file() { return Err(ErrorKind::PackFileIsNotAFile)? }
+        
         // Before everything else, add the file for the notes if we have them. We'll remove it later, after the file has been saved.
         if let Some(note) = &self.notes {
             let mut data = vec![];

@@ -356,29 +356,6 @@ pub fn open_packfiles(
     }
 }
 
-/// This function is used to take an open PackFile, encode it and save it into the disk. We return
-/// a result with a message of success or error.
-/// It requires:
-/// - pack_file: a &mut pack_file::PackFile. It's the PackFile we are going to save.
-/// - new_path: an Option<PathBuf> with the path were we are going to save the PackFile. None if we
-///   are saving it in the same path it's when we opened it.
-pub fn save_packfile(
-    mut pack_file: &mut PackFile,
-    new_path: Option<PathBuf>,
-    is_editing_of_ca_packfiles_allowed: bool
-) -> Result<()> {
-
-    // If any of the problematic masks in the header is set or is one of CA's, return an error.
-    if !pack_file.is_editable(is_editing_of_ca_packfiles_allowed) { return Err(ErrorKind::PackFileIsNonEditable)? }
-
-    // If we receive a new path, update it. Otherwise, ensure the file actually exists on disk.
-    if let Some(path) = new_path { pack_file.set_file_path(&path)?; }
-    else if !pack_file.get_file_path().is_file() { return Err(ErrorKind::PackFileIsNotAFile)? }
-    
-    // And we try to save it.
-    PackFile::save(&mut pack_file)
-}
-
 /*
 --------------------------------------------------------
          Special PackedFile-Related Functions
