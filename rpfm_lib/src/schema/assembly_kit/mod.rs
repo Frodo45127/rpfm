@@ -35,7 +35,7 @@ use rpfm_error::{Result, Error, ErrorKind};
 
 use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
-use crate::open_packfiles;
+use crate::packfile::PackFile;
 use crate::packedfile::db::DB;
 use crate::packedfile::DecodedData;
 
@@ -317,7 +317,7 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
         match raw_db_version {
             2 | 1 => {
                 let packfile_db_path = get_game_selected_db_pack_path(&**GAME_SELECTED.lock().unwrap()).ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
-                let packfile_db = open_packfiles(&packfile_db_path, false, true, false)?;
+                let packfile_db = PackFile::open_packfiles(&packfile_db_path, true, false, false)?;
 
                 let mut ass_kit_schemas_path = 
                     if raw_db_version == 1 { 

@@ -10,6 +10,8 @@
 
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
 
+use crate::GAME_SELECTED;
+use bincode::deserialize;
 use csv::{ReaderBuilder, WriterBuilder, QuoteStyle};
 use serde_derive::{Serialize, Deserialize};
 
@@ -158,7 +160,7 @@ pub fn get_packed_file_type(path: &[String]) -> DecodeablePackedFileType {
     // If we didn't got a name, it means something broke. Return none.
     else { DecodeablePackedFileType::None }
 }
-
+/*
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
     pack_file: &mut PackFile,
@@ -283,7 +285,7 @@ pub fn merge_tables(
     }
     Ok((added_path, tree_paths))
 }
-
+*/
 /// This function retrieves the entire Dependency Data for a given table definition.
 ///
 /// NOTE: It's here and not in DB because we may get an use for this in LOC PackedFiles.
@@ -681,7 +683,7 @@ pub fn export_tsv_from_binary_file(
 //----------------------------------------------------------------//
 // Mass-TSV Functions for PackedFiles.
 //----------------------------------------------------------------//
-
+/*
 /// This function is used to Mass-Import TSV files into a PackFile. Note that this will OVERWRITE any
 /// existing PackedFile that has a name conflict with the TSV files provided.
 pub fn tsv_mass_import(
@@ -811,7 +813,7 @@ pub fn tsv_mass_import(
     pack_file.add_packed_files(&packed_files, true)?;
     Ok((packed_files_to_remove, tree_path))
 }
-
+*/
 /// This function is used to Mass-Export TSV files from a PackFile. Note that this will OVERWRITE any
 /// existing file that has a name conflict with the TSV files provided.
 pub fn tsv_mass_export(
@@ -1015,4 +1017,155 @@ pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<Vec<String>>> {
 
     // Return the deleted file's types.
     Ok(files_to_delete)
+}
+
+/// This function is a special open function, to get all the fake DB files from the PAK file of the Game Selected,
+/// if it does has one.
+pub fn load_fake_dependency_packfiles() -> Vec<DB> {
+
+    // Create the empty list.
+    let mut db_files = vec![];
+
+    // Get all the paths we need.
+    if let Ok(pak_file) = get_game_selected_pak_file(&*GAME_SELECTED.lock().unwrap()) {
+        if let Ok(pak_file) = File::open(pak_file) {
+            let mut pak_file = BufReader::new(pak_file);
+            let mut data = vec![];
+            if pak_file.read_to_end(&mut data).is_ok() {
+                if let Ok(pak_file) = deserialize(&data) {
+                    db_files = pak_file;
+                }
+            }
+        }
+    }
+
+    // Return the fake DB Table list.
+    db_files
+}
+
+/// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
+/// is SiegeAI implemented in the map) is patched and the extra useless .xml files are deleted.
+/// It requires a mut ref to a decoded PackFile, and returns an String and the list of removed PackedFiles.
+pub fn patch_siege_ai (
+    pack_file: &mut PackFile
+) -> Result<(String, Vec<PathType>)> {
+
+    let mut files_patched = 0;
+    let mut files_deleted = 0;
+    let mut files_to_delete: Vec<Vec<String>> = vec![];
+    let mut deleted_files_type: Vec<PathType> = vec![];
+    let mut packfile_is_empty = true;
+    let mut multiple_defensive_hill_hints = false;
+
+    // For every PackedFile in the PackFile we check first if it's in the usual map folder, as we
+    // don't want to touch files outside that folder.
+    for i in &mut pack_file.get_all_packed_files() {
+        if i.get_path().starts_with(&["terrain".to_owned(), "tiles".to_owned(), "battle".to_owned(), "_assembly_kit".to_owned()]) &&
+            i.get_path().last() != None {
+
+            let x = i.get_path().last().unwrap().clone();
+            packfile_is_empty = false;
+
+            // If it's one of the possible candidates for Patching, we first check if it has
+            // an Area Node in it, as that's the base for SiegeAI. If it has an Area Node,
+            // we search the Defensive Hill and Patch it. After that, we check if there are
+            // more Defensive Hills in the file. If there are more, we return success but
+            // notify the modder that the file should have only one.
+            if x == "bmd_data.bin"
+                || x == "catchment_01_layer_bmd_data.bin"
+                || x == "catchment_02_layer_bmd_data.bin"
+                || x == "catchment_03_layer_bmd_data.bin"
+                || x == "catchment_04_layer_bmd_data.bin"
+                || x == "catchment_05_layer_bmd_data.bin"
+                || x == "catchment_06_layer_bmd_data.bin"
+                || x == "catchment_07_layer_bmd_data.bin"
+                || x == "catchment_08_layer_bmd_data.bin"
+                || x == "catchment_09_layer_bmd_data.bin" {
+
+                    let mut data: Vec<u8> = i.get_data()?;
+                    if data.windows(19).find(|window: &&[u8]
+                        |String::from_utf8_lossy(window) == "AIH_SIEGE_AREA_NODE") != None {
+
+                    let patch = "AIH_FORT_PERIMETER".to_string();
+                    let index = data.windows(18)
+                        .position(
+                            |window: &[u8]
+                            |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL");
+
+                    if index != None {
+                        for j in 0..18 {
+                            data[index.unwrap() + (j as usize)] = patch.chars().nth(j).unwrap() as u8;
+                        }
+                        files_patched += 1;
+                    }
+                    if data.windows(18).find(|window: &&[u8]
+                            |String::from_utf8_lossy(window) == "AIH_DEFENSIVE_HILL") != None {
+                        multiple_defensive_hill_hints = true;
+                    }
+                }
+                i.set_data(data);
+            }
+
+            // If it's an xml, we add it to the list of files_to_delete, as all the .xml files
+            // in this folder are useless and only increase the size of the PackFile.
+            else if x.ends_with(".xml") {
+                files_to_delete.push(i.get_path().to_vec());
+            }
+        }
+    }
+
+    // If there are files to delete, we delete them.
+    if !files_to_delete.is_empty() {
+        for tree_path in &mut files_to_delete {
+            let path_type = PathType::File(tree_path.to_vec());
+            deleted_files_type.push(path_type);
+        }
+
+        // Delete the PackedFiles in one go.
+        files_deleted = deleted_files_type.len();
+        pack_file.remove_packed_files_by_type(&deleted_files_type);
+    }
+
+    // And now we return success or error depending on what happened during the patching process.
+    if packfile_is_empty {
+        Err(ErrorKind::PatchSiegeAIEmptyPackFile)?
+    }
+    else if files_patched == 0 && files_deleted == 0 {
+        Err(ErrorKind::PatchSiegeAINoPatchableFiles)?
+    }
+    else {
+        if files_patched == 0 {
+            Ok((format!("No file suitable for patching has been found.\n{} files deleted.", files_deleted), deleted_files_type))
+        }
+        else if multiple_defensive_hill_hints {
+            if files_deleted == 0 {
+                Ok((format!("{} files patched.\nNo file suitable for deleting has been found.\
+                \n\n\
+                WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
+                 If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
+                 one acting as the perimeter of your fort/city/castle). Due to SiegeAI being present, \
+                 in the map, normal Defensive Hills will not work anyways, and the only thing they do \
+                 is interfere with the patching process. So, if your map doesn't work properly after \
+                 patching, delete all the extra Defensive Hill Hints. They are the culprit.",
+                 files_patched), deleted_files_type))
+            }
+            else {
+                Ok((format!("{} files patched.\n{} files deleted.\
+                \n\n\
+                WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
+                 If you are using SiegeAI, you should only have one Defensive Hill in the map (the \
+                 one acting as the perimeter of your fort/city/castle). Due to SiegeAI being present, \
+                 in the map, normal Defensive Hills will not work anyways, and the only thing they do \
+                 is interfere with the patching process. So, if your map doesn't work properly after \
+                 patching, delete all the extra Defensive Hill Hints. They are the culprit.",
+                files_patched, files_deleted), deleted_files_type))
+            }
+        }
+        else if files_deleted == 0 {
+            Ok((format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched), deleted_files_type))
+        }
+        else {
+            Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_deleted), deleted_files_type))
+        }
+    }
 }

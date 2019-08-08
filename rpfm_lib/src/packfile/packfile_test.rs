@@ -18,34 +18,34 @@ use super::PackFile;
 
 #[test]
 fn test_decode_pfh5() {
-    assert_eq!(PackFile::read(PathBuf::from("../test_files/PFH5_test.pack"), false).is_ok(), true);
+    assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH5_test.pack"), false).is_ok(), true);
 }
 
 #[test]
 fn test_decode_pfh4() {
-	assert_eq!(PackFile::read(PathBuf::from("../test_files/PFH4_test.pack"), false).is_ok(), true);
+	assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH4_test.pack"), false).is_ok(), true);
 }
 
 #[test]
 fn test_decode_pfh3() {
-	assert_eq!(PackFile::read(PathBuf::from("../test_files/PFH3_test.pack"), false).is_ok(), true);
+	assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH3_test.pack"), false).is_ok(), true);
 }
 
 #[test]
 fn test_decode_pfh0() {
-    assert_eq!(PackFile::read(PathBuf::from("../test_files/PFH0_test.pack"), false).is_ok(), true);
+    assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH0_test.pack"), false).is_ok(), true);
 }
 
 #[test]
 fn test_encode_pfh5() {
 
 	// Both PackFiles are not *exactly* the same. We have to reset their timestamp and give them the same path.
-	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH5_test.pack"), false).unwrap();
+	let mut pack_file_base = PackFile::read(&PathBuf::from("../test_files/PFH5_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH5_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
 	pack_file_new.save(None).unwrap();
 
-	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH5_test_encode.pack"), false).unwrap();
+	let mut pack_file_new = PackFile::read(&PathBuf::from("../test_files/PFH5_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);
 	pack_file_new.set_timestamp(0);
 
@@ -56,12 +56,12 @@ fn test_encode_pfh5() {
 fn test_encode_pfh4() {
 
 	// Both PackFiles are not *exactly* the same. We have to reset their timestamp and give them the same path.
-	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH4_test.pack"), false).unwrap();
+	let mut pack_file_base = PackFile::read(&PathBuf::from("../test_files/PFH4_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH4_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
 	pack_file_new.save(None).unwrap();
 
-	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH4_test_encode.pack"), false).unwrap();
+	let mut pack_file_new = PackFile::read(&PathBuf::from("../test_files/PFH4_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);
 	pack_file_new.set_timestamp(0);
 
@@ -72,12 +72,12 @@ fn test_encode_pfh4() {
 fn test_encode_pfh3() {
 
 	// Both PackFiles are not *exactly* the same. We have to reset their timestamp and give them the same path.
-	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH3_test.pack"), false).unwrap();
+	let mut pack_file_base = PackFile::read(&PathBuf::from("../test_files/PFH3_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH3_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
 	pack_file_new.save(None).unwrap();
 
-	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH3_test_encode.pack"), false).unwrap();
+	let mut pack_file_new = PackFile::read(&PathBuf::from("../test_files/PFH3_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);
 	pack_file_new.set_timestamp(0);
 
@@ -88,12 +88,12 @@ fn test_encode_pfh3() {
 fn test_encode_pfh0() {
 
 	// Both PackFiles are not *exactly* the same. We have to reset their timestamp and give them the same path.
-	let mut pack_file_base = PackFile::read(PathBuf::from("../test_files/PFH0_test.pack"), false).unwrap();
+	let mut pack_file_base = PackFile::read(&PathBuf::from("../test_files/PFH0_test.pack"), false).unwrap();
 	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH0_test_encode.pack")).unwrap();
 	let mut pack_file_new = pack_file_base.clone();
 	pack_file_new.save(None).unwrap();
 
-	let mut pack_file_new = PackFile::read(PathBuf::from("../test_files/PFH0_test_encode.pack"), false).unwrap();
+	let mut pack_file_new = PackFile::read(&PathBuf::from("../test_files/PFH0_test_encode.pack"), false).unwrap();
 	pack_file_base.set_timestamp(0);
 	pack_file_new.set_timestamp(0);
 

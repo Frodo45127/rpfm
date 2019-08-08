@@ -147,10 +147,16 @@ pub enum ErrorKind {
     //-----------------------------------------------------//
 
     /// Generic error to hold any other error triggered when opening a PackFile. Contains the error message.
-    OpenPackFileGeneric(String),
+    OpenPackFileGeneric(String, String),
 
     /// Generic error to hold any other error triggered when saving a PackFile. Contains the error message.
     SavePackFileGeneric(String),
+
+    /// Error for when we try to open a PackFile, but don't provide his path.
+    PackFileNoPathProvided,
+
+    /// Error for when doing mass-loading and we hit an uknown PFHFileType.
+    PackFileTypeUknown,
 
     // Error for when we try to load an unsupported PackFile.
     //PackFileNotSupported,
@@ -500,8 +506,10 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             //                 PackFile Errors
             //-----------------------------------------------------//
-            ErrorKind::OpenPackFileGeneric(error) => write!(f, "<p>Error while trying to open a PackFile:</p><p>{}</p>", error),
+            ErrorKind::OpenPackFileGeneric(name, error) => write!(f, "<p>Error while trying to open the PackFile \"{}\":</p><p>{}</p>", name, error),
             ErrorKind::SavePackFileGeneric(error) => write!(f, "<p>Error while trying to save the currently open PackFile:</p><p>{}</p>", error),
+            ErrorKind::PackFileNoPathProvided => write!(f, "<p>No PackFile's path was provided.</p>"),
+            ErrorKind::PackFileTypeUknown => write!(f, "<p>The provided PackFile has an Unkwnon PackFile type, which means it cannot be loaded with others. Open it alone if you want to see his contents.</p>"),
             /*ErrorKind::PackFileNotSupported => write!(f, "
             <p>The file is not a supported PackFile.</p>
             <p>For now, we only support:</p>
