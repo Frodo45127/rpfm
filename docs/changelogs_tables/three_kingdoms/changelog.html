@@ -149,11 +149,263 @@
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#003">003</a></li>
 <li><a href="#002">002</a></li>
 <li><a href="#001">001</a></li>
 <li><a href="#000">000</a></li>
 </ul>
 <hr />
+<h1><a class="header" href="#003" id="003">003</a></h1>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>agent_subtype_weighted_selection_set_to_weights_tables</em>.</li>
+<li><em>agent_subtype_weighted_selection_sets_tables</em>.</li>
+<li><em>agent_weighted_selection_set_group_lookups_tables</em>.</li>
+<li><em>agent_weighted_selection_sets_tables</em>.</li>
+<li><em>agent_weighted_selection_to_subtype_sets_tables</em>.</li>
+<li><em>battle_scoring_profiles_tables</em>.</li>
+<li><em>campaign_group_building_level_garrison_retinues_tables</em>.</li>
+<li><em>dynasty_mode_characters_tables</em>.</li>
+<li><em>dynasty_upgrades_tables</em>.</li>
+<li><em>frontend_faction_map_relationships_tables</em>.</li>
+<li><em>land_units_to_dynasty_upgrades_junctions_tables</em>.</li>
+<li><em>name_restricted_combinations_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><em><strong>ability_colours_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>audio_element_switch_name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>battles_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>unique_id</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Long Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>catchment_name</strong>:
+<ul>
+<li><em><strong>Description</strong></em>: <em>Used to specify a specific catchment (variant?) to use of the map folder</em> =&gt; <em>Allows to specify specific catchment override for battle</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>tile_upgrade</em>.</li>
+<li><em>battle_environment</em>.</li>
+<li><em>battle_environment_audio</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_map_attritions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>application_phase</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_map_attrition_application_phases</em>/<em>id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>character_generation_spawn_age_ranges_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>min_spawn_year</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>min_spawn_year_round</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>max_spawn_year</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>max_spawn_year_round</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>character_generation_templates_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>voiceover_actor_diplomacy</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_vo_actor_groups</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>dilemmas_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>icon_override</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ministerial_positions_culture_details_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign_key</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaigns</em>/<em>campaign_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>pdlc_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>is_custom_battle_filter</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>province_to_emergent_faction_junctions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaigns</em>/<em>campaign_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>videos_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>key</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>audio_track_override</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>video_name</strong>:
+<ul>
+<li><em><strong>Is Key</strong></em>: <em>true</em> =&gt; <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Fixed Tables</strong>:</p>
+<ul>
+<li><em><strong>battle_vortexs_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>delay_between_vortexes</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Time in seconds between each vortex becoming active if num_vortexes is &gt; 1</em>.</li>
+</ul>
+</li>
+<li><em><strong>use_fixed_spread</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Whether to use fixed spread when firing multiple projectiles, if used projectiles will be spread evenly across change_max_angle</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>composite_scene_group</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <h1><a class="header" href="#002" id="002">002</a></h1>
 <p>It contains the following changes:</p>
 <ul>
