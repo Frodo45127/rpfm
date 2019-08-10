@@ -60,11 +60,18 @@ fn main() {
         .version(VERSION)
         .author(AUTHOR)
         .about("CLI Version of RPFM. Ready to automate the most boring parts of your modding.")
+
+        //---------------------------//
+        // Flags
+        //---------------------------//
+        
+        // `Verbosity flag`.
         .arg(Arg::with_name("v")
             .short("v")
             .multiple(true)
             .help("Sets the level of verbosity"))
 
+        // `Settings` flag.
         .arg(Arg::with_name("settings")
             .short("s")
             .long("settings")
@@ -72,6 +79,7 @@ fn main() {
             .help("Sets a custom Settings File. Otherwise, RPFM's normal Setting file will be used. If that one doesn't exist, default settings will be used.")
             .takes_value(true))
 
+        // `Game` flag.
         .arg(Arg::with_name("game")
             .short("g")
             .long("game")
@@ -80,31 +88,58 @@ fn main() {
             .possible_values(&["three_kingdoms", "warhammer_2", "warhammer", "thrones_of_britannia", "attila", "rome_2", "shogun_2", "napoleon", "empire", "arena"])
             .takes_value(true))
 
+        //---------------------------//
+        // Commands
+        //---------------------------//
+
         // `PackFile` Subcommand. Every command that edits PackFiles in any way goes here.
         .subcommand(SubCommand::with_name("packfile")
             .about("Allows PackFile editing.")
 
-            // PackFile path. Next, we ask for the operation we want to do.
+            // `PackFile` Path. This is required for all PackFile commands.
             .arg(Arg::with_name("packfile")
                 .help("Path of the PackFile to edit.")
                 .value_name("PACKFILE PATH")
                 .required(true)
                 .index(1))
             
-            .arg(Arg::with_name("add")
+            // `Add File` option. Requires you provided a file.
+            .arg(Arg::with_name("add-file")
                 .short("a")
-                .long("add")
-                .value_name("FILE/FOLDER PATHS")
+                .long("add-file")
+                .value_name("FILE PATH")
+                .help("Adds one file to the PackFile. If one of the files already exists, it'll replace it.")
+                .takes_value(true)
+                .min_values(1))
+
+            // `Add Folder` option. Requires you to provide a folder. Can be repeated.
+            .arg(Arg::with_name("add-folder")
+                .short("A")
+                .long("add-folder")
+                .value_name("FOLDER PATH")
                 .help("Adds one or more files/folders to the PackFile. If one of the files already exists, it'll replace it.")
                 .takes_value(true)
                 .min_values(1))
-            .arg(Arg::with_name("delete")
+
+            // `Delete File` option. Requires you to provide the path of the file to delete.
+            .arg(Arg::with_name("delete-file")
                 .short("d")
-                .long("delete")
-                .value_name("FILE/FOLDER PATHS")
-                .help("Deletes one or more files/folders from the PackFile.")
+                .long("delete-file")
+                .value_name("FILE PATH")
+                .help("Deletes one or more files from the PackFile.")
                 .takes_value(true)
                 .min_values(1))
+
+            // `Delete Folder` option. Requires you to provide the path of the folder to delete.
+            .arg(Arg::with_name("delete-folder")
+                .short("D")
+                .long("delete-folder")
+                .value_name("FOLDER PATH")
+                .help("Deletes one or more folders from the PackFile.")
+                .takes_value(true)
+                .min_values(1))
+
+            // `List` option.
             .arg(Arg::with_name("list")
                 .short("l")
                 .long("list")
@@ -113,6 +148,8 @@ fn main() {
         // `Table` Subcommand. Every command that allows you to manipulate DB/Loc Tables in any way goes here.
         .subcommand(SubCommand::with_name("table")
             .about("Allows you to manipulate in multiple ways DB/LOC Tables.")
+
+            // `EImort TSV` option. To import DB/Loc `PackedFiles` from TSV.
             .arg(Arg::with_name("import")
                 .short("i")
                 .long("import")
@@ -121,6 +158,8 @@ fn main() {
                 .takes_value(true)
                 .min_values(1)
                 .max_values(2))
+
+            // `Export TSV` option. To export DB/Loc `PackedFiles` to TSV.
             .arg(Arg::with_name("export")
                 .short("e")
                 .long("export")
@@ -130,7 +169,7 @@ fn main() {
                 .min_values(1)
                 .max_values(2)))
 
-        // `Schemas` Subcommand. Basically, here goes commands destined to keep schemas up-to-date.
+        // `Schema` Subcommand. Basically, here goes commands destined to keep schemas up-to-date.
         .subcommand(SubCommand::with_name("schema")
             .about("Allows you to keep your schemas up-to-date.")
             .arg(Arg::with_name("update")

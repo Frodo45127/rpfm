@@ -487,6 +487,33 @@ impl PackFile {
         self.add_packed_file(&packed_file, overwrite)
     }
 
+    /// This function is used to add an entire folder from disk to a `PackFile`, turning his files into `PackedFiles`.
+    ///
+    /// In case of conflict, if overwrite is set to true, the current `PackedFile` in the conflicting path
+    /// will be overwritten with the new one. If set to false, the new `PackFile` will be called `xxxx_1.extension`.
+    pub fn add_from_folder(
+        &mut self,
+        path: &PathBuf,
+        overwrite: bool,
+    ) -> Result<Vec<Vec<String>>> {
+        match get_files_from_subdir(path) {
+            Ok(file_paths) => {
+                let mut added_paths = vec![];
+                for file_path in &file_paths {
+                    let new_path = file_path.to_string_lossy()
+                        .split('/')
+                        .collect::<Vec<&str>>()
+                        .drain(path.components().count()..)
+                        .map(|x| x.to_owned())
+                        .collect::<Vec<String>>();
+                    let packed_file = PackedFile::read_from_path(file_path, new_path)?;
+                    added_paths.push(self.add_packed_file(&packed_file, overwrite)?)
+                }
+                Ok(added_paths)
+            }
+            Err(error) => Err(error)?
+        }
+    }
 
     /// This function is used to add a `PackedFile` from one `PackFile` into another. 
     ///
@@ -1505,7 +1532,7 @@ impl PackFile {
     pub fn save(&mut self, new_path: Option<PathBuf>) -> Result<()> {
 
         // If any of the problematic masks in the header is set or is one of CA's, return an error.
-        if !self.is_editable(*SETTINGS.lock().unwrap().settings_bool.get("is_editing_of_ca_packfiles_allowed").unwrap()) { return Err(ErrorKind::PackFileIsNonEditable)? }
+        if !self.is_editable(*SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) { return Err(ErrorKind::PackFileIsNonEditable)? }
 
         // If we receive a new path, update it. Otherwise, ensure the file actually exists on disk.
         if let Some(path) = new_path { self.set_file_path(&path)?; }

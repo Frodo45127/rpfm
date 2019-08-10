@@ -26,16 +26,30 @@ mod schema;
 pub fn command_packfile(config: &Config, matches: &ArgMatches) -> Result<()> { 
     match matches.value_of("packfile") {
         Some(packfile_path) => {
-		    if matches.is_present("add") {
-				match matches.values_of("add") {
-					Some(mut values) => packfile::add_to_packfile(&config, packfile_path, values.nth(0).unwrap(), values.nth(0)), 
+		    if matches.is_present("add-fle") {
+				match matches.values_of("add-file") {
+					Some(mut values) => packfile::add_file(&config, packfile_path, values.nth(0).unwrap(), values.nth(0)), 
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
 				}
 		    }
 
-		    else if matches.is_present("delete") {
-				match matches.values_of("delete") {
-					Some(mut values) => packfile::delete_file_from_packfile(&config, packfile_path, values.nth(0).unwrap()), 
+		    else if matches.is_present("add-folder") {
+				match matches.values_of("add-folder") {
+					Some(mut values) => packfile::add_folder(&config, packfile_path, values.nth(0).unwrap()), 
+					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+				}
+		    }
+
+		    else if matches.is_present("delete-file") {
+				match matches.values_of("delete-file") {
+					Some(mut values) => packfile::delete_file(&config, packfile_path, values.nth(0).unwrap()), 
+					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+				}
+		    }
+
+		    else if matches.is_present("delete-folder") {
+				match matches.values_of("delete-folder") {
+					Some(mut values) => packfile::delete_folder(&config, packfile_path, values.nth(0).unwrap()), 
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
 				}
 		    }
