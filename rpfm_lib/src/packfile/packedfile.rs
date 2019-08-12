@@ -24,14 +24,22 @@ use std::sync::{Arc, Mutex};
 
 use crate::packfile::*;
 use crate::packfile::compression::decompress_data;
+use crate::packedfile::DecodedPackedFile;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct represents a PackedFile in memory.
-#[derive(Clone, Debug, PartialEq)]
+/// This struct represents a `PackedFile` in memory.
+#[derive(Clone, Debug)]
 pub struct PackedFile {
+    raw: RawPackedFile,
+    decoded: DecodedPackedFile,
+}
+
+/// This struct represents a `PackedFile` in memory in his raw form.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RawPackedFile {
 
     /// The path of the `PackedFile` inside the `PackFile`.
     path: Vec<String>,
@@ -70,8 +78,104 @@ pub enum PackedFileData {
 
 /// Implementation of `PackedFile`.
 impl PackedFile {
+    
+    /// This function creates a new empty `PackedFile` in the provided path.
+    pub fn new(
+        path: Vec<String>,
+        packfile_name: String
+    ) -> Self {
+        Self {
+            raw: RawPackedFile {
+                path,
+                packfile_name,
+                timestamp: 0,
+                should_be_compressed: false,
+                should_be_encrypted: None,
+                data: PackedFileData::OnMemory(vec![], false, None),
+            },
+            decoded: DecodedPackedFile::Unknown,
+        }
+    }
 
-    /// This function creates a new `PackedFile` from a `Vec<u8>` and some extra data.
+    /// This function creates a new `PackedFile` from the provided `RawPackedFile`.
+    pub fn new_from_raw(data: &RawPackedFile) -> Self {
+        Self {
+            raw: data.clone(),
+            decoded: DecodedPackedFile::Unknown,
+        }
+    }
+
+    /// This function returns a reference to the `RawPackedFile` part of a `PackFile`.
+    pub fn get_ref_raw(&self) -> &RawPackedFile {
+        &self.raw
+    }
+
+    /// This function returns a reference to the `DecodedPackedFile` part of a `PackFile`.
+    pub fn get_ref_decoded(&self) -> &DecodedPackedFile {
+        &self.decoded
+    }
+
+    /// This function returns a mutable reference to the `RawPackedFile` part of a `PackFile`.
+    pub fn get_ref_mut_raw(&mut self) -> &mut RawPackedFile {
+        &mut self.raw
+    }
+
+    /// This function returns a mutable reference to the `DecodedPackedFile` part of a `PackFile`.
+    pub fn get_ref_mut_decoded(&mut self) -> &mut DecodedPackedFile {
+        &mut self.decoded
+    }
+
+    /// This function returns a copy of the `RawPackedFile` part of a `PackFile`.
+    pub fn get_raw(&mut self) -> RawPackedFile {
+        self.raw.clone()
+    }
+
+    /// This function returns a copy of the `DecodedPackedFile` part of a `PackFile`.
+    pub fn get_decoded(&mut self) -> DecodedPackedFile {
+        self.decoded.clone()
+    }
+
+    /// This function replace the `RawPackedFile` part of a `PackFile` with the provided one.
+    pub fn set_raw(&mut self, data: &RawPackedFile) {
+        self.raw = data.clone();
+    }
+
+    /// This function replace the `DecodedPackedFile` part of a `PackFile` with the provided one.
+    pub fn set_decoded(&mut self, data: &DecodedPackedFile) {
+        self.decoded = data.clone();
+    }
+
+    /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`.
+    pub fn decode(&mut self) -> Result<()> {
+        self.decoded = DecodedPackedFile::decode(&self.raw)?;
+        Ok(())
+    }
+
+    /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
+    pub fn encode(&mut self) -> Result<()> {
+        self.raw.set_data(self.decoded.encode()?);
+        Ok(())
+    }
+
+    /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`,
+    /// and returning a reference to it.
+    pub fn decode_and_return(&mut self) -> Result<&DecodedPackedFile> {
+        self.decoded = DecodedPackedFile::decode(&self.raw)?;
+        Ok(&self.decoded)
+    }
+
+    /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`,
+    /// and returning a reference to it.
+    pub fn encode_and_return(&mut self) -> Result<&RawPackedFile> {
+        self.raw.set_data(self.decoded.encode()?);
+        Ok(&self.raw)
+    }
+}
+
+/// Implementation of `RawPackedFile`.
+impl RawPackedFile {
+
+    /// This function creates a new `RawPackedFile` from a `Vec<u8>` and some extra data.
     pub fn read_from_vec(
         path: Vec<String>,
         packfile_name: String,
@@ -89,7 +193,7 @@ impl PackedFile {
         }
     }
 
-    /// This function creates a new `PackedFile` from a another's `PackedFile`'s data, and some extra data. What an asshole.
+    /// This function creates a new `RawPackedFile` from a another's `RawPackedFile`'s data, and some extra data. What an asshole.
     pub fn read_from_data(
         path: Vec<String>,
         packfile_name: String, 
@@ -108,7 +212,7 @@ impl PackedFile {
         }
     }
 
-    /// This function creates a new `PackedFile` from a file in the filesystem.
+    /// This function creates a new `RawPackedFile` from a file in the filesystem.
     ///
     /// Keep in mind that you have to set the name of his `PackFile` if you add it to one.
     pub fn read_from_path(
@@ -118,10 +222,10 @@ impl PackedFile {
         let mut file = BufReader::new(File::open(&path_as_file)?);
         let mut data = vec![];
         file.read_to_end(&mut data)?;
-        Ok(PackedFile::read_from_vec(path_as_packed_file, String::new(), get_last_modified_time_from_file(&file.get_ref()), false, data))
+        Ok(RawPackedFile::read_from_vec(path_as_packed_file, String::new(), get_last_modified_time_from_file(&file.get_ref()), false, data))
     }
 
-    /// This function loads the data of a `PackedFile` to memory, if it isn't loaded already.
+    /// This function loads the data of a `RawPackedFile` to memory, if it isn't loaded already.
     pub fn load_data(&mut self) -> Result<()> {
         let data_on_memory = if let PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) = self.data {
             let mut data = vec![0; size as usize];
@@ -134,7 +238,7 @@ impl PackedFile {
         Ok(())
     }
 
-    /// This function returns the data of the `PackedFile` without loading it to memory.
+    /// This function returns the data of the `RawPackedFile` without loading it to memory.
     ///
     /// It's for those situations where you just need to check the data once, then forget about it.
     pub fn get_data(&self) -> Result<Vec<u8>> {
@@ -156,7 +260,7 @@ impl PackedFile {
         }
     }
 
-    /// This function returns the data of the provided `PackedFile` loading it to memory in the process if it isn't already loaded.
+    /// This function returns the data of the provided `RawPackedFile` loading it to memory in the process if it isn't already loaded.
     ///
     /// It's for when you need to keep the data for multiple uses.
     pub fn get_data_and_keep_it(&mut self) -> Result<Vec<u8>> {
@@ -182,7 +286,7 @@ impl PackedFile {
         Ok(data)
     }
 
-    /// This function returns the data of the provided `PackedFile` from memory. together with his state info.
+    /// This function returns the data of the provided `RawPackedFile` from memory. together with his state info.
     ///
     /// The data returned is `data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted`.
     pub fn get_data_and_info_from_memory(&mut self) -> Result<(&mut Vec<u8>, &mut bool, &mut Option<PFHVersion>, &mut bool, &mut Option<PFHVersion>)> {
@@ -196,12 +300,12 @@ impl PackedFile {
         }
     }
 
-    /// This function replaces the data on the `PackedFile` with the provided one.
+    /// This function replaces the data on the `RawPackedFile` with the provided one.
     pub fn set_data(&mut self, data: Vec<u8>) {
         self.data = PackedFileData::OnMemory(data, false, None);
     }
 
-    /// This function returns the size of the data of the provided `PackedFile`.
+    /// This function returns the size of the data of the provided `RawPackedFile`.
     pub fn get_size(&self) -> u32 {
         match self.data {
             PackedFileData::OnMemory(ref data, _, _) => data.len() as u32,
@@ -209,7 +313,7 @@ impl PackedFile {
         }
     }
 
-    /// This function returns the current compression state of the provided `PackedFile`.
+    /// This function returns the current compression state of the provided `RawPackedFile`.
     pub fn get_compression_state(&self) -> bool {
         match self.data {
             PackedFileData::OnMemory(_, state, _) => state,
@@ -217,54 +321,54 @@ impl PackedFile {
         }
     }
 
-    /// This function returns if the `PackedFile` should be compressed or not.
+    /// This function returns if the `RawPackedFile` should be compressed or not.
     pub fn get_should_be_compressed(&self) -> bool{
         self.should_be_compressed
     }
 
-    /// This function sets if the `PackedFile` should be compressed or not.
+    /// This function sets if the `RawPackedFile` should be compressed or not.
     pub fn set_should_be_compressed(&mut self, state: bool) {
         self.should_be_compressed = state;
     }
 
-    /// This function returns the name of the PackFile this `PackedFile` belongs to.
+    /// This function returns the name of the PackFile this `RawPackedFile` belongs to.
     pub fn get_packfile_name(&self) -> &str {
         &self.packfile_name
     }
 
-    /// This function sets the name of the PackFile this `PackedFile` belongs to.
+    /// This function sets the name of the PackFile this `RawPackedFile` belongs to.
     pub fn set_packfile_name(&mut self, name: &str) {
         self.packfile_name = name.to_owned();
     }
 
-    /// This function returns if the `PackedFile` should be encrypted or not.
+    /// This function returns if the `RawPackedFile` should be encrypted or not.
     ///
     /// If it should, it'll return the `PFHVersion` to encrypt to.
     pub fn get_should_be_encrypted(&self) -> &Option<PFHVersion> {
         &self.should_be_encrypted
     }
 
-    /// This function sets if the `PackedFile` should be encrypted or not.
+    /// This function sets if the `RawPackedFile` should be encrypted or not.
     pub fn set_should_be_encrypted(&mut self, state: Option<PFHVersion>) {
         self.should_be_encrypted = state;
     }
 
-    /// This function returns the timestamp of the provided `PackedFile`.
+    /// This function returns the timestamp of the provided `RawPackedFile`.
     pub fn get_timestamp(&self) -> i64 {
         self.timestamp
     }
 
-    /// This function sets the timestamp of the provided `PackedFile`.
+    /// This function sets the timestamp of the provided `RawPackedFile`.
     pub fn set_timestamp(&mut self, timestamp: i64) {
         self.timestamp = timestamp;
     }
 
-    /// This function returns a reference to the path of the provided `PackedFile`.
+    /// This function returns a reference to the path of the provided `RawPackedFile`.
     pub fn get_path(&self) -> &[String] {
         &self.path
     }
 
-    /// This function sets the path of the provided `PackedFile`.
+    /// This function sets the path of the provided `RawPackedFile`.
     ///
     /// This can fail if you pass it an empty path, so make sure you check the result.
     ///

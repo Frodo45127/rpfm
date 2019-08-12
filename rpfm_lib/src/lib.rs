@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::games::{SupportedGames, get_supported_games_list};
-use crate::packedfile::db::DB;
+use crate::packedfile::table::db::DB;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::Schema;
 use crate::settings::Settings;

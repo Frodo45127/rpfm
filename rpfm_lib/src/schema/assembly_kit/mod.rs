@@ -36,7 +36,7 @@ use rpfm_error::{Result, Error, ErrorKind};
 use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
 use crate::packfile::PackFile;
-use crate::packedfile::db::DB;
+use crate::packedfile::table::db::DB;
 use crate::packedfile::DecodedData;
 
 use crate::schema::*;
@@ -188,7 +188,7 @@ pub fn generate_pak_file(
                 // If the table already exist in the data.pack, skip it.
                 let mut exist = false;
                 for table in &*dep_db {
-                    if table.get_path()[1] == table_name {
+                    if table.get_ref_raw().get_path()[1] == table_name {
                         exist = true;
                         break;
                     }
@@ -347,7 +347,7 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                     let packed_files = packfile_db.get_ref_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
                     if !packed_files.is_empty() {
                         let packed_file = packed_files[0];
-                        let version = DB::get_header(&packed_file.get_data()?).unwrap().0;
+                        let version = DB::get_header(&packed_file.get_ref_raw().get_data()?).unwrap().0;
 
                         if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
                             if versioned_file.get_version(version).is_err() {

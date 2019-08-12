@@ -10,6 +10,8 @@
 
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
 
+use crate::packfile::packedfile::RawPackedFile;
+use std::ops::Deref;
 use crate::GAME_SELECTED;
 use bincode::deserialize;
 use csv::{ReaderBuilder, WriterBuilder, QuoteStyle};
@@ -28,15 +30,327 @@ use crate::DEPENDENCY_DATABASE;
 use crate::FAKE_DEPENDENCY_DATABASE;
 use crate::common::*;
 use crate::packfile::{PackFile, PathType};
+use crate::packedfile::table::db::DB;
+use crate::packedfile::table::loc::Loc;
 use crate::packfile::packedfile::PackedFile;
-use crate::packedfile::loc::*;
-use crate::packedfile::db::*;
+
 use crate::schema::{FieldType, Schema, Definition};
 
 use crate::SCHEMA;
-pub mod loc;
-pub mod db;
+
 pub mod rigidmodel;
+pub mod table;
+
+//---------------------------------------------------------------------------//
+//                              Enum & Structs
+//---------------------------------------------------------------------------//
+
+/// This enum represents a ***decoded `PackedFile`***, 
+///
+/// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
+#[derive(Clone, Debug)]
+pub enum DecodedPackedFile {
+    Anim,
+    AnimFragment,
+    AnimPack,
+    AnimTable,
+    CEO,
+    DB(DB),
+    Image,
+    Loc(Loc),
+    MatchedCombat,
+    RigidModel,
+    StarPos,
+    Text,
+    Unknown,
+}
+
+/// This enum specifies the different types of `PackedFile` we can find in a `PackFile`.
+///
+/// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
+#[derive(Clone, Debug)]
+pub enum PackedFileType {
+    Anim,
+    AnimFragment,
+    AnimPack,
+    AnimTable,
+    CEO,
+    DB,
+    Image,
+    Loc,
+    MatchedCombat,
+    RigidModel,
+    StarPos,
+    Text,
+    Unknown,
+}
+
+/// This enum is used to store different types of data in a unified way. Used, for example, to store the data from each field in a DB Table.
+///
+/// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
+/// inside a single field. Used, for example, in certain model tables.
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum DecodedData {
+    Boolean(bool),
+    Float(f32),
+    Integer(i32),
+    LongInteger(i64),
+    StringU8(String),
+    StringU16(String),
+    OptionalStringU8(String),
+    OptionalStringU16(String),
+    Sequence(Vec<Vec<DecodedData>>)
+}
+
+//----------------------------------------------------------------//
+// Implementations for `DecodedPackedFile`.
+//----------------------------------------------------------------//
+
+/// Implementation of `DecodedPackedFile`.
+impl DecodedPackedFile {
+
+    /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
+    pub fn decode(data: &RawPackedFile) -> Result<Self> {
+        let schema = SCHEMA.lock().unwrap();
+        match PackedFileType::get_packed_file_type(data.get_path()) {
+            PackedFileType::DB => {
+                match schema.deref() {
+                    Some(schema) => {
+                        let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
+                        let data = data.get_data()?;
+                        let packed_file = DB::read(&data, name, &schema)?;
+                        Ok(DecodedPackedFile::DB(packed_file))
+                    }
+                    None => Ok(DecodedPackedFile::Unknown),
+                }
+            }
+
+            PackedFileType::Loc => {
+                match schema.deref() {
+                    Some(schema) => {
+                        let data = data.get_data()?;
+                        let packed_file = Loc::read(&data, &schema)?;
+                        Ok(DecodedPackedFile::Loc(packed_file))
+                    }
+                    None => Ok(DecodedPackedFile::Unknown),
+                }
+            }
+            _=> Ok(DecodedPackedFile::Unknown)
+        }
+    }
+
+    /// This function encodes a `DecodedPackedFile` into a `Vec<u8>`, returning it.
+    pub fn encode(&self) -> Result<Vec<u8>> {
+        match self {
+            DecodedPackedFile::DB(data) => data.save(),
+            DecodedPackedFile::Loc(data) => data.save(),
+            _=> unimplemented!(),
+        }
+    }
+}
+
+//----------------------------------------------------------------//
+// Implementations for `PackedFileType`.
+//----------------------------------------------------------------//
+
+/// Display implementation of `PackedFileType`.
+impl Display for PackedFileType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PackedFileType::Anim => write!(f, "Anim"),
+            PackedFileType::AnimFragment => write!(f, "AnimFragment"),
+            PackedFileType::AnimPack => write!(f, "AnimPack"),
+            PackedFileType::AnimTable => write!(f, "AnimTable"),
+            PackedFileType::CEO => write!(f, "CEO"),
+            PackedFileType::DB => write!(f, "DB Table"),
+            PackedFileType::Image => write!(f, "Image"),
+            PackedFileType::Loc => write!(f, "Loc Table"),
+            PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
+            PackedFileType::RigidModel => write!(f, "RigidModel"),
+            PackedFileType::StarPos => write!(f, "StartPos"),
+            PackedFileType::Text => write!(f, "Text"),
+            PackedFileType::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
+/// Implementation of `PackedFileType`.
+impl PackedFileType {
+
+    /// This function returns the type of the `PackedFile` at the provided path.
+    pub fn get_packed_file_type(path: &[String]) -> Self {
+        if let Some(packedfile_name) = path.last() {
+
+            // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+            if path[0] == "db" { PackedFileType::DB }
+
+            // If it ends in ".loc", it's a localisation PackedFile.
+            else if packedfile_name.ends_with(".loc") { PackedFileType::Loc }
+
+            // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+            else if packedfile_name.ends_with(".rigid_model_v2") { PackedFileType::RigidModel }
+
+            // If it ends in any of these, it's a plain text PackedFile.
+            else if packedfile_name.ends_with(".lua") ||
+                    packedfile_name.ends_with(".xml") ||
+                    packedfile_name.ends_with(".xml.shader") ||
+                    packedfile_name.ends_with(".xml.material") ||
+                    packedfile_name.ends_with(".variantmeshdefinition") ||
+                    packedfile_name.ends_with(".environment") ||
+                    packedfile_name.ends_with(".lighting") ||
+                    packedfile_name.ends_with(".wsmodel") ||
+                    packedfile_name.ends_with(".csv") ||
+                    packedfile_name.ends_with(".tsv") ||
+                    packedfile_name.ends_with(".inl") ||
+                    packedfile_name.ends_with(".battle_speech_camera") ||
+                    packedfile_name.ends_with(".bob") ||
+                    packedfile_name.ends_with(".cindyscene") ||
+                    packedfile_name.ends_with(".cindyscenemanager") ||
+                    //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                    packedfile_name.ends_with(".txt") { PackedFileType::Text }
+
+            // If it ends in any of these, it's an image.
+            else if packedfile_name.ends_with(".jpg") ||
+                    packedfile_name.ends_with(".jpeg") ||
+                    packedfile_name.ends_with(".tga") ||
+                    packedfile_name.ends_with(".dds") ||
+                    packedfile_name.ends_with(".png") { PackedFileType::Image }
+
+            // Otherwise, we don't have a decoder for that PackedFile... yet.
+            else { PackedFileType::Unknown }
+        }
+
+        // If we didn't got a name, it means something broke. Return none.
+        else { PackedFileType::Unknown }
+    }
+}
+
+//----------------------------------------------------------------//
+// Implementations for `DecodedData`.
+//----------------------------------------------------------------//
+
+/// Display implementation of `DecodedData`.
+impl Display for DecodedData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DecodedData::Boolean(_) => write!(f, "Boolean"),
+            DecodedData::Float(_) => write!(f, "Float"),
+            DecodedData::Integer(_) => write!(f, "Integer"),
+            DecodedData::LongInteger(_) => write!(f, "LongInteger"),
+            DecodedData::StringU8(_) => write!(f, "StringU8"),
+            DecodedData::StringU16(_) => write!(f, "StringU16"),
+            DecodedData::OptionalStringU8(_) => write!(f, "OptionalStringU8"),
+            DecodedData::OptionalStringU16(_) => write!(f, "OptionalStringU16"),
+            DecodedData::Sequence(_) => write!(f, "Sequence"),
+        }
+    }
+}
+
+/// Implementation of `DecodedData`.
+impl DecodedData {
+
+    /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
+    pub fn is_field_type_correct(decoded_data: &DecodedData, field_type: FieldType) -> bool {
+        match decoded_data {
+            DecodedData::Boolean(_) => field_type == FieldType::Boolean,
+            DecodedData::Float(_) => field_type == FieldType::Float,
+            DecodedData::Integer(_) => field_type == FieldType::Integer,
+            DecodedData::LongInteger(_) => field_type == FieldType::LongInteger,
+            DecodedData::StringU8(_) => field_type == FieldType::StringU8,
+            DecodedData::StringU16(_) => field_type == FieldType::StringU16,
+            DecodedData::OptionalStringU8(_) => field_type == FieldType::OptionalStringU8,
+            DecodedData::OptionalStringU16(_) => field_type == FieldType::OptionalStringU16,
+            DecodedData::Sequence(_) => if let FieldType::Sequence(_) = field_type { true } else { false },
+        }
+    }
+}
+
+//----------------------------------------------------------------//
+// Generic Functions for PackedFiles.
+//----------------------------------------------------------------//
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
+
+
+
+
+
+
+
+
+
+
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -1169,3 +1483,4 @@ pub fn patch_siege_ai (
         }
     }
 }
+*/

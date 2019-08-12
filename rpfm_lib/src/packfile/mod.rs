@@ -36,6 +36,7 @@ use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
+use crate::packedfile::DecodedPackedFile;
 
 mod compression;
 mod crypto;
@@ -90,7 +91,7 @@ bitflags! {
 //---------------------------------------------------------------------------//
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct PackFile {
     
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
@@ -430,7 +431,7 @@ impl PackFile {
 
     /// This function retuns the list of PackedFiles inside a `PackFile`.
     pub fn get_packedfiles_list(&self) -> Vec<Vec<String>> {
-        self.packed_files.iter().map(|x| x.get_path().to_vec()).collect()
+        self.packed_files.iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()
     }
 
     /// This function adds a `PackedFiles` to an existing `PackFile`.
@@ -440,13 +441,13 @@ impl PackFile {
     pub fn add_packed_file(&mut self, packed_file: &PackedFile, overwrite: bool) -> Result<Vec<String>> {
 
         // If we hit a reserved name, stop. Don't add anything.
-        if packed_file.get_path() == RESERVED_PACKED_FILE_NAMES { return Err(ErrorKind::ReservedFiles)? }
+        if packed_file.get_ref_raw().get_path() == RESERVED_PACKED_FILE_NAMES { return Err(ErrorKind::ReservedFiles)? }
 
         // Get his path, and update his `PackFile` name.
         let mut packed_file = packed_file.clone();
-        let mut destination_path = packed_file.get_path().to_vec();
-        packed_file.set_packfile_name(&self.get_file_name());
-        match self.packed_files.iter().position(|x| x.get_path() == packed_file.get_path()) {
+        let mut destination_path = packed_file.get_ref_raw().get_path().to_vec();
+        packed_file.get_ref_mut_raw().set_packfile_name(&self.get_file_name());
+        match self.packed_files.iter().position(|x| x.get_ref_raw().get_path() == packed_file.get_ref_raw().get_path()) {
 
             // Here is were the fun starts. If there is a conflict, we act depending on the `overwrite` value.
             Some(index) => {
@@ -483,7 +484,8 @@ impl PackFile {
         path_as_packed_file: Vec<String>,
         overwrite: bool,
     ) -> Result<Vec<String>> {
-        let packed_file = PackedFile::read_from_path(path_as_file, path_as_packed_file)?;
+        let raw_data = RawPackedFile::read_from_path(path_as_file, path_as_packed_file)?;
+        let packed_file = PackedFile::new_from_raw(&raw_data);
         self.add_packed_file(&packed_file, overwrite)
     }
 
@@ -506,7 +508,8 @@ impl PackFile {
                         .drain(path.components().count()..)
                         .map(|x| x.to_owned())
                         .collect::<Vec<String>>();
-                    let packed_file = PackedFile::read_from_path(file_path, new_path)?;
+                    let raw_data = RawPackedFile::read_from_path(file_path, new_path)?;
+                    let packed_file = PackedFile::new_from_raw(&raw_data);
                     added_paths.push(self.add_packed_file(&packed_file, overwrite)?)
                 }
                 Ok(added_paths)
@@ -546,7 +549,7 @@ impl PackFile {
                 for packed_file in source.get_ref_packed_files_by_path_start(path) {
                     match self.add_packed_file(&packed_file, overwrite) {
                         Ok(path) => paths_ok.push(path),
-                        Err(_) => paths_err.push(packed_file.get_path().to_vec()),
+                        Err(_) => paths_err.push(packed_file.get_ref_raw().get_path().to_vec()),
                     }
                 }
             }
@@ -556,7 +559,7 @@ impl PackFile {
                 for packed_file in source.get_ref_all_packed_files() {
                     match self.add_packed_file(&packed_file, overwrite) {
                         Ok(path) => paths_ok.push(path),
-                        Err(_) =>  paths_err.push(packed_file.get_path().to_vec()),
+                        Err(_) =>  paths_err.push(packed_file.get_ref_raw().get_path().to_vec()),
                     }
                 }
             },
@@ -590,7 +593,7 @@ impl PackFile {
 
         // We have to change the name of the PackFile in all his `PackedFiles` too.
         let file_name = self.get_file_name();
-        self.packed_files.iter_mut().for_each(|x| x.set_packfile_name(&file_name));
+        self.packed_files.iter_mut().for_each(|x| x.get_ref_mut_raw().set_packfile_name(&file_name));
         Ok(())
     }    
 
@@ -601,7 +604,7 @@ impl PackFile {
         let mut has_files_compressed = false;
         let mut has_files_uncompressed = false;
         for packed_file in &self.packed_files {
-            let is_compressed = packed_file.get_compression_state();
+            let is_compressed = packed_file.get_ref_raw().get_compression_state();
             if !has_files_compressed && is_compressed {
                 has_files_compressed = true;
             }
@@ -646,32 +649,32 @@ impl PackFile {
 
     /// This function returns a reference to the `PackedFile` with the provided path, if exists.
     pub fn get_ref_packed_file_by_path(&self, path: &[String]) -> Option<&PackedFile> {
-        self.packed_files.iter().find(|x| x.get_path() == path)
+        self.packed_files.iter().find(|x| x.get_ref_raw().get_path() == path)
     }
 
     /// This function returns a mutable reference to the `PackedFile` with the provided path, if exists.
     pub fn get_ref_mut_packed_file_by_path(&mut self, path: &[String]) -> Option<&mut PackedFile> {
-        self.packed_files.iter_mut().find(|x| x.get_path() == path)
+        self.packed_files.iter_mut().find(|x| x.get_ref_raw().get_path() == path)
     }
 
     /// This function returns a reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_packed_files_by_path_start(&self, path: &[String]) -> Vec<&PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).collect()
+        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
     }
 
     /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_mut_packed_files_by_path_start(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
-        self.packed_files.iter_mut().filter(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len()).collect()
+        self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
     }
     
     /// This function returns a reference of all the `PackedFiles` ending with the provided path.
     pub fn get_ref_packed_files_by_path_end(&self, path: &[String]) -> Vec<&PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_path().ends_with(path) && !path.is_empty()).collect()
+        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).collect()
     }
 
     /// This function returns a mutable reference of all the `PackedFiles` ending with the provided path.
     pub fn get_ref_mut_packed_files_by_path_end(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
-        self.packed_files.iter_mut().filter(|x| x.get_path().ends_with(path) && !path.is_empty()).collect()
+        self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).collect()
     }
 
     /// This function returns a copy of all `PackedFiles` in the provided `PackFile`.
@@ -691,7 +694,7 @@ impl PackFile {
 
     /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
     pub fn remove_packed_file_by_path(&mut self, path: &[String]) {
-        if let Some(position) = self.packed_files.iter().position(|x| x.get_path() == path) {
+        if let Some(position) = self.packed_files.iter().position(|x| x.get_ref_raw().get_path() == path) {
             self.packed_files.remove(position);
         }
     }
@@ -700,7 +703,7 @@ impl PackFile {
     pub fn remove_packed_files_by_path_start(&mut self, path: &[String]) {
         let positions: Vec<usize> = self.packed_files.iter()
             .enumerate()
-            .filter(|x| x.1.get_path().starts_with(path) && !path.is_empty() && x.1.get_path().len() > path.len())
+            .filter(|x| x.1.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.1.get_ref_raw().get_path().len() > path.len())
             .map(|x| x.0)
             .collect();
         for position in positions.iter().rev() {
@@ -712,7 +715,7 @@ impl PackFile {
     pub fn remove_packed_files_by_path_end(&mut self, path: &[String]) {
         let positions: Vec<usize> = self.packed_files.iter()
             .enumerate()
-            .filter(|x| x.1.get_path().ends_with(path) && !path.is_empty())
+            .filter(|x| x.1.get_ref_raw().get_path().ends_with(path) && !path.is_empty())
             .map(|x| x.0)
             .collect();
         for position in positions.iter().rev() {
@@ -770,7 +773,7 @@ impl PackFile {
             Some(packed_file) => {
 
                 // We get his internal path without his name.
-                let mut internal_path = packed_file.get_path().to_vec();
+                let mut internal_path = packed_file.get_ref_raw().get_path().to_vec();
                 let file_name = internal_path.pop().unwrap();
 
                 // Then, we join his internal path with his destination path, so we have his almost-full path (his final path without his name).
@@ -781,7 +784,7 @@ impl PackFile {
                 // Finish the path and try to save the file to disk.
                 current_path.push(&file_name);
                 let mut file = BufWriter::new(File::create(&current_path)?);
-                if file.write_all(&packed_file.get_data()?).is_err() {
+                if file.write_all(&packed_file.get_ref_raw().get_data()?).is_err() {
                     return Err(ErrorKind::ExtractError(path.to_vec()))?;
                 }
                 Ok(())
@@ -839,7 +842,7 @@ impl PackFile {
 
                         PathType::Folder(path) => {
                             for packed_file in self.get_ref_packed_files_by_path_start(path) {
-                                match self.extract_packed_file_by_path(packed_file.get_path(), extracted_path) {
+                                match self.extract_packed_file_by_path(packed_file.get_ref_raw().get_path(), extracted_path) {
                                     Ok(_) => files_extracted += 1,
                                     Err(_) => error_files.push(format!("{:?}", path)),
                                 }
@@ -856,9 +859,9 @@ impl PackFile {
 
                 // For each PackedFile we have, just extracted in the folder we got, under the PackFile's folder.
                 for packed_file in self.get_ref_all_packed_files() {
-                    match self.extract_packed_file_by_path(packed_file.get_path(), extracted_path) {
+                    match self.extract_packed_file_by_path(packed_file.get_ref_raw().get_path(), extracted_path) {
                         Ok(_) => files_extracted += 1,
-                        Err(_) => error_files.push(format!("{:?}", packed_file.get_path())),
+                        Err(_) => error_files.push(format!("{:?}", packed_file.get_ref_raw().get_path())),
                     }
                 }
             },
@@ -879,7 +882,7 @@ impl PackFile {
 
     /// This function enables/disables compression in all `PackedFiles` inside the `PackFile`. Partial compression is not supported.
     pub fn toggle_compression(&mut self, enable: bool) {
-        self.packed_files.iter_mut().for_each(|x| x.set_should_be_compressed(enable));
+        self.packed_files.iter_mut().for_each(|x| x.get_ref_mut_raw().set_should_be_compressed(enable));
     }
 
     /// This function returns the notes contained within the provided `PackFile`.
@@ -939,12 +942,12 @@ impl PackFile {
 
     /// This function checks if a `PackedFile` with a certain path exists in a `PackFile`.
     pub fn packedfile_exists(&self, path: &[String]) -> bool {
-        self.packed_files.iter().any(|x| x.get_path() == path)
+        self.packed_files.iter().any(|x| x.get_ref_raw().get_path() == path)
     }
 
     /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
     pub fn folder_exists(&self, path: &[String]) -> bool {
-        self.packed_files.iter().any(|x| x.get_path().starts_with(path) && !path.is_empty() && x.get_path().len() > path.len())
+        self.packed_files.iter().any(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len())
     }
 
     /// This function allows you to change the path of a `PackedFile` inside a `PackFile`.
@@ -996,7 +999,7 @@ impl PackFile {
         // Then just change the path of the `PackedFile` if exists. Return error if it doesn't.
         match self.get_ref_mut_packed_file_by_path(source_path) {
             Some(packed_file) => {
-                packed_file.set_path(&destination_path)?; 
+                packed_file.get_ref_mut_raw().set_path(&destination_path)?; 
                 Ok(destination_path) 
             },
             None => Err(ErrorKind::PackedFileNotFound)?
@@ -1022,7 +1025,7 @@ impl PackFile {
 
         // Next... just get all the PackedFiles to move, and move them one by one.
         let mut successes = vec![];
-        for packed_file_current_path in self.get_ref_packed_files_by_path_start(source_path).iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>() {
+        for packed_file_current_path in self.get_ref_packed_files_by_path_start(source_path).iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect::<Vec<Vec<String>>>() {
             let new_path = packed_file_current_path.to_vec().splice(..source_path.len(), destination_path.iter().cloned()).collect::<Vec<String>>();
             if let Ok(new_path) = self.move_packedfile(&packed_file_current_path, &new_path, overwrite) {
                 successes.push((packed_file_current_path, new_path))
@@ -1091,7 +1094,7 @@ impl PackFile {
 
                     // Clone the PackedFile, and add it to the list.
                     let mut packed_file = packed_file.clone();
-                    if let Ok(_) = packed_file.load_data() {
+                    if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
                         packed_files.push(packed_file);
                     }
                 }
@@ -1105,7 +1108,7 @@ impl PackFile {
 
                     // Clone the PackedFile, and add it to the list.
                     let mut packed_file = packed_file.clone();
-                    if let Ok(_) = packed_file.load_data() {
+                    if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
                         packed_files.push(packed_file);
                     }
                 }
@@ -1134,7 +1137,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.load_data() {
+                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
                             packed_files.push(packed_file);
                         }
                     }
@@ -1143,7 +1146,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.load_data() {
+                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
                             packed_files.push(packed_file);
                         }
                     }
@@ -1163,7 +1166,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.load_data() {
+                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
                             packed_files.push(packed_file);
                         }
                     }
@@ -1172,7 +1175,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.load_data() {
+                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
                             packed_files.push(packed_file);
                         }
                     }
@@ -1268,20 +1271,20 @@ impl PackFile {
             // The priority in case of collision is:
             // - Same Type: First to come is the valid one.
             // - Different Type: Last to come is the valid one.
-            boot_files.sort_by_key(|x| x.get_path().to_vec());
-            boot_files.dedup_by_key(|x| x.get_path().to_vec());
+            boot_files.sort_by_key(|x| x.get_ref_raw().get_path().to_vec());
+            boot_files.dedup_by_key(|x| x.get_ref_raw().get_path().to_vec());
 
-            release_files.sort_by_key(|x| x.get_path().to_vec());
-            release_files.dedup_by_key(|x| x.get_path().to_vec());
+            release_files.sort_by_key(|x| x.get_ref_raw().get_path().to_vec());
+            release_files.dedup_by_key(|x| x.get_ref_raw().get_path().to_vec());
 
-            patch_files.sort_by_key(|x| x.get_path().to_vec());
-            patch_files.dedup_by_key(|x| x.get_path().to_vec());
+            patch_files.sort_by_key(|x| x.get_ref_raw().get_path().to_vec());
+            patch_files.dedup_by_key(|x| x.get_ref_raw().get_path().to_vec());
 
-            mod_files.sort_by_key(|x| x.get_path().to_vec());
-            mod_files.dedup_by_key(|x| x.get_path().to_vec());
+            mod_files.sort_by_key(|x| x.get_ref_raw().get_path().to_vec());
+            mod_files.dedup_by_key(|x| x.get_ref_raw().get_path().to_vec());
 
-            movie_files.sort_by_key(|x| x.get_path().to_vec());
-            movie_files.dedup_by_key(|x| x.get_path().to_vec());
+            movie_files.sort_by_key(|x| x.get_ref_raw().get_path().to_vec());
+            movie_files.dedup_by_key(|x| x.get_ref_raw().get_path().to_vec());
         
             for packed_file in &boot_files {
                 pack_file.add_packed_file(packed_file, true)?;
@@ -1473,7 +1476,7 @@ impl PackFile {
             let path = path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
 
             // Once we are done, we create the and add it to the PackedFile list.
-            let packed_file = PackedFile::read_from_data(
+            let raw_data = RawPackedFile::read_from_data(
                 path, 
                 pack_file_name.to_string(),
                 timestamp,
@@ -1488,9 +1491,11 @@ impl PackFile {
                 )
             );
 
+            let packed_file = PackedFile::new_from_raw(&raw_data);
+
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
-            if packed_file.get_path() == ["frodos_biggest_secret.rpfm-notes"] {
-                if let Ok(data) = packed_file.get_data() {
+            if packed_file.get_ref_raw().get_path() == ["frodos_biggest_secret.rpfm-notes"] {
+                if let Ok(data) = packed_file.get_ref_raw().get_data() {
                     if let Ok(data) = data.decode_string_u8(0, data.len()) {
                         pack_file_decoded.notes = Some(data);
                     }
@@ -1519,7 +1524,7 @@ impl PackFile {
         else if data_position != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, data_position))? }
 
         // If we disabled lazy-loading, load every PackedFile to memory.
-        if !use_lazy_loading { for packed_file in &mut pack_file_decoded.packed_files { packed_file.load_data()?; }}
+        if !use_lazy_loading { for packed_file in &mut pack_file_decoded.packed_files { packed_file.get_ref_mut_raw().load_data()?; }}
 
         // Return our PackFile.
         Ok(pack_file_decoded)
@@ -1542,21 +1547,29 @@ impl PackFile {
         if let Some(note) = &self.notes {
             let mut data = vec![];
             data.encode_string_u8(&note);
-            self.packed_files.push(PackedFile::read_from_vec(vec!["frodos_biggest_secret.rpfm-notes".to_owned()], self.get_file_name(), 0, false, data));
+            let raw_data = RawPackedFile::read_from_vec(vec!["frodos_biggest_secret.rpfm-notes".to_owned()], self.get_file_name(), 0, false, data);
+            let packed_file = PackedFile::new_from_raw(&raw_data);
+            self.packed_files.push(packed_file);
         }
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
         // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
-        self.packed_files.sort_unstable_by(|a, b| a.get_path().join("\\").to_lowercase().cmp(&b.get_path().join("\\").to_lowercase()));
+        self.packed_files.sort_unstable_by(|a, b| a.get_ref_raw().get_path().join("\\").to_lowercase().cmp(&b.get_ref_raw().get_path().join("\\").to_lowercase()));
         
         // We ensure that all the data is loaded and in his right form (compressed/encrypted) before attempting to save.
         // We need to do this here because we need later on their compressed size.
         for packed_file in &mut self.packed_files { 
-            packed_file.load_data()?;
+
+            // If we decoded it, re-encode it. Otherwise, just load it.
+            match packed_file.get_decoded() {
+                DecodedPackedFile::DB(_) => packed_file.encode()?,
+                DecodedPackedFile::Loc(_) => packed_file.encode()?,
+                _ => packed_file.get_ref_mut_raw().load_data()?,
+            }
 
             // Remember: first compress (only PFH5), then encrypt.
-            let (data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_data_and_info_from_memory()?;
+            let (data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
             
             // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile.
             if *should_be_compressed && !*is_compressed {
@@ -1586,27 +1599,27 @@ impl PackFile {
         }
 
         for packed_file in &self.packed_files {
-            packed_file_index.encode_integer_u32(packed_file.get_size());
+            packed_file_index.encode_integer_u32(packed_file.get_ref_raw().get_size());
 
             // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
             // In PFH5 case, we don't support saving encrypted PackFiles for Arena. So we'll default to Warhammer 2 format.
             match self.pfh_version {
                 PFHVersion::PFH5 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_u32(packed_file.get_timestamp() as u32); }
-                    if packed_file.get_should_be_compressed() { packed_file_index.push(1); } else { packed_file_index.push(0); } 
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_u32(packed_file.get_ref_raw().get_timestamp() as u32); }
+                    if packed_file.get_ref_raw().get_should_be_compressed() { packed_file_index.push(1); } else { packed_file_index.push(0); } 
                 }
                 PFHVersion::PFH4 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_u32(packed_file.get_timestamp() as u32); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_u32(packed_file.get_ref_raw().get_timestamp() as u32); }
                 }
                 PFHVersion::PFH3 => {
-                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_i64(packed_file.get_timestamp()); }
+                    if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_i64(packed_file.get_ref_raw().get_timestamp()); }
                 }
 
                 // This one doesn't have timestamps, so we just skip this step.
                 PFHVersion::PFH0 => {}
             }
 
-            packed_file_index.append(&mut packed_file.get_path().join("\\").as_bytes().to_vec());
+            packed_file_index.append(&mut packed_file.get_ref_raw().get_path().join("\\").as_bytes().to_vec());
             packed_file_index.push(0);
         }
 
@@ -1635,7 +1648,7 @@ impl PackFile {
         file.write_all(&pack_file_index)?;
         file.write_all(&packed_file_index)?;
         for packed_file in &mut self.packed_files { 
-            let data = packed_file.get_data()?;
+            let data = packed_file.get_ref_mut_raw().get_data()?;
             file.write_all(&data)?;
         }
 
