@@ -267,7 +267,7 @@ pub fn generate_pak_file(
 
                     // Then create the DB object, and add it to the list.
                     let mut processed_db_file = DB::new(&table_name, &imported_table_definition);
-                    processed_db_file.entries = entries;
+                    processed_db_file.set_table_data(&entries)?;
                     processed_db_files.push(processed_db_file);
                 }
 

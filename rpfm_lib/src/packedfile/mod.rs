@@ -249,6 +249,22 @@ impl Display for DecodedData {
 /// Implementation of `DecodedData`.
 impl DecodedData {
 
+
+    /// Default implementation of `DecodedData`.
+    pub fn default(field_type: &FieldType) -> Self {
+        match field_type {
+            FieldType::Boolean => DecodedData::Boolean(false),
+            FieldType::Float => DecodedData::Float(0.0),
+            FieldType::Integer => DecodedData::Integer(0),
+            FieldType::LongInteger => DecodedData::LongInteger(0),
+            FieldType::StringU8 => DecodedData::StringU8("".to_owned()),
+            FieldType::StringU16 => DecodedData::StringU16("".to_owned()),
+            FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
+            FieldType::OptionalStringU16 => DecodedData::OptionalStringU16("".to_owned()),
+            FieldType::Sequence(fields) => DecodedData::Sequence(vec![fields.iter().map(|x| Self::default(&x.field_type)).collect::<Vec<DecodedData>>()]),
+        }
+    }
+
     /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
     pub fn is_field_type_correct(decoded_data: &DecodedData, field_type: FieldType) -> bool {
         match decoded_data {

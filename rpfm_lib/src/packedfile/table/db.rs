@@ -52,10 +52,10 @@ pub struct DB {
     pub mysterious_byte: bool,
     
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
-    pub definition: Definition,
+    definition: Definition,
     
     /// The decoded entries of the table. This list is a Vec(rows) of a Vec(fields of a row) of DecodedData (decoded field).
-    pub entries: Vec<Vec<DecodedData>>,
+    entries: Vec<Vec<DecodedData>>,
 }
 
 //---------------------------------------------------------------------------//
@@ -209,4 +209,92 @@ impl DB {
         db_files
     }
 
+
+    /// This function returns a reference to the definition of this DB Table.
+    pub fn get_ref_definition(&self) -> &Definition {
+        &self.definition
+    }
+
+    /// This function returns a reference to the entries of this DB Table.
+    pub fn get_ref_table_data(&self) -> &Vec<Vec<DecodedData>> {
+        &self.entries
+    }
+
+    /// This function returns a copy of the definition of this DB Table.
+    pub fn get_definition(&self) -> Definition {
+        self.definition.clone()
+    }
+
+    /// This function returns a copy of the entries of this DB Table.
+    pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
+        self.entries.to_vec()
+    }
+
+    /// This function replaces the definition of this table with the one provided.
+    ///
+    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
+    pub fn set_definition(&mut self, new_definition: &Definition) {
+
+        // It's simple: we compare both schemas, and get the original and final positions of each column.
+        // If a row is new, his original position is -1. If has been removed, his final position is -1.
+        let mut positions: Vec<(i32, i32)> = vec![];
+        for (new_pos, new_field) in new_definition.fields.iter().enumerate() {
+            if let Some(old_pos) = self.definition.fields.iter().position(|x| x.name == new_field.name) {
+                positions.push((old_pos as i32, new_pos as i32))
+            } else { positions.push((-1, new_pos as i32)); }
+        }
+
+        // Then, for each field in the old definition, check if exists in the new one.
+        for (old_pos, old_field) in self.definition.fields.iter().enumerate() {
+            if !new_definition.fields.iter().any(|x| x.name == old_field.name) { positions.push((old_pos as i32, -1)); }
+        }
+
+        // We sort the columns by their destination.
+        positions.sort_by_key(|x| x.1);
+
+        // Then, we create the new data using the old one and the column changes.
+        let mut new_entries: Vec<Vec<DecodedData>> = vec![];
+        for row in &mut self.entries {
+            let mut entry = vec![];
+            for (old_pos, new_pos) in &positions {
+                
+                // If the new position is -1, it means the column got removed. We skip it.
+                if *new_pos == -1 { continue; }
+
+                // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
+                else if *old_pos == -1 {
+                    entry.push(DecodedData::default(&self.definition.fields[*new_pos as usize].field_type));
+                }
+
+                // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.
+                else {
+                    entry.push(row[*old_pos as usize].clone());
+                }
+            }
+            new_entries.push(entry);
+        }
+
+        // Then, we finally replace our definition and our data.
+        self.definition = new_definition.clone();
+        self.entries = new_entries;
+    }
+
+    /// This function replaces the data of this table with the one provided.
+    ///
+    /// This can (and will) fail if the data is not of the format defined by the definition of the table.
+    pub fn set_table_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
+        for row in data {
+
+            // First, we need to make sure all rows we have are exactly what we expect.
+            if row.len() != self.definition.fields.len() { Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32))? } 
+            for (index, cell) in row.iter().enumerate() {
+
+                // Next, we need to ensure each file is of the type we expected.
+                if !DecodedData::is_field_type_correct(cell, self.definition.fields[index].field_type.clone()) { 
+                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].field_type)))? 
+                }
+            }
+        }
+        Ok(())
+    }
 }
