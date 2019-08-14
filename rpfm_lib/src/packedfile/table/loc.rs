@@ -29,6 +29,9 @@ const BYTEORDER_MARK: u16 = 65279; // FF FE
 /// This represents the value that every LOC PackedFile has in their 2-5 bytes. The sixth byte is always a 0.
 const PACKED_FILE_TYPE: &str = "LOC";
 
+/// This is the name used in TSV-exported Loc files to identify them as Loc Files.
+pub const TSV_NAME: &str = "Loc PackedFile";
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
