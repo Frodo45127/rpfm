@@ -22,9 +22,13 @@ use std::io::{BufReader, Read, SeekFrom};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
 
+use rpfm_error::Error;
+
 use crate::packfile::*;
 use crate::packfile::compression::decompress_data;
-use crate::packedfile::DecodedPackedFile;
+use crate::packedfile::{DecodedPackedFile, PackedFileType};
+use crate::packedfile::table::{db::DB, loc::Loc};
+use crate::SCHEMA;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -103,6 +107,57 @@ impl PackedFile {
             raw: data.clone(),
             decoded: DecodedPackedFile::Unknown,
         }
+    }
+
+    /// This function creates a new `PackedFile` from the provided `DecodedPackedFile` and path.
+    pub fn new_from_decoded(data: &DecodedPackedFile, path: Vec<String>) -> Self {
+        Self {
+            raw: RawPackedFile {
+                path,
+                packfile_name: "".to_owned(),
+                timestamp: 0,
+                should_be_compressed: false,
+                should_be_encrypted: None,
+                data: PackedFileData::OnMemory(vec![], false, None),
+            },
+            decoded: data.clone(),
+        }
+    }
+
+    /// This function creates a new empty `PackedFile` of the provided type and path.
+    pub fn new_from_type_and_path(
+        packed_file_type: PackedFileType,
+        path: Vec<String>,
+    ) -> Result<Self> {
+
+        // Depending on their type, we do different things to prepare the PackedFile and get his data.
+        let schema = SCHEMA.lock().unwrap();
+        let data = match packed_file_type {
+
+            // For locs, we just create them with their last definition.
+            PackedFileType::Loc => {
+                let definition = match *schema {
+                    Some(ref schema) => schema.get_last_definition_loc()?,
+                    None => return Err(ErrorKind::SchemaNotFound)?
+                };
+                DecodedPackedFile::Loc(Loc::new(&definition))
+            },
+
+            // For dbs, we create them with their last definition, if we found one, and their table name.
+            PackedFileType::DB => {
+                let table_name = path.get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
+                let table_definition = match *schema {
+                    Some(ref schema) => schema.get_last_definition_db(table_name)?,
+                    None => return Err(ErrorKind::SchemaNotFound)?
+                };
+                DecodedPackedFile::DB(DB::new(&table_name, &table_definition))
+            }
+
+            // For anything else, just return `Unkown`.
+            _ => DecodedPackedFile::Unknown,
+        };
+
+        Ok(Self::new_from_decoded(&data, path))
     }
 
     /// This function returns a reference to the `RawPackedFile` part of a `PackFile`.

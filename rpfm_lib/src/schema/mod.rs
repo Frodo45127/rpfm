@@ -64,8 +64,10 @@ use std::{fmt, fmt::Display};
 
 use rpfm_error::{ErrorKind, Result};
 
+use crate::DEPENDENCY_DATABASE;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
+use crate::packedfile::table::db::DB;
 
 pub mod assembly_kit;
 
@@ -196,6 +198,47 @@ impl Schema {
         self.0.iter().filter(|x| x.is_db())
             .find(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
         ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns the last compatible definition of a DB Table.
+    ///
+    /// As we may have versions from other games, we first need to check for the last definition in the dependency database.
+    /// If that fails, we try to get it from the schema.
+    pub fn get_last_definition_db(&self, table_name: &str) -> Result<&Definition> {
+
+        // Version is... complicated. We don't really want the last one, but the last one compatible with our game.
+        // So we have to try to get it first from the Dependency Database first. If that fails, we fall back to the schema.
+        if let Some(vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut()
+            .filter(|x| x.get_ref_raw().get_path().len() == 3)
+            .find(|x| x.get_ref_raw().get_path()[0] == "db" && x.get_ref_raw().get_path()[1] == *table_name) {
+            match DB::get_header(&vanilla_table.get_ref_mut_raw().get_data_and_keep_it().unwrap()) {
+                Ok(data) => self.get_versioned_file_db(table_name)?.get_version(data.0),
+                Err(error) => return Err(error),
+            }
+        }
+
+        // If there was no coincidence in the dependency database... we risk ourselfs getting the last definition we have for
+        // that db from the schema.
+        else{ 
+            let versioned_file = self.get_versioned_file_db(table_name)?;
+            if let VersionedFile::DB(_,definitions) = versioned_file {
+                if let Some(definition) = definitions.get(0) {
+                    Ok(definition)
+                }
+                else { Err(ErrorKind::SchemaDefinitionNotFound)? }
+            } else { Err(ErrorKind::SchemaVersionedFileNotFound)? }
+        }
+    }
+
+    /// This function returns the last compatible definition of a Loc Table.
+    pub fn get_last_definition_loc(&self) -> Result<&Definition> {
+        let versioned_file = self.get_versioned_file_loc()?;
+        if let VersionedFile::Loc(definitions) = versioned_file {
+            if let Some(definition) = definitions.get(0) {
+                Ok(definition)
+            }
+            else { Err(ErrorKind::SchemaDefinitionNotFound)? }
+        } else { Err(ErrorKind::SchemaVersionedFileNotFound)? }
     }
 
     /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.

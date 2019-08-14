@@ -249,7 +249,6 @@ impl Display for DecodedData {
 /// Implementation of `DecodedData`.
 impl DecodedData {
 
-
     /// Default implementation of `DecodedData`.
     pub fn default(field_type: &FieldType) -> Self {
         match field_type {
@@ -444,52 +443,6 @@ impl Display for DecodeablePackedFileType {
 // Generic Functions for PackedFiles.
 //----------------------------------------------------------------//
 
-/// This function returns the type of the provided PackedFile path.
-pub fn get_packed_file_type(path: &[String]) -> DecodeablePackedFileType {
-    if let Some(packedfile_name) = path.last() {
-
-        // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-        if path[0] == "db" { DecodeablePackedFileType::DB }
-
-        // If it ends in ".loc", it's a localisation PackedFile.
-        else if packedfile_name.ends_with(".loc") { DecodeablePackedFileType::Loc }
-
-        // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-        else if packedfile_name.ends_with(".rigid_model_v2") { DecodeablePackedFileType::RigidModel }
-
-        // If it ends in any of these, it's a plain text PackedFile.
-        else if packedfile_name.ends_with(".lua") ||
-                packedfile_name.ends_with(".xml") ||
-                packedfile_name.ends_with(".xml.shader") ||
-                packedfile_name.ends_with(".xml.material") ||
-                packedfile_name.ends_with(".variantmeshdefinition") ||
-                packedfile_name.ends_with(".environment") ||
-                packedfile_name.ends_with(".lighting") ||
-                packedfile_name.ends_with(".wsmodel") ||
-                packedfile_name.ends_with(".csv") ||
-                packedfile_name.ends_with(".tsv") ||
-                packedfile_name.ends_with(".inl") ||
-                packedfile_name.ends_with(".battle_speech_camera") ||
-                packedfile_name.ends_with(".bob") ||
-                packedfile_name.ends_with(".cindyscene") ||
-                packedfile_name.ends_with(".cindyscenemanager") ||
-                //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                packedfile_name.ends_with(".txt") { DecodeablePackedFileType::Text }
-
-        // If it ends in any of these, it's an image.
-        else if packedfile_name.ends_with(".jpg") ||
-                packedfile_name.ends_with(".jpeg") ||
-                packedfile_name.ends_with(".tga") ||
-                packedfile_name.ends_with(".dds") ||
-                packedfile_name.ends_with(".png") { DecodeablePackedFileType::Image }
-
-        // Otherwise, we don't have a decoder for that PackedFile... yet.
-        else { DecodeablePackedFileType::None }
-    }
-
-    // If we didn't got a name, it means something broke. Return none.
-    else { DecodeablePackedFileType::None }
-}
 /*
 /// This function is used to create a PackedFile outtanowhere. It returns his new path.
 pub fn create_packed_file(
@@ -1347,30 +1300,6 @@ pub fn optimize_packfile(pack_file: &mut PackFile) -> Result<Vec<Vec<String>>> {
 
     // Return the deleted file's types.
     Ok(files_to_delete)
-}
-
-/// This function is a special open function, to get all the fake DB files from the PAK file of the Game Selected,
-/// if it does has one.
-pub fn load_fake_dependency_packfiles() -> Vec<DB> {
-
-    // Create the empty list.
-    let mut db_files = vec![];
-
-    // Get all the paths we need.
-    if let Ok(pak_file) = get_game_selected_pak_file(&*GAME_SELECTED.lock().unwrap()) {
-        if let Ok(pak_file) = File::open(pak_file) {
-            let mut pak_file = BufReader::new(pak_file);
-            let mut data = vec![];
-            if pak_file.read_to_end(&mut data).is_ok() {
-                if let Ok(pak_file) = deserialize(&data) {
-                    db_files = pak_file;
-                }
-            }
-        }
-    }
-
-    // Return the fake DB Table list.
-    db_files
 }
 
 /// This function is used to patch and clean a PackFile exported with Terry, so the SiegeAI (if there
