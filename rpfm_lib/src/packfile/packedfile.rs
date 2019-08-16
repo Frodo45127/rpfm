@@ -356,6 +356,33 @@ impl RawPackedFile {
         Ok(data)
     }
 
+    /// This function returns a mutable reference to the data of the provided `RawPackedFile`,
+    /// loading it to memory in the process if it isn't already loaded.
+    ///
+    /// It's for when you need to modify the data directly. Try to not abuse it.
+    pub fn get_ref_mut_data_and_keep_it(&mut self) -> Result<&mut Vec<u8>> {
+        let data = match self.data {
+            PackedFileData::OnMemory(ref mut data, ref mut is_compressed, ref mut is_encrypted) => {
+                if is_encrypted.is_some() { *data = decrypt_packed_file(&data); }
+                if *is_compressed { *data = decompress_data(&data)?; }
+                *is_compressed = false;
+                *is_encrypted = None;
+                return Ok(data)
+            },
+            PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) => {
+                let mut data = vec![0; size as usize];
+                file.lock().unwrap().seek(SeekFrom::Start(position))?;
+                file.lock().unwrap().read_exact(&mut data)?;
+                if is_encrypted.is_some() { data = decrypt_packed_file(&data); }
+                if is_compressed { decompress_data(&data)? }
+                else { data }
+            }
+        };
+
+        self.data = PackedFileData::OnMemory(data, false, None);
+        if let PackedFileData::OnMemory(ref mut data, _, _) = self.data { Ok(data) } else { unimplemented!() }
+    }
+
     /// This function returns the data of the provided `RawPackedFile` from memory. together with his state info.
     ///
     /// The data returned is `data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted`.
