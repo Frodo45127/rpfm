@@ -19,8 +19,8 @@ use bincode::deserialize;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use std::io::{BufReader, Read};
 use std::fs::File;
+use std::io::{BufReader, Read};
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -28,6 +28,7 @@ use super::DecodedData;
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::common::get_game_selected_pak_file;
 use crate::GAME_SELECTED;
+use crate::packfile::packedfile::PackedFile;
 use crate::schema::*;
 use super::Table;
 
@@ -42,7 +43,7 @@ const VERSION_MARKER: &[u8] = &[252, 253, 254, 255];
 //---------------------------------------------------------------------------//
 
 /// This holds an entire DB Table decoded in memory.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct DB {
     
     /// The name of the table. Not his literal file name, but the name of the table it represents, usually, db/"this_name"/yourtable. Needed to get his `Definition`.
@@ -296,5 +297,27 @@ impl DB {
             }
         }
         Ok(())
+    }
+
+    /// This function is used to optimize the size of a DB Table.
+    ///
+    /// It scans every line to check if it's a vanilla line, and remove it in that case. Also, if the entire 
+    /// file is composed of only vanilla lines, it marks the entire PackedFile for removal.
+    pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
+        
+        // For each vanilla table, if it's the same table/version as our own, we check 
+        let mut new_entries = Vec::with_capacity(self.entries.len());
+        for entry in &self.entries {
+            for vanilla_entries in vanilla_tables.iter().filter(|x| x.name == self.name && x.definition.version == self.definition.version).map(|x| &x.entries) {
+                if vanilla_entries.contains(entry) { 
+                    new_entries.push(entry.to_vec());
+                    continue;
+                }
+            }
+        }
+
+        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.        
+        self.entries = new_entries;
+        self.entries.is_empty()
     }
 }

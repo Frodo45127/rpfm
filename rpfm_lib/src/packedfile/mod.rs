@@ -48,7 +48,7 @@ pub mod table;
 /// This enum represents a ***decoded `PackedFile`***, 
 ///
 /// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum DecodedPackedFile {
     Anim,
     AnimFragment,
@@ -89,7 +89,7 @@ pub enum PackedFileType {
 ///
 /// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
 /// inside a single field. Used, for example, in certain model tables.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DecodedData {
     Boolean(bool),
     Float(f32),
@@ -242,6 +242,24 @@ impl Display for DecodedData {
             DecodedData::OptionalStringU8(_) => write!(f, "OptionalStringU8"),
             DecodedData::OptionalStringU16(_) => write!(f, "OptionalStringU16"),
             DecodedData::Sequence(_) => write!(f, "Sequence"),
+        }
+    }
+}
+
+/// PartialEq implementation of `DecodedData`. We need this implementation due to the float comparison being... special.
+impl PartialEq for DecodedData {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (DecodedData::Boolean(x), DecodedData::Boolean(y)) => x == y,
+            (DecodedData::Float(x), DecodedData::Float(y)) => ((x * 1000000f32).round() / 1000000f32) == ((y * 1000000f32).round() / 1000000f32),
+            (DecodedData::Integer(x), DecodedData::Integer(y)) => x == y,
+            (DecodedData::LongInteger(x), DecodedData::LongInteger(y)) => x == y,
+            (DecodedData::StringU8(x), DecodedData::StringU8(y)) => x == y,
+            (DecodedData::StringU16(x), DecodedData::StringU16(y)) => x == y,
+            (DecodedData::OptionalStringU8(x), DecodedData::OptionalStringU8(y)) => x == y,
+            (DecodedData::OptionalStringU16(x), DecodedData::OptionalStringU16(y)) => x == y,
+            (DecodedData::Sequence(x), DecodedData::Sequence(y)) => x == y,
+            _ => false
         }
     }
 }

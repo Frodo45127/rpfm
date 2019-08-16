@@ -214,9 +214,24 @@ impl PackedFile {
 
     /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`,
     /// and returning a reference to it.
-    pub fn decode_and_return(&mut self) -> Result<&DecodedPackedFile> {
-        self.decoded = DecodedPackedFile::decode(&self.raw)?;
+    ///
+    /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
+    pub fn decode_return_ref(&mut self) -> Result<&DecodedPackedFile> {
+        if self.decoded != DecodedPackedFile::Unknown {
+            self.decoded = DecodedPackedFile::decode(&self.raw)?;
+        }
         Ok(&self.decoded)
+    }
+
+    /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`,
+    /// and returning a reference to it.
+    ///
+    /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
+    pub fn decode_return_ref_mut(&mut self) -> Result<&mut DecodedPackedFile> {
+        if self.decoded != DecodedPackedFile::Unknown {
+            self.decoded = DecodedPackedFile::decode(&self.raw)?;
+        }
+        Ok(&mut self.decoded)
     }
 
     /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`,

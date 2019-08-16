@@ -37,7 +37,7 @@ pub const TSV_NAME: &str = "Loc PackedFile";
 //---------------------------------------------------------------------------//
 
 /// This stores the data of a decoded Localisation PackedFile in memory.
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Loc {
 
 	/// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
@@ -201,5 +201,27 @@ impl Loc {
             }
         }
         Ok(())
+    }
+
+    /// This function is used to optimize the size of a Loc Table.
+    ///
+    /// It scans every line to check if it's a vanilla line, and remove it in that case. Also, if the entire 
+    /// file is composed of only vanilla lines, it marks the entire PackedFile for removal.
+    pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
+        
+        // For each vanilla table, if it's the same table/version as our own, we check 
+        let mut new_entries = Vec::with_capacity(self.entries.len());
+        for entry in &self.entries {
+            for vanilla_entries in vanilla_tables.iter().filter(|x| x.definition.version == self.definition.version).map(|x| &x.entries) {
+                if vanilla_entries.contains(entry) { 
+                    new_entries.push(entry.to_vec());
+                    continue;
+                }
+            }
+        }
+
+        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.        
+        self.entries = new_entries;
+        self.entries.is_empty()
     }
 }

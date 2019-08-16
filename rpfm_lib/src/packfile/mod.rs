@@ -20,6 +20,7 @@ so you don't have to worry about that.
 !*/
 
 use bitflags::bitflags;
+use itertools::{Itertools, Either};
 
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
@@ -30,13 +31,17 @@ use std::sync::{Arc, Mutex};
 use rpfm_error::{ErrorKind, Result};
 
 use crate::GAME_SELECTED;
+use crate::DEPENDENCY_DATABASE;
 use crate::SETTINGS;
 use crate::SUPPORTED_GAMES;
+use crate::SCHEMA;
 use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
 use crate::packedfile::DecodedPackedFile;
+use crate::packedfile::table::db::DB;
+use crate::packedfile::table::loc::Loc;
 
 mod compression;
 mod crypto;
@@ -1078,6 +1083,75 @@ impl PackFile {
 
         // Return the list of successes.
         successes
+    }
+
+    /// This function is used to optimize a `PackFile` by removing extra useless data from it.
+    ///
+    /// Currently, this function removes:
+    /// - Unchanged data from DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Unchanged data from Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Empty DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    /// - Empty Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
+    pub fn optimize(&mut self) -> Vec<Vec<String>> {
+        
+        // List of PackedFiles to delete.
+        let mut files_to_delete: Vec<Vec<String>> = vec![];
+        let mut dependencies = DEPENDENCY_DATABASE.lock().unwrap();
+
+        // We get the entire list of paths from the dependency database, so we can check if each `PackedFile is trying to overwrite a vanilla one or not.
+        let database_path_list = dependencies.iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect::<Vec<Vec<String>>>();
+
+        // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
+        // Otherwise, they may have to be decoded multiple times, making this function take ages to finish.
+        let (game_dbs, game_locs): (Vec<&DB>, Vec<&Loc>) = dependencies.iter_mut()
+            .filter(|x| (x.get_ref_raw().get_path().len() == 3 && x.get_ref_raw().get_path()[0] == "db") || (x.get_ref_raw().get_path().last().unwrap().ends_with(".loc")))
+            .map(|x| x.decode_return_ref())
+            .filter(|x| x.is_ok())
+            .map(|x| x.unwrap())
+            .partition_map(|x| match x {
+                DecodedPackedFile::DB(db) => Either::Left(db), 
+                DecodedPackedFile::Loc(loc) => Either::Right(loc),
+                _ => unreachable!()
+            });
+
+        // We do this in two passes. First, we optimize the data inside the `PackedFiles`. Then, we do a *cleaning* pass, removing empty or useless `PackedFiles`.
+        for packed_file in self.get_ref_mut_all_packed_files() {
+            let path = packed_file.get_ref_raw().get_path().to_vec();
+
+            // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
+            // as those are probably intended to overwrite vanilla files, not to be optimized.
+            if database_path_list.contains(&path) && !SETTINGS.lock().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
+
+            // If it's a DB table, try to optimize it.
+            if path.len() == 3 && path[0] == "db" && !game_dbs.is_empty() {
+
+                // Try to decode our table.
+                match packed_file.decode_return_ref_mut() {
+                    Ok(data) => if let DecodedPackedFile::DB(db) = data {
+                        let is_empty = db.optimize_table(&game_dbs);
+                        if is_empty { files_to_delete.push(path.to_vec()); }
+                    },
+                    Err(_) => continue,
+                };
+            }
+
+            // If it's a Loc table, try to optimize it.
+            else if path.last().unwrap().ends_with(".loc") && !game_locs.is_empty() {
+                match packed_file.decode_return_ref_mut() {
+                    Ok(data) => if let DecodedPackedFile::Loc(loc) = data {
+                        let is_empty = loc.optimize_table(&game_locs);
+                        if is_empty { files_to_delete.push(path.to_vec()); }
+                    },
+                    Err(_) => continue,
+                };
+            }
+        }
+
+        // Delete all the files marked for deletion.
+        files_to_delete.iter().for_each(|x| self.remove_packed_file_by_path(x));
+
+        // Return the deleted files, so the caller can know what got removed.
+        files_to_delete
     }
 
     /// This function loads to memory the vanilla (made by CA) dependencies of a `PackFile`.
