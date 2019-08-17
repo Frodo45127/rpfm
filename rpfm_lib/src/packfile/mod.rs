@@ -68,9 +68,9 @@ const TERRY_MAP_PATH: [&str; 4] = ["terrain", "tiles", "battle", "_assembly_kit"
 const DEFAULT_BMD_DATA: &str = "bmd_data.bin";
 
 /// These three hints are neccesary for the map patching function.
-const FORT_PERIMETER_HINT: &'static [u8; 18] = b"AIH_FORT_PERIMETER";
-const DEFENSIVE_HILL_HINT: &'static [u8; 18] = b"AIH_DEFENSIVE_HILL";
-const SIEGE_AREA_NODE_HINT: &'static [u8; 19] = b"AIH_SIEGE_AREA_NODE";
+const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";
+const DEFENSIVE_HILL_HINT: &[u8; 18] = b"AIH_DEFENSIVE_HILL";
+const SIEGE_AREA_NODE_HINT: &[u8; 19] = b"AIH_SIEGE_AREA_NODE";
 
 /// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special porpouses.
 pub const RESERVED_PACKED_FILE_NAMES: [&str; 1] = ["frodos_biggest_secret.rpfm-notes"];
@@ -1306,7 +1306,7 @@ impl PackFile {
         files_to_delete.iter().for_each(|x| self.remove_packed_file_by_path(x));
 
         // If we didn't found any file to patch or delete, return an error.
-        if files_patched == 0 && files_to_delete.len() == 0 { Err(ErrorKind::PatchSiegeAINoPatchableFiles)? }
+        if files_patched == 0 && files_to_delete.is_empty() { Err(ErrorKind::PatchSiegeAINoPatchableFiles)? }
         
         // TODO: make this more.... `fluent`.
         // If we found files to delete, but not to patch, return a message reporting it.
@@ -1318,7 +1318,7 @@ impl PackFile {
         else if multiple_defensive_hill_hints {
 
             // The message is different depending on the amount of files deleted.
-            if files_to_delete.len() == 0 {
+            if files_to_delete.is_empty() {
                 Ok((format!("{} files patched.\nNo file suitable for deleting has been found.\
                 \n\n\
                 WARNING: Multiple Defensive Hints have been found and we only patched the first one.\
@@ -1343,7 +1343,7 @@ impl PackFile {
         }
 
         // If no files to delete were found, but we got files patched, report it.
-        else if files_to_delete.len() == 0 {
+        else if files_to_delete.is_empty() {
             Ok((format!("{} files patched.\nNo file suitable for deleting has been found.", files_patched), files_to_delete))
         }
 
@@ -1367,7 +1367,7 @@ impl PackFile {
 
                     // Clone the PackedFile, and add it to the list.
                     let mut packed_file = packed_file.clone();
-                    if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
+                    if packed_file.get_ref_mut_raw().load_data().is_ok() {
                         packed_files.push(packed_file);
                     }
                 }
@@ -1381,7 +1381,7 @@ impl PackFile {
 
                     // Clone the PackedFile, and add it to the list.
                     let mut packed_file = packed_file.clone();
-                    if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
+                    if packed_file.get_ref_mut_raw().load_data().is_ok() {
                         packed_files.push(packed_file);
                     }
                 }
@@ -1392,7 +1392,7 @@ impl PackFile {
     /// This function loads a `PackFile` as dependency, loading all his dependencies in the process.
     fn load_single_dependency_packfile(        
         packed_files: &mut Vec<PackedFile>, 
-        packfile_name: &String, 
+        packfile_name: &str, 
         already_loaded_dependencies: &mut Vec<String>,
         data_paths: &Option<Vec<PathBuf>>,
         contents_paths: &Option<Vec<PathBuf>>,
@@ -1400,7 +1400,7 @@ impl PackFile {
 
         // First we load the content `PackFiles`.
         if let Some(ref paths) = contents_paths {
-            if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy().to_string() == *packfile_name) {
+            if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == packfile_name) {
                 if let Ok(pack_file) = PackFile::open_packfiles(&[path.to_path_buf()], true, false, false) {
 
                     // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
@@ -1410,7 +1410,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
+                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
                             packed_files.push(packed_file);
                         }
                     }
@@ -1419,7 +1419,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
+                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
                             packed_files.push(packed_file);
                         }
                     }
@@ -1429,7 +1429,7 @@ impl PackFile {
 
         // Then we load the data `PackFiles`.
         if let Some(ref paths) = data_paths {
-            if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy().to_string() == *packfile_name) {
+            if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == packfile_name) {
                 if let Ok(pack_file) = PackFile::open_packfiles(&[path.to_path_buf()], true, false, false) {
 
                     // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
@@ -1439,7 +1439,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
+                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
                             packed_files.push(packed_file);
                         }
                     }
@@ -1448,7 +1448,7 @@ impl PackFile {
                         
                         // Clone the PackedFile, and add it to the list.
                         let mut packed_file = packed_file.clone();
-                        if let Ok(_) = packed_file.get_ref_mut_raw().load_data() {
+                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
                             packed_files.push(packed_file);
                         }
                     }

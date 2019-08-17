@@ -213,7 +213,7 @@ impl Schema {
             .find(|x| x.get_ref_raw().get_path()[0] == "db" && x.get_ref_raw().get_path()[1] == *table_name) {
             match DB::get_header(&vanilla_table.get_ref_mut_raw().get_data_and_keep_it().unwrap()) {
                 Ok(data) => self.get_versioned_file_db(table_name)?.get_version(data.0),
-                Err(error) => return Err(error),
+                Err(error) => Err(error),
             }
         }
 

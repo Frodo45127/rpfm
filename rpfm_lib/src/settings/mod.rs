@@ -34,7 +34,7 @@ use crate::config::get_config_path;
 const SETTINGS_FILE: &str = "settings.ron";
 
 /// This struct hold every setting of the lib and of RPFM_UI/CLI.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Settings {
     pub paths: BTreeMap<String, Option<PathBuf>>,
     pub settings_string: BTreeMap<String, String>,

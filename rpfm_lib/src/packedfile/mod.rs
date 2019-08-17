@@ -10,32 +10,16 @@
 
 // In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
 
-use crate::packfile::packedfile::RawPackedFile;
-use std::ops::Deref;
-use crate::GAME_SELECTED;
-use bincode::deserialize;
-use csv::{ReaderBuilder, WriterBuilder, QuoteStyle};
 use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::{Error, ErrorKind, Result};
 
-use std::collections::BTreeMap;
-use std::io::{BufReader, BufWriter, Read, Write};
 use std::{fmt, fmt::Display};
-use std::fs::File;
-use std::path::PathBuf;
+use std::ops::Deref;
 
-use crate::SETTINGS;
-use crate::DEPENDENCY_DATABASE;
-use crate::FAKE_DEPENDENCY_DATABASE;
-use crate::common::*;
-use crate::packfile::{PackFile, PathType};
-use crate::packedfile::table::db::DB;
-use crate::packedfile::table::loc::Loc;
-use crate::packfile::packedfile::PackedFile;
-
-use crate::schema::{FieldType, Schema, Definition};
-
+use crate::packedfile::table::{db::DB, loc::Loc};
+use crate::packfile::packedfile::RawPackedFile;
+use crate::schema::{FieldType, Schema};
 use crate::SCHEMA;
 
 pub mod rigidmodel;
@@ -270,7 +254,7 @@ impl PartialEq for DecodedData {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (DecodedData::Boolean(x), DecodedData::Boolean(y)) => x == y,
-            (DecodedData::Float(x), DecodedData::Float(y)) => ((x * 1000000f32).round() / 1000000f32) == ((y * 1000000f32).round() / 1000000f32),
+            (DecodedData::Float(x), DecodedData::Float(y)) => ((x * 1_000_000f32).round() / 1_000_000f32) == ((y * 1_000_000f32).round() / 1_000_000f32),
             (DecodedData::Integer(x), DecodedData::Integer(y)) => x == y,
             (DecodedData::LongInteger(x), DecodedData::LongInteger(y)) => x == y,
             (DecodedData::StringU8(x), DecodedData::StringU8(y)) => x == y,
