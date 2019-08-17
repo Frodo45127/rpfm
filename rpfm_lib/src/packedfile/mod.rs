@@ -139,6 +139,25 @@ impl DecodedPackedFile {
         }
     }
 
+    /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
+    pub fn decode_no_locks(data: &RawPackedFile, schema: &Schema) -> Result<Self> {
+        match PackedFileType::get_packed_file_type(data.get_path()) {
+            PackedFileType::DB => {
+                let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
+                let data = data.get_data()?;
+                let packed_file = DB::read(&data, name, &schema)?;
+                Ok(DecodedPackedFile::DB(packed_file))
+            }
+
+            PackedFileType::Loc => {
+                let data = data.get_data()?;
+                let packed_file = Loc::read(&data, &schema)?;
+                Ok(DecodedPackedFile::Loc(packed_file))
+            }
+            _=> Ok(DecodedPackedFile::Unknown)
+        }
+    }
+
     /// This function encodes a `DecodedPackedFile` into a `Vec<u8>`, returning it.
     pub fn encode(&self) -> Result<Vec<u8>> {
         match self {
@@ -364,9 +383,6 @@ impl DecodedData {
 
 
 
-
-
-
 /*
 
 
@@ -455,74 +471,6 @@ pub fn merge_tables(
     }
     Ok((added_path, tree_paths))
 }
-
-
-/// This function checks all the DB Tables of the provided PackFile for dependency errors.
-pub fn check_tables( 
-    pack_file: &mut PackFile,
-) -> Result<()> {
-
-    // Get the schema, or return an error.
-    match SCHEMA.lock().unwrap().clone() {
-        Some(schema) => {
-
-            let mut broken_tables = vec![];
-            let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
-            let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
-
-            // Due to how mutability works, we have first to get the data of every table,
-            // then iterate them and decode them.
-            for packed_file in pack_file.get_ref_mut_packed_files_by_path_start(&["db".to_owned()]) {
-                packed_file.load_data()?;
-            }
-
-            for packed_file in pack_file.get_ref_packed_files_by_path_start(&["db".to_owned()]) {
-                if packed_file.get_path().starts_with(&["db".to_owned()]) {
-                    if let Ok(db_data) = db::DB::read(&(packed_file.get_data().unwrap()), &packed_file.get_path()[1], &schema) {
-                        let dep_data = get_dependency_data(&db_data.definition, &schema, &mut dep_db, &fake_dep_db, &pack_file);
-
-                        // If we got some dependency data (the referenced tables actually exists), check every
-                        // referenced field of every referenced column for errors.
-                        if !dep_data.is_empty() {
-                            let mut columns = vec![];
-                            for row in db_data.entries {
-                                for (column, dep_data) in dep_data.iter() {
-                                    let field_data = match row[*column as usize] { 
-                                        DecodedData::StringU8(ref entry) |
-                                        DecodedData::StringU16(ref entry) |
-                                        DecodedData::OptionalStringU8(ref entry) |
-                                        DecodedData::OptionalStringU16(ref entry) => &entry,
-                                        _ => "NoData"
-                                    };
-
-                                    if field_data != "NoData" && !field_data.is_empty() && !dep_data.contains(&field_data.to_owned()) {
-                                        columns.push(*column);
-                                    }
-                                }
-                            }
-
-                            // If we got missing refs, sort the columns, dedup them and turn them into a nice string for the error message.
-                            // Columns + 1 is so we don't start counting on zero. Easier for the user to see.
-                            if !columns.is_empty() {
-                                columns.sort();
-                                columns.dedup();
-                                let mut columns = columns.iter().map(|x| format!("{},", *x + 1)).collect::<String>();
-                                columns.pop();
-                                broken_tables.push(format!("Table: {}/{}, Column/s: {}", &packed_file.get_path()[1], &packed_file.get_path()[2], columns)); 
-                            }
-                        }
-                    }
-                }
-            }
-
-            // If all tables are Ok, return Ok. Otherwise, return an error with the list of broken tables.
-            if broken_tables.is_empty() { Ok(()) }
-            else { Err(ErrorKind::DBMissingReferences(broken_tables))? }
-        }
-        None => Err(ErrorKind::SchemaNotFound)?
-    }
-}
-
 
 //----------------------------------------------------------------//
 // Mass-TSV Functions for PackedFiles.

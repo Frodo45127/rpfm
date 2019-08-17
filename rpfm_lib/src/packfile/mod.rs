@@ -32,13 +32,15 @@ use rpfm_error::{ErrorKind, Result};
 
 use crate::GAME_SELECTED;
 use crate::DEPENDENCY_DATABASE;
+use crate::FAKE_DEPENDENCY_DATABASE;
+use crate::SCHEMA;
 use crate::SETTINGS;
 use crate::SUPPORTED_GAMES;
 use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
-use crate::packedfile::DecodedPackedFile;
+use crate::packedfile::{DecodedData, DecodedPackedFile};
 use crate::packedfile::table::db::DB;
 use crate::packedfile::table::loc::Loc;
 
@@ -677,6 +679,11 @@ impl PackFile {
         self.packed_files.iter_mut().find(|x| x.get_ref_raw().get_path() == path)
     }
 
+    /// This function returns a copy of all the `PackedFiles` starting with the provided path.
+    pub fn get_packed_files_by_path_start(&self, path: &[String]) -> Vec<PackedFile> {
+        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).cloned().collect()
+    }
+
     /// This function returns a reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_packed_files_by_path_start(&self, path: &[String]) -> Vec<&PackedFile> {
         self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
@@ -685,6 +692,11 @@ impl PackFile {
     /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_mut_packed_files_by_path_start(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
         self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
+    }
+
+    /// This function returns a copy of all the `PackedFiles` ending with the provided path.
+    pub fn get_packed_files_by_path_end(&self, path: &[String]) -> Vec<PackedFile> {
+        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).cloned().collect()
     }
     
     /// This function returns a reference of all the `PackedFiles` ending with the provided path.
@@ -1098,6 +1110,77 @@ impl PackFile {
 
         // Return the list of successes.
         successes
+    }
+
+    /// This function checks all the DB Tables of the provided PackFile for dependency errors.
+    ///
+    /// TODO: Make this not throw warnings on references that point to a **localised** column.
+    /// TODO2: Make this return the name of the columns instead of their index.
+    pub fn check_table_integrity(&mut self) -> Result<()> {
+
+        let schema = SCHEMA.lock().unwrap();
+        match *schema {
+            Some(ref schema) => {
+
+                let mut broken_tables = vec![];
+                let mut real_dep_db = DEPENDENCY_DATABASE.lock().unwrap();
+                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
+
+                // Due to how mutability works, we have first to get the data of every table,
+                // then iterate them and decode them. The errors here can be silenced safetly.
+                for packed_file in self.get_ref_mut_packed_files_by_path_start(&["db".to_owned()]) {
+                    let _ = packed_file.decode_no_locks(schema);
+
+                }
+                for packed_file in self.get_packed_files_by_path_start(&["db".to_owned()]) {
+                    if let DecodedPackedFile::DB(table) = packed_file.get_ref_decoded() {
+                        let dependency_data = DB::get_dependency_data(self, schema, &table.get_definition(), &mut real_dep_db, &fake_dep_db);
+
+                        // If we got some dependency data (the referenced tables actually exists), check every
+                        // referenced field of every referenced column for errors.
+                        if !dependency_data.is_empty() {
+                            let mut broken_columns = vec![];
+                            for row in table.get_table_data() {
+                                for (column, dependency_data) in &dependency_data {
+                                    let field_data = match row[*column as usize] { 
+                                        DecodedData::Boolean(ref entry) => entry.to_string(),
+                                        DecodedData::Float(ref entry) => entry.to_string(),
+                                        DecodedData::Integer(ref entry) => entry.to_string(),
+                                        DecodedData::LongInteger(ref entry) => entry.to_string(),
+                                        DecodedData::StringU8(ref entry) |
+                                        DecodedData::StringU16(ref entry) |
+                                        DecodedData::OptionalStringU8(ref entry) |
+                                        DecodedData::OptionalStringU16(ref entry) => entry.to_owned(),
+                                        _ => "NoData".to_owned()
+                                    };
+
+                                    let dependency_data = dependency_data.iter().map(|x| &x.0).collect::<Vec<&String>>();
+                                    if &field_data != "NoData" && !field_data.is_empty() && !dependency_data.contains(&&field_data) {
+                                        broken_columns.push(*column);
+                                    }
+                                }
+                            }
+
+                            // If we got missing refs, sort the columns, dedup them and turn them into a nice string for the error message.
+                            // Columns + 1 is so we don't start counting on zero. Easier for the user to see.
+                            if !broken_columns.is_empty() {
+                                let path = packed_file.get_ref_raw().get_path();
+                                broken_columns.sort();
+                                broken_columns.dedup();
+                                let mut broken_columns = broken_columns.iter().map(|x| format!("{},", *x + 1)).collect::<String>();
+                                broken_columns.pop();
+                                broken_tables.push(format!("Table: {}/{}, Column/s: {}", &path[1], &path[2], broken_columns)); 
+                            }
+                        }
+                    }
+                }
+
+                // If all tables are Ok, return it. Otherwise, return an error with the list of broken tables.
+                if broken_tables.is_empty() { Ok(()) }
+                else { Err(ErrorKind::DBMissingReferences(broken_tables))? }
+            }
+            None => Err(ErrorKind::SchemaNotFound)?
+        }
     }
 
     /// This function is used to optimize a `PackFile` by removing extra useless data from it.
