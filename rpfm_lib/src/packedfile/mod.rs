@@ -8,7 +8,14 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// In this file are all the Fn, Structs and Impls common to at least 2 PackedFile types.
+/*!
+Module with all the code to decode/encode/interact with the different type of `PackedFiles`.
+
+This module contains all the code related with interacting with the different type of `PackedFiles`
+you can find in a `PackFile`. Here, you can find some generic enums used by the different `PackedFiles`.
+
+For encoding/decoding/proper manipulation of the data in each type of `PackedFile`, check their respective submodules
+!*/
 
 use serde_derive::{Serialize, Deserialize};
 
