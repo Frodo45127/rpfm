@@ -1183,6 +1183,82 @@ impl PackFile {
         }
     }
 
+    /// This function merges (if possible) the provided DB and LOC tables into one with the provided name.
+    ///
+    /// NOTE: The merged table will be created in the folder of the first provided file.
+    pub fn merge_tables( 
+        &mut self,
+        paths: &[Vec<String>],
+        name: &str,
+        delete_source_paths: bool,
+    ) -> Result<Vec<String>> {
+
+        // Get the schema, as we'll need it unlocked to decode all the files fast.
+        let schema = SCHEMA.lock().unwrap();
+        let schema = if let Some(ref schema) = *schema { schema } else { return Err(ErrorKind::SchemaNotFound)? };
+        
+        let mut db_files = vec![];
+        let mut loc_files = vec![];
+
+        // Decode the files and put them in their respective list.
+        for path in paths {
+            if let Some(packed_file) = self.get_ref_mut_packed_file_by_path(path) {
+                match packed_file.decode_return_ref_no_locks(&schema)? {
+                    DecodedPackedFile::DB(table) => db_files.push(table.clone()),
+                    DecodedPackedFile::Loc(table) => loc_files.push(table.clone()),
+                    _ => return Err(ErrorKind::InvalidFilesForMerging)?
+                }
+            }
+        }
+
+        // If we have no tables, or we have both, db and loc, return an error. If we have only tables, but different tables, we also return an error.
+        if (!db_files.is_empty() && !loc_files.is_empty()) || (db_files.is_empty() && loc_files.is_empty()) { return Err(ErrorKind::InvalidFilesForMerging)? }
+        else if !db_files.is_empty() && !db_files.iter().all(|x| x.name == db_files[0].name) { return Err(ErrorKind::InvalidFilesForMerging)? }
+
+        // If we have db tables, get their newest definition, update all the tables to that definition if needed,
+        // and then merge all their data in one table.
+        let merged_table = if !db_files.is_empty() {
+            let db_files = if db_files.iter().all(|x| x.get_definition().version == db_files[0].get_definition().version) { db_files }
+            else { 
+                let definition = db_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.version).unwrap();
+                for table in &mut db_files { table.set_definition(&definition); }
+                db_files
+            };
+            let mut new_table = DB::new(&db_files[0].name, &db_files[0].get_definition());
+            let mut entries = vec![];
+            db_files.iter().for_each(|x| entries.extend_from_slice(x.get_ref_table_data()));
+            new_table.set_table_data(&entries)?;
+            DecodedPackedFile::DB(new_table)
+        }
+
+        // Same thing for locs.
+        else if !loc_files.is_empty() {
+            let loc_files = if loc_files.iter().all(|x| x.get_definition().version == loc_files[0].get_definition().version) { loc_files }
+            else { 
+                let definition = loc_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.version).unwrap();
+                for table in &mut loc_files { table.set_definition(&definition); }
+                loc_files
+            };
+            let mut new_table = Loc::new(&loc_files[0].get_definition());
+            let mut entries = vec![];
+            loc_files.iter().for_each(|x| entries.extend_from_slice(x.get_ref_table_data()));
+            new_table.set_table_data(&entries)?;
+            DecodedPackedFile::Loc(new_table)
+        } else { unimplemented!() };
+
+        // And then, we save the newly created table to a `PackedFile`.
+        let mut path = paths[0].to_vec();
+        path.pop();
+        path.push(name.to_owned());
+        let packed_file = PackedFile::new_from_decoded(&merged_table, path);
+
+        // If we want to remove the source files, this is the moment.
+        if delete_source_paths { paths.iter().for_each(|x| self.remove_packed_file_by_path(x)); }
+
+        // Prepare the paths to return.
+        self.add_packed_file(&packed_file, true)
+    }
+
     /// This function is used to optimize a `PackFile` by removing extra useless data from it.
     ///
     /// Currently, this function removes:

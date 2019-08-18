@@ -299,6 +299,9 @@ impl DB {
                 }
             }
         }
+
+        // If we passed all the checks, replace the data.
+        self.entries = data.to_vec();
         Ok(())
     }
 
