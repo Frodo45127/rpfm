@@ -18,6 +18,8 @@ If you need a custom `From` implementation for any error of any lib, add it here
 !*/
 
 use failure::{Backtrace, Context, Fail};
+use fluent::{FluentError, FluentResource};
+use fluent_syntax::parser::errors::ParserError;
 use serde_json::error::Category;
 
 use std::boxed::Box;
@@ -97,6 +99,12 @@ pub enum ErrorKind {
 
     /// Generic TSV import/export error.
     TSVErrorGeneric,
+
+    /// Generic error for when Fluent fails to parse a sentence.
+    FluentParsingError,
+
+    /// Generic error for when Fluent fails to load a resource.
+    FluentResourceLoadingError,
 
     //-----------------------------------------------------//
     //                  Network Errors
@@ -492,6 +500,8 @@ impl Display for ErrorKind {
             ErrorKind::ImportTSVWrongVersion => write!(f, "<p>This TSV file belongs to another version of this table. If you want to use it, consider creating a new empty table, fill it with enough empty rows, open this file in a TSV editor, like Excel or LibreOffice, and copy column by column.</p><p>A more automatic solution is on the way, but not yet there.</p>"),
             ErrorKind::ImportTSVInvalidVersion => write!(f, "<p>This TSV file has an invalid version value at line 1.</p>"),
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
+            ErrorKind::FluentParsingError => write!(f, "<p>Error while trying to parse a fluent sentence.</p>"),
+            ErrorKind::FluentResourceLoadingError => write!(f, "<p>Error while trying to load a fluent resource.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -792,3 +802,19 @@ impl From<ron::de::Error> for Error {
         Self::from(ErrorKind::RonDeserializerError)
     }
 }
+
+
+/// Implementation to create an `Error` from a `(FluentResource, Vec<ParserError>)`. Because for fluent, single errors are hard.
+impl From<((FluentResource, Vec<ParserError>))> for Error {
+    fn from(_: (FluentResource, Vec<ParserError>)) -> Self {
+        Self::from(ErrorKind::FluentParsingError)
+    }
+}
+
+/// Implementation to create an `Error` from a `Vec<FluentError>`. Because for fluent, single errors are hard.
+impl From<Vec<FluentError>> for Error {
+    fn from(_: Vec<FluentError>) -> Self {
+        Self::from(ErrorKind::FluentResourceLoadingError)
+    }
+}
+
