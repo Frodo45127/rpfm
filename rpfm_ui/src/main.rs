@@ -32,6 +32,10 @@
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
 
+use rpfm_lib::SETTINGS;
+use fluent_bundle::{FluentBundle, FluentResource};
+use unic_langid::langid;
+use std::sync::RwLock;
 // Uses for everything we need. It's a looooong list.
 use qt_widgets::abstract_item_view::{SelectionMode, ScrollMode};
 use qt_widgets::action::Action;
@@ -94,8 +98,8 @@ use chrono::NaiveDateTime;
 use lazy_static::lazy_static;
 
 use rpfm_lib::SUPPORTED_GAMES;
-use rpfm_error::{ErrorKind, logger::Report, Result};
 use crate::shortcuts::Shortcuts;
+use rpfm_error::{ErrorKind, Result};/*
 use rpfm_lib::packfile::{CompressionState, PathType};
 use rpfm_lib::packfile::{PFHVersion, PFHFileType, PFHFlags};
 
@@ -126,7 +130,7 @@ use crate::ui::qt_custom_stuff::*;
 use crate::ui::settings::*;
 use crate::ui::table_state::*;
 use crate::ui::updater::*;
-
+*/
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
 macro_rules! clone {
@@ -145,12 +149,17 @@ macro_rules! clone {
         }
     );
 }
-
-mod background_thread;
+/*
 mod communications;
 mod main_extra;
-mod shortcuts;
 mod ui;
+*/
+mod app_ui;
+mod command_palette;
+mod background_thread;
+mod ffi;
+mod locale;
+mod shortcuts;
 
 // Statics, so we don't need to pass them everywhere to use them.
 lazy_static! {
@@ -167,7 +176,7 @@ lazy_static! {
     };
 
     /// Icons for the PackFile TreeView.
-    static ref TREEVIEW_ICONS: Icons = Icons::new();
+    //static ref TREEVIEW_ICONS: Icons = Icons::new();
 
     /// Bright and dark palettes of colours for Windows.
     /// The dark one is taken from here: https://gist.github.com/QuantumCD/6245215
@@ -211,7 +220,7 @@ lazy_static! {
     };
 
     /// Stylesheet used by the dark theme in Windows.
-    static ref DARK_STYLESHEET: String = create_dark_theme_stylesheet();
+    //static ref DARK_STYLESHEET: String = create_dark_theme_stylesheet();
 
     // Colors used all over the program for theming and stuff.
     static ref MEDIUM_DARK_GREY: &'static str = "333333";            // Medium-Dark Grey. The color of the background of the Main Window.
@@ -235,10 +244,26 @@ lazy_static! {
 
     /// History for the filters, search, columns...., so table and loc filters are remembered when zapping files, and cleared when the open PackFile changes.
     /// NOTE: This affects both DB Tables and Loc PackedFiles.
-    static ref TABLE_STATES_UI: Mutex<BTreeMap<Vec<String>, TableStateUI>> = Mutex::new(TableStateUI::load().unwrap_or_else(|_| TableStateUI::new()));
+    //static ref TABLE_STATES_UI: Mutex<BTreeMap<Vec<String>, TableStateUI>> = Mutex::new(TableStateUI::load().unwrap_or_else(|_| TableStateUI::new()));
 
     /// Variable to lock/unlock certain actions of the Folder TreeView.
     static ref IS_FOLDER_TREE_VIEW_LOCKED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+    
+    /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
+    static ref LOCALE_FALLBACK: Arc<RwLock<FluentBundle<FluentResource>>> = {
+        match locale::initialize("en") {
+            Ok(locale) => locale,
+            Err(_) => locale::initialize_empty(),
+        }
+    };
+    
+    /// Variable to keep the locale data used by the UI loaded and available. If we fail to load the selected locale data, copy the english one instead.
+    static ref LOCALE: Arc<RwLock<FluentBundle<FluentResource>>> = {
+        match SETTINGS.lock().unwrap().settings_string.get("language") {
+            Some(language) => locale::initialize(language).unwrap_or_else(|_| LOCALE_FALLBACK.clone()),
+            None => LOCALE_FALLBACK.clone(),
+        }
+    };
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
@@ -273,172 +298,47 @@ pub enum GlobalMatch {
     Loc((Vec<String>, Vec<(String, i32, i64, String)>)),
 }
 
-/// This struct contains all the "Special Stuff" Actions, so we can pass all of them to functions at once.
-#[derive(Copy, Clone)]
-pub struct AppUI {
-
-    //-------------------------------------------------------------------------------//
-    // Big stuff.
-    //-------------------------------------------------------------------------------//
-    pub window: *mut MainWindow,
-    pub folder_tree_view: *mut TreeView,
-    pub folder_tree_filter: *mut SortFilterProxyModel,
-    pub folder_tree_model: *mut StandardItemModel,
-    pub folder_tree_filter_line_edit: *mut LineEdit,
-    pub folder_tree_filter_autoexpand_matches_button: *mut PushButton,
-    pub folder_tree_filter_case_sensitive_button: *mut PushButton,
-    pub folder_tree_filter_filter_by_folder_button: *mut PushButton,
-    pub packed_file_splitter: *mut Splitter,
-
-    //-------------------------------------------------------------------------------//
-    // "PackFile" menu.
-    //-------------------------------------------------------------------------------//
-
-    // Menus.
-    pub new_packfile: *mut Action,
-    pub open_packfile: *mut Action,
-    pub save_packfile: *mut Action,
-    pub save_packfile_as: *mut Action,
-    pub load_all_ca_packfiles: *mut Action,
-    pub preferences: *mut Action,
-    pub quit: *mut Action,
-
-    // "Change PackFile Type" submenu.
-    pub change_packfile_type_boot: *mut Action,
-    pub change_packfile_type_release: *mut Action,
-    pub change_packfile_type_patch: *mut Action,
-    pub change_packfile_type_mod: *mut Action,
-    pub change_packfile_type_movie: *mut Action,
-    pub change_packfile_type_other: *mut Action,
-
-    pub change_packfile_type_header_is_extended: *mut Action,
-    pub change_packfile_type_index_includes_timestamp: *mut Action,
-    pub change_packfile_type_index_is_encrypted: *mut Action,
-    pub change_packfile_type_data_is_encrypted: *mut Action,
-
-    // Action to enable/disable compression on PackFiles. Only for PFH5+ PackFiles.
-    pub change_packfile_type_data_is_compressed: *mut Action,
-
-    // Action Group for the submenu.
-    pub change_packfile_type_group: *mut ActionGroup,
-
-    //-------------------------------------------------------------------------------//
-    // "Game Selected" menu.
-    //-------------------------------------------------------------------------------//
-    
-    pub open_game_data_folder: *mut Action,
-    pub open_game_assembly_kit_folder: *mut Action,
-
-    pub three_kingdoms: *mut Action,
-    pub warhammer_2: *mut Action,
-    pub warhammer: *mut Action,
-    pub thrones_of_britannia: *mut Action,
-    pub attila: *mut Action,
-    pub rome_2: *mut Action,
-    pub shogun_2: *mut Action,
-    pub napoleon: *mut Action,
-    pub empire: *mut Action,
-    pub arena: *mut Action,
-
-    pub game_selected_group: *mut ActionGroup,
-
-    //-------------------------------------------------------------------------------//
-    // "Special Stuff" menu.
-    //-------------------------------------------------------------------------------//
-
-    // Three Kingdoms actions.
-    pub three_k_optimize_packfile: *mut Action,
-    pub three_k_generate_pak_file: *mut Action,
-
-    // Warhammer 2's actions.
-    pub wh2_patch_siege_ai: *mut Action,
-    pub wh2_optimize_packfile: *mut Action,
-    pub wh2_generate_pak_file: *mut Action,
-
-    // Warhammer's actions.
-    pub wh_patch_siege_ai: *mut Action,
-    pub wh_optimize_packfile: *mut Action,
-    pub wh_generate_pak_file: *mut Action,
-
-    // Thrones of Britannia's actions.
-    pub tob_optimize_packfile: *mut Action,
-    pub tob_generate_pak_file: *mut Action,
-
-    // Attila's actions.
-    pub att_optimize_packfile: *mut Action,
-    pub att_generate_pak_file: *mut Action,
-
-    // Rome 2's actions.
-    pub rom2_optimize_packfile: *mut Action,
-    pub rom2_generate_pak_file: *mut Action,
-
-    // Shogun 2's actions.
-    pub sho2_optimize_packfile: *mut Action,
-    pub sho2_generate_pak_file: *mut Action,
-
-    // Napoleon's actions.
-    pub nap_optimize_packfile: *mut Action,
-    pub nap_generate_pak_file: *mut Action,
-
-    // Empire's actions.
-    pub emp_optimize_packfile: *mut Action,
-    pub emp_generate_pak_file: *mut Action,
-
-    //-------------------------------------------------------------------------------//
-    // "About" menu.
-    //-------------------------------------------------------------------------------//
-    pub about_qt: *mut Action,
-    pub about_rpfm: *mut Action,
-    pub open_manual: *mut Action,
-    pub patreon_link: *mut Action,
-    pub check_updates: *mut Action,
-    pub check_schema_updates: *mut Action,
-
-    //-------------------------------------------------------------------------------//
-    // "Contextual" menu for the TreeView.
-    //-------------------------------------------------------------------------------//
-    pub context_menu_add_file: *mut Action,
-    pub context_menu_add_folder: *mut Action,
-    pub context_menu_add_from_packfile: *mut Action,
-    pub context_menu_create_folder: *mut Action,
-    pub context_menu_create_db: *mut Action,
-    pub context_menu_create_loc: *mut Action,
-    pub context_menu_create_text: *mut Action,
-    pub context_menu_mass_import_tsv: *mut Action,
-    pub context_menu_mass_export_tsv: *mut Action,
-    pub context_menu_rename: *mut Action,
-    pub context_menu_delete: *mut Action,
-    pub context_menu_extract: *mut Action,
-    pub context_menu_open_decoder: *mut Action,
-    pub context_menu_open_dependency_manager: *mut Action,
-    pub context_menu_open_containing_folder: *mut Action,
-    pub context_menu_open_with_external_program: *mut Action,
-    pub context_menu_open_in_multi_view: *mut Action,
-    pub context_menu_open_notes: *mut Action,
-    pub context_menu_check_tables: *mut Action,
-    pub context_menu_merge_tables: *mut Action,
-    pub context_menu_global_search: *mut Action,
-
-    //-------------------------------------------------------------------------------//
-    // "Special" actions for the TreeView.
-    //-------------------------------------------------------------------------------//
-    pub tree_view_expand_all: *mut Action,
-    pub tree_view_collapse_all: *mut Action,
-}
 
 /// Main function.
 fn main() {
-
+    
     // Log the crashes so the user can send them himself.
-    if !cfg!(debug_assertions) { panic::set_hook(Box::new(move |info: &panic::PanicInfo| { Report::new(info, VERSION).save().unwrap(); })); }
+    //if !cfg!(debug_assertions) { panic::set_hook(Box::new(move |info: &panic::PanicInfo| { Report::new(info, VERSION).save().unwrap(); })); }
 
     // If the config folder doesn't exist, and we failed to initialize it, force a crash.
     // If this fails, half the program will be broken in one way or another, so better save than sorry.
-    if let Err(error) = init_config_path() { panic!(error); }
+    //if let Err(error) = init_config_path() { panic!(error); }
+
+    //---------------------------------------------------------------------------------------//
+    // Preparing the Program...
+    //---------------------------------------------------------------------------------------//
+
+    // Create the channels to communicate the threads. The channels are:
+    // - `sender_rust, receiver_qt`: used for returning info from the background thread, serialized in Vec<u8>.
+    // - `sender_qt, receiver_rust`: used for sending the current action to the background thread.
+    // - `sender_qt_data, receiver_rust_data`: used for sending the data to the background thread.
+    //   The data sended and received in the last one should be always be serialized into Vec<u8>.
+    //let (sender_rust, receiver_qt) = channel();
+    //let (sender_qt, receiver_rust) = channel();
+    //let (sender_qt_data, receiver_rust_data) = channel();
+
+    // Create the background thread.
+    thread::spawn(move || { background_thread::background_loop(/*&sender_rust, &receiver_rust, &receiver_rust_data*/); });
 
     // Create the application...
     Application::create_and_exit(|app| {
+        use crate::app_ui::AppUI;
+        use crate::app_ui::slots::AppUISlots;
 
+        let (app_ui, slots) = AppUI::new();
+
+
+
+
+
+
+
+/*
         //---------------------------------------------------------------------------------------//
         // Preparing the Program...
         //---------------------------------------------------------------------------------------//
@@ -455,439 +355,6 @@ fn main() {
         // Create the background thread.
         thread::spawn(move || { background_thread::background_loop(&sender_rust, &receiver_rust, &receiver_rust_data); });
 
-        //---------------------------------------------------------------------------------------//
-        // Creating the UI...
-        //---------------------------------------------------------------------------------------//
-
-        // Set the RPFM Icon.
-        let app_icon = Icon::new(&QString::from_std_str(format!("{}/img/rpfm.png", RPFM_PATH.to_string_lossy())));
-        Application::set_window_icon(&app_icon);
-
-        // Create the main window of the program.
-        let mut window = MainWindow::new();
-        window.resize((1100, 400));
-
-        // Create a Central Widget and populate it.
-        let mut central_widget = Widget::new();
-        let mut central_layout = create_grid_layout_safe(&mut central_widget);
-        unsafe { window.set_central_widget(central_widget.as_mut_ptr()); }
-
-        // Create the layout for the Central Widget.
-        let mut central_splitter = Splitter::new(());
-        unsafe { central_layout.add_widget((central_splitter.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
-
-        // Create the PackedFile splitter.
-        let mut packed_file_splitter = Splitter::new(());
-
-        // Create the widget to fit in all the TreeView stuff.
-        let mut folder_tree_widget = Widget::new();
-        let mut folder_tree_layout = create_grid_layout_safe(&mut folder_tree_widget);
-
-        // Create the TreeView.
-        let mut folder_tree_view = TreeView::new();
-        let folder_tree_filter = unsafe { new_treeview_filter(folder_tree_widget.as_mut_ptr() as *mut Object) };
-        let mut folder_tree_model = StandardItemModel::new(());
-        unsafe { folder_tree_filter.as_mut().unwrap().set_source_model(folder_tree_model.static_cast_mut()); }
-        unsafe { folder_tree_view.set_model(folder_tree_filter as *mut AbstractItemModel); }
-        folder_tree_view.set_header_hidden(true);
-        folder_tree_view.set_animated(true);
-        folder_tree_view.set_uniform_row_heights(true);
-        folder_tree_view.set_selection_mode(SelectionMode::Extended);
-
-        // Create the filter's LineEdit.
-        let mut folder_tree_filter_line_edit = LineEdit::new(());
-        folder_tree_filter_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the files in the PackFile. Works with Regex too!"));
-
-        // Create the filter's "Auto-Expand Matches" button.
-        let mut folder_tree_filter_autoexpand_matches_button = PushButton::new(&QString::from_std_str("Auto-Expand Matches"));
-        folder_tree_filter_autoexpand_matches_button.set_checkable(true);
-
-        // Create the filter's "Case Sensitive" button.
-        let mut folder_tree_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("AaI"));
-        folder_tree_filter_case_sensitive_button.set_checkable(true);
-
-        // Create the filter's "Filter By Folder" button.
-        let mut folder_tree_filter_filter_by_folder_button = PushButton::new(&QString::from_std_str("Filter By Folder"));
-        folder_tree_filter_filter_by_folder_button.set_checkable(true);
-
-        unsafe { folder_tree_layout.add_widget((folder_tree_view.as_mut_ptr() as *mut Widget, 0, 0, 1, 2)); }
-        unsafe { folder_tree_layout.add_widget((folder_tree_filter_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 2)); }
-        unsafe { folder_tree_layout.add_widget((folder_tree_filter_autoexpand_matches_button.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
-        unsafe { folder_tree_layout.add_widget((folder_tree_filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
-        unsafe { folder_tree_layout.add_widget((folder_tree_filter_filter_by_folder_button.as_mut_ptr() as *mut Widget, 3, 0, 1, 2)); }
-
-        // Create the "Global Search" view.
-        let global_search_widget = Widget::new().into_raw();
-        let global_search_grid = create_grid_layout_unsafe(global_search_widget);
-
-        let close_matches_button = PushButton::new(&QString::from_std_str("Close Matches")).into_raw();
-        let table_view_matches_db = TableView::new().into_raw();
-        let table_view_matches_loc = TableView::new().into_raw();
-        let filter_model_matches_db = SortFilterProxyModel::new().into_raw();
-        let filter_model_matches_loc = SortFilterProxyModel::new().into_raw();
-        let model_matches_db = StandardItemModel::new(()).into_raw();
-        let model_matches_loc = StandardItemModel::new(()).into_raw();
-
-        unsafe { filter_model_matches_db.as_mut().unwrap().set_source_model(model_matches_db as *mut AbstractItemModel); }
-        unsafe { table_view_matches_db.as_mut().unwrap().set_model(filter_model_matches_db as *mut AbstractItemModel); }
-        unsafe { table_view_matches_db.as_mut().unwrap().set_horizontal_scroll_mode(ScrollMode::Pixel); }
-        unsafe { table_view_matches_db.as_mut().unwrap().set_sorting_enabled(true); }
-        unsafe { table_view_matches_db.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
-        unsafe { table_view_matches_db.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
-        unsafe { table_view_matches_db.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
-
-        unsafe { filter_model_matches_loc.as_mut().unwrap().set_source_model(model_matches_loc as *mut AbstractItemModel); }
-        unsafe { table_view_matches_loc.as_mut().unwrap().set_model(filter_model_matches_loc as *mut AbstractItemModel); }
-        unsafe { table_view_matches_loc.as_mut().unwrap().set_horizontal_scroll_mode(ScrollMode::Pixel); }
-        unsafe { table_view_matches_loc.as_mut().unwrap().set_sorting_enabled(true); }
-        unsafe { table_view_matches_loc.as_mut().unwrap().vertical_header().as_mut().unwrap().set_visible(true); }
-        unsafe { table_view_matches_loc.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_visible(true); }
-        unsafe { table_view_matches_loc.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
-
-        // Create the filters for the matches tables.
-        let filter_matches_db_line_edit = LineEdit::new(()).into_raw();
-        unsafe { filter_matches_db_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!")); }
-
-        let filter_matches_db_column_selector = ComboBox::new().into_raw();
-        let filter_matches_db_column_list = StandardItemModel::new(()).into_raw();
-        unsafe { filter_matches_db_column_selector.as_mut().unwrap().set_model(filter_matches_db_column_list as *mut AbstractItemModel); }
-        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("PackedFile")); }
-        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Column")); }
-        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Row")); }
-        unsafe { filter_matches_db_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Match")); }
-
-        let filter_matches_db_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive")).into_raw();
-        unsafe { filter_matches_db_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
-
-        let filter_matches_loc_line_edit = LineEdit::new(()).into_raw();
-        unsafe { filter_matches_loc_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!")); }
-
-        let filter_matches_loc_column_selector = ComboBox::new().into_raw();
-        let filter_matches_loc_column_list = StandardItemModel::new(()).into_raw();
-        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().set_model(filter_matches_loc_column_list as *mut AbstractItemModel); }
-        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("PackedFile")); }
-        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Column")); }
-        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Row")); }
-        unsafe { filter_matches_loc_column_selector.as_mut().unwrap().add_item(&QString::from_std_str("Match")); }
-
-        let filter_matches_loc_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive")).into_raw();
-        unsafe { filter_matches_loc_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
-
-        // Create the frames for the matches tables.
-        let db_matches_frame = GroupBox::new(&QString::from_std_str("DB Matches")).into_raw();
-        let db_matches_grid = create_grid_layout_unsafe(db_matches_frame as *mut Widget);
-
-        let loc_matches_frame = GroupBox::new(&QString::from_std_str("Loc Matches")).into_raw();
-        let loc_matches_grid = create_grid_layout_unsafe(loc_matches_frame as *mut Widget);
-
-        unsafe { db_matches_grid.as_mut().unwrap().add_widget((table_view_matches_db as *mut Widget, 0, 0, 1, 3)); }
-        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((table_view_matches_loc as *mut Widget, 0, 0, 1, 3)); }
-
-        unsafe { db_matches_grid.as_mut().unwrap().add_widget((filter_matches_db_line_edit as *mut Widget, 1, 0, 1, 1)); }
-        unsafe { db_matches_grid.as_mut().unwrap().add_widget((filter_matches_db_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
-        unsafe { db_matches_grid.as_mut().unwrap().add_widget((filter_matches_db_column_selector as *mut Widget, 1, 2, 1, 1)); }
-        
-        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((filter_matches_loc_line_edit as *mut Widget, 1, 0, 1, 1)); }
-        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((filter_matches_loc_case_sensitive_button as *mut Widget, 1, 1, 1, 1)); }
-        unsafe { loc_matches_grid.as_mut().unwrap().add_widget((filter_matches_loc_column_selector as *mut Widget, 1, 2, 1, 1)); }
-
-        unsafe { global_search_grid.as_mut().unwrap().add_widget((db_matches_frame as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { global_search_grid.as_mut().unwrap().add_widget((loc_matches_frame as *mut Widget, 1, 0, 1, 1)); }
-        unsafe { global_search_grid.as_mut().unwrap().add_widget((close_matches_button as *mut Widget, 2, 0, 1, 1)); }
-
-        // Action to update the search stuff when needed.
-        let close_global_search_action = Action::new(()).into_raw();
-        let update_global_search_stuff = Action::new(()).into_raw();
-
-        // Add the corresponding widgets to the layout.
-        unsafe { central_splitter.add_widget(folder_tree_widget.as_mut_ptr()); }
-        unsafe { central_splitter.add_widget(packed_file_splitter.static_cast_mut() as *mut Widget); }
-        unsafe { central_splitter.add_widget(global_search_widget); }
-
-        // Set the correct proportions for the Splitter.
-        let mut clist = qt_core::list::ListCInt::new(());
-        clist.append(&300);
-        clist.append(&1100);
-        clist.append(&500);
-        central_splitter.set_sizes(&clist);
-        central_splitter.set_stretch_factor(0, 0);
-        central_splitter.set_stretch_factor(1, 10);
-        central_splitter.set_stretch_factor(2, 8);
-
-        // Hide this widget by default.
-        unsafe { global_search_widget.as_mut().unwrap().hide(); }
-
-        // MenuBar at the top of the Window.
-        let menu_bar = &window.menu_bar();
-
-        // StatusBar at the bottom of the Window.
-        let _status_bar = window.status_bar();
-
-        // Top MenuBar menus.
-        let menu_bar_packfile = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&PackFile")) };
-        let menu_bar_mymod = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&MyMod")) };
-        let menu_bar_game_seleted = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&Game Selected")) };
-        let menu_bar_special_stuff = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&Special Stuff")) };
-        let menu_bar_about = unsafe { menu_bar.as_mut().unwrap().add_menu(&QString::from_std_str("&About")) };
-        
-        // Submenus.
-        let menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type")).into_raw();
-
-        let menu_three_kingdoms = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("Three &Kingdoms")) };
-        let menu_warhammer_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Warhammer 2")) };
-        let menu_warhammer = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("War&hammer")) };
-        let menu_thrones_of_britannia = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Thrones of Britannia")) };
-        let menu_attila = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Attila")) };
-        let menu_rome_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Rome 2")) };
-        let menu_shogun_2 = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Shogun 2")) };
-        let menu_napoleon = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Napoleon")) };
-        let menu_empire = unsafe { menu_bar_special_stuff.as_mut().unwrap().add_menu(&QString::from_std_str("&Empire")) };
-        
-        // Contextual Menu for the TreeView.
-        let mut folder_tree_view_context_menu = Menu::new(());
-        let menu_add = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Add..."));
-        let menu_create = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Create..."));
-        let menu_open = folder_tree_view_context_menu.add_menu(&QString::from_std_str("&Open..."));
-
-        // Da monsta.
-        let app_ui = unsafe { AppUI {
-
-            //-------------------------------------------------------------------------------//
-            // Big stuff.
-            //-------------------------------------------------------------------------------//
-            window: window.into_raw(),
-            folder_tree_view: folder_tree_view.into_raw(),
-            folder_tree_filter,
-            folder_tree_model: folder_tree_model.into_raw(),
-            folder_tree_filter_line_edit: folder_tree_filter_line_edit.into_raw(),
-            folder_tree_filter_autoexpand_matches_button: folder_tree_filter_autoexpand_matches_button.into_raw(),
-            folder_tree_filter_case_sensitive_button: folder_tree_filter_case_sensitive_button.into_raw(),
-            folder_tree_filter_filter_by_folder_button: folder_tree_filter_filter_by_folder_button.into_raw(),
-            packed_file_splitter: packed_file_splitter.into_raw(),
-
-            //-------------------------------------------------------------------------------//
-            // "PackFile" menu.
-            //-------------------------------------------------------------------------------//
-
-            // Menús.
-            new_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&New PackFile")),
-            open_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Open PackFile")),
-            save_packfile: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Save PackFile")),
-            save_packfile_as: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("Save PackFile &As...")),
-            load_all_ca_packfiles: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Load All CA PackFiles...")),
-            preferences: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Preferences")),
-            quit: menu_bar_packfile.as_mut().unwrap().add_action(&QString::from_std_str("&Quit")),
-
-            // "Change PackFile Type" submenu.
-            change_packfile_type_boot: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Boot")),
-            change_packfile_type_release: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Release")),
-            change_packfile_type_patch: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Patch")),
-            change_packfile_type_mod: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Mod")),
-            change_packfile_type_movie: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Mo&vie")),
-            change_packfile_type_other: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Other")),
-
-            change_packfile_type_header_is_extended: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Header Is Extended")),
-            change_packfile_type_index_includes_timestamp: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Index Includes Timestamp")),
-            change_packfile_type_index_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Index Is &Encrypted")),
-            change_packfile_type_data_is_encrypted: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("&Data Is Encrypted")),
-            
-            // Action for the PackFile compression.
-            change_packfile_type_data_is_compressed: menu_change_packfile_type.as_mut().unwrap().add_action(&QString::from_std_str("Data Is &Compressed")),
-
-            // Action Group for the submenu.
-            change_packfile_type_group: ActionGroup::new(menu_change_packfile_type.as_mut().unwrap().static_cast_mut()).into_raw(),
-
-            //-------------------------------------------------------------------------------//
-            // "Game Selected" menu.
-            //-------------------------------------------------------------------------------//
-
-            open_game_data_folder: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Open Game's Data Folder")),
-            open_game_assembly_kit_folder: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Open &Game's Assembly Kit Folder")),
-        
-            three_kingdoms: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("Three &Kingdoms")),
-            warhammer_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Warhammer 2")),
-            warhammer: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("War&hammer")),
-            thrones_of_britannia: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Thrones of Britannia")),
-            attila: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Attila")),
-            rome_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("R&ome 2")),
-            shogun_2: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Shogun 2")),
-            napoleon: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Napoleon")),
-            empire: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("&Empire")),
-            arena: menu_bar_game_seleted.as_mut().unwrap().add_action(&QString::from_std_str("A&rena")),
-
-            game_selected_group: ActionGroup::new(menu_bar_game_seleted.as_mut().unwrap().static_cast_mut()).into_raw(),
-
-            //-------------------------------------------------------------------------------//
-            // "Special Stuff" menu.
-            //-------------------------------------------------------------------------------//
-
-            // Three Kingdoms actions.
-            three_k_optimize_packfile: menu_three_kingdoms.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            three_k_generate_pak_file: menu_three_kingdoms.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-
-            // Warhammer 2's actions.
-            wh2_patch_siege_ai: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
-            wh2_optimize_packfile: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            wh2_generate_pak_file: menu_warhammer_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-
-            // Warhammer's actions.
-            wh_patch_siege_ai: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Patch Siege AI")),
-            wh_optimize_packfile: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            wh_generate_pak_file: menu_warhammer.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-            
-            // Thrones of Britannia's actions.
-            tob_optimize_packfile: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            tob_generate_pak_file: menu_thrones_of_britannia.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-
-            // Attila's actions.
-            att_optimize_packfile: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            att_generate_pak_file: menu_attila.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-
-            // Rome 2's actions.
-            rom2_optimize_packfile: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            rom2_generate_pak_file: menu_rome_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-
-            // Shogun 2's actions.
-            sho2_optimize_packfile: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            sho2_generate_pak_file: menu_shogun_2.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-
-            // Napoleon's actions.
-            nap_optimize_packfile: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            // nap_generate_pak_file: menu_napoleon.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-            nap_generate_pak_file: Action::new(&QString::from_std_str("")).into_raw(),
-
-            // Empire's actions.
-            emp_optimize_packfile: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Optimize PackFile")),
-            // emp_generate_pak_file: menu_empire.as_mut().unwrap().add_action(&QString::from_std_str("&Generate PAK File")),
-            emp_generate_pak_file: Action::new(&QString::from_std_str("")).into_raw(),
-
-            //-------------------------------------------------------------------------------//
-            // "About" menu.
-            //-------------------------------------------------------------------------------//
-            about_qt: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("About &Qt")),
-            about_rpfm: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&About RPFM")),
-            open_manual: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Open Manual")),
-            patreon_link: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Support me on Patreon")),
-            check_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("&Check Updates")),
-            check_schema_updates: menu_bar_about.as_mut().unwrap().add_action(&QString::from_std_str("Check Schema &Updates")),
-
-            //-------------------------------------------------------------------------------//
-            // "Contextual" Menu for the TreeView.
-            //-------------------------------------------------------------------------------//
-
-            context_menu_add_file: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("&Add File")),
-            context_menu_add_folder: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add &Folder")),
-            context_menu_add_from_packfile: menu_add.as_mut().unwrap().add_action(&QString::from_std_str("Add from &PackFile")),
-
-            context_menu_create_folder: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Folder")),
-            context_menu_create_loc: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("&Create Loc")),
-            context_menu_create_db: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &DB")),
-            context_menu_create_text: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Create &Text")),
-
-            context_menu_mass_import_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Import TSV")),
-            context_menu_mass_export_tsv: menu_create.as_mut().unwrap().add_action(&QString::from_std_str("Mass-Export TSV")),
-
-            context_menu_rename: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Rename")),
-            context_menu_delete: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Delete")),
-            context_menu_extract: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Extract")),
-
-            context_menu_open_decoder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("&Open with Decoder")),
-            context_menu_open_dependency_manager: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open &Dependency Manager")),
-            context_menu_open_containing_folder: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open &Containing Folder")),
-            context_menu_open_with_external_program: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open with &External Program")),
-            context_menu_open_in_multi_view: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open in &Multi-View")),
-            context_menu_open_notes: menu_open.as_mut().unwrap().add_action(&QString::from_std_str("Open &Notes")),
-            
-            context_menu_check_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables")),
-            context_menu_merge_tables: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables")),
-            context_menu_global_search: folder_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search")),
-
-            //-------------------------------------------------------------------------------//
-            // "Special" Actions for the TreeView.
-            //-------------------------------------------------------------------------------//
-            tree_view_expand_all: Action::new(&QString::from_std_str("&Expand All")).into_raw(),
-            tree_view_collapse_all: Action::new(&QString::from_std_str("&Collapse All")).into_raw(),
-        }};
-
-        // The "Change PackFile Type" submenu should be an ActionGroup.
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_boot); }
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_release); }
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_patch); }
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_mod); }
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_movie); }
-        unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().add_action_unsafe(app_ui.change_packfile_type_other); }
-        unsafe { app_ui.change_packfile_type_boot.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_release.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_patch.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_movie.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checkable(true); }
-
-        // These ones are individual, but they need to be checkable and not editable.
-        unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checkable(true); }
-
-        unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_enabled(false); }
-        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
-
-        // Put separators in the SubMenu.
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_other); }
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_header_is_extended); }
-        unsafe { menu_change_packfile_type.as_mut().unwrap().insert_separator(app_ui.change_packfile_type_data_is_compressed); }
-
-        // The "Game Selected" Menu should be an ActionGroup.
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.three_kingdoms); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer_2); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.warhammer); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.thrones_of_britannia); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.attila); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.rome_2); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.shogun_2); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.napoleon); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.empire); }
-        unsafe { app_ui.game_selected_group.as_mut().unwrap().add_action_unsafe(app_ui.arena); }
-        unsafe { app_ui.three_kingdoms.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.warhammer_2.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.warhammer.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.thrones_of_britannia.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.attila.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.rome_2.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.shogun_2.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.napoleon.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.empire.as_mut().unwrap().set_checkable(true); }
-        unsafe { app_ui.arena.as_mut().unwrap().set_checkable(true); }
-
-        // Arena is special, so separate it from the rest.
-        unsafe { menu_bar_game_seleted.as_mut().unwrap().insert_separator(app_ui.arena); }
-
-        // Put the Submenus and separators in place.
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.load_all_ca_packfiles); }
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.preferences, menu_change_packfile_type); }
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_separator(app_ui.preferences); }
-
-        // Add the "Open..." submenus. These needs to be here because they have to be appended to the menu.
-        let menu_open_from_content = Menu::new(&QString::from_std_str("Open From Content")).into_raw();
-        let menu_open_from_data = Menu::new(&QString::from_std_str("Open From Data")).into_raw();
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_content); }
-        unsafe { menu_bar_packfile.as_mut().unwrap().insert_menu(app_ui.load_all_ca_packfiles, menu_open_from_data); }
-
-        // FIXME: This needs to be changed every time a new game gets released. DO NOT REMOVE THE FIXME.
-        unsafe { menu_bar_game_seleted.as_mut().unwrap().insert_separator(app_ui.three_kingdoms); }
-        
-        // Put separators in the Main TreeView's contextual menu.
-        unsafe { menu_create.as_mut().unwrap().insert_separator(app_ui.context_menu_mass_import_tsv); }
-        unsafe { folder_tree_view_context_menu.insert_separator(menu_open.as_ref().unwrap().menu_action()); }
-        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_rename); }
-        unsafe { folder_tree_view_context_menu.insert_separator(app_ui.context_menu_check_tables); }
-
-        // Prepare the TreeView to have a Contextual Menu.
-        unsafe { app_ui.folder_tree_view.as_mut().unwrap().set_context_menu_policy(ContextMenuPolicy::Custom); }
 
         //---------------------------------------------------------------------------------------//
         // Shortcuts for the Menu Bar...
@@ -4606,7 +4073,7 @@ fn main() {
 
             // Close the program with code 69
             return 69
-        }
+        }*/
 
         // And launch it.
         Application::exec()

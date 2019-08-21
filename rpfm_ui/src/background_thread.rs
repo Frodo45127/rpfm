@@ -10,8 +10,8 @@
 
 // Here should go just the Background loop.
 
-use crate::communications::THREADS_MESSAGE_ERROR;
-use crate::communications::check_message_validity_recv;
+//use crate::communications::THREADS_MESSAGE_ERROR;
+//use crate::communications::check_message_validity_recv;
 use std::collections::BTreeMap;
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
@@ -21,18 +21,18 @@ use std::io::{BufWriter, Write};
 use std::process::Command;
 use regex::Regex;
 
-use rpfm_lib::common::coding_helpers::*;
+//use rpfm_lib::common::coding_helpers::*;
 
 use rpfm_error::{Error, ErrorKind};
 use rpfm_lib::packfile::{PackFile, PFHFlags};
 use rpfm_lib::packedfile::*;
-use rpfm_lib::packedfile::loc::*;
-use rpfm_lib::packedfile::db::*;
+//use rpfm_lib::packedfile::loc::*;
+//use rpfm_lib::packedfile::db::*;
 use rpfm_lib::packedfile::rigidmodel::*;
 
 use rpfm_lib::schema::*;
-use rpfm_lib::schema::assembly_kit::*;
-use rpfm_lib::updater::*;
+//use rpfm_lib::schema::assembly_kit::*;
+//use rpfm_lib::updater::*;
 
 use rpfm_lib::common::*;
 use crate::RPFM_PATH;
@@ -44,16 +44,16 @@ use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
 use crate::GlobalMatch;
-use crate::communications::{Commands, Data};
+//use crate::communications::{Commands, Data};
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 /// The sender is to send stuff back (from Data enum) to the UI.
 /// The receiver is to receive orders to execute from the loop.
 /// The receiver_data is to receive data (whatever data is needed) inside a Data variant from the UI Thread.
 pub fn background_loop(
-    sender: &Sender<Data>,
-    receiver: &Receiver<Commands>,
-    receiver_data: &Receiver<Data>
+    //sender: &Sender<Data>,
+    //receiver: &Receiver<Commands>,
+    //receiver_data: &Receiver<Data>
 ) {
 
     //---------------------------------------------------------------------------------------//
@@ -69,7 +69,7 @@ pub fn background_loop(
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
-
+/*
     // Start the main loop.
     loop {
 
@@ -1382,5 +1382,5 @@ pub fn background_loop(
                 break;
             },
         }
-    }
+    }*/
 }

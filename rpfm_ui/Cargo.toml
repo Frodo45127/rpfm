@@ -41,6 +41,11 @@ qt_widgets = "^0.2"
 # Support for formatting math operations.
 meval = "^0.2"
 
+# Translation support.
+fluent = "^0.7"
+fluent-bundle = "^0.7"
+unic-langid = "^0.4"
+
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]
 winres = "^0.1"
