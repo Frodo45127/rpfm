@@ -15,9 +15,15 @@ Module with all the code related to the main `AppUISlot`.
 use qt_widgets::message_box::MessageBox;
 use qt_widgets::widget::Widget;
 
+use qt_gui::desktop_services::DesktopServices;
+
 use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
+use rpfm_lib::DOCS_BASE_URL;
+use rpfm_lib::PATREON_URL;
+
+use crate::QString;
 use crate::app_ui::AppUI;
 use crate::command_palette;
 
@@ -47,6 +53,15 @@ pub struct AppUISlots {
     // `About` menu slots.
     //-----------------------------------------------//
     pub about_about_qt: SlotBool<'static>,
+    pub about_open_manual: SlotBool<'static>,
+    pub about_patreon_link: SlotBool<'static>,
+
+    //-----------------------------------------------//
+    // PackFile Contents TreeView's context menu slots.
+    //-----------------------------------------------//
+    pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
+    pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
+
 }
 
 //-------------------------------------------------------------------------------//
@@ -86,6 +101,19 @@ impl AppUISlots {
         });
 
         //-----------------------------------------------//
+        // `PackFile` menu logic.
+        //-----------------------------------------------//
+
+        // What happens when we trigger the "Quit" action.
+        let slot_quit = SlotBool::new(clone!(
+            app_ui => move |_| {
+                /*if are_you_sure(&app_ui, false) {
+                    unsafe { app_ui.window.as_mut().unwrap().close(); }
+                }*/
+            }
+        ));
+
+        //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
         let view_toggle_packfile_contents = SlotBool::new(move |_| { 
@@ -103,7 +131,21 @@ impl AppUISlots {
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
+        
+        // What happens when we trigger the "About Qt" action.
         let about_about_qt = SlotBool::new(move |_| { unsafe { MessageBox::about_qt(app_ui.main_window as *mut Widget); }});
+
+        // What happens when we trigger the "Open Manual" action.
+        let about_open_manual = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(DOCS_BASE_URL))); });
+
+        // What happens when we trigger the "Support me on Patreon" action.
+        let about_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(PATREON_URL))); });
+
+        //-----------------------------------------------//
+        // PackFile Contents TreeView's context menu logic.
+        //-----------------------------------------------//
+        let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { app_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
+        let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { app_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
 
         // And here... we return all the slots.
 		Self {
@@ -125,6 +167,14 @@ impl AppUISlots {
 	        // `About` menu slots.
 	        //-----------------------------------------------//
     		about_about_qt,
+            about_open_manual,
+            about_patreon_link,
+
+            //-----------------------------------------------//
+            // PackFile Contents TreeView's context menu slots.
+            //-----------------------------------------------//
+            packfile_contents_tree_view_expand_all,
+            packfile_contents_tree_view_collapse_all,
 		}
 	}
 }

@@ -22,7 +22,7 @@ use super::{AppUI, slots::AppUISlots};
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
-pub fn connections(app_ui: AppUI, slots: &AppUISlots) {
+pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
 
 	//-----------------------------------------------//
     // Command Palette connections.
@@ -42,4 +42,12 @@ pub fn connections(app_ui: AppUI, slots: &AppUISlots) {
     // `About` menu connections.
     //-----------------------------------------------//
     unsafe { app_ui.about_about_qt.as_ref().unwrap().signals().triggered().connect(&slots.about_about_qt); }
+    unsafe { app_ui.about_open_manual.as_ref().unwrap().signals().triggered().connect(&slots.about_open_manual); }
+    unsafe { app_ui.about_patreon_link.as_ref().unwrap().signals().triggered().connect(&slots.about_patreon_link); }
+
+    //--------------------------------------------------------//
+    // PackFile Contents TreeView's context menu connections.
+    //--------------------------------------------------------//
+    unsafe { app_ui.packfile_contents_tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.packfile_contents_tree_view_expand_all); }
+    unsafe { app_ui.packfile_contents_tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.packfile_contents_tree_view_collapse_all); }
 }

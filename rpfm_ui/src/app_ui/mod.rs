@@ -41,7 +41,7 @@ use qt_gui::standard_item_model::StandardItemModel;
 use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::flags::Flags;
 use qt_core::object::Object;
-use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, DockWidgetArea, MatchFlag};
+use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, DockWidgetArea};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::string_list_model::StringListModel;
 
@@ -53,6 +53,7 @@ use crate::RPFM_PATH;
 
 mod connections;
 mod shortcuts;
+mod status_bar_tips;
 pub mod slots;
 
 //-------------------------------------------------------------------------------//
@@ -257,15 +258,15 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // Actions not in the UI.
     //-------------------------------------------------------------------------------//
-    pub tree_view_expand_all: *mut Action,
-    pub tree_view_collapse_all: *mut Action,
+    pub packfile_contents_tree_view_expand_all: *mut Action,
+    pub packfile_contents_tree_view_collapse_all: *mut Action,
 }
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation of `AppUI`.
+/// Implementation of `Default` for `AppUI`.
 impl Default for AppUI {
     
     /// This function creates an entire `AppUI` struct. Used to create the entire UI at start.
@@ -548,14 +549,36 @@ impl Default for AppUI {
         let context_menu_check_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables"));
         let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables"));
         let context_menu_global_search = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search"));
-        let tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All"));
-        let tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All"));
+        let packfile_contents_tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All"));
+        let packfile_contents_tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All"));
 
         // Configure the `Contextual Menu` for the `PackFile` TreeView.
         unsafe { menu_create_ref_mut.insert_separator(context_menu_mass_import_tsv); }
         unsafe { packfile_contents_tree_view_context_menu.insert_separator(menu_open.as_ref().unwrap().menu_action()); }
         unsafe { packfile_contents_tree_view_context_menu.insert_separator(context_menu_rename); }
         unsafe { packfile_contents_tree_view_context_menu.insert_separator(context_menu_check_tables); }
+
+        // Disable all the Contextual Menu actions by default.
+        unsafe {
+            context_menu_add_file.as_mut().unwrap().set_enabled(false);
+            context_menu_add_folder.as_mut().unwrap().set_enabled(false);
+            context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
+            context_menu_create_folder.as_mut().unwrap().set_enabled(false);
+            context_menu_create_db.as_mut().unwrap().set_enabled(false);
+            context_menu_create_loc.as_mut().unwrap().set_enabled(false);
+            context_menu_create_text.as_mut().unwrap().set_enabled(false);
+            context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
+            context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
+            context_menu_delete.as_mut().unwrap().set_enabled(false);
+            context_menu_extract.as_mut().unwrap().set_enabled(false);
+            context_menu_rename.as_mut().unwrap().set_enabled(false);
+            context_menu_open_decoder.as_mut().unwrap().set_enabled(false);
+            context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
+            context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
+            context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
+            context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
+            context_menu_open_notes.as_mut().unwrap().set_enabled(false);
+        }
         
         //-----------------------------------------------//
         // `PackFile Contents` DockWidget.
@@ -908,18 +931,25 @@ impl Default for AppUI {
             //-------------------------------------------------------------------------------//
             // "Special" Actions for the TreeView.
             //-------------------------------------------------------------------------------//
-            tree_view_expand_all: tree_view_expand_all.into_raw(),
-            tree_view_collapse_all: tree_view_collapse_all.into_raw(),
+            packfile_contents_tree_view_expand_all: packfile_contents_tree_view_expand_all.into_raw(),
+            packfile_contents_tree_view_collapse_all: packfile_contents_tree_view_collapse_all.into_raw(),
         }
     }
 }
 
+/// Implementation of `AppUI`.
 impl AppUI {
+
+    /// This function initialize the entire `AppUI`.
+    ///
+    /// It just create a new AppUI, his slots, and wires up all together, then returns the `AppUI` and his slots.
+    /// Keep in mind that it's up to you to ensure these structs live for the entire duration of the program, or... things will start to wrong.
     pub fn new() -> (Self, AppUISlots) {
         let app_ui = Self::default();
         let slots = AppUISlots::new(app_ui);
-        connections::connections(app_ui, &slots);
-        shortcuts::shortcuts(app_ui);
+        connections::set_connections(&app_ui, &slots);
+        shortcuts::set_shortcuts(&app_ui);
+        status_bar_tips::set_status_bar_tips(&app_ui);
         (app_ui, slots)
     }
 }
