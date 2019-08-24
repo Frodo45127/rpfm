@@ -21,14 +21,12 @@ use qt_widgets::application::Application;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::completer::Completer;
 use qt_widgets::dock_widget::DockWidget;
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::group_box::GroupBox;
-use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
-
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::menu::Menu;
 use qt_widgets::menu_bar::MenuBar;
+use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::push_button::PushButton;
 use qt_widgets::status_bar::StatusBar;
 use qt_widgets::table_view::TableView;
@@ -45,16 +43,20 @@ use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, DockWidgetArea};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::string_list_model::StringListModel;
 
+use std::sync::atomic::Ordering;
+
 use crate::app_ui::slots::AppUISlots;
 use crate::ffi::new_treeview_filter;
 use crate::locale::tr;
 use crate::QString;
 use crate::RPFM_PATH;
+use crate::UI_STATE;
+use crate::utils::create_grid_layout_unsafe;
 
 mod connections;
 mod shortcuts;
-mod status_bar_tips;
 pub mod slots;
+mod tips;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -949,27 +951,111 @@ impl AppUI {
         let slots = AppUISlots::new(app_ui);
         connections::set_connections(&app_ui, &slots);
         shortcuts::set_shortcuts(&app_ui);
-        status_bar_tips::set_status_bar_tips(&app_ui);
+        tips::set_tips(&app_ui);
         (app_ui, slots)
     }
-}
 
-/// This function creates a GridLayout for the provided widget with the settings we want.
-///
-/// This is the unsafe version for Pointers.
-pub fn create_grid_layout_unsafe(widget: *mut Widget) -> *mut GridLayout {
-    let widget_layout = GridLayout::new().into_raw();
-    unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
-    
-    // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
-    if cfg!(target_os = "windows") {
-        unsafe { widget_layout.as_mut().unwrap().set_contents_margins((2, 2, 2, 2)) };
-        unsafe { widget_layout.as_mut().unwrap().set_spacing(1) }; 
-    }
-    else {
-        unsafe { widget_layout.as_mut().unwrap().set_contents_margins((0, 0, 0, 0)) };
-        unsafe { widget_layout.as_mut().unwrap().set_spacing(0) };           
+
+    /// This function shows a message asking for confirmation. For use in operations that implies unsaved
+    /// data loss. is_modified = true for when you can lose unsaved changes, is_delete_my_mod = true for
+    /// the deletion warning of MyMods.
+    /// This function pops up a modal asking you if you're sure you want to do an action that may result in unsaved data loss.
+    ///
+    ///
+    pub fn are_you_sure(&self, is_delete_my_mod: bool) -> bool {
+
+        // If the mod has been modified...
+        if UI_STATE.is_modified.load(Ordering::SeqCst) {
+
+            // Create the dialog.
+            let mut dialog = unsafe { MessageBox::new_unsafe((
+                &QString::from_std_str("Rusted PackFile Manager"),
+                &QString::from_std_str("<p>There are some changes yet to be saved.</p><p>Are you sure?</p>"),
+                message_box::Icon::Warning,
+                65536, // No
+                16384, // Yes
+                1, // By default, select yes.
+                self.main_window as *mut Widget,
+            )) };
+
+            // Run the dialog and get the response. Yes => 3, No => 4.
+            if dialog.exec() == 3 { true } else { false }
+        }
+
+        // If we are going to delete a MyMod...
+        else if is_delete_my_mod {
+
+            // Create the dialog.
+            let mut dialog = unsafe { MessageBox::new_unsafe((
+                &QString::from_std_str("Rusted PackFile Manager"),
+                &QString::from_std_str("<p>You are about to delete this <i>'MyMod'</i> from your disk.</p><p>There is no way to recover it after that.</p><p>Are you sure?</p>"),
+                message_box::Icon::Warning,
+                65536, // No
+                16384, // Yes
+                1, // By default, select yes.)
+                self.main_window as *mut Widget,
+            )) };
+
+            // Run the dialog and get the response. Yes => 3, No => 4.
+            if dialog.exec() == 3 { true } else { false }
+        }
+
+        // Otherwise, we allow the change directly.
+        else { true }
     }
 
-    widget_layout
+    /// This function deletes all the widgets corresponding to opened PackedFiles.
+    pub fn purge_them_all(&self) {
+
+        // Black magic.
+        for ui in UI_STATE.open_packedfiles.write().unwrap().values_mut() {
+            ui.hide();
+            let ui: *mut Menu = &mut **ui;
+            unsafe { (ui as *mut Object).as_mut().unwrap().delete_later(); }
+        }
+
+        // Set it as not having an opened PackedFile, just in case.
+        UI_STATE.open_packedfiles.write().unwrap().clear();
+
+        // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
+        unsafe { self.game_selected_group.as_mut().unwrap().set_enabled(true); }
+
+        // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
+        UI_STATE.disable_editing_from_packfile_contents.store(false, Ordering::SeqCst);
+    }
+
+    /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
+    pub fn purge_that_one_specifically(app_ui: &AppUI, path: &[String]) {
+
+        // Black magic to remove widgets.
+        if let Some(ui) = UI_STATE.open_packedfiles.write().unwrap().get_mut(path) {
+            ui.hide();
+            let ui: *mut Menu = &mut **ui;
+            unsafe { (ui as *mut Object).as_mut().unwrap().delete_later(); }
+        }
+
+        // Set it as not having an opened PackedFile, just in case.
+        UI_STATE.open_packedfiles.write().unwrap().remove(path);
+
+        // We check if there are more tables open. This is beacuse we cannot change the GameSelected 
+        // when there is a PackedFile using his Schema.
+        let mut enable_game_selected_menu = true;
+        for path in UI_STATE.open_packedfiles.read().unwrap().keys() {
+            if let Some(folder) = path.get(0) {
+                if folder.to_lowercase() == "db" {
+                    enable_game_selected_menu = false;
+                    break;
+                }
+            }
+
+            else if let Some(file) = path.last() {
+                if !file.is_empty() && file.ends_with(".loc") {
+                    enable_game_selected_menu = false;
+                    break;
+                }
+            }
+        }
+
+        if enable_game_selected_menu { unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }}
+    }
 }

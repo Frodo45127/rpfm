@@ -46,6 +46,9 @@ fluent = "^0.7"
 fluent-bundle = "^0.7"
 unic-langid = "^0.4"
 
+# Improved multi-thread Support.
+crossbeam = "^0.7"
+
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]
 winres = "^0.1"

@@ -9,14 +9,14 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with all the code to setup the `StatusBar` tips for the actions in `AppUI`.
+Module with all the code to setup the tips (in the `StatusBar`) for the actions in `AppUI`.
 !*/
 
 use crate::QString;
 use crate::app_ui::AppUI;
 
 /// This function sets the status bar tip for all the actions in the provided `AppUI`.
-pub fn set_status_bar_tips(app_ui: &AppUI) {
+pub fn set_tips(app_ui: &AppUI) {
 
     //-----------------------------------------------//
     // `PackFile` menu tips.

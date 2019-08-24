@@ -8,42 +8,56 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// This module is for communication-related stuff.
+/*! 
+This module defines the enums/util functions used for thread communication.
+!*/
 
-use crate::shortcuts::Shortcuts;
+use qt_core::event_loop::EventLoop;
+use crossbeam::channel::TryRecvError;
+use crate::CENTRAL_COMMAND;
+use crossbeam::unbounded;
+use crossbeam::Sender;
+use crossbeam::Receiver;
 use std::collections::BTreeMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::path::PathBuf;
-use std::sync::mpsc::{Receiver, TryRecvError};
 
-use crate::GlobalMatch;
 use rpfm_error::Error;
 use rpfm_lib::packfile::{PFHFileType, PackFileInfo, PathType};
 use rpfm_lib::packfile::packedfile::PackedFile;
 use rpfm_lib::packedfile::*;
-use rpfm_lib::packedfile::loc::*;
-use rpfm_lib::packedfile::db::*;
+
+
 use rpfm_lib::packedfile::rigidmodel::*;
 use rpfm_lib::schema::*;
 use rpfm_lib::settings::*;
-use rpfm_lib::updater::*;
-use crate::ui::updater::{APIResponse, APIResponseSchema};
 
-/// This const is the standard message in case of message deserializing error. If this happens, crash the program and send a report to Sentry.
-pub const THREADS_MESSAGE_ERROR: &str = "Error in thread messages system.";
+
+use crate::GlobalMatch;
+use crate::shortcuts::Shortcuts;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program and send a report to Sentry.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
+
+/// This struct contains the senders and receivers neccesary to communicate both, backend and frontend threads.
+pub struct CentralCommand {
+    pub sender_qt: Sender<Command>,
+    pub sender_rust: Sender<Response>,
+    pub receiver_qt: Receiver<Response>,
+    pub receiver_rust: Receiver<Command>,
+}
 
 /// This enum is meant for sending commands from the UI Thread to the Background thread.
 /// If you want to know what each command do, check the `background_loop` function.
 /// If you need to send data, DO NOT USE THIS. Use the `Data` enum.
 #[derive(Debug)]
-pub enum Commands {
+pub enum Command {
     ResetPackFile,
     ResetPackFileExtra,
     NewPackFile,
+    SetSettings(Settings),
+    /*
     OpenPackFiles,
     OpenPackFileExtra,
     SavePackFile,
@@ -101,20 +115,20 @@ pub enum Commands {
     MergeTables,
     GenerateSchemaDiff,
     GetNotes,
-    SetNotes,
+    SetNotes,*/
 }
 
 /// This enum is meant to send data back and forward between threads. Variants here are 
 /// defined by type. For example, if you want to send two different datas of the same type, 
 // you use the same variant. It's like that because otherwise this'll be a variant chaos.
 #[derive(Debug)]
-pub enum Data {
+pub enum Response {
     Success,
     Cancel,
     Error(Error),
-
-    Bool(bool),
     U32(u32),
+/*
+    Bool(bool),
     I32(i32),
     I64(i64),
 
@@ -163,9 +177,51 @@ pub enum Data {
     VecPathTypePathBuf((Vec<PathType>, PathBuf)),
     VecPathBuf(Vec<PathBuf>),
     Definition(Definition),
-    BTreeMapI32VecString(BTreeMap<i32, Vec<String>>),
+    BTreeMapI32VecString(BTreeMap<i32, Vec<String>>),*/
 }
 
+impl Default for CentralCommand {
+    fn default() -> Self {
+        let command_channel = unbounded();
+        let response_channel = unbounded();
+        Self {
+            sender_qt: command_channel.0,
+            sender_rust: response_channel.0,
+            receiver_qt: response_channel.1,
+            receiver_rust: command_channel.1,
+        }
+    }
+}
+
+/// This functions serves to receive messages from the background thread into the main thread.
+///
+/// This function does only try once, and it locks the thread. Use it only in small stuff.
+#[allow(dead_code)]
+pub fn recv_message_qt() -> Response {
+    match CENTRAL_COMMAND.receiver_qt.recv() {
+        Ok(data) => data,
+        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
+    }
+}
+
+/// This functions serves to receive messages from the background thread into the main thread.
+///
+/// This function does only try once, and it locks the thread. Use it only in small stuff.
+#[allow(dead_code)]
+pub fn recv_message_qt_try() -> Response {
+    let mut event_loop = EventLoop::new();
+    loop {
+        
+        // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
+        match CENTRAL_COMMAND.receiver_qt.try_recv() {
+            Ok(data) => return data,
+            Err(error) => if error.is_disconnected() { panic!(THREADS_COMMUNICATION_ERROR) }
+        }
+        event_loop.process_events(());
+    }
+}
+
+/*
 /// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.
 /// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you a panic. Same as the normal one,
 /// but it doesn't require you to have an Rc<RefCell<>> around the receiver.
@@ -227,8 +283,8 @@ pub fn check_message_validity_tryrecv(receiver: &Rc<RefCell<Receiver<Data>>>) ->
         // Keep the UI responsive.
         event_loop.process_events(());
     }
-}
-
+}*/
+/*
 /// This functions serves as "message checker" for the network thread.
 /// ONLY USE THIS IN THE UI THREAD, in the updater-related modules.
 #[allow(dead_code)]
@@ -256,3 +312,4 @@ pub fn check_api_response(receiver: &Receiver<(APIResponse, APIResponseSchema)>)
         event_loop.process_events(());
     }
 }
+*/

@@ -12,6 +12,7 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
+use qt_widgets::action::Action;
 use qt_widgets::message_box::MessageBox;
 use qt_widgets::widget::Widget;
 
@@ -21,11 +22,17 @@ use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
 use rpfm_lib::DOCS_BASE_URL;
+use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::PATREON_URL;
+use rpfm_lib::SETTINGS;
 
 use crate::QString;
 use crate::app_ui::AppUI;
+use crate::CENTRAL_COMMAND;
 use crate::command_palette;
+use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response, recv_message_qt};
+use crate::settings_ui::SettingsUI;
+use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -42,6 +49,13 @@ pub struct AppUISlots {
     pub command_palette_show: SlotNoArgs<'static>,
     pub command_palette_hide: SlotNoArgs<'static>,
     pub command_palette_trigger: SlotStringRef<'static>,
+
+    //-----------------------------------------------//
+    // `PackFile` menu slots.
+    //-----------------------------------------------//
+    pub packfile_new_packfile: SlotBool<'static>,
+    pub packfile_preferences: SlotBool<'static>,
+    pub packfile_quit: SlotBool<'static>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -104,12 +118,129 @@ impl AppUISlots {
         // `PackFile` menu logic.
         //-----------------------------------------------//
 
+        // What happens when we trigger the "New PackFile" action.
+        let packfile_new_packfile = SlotBool::new(
+            /*clone!(
+            mymod_stuff,
+            mode,
+            table_state_data,
+            packedfiles_open_in_packedfile_view =>*/ move |_| {
+                
+                // Check first if there has been changes in the PackFile.
+                if app_ui.are_you_sure(false) {
+
+                    // Tell the Background Thread to create a new PackFile.
+                    CENTRAL_COMMAND.sender_qt.send(Command::NewPackFile).unwrap();
+                    
+                    // Disable the main window, so the user can't interrupt the process or iterfere with it.
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                    // Close any open PackedFile and clear the global search pannel.
+                    // TODO: Clear the global search panel.
+                    app_ui.purge_them_all();
+                    unsafe { app_ui.global_search_dock_widget.as_mut().unwrap().hide(); }
+                    //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
+
+                    // Show the "Tips".
+                    //display_help_tips(&app_ui);
+
+
+                    // New PackFiles are always of Mod type.
+                    unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+
+                    // By default, the four bitmask should be false.
+                    unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                    unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
+                    unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                    unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+
+                    // We also disable compression by default.
+                    unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
+/*
+                    // Update the TreeView.
+                    update_treeview(
+                        &sender_qt,
+                        &sender_qt_data,
+                        &receiver_qt,
+                        &app_ui,
+                        app_ui.folder_tree_view,
+                        Some(app_ui.folder_tree_filter),
+                        app_ui.folder_tree_model,
+                        TreeViewOperation::Build(false),
+                    );
+*/
+                    // Re-enable the Main Window.
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                    // Enable the actions available for the PackFile from the `MenuBar`.
+                    //enable_packfile_actions(&app_ui, &mymod_stuff, true);
+
+                    // Set the current "Operational Mode" to Normal, as this is a "New" mod.
+                    //set_my_mod_mode(&mymod_stuff, &mode, None);
+
+                    // Clean the TableStateData.
+                    //*table_state_data.borrow_mut() = TableStateData::new(); 
+                }
+            }
+        );
+
+        // What happens when we trigger the "Preferences" action.
+        let packfile_preferences = SlotBool::new(/*clone!(
+            mode,
+            mymod_stuff,
+            mymod_menu_needs_rebuild => */move |_| {
+
+                // We store a copy of the old settings (for checking for changes) and trigger the new settings window.
+                let old_settings = SETTINGS.lock().unwrap().clone();
+                if let Some(settings) = SettingsUI::new(&app_ui) {
+
+                    // If we returned new settings, save them.
+                    CENTRAL_COMMAND.sender_qt.send(Command::SetSettings(settings.clone())).unwrap();
+
+                    // Check what response we got.
+                    match recv_message_qt() {
+
+                        // If we got confirmation....
+                        Response::Success => {
+/*      
+
+                            // If we changed the "MyMod's Folder" path...
+                            if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
+
+                                // We disable the "MyMod" mode, but leave the PackFile open, so the user doesn't lose any unsaved change.
+                                set_my_mod_mode(&mymod_stuff, &mode, None);
+
+                                // Then set it to recreate the "MyMod" submenu next time we try to open it.
+                                *mymod_menu_needs_rebuild.borrow_mut() = true;
+                            }
+*/
+                            // If we have changed the path of any of the games, and that game is the current `GameSelected`,
+                            // re-select the current `GameSelected` to force it to reload the game's files.
+                            let has_game_selected_path_changed = settings.paths.iter()
+                                .filter(|x| x.0 != "mymods_base_path" && &old_settings.paths[x.0] != x.1)
+                                .any(|x| x.0 == &*GAME_SELECTED.lock().unwrap());
+
+                            if has_game_selected_path_changed {
+                                unsafe { Action::trigger(app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap()); }
+                            }
+                        }
+
+                        // If we got an error...
+                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_COMMUNICATION_ERROR)
+                    }
+                }
+            }
+        );
+
         // What happens when we trigger the "Quit" action.
-        let slot_quit = SlotBool::new(clone!(
+        let packfile_quit = SlotBool::new(clone!(
             app_ui => move |_| {
-                /*if are_you_sure(&app_ui, false) {
-                    unsafe { app_ui.window.as_mut().unwrap().close(); }
-                }*/
+                if app_ui.are_you_sure(false) {
+                    unsafe { app_ui.main_window.as_mut().unwrap().close(); }
+                }
             }
         ));
 
@@ -156,6 +287,13 @@ impl AppUISlots {
 			command_palette_show,
     		command_palette_hide,
     		command_palette_trigger,
+
+            //-----------------------------------------------//
+            // `PackFile` menu slots.
+            //-----------------------------------------------//
+            packfile_new_packfile,
+            packfile_preferences,
+            packfile_quit,
 
             //-----------------------------------------------//
             // `View` menu slots.

@@ -12,13 +12,15 @@
 
 //use crate::communications::THREADS_MESSAGE_ERROR;
 //use crate::communications::check_message_validity_recv;
+use crate::communications::{Command, Response};
+use crate::CENTRAL_COMMAND;
 use std::collections::BTreeMap;
 use std::env::temp_dir;
 use std::sync::mpsc::{Sender, Receiver};
 use std::path::PathBuf;
 use std::fs::{DirBuilder, File};
 use std::io::{BufWriter, Write};
-use std::process::Command;
+//use std::process::Command;
 use regex::Regex;
 
 //use rpfm_lib::common::coding_helpers::*;
@@ -37,24 +39,17 @@ use rpfm_lib::schema::*;
 use rpfm_lib::common::*;
 use crate::RPFM_PATH;
 use rpfm_lib::SUPPORTED_GAMES;
-use crate::SHORTCUTS;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
 use crate::GlobalMatch;
-//use crate::communications::{Commands, Data};
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
-/// The sender is to send stuff back (from Data enum) to the UI.
-/// The receiver is to receive orders to execute from the loop.
-/// The receiver_data is to receive data (whatever data is needed) inside a Data variant from the UI Thread.
-pub fn background_loop(
-    //sender: &Sender<Data>,
-    //receiver: &Receiver<Commands>,
-    //receiver_data: &Receiver<Data>
-) {
+///
+/// All communication between this and the UI thread is done use the `CENTRAL_COMMAND` static.
+pub fn background_loop() {
 
     //---------------------------------------------------------------------------------------//
     // Initializing stuff...
@@ -69,6 +64,52 @@ pub fn background_loop(
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
     //---------------------------------------------------------------------------------------//
+    loop {
+
+        // Wait until you get something through the channel. This hangs the thread until we got something,
+        // so it doesn't use processing power until we send it a message.
+        match CENTRAL_COMMAND.receiver_rust.recv() {
+            Ok(command) => {
+                match command {
+
+                    // In case we want to reset the PackFile to his original state (dummy)...
+                    Command::ResetPackFile => pack_file_decoded = PackFile::new(),
+                    
+                    // In case we want to reset the Secondary PackFile to his original state (dummy)...
+                    Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
+
+                    // In case we want to create a "New PackFile"...
+                    Command::NewPackFile => {
+                        let game_selected = GAME_SELECTED.lock().unwrap();
+                        let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version;
+                        pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
+                        *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
+                    }
+
+                    // In case we want to change the current settings...
+                    Command::SetSettings(settings) => {
+                        *SETTINGS.lock().unwrap() = settings;
+                        match SETTINGS.lock().unwrap().save() {
+                            Ok(()) => CENTRAL_COMMAND.sender_rust.send(Response::Success).unwrap(),
+                            Err(error) => CENTRAL_COMMAND.sender_rust.send(Response::Error(error)).unwrap(),
+                        }
+                    }
+                }
+            }
+            // If you got an error, it means the main UI Thread is dead. Just break the loop and die.
+            Err(_) => {
+                println!("Main UI Thread dead. Exiting...");
+                break;
+            },
+        }
+    }
+
+
+
+
+
+
+
 /*
     // Start the main loop.
     loop {
