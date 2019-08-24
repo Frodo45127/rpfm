@@ -68,39 +68,30 @@ pub fn background_loop() {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
-        match CENTRAL_COMMAND.receiver_rust.recv() {
-            Ok(command) => {
-                match command {
+        match CENTRAL_COMMAND.recv_message_rust() {
 
-                    // In case we want to reset the PackFile to his original state (dummy)...
-                    Command::ResetPackFile => pack_file_decoded = PackFile::new(),
-                    
-                    // In case we want to reset the Secondary PackFile to his original state (dummy)...
-                    Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
+            // In case we want to reset the PackFile to his original state (dummy)...
+            Command::ResetPackFile => pack_file_decoded = PackFile::new(),
+            
+            // In case we want to reset the Secondary PackFile to his original state (dummy)...
+            Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
 
-                    // In case we want to create a "New PackFile"...
-                    Command::NewPackFile => {
-                        let game_selected = GAME_SELECTED.lock().unwrap();
-                        let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version;
-                        pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
-                        *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
-                    }
+            // In case we want to create a "New PackFile"...
+            Command::NewPackFile => {
+                let game_selected = GAME_SELECTED.lock().unwrap();
+                let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version;
+                pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
+                *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
+            }
 
-                    // In case we want to change the current settings...
-                    Command::SetSettings(settings) => {
-                        *SETTINGS.lock().unwrap() = settings;
-                        match SETTINGS.lock().unwrap().save() {
-                            Ok(()) => CENTRAL_COMMAND.sender_rust.send(Response::Success).unwrap(),
-                            Err(error) => CENTRAL_COMMAND.sender_rust.send(Response::Error(error)).unwrap(),
-                        }
-                    }
+            // In case we want to change the current settings...
+            Command::SetSettings(settings) => {
+                *SETTINGS.lock().unwrap() = settings;
+                match SETTINGS.lock().unwrap().save() {
+                    Ok(()) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
-            // If you got an error, it means the main UI Thread is dead. Just break the loop and die.
-            Err(_) => {
-                println!("Main UI Thread dead. Exiting...");
-                break;
-            },
         }
     }
 

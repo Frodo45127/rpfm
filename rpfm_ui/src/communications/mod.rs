@@ -9,43 +9,33 @@
 //---------------------------------------------------------------------------//
 
 /*! 
-This module defines the enums/util functions used for thread communication.
+This module defines the code used for thread communication.
 !*/
 
 use qt_core::event_loop::EventLoop;
-use crossbeam::channel::TryRecvError;
-use crate::CENTRAL_COMMAND;
+
 use crossbeam::unbounded;
 use crossbeam::Sender;
 use crossbeam::Receiver;
-use std::collections::BTreeMap;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::path::PathBuf;
 
 use rpfm_error::Error;
-use rpfm_lib::packfile::{PFHFileType, PackFileInfo, PathType};
-use rpfm_lib::packfile::packedfile::PackedFile;
-use rpfm_lib::packedfile::*;
-
-
-use rpfm_lib::packedfile::rigidmodel::*;
-use rpfm_lib::schema::*;
 use rpfm_lib::settings::*;
 
-
-use crate::GlobalMatch;
-use crate::shortcuts::Shortcuts;
+use std::process::exit;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program and send a report to Sentry.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
 
+//-------------------------------------------------------------------------------//
+//                              Enums & Structs
+//-------------------------------------------------------------------------------//
+
 /// This struct contains the senders and receivers neccesary to communicate both, backend and frontend threads.
 pub struct CentralCommand {
-    pub sender_qt: Sender<Command>,
-    pub sender_rust: Sender<Response>,
-    pub receiver_qt: Receiver<Response>,
-    pub receiver_rust: Receiver<Command>,
+    sender_qt: Sender<Command>,
+    sender_rust: Sender<Response>,
+    receiver_qt: Receiver<Response>,
+    receiver_rust: Receiver<Command>,
 }
 
 /// This enum is meant for sending commands from the UI Thread to the Background thread.
@@ -180,6 +170,11 @@ pub enum Response {
     BTreeMapI32VecString(BTreeMap<i32, Vec<String>>),*/
 }
 
+//-------------------------------------------------------------------------------//
+//                              Implementations
+//-------------------------------------------------------------------------------//
+
+/// Default implementation of `CentralCommand`.
 impl Default for CentralCommand {
     fn default() -> Self {
         let command_channel = unbounded();
@@ -193,123 +188,64 @@ impl Default for CentralCommand {
     }
 }
 
-/// This functions serves to receive messages from the background thread into the main thread.
-///
-/// This function does only try once, and it locks the thread. Use it only in small stuff.
-#[allow(dead_code)]
-pub fn recv_message_qt() -> Response {
-    match CENTRAL_COMMAND.receiver_qt.recv() {
-        Ok(data) => data,
-        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
-    }
-}
-
-/// This functions serves to receive messages from the background thread into the main thread.
-///
-/// This function does only try once, and it locks the thread. Use it only in small stuff.
-#[allow(dead_code)]
-pub fn recv_message_qt_try() -> Response {
-    let mut event_loop = EventLoop::new();
-    loop {
-        
-        // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-        match CENTRAL_COMMAND.receiver_qt.try_recv() {
-            Ok(data) => return data,
-            Err(error) => if error.is_disconnected() { panic!(THREADS_COMMUNICATION_ERROR) }
+/// Implementation of `CentralCommand`.
+impl CentralCommand {
+    
+    /// This function serves to send message from the main thread to the background thread.
+    #[allow(dead_code)]
+    pub fn send_message_qt(&self, data: Command) {
+        if self.sender_qt.send(data).is_err() {
+            panic!(THREADS_COMMUNICATION_ERROR)
         }
-        event_loop.process_events(());
     }
-}
 
-/*
-/// This functions serves as "message checker" for the communication between threads, for situations where we can hang the thread.
-/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you a panic. Same as the normal one,
-/// but it doesn't require you to have an Rc<RefCell<>> around the receiver.
-#[allow(dead_code)]
-pub fn check_message_validity_recv(receiver: &Receiver<Data>) -> Data {
-
-    // Wait until you get something in the receiver...
-    match receiver.recv() {
-
-        // In case of success, return data.
-        Ok(data) => data,
-
-        // In case of error, there has been a problem with thread communication. This usually happen
-        // when one of the threads has gone kaput. CTD and send the error to Sentry.
-        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
+    /// This function serves to send message from the background thread to the main thread.
+    #[allow(dead_code)]
+    pub fn send_message_rust(&self, data: Response) {
+        if self.sender_rust.send(data).is_err() {
+            panic!(THREADS_COMMUNICATION_ERROR)
+        }
     }
-}
 
-#[allow(dead_code)]
-pub fn check_message_validity_recv2(receiver: &Rc<RefCell<Receiver<Data>>>) -> Data {
+    /// This functions serves to receive messages from the main thread into the background thread.
+    #[allow(dead_code)]
+    pub fn recv_message_rust(&self) -> Command {
+        match self.receiver_rust.recv() {
+            Ok(data) => data,
 
-    // Wait until you get something in the receiver...
-    match receiver.borrow().recv() {
-
-        // In case of success, return data.
-        Ok(data) => data,
-
-        // In case of error, there has been a problem with thread communication. This usually happen
-        // when one of the threads has gone kaput. CTD and send the error to Sentry.
-        Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
-    }
-}
-
-/// This functions serves as "message checker" for the communication between threads, for situations where we cannot hang the thread.
-/// It's used to ensure what you receive is what you should receive. In case of error, it'll throw you a panic. Same as the normal one,
-/// but it doesn't require you to have an Rc<RefCell<>> around the receiver.
-/// ONLY USE THIS IN THE UI THREAD.
-#[allow(dead_code)]
-pub fn check_message_validity_tryrecv(receiver: &Rc<RefCell<Receiver<Data>>>) -> Data {
-
-    let mut event_loop = qt_core::event_loop::EventLoop::new();
-    loop {
-        
-        // Wait until you get something in the receiver...
-        match receiver.borrow().try_recv() {
-
-            // In case of success, return data.
-            Ok(data) => return data,
-
-            // In case of error, try again. If the error is "Disconnected", CTD.
-            Err(error) => {
-                match error {
-                    TryRecvError::Empty => {},
-                    TryRecvError::Disconnected => panic!(THREADS_COMMUNICATION_ERROR)
-                }
+            // If we hit an error here, it means the main thread is dead. So... report it and exit.
+            Err(_) => {
+                println!("Main UI Thread dead. Exiting...");
+                exit(0);
             }
         }
-
-        // Keep the UI responsive.
-        event_loop.process_events(());
     }
-}*/
-/*
-/// This functions serves as "message checker" for the network thread.
-/// ONLY USE THIS IN THE UI THREAD, in the updater-related modules.
-#[allow(dead_code)]
-pub fn check_api_response(receiver: &Receiver<(APIResponse, APIResponseSchema)>) -> (APIResponse, APIResponseSchema) {
 
-    let mut event_loop = qt_core::event_loop::EventLoop::new();
-    loop {
-        
-        // Wait until you get something in the receiver...
-        match receiver.try_recv() {
-
-            // In case of success, return data.
-            Ok(data) => return data,
-
-            // In case of error, try again. If the error is "Disconnected", CTD.
-            Err(error) => {
-                match error {
-                    TryRecvError::Empty => {},
-                    TryRecvError::Disconnected => panic!(THREADS_COMMUNICATION_ERROR)
-                }
-            }
+    /// This functions serves to receive messages from the background thread into the main thread.
+    ///
+    /// This function does only try once, and it locks the thread. Use it only in small stuff.
+    #[allow(dead_code)]
+    pub fn recv_message_qt(&self) -> Response {
+        match self.receiver_qt.recv() {
+            Ok(data) => data,
+            Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
         }
+    }
 
-        // Keep the UI responsive.
-        event_loop.process_events(());
+    /// This functions serves to receive messages from the background thread into the main thread.
+    ///
+    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
+    #[allow(dead_code)]
+    pub fn recv_message_qt_try(&self) -> Response {
+        let mut event_loop = EventLoop::new();
+        loop {
+            
+            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
+            match self.receiver_qt.try_recv() {
+                Ok(data) => return data,
+                Err(error) => if error.is_disconnected() { panic!(THREADS_COMMUNICATION_ERROR) }
+            }
+            event_loop.process_events(());
+        }
     }
 }
-*/

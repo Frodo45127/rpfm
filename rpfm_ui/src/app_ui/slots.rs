@@ -30,7 +30,7 @@ use crate::QString;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::command_palette;
-use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response, recv_message_qt};
+use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::settings_ui::SettingsUI;
 use crate::utils::show_dialog;
 
@@ -130,7 +130,7 @@ impl AppUISlots {
                 if app_ui.are_you_sure(false) {
 
                     // Tell the Background Thread to create a new PackFile.
-                    CENTRAL_COMMAND.sender_qt.send(Command::NewPackFile).unwrap();
+                    CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
                     
                     // Disable the main window, so the user can't interrupt the process or iterfere with it.
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -195,10 +195,10 @@ impl AppUISlots {
                 if let Some(settings) = SettingsUI::new(&app_ui) {
 
                     // If we returned new settings, save them.
-                    CENTRAL_COMMAND.sender_qt.send(Command::SetSettings(settings.clone())).unwrap();
+                    CENTRAL_COMMAND.send_message_qt(Command::SetSettings(settings.clone()));
 
                     // Check what response we got.
-                    match recv_message_qt() {
+                    match CENTRAL_COMMAND.recv_message_qt() {
 
                         // If we got confirmation....
                         Response::Success => {
