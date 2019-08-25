@@ -10,46 +10,36 @@
 
 // Here it goes all the stuff related with "Settings" and "My Mod" windows.
 
-use qt_widgets::layout::Layout;
-use crate::settings_ui::slots::SettingsUISlots;
-use qt_widgets::file_dialog::FileMode;
-use qt_widgets::file_dialog::FileDialog;
-use qt_widgets::file_dialog::Option::ShowDirsOnly;
 use qt_widgets::abstract_button::AbstractButton;
 use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
 use qt_widgets::dialog::Dialog;
 use qt_widgets::{dialog_button_box, dialog_button_box::{ButtonRole, DialogButtonBox}};
-
-
+use qt_widgets::file_dialog::{FileDialog, FileMode, Option::ShowDirsOnly};
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::label::Label;
+use qt_widgets::layout::Layout;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::push_button::PushButton;
 use qt_widgets::widget::Widget;
 
 use qt_gui::standard_item_model::StandardItemModel;
 
-use qt_core::connection::Signal;
-use qt_core::slots::SlotNoArgs;
+use qt_core::abstract_item_model::AbstractItemModel;
+
 use cpp_utils::StaticCast;
 
 use std::collections::BTreeMap;
-use std::sync::mpsc::{Sender, Receiver};
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::path::{Path, PathBuf};
 
 use rpfm_lib::SUPPORTED_GAMES;
-use crate::SETTINGS;
-use crate::AppUI;
-use crate::communications::{Command, Response};
-use crate::QString;
-
-use crate::communications::*;
-use rpfm_error::ErrorKind;
 use rpfm_lib::settings::Settings;
-use crate::utils::{create_grid_layout_unsafe ,create_grid_layout_safe, show_dialog};
+
+use crate::AppUI;
+use crate::QString;
+use crate::SETTINGS;
+use crate::settings_ui::slots::SettingsUISlots;
+use crate::utils::create_grid_layout_safe;
 
 mod connections;
 mod slots;
@@ -294,8 +284,8 @@ impl SettingsUI {
         // Create the "Default Game" Label and ComboBox.
         let mut extra_global_default_game_label = Label::new(&QString::from_std_str("Default Game:"));
         let mut extra_global_default_game_combobox = ComboBox::new();
-        let mut extra_global_default_game_model = StandardItemModel::new(());
-        unsafe { extra_global_default_game_combobox.set_model(extra_global_default_game_model.static_cast_mut()); }
+        let extra_global_default_game_model = StandardItemModel::new(());
+        unsafe { extra_global_default_game_combobox.set_model(extra_global_default_game_model.into_raw() as *mut AbstractItemModel); }
         for (_, game) in SUPPORTED_GAMES.iter() { extra_global_default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); }
 
         // Create the aditional Labels/CheckBoxes.

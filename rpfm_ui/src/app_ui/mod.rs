@@ -136,6 +136,13 @@ pub struct AppUI {
     pub view_toggle_global_search_panel: *mut Action,
 
     //-------------------------------------------------------------------------------//
+    // `MyMod` menu.
+    //-------------------------------------------------------------------------------//
+    pub mymod_delete_selected: *mut Action,
+    pub mymod_install: *mut Action,
+    pub mymod_uninstall: *mut Action,
+
+    //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
     //-------------------------------------------------------------------------------//
     pub game_selected_open_game_data_folder: *mut Action,
@@ -411,6 +418,21 @@ impl Default for AppUI {
         let menu_bar_view_ref_mut = unsafe { menu_bar_view.as_mut().unwrap() };
         let view_toggle_packfile_contents = menu_bar_view_ref_mut.add_action(&QString::from_std_str("Toggle &PackFile Contents"));
         let view_toggle_global_search_panel = menu_bar_view_ref_mut.add_action(&QString::from_std_str("Toggle Global Search Window"));
+
+        //-----------------------------------------------//
+        // `MyMod` Menu.
+        //-----------------------------------------------//
+
+        // Populate the `Game Selected` menu.
+        let menu_bar_mymod_ref_mut = unsafe { menu_bar_mymod.as_mut().unwrap() };
+        let mymod_delete_selected = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Delete Selected MyMod"));
+        let mymod_install = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Install"));
+        let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Uninstall"));
+
+        // Disable all the Contextual Menu actions by default.
+        unsafe { mymod_delete_selected.as_mut().unwrap().set_enabled(false); }
+        unsafe { mymod_install.as_mut().unwrap().set_enabled(false); }
+        unsafe { mymod_uninstall.as_mut().unwrap().set_enabled(false); }
 
         //-----------------------------------------------//
         // `Game Selected` Menu.
@@ -797,14 +819,19 @@ impl Default for AppUI {
             //-------------------------------------------------------------------------------//
             // "View" menu.
             //-------------------------------------------------------------------------------//
-
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
         
             //-------------------------------------------------------------------------------//
+            // `MyMod` menu.
+            //-------------------------------------------------------------------------------//
+            mymod_delete_selected,
+            mymod_install,
+            mymod_uninstall,
+            
+            //-------------------------------------------------------------------------------//
             // "Game Selected" menu.
             //-------------------------------------------------------------------------------//
-
             game_selected_open_game_data_folder,
             game_selected_open_game_assembly_kit_folder,
         
@@ -965,7 +992,7 @@ impl AppUI {
     pub fn are_you_sure(&self, is_delete_my_mod: bool) -> bool {
 
         // If the mod has been modified...
-        if UI_STATE.is_modified.load(Ordering::SeqCst) {
+        if UI_STATE.get_is_modified() {
 
             // Create the dialog.
             let mut dialog = unsafe { MessageBox::new_unsafe((

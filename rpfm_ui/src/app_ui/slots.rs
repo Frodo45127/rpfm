@@ -33,6 +33,7 @@ use crate::command_palette;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::settings_ui::SettingsUI;
 use crate::utils::show_dialog;
+use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -185,35 +186,26 @@ impl AppUISlots {
         );
 
         // What happens when we trigger the "Preferences" action.
-        let packfile_preferences = SlotBool::new(/*clone!(
-            mode,
-            mymod_stuff,
-            mymod_menu_needs_rebuild => */move |_| {
+        let packfile_preferences = SlotBool::new(move |_| {
 
-                // We store a copy of the old settings (for checking for changes) and trigger the new settings window.
+                // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
                 let old_settings = SETTINGS.lock().unwrap().clone();
                 if let Some(settings) = SettingsUI::new(&app_ui) {
 
-                    // If we returned new settings, save them.
+                    // If we returned new settings, save them and wait for confirmation.
                     CENTRAL_COMMAND.send_message_qt(Command::SetSettings(settings.clone()));
-
-                    // Check what response we got.
                     match CENTRAL_COMMAND.recv_message_qt() {
 
-                        // If we got confirmation....
+                        // If it worked, do some checks to ensure the UI keeps his consistency.
                         Response::Success => {
-/*      
 
-                            // If we changed the "MyMod's Folder" path...
+                            // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
+                            // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
-
-                                // We disable the "MyMod" mode, but leave the PackFile open, so the user doesn't lose any unsaved change.
-                                set_my_mod_mode(&mymod_stuff, &mode, None);
-
-                                // Then set it to recreate the "MyMod" submenu next time we try to open it.
-                                *mymod_menu_needs_rebuild.borrow_mut() = true;
+                                UI_STATE.set_operational_mode(&app_ui, None);
+                                UI_STATE.set_mymod_menu_needs_rebuild(true);
                             }
-*/
+
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
                             // re-select the current `GameSelected` to force it to reload the game's files.
                             let has_game_selected_path_changed = settings.paths.iter()
@@ -225,7 +217,7 @@ impl AppUISlots {
                             }
                         }
 
-                        // If we got an error...
+                        // If we got an error, report it.
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
 
                         // In ANY other situation, it's a message problem.
