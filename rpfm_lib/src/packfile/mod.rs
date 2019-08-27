@@ -724,6 +724,16 @@ impl PackFile {
         self.packed_files.iter_mut().collect()
     }
 
+    /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile`.
+    pub fn get_all_packed_files_paths(&self) -> Vec<Vec<String>> {
+        self.packed_files.iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()
+    }
+
+    /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile`.
+    pub fn get_ref_all_packed_files_paths(&self) -> Vec<&[String]> {
+        self.packed_files.iter().map(|x| x.get_ref_raw().get_path()).collect()
+    }
+
     /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
     pub fn remove_packed_file_by_path(&mut self, path: &[String]) {
         if let Some(position) = self.packed_files.iter().position(|x| x.get_ref_raw().get_path() == path) {
@@ -2021,8 +2031,8 @@ impl Default for PackFile {
 }
 
 /// Implementation to create a `PackFileInfo` from a `PackFile`.
-impl From<PackFile> for PackFileInfo {
-    fn from(packfile: PackFile) -> Self {
+impl From<&PackFile> for PackFileInfo {
+    fn from(packfile: &PackFile) -> Self {
         Self {
             file_path: packfile.file_path.to_path_buf(),
             pfh_version: packfile.pfh_version,
