@@ -26,12 +26,11 @@ use regex::Regex;
 //use rpfm_lib::common::coding_helpers::*;
 
 use rpfm_error::{Error, ErrorKind};
-use rpfm_lib::packfile::{PackFile, PFHFlags};
+use rpfm_lib::packfile::{PackFile, PackFileInfo, PFHFlags};
 use rpfm_lib::packedfile::*;
 //use rpfm_lib::packedfile::loc::*;
 //use rpfm_lib::packedfile::db::*;
 use rpfm_lib::packedfile::rigidmodel::*;
-
 use rpfm_lib::schema::*;
 //use rpfm_lib::schema::assembly_kit::*;
 //use rpfm_lib::updater::*;
@@ -84,6 +83,17 @@ pub fn background_loop() {
                 *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
             }
 
+            // In case we want to "Open one or more PackFiles"...
+            Command::OpenPackFiles(paths) => {
+                match PackFile::open_packfiles(&paths, SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"], false, false) {
+                    Ok(pack_file) => {
+                        pack_file_decoded = pack_file;
+                        CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
+                    }
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // In case we want to change the current settings...
             Command::SetSettings(settings) => {
                 *SETTINGS.lock().unwrap() = settings;
@@ -91,6 +101,35 @@ pub fn background_loop() {
                     Ok(()) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
+            }
+
+            // In case we want to get the data of a PackFile needed to form the TreeView...
+            Command::GetPackFileDataForTreeView => {
+
+                // Get the name and the PackedFile list, and send it.
+                CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
+                    From::from(&pack_file_decoded),
+                    pack_file_decoded.get_all_packed_files_info(),
+
+                )));
+            }
+
+            // In case we want to get the data of a Secondary PackFile needed to form the TreeView...
+            Command::GetPackFileExtraDataForTreeView => {
+
+                // Get the name and the PackedFile list, and serialize it.
+                CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
+                    From::from(&pack_file_decoded_extra),
+                    pack_file_decoded_extra.get_all_packed_files_info(),
+
+                )));
+            }
+
+            // In case we want to get the info of one or more PackedFiles from the TreeView.
+            Command::GetPackedFilesInfo(paths) => {
+                CENTRAL_COMMAND.send_message_rust(Response::VecOptionPackedFileInfo(
+                    paths.iter().map(|x| pack_file_decoded.get_packed_file_info_by_path(x)).collect()
+                ));
             }
         }
     }

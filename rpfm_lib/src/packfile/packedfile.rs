@@ -77,6 +77,32 @@ pub enum PackedFileData {
     OnDisk(Arc<Mutex<BufReader<File>>>, u64, u32, bool, Option<PFHVersion>),
 } 
 
+/// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
+#[derive(Clone, Debug)]
+pub struct PackedFileInfo {
+
+    /// This is the path of the `PackedFile`.
+    pub path: Vec<String>,
+
+    /// This is the name of the `PackFile` this file belongs to.
+    pub packfile_name: String,
+
+    /// This is the ***Last Modified*** time.
+    pub timestamp: i64,
+
+    /// If the `PackedFile` is compressed or not.
+    pub is_compressed: bool,
+
+    /// If the `PackedFile` is encrypted or not.
+    pub is_encrypted: bool,
+
+    /// If the `PackedFile` has been cached or not.
+    pub is_cached: bool,
+
+    /// The type of the cached `PackedFile`.
+    pub cached_type: String,
+}
+
 //---------------------------------------------------------------------------//
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
@@ -473,6 +499,14 @@ impl RawPackedFile {
         self.packfile_name = name.to_owned();
     }
 
+    /// This function returns the current encryption state of the provided `RawPackedFile`.
+    pub fn get_encryption_state(&self) -> bool {
+        match self.data {
+            PackedFileData::OnMemory(_, _, state) => state.is_some(),
+            PackedFileData::OnDisk(_, _, _, _, state) => state.is_some(),
+        }
+    }
+
     /// This function returns if the `RawPackedFile` should be encrypted or not.
     ///
     /// If it should, it'll return the `PFHVersion` to encrypt to.
@@ -523,6 +557,23 @@ impl PartialEq for PackedFileData {
                     is_compressed == is_compressed_2 &&
                     is_encrypted == is_encrypted_2,
             _ => false,
+        }
+    }
+}
+
+/// Implementation to create a `PackedFileInfo` from a `PackedFile`.
+impl From<&PackedFile> for PackedFileInfo {
+    fn from(packedfile: &PackedFile) -> Self {
+        let is_cached = if let DecodedPackedFile::Unknown = packedfile.get_ref_decoded() {false} else {true};
+        let cached_type = if let DecodedPackedFile::Unknown = packedfile.get_ref_decoded() { "Not Yet Cached".to_owned() } else { format!("{:?}", packedfile.get_ref_decoded()) };
+        Self {
+            path: packedfile.get_ref_raw().get_path().to_vec(),
+            packfile_name: packedfile.get_ref_raw().get_packfile_name().to_owned(),
+            timestamp: packedfile.get_ref_raw().get_timestamp(),
+            is_compressed: packedfile.get_ref_raw().get_compression_state(),
+            is_encrypted: packedfile.get_ref_raw().get_encryption_state(),
+            is_cached,
+            cached_type,
         }
     }
 }

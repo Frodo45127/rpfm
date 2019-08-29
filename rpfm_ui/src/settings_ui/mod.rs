@@ -8,7 +8,9 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Here it goes all the stuff related with "Settings" and "My Mod" windows.
+/*! 
+This module contains the code to build/use the ***Settings*** UI.
+!*/
 
 use qt_widgets::abstract_button::AbstractButton;
 use qt_widgets::check_box::CheckBox;
@@ -533,10 +535,9 @@ impl SettingsUI {
 
         // Create the `FileDialog` and configure it.
         let mut file_dialog = unsafe { FileDialog::new_unsafe((
-                self.dialog as *mut Widget,
-                &QString::from_std_str("Select Folder"),
-            ))
-        };
+            self.dialog as *mut Widget,
+            &QString::from_std_str("Select Folder"),
+        ))};
         file_dialog.set_file_mode(FileMode::Directory);
         file_dialog.set_option(ShowDirsOnly);
 

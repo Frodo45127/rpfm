@@ -14,16 +14,17 @@ This module defines the code used for thread communication.
 
 use qt_core::event_loop::EventLoop;
 
-use crossbeam::unbounded;
-use crossbeam::Sender;
-use crossbeam::Receiver;
+use crossbeam::{Receiver, Sender, unbounded};
+
+use std::path::PathBuf;
+use std::process::exit;
 
 use rpfm_error::Error;
 use rpfm_lib::settings::*;
+use rpfm_lib::packfile::PackFileInfo;
+use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
-use std::process::exit;
-
-/// This const is the standard message in case of message communication error. If this happens, crash the program and send a report to Sentry.
+/// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
 
 //-------------------------------------------------------------------------------//
@@ -31,6 +32,8 @@ pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication sys
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the senders and receivers neccesary to communicate both, backend and frontend threads.
+///
+/// You can use them by using the send/recv functions implemented for it.
 pub struct CentralCommand {
     sender_qt: Sender<Command>,
     sender_rust: Sender<Response>,
@@ -38,17 +41,37 @@ pub struct CentralCommand {
     receiver_rust: Receiver<Command>,
 }
 
-/// This enum is meant for sending commands from the UI Thread to the Background thread.
-/// If you want to know what each command do, check the `background_loop` function.
-/// If you need to send data, DO NOT USE THIS. Use the `Data` enum.
+/// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
+///
+/// Each command should include the data needed for his own execution. For a more detailed explanation, check the
+/// docs of each command.
 #[derive(Debug)]
 pub enum Command {
+
+    /// This command is used when we want to reset the open `PackFile` to his original state.
     ResetPackFile,
+
+    /// This command is used when we want to reset the extra `PackFile` (the one used for `Add from PackFile`) to his original state.
     ResetPackFileExtra,
+
+    /// This command is used when we want to create a new `PackFile`.
     NewPackFile,
+
+    /// This command is used when we want to save our settings to disk. It requires the settings to save.
     SetSettings(Settings),
+
+    /// This command is used when we want to get the data used to build the `TreeView`.
+    GetPackFileDataForTreeView,
+
+    /// Same as the one before, but for the extra `PackFile`.
+    GetPackFileExtraDataForTreeView,
+
+    /// This command is used to open one or more `PackFiles`. It requires the paths of the `PackFiles`.
+    OpenPackFiles(Vec<PathBuf>),
+
+    /// This command is used when we want to get the `PackedFileInfo` of one or more `PackedFiles`.
+    GetPackedFilesInfo(Vec<Vec<String>>),
     /*
-    OpenPackFiles,
     OpenPackFileExtra,
     SavePackFile,
     SavePackFileAs,
@@ -70,8 +93,6 @@ pub enum Command {
     PackedFileExists,
     FolderExists,
     CreatePackedFile,
-    GetPackFileDataForTreeView,
-    GetPackFileExtraDataForTreeView,
     AddPackedFileFromPackFile,
     MassImportTSV,
     MassExportTSV,
@@ -108,15 +129,35 @@ pub enum Command {
     SetNotes,*/
 }
 
-/// This enum is meant to send data back and forward between threads. Variants here are 
-/// defined by type. For example, if you want to send two different datas of the same type, 
-// you use the same variant. It's like that because otherwise this'll be a variant chaos.
+/// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
+///
+/// Each response should be named after the types of the items it carries.
 #[derive(Debug)]
 pub enum Response {
+
+    /// Generic response for situations of success.
     Success,
+
+    /// Generic response for situations where the action was cancelled.
     Cancel,
+
+    /// Generic response for situations that returned an error.
     Error(Error),
+
+    /// Respone to return (u32).
     U32(u32),
+
+    /// Respone to return (String, i64, Vec<Vec<String>>).
+    StringI64VecVecString((String, i64, Vec<Vec<String>>)),
+
+    /// Respone to return (PackFileInfo, Vec<PackedFileInfo>).
+    PackFileInfoVecPackedFileInfo((PackFileInfo, Vec<PackedFileInfo>)),
+
+    /// Respone to return (PackFileInfo).
+    PackFileInfo(PackFileInfo),
+
+    /// Response to return (<Vec<PackedFileInfo>).
+    VecOptionPackedFileInfo(Vec<Option<PackedFileInfo>>),
 /*
     Bool(bool),
     I32(i32),
@@ -152,7 +193,7 @@ pub enum Response {
     PathType(PathType),
 
     OptionStringVecPathBuf((Option<String>, Vec<PathBuf>)),
-    StringI64VecVecString((String, i64, Vec<Vec<String>>)),
+    
     StringVecPathType((String, Vec<PathType>)),
     VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),
     VecString(Vec<String>),

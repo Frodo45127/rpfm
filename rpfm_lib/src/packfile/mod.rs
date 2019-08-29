@@ -144,6 +144,9 @@ pub struct PackFile {
 #[derive(Debug)]
 pub struct PackFileInfo {
 
+    /// The name of the PackFile's file, if exists. If not, then this should be empty.
+    pub file_name: String,
+
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
     pub file_path: PathBuf,
 
@@ -732,6 +735,16 @@ impl PackFile {
     /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile`.
     pub fn get_ref_all_packed_files_paths(&self) -> Vec<&[String]> {
         self.packed_files.iter().map(|x| x.get_ref_raw().get_path()).collect()
+    }
+
+    /// This function returns a copy of all the `PackedFileInfo` corresponding to the provided `PackFile`.
+    pub fn get_all_packed_files_info(&self) -> Vec<PackedFileInfo> {
+        self.packed_files.iter().map(|x| From::from(x)).collect()
+    }
+
+    /// This function returns a copy of the `PackedFileInfo` of the `Packedfile` in the provided path.
+    pub fn get_packed_file_info_by_path(&self, path: &[String]) -> Option<PackedFileInfo> {
+        self.packed_files.iter().find(|x| x.get_ref_raw().get_path() == path).map(|x| From::from(x))
     }
 
     /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
@@ -2034,6 +2047,7 @@ impl Default for PackFile {
 impl From<&PackFile> for PackFileInfo {
     fn from(packfile: &PackFile) -> Self {
         Self {
+            file_name: packfile.get_file_name(),
             file_path: packfile.file_path.to_path_buf(),
             pfh_version: packfile.pfh_version,
             pfh_file_type: packfile.pfh_file_type,

@@ -26,10 +26,6 @@ use crate::settings_ui::SettingsUI;
 ///
 /// This means everything you can do with the stuff you have in the `SettingsUI` goes here.
 pub struct SettingsUISlots {
-
-	//-----------------------------------------------//
-    // Command Palette slots.
-    //-----------------------------------------------//
     pub select_mymod_path: SlotNoArgs<'static>,
     pub select_game_paths: BTreeMap<String, SlotNoArgs<'static>>,
 }
@@ -41,6 +37,7 @@ pub struct SettingsUISlots {
 /// Implementation of `SettingsUISlots`.
 impl SettingsUISlots {
 
+    /// This function creates a new `SettingsUISlots`.
     pub fn new(settings_ui: &SettingsUI) -> Self {
 
         // What happens when we hit the "..." button for MyMods.

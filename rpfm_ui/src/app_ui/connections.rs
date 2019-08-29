@@ -31,10 +31,13 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.command_palette_hide.as_ref().unwrap().signals().triggered().connect(&slots.command_palette_hide); }
 
     unsafe { app_ui.command_palette_completer.as_ref().unwrap().signals().activated_qt_core_string_ref().connect(&slots.command_palette_trigger); }
+    unsafe { app_ui.command_palette_line_edit.as_ref().unwrap().signals().text_edited().connect(&slots.command_palette_trigger); }
 
     //-----------------------------------------------//
     // `PackFile` menu connections.
     //-----------------------------------------------//
+    unsafe { app_ui.packfile_new_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_new_packfile); }    
+    unsafe { app_ui.packfile_open_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_open_packfile); }    
     unsafe { app_ui.packfile_preferences.as_ref().unwrap().signals().triggered().connect(&slots.packfile_preferences); }    
     unsafe { app_ui.packfile_quit.as_ref().unwrap().signals().triggered().connect(&slots.packfile_quit); }    
 

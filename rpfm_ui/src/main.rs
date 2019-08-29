@@ -32,6 +32,7 @@
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
 
+use crate::pack_tree::icons::Icons;
 use crate::ui_state::UIState;
 use crate::app_ui::AppUI;
 use crate::app_ui::slots::AppUISlots;
@@ -163,6 +164,7 @@ mod communications;
 mod background_thread;
 mod ffi;
 mod locale;
+mod pack_tree;
 mod shortcuts;
 mod settings_ui;
 mod ui_state;
@@ -183,7 +185,7 @@ lazy_static! {
     };
 
     /// Icons for the PackFile TreeView.
-    //static ref TREEVIEW_ICONS: Icons = Icons::new();
+    static ref TREEVIEW_ICONS: Icons = Icons::new();
 
     /// Bright and dark palettes of colours for Windows.
     /// The dark one is taken from here: https://gist.github.com/QuantumCD/6245215
@@ -311,7 +313,6 @@ pub enum GlobalMatch {
     Loc((Vec<String>, Vec<(String, i32, i64, String)>)),
 }
 
-
 /// Main function.
 fn main() {
     
@@ -334,9 +335,6 @@ fn main() {
 
 
         let (app_ui, slots) = AppUI::new();
-
-
-
 
 
 

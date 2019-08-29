@@ -19,7 +19,7 @@ use qt_widgets::widget::Widget;
 
 use qt_core::flags::Flags;
 
-use cpp_utils::{CppBox, StaticCast};
+use cpp_utils::CppBox;
 
 use std::fmt::Display;
 

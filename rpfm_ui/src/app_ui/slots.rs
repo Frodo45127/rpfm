@@ -12,6 +12,7 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
+use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::action::Action;
 use qt_widgets::message_box::MessageBox;
 use qt_widgets::widget::Widget;
@@ -26,11 +27,14 @@ use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 
+use std::path::PathBuf;
+
 use crate::QString;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::command_palette;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
+use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::settings_ui::SettingsUI;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
@@ -55,6 +59,7 @@ pub struct AppUISlots {
     // `PackFile` menu slots.
     //-----------------------------------------------//
     pub packfile_new_packfile: SlotBool<'static>,
+    pub packfile_open_packfile: SlotBool<'static>,
     pub packfile_preferences: SlotBool<'static>,
     pub packfile_quit: SlotBool<'static>,
 
@@ -120,12 +125,7 @@ impl AppUISlots {
         //-----------------------------------------------//
 
         // What happens when we trigger the "New PackFile" action.
-        let packfile_new_packfile = SlotBool::new(
-            /*clone!(
-            mymod_stuff,
-            mode,
-            table_state_data,
-            packedfiles_open_in_packedfile_view =>*/ move |_| {
+        let packfile_new_packfile = SlotBool::new(move |_| {
                 
                 // Check first if there has been changes in the PackFile.
                 if app_ui.are_you_sure(false) {
@@ -157,19 +157,10 @@ impl AppUISlots {
 
                     // We also disable compression by default.
                     unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
-/*
+
                     // Update the TreeView.
-                    update_treeview(
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt,
-                        &app_ui,
-                        app_ui.folder_tree_view,
-                        Some(app_ui.folder_tree_filter),
-                        app_ui.folder_tree_model,
-                        TreeViewOperation::Build(false),
-                    );
-*/
+                    app_ui.packfile_contents_tree_view.update_treeview(true, &app_ui, TreeViewOperation::Build(false));
+
                     // Re-enable the Main Window.
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
@@ -181,6 +172,36 @@ impl AppUISlots {
 
                     // Clean the TableStateData.
                     //*table_state_data.borrow_mut() = TableStateData::new(); 
+                }
+            }
+        );
+
+        let packfile_open_packfile = SlotBool::new(move |_| {
+
+                // Check first if there has been changes in the PackFile.
+                if app_ui.are_you_sure(false) {
+
+                    // Create the FileDialog to get the PackFile to open and configure it.
+                    let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                        app_ui.main_window as *mut Widget,
+                        &QString::from_std_str("Open PackFiles"),
+                    )) };
+                    file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+                    file_dialog.set_file_mode(FileMode::ExistingFiles);
+
+                    // Run it and expect a response (1 => Accept, 0 => Cancel).
+                    if file_dialog.exec() == 1 {
+
+                        // Now the fun thing. We have to get all the selected files, and then open them one by one.
+                        // For that we use the same logic as for the "Load All CA PackFiles" feature.
+                        let mut paths = vec![];
+                        for index in 0..file_dialog.selected_files().count(()) {
+                            paths.push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
+                        }
+
+                        // Try to open it, and report it case of error.
+                        if let Err(error) = app_ui.open_packfile(&paths, "") { show_dialog(app_ui.main_window as *mut Widget, error, false); }
+                    }
                 }
             }
         );
@@ -284,6 +305,7 @@ impl AppUISlots {
             // `PackFile` menu slots.
             //-----------------------------------------------//
             packfile_new_packfile,
+            packfile_open_packfile,
             packfile_preferences,
             packfile_quit,
 
