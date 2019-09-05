@@ -115,24 +115,24 @@ impl Loc {
         Ok(packed_file)
     }
 
-    /// This function returns a reference to the definition of this Loc Table.
-    pub fn get_ref_definition(&self) -> &Definition {
-        &self.definition
-    }
-
-    /// This function returns a reference to the entries of this Loc Table.
-    pub fn get_ref_table_data(&self) -> &Vec<Vec<DecodedData>> {
-        &self.entries
-    }
-
     /// This function returns a copy of the definition of this Loc Table.
     pub fn get_definition(&self) -> Definition {
         self.definition.clone()
     }
 
+    /// This function returns a reference to the definition of this Loc Table.
+    pub fn get_ref_definition(&self) -> &Definition {
+        &self.definition
+    }
+
     /// This function returns a copy of the entries of this Loc Table.
     pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
         self.entries.to_vec()
+    }
+
+    /// This function returns a reference to the entries of this Loc Table.
+    pub fn get_ref_table_data(&self) -> &[Vec<DecodedData>] {
+        &self.entries
     }
 
     /// This function replaces the definition of this table with the one provided.

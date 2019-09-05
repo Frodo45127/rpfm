@@ -229,7 +229,7 @@ impl PackedFile {
 
     /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`.
     pub fn decode(&mut self) -> Result<()> {
-        if self.decoded != DecodedPackedFile::Unknown {
+        if self.decoded == DecodedPackedFile::Unknown {
             self.decoded = DecodedPackedFile::decode(&self.raw)?;
         }
         Ok(())
@@ -239,7 +239,7 @@ impl PackedFile {
     ///
     /// This variant doesn't re-unlock the schema, so you can use it for batch decoding.
     pub fn decode_no_locks(&mut self, schema: &Schema) -> Result<()> {
-        if self.decoded != DecodedPackedFile::Unknown {
+        if self.decoded == DecodedPackedFile::Unknown {
             self.decoded = DecodedPackedFile::decode_no_locks(&self.raw, schema)?;
         }
         Ok(())
@@ -256,7 +256,7 @@ impl PackedFile {
     ///
     /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
     pub fn decode_return_ref(&mut self) -> Result<&DecodedPackedFile> {
-        if self.decoded != DecodedPackedFile::Unknown {
+        if self.decoded == DecodedPackedFile::Unknown {
             self.decoded = DecodedPackedFile::decode(&self.raw)?;
         }
         Ok(&self.decoded)
@@ -267,7 +267,7 @@ impl PackedFile {
     ///
     /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
     pub fn decode_return_ref_mut(&mut self) -> Result<&mut DecodedPackedFile> {
-        if self.decoded != DecodedPackedFile::Unknown {
+        if self.decoded == DecodedPackedFile::Unknown {
             self.decoded = DecodedPackedFile::decode(&self.raw)?;
         }
         Ok(&mut self.decoded)
@@ -278,7 +278,7 @@ impl PackedFile {
     ///
     /// This variant doesn't lock the Schema. This means is faster if you're decoding `PackedFiles` in batches.
     pub fn decode_return_ref_no_locks(&mut self, schema: &Schema) -> Result<&DecodedPackedFile> {
-        if self.decoded != DecodedPackedFile::Unknown {
+        if self.decoded == DecodedPackedFile::Unknown {
             self.decoded = DecodedPackedFile::decode_no_locks(&self.raw, schema)?;
         }
         Ok(&self.decoded)
@@ -289,7 +289,7 @@ impl PackedFile {
     ///
     /// This variant doesn't lock the Schema. This means is faster if you're decoding `PackedFiles` in batches.
     pub fn decode_return_ref_mut_no_locks(&mut self, schema: &Schema) -> Result<&mut DecodedPackedFile> {
-        if self.decoded != DecodedPackedFile::Unknown {
+        if self.decoded == DecodedPackedFile::Unknown {
             self.decoded = DecodedPackedFile::decode_no_locks(&self.raw, schema)?;
         }
         Ok(&mut self.decoded)

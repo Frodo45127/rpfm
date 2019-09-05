@@ -25,12 +25,14 @@ use std::{fmt, fmt::Display};
 use std::ops::Deref;
 
 use crate::packedfile::table::{db::DB, loc::Loc};
+use crate::packedfile::text::Text;
 use crate::packfile::packedfile::RawPackedFile;
 use crate::schema::{FieldType, Schema};
 use crate::SCHEMA;
 
 pub mod rigidmodel;
 pub mod table;
+pub mod text;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -52,7 +54,7 @@ pub enum DecodedPackedFile {
     MatchedCombat,
     RigidModel,
     StarPos,
-    Text,
+    Text(Text),
     Unknown,
 }
 
@@ -126,6 +128,12 @@ impl DecodedPackedFile {
                     None => Ok(DecodedPackedFile::Unknown),
                 }
             }
+
+            PackedFileType::Text => {
+                let data = data.get_data()?;
+                let packed_file = Text::read(&data)?;
+                Ok(DecodedPackedFile::Text(packed_file))
+            }
             _=> Ok(DecodedPackedFile::Unknown)
         }
     }
@@ -145,6 +153,12 @@ impl DecodedPackedFile {
                 let packed_file = Loc::read(&data, &schema)?;
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
+
+            PackedFileType::Text => {
+                let data = data.get_data()?;
+                let packed_file = Text::read(&data)?;
+                Ok(DecodedPackedFile::Text(packed_file))
+            }
             _=> Ok(DecodedPackedFile::Unknown)
         }
     }
@@ -154,6 +168,7 @@ impl DecodedPackedFile {
         match self {
             DecodedPackedFile::DB(data) => data.save(),
             DecodedPackedFile::Loc(data) => data.save(),
+            DecodedPackedFile::Text(data) => data.save(),
             _=> unimplemented!(),
         }
     }
