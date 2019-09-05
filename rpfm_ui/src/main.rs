@@ -32,6 +32,7 @@
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
 
+use rpfm_lib::SCHEMA;
 use crate::pack_tree::icons::Icons;
 use crate::ui_state::UIState;
 use crate::app_ui::AppUI;
@@ -335,6 +336,8 @@ fn main() {
 
 
         let (app_ui, slots) = AppUI::new();
+        // Try to load the Schema for this game.
+        *SCHEMA.lock().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
 
 
 

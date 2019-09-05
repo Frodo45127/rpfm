@@ -276,6 +276,11 @@ impl Schema {
         self.0.iter_mut().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
+    /// This function returns a reference to all the `VersionedFile` in the provided `Schema`.
+    pub fn get_ref_versioned_file_all(&self) -> Vec<&VersionedFile> {
+        self.0.iter().collect()
+    }
+
     /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
     pub fn load(schema_file: &str) -> Result<Self> {
         let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);

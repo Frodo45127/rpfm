@@ -48,6 +48,7 @@ unic-langid = "^0.4"
 
 # Improved multi-thread Support.
 crossbeam = "^0.7"
+#rayon = "^1.2"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]

@@ -21,8 +21,10 @@ use std::process::exit;
 
 use rpfm_error::Error;
 use rpfm_lib::settings::*;
-use rpfm_lib::packfile::PackFileInfo;
+use rpfm_lib::packfile::{PackFileInfo, PathType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
+
+use crate::ui_state::global_search::GlobalSearch;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
@@ -71,6 +73,12 @@ pub enum Command {
 
     /// This command is used when we want to get the `PackedFileInfo` of one or more `PackedFiles`.
     GetPackedFilesInfo(Vec<Vec<String>>),
+
+    /// This command is used when we want to perform a `Global Search`. It requires the search info.
+    GlobalSearch(GlobalSearch),
+
+    /// This command is used when we want to perform an update over a `Global Search`. It requires the search info.
+    GlobalSearchUpdate(GlobalSearch, Vec<PathType>),
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -158,6 +166,9 @@ pub enum Response {
 
     /// Response to return (<Vec<PackedFileInfo>).
     VecOptionPackedFileInfo(Vec<Option<PackedFileInfo>>),
+
+    /// Response to return (GlobalSearch).
+    GlobalSearch(GlobalSearch),
 /*
     Bool(bool),
     I32(i32),

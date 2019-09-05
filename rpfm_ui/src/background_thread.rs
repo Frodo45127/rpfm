@@ -131,6 +131,18 @@ pub fn background_loop() {
                     paths.iter().map(|x| pack_file_decoded.get_packed_file_info_by_path(x)).collect()
                 ));
             }
+            
+            // In case we want to launch a global search on a `PackFile`...
+            Command::GlobalSearch(mut global_search) => {
+                global_search.search(&mut pack_file_decoded);
+                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
+            }
+
+            // In case we want to update the results of a global search on a `PackFile`...
+            Command::GlobalSearchUpdate(mut global_search, path_types) => {
+                global_search.update(&mut pack_file_decoded, &path_types);
+                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
+            }
         }
     }
 

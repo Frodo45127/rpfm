@@ -25,10 +25,10 @@ use std::sync::atomic::Ordering;
 use crate::app_ui::AppUI;
 use crate::shortcuts::Shortcuts;
 use crate::ui_state::op_mode::OperationalMode;
-//use crate::ui_state::global_search::GlobalMatch;
+use crate::ui_state::global_search::GlobalSearch;
 
 mod op_mode;
-//mod global_search;
+pub mod global_search;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -42,7 +42,7 @@ pub struct UIState {
     pub open_packedfiles: Arc<RwLock<BTreeMap<Vec<String>, &'static mut Menu>>>,
     pub operational_mode: Arc<RwLock<OperationalMode>>,
     mymod_menu_needs_rebuild: AtomicBool,
-    //pub global_search_matches: Arc<RwLock<Vec<GlobalMatch>>>,
+    pub global_search: Arc<RwLock<GlobalSearch>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -61,7 +61,7 @@ impl Default for UIState {
             open_packedfiles: Arc::new(RwLock::new(BTreeMap::new())),
             operational_mode: Arc::new(RwLock::new(OperationalMode::Normal)),
             mymod_menu_needs_rebuild: AtomicBool::new(false),
-            //global_search_matches: Arc::new(RwLock::new(vec![])),
+            global_search: Arc::new(RwLock::new(GlobalSearch::default())),
         }
         
     }

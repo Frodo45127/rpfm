@@ -126,4 +126,15 @@ pub fn set_tips(app_ui: &AppUI) {
     unsafe { app_ui.packfile_contents_filter_autoexpand_matches_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Auto-Expand matches. NOTE: Filtering with all matches expanded in a big PackFile (+10k files, like data.pack) can hang the program for a while. You have been warned.")); }
     unsafe { app_ui.packfile_contents_filter_case_sensitive_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Enable/Disable case sensitive filtering for the TreeView.")); }
     unsafe { app_ui.packfile_contents_filter_filter_by_folder_button.as_mut().unwrap().set_status_tip(&QString::from_std_str("Set the filter to only filter by folder names and show all the files inside the matched folders.")); }
+
+    //---------------------------------------------------//
+    // Global Search panel tips.
+    //---------------------------------------------------//
+    unsafe { app_ui.global_search_use_regex_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Enable search using Regex. Keep in mind that RPFM will fallback to a normal pattern search if the provided Regex is invalid.")); }
+    unsafe { app_ui.global_search_case_sensitive_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Enable case sensitive search. Pretty self-explanatory.")); }
+    unsafe { app_ui.global_search_search_on_all_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include all searchable PackedFiles/Schemas on the search.")); }
+    unsafe { app_ui.global_search_search_on_dbs_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include DB Tables on the search.")); }
+    unsafe { app_ui.global_search_search_on_locs_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include LOC Tables on the search.")); }
+    unsafe { app_ui.global_search_search_on_texts_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include any kind of Text PackedFile on the search.")); }
+    unsafe { app_ui.global_search_search_on_schemas_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include the currently loaded Schema on the search.")); }
 }
