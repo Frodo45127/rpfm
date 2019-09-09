@@ -25,6 +25,7 @@ use serde_json::error::Category;
 use std::boxed::Box;
 use std::{fmt, fmt::Display};
 use std::io;
+use std::num::{ParseIntError, ParseFloatError};
 use std::path::PathBuf;
 use std::result;
 use std::string;
@@ -106,6 +107,14 @@ pub enum ErrorKind {
     /// Generic error for when Fluent fails to load a resource.
     FluentResourceLoadingError,
 
+    /// Generic error for when parsing a String as a F32 fails. 
+    ParsingFloatError,
+
+    /// Generic error for when parsing a String as an I32 fails.
+    ParsingIntegerError,
+
+    // Generic error for when parsing a String as an I64 fails.
+    //ParsingLongIntegerError,
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -459,7 +468,7 @@ impl Error {
 impl Fail for Error {
 
     /// Implementation of `cause()` for our `Error`.
-    fn cause(&self) -> Option<&Fail> {
+    fn cause(&self) -> Option<&dyn Fail> {
         self.context.cause()
     }
 
@@ -505,6 +514,9 @@ impl Display for ErrorKind {
             ErrorKind::TSVErrorGeneric => write!(f, "<p>Error while trying to import/export a TSV file.</p>"),
             ErrorKind::FluentParsingError => write!(f, "<p>Error while trying to parse a fluent sentence.</p>"),
             ErrorKind::FluentResourceLoadingError => write!(f, "<p>Error while trying to load a fluent resource.</p>"),
+            ErrorKind::ParsingFloatError => write!(f, "<p>Error while trying to parse a String as a Float.</p>"),
+            ErrorKind::ParsingIntegerError => write!(f, "<p>Error while trying to parse a String as an Integer.</p>"),
+            //ErrorKind::ParsingLongIntegerError => write!(f, "<p>Error while trying to parse a String as a Long Integer.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors
@@ -822,3 +834,16 @@ impl From<Vec<FluentError>> for Error {
     }
 }
 
+/// Implementation to create an `Error` from a `ParseFloatError`.
+impl From<ParseFloatError> for Error {
+    fn from(_: ParseFloatError) -> Self {
+        Self::from(ErrorKind::ParsingFloatError)
+    }
+}
+
+/// Implementation to create an `Error` from a `ParseIntegerError`.
+impl From<ParseIntError> for Error {
+    fn from(_: ParseIntError) -> Self {
+        Self::from(ErrorKind::ParsingIntegerError)
+    }
+}
