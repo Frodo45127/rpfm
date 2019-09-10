@@ -26,6 +26,7 @@ use qt_core::variant::Variant;
 
 use regex::Regex;
 
+use rpfm_error::{Error, ErrorKind, Result};
 use rpfm_lib::packfile::{PackFile, PathType};
 use rpfm_lib::packedfile::{DecodedData, DecodedPackedFile};
 use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
@@ -49,6 +50,9 @@ pub struct GlobalSearch {
 
     /// Pattern to search.
     pub pattern: String,
+
+    /// Pattern to use when replacing. This is a hard pattern, which means regex is not allowed here.
+    pub replace_text: String,
 
     /// Should the global search be *Case Sensitive*?
     pub case_sensitive: bool,
@@ -173,6 +177,7 @@ impl Default for GlobalSearch {
     fn default() -> Self {
         Self {
             pattern: "".to_owned(),
+            replace_text: "".to_owned(),
             case_sensitive: false,
             use_regex: false, 
             search_on_dbs: true, 
@@ -205,6 +210,7 @@ impl GlobalSearch {
         self.matches_db = vec![];
         self.matches_loc = vec![];
         self.matches_text = vec![];
+        self.matches_schema = vec![];
 
         // If we got no schema, don't even decode.
         if let Some(ref schema) = *SCHEMA.lock().unwrap() {
@@ -300,6 +306,145 @@ impl GlobalSearch {
                 }
             }
         } 
+    }
+
+    /// This function performs a replace operation over the entire match set, except schemas..
+    pub fn replace_all(&mut self, pack_file: &mut PackFile) -> Vec<Vec<String>> {
+        let mut errors = vec![];
+
+        // If we want to use regex and the pattern is invalid, don't search.
+        let matching_mode = if self.use_regex {
+            if let Ok(regex) = Regex::new(&self.pattern) {
+                MatchingMode::Regex(regex)
+            }
+            else { MatchingMode::Pattern }
+        } else { MatchingMode::Pattern };
+
+        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+            let mut changed_files = vec![];
+
+            for match_table in &self.matches_db {
+                if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
+                    if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                        if let DecodedPackedFile::DB(ref mut table) = packed_file {
+                            let mut data = table.get_table_data();
+                            for match_data in &match_table.matches {
+
+                                // If any replace in the table fails, forget about this one and try the next one.
+                                if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
+                                    changed_files.retain(|x| x != &match_table.path);
+                                    errors.push(match_table.path.to_vec());
+                                    break;
+                                }
+                            }
+
+                            if changed_files.contains(&match_table.path) {
+                                if table.set_table_data(&data).is_err() {
+                                    changed_files.retain(|x| x != &match_table.path);
+                                    errors.push(match_table.path.to_vec());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            for match_table in &self.matches_loc {
+                if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
+                    if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                        if let DecodedPackedFile::Loc(ref mut table) = packed_file {
+                            let mut data = table.get_table_data();
+                            for match_data in &match_table.matches {
+
+                                // If any replace in the table fails, forget about this one and try the next one.
+                                if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
+                                    changed_files.retain(|x| x != &match_table.path);
+                                    errors.push(match_table.path.to_vec());
+                                    break;
+                                }
+                            }
+
+                            if changed_files.contains(&match_table.path) {
+                                if table.set_table_data(&data).is_err() {
+                                    changed_files.retain(|x| x != &match_table.path);
+                                    errors.push(match_table.path.to_vec());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let changed_files = changed_files.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>();
+            self.update(pack_file, &changed_files);
+        }
+
+        errors
+    }
+
+    /// This function tries to replace data in a Table PackedFile. It fails if the data is not suitable for that column.
+    fn replace_match_table(
+        &self, 
+        data: &mut Vec<Vec<DecodedData>>, 
+        changed_files: &mut Vec<Vec<String>>, 
+        match_table: &TableMatches,
+        match_data: &TableMatch,
+        matching_mode: &MatchingMode,
+    ) -> Result<()> {
+        if let Some(row) = data.get_mut((match_data.row_number - 1) as usize) {
+            if let Some(field) = row.get_mut(match_data.column_number as usize) {
+                match field {
+                    DecodedData::Boolean(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = &string == "true";
+                    }
+                    DecodedData::Float(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<f32>()?;
+                    }
+                    DecodedData::Integer(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<i32>()?;
+                    }
+                    DecodedData::LongInteger(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<i64>()?;
+                    }
+                    DecodedData::StringU8(ref mut field) |
+                    DecodedData::StringU16(ref mut field) |
+                    DecodedData::OptionalStringU8(ref mut field) |
+                    DecodedData::OptionalStringU16(ref mut field) => self.replace_match(field, matching_mode),
+                    DecodedData::Sequence(_) => return Err(ErrorKind::Generic)?,
+                }
+                
+                if !changed_files.contains(&match_table.path) {
+                    changed_files.push(match_table.path.to_vec());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// This function replaces all the matches in the provided text.
+    fn replace_match(&self, text: &mut String, matching_mode: &MatchingMode) {
+        match matching_mode {
+            MatchingMode::Regex(regex) => {
+                if regex.is_match(&text) { 
+                    *text = regex.replace_all(&text, &*self.replace_text).to_string();
+                }
+            }
+            MatchingMode::Pattern => {
+                while let Some(start) = text.find(&self.pattern) {
+                    let end = start + self.pattern.len();
+                    text.replace_range(start..end, &self.replace_text);
+                }
+            }
+        }
     }
 
     /// This function takes care of loading the table results of a global search into a model. 
