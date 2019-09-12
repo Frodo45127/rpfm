@@ -1909,6 +1909,31 @@
       "name": "agent_subtype_military_force_creation_overrides_tables",
       "versions": [
         {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "military_force_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "valid_group",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_groups",
+                "id"
+              ],
+              "field_description": "Supported Criteria: Agent Subtype, Faction, Subculture, Culture"
+            }
+          ]
+        },
+        {
           "version": 0,
           "fields": [
             {
@@ -2084,6 +2109,101 @@
     {
       "name": "agent_subtypes_tables",
       "versions": [
+        {
+          "version": 16,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "auto_generate",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_caster",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "small_icon",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Small icon shown in various places like agent id, minimap, etc. Leave blank to fall back to icon found in agent_culture_details"
+            },
+            {
+              "field_name": "associated_unit_override",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_voiceover_actor_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actor_groups",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "show_in_ui",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "has_female_name",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_gain_xp",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "loyalty_is_applicable",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Enables and disables loyalty for a character if the faction features are setup to allow for it."
+            },
+            {
+              "field_name": "contributes_to_agent_cap",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 15,
           "fields": [
@@ -2314,6 +2434,77 @@
             {
               "field_name": "has_female_name",
               "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "agent_subtypes_to_mission_groups_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "agent",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "agent_subtypes",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "battle_effect",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_bundle",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mission_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "mission_groups",
+                "group_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "video_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "image_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "order",
+              "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -5782,6 +5973,72 @@
       "name": "audio_campaign_stances_tables",
       "versions": [
         {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "stance",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_stances",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_sound_event",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "enter_event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "leave_event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture_record",
+              "field_type": "OptionalStringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_record",
+              "field_type": "OptionalStringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "overriding_vo_stance",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_stances",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 1,
           "fields": [
             {
@@ -5842,6 +6099,44 @@
             {
               "field_name": "number_of_actors",
               "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "audio_entity_focus_pools_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "pool_name",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pool_min_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pool_max_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pool_id",
+              "field_type": "LongInteger",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -6027,6 +6322,95 @@
       "name": "audio_entity_type_limitations_tables",
       "versions": [
         {
+          "version": 6,
+          "fields": [
+            {
+              "field_name": "far_inside",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "far_outside",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_distance_animation_driven",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "near_inside",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "near_outside",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "animation_uncapped",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_distance_code_driven",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_play_at_bone",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "code_uncapped",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "contains_unique_entity_switches",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "allow_focus",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 5,
           "fields": [
             {
@@ -6188,6 +6572,363 @@
     {
       "name": "audio_entity_types_tables",
       "versions": [
+        {
+          "version": 29,
+          "fields": [
+            {
+              "field_name": "combat_random_vocalisation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_random_vocalisations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "drowning_random_vocalisation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_random_vocalisations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fatigued_idle_random_vocalisation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_random_vocalisations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "fatigued_moving_random_vocalisation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_random_vocalisations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "idle_random_vocalisation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_random_vocalisations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "running_random_vocalisation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_random_vocalisations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "musician_event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "switch",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "material",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_materials",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "walking_random_vocalisation",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_random_vocalisations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "group_movement",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "limitation",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_type_limitations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "idle_looping_sound",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_looping_sounds",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "moving_looping_sound",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_looping_sounds",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rotating_looping_sound",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_looping_sounds",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "actor_type",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_actors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "group_flying_idle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "group_flying_moving",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "only_uses_material",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "group_movement_armour_override",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "group_idle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "attenuation_scale",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "group_melee_armour_override",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "triggers_cinematic",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sphere_of_influence_default",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_sphere_of_influences",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sphere_of_influence_combat",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_sphere_of_influences",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "should_use_unique_entity_switches",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_unique_entity_switches",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "use_focus_rtpc",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_camera_distance_for_focus",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_camera_distance_for_focus",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "focus_rtpc",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unique_entity_switch",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "consider_moving",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "group_idle_shoot",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "group_idle_combat_ready",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_group_sounds",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "record_id",
+              "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "focus_pool",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_focus_pools",
+                "pool_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "min_units_focus_velocity",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 25,
           "fields": [
@@ -8936,6 +9677,66 @@
       "name": "audio_metadata_tag_entity_overrides_tables",
       "versions": [
         {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "entity_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "audio_entity_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "metadata_tag",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "audio_metadata_tags",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_battle_start",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_battle_stop",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_campaign_start",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "culling_distance_override",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_campaign_stop",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 0,
           "fields": [
             {
@@ -8993,6 +9794,337 @@
     {
       "name": "audio_metadata_tags_tables",
       "versions": [
+        {
+          "version": 11,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_battle_start",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_battle_stop",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_campaign_start",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sound_event_campaign_stop",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "limitation_scale",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "entity_type_switch",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_hit_category",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_melee_hit_categories",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "melee_hit_type_override",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_melee_hit_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rtpc_1_name",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rtpc_1_assignment",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_rtpc_assignments",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rtpc_2_name",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rtpc_2_assignment",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_rtpc_assignments",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "scaled_sound_upsize",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "scaled_max_delay",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "scaled_sound_next",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_metadata_tags",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "requires_cinematic",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_probability",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "min_probability",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_vocalisation",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "play_at_bone",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "play_at_position",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "play_at_base",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "require_ground_type_limited",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "require_ground_type",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "require_armour_type",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "require_melee_weapon_type",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "require_shield_type",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "triggers_blood",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_tracked",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "require_reverb",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "require_obstruction",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_play_under_splice",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ignore_if_headless",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "play_on_looping_sound",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cinematic_only",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "doppler_rtpc_name",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "flip_direction",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "blood_enabled_only",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "use_limitation_type_override",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "limitation_type_override",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_entity_type_limitations",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culling_distance_override",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ignore_alpha_check",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "override_vo",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "sound will override vo, so if vo triggers this sound will not be stopped. Eg. Keeping a dinosaur vocalisation roar playing rather than stopping it for a vo roar"
+            }
+          ]
+        },
         {
           "version": 8,
           "fields": [
@@ -16210,6 +17342,221 @@
     {
       "name": "battle_vortexs_tables",
       "versions": [
+        {
+          "version": 16,
+          "fields": [
+            {
+              "field_name": "change_max_angle",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "contact_effect",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "special_ability_phases",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "damage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "damage_ap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "duration",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "expansion_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "goal_radius",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "infinite_height",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "move_change_freq",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "movement_speed",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "in metres / second"
+            },
+            {
+              "field_name": "start_radius",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "vortex_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ignition_amount",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "How much this explosion contributes towards causing ignition. Also, this determines it being flaming as a context"
+            },
+            {
+              "field_name": "is_magical",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Is our context 'magical'?"
+            },
+            {
+              "field_name": "composite_scene",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "composite_scene_files",
+                "scene_filepath"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "detonation_force",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "This is how much force is applied to determine the result of being hit, for knockbacks etc."
+            },
+            {
+              "field_name": "launch_source",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_vortex_launch_sources",
+                "suggested_launch_source"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "building_collision",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_vortex_collision_responses",
+                "vortex_collision_type"
+              ],
+              "field_description": "This is the behaviour when we collide with a building"
+            },
+            {
+              "field_name": "launch_vfx",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "particle_effects",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "height_off_ground",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "delay",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "We do spawn this at the same time as usual, but we wait this time to cause damage / move / collide etc."
+            },
+            {
+              "field_name": "num_vortexes",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "num of vortexes spawned"
+            },
+            {
+              "field_name": "composite_scene_blood",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "composite_scene_files",
+                "scene_filepath"
+              ],
+              "field_description": "Blood version"
+            },
+            {
+              "field_name": "affects_allies",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "launch_source_offset",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "distance from launch_source"
+            },
+            {
+              "field_name": "composite_scene_group",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "battle_vortex_composite_scene_groups",
+                "group_id"
+              ],
+              "field_description": "Via group we can configure multiple composite scenes per Vortex Spell"
+            },
+            {
+              "field_name": "delay_between_vortexes",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 15,
           "fields": [
@@ -28864,6 +30211,33 @@
       ]
     },
     {
+      "name": "campaign_group_member_criteria_is_dead_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "member",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_group_members",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "value",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "campaign_group_member_criteria_ministerial_positions_tables",
       "versions": [
         {
@@ -29734,6 +31108,36 @@
               "field_type": "Boolean",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "campaign_group_settlement_occupation_gift_factions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "campaign_group",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_groups",
+                "id"
+              ],
+              "field_description": "Valid Criteria: Culture, Subculture, Faction, Originating Faction, Region"
+            },
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -33081,6 +34485,62 @@
       "name": "campaign_videos_tables",
       "versions": [
         {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "campaign_locked",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sort",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "still_path",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "video_name",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "videos",
+                "video_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "pdlc",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pdlc",
+                "ID"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 0,
           "fields": [
             {
@@ -35712,6 +37172,127 @@
     {
       "name": "culture_settlement_occupation_options_tables",
       "versions": [
+        {
+          "version": 9,
+          "fields": [
+            {
+              "field_name": "option",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "settlement_occupation_options",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "acting_army_faction_effect_bundle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "acting_army_faction_effect_bundle_turns",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "target_settlement_faction_effect_bundle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "target_settlement_faction_effect_bundle_turns",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_groups",
+                "id"
+              ],
+              "field_description": "Supported Criteria: Subculture, Originating Subculture, Region Owner Subculture, Faction, Campaign, Region, On Sea, Is Dead (target/gift faction)"
+            },
+            {
+              "field_name": "acting_army_effect_bundle",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "acting_army_effect_bundle_turns",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "tooltip",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "icon",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "base_loot",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "building_loot_mod",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "resource_transaction",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "resource_costs",
+                "id"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 8,
           "fields": [
@@ -38615,6 +40196,56 @@
       "name": "effect_bundles_tables",
       "versions": [
         {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_description",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "localised_title",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_icon",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bundle_target",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundle_targets",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 1,
           "fields": [
             {
@@ -38810,6 +40441,100 @@
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "If true, then positive values shown green in ui. Otherwise shown red and vice versa for negatives. (As sometimes -10% is a good thing like cost)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "elector_count_region_to_capital_region_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "capital_region",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "regions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "region",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "regions",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "elector_counts_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "capital_region",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "regions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ministerial_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ministerial_positions",
+                "minister_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "map_pos_x",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "the elector count seat map x position"
+            },
+            {
+              "field_name": "map_pos_y",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "the elector count seat map y position"
+            },
+            {
+              "field_name": "ancillary_reward",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ancillaries",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_reward",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
             }
           ]
         }
@@ -39521,6 +41246,53 @@
       ]
     },
     {
+      "name": "faction_feature_set_military_force_types_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "default_army",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_navy",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "sea_locked_specialist",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "faction_feature_tree_to_transitions_tables",
       "versions": [
         {
@@ -39695,6 +41467,87 @@
               "field_name": "resource_consumption",
               "field_type": "Integer",
               "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "faction_set_items_tables",
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            {
+              "field_name": "remove",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "faction",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "set",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "faction_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "id",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "faction_sets_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
               "field_is_reference": null,
               "field_description": ""
             }
@@ -39926,6 +41779,979 @@
     {
       "name": "factions_tables",
       "versions": [
+        {
+          "version": 36,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "index",
+              "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screen_name",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screen_adjective",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "skin",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_banners",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_skin",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_rebel",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_naval",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "flags_path",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "republican_flag_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "same_gov_type_revolution_flag_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "alt_primary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_primary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_primary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "secondary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "alt_secondary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_secondary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_secondary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "military_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "groupings_military",
+                "military_group"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rebel_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "rebel_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "rebel_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "movie_death_event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "movie_event_strings",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_use_republic_early",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_use_republic_late",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_regiment_name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ship_name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "attack_desc",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "defend_desc",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_battle_speech_parameter",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pre_battle_speech_parameters_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "senator_total",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_voiceover_culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_voiceover_cultures",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_force_gen_template",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "mp_force_gen_templates",
+                "key"
+              ],
+              "field_description": "Specifies template to use for custom/mp battles"
+            },
+            {
+              "field_name": "faction_swapping_id",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Three digit code to swap faction prefabs"
+            },
+            {
+              "field_name": "win_movie",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "movie_events",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "has_politics",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "waaagh_faction",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "waaagh_general_unit",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_quest_faction",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cdir_military_generator_config",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cdir_military_generator_configs",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_audio_actor_vo_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actor_groups",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "feature_forest",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "faction_feature_forests",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "neutral_reinforcement_factions",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "faction_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "can_accept_gifts_when_dead",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
+          "version": 35,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "index",
+              "field_type": "LongInteger",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "subculture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures_subcultures",
+                "subculture"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screen_name",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "screen_adjective",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "skin",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "unit_banners",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ui_skin",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "is_rebel",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_available_naval",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "flags_path",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "republican_flag_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "same_gov_type_revolution_flag_path",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "alt_primary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_primary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_primary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "secondary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "alt_secondary_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_secondary_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_secondary_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "uniform_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "alt_uniform_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "military_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "groupings_military",
+                "military_group"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "rebel_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "rebel_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "rebel_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "NOT USED"
+            },
+            {
+              "field_name": "movie_death_event",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "movie_event_strings",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_use_republic_early",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_use_republic_late",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_regiment_name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ship_name_group",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "names_groups",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "attack_desc",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "defend_desc",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "pre_battle_speech_parameter",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pre_battle_speech_parameters_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_r",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_g",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "card_colour_b",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "senator_total",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "audio_voiceover_culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_voiceover_cultures",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mp_force_gen_template",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "mp_force_gen_templates",
+                "key"
+              ],
+              "field_description": "Specifies template to use for custom/mp battles"
+            },
+            {
+              "field_name": "faction_swapping_id",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Three digit code to swap faction prefabs"
+            },
+            {
+              "field_name": "win_movie",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "movie_events",
+                "event"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "has_politics",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "waaagh_faction",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "waaagh_general_unit",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_quest_faction",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cdir_military_generator_config",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cdir_military_generator_configs",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "default_audio_actor_vo_group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_vo_actor_groups",
+                "name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "feature_forest",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "faction_feature_forests",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "neutral_reinforcement_factions",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "faction_sets",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 34,
           "fields": [
@@ -41299,6 +44125,23 @@
               "field_type": "StringU8",
               "field_is_key": true,
               "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "priority",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "military_force_types",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "faction_feature_set_military_force_types",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -42899,6 +45742,62 @@
     {
       "name": "intrigue_actions_incidents_junctions_tables",
       "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "incident",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "incidents",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_positive",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "weight",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "target_culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "source_culture",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "cultures",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 0,
           "fields": [
@@ -45717,6 +48616,56 @@
       "name": "mercenary_unit_groups_tables",
       "versions": [
         {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "chance_to_replenish",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_count",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_record",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "main_units",
+                "unit"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "use_partial_replenishment",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_replenish_per_turn",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 1,
           "fields": [
             {
@@ -46040,8 +48989,147 @@
       ]
     },
     {
+      "name": "military_force_type_conversions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "automatic",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "from",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "to",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "military_force_type_feature_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "feature",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "military_force_type_features",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "force_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "military_force_type_horde_details_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "force_type",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "military_force_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_slot_template",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slot_templates",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "primary_slot_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slot_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_slot_template",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slot_templates",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_slot_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slot_types",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "military_force_types_tables",
       "versions": [
+        {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 3,
           "fields": [
@@ -46352,6 +49440,95 @@
       "name": "ministerial_positions_tables",
       "versions": [
         {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "minister_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "rank",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "minimum_age",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "maximum_age",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "order",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "cost",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gravitas_worth",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "minimum_term_length",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "maximum_term_length",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "maximum_concurrent_ministers",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "required_loyalty",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "display_end_turn_notifications_for_post",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 3,
           "fields": [
             {
@@ -46504,6 +49681,36 @@
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ministerial_positions_to_region_restrictions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "ministerial_position",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "ministerial_positions",
+                "minister_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "required_region",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "regions",
+                "key"
+              ],
               "field_description": ""
             }
           ]
@@ -46780,6 +49987,60 @@
             },
             {
               "field_name": "threshold_weight",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mission_groups_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "group_key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mission_groups_to_missions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "group",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "mission_groups",
+                "group_key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mission",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "missions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "order",
               "field_type": "Integer",
               "field_is_key": false,
               "field_is_reference": null,
@@ -47492,6 +50753,131 @@
               "field_is_reference": [
                 "mp_force_gen_compositions",
                 "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nakai_temple_levels_tables",
+      "versions": [
+        {
+          "version": 5,
+          "fields": [
+            {
+              "field_name": "building",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effect_bundle",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "effect_bundles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "faction_spawned",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "min_building_count",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "level",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "nakai_temple",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "nakai_temples",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "secondary_building",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "nakai_temples_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "image",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "colour",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ui_colours",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "culture_settlement_occupation_option",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": [
+                "culture_settlement_occupation_options",
+                "id"
               ],
               "field_description": ""
             }
@@ -48286,6 +51672,53 @@
             {
               "field_name": "maximum",
               "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "pooled_resource_influence_overrides_tables",
+      "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "faction",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "factions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "pooled_resource",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "pooled_resources",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "pooled_resource_factor",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "pooled_resource_factors",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "influence_to_pooled_resource_conversion_factor",
+              "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": ""
@@ -49692,8 +53125,468 @@
       ]
     },
     {
+      "name": "projectiles_scaling_damages_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_damage_multiplier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "This is the damage dealt at max health ratio, e.g. at full health"
+            },
+            {
+              "field_name": "max_health_ratio",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Upper ratio for health for scaling"
+            },
+            {
+              "field_name": "min_damage_multiplier",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "This is the damage dealt at min health ratio"
+            },
+            {
+              "field_name": "min_health_ratio",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Ratio for minimum health left for scaling"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "projectiles_tables",
       "versions": [
+        {
+          "version": 45,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_category_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "shot_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_shot_type_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "explosion_type",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles_explosions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "spin_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles_spin_type_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "projectile_number",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "trajectory_sight",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_trajectory_sight_enum",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "effective_range",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "minimum_range",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "max_elevation",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "This is the maximum angle that the projectile can be fired at. Generally you want it high (max 90 degrees), and above 45. Except for special cases (e.g. cannon). Not used when trajectory is fixed!"
+            },
+            {
+              "field_name": "muzzle_velocity",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "This describes the speed the projectile launches at (metres per second). If it is negative, the code will calculate this value based on firing at 45 degrees, hitting at the effective range. Not used when trajectory is fixed!"
+            },
+            {
+              "field_name": "marksmanship_bonus",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "spread",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "damage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "ap_damage",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_bounce",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "high_air_resistance",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "collision_radius",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "base_reload_time",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "calibration_distance",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "calibration_area",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_v_infantry",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_v_cavalry",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_v_large",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "projectile_display",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_displays",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "overhead_stat_effect",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "special_ability_phases",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "projectile_audio",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "audio_projectiles",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "shockwave_radius",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "can_damage_buildings",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "contact_stat_effect",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "special_ability_phases",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "is_grapple",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "gravity",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Use this value to make projectiles be more / less affected by gravity. This is mainly used as a representation of wind resistance, so that projectiels can hang in the air. Negative means to use 'normal' gravity."
+            },
+            {
+              "field_name": "burst_size",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Number of shots in a single burst (value of 1 means no burst mode)"
+            },
+            {
+              "field_name": "burst_shot_delay",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Determines the delay between each shot of the same burst"
+            },
+            {
+              "field_name": "mass",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Mass of the projectile."
+            },
+            {
+              "field_name": "homing_params",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_homing_params",
+                "key"
+              ],
+              "field_description": "Link to projectile_homing_params table."
+            },
+            {
+              "field_name": "first_person_params",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_first_person_params",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ignition_amount",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "How much do we contribute to setting things on fire. Also, if this value is greater than 0, this is considered a flaming attack"
+            },
+            {
+              "field_name": "is_magical",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Are we considered magical, for contextual reasons"
+            },
+            {
+              "field_name": "can_target_airborne",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Can this projectile target a flying unit"
+            },
+            {
+              "field_name": "fixed_elevation",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Elevation of fixed trajectory"
+            },
+            {
+              "field_name": "projectile_penetration",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectile_penetration_junctions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "expiry_range",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "If this value is positive it dictactes the maximum distance a projectile can travel before it expires"
+            },
+            {
+              "field_name": "is_beam_launch_burst",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Launch beams will attempt to make the vfx match the projectiles travel, and apply a clipping plane when a projectile hits something, culling the projectiles in front"
+            },
+            {
+              "field_name": "expire_on_impact",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "If true, the projectile will expire on impact, and will not stick into, or deflect off the object it hit"
+            },
+            {
+              "field_name": "can_roll",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Can the projectile roll on the ground"
+            },
+            {
+              "field_name": "trail_always_on",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "If this flag is on, then the trail will always get displayed, regardless of the UI preference for showing projectile trails"
+            },
+            {
+              "field_name": "shots_per_volley",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Usually units shoot 1 hot per volley, but some animations have multiple fire points, such as multi-shot artillery units. Most of the logic isn't aware of this, so this field is for reference for those systems"
+            },
+            {
+              "field_name": "fired_by_mount",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "If this flag is on (and the firing entity is a macro entity) the mount will fire, rather than the rider"
+            },
+            {
+              "field_name": "lock_on_multiple_fire_pos",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "When this is true, all fire positions in an animation will aim at the original position of the target, otherwise they will track the target position"
+            },
+            {
+              "field_name": "prefer_central_targets",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Prefer entities nearer the centre of the target (rather than closest in firing arc)"
+            },
+            {
+              "field_name": "can_damage_vehicles",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "scaling_damage",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "projectiles_scaling_damages",
+                "key"
+              ],
+              "field_description": "If damage calculation has to be scaled based on different rules"
+            }
+          ]
+        },
         {
           "version": 44,
           "fields": [
@@ -51908,6 +55801,56 @@
       "name": "ritual_chains_tables",
       "versions": [
         {
+          "version": 4,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "category",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "ritual_categories",
+                "id"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ritual_sites_required",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "colour_r",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "colour_g",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "colour_b",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 3,
           "fields": [
             {
@@ -52663,6 +56606,43 @@
       ]
     },
     {
+      "name": "rituals_to_nakai_temple_levels_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "nakai_temple_levels",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "ritual",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "rituals",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "sort",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "rituals_to_ritual_chains_tables",
       "versions": [
         {
@@ -53178,6 +57158,58 @@
       "name": "slot_set_items_tables",
       "versions": [
         {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "id",
+              "field_type": "LongInteger",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "slot_template",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slot_templates",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "slot_type",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slot_types",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "slot_set",
+              "field_type": "StringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "slot_sets",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "building_level",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "building_levels",
+                "level_name"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
+        {
           "version": 1,
           "fields": [
             {
@@ -53244,6 +57276,35 @@
     {
       "name": "slot_sets_tables",
       "versions": [
+        {
+          "version": 2,
+          "fields": [
+            {
+              "field_name": "key",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "use_discoverability_feature",
+              "field_type": "Boolean",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "composite_scene",
+              "field_type": "OptionalStringU8",
+              "field_is_key": false,
+              "field_is_reference": [
+                "campaign_composite_scenes",
+                "id"
+              ],
+              "field_description": ""
+            }
+          ]
+        },
         {
           "version": 1,
           "fields": [
@@ -58448,6 +62509,33 @@
               "field_is_key": true,
               "field_is_reference": [
                 "technologies",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unit_set_to_mp_unit_caps_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "cap",
+              "field_type": "Integer",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": ""
+            },
+            {
+              "field_name": "unit_set",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "unit_sets",
                 "key"
               ],
               "field_description": ""
