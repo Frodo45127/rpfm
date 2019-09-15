@@ -40220,10 +40220,13 @@
               "field_description": ""
             },
             {
-              "field_name": "ui_icon",
+              "field_name": "bundle_target",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": null,
+              "field_is_reference": [
+                "effect_bundle_targets",
+                "key"
+              ],
               "field_description": ""
             },
             {
@@ -40234,13 +40237,10 @@
               "field_description": ""
             },
             {
-              "field_name": "bundle_target",
+              "field_name": "ui_icon",
               "field_type": "StringU8",
               "field_is_key": false,
-              "field_is_reference": [
-                "effect_bundle_targets",
-                "key"
-              ],
+              "field_is_reference": null,
               "field_description": ""
             }
           ]
