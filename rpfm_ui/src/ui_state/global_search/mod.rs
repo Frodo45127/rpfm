@@ -26,7 +26,7 @@ use qt_core::variant::Variant;
 
 use regex::Regex;
 
-use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packfile::{PackFile, PathType};
 use rpfm_lib::packedfile::{DecodedData, DecodedPackedFile};
 use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
@@ -39,6 +39,14 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::QString;
 use crate::UI_STATE;
+
+use self::schema::{SchemaMatches, SchemaMatch};
+use self::table::{TableMatches, TableMatch};
+use self::text::{TextMatches, TextMatch};
+
+mod schema;
+mod table;
+mod text;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -83,81 +91,6 @@ pub struct GlobalSearch {
 
     /// Matches on Schema definitions.
     pub matches_schema: Vec<SchemaMatches>,
-}
-
-/// This struct represents all the matches of the global search within a table.
-#[derive(Debug, Clone)]
-pub struct TableMatches {
-
-    /// The path of the table.
-    pub path: Vec<String>,
-
-    /// The list of matches whithin a table.
-    pub matches: Vec<TableMatch>,
-}
-
-/// This struct represents a match on a row of a Table PackedFile (DB & Loc).
-#[derive(Debug, Clone)]
-pub struct TableMatch {
-
-    // The name of the column where the match is.
-    pub column_name: String,
-
-    // The logical index of the column where the match is. This should be -1 when the column is hidden.
-    pub column_number: u32,
-
-    // The row number of this match. This should be -1 when the row is hidden by a filter.
-    pub row_number: i64,
-
-    // The contents of the matched cell.
-    pub contents: String,
-}
-
-/// This struct represents all the matches of the global search within a text PackedFile.
-#[derive(Debug, Clone)]
-pub struct TextMatches {
-
-    /// The path of the file.
-    pub path: Vec<String>,
-
-    /// The list of matches whithin the file.
-    pub matches: Vec<TextMatch>,
-}
-
-/// This struct represents a match on a piece of text within a Text PackedFile.
-#[derive(Debug, Clone)]
-pub struct TextMatch {
-
-    // Column of the first character of the match.
-    pub column: u64,
-
-    // Row of the first character of the match.
-    pub row: u64,
-
-    // Lenght of the matched pattern.
-    pub len: i64,
-}
-
-/// This struct represents all the matches of the global search within a Schema.
-#[derive(Debug, Clone)]
-pub struct SchemaMatches {
-
-    /// The version file the matches are in.
-    pub versioned_file: VersionedFile,
-
-    /// The list of matches whithin the versioned file.
-    pub matches: Vec<SchemaMatch>,
-}
-
-/// This struct represents a match on a column name within a Schema.
-#[derive(Debug, Clone)]
-pub struct SchemaMatch {
-
-    // Column of the match.
-    pub column: u32,
-
-    // Version of the definition with a match.
-    pub version: i32,
 }
 
 /// This enum defines the matching mode of the search. We use `Pattern` by default, and fall back to it
@@ -306,6 +239,17 @@ impl GlobalSearch {
                 }
             }
         } 
+    }
+
+    /// This function clears the Global Search resutl's data, and reset the UI for it.
+    pub fn clear(&mut self, app_ui: &AppUI) {
+        self.matches_db = vec![];
+        self.matches_loc = vec![];
+        self.matches_text = vec![];
+        self.matches_schema = vec![];
+
+        unsafe { app_ui.global_search_matches_db_table_model.as_mut().unwrap().clear() };
+        unsafe { app_ui.global_search_matches_loc_table_model.as_mut().unwrap().clear() };
     }
 
     /// This function performs a replace operation over the entire match set, except schemas..
@@ -698,81 +642,6 @@ impl GlobalSearch {
                     matches.push(TableMatch::new(column_name, column_number, row_number, text)); 
                 }
             }
-        }
-    }
-}
-
-/// Implementation of `TableMatches`.
-impl TableMatches {
-
-    /// This function creates a new `TableMatches` for the provided path.
-    pub fn new(path: &[String]) -> Self {
-        Self {
-            path: path.to_vec(),
-            matches: vec![],
-        }
-    }
-}
-
-/// Implementation of `TableMatch`.
-impl TableMatch {
-
-    /// This function creates a new `TableMatch` with the provided data.
-    pub fn new(column_name: &str, column_number: u32, row_number: i64, contents: &str) -> Self {
-        Self {
-            column_name: column_name.to_owned(),
-            column_number,
-            row_number,
-            contents: contents.to_owned(),
-        }
-    }
-}
-
-/// Implementation of `TextMatches`.
-impl TextMatches {
-
-    /// This function creates a new `TextMatches` for the provided path.
-    pub fn new(path: &[String]) -> Self {
-        Self {
-            path: path.to_vec(),
-            matches: vec![],
-        }
-    }
-}
-
-/// Implementation of `TextMatch`.
-impl TextMatch {
-
-    /// This function creates a new `TextMatch` with the provided data.
-    pub fn new(column: u64, row: u64, len: i64) -> Self {
-        Self {
-            column,
-            row,
-            len,
-        }
-    }
-}
-
-/// Implementation of `SchemaMatches`.
-impl SchemaMatches {
-
-    /// This function creates a new `SchemaMatches` for the provided path.
-    pub fn new(versioned_file: &VersionedFile) -> Self {
-        Self {
-            versioned_file: versioned_file.clone(),
-            matches: vec![],
-        }
-    }
-}
-
-/// Implementation of `SchemaMatch`.
-impl SchemaMatch {
-
-    /// This function creates a new `SchemaMatch` with the provided data.
-    pub fn new(column: u32, version: i32) -> Self {
-        Self {
-            column,
-            version,
         }
     }
 }

@@ -12,7 +12,9 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
+use qt_widgets::abstract_item_view::AbstractItemView;
 use qt_widgets::action::Action;
+use qt_widgets::completer::Completer;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::message_box::MessageBox;
 use qt_widgets::widget::Widget;
@@ -110,17 +112,28 @@ impl AppUISlots {
 		
         // This one puts the command palette in the top center part of the window, make it appear and gives it the focus.
 		let command_palette_show = SlotNoArgs::new(move || {
-			let width = (unsafe { app_ui.main_window.as_mut().unwrap().width() / 2 }) - (unsafe { app_ui.command_palette.as_mut().unwrap().width() / 2 });
+            let line_edit = unsafe { app_ui.command_palette_line_edit.as_mut().unwrap() };
+            let command_palette = unsafe { app_ui.command_palette.as_mut().unwrap() };
+            let completer = unsafe { app_ui.command_palette_completer.as_mut().unwrap() };
+            let main_window = unsafe { app_ui.main_window.as_mut().unwrap() };
+            
+            let width = (main_window.width() / 2 ) - (command_palette.width() / 2 );
 			let height = 80;
-            unsafe { app_ui.command_palette.as_mut().unwrap().move_((width, height)); }
+            command_palette.move_((width, height));
+            unsafe { line_edit.set_completer(app_ui.command_palette_completer) };
 
             command_palette::load_actions(&app_ui);
-            unsafe { app_ui.command_palette.as_mut().unwrap().show(); }
-			unsafe { app_ui.command_palette_line_edit.as_mut().unwrap().set_focus(FocusReason::Shortcut); }
+            command_palette.show();
+			line_edit.set_focus(FocusReason::Shortcut);
+            line_edit.set_text(&QString::from_std_str(""));
+
+            line_edit.completer();
+            completer.complete(());
         });
 
 		// This one hides the command palette.
         let command_palette_hide = SlotNoArgs::new(move || { 
+            unsafe { app_ui.command_palette_line_edit.as_mut().unwrap().set_completer(Completer::new(()).as_mut_ptr()) }
             unsafe { app_ui.command_palette.as_mut().unwrap().hide(); }
         });
 
@@ -349,7 +362,7 @@ impl AppUISlots {
                     GlobalSearch::load_table_matches_to_ui(model_db, table_view_db, &global_search.matches_db);
                     GlobalSearch::load_table_matches_to_ui(model_loc, table_view_loc, &global_search.matches_loc);
                     println!("{:?}", global_search);
-                    *UI_STATE.global_search.write().unwrap() = global_search;
+                    UI_STATE.set_global_search(&global_search);
                 }
 
                 // In ANY other situation, it's a message problem.

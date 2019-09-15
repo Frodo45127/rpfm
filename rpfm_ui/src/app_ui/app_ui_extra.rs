@@ -102,37 +102,39 @@ impl AppUI {
     pub fn purge_them_all(&self) {
 
         // Black magic.
-        for ui in UI_STATE.open_packedfiles.write().unwrap().values_mut() {
-            let ui: *mut Menu = &mut **ui;
+        let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+        for ui in open_packedfiles.values_mut() {
+            let ui: *mut Widget = &mut **ui;
             unsafe { (ui as *mut Object).as_mut().unwrap().delete_later(); }
         }
 
         // Set it as not having an opened PackedFile, just in case.
-        UI_STATE.open_packedfiles.write().unwrap().clear();
+        open_packedfiles.clear();
 
         // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
         unsafe { self.game_selected_group.as_mut().unwrap().set_enabled(true); }
 
         // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
-        UI_STATE.disable_editing_from_packfile_contents.store(false, Ordering::SeqCst);
+        UI_STATE.set_packfile_contents_read_only(false);
     }
 
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
     pub fn purge_that_one_specifically(app_ui: &AppUI, path: &[String]) {
 
         // Black magic to remove widgets.
-        if let Some(ui) = UI_STATE.open_packedfiles.write().unwrap().get_mut(path) {
-            let ui: *mut Menu = &mut **ui;
+        let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+        if let Some(ui) = open_packedfiles.get_mut(path) {
+            let ui: *mut Widget = &mut **ui;
             unsafe { (ui as *mut Object).as_mut().unwrap().delete_later(); }
         }
 
         // Set it as not having an opened PackedFile, just in case.
-        UI_STATE.open_packedfiles.write().unwrap().remove(path);
+        open_packedfiles.remove(path);
 
         // We check if there are more tables open. This is beacuse we cannot change the GameSelected 
         // when there is a PackedFile using his Schema.
         let mut enable_game_selected_menu = true;
-        for path in UI_STATE.open_packedfiles.read().unwrap().keys() {
+        for path in open_packedfiles.keys() {
             if let Some(folder) = path.get(0) {
                 if folder.to_lowercase() == "db" {
                     enable_game_selected_menu = false;
@@ -157,9 +159,7 @@ impl AppUI {
     pub fn open_packfile(
         &self,
         pack_file_paths: &[PathBuf],
-        //mymod_stuff: &Rc<RefCell<MyModStuff>>,
         game_folder: &str,
-        //table_state_data: &Rc<RefCell<BTreeMap<Vec<String>, TableStateData>>>,
     ) -> Result<()> {
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.

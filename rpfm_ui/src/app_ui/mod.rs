@@ -14,7 +14,7 @@ Module with all the code related to the main `AppUI`.
 This module contains all the code needed to initialize the entire Application.
 !*/
 
-use qt_widgets::abstract_item_view::{SelectionMode, ScrollMode};
+use qt_widgets::abstract_item_view::{AbstractItemView, SelectionMode, SelectionBehavior, ScrollMode};
 use qt_widgets::action::Action;
 use qt_widgets::action_group::ActionGroup;
 use qt_widgets::application::Application;
@@ -23,7 +23,6 @@ use qt_widgets::combo_box::ComboBox;
 use qt_widgets::completer::Completer;
 use qt_widgets::dock_widget::DockWidget;
 use qt_widgets::group_box::GroupBox;
-use qt_widgets::label::Label;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::main_window::MainWindow;
 use qt_widgets::menu::Menu;
@@ -43,8 +42,8 @@ use qt_core::flags::Flags;
 use qt_core::object::Object;
 use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, DockWidgetArea};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
-use qt_core::string_list_model::StringListModel;
 
+use crate::ffi::new_tableview_command_palette;
 use crate::ffi::new_treeview_filter;
 use crate::locale::tr;
 use crate::QString;
@@ -73,7 +72,8 @@ pub struct AppUI {
     pub command_palette: *mut DockWidget,
     pub command_palette_line_edit: *mut LineEdit,
     pub command_palette_completer: *mut Completer,
-    pub command_palette_completer_model: *mut StringListModel,
+    pub command_palette_completer_view: *mut TableView,
+    pub command_palette_completer_model: *mut StandardItemModel,
 
     pub command_palette_show: *mut Action,
     pub command_palette_hide: *mut Action,
@@ -326,19 +326,26 @@ impl Default for AppUI {
         let command_palette_layout = create_grid_layout_unsafe(command_palette_inner_widget.as_mut_ptr() as *mut Widget);
         unsafe { command_palette_widget.set_widget(command_palette_inner_widget.into_raw()); }
         command_palette_widget.set_features(Flags::from_int(0));
-        command_palette_widget.set_minimum_width(200);
-
+        command_palette_widget.set_minimum_width(500);
+        
         // Create and configure the `Command Palette` itself.
-        let mut command_palette_line_edit = LineEdit::new(());
+        let command_palette_line_edit = LineEdit::new(());
         let mut command_palette_completer = Completer::new(());
-        let command_palette_completer_model = StringListModel::new(());
+        let command_palette_completer_view = unsafe { new_tableview_command_palette() };
+        let command_palette_completer_model = StandardItemModel::new(());
 
         // This means our completer search with case-insensitive and contains filters. 
         command_palette_completer.set_filter_mode(Flags::from_int(1));
         command_palette_completer.set_case_sensitivity(CaseSensitivity::Insensitive);
+        command_palette_completer.set_max_visible_items(8);
+        
+        unsafe { command_palette_completer_view.as_mut().unwrap().set_show_grid(false); }
+        unsafe { command_palette_completer_view.as_mut().unwrap().set_selection_behavior(SelectionBehavior::Rows); }
+        unsafe { command_palette_completer_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().hide(); }
+        unsafe { command_palette_completer_view.as_mut().unwrap().vertical_header().as_mut().unwrap().hide(); }
 
+        unsafe { command_palette_completer.set_popup(command_palette_completer_view as *mut AbstractItemView); }
         unsafe { command_palette_completer.set_model(command_palette_completer_model.as_mut_ptr() as *mut AbstractItemModel); }
-        unsafe { command_palette_line_edit.set_completer(command_palette_completer.as_mut_ptr()); }
         unsafe { command_palette_layout.as_mut().unwrap().add_widget((command_palette_line_edit.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
 
         // Create the actions needed to show/hide the `Command Palette`.
@@ -371,7 +378,7 @@ impl Default for AppUI {
         let mut packfile_menu_open_from_content = Menu::new(&QString::from_std_str("Open From Content"));
         let mut packfile_menu_open_from_data = Menu::new(&QString::from_std_str("Open From Data"));
         let mut packfile_menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type"));
-        let packfile_load_all_ca_packfiles = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Load All CA PackFiles..."));
+        let packfile_load_all_ca_packfiles = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Load All CA PackFiles"));
         let packfile_preferences = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Preferences"));
         let packfile_quit = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Quit"));
 
@@ -833,6 +840,7 @@ impl Default for AppUI {
             command_palette: command_palette_widget.into_raw(),
             command_palette_line_edit: command_palette_line_edit.into_raw(),
             command_palette_completer: command_palette_completer.into_raw(),
+            command_palette_completer_view,
             command_palette_completer_model: command_palette_completer_model.into_raw(),
 
             command_palette_show: command_palette_show.into_raw(),

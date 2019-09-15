@@ -37,3 +37,6 @@ extern "C" { pub fn trigger_treeview_filter(filter: *mut SortFilterProxyModel, p
 
 /// This function allows you to create a table capable of freezing columns.
 extern "C" { pub fn new_tableview_frozen(model: *mut AbstractItemModel, frozen_table: *mut TableView) -> *mut TableView; }
+
+/// This function allow us to create a properly sized TableView for the Command Palette.
+extern "C" { pub fn new_tableview_command_palette() -> *mut TableView; }
