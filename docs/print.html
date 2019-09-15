@@ -37257,11 +37257,416 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="changelogs_tables/warhammer_2/changelog.html#018">018</a></li>
 <li><a href="changelogs_tables/warhammer_2/changelog.html#017">017</a></li>
 <li><a href="changelogs_tables/warhammer_2/changelog.html#016">016</a></li>
 <li><a href="changelogs_tables/warhammer_2/changelog.html#015">015</a></li>
 </ul>
 <hr />
+<h1><a class="header" href="#018" id="018">018</a></h1>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>agent_subtypes_to_mission_groups_tables</em>.</li>
+<li><em>audio_entity_focus_pools_tables</em>.</li>
+<li><em>campaign_group_member_criteria_is_dead_tables</em>.</li>
+<li><em>campaign_group_settlement_occupation_gift_factions_tables</em>.</li>
+<li><em>elector_count_region_to_capital_region_junctions_tables</em>.</li>
+<li><em>elector_counts_tables</em>.</li>
+<li><em>faction_feature_set_military_force_types_tables</em>.</li>
+<li><em>faction_set_items_tables</em>.</li>
+<li><em>faction_sets_tables</em>.</li>
+<li><em>military_force_type_conversions_tables</em>.</li>
+<li><em>military_force_type_feature_junctions_tables</em>.</li>
+<li><em>military_force_type_horde_details_tables</em>.</li>
+<li><em>ministerial_positions_to_region_restrictions_tables</em>.</li>
+<li><em>mission_groups_tables</em>.</li>
+<li><em>mission_groups_to_missions_tables</em>.</li>
+<li><em>nakai_temple_levels_tables</em>.</li>
+<li><em>nakai_temples_tables</em>.</li>
+<li><em>pooled_resource_influence_overrides_tables</em>.</li>
+<li><em>projectiles_scaling_damages_tables</em>.</li>
+<li><em>rituals_to_nakai_temple_levels_tables</em>.</li>
+<li><em>unit_set_to_mp_unit_caps_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><em><strong>agent_subtype_military_force_creation_overrides_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>valid_group</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_groups</em>/<em>id</em>.</li>
+<li><strong>Description</strong>: <em>Supported Criteria: Agent Subtype, Faction, Subculture, Culture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>agent_subtype</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>agent_subtypes_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>contributes_to_agent_cap</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_campaign_stances_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>subculture_record</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>cultures_subcultures</em>/<em>subculture</em>.</li>
+</ul>
+</li>
+<li><em><strong>faction_record</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>factions</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>overriding_vo_stance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_stances</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_entity_type_limitations_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>allow_focus</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_entity_types_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>consider_moving</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>record_id</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Long Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>focus_pool</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_entity_focus_pools</em>/<em>pool_name</em>.</li>
+</ul>
+</li>
+<li><em><strong>min_units_focus_velocity</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>ignore_moving_outside_combat</em>.</li>
+<li><em>ignore_moving</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_metadata_tag_entity_overrides_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>culling_distance_override</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>battle_vortexs_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>delay_between_vortexes</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_videos_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>pdlc</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>pdlc</em>/<em>ID</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>culture_settlement_occupation_options_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>resource_transaction</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>resource_costs</em>/<em>id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>group</strong>:
+<ul>
+<li><em><strong>Description</strong></em>: <em>Supports capturing faction (faction), capturing subculture (subculture), subculture captured from (region_owner_subculture), region origin subculture (originating_subculture) and campaign (campaign). Note that the data is organised as &quot;occupation option provided by group(s)&quot;, not &quot;group provides occupation options&quot;, so a later group can never remove an option provided by an prior group.</em> =&gt; <em>Supported Criteria: Subculture, Originating Subculture, Region Owner Subculture, Faction, Campaign, Region, On Sea, Is Dead (target/gift faction)</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>effect_bundles_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>priority</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>factions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>neutral_reinforcement_factions</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>faction_sets</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>can_accept_gifts_when_dead</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>factions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>neutral_reinforcement_factions</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>faction_sets</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>intrigue_actions_incidents_junctions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>target_culture</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>cultures</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>source_culture</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>cultures</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>culture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>mercenary_unit_groups_tables</strong></em>:
+<ul>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>unit_record</strong>:
+<ul>
+<li><em><strong>Is Key</strong></em>: <em>true</em> =&gt; <em>false</em>.</li>
+<li><em><strong>Is Reference</strong></em>: ** =&gt; <em>main_units, unit</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>military_force_types_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>primary_slot_template</em>.</li>
+<li><em>secondary_slot_template</em>.</li>
+<li><em>primary_slot_type</em>.</li>
+<li><em>secondary_slot_type</em>.</li>
+<li><em>general_can_be_replaced</em>.</li>
+<li><em>spawn_on_sea</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ministerial_positions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>display_end_turn_notifications_for_post</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>projectiles_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>scaling_damage</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>projectiles_scaling_damages</em>/<em>key</em>.</li>
+<li><strong>Description</strong>: <em>If damage calculation has to be scaled based on different rules</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>slot_set_items_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>composite_scene</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>slot_sets_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>composite_scene</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_composite_scenes</em>/<em>id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Fixed Tables</strong>:</p>
+<ul>
+<li><em><strong>feature_sets_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>priority</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>military_force_types</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>faction_feature_set_military_force_types</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <h1><a class="header" href="#017" id="017">017</a></h1>
 <p>It contains the following changes:</p>
 <ul>
