@@ -32,6 +32,7 @@ use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::pack_tree::{PackTree, TreeViewOperation};
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
 use super::{AppUI, slots::AppUISlots, connections, shortcuts, tips};
@@ -43,24 +44,11 @@ use super::{AppUI, slots::AppUISlots, connections, shortcuts, tips};
 /// Implementation of `AppUI`.
 impl AppUI {
 
-    /// This function initialize the entire `AppUI`.
-    ///
-    /// It just create a new AppUI, his slots, and wires up all together, then returns the `AppUI` and his slots.
-    /// Keep in mind that it's up to you to ensure these structs live for the entire duration of the program, or... things will start to wrong.
-    pub fn new() -> (Self, AppUISlots) {
-        let app_ui = Self::default();
-        let slots = AppUISlots::new(app_ui);
-        connections::set_connections(&app_ui, &slots);
-        shortcuts::set_shortcuts(&app_ui);
-        tips::set_tips(&app_ui);
-        (app_ui, slots)
-    }
-
     /// This function takes care of updating the Main Window's title to reflect the current state of the program.
-    fn update_window_title(&self) {
+    fn update_window_title(&self, packfile_contents_ui: &PackFileContentsUI) {
 
         // First check if we have a PackFile open. If not, just leave the default title.
-        let model = unsafe { self.packfile_contents_tree_model.as_ref().unwrap() };
+        let model = unsafe { packfile_contents_ui.packfile_contents_tree_model.as_ref().unwrap() };
         let main_window = unsafe { self.main_window.as_mut().unwrap() };
         let window_title;
 
@@ -158,6 +146,7 @@ impl AppUI {
     /// NOTE: The `game_folder` is for when using this function with *MyMods*. If you're opening a normal mod, pass it empty.
     pub fn open_packfile(
         &self,
+        pack_file_contents_ui: &PackFileContentsUI,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
     ) -> Result<()> {
@@ -196,7 +185,7 @@ impl AppUI {
                 unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(compression_state); }
 
                 // Update the TreeView.
-                self.packfile_contents_tree_view.update_treeview(true, &self, TreeViewOperation::Build(false));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
 
                 // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
                 if !game_folder.is_empty() && pack_file_paths.len() == 1 {

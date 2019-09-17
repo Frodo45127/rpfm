@@ -34,9 +34,9 @@ use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::schema::{Definition, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 
-use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::global_search_ui::GlobalSearchUI;
 use crate::QString;
 use crate::UI_STATE;
 
@@ -242,14 +242,14 @@ impl GlobalSearch {
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
-    pub fn clear(&mut self, app_ui: &AppUI) {
+    pub fn clear(&mut self, ui: &GlobalSearchUI) {
         self.matches_db = vec![];
         self.matches_loc = vec![];
         self.matches_text = vec![];
         self.matches_schema = vec![];
 
-        unsafe { app_ui.global_search_matches_db_table_model.as_mut().unwrap().clear() };
-        unsafe { app_ui.global_search_matches_loc_table_model.as_mut().unwrap().clear() };
+        unsafe { ui.global_search_matches_db_table_model.as_mut().unwrap().clear() };
+        unsafe { ui.global_search_matches_loc_table_model.as_mut().unwrap().clear() };
     }
 
     /// This function performs a replace operation over the entire match set, except schemas..
@@ -449,7 +449,7 @@ impl GlobalSearch {
     /// This function takes care of updating the results of a global search.
     ///
     /// It's here instead of in a slot because we need to pass the paths to update to it.
-    pub fn update_matches_ui(app_ui: &AppUI, paths: Vec<PathType>) {
+    pub fn update_matches_ui(ui: &GlobalSearchUI, paths: Vec<PathType>) {
 
         // Create the global search and populate it with all the settings for the search.
         let global_search = (*UI_STATE.global_search.read().unwrap()).clone();
@@ -457,11 +457,11 @@ impl GlobalSearch {
         CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchUpdate(global_search, paths));
 
         // While we wait for an answer, we need to clear the current results panels.
-        let table_view_db = unsafe { app_ui.global_search_matches_db_table_view.as_mut().unwrap() };
-        let table_view_loc = unsafe { app_ui.global_search_matches_loc_table_view.as_mut().unwrap() };
+        let table_view_db = unsafe { ui.global_search_matches_db_table_view.as_mut().unwrap() };
+        let table_view_loc = unsafe { ui.global_search_matches_loc_table_view.as_mut().unwrap() };
 
-        let model_db = unsafe { app_ui.global_search_matches_db_table_model.as_mut().unwrap() };
-        let model_loc = unsafe { app_ui.global_search_matches_loc_table_model.as_mut().unwrap() };
+        let model_db = unsafe { ui.global_search_matches_db_table_model.as_mut().unwrap() };
+        let model_loc = unsafe { ui.global_search_matches_loc_table_model.as_mut().unwrap() };
         
         model_db.clear();
         model_loc.clear();

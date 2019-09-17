@@ -12,21 +12,17 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
-use qt_widgets::abstract_item_view::AbstractItemView;
+
 use qt_widgets::action::Action;
 use qt_widgets::completer::Completer;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::message_box::MessageBox;
 use qt_widgets::widget::Widget;
 
-use qt_gui::color::Color;
 use qt_gui::desktop_services::DesktopServices;
-use qt_gui::palette::{ColorRole, Palette};
 
-use qt_core::qt::{FocusReason, GlobalColor};
+use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
-
-use regex::Regex;
 
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
@@ -40,9 +36,11 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::command_palette;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
+use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::SettingsUI;
-use crate::ui_state::global_search::GlobalSearch;
+
 use crate::UI_STATE;
 use crate::utils::show_dialog;
 
@@ -82,18 +80,6 @@ pub struct AppUISlots {
     pub about_about_qt: SlotBool<'static>,
     pub about_open_manual: SlotBool<'static>,
     pub about_patreon_link: SlotBool<'static>,
-
-    //-----------------------------------------------//
-    // PackFile Contents TreeView's context menu slots.
-    //-----------------------------------------------//
-    pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
-    pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
-
-    //-----------------------------------------------//
-    // Global Search slots.
-    //-----------------------------------------------//
-    pub global_search_search: SlotNoArgs<'static>,
-    pub global_search_check_regex: SlotStringRef<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -104,7 +90,11 @@ pub struct AppUISlots {
 impl AppUISlots {
 
 	/// This function creates an entire `AppUISlots` struct. Used to create the logic of the starting UI.
-	pub fn new(app_ui: AppUI) -> Self {
+	pub fn new(
+        app_ui: AppUI,
+        global_search_ui: GlobalSearchUI,
+        pack_file_contents_ui: PackFileContentsUI,
+    ) -> Self {
 
 		//-----------------------------------------------//
         // Command Palette logic.
@@ -122,7 +112,7 @@ impl AppUISlots {
             command_palette.move_((width, height));
             unsafe { line_edit.set_completer(app_ui.command_palette_completer) };
 
-            command_palette::load_actions(&app_ui);
+            command_palette::load_actions(&app_ui, &pack_file_contents_ui);
             command_palette.show();
 			line_edit.set_focus(FocusReason::Shortcut);
             line_edit.set_text(&QString::from_std_str(""));
@@ -140,7 +130,7 @@ impl AppUISlots {
         // This is the fun one. This one triggers any command you type in the command palette.
         let command_palette_trigger = SlotStringRef::new(move |command| {
         	unsafe { app_ui.command_palette.as_mut().unwrap().hide(); }
-            command_palette::exec_action(&app_ui, command);
+            command_palette::exec_action(&app_ui, &pack_file_contents_ui, command);
         });
 
         //-----------------------------------------------//
@@ -162,7 +152,7 @@ impl AppUISlots {
                     // Close any open PackedFile and clear the global search pannel.
                     // TODO: Clear the global search panel.
                     app_ui.purge_them_all();
-                    unsafe { app_ui.global_search_dock_widget.as_mut().unwrap().hide(); }
+                    unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().hide(); }
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                     // Show the "Tips".
@@ -182,7 +172,7 @@ impl AppUISlots {
                     unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
 
                     // Update the TreeView.
-                    app_ui.packfile_contents_tree_view.update_treeview(true, &app_ui, TreeViewOperation::Build(false));
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
 
                     // Re-enable the Main Window.
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
@@ -223,7 +213,7 @@ impl AppUISlots {
                         }
 
                         // Try to open it, and report it case of error.
-                        if let Err(error) = app_ui.open_packfile(&paths, "") { show_dialog(app_ui.main_window as *mut Widget, error, false); }
+                        if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &paths, "") { show_dialog(app_ui.main_window as *mut Widget, error, false); }
                     }
                 }
             }
@@ -284,15 +274,15 @@ impl AppUISlots {
         // `View` menu logic.
         //-----------------------------------------------//
         let view_toggle_packfile_contents = SlotBool::new(move |_| { 
-            let is_visible = unsafe { app_ui.packfile_contents_dock_widget.as_mut().unwrap().is_visible() };
-            if is_visible { unsafe { app_ui.packfile_contents_dock_widget.as_mut().unwrap().hide(); }}
-            else {unsafe { app_ui.packfile_contents_dock_widget.as_mut().unwrap().show(); }}
+            let is_visible = unsafe { pack_file_contents_ui.packfile_contents_dock_widget.as_mut().unwrap().is_visible() };
+            if is_visible { unsafe { pack_file_contents_ui.packfile_contents_dock_widget.as_mut().unwrap().hide(); }}
+            else {unsafe { pack_file_contents_ui.packfile_contents_dock_widget.as_mut().unwrap().show(); }}
         });
 
         let view_toggle_global_search_panel = SlotBool::new(move |_| { 
-            let is_visible = unsafe { app_ui.global_search_dock_widget.as_mut().unwrap().is_visible() };
-            if is_visible { unsafe { app_ui.global_search_dock_widget.as_mut().unwrap().hide(); }}
-            else {unsafe { app_ui.global_search_dock_widget.as_mut().unwrap().show(); }}
+            let is_visible = unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().is_visible() };
+            if is_visible { unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().hide(); }}
+            else {unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().show(); }}
         });
 
 		//-----------------------------------------------//
@@ -307,86 +297,6 @@ impl AppUISlots {
 
         // What happens when we trigger the "Support me on Patreon" action.
         let about_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(PATREON_URL))); });
-
-        //-----------------------------------------------//
-        // PackFile Contents TreeView's context menu logic.
-        //-----------------------------------------------//
-        let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { app_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
-        let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { app_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
-
-        //-----------------------------------------------//
-        // Global Search slots.
-        //-----------------------------------------------//
-
-        // What happens when we trigger the "Global Search" action.
-        let global_search_search = SlotNoArgs::new(move || { 
-
-            // Create the global search and populate it with all the settings for the search.
-            let mut global_search = GlobalSearch::default();
-            global_search.pattern = unsafe { app_ui.global_search_search_line_edit.as_ref().unwrap().text().to_std_string() };
-            global_search.case_sensitive = unsafe { app_ui.global_search_case_sensitive_checkbox.as_ref().unwrap().is_checked() };
-            global_search.use_regex = unsafe { app_ui.global_search_use_regex_checkbox.as_ref().unwrap().is_checked() };
-
-            if unsafe { app_ui.global_search_search_on_all_checkbox.as_ref().unwrap().is_checked() } {
-                global_search.search_on_dbs = true;
-                global_search.search_on_locs = true;
-                global_search.search_on_texts = true;
-                global_search.search_on_schema = true;
-            }
-            else {
-                global_search.search_on_dbs = unsafe { app_ui.global_search_search_on_dbs_checkbox.as_ref().unwrap().is_checked() };
-                global_search.search_on_locs = unsafe { app_ui.global_search_search_on_locs_checkbox.as_ref().unwrap().is_checked() };
-                global_search.search_on_texts = unsafe { app_ui.global_search_search_on_texts_checkbox.as_ref().unwrap().is_checked() };
-                global_search.search_on_schema = unsafe { app_ui.global_search_search_on_schemas_checkbox.as_ref().unwrap().is_checked() };
-            }
-
-            let t = std::time::SystemTime::now();
-            CENTRAL_COMMAND.send_message_qt(Command::GlobalSearch(global_search));
-
-            // While we wait for an answer, we need to clear the current results panels.
-            let table_view_db = unsafe { app_ui.global_search_matches_db_table_view.as_mut().unwrap() };
-            let table_view_loc = unsafe { app_ui.global_search_matches_loc_table_view.as_mut().unwrap() };
-
-            let model_db = unsafe { app_ui.global_search_matches_db_table_model.as_mut().unwrap() };
-            let model_loc = unsafe { app_ui.global_search_matches_loc_table_model.as_mut().unwrap() };
-            
-            model_db.clear();
-            model_loc.clear();
-
-            match CENTRAL_COMMAND.recv_message_qt() {
-                Response::GlobalSearch(global_search) => {
-                    
-                    println!("{:?}", t.elapsed());
-
-                    // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                    GlobalSearch::load_table_matches_to_ui(model_db, table_view_db, &global_search.matches_db);
-                    GlobalSearch::load_table_matches_to_ui(model_loc, table_view_loc, &global_search.matches_loc);
-                    println!("{:?}", global_search);
-                    UI_STATE.set_global_search(&global_search);
-                }
-
-                // In ANY other situation, it's a message problem.
-                _ => panic!(THREADS_COMMUNICATION_ERROR)
-            }
-        });
-
-        // What happens when we trigger the "Check Regex" action.
-        let global_search_check_regex = SlotStringRef::new(move |string| { 
-            let mut palette = Palette::new(());
-            if unsafe { app_ui.global_search_use_regex_checkbox.as_ref().unwrap().is_checked() } {
-                if Regex::new(&string.to_std_string()).is_ok() {
-                    palette.set_color((ColorRole::Base, &Color::new(GlobalColor::DarkGreen)));
-                } else {
-                    palette.set_color((ColorRole::Base, &Color::new(GlobalColor::DarkRed)));
-                }
-            }
-            else {
-
-                // Not really right but... it does the job for now.
-                palette.set_color((ColorRole::Base, &Color::new(GlobalColor::Transparent)));
-            }
-            unsafe { app_ui.global_search_search_line_edit.as_mut().unwrap().set_palette(&palette); }
-        });
 
         // And here... we return all the slots.
 		Self {
@@ -418,18 +328,6 @@ impl AppUISlots {
     		about_about_qt,
             about_open_manual,
             about_patreon_link,
-
-            //-----------------------------------------------//
-            // PackFile Contents TreeView's context menu slots.
-            //-----------------------------------------------//
-            packfile_contents_tree_view_expand_all,
-            packfile_contents_tree_view_collapse_all,
-
-            //-----------------------------------------------//
-            // Global Search slots.
-            //-----------------------------------------------//
-            global_search_search,
-            global_search_check_regex,
 		}
 	}
 }

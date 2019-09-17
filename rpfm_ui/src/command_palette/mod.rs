@@ -14,22 +14,26 @@ Module with all the code related to the command palette.
 
 use qt_widgets::action::Action;
 
-
 use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 
 use qt_core::flags::Flags;
 use qt_core::qt::CaseSensitivity;
 
+use crate::app_ui::AppUI;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
-use crate::app_ui::AppUI;
 
 /// This is the character we always have to remove from the action names while comparing them.
 const THE_UNHOLY_ONE: &str = "&";
 
 /// This function returns the complete list of actions available for the Command Palette.
-pub fn get_actions(app_ui: &AppUI) -> Vec<(*mut Action, String)> {
+pub fn get_actions(
+	app_ui: &AppUI,
+	pack_file_contents_ui: &PackFileContentsUI
+) -> Vec<(*mut Action, String)> {
+
 	let mut actions = vec![];
 	let shortcuts = UI_STATE.shortcuts.read().unwrap();
 	//-------------------------------------------------------------------------------//
@@ -98,37 +102,37 @@ pub fn get_actions(app_ui: &AppUI) -> Vec<(*mut Action, String)> {
 	//-------------------------------------------------------------------------------//
     // Contextual menu for the PackFile Contents TreeView.
     //-------------------------------------------------------------------------------//
-	actions.push((app_ui.context_menu_add_file, shortcuts.tree_view["add_file"].to_owned()));
-	actions.push((app_ui.context_menu_add_folder, shortcuts.tree_view["add_folder"].to_owned()));
-	actions.push((app_ui.context_menu_add_from_packfile, shortcuts.tree_view["add_from_packfile"].to_owned()));
-	actions.push((app_ui.context_menu_create_folder, shortcuts.tree_view["create_folder"].to_owned()));
-	actions.push((app_ui.context_menu_create_db, shortcuts.tree_view["create_db"].to_owned()));
-	actions.push((app_ui.context_menu_create_loc, shortcuts.tree_view["create_loc"].to_owned()));
-	actions.push((app_ui.context_menu_create_text, shortcuts.tree_view["create_text"].to_owned()));
-	actions.push((app_ui.context_menu_mass_import_tsv, shortcuts.tree_view["mass_import_tsv"].to_owned()));
-	actions.push((app_ui.context_menu_mass_export_tsv, shortcuts.tree_view["mass_export_tsv"].to_owned()));
-	actions.push((app_ui.context_menu_rename, shortcuts.tree_view["rename"].to_owned()));
-	actions.push((app_ui.context_menu_delete, shortcuts.tree_view["delete"].to_owned()));
-	actions.push((app_ui.context_menu_extract, shortcuts.tree_view["extract"].to_owned()));
-	actions.push((app_ui.context_menu_open_decoder, shortcuts.tree_view["open_in_decoder"].to_owned()));
-	actions.push((app_ui.context_menu_open_dependency_manager, shortcuts.tree_view["open_packfiles_list"].to_owned()));
-	actions.push((app_ui.context_menu_open_containing_folder, shortcuts.tree_view["open_containing_folder"].to_owned()));
-	actions.push((app_ui.context_menu_open_with_external_program, shortcuts.tree_view["open_with_external_program"].to_owned()));
-	actions.push((app_ui.context_menu_open_in_multi_view, shortcuts.tree_view["open_in_multi_view"].to_owned()));
-	actions.push((app_ui.context_menu_open_notes, shortcuts.tree_view["open_notes"].to_owned()));
-	actions.push((app_ui.context_menu_check_tables, shortcuts.tree_view["check_tables"].to_owned()));
-	actions.push((app_ui.context_menu_merge_tables, shortcuts.tree_view["merge_tables"].to_owned()));
-	actions.push((app_ui.context_menu_global_search, shortcuts.tree_view["global_search"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_add_file, shortcuts.tree_view["add_file"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_add_folder, shortcuts.tree_view["add_folder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_add_from_packfile, shortcuts.tree_view["add_from_packfile"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_create_folder, shortcuts.tree_view["create_folder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_create_db, shortcuts.tree_view["create_db"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_create_loc, shortcuts.tree_view["create_loc"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_create_text, shortcuts.tree_view["create_text"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_mass_import_tsv, shortcuts.tree_view["mass_import_tsv"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_mass_export_tsv, shortcuts.tree_view["mass_export_tsv"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_rename, shortcuts.tree_view["rename"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_delete, shortcuts.tree_view["delete"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_extract, shortcuts.tree_view["extract"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_decoder, shortcuts.tree_view["open_in_decoder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_dependency_manager, shortcuts.tree_view["open_packfiles_list"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_containing_folder, shortcuts.tree_view["open_containing_folder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_with_external_program, shortcuts.tree_view["open_with_external_program"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_in_multi_view, shortcuts.tree_view["open_in_multi_view"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_notes, shortcuts.tree_view["open_notes"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_check_tables, shortcuts.tree_view["check_tables"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_merge_tables, shortcuts.tree_view["merge_tables"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_global_search, shortcuts.tree_view["global_search"].to_owned()));
 
 	actions
 }
 
 /// This function loads the entire set of available and enabled actions to the Command Palette.
-pub fn load_actions(app_ui: &AppUI) {
+pub fn load_actions(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) {
 	unsafe { app_ui.command_palette_completer_model.as_mut().unwrap().clear(); }
 	let and = QString::from_std_str(THE_UNHOLY_ONE);
 
-	for (mut action_name, action_shortcut) in get_actions(app_ui).iter_mut()
+	for (mut action_name, action_shortcut) in get_actions(app_ui, pack_file_contents_ui).iter_mut()
 		.filter(|x| unsafe { x.0.as_mut().unwrap().is_enabled() })
 		.map(|x| (unsafe { x.0.as_mut().unwrap().text() }, x.1.to_owned())) {
 
@@ -150,9 +154,9 @@ pub fn load_actions(app_ui: &AppUI) {
 }
 
 /// This function executes the action provided (if exists).
-pub fn exec_action(app_ui: &AppUI, action_name: &QString) {
+pub fn exec_action(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, action_name: &QString) {
 	let and = QString::from_std_str(THE_UNHOLY_ONE);
-	for (action, _) in get_actions(app_ui) {
+	for (action, _) in get_actions(app_ui, pack_file_contents_ui) {
 		let mut name = unsafe { action.as_ref().unwrap().text() };
 		name.remove(&and);
 		if QString::compare(&name, action_name) == 0 {

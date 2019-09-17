@@ -160,6 +160,8 @@ mod main_extra;
 mod ui;
 */
 mod app_ui;
+mod global_search_ui;
+mod packfile_contents_ui;
 mod command_palette;
 mod communications;
 mod background_thread;
@@ -168,6 +170,7 @@ mod locale;
 mod pack_tree;
 mod shortcuts;
 mod settings_ui;
+mod ui;
 mod ui_state;
 mod utils;
 
@@ -335,7 +338,7 @@ fn main() {
     Application::create_and_exit(|app| {
 
 
-        let (app_ui, slots) = AppUI::new();
+        let (ui, slots) = ui::UI::new();
         // Try to load the Schema for this game.
         *SCHEMA.lock().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
 

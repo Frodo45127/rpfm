@@ -52,17 +52,4 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.about_about_qt.as_ref().unwrap().signals().triggered().connect(&slots.about_about_qt); }
     unsafe { app_ui.about_open_manual.as_ref().unwrap().signals().triggered().connect(&slots.about_open_manual); }
     unsafe { app_ui.about_patreon_link.as_ref().unwrap().signals().triggered().connect(&slots.about_patreon_link); }
-
-    //--------------------------------------------------------//
-    // PackFile Contents TreeView's context menu connections.
-    //--------------------------------------------------------//
-    unsafe { app_ui.packfile_contents_tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.packfile_contents_tree_view_expand_all); }
-    unsafe { app_ui.packfile_contents_tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.packfile_contents_tree_view_collapse_all); }
-
-    //--------------------------------------------------------//
-    // Global Search panel connections.
-    //--------------------------------------------------------//
-    unsafe { app_ui.global_search_search_button.as_ref().unwrap().signals().released().connect(&slots.global_search_search); }
-    unsafe { app_ui.global_search_search_line_edit.as_ref().unwrap().signals().return_pressed().connect(&slots.global_search_search); }
-    unsafe { app_ui.global_search_search_line_edit.as_ref().unwrap().signals().text_changed().connect(&slots.global_search_check_regex); }
 }

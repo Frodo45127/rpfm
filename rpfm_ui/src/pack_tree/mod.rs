@@ -39,6 +39,7 @@ use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::pack_tree::icons::IconType;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 
 // This one is needed for initialization on boot, so it has to be public. 
@@ -58,13 +59,13 @@ pub trait PackTree {
     fn expand_treeview_to_item(&self, path: &[String]);
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
-    fn get_items_from_main_treeview_selection(app_ui: &AppUI) -> Vec<*mut StandardItem>;
+    fn get_items_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem>;
 
     /// This function gives you the items selected in the provided `TreeView`.
     fn get_items_from_selection(&self, has_filter: bool) -> Vec<*mut StandardItem>;
 
     /// This function gives you the `TreeViewTypes` of the items selected in the PackFile Content's TreeView.
-    fn get_item_types_from_main_treeview_selection(app_ui: &AppUI) -> Vec<TreePathType>;
+    fn get_item_types_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<TreePathType>;
 
     /// This function gives you the `TreeViewTypes` of the items selected in the provided.
     fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<TreePathType>;
@@ -91,10 +92,10 @@ pub trait PackTree {
     fn get_path_from_index_safe(index: &ModelIndex, model: &StandardItemModel) -> Vec<String>;
 
     /// This function gives you the path of the items selected in the PackFile Content's TreeView.
-    fn get_path_from_main_treeview_selection(app_ui: &AppUI) -> Vec<Vec<String>>;
+    fn get_path_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<Vec<String>>;
 
     /// This function gives you the path it'll have in the PackFile Content's TreeView a file from disk.
-    fn get_path_from_pathbuf(app_ui: &AppUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>>;
+    fn get_path_from_pathbuf(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>>;
     
     /// This function changes the color of an specific item from the PackFile Content's TreeView according to his current state.
     fn paint_specific_item_treeview(item: *mut StandardItem);
@@ -106,7 +107,7 @@ pub trait PackTree {
     /// - Position 20: Type. 1 is File, 2 is Folder, 4 is PackFile.
     /// - Position 21: Status. 0 is untouched, 1 is added, 2 is modified, 3 is added + modified.
     /// In case you don't realise, those are bitmasks.
-    fn update_treeview(&self, has_filter: bool, app_ui: &AppUI, operation: TreeViewOperation);
+    fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation);
 }
 
 /// This enum has the different possible operations we can do in a `TreeView`.
@@ -270,8 +271,8 @@ impl PackTree for *mut TreeView {
         }
     }
 
-    fn get_items_from_main_treeview_selection(app_ui: &AppUI) -> Vec<*mut StandardItem> {
-        let tree_view = unsafe { app_ui.packfile_contents_tree_view.as_mut().unwrap() };
+    fn get_items_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem> {
+        let tree_view = unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap() };
         let filter = unsafe { (tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
         let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_ref().unwrap() };
         
@@ -300,9 +301,9 @@ impl PackTree for *mut TreeView {
         items
     }
 
-    fn get_item_types_from_main_treeview_selection(app_ui: &AppUI) -> Vec<TreePathType> {
-        let items = Self::get_items_from_main_treeview_selection(app_ui);
-        let types = items.iter().map(|x| Self::get_type_from_item(*x, app_ui.packfile_contents_tree_model)).collect();
+    fn get_item_types_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<TreePathType> {
+        let items = Self::get_items_from_main_treeview_selection(app_ui, pack_file_contents_ui);
+        let types = items.iter().map(|x| Self::get_type_from_item(*x, pack_file_contents_ui.packfile_contents_tree_model)).collect();
         types
     }
     
@@ -447,10 +448,10 @@ impl PackTree for *mut TreeView {
         path
     }
 
-    fn get_path_from_main_treeview_selection(app_ui: &AppUI) -> Vec<Vec<String>> {
+    fn get_path_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<Vec<String>> {
 
         // Create the vector to hold the Paths and get the selected indexes of the TreeView.
-        let tree_view = unsafe { app_ui.packfile_contents_tree_view.as_mut().unwrap() };
+        let tree_view = unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap() };
         let filter = unsafe { (tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
         let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_ref().unwrap() };
         let selection_model = unsafe { tree_view.selection_model().as_ref().unwrap() };
@@ -463,7 +464,7 @@ impl PackTree for *mut TreeView {
         paths
     }
 
-    fn get_path_from_pathbuf(app_ui: &AppUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>> {
+    fn get_path_from_pathbuf(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>> {
         let mut paths = vec![];
 
         // If it's a single file, we get his name and push it to the paths vector.
@@ -494,7 +495,7 @@ impl PackTree for *mut TreeView {
         for path in &mut paths {
 
             // Get his base path without the PackFile. This assumes we have only one item selected and ignores the rest.
-            let selected_paths = Self::get_path_from_main_treeview_selection(&app_ui);
+            let selected_paths = Self::get_path_from_main_treeview_selection(pack_file_contents_ui);
             let mut base_path = selected_paths[0].to_vec();
 
             // Combine it with his path to form his full form.
@@ -522,7 +523,7 @@ impl PackTree for *mut TreeView {
         };
     }
 
-    fn update_treeview(&self, has_filter: bool, app_ui: &AppUI, operation: TreeViewOperation) {
+    fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation) {
         let tree_view = unsafe { self.as_ref().unwrap() };
         let filter = if has_filter { unsafe { Some((tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap()) }} else { None };
         let model = if let Some(filter) = filter { unsafe { (filter.source_model() as *mut StandardItemModel).as_mut().unwrap() }} else { unsafe { (tree_view.model() as *mut StandardItemModel).as_mut().unwrap() }};
