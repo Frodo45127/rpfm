@@ -23,6 +23,8 @@ use qt_gui::desktop_services::DesktopServices;
 use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
+use rpfm_error::ErrorKind;
+use rpfm_lib::common::*;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::PATREON_URL;
@@ -77,6 +79,8 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `Game Selected` menu slots.
     //-----------------------------------------------//
+    pub game_selected_open_game_data_folder: SlotBool<'static>,
+    pub game_selected_open_game_assembly_kit_folder: SlotBool<'static>,
     pub change_game_selected: SlotBool<'static>,
 
     //-----------------------------------------------//
@@ -294,6 +298,26 @@ impl AppUISlots {
         // `Game Selected` menu logic.
         //-----------------------------------------------//
 
+        // What happens when we trigger the "Open Game's Data Folder" action.
+        let game_selected_open_game_data_folder = SlotBool::new(move |_| {
+            if let Some(path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+                if open::that(&path).is_err() { 
+                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false); 
+                };
+            }
+            else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false); }
+        });
+
+        // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
+        let game_selected_open_game_assembly_kit_folder = SlotBool::new(move |_| {
+            if let Some(path) = get_game_selected_assembly_kit_path(&*GAME_SELECTED.lock().unwrap()) {
+                if open::that(&path).is_err() {
+                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false); 
+                };
+            }
+            else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false); }
+        });
+
         // What happens when we trigger the "Change Game Selected" action.
         let change_game_selected = SlotBool::new(move |_| {
 
@@ -366,6 +390,8 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `Game Selected` menu slots.
             //-----------------------------------------------//
+            game_selected_open_game_data_folder,
+            game_selected_open_game_assembly_kit_folder,
             change_game_selected,
 
     		//-----------------------------------------------//
