@@ -14,15 +14,24 @@ Module with all the code for managing the UI.
 This module contains the code to manage the main UI and store all his slots.
 !*/
 
+use qt_widgets::main_window::MainWindow;
+
+use qt_gui::icon::Icon;
+
+use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::SUPPORTED_GAMES;
+
 use crate::app_ui;
 use crate::app_ui::AppUI;
 use crate::app_ui::slots::AppUISlots;
+use crate::GAME_SELECTED_ICONS;
 use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
+use crate::QString;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -43,6 +52,20 @@ pub struct Slots {
     pub app_slots: AppUISlots,
     pub pack_file_contents_slots: PackFileContentsSlots,
     pub global_search_slots: GlobalSearchSlots,
+}
+
+/// This struct is used to hold all the Icons used for the window's titlebar.
+pub struct GameSelectedIcons {
+    pub three_kingdoms: Icon,
+    pub warhammer_2: Icon,
+    pub warhammer: Icon,
+    pub thrones_of_britannia: Icon,
+    pub attila: Icon,
+    pub rome_2: Icon,
+    pub shogun_2: Icon,
+    pub napoleon: Icon,
+    pub empire: Icon,
+    pub arena: Icon,
 }
 
 //-------------------------------------------------------------------------------//
@@ -84,5 +107,44 @@ impl UI {
             global_search_slots,
             pack_file_contents_slots
         })
+    }
+}
+
+/// Implementation of `GameSelectedIcons`.
+impl GameSelectedIcons {
+
+    /// This function loads to memory the icons of all the supported games.
+    pub fn new() -> Self {
+        Self {
+            three_kingdoms: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("three_kingdoms").unwrap().game_selected_icon))),
+            warhammer_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("warhammer_2").unwrap().game_selected_icon))),
+            warhammer: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("warhammer").unwrap().game_selected_icon))),
+            thrones_of_britannia: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("thrones_of_britannia").unwrap().game_selected_icon))),
+            attila: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("attila").unwrap().game_selected_icon))),
+            rome_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("rome_2").unwrap().game_selected_icon))),
+            shogun_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("shogun_2").unwrap().game_selected_icon))),
+            napoleon: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("napoleon").unwrap().game_selected_icon))),
+            empire: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("empire").unwrap().game_selected_icon))),
+            arena: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("arena").unwrap().game_selected_icon))),
+        }
+    }
+
+    /// This function sets the main window icon according to the currently selected game.
+    pub fn set_game_selected_icon(main_window: *mut MainWindow) {
+        let main_window = unsafe { main_window.as_mut().unwrap() };
+        let icon = match &**GAME_SELECTED.lock().unwrap() {
+            "three_kingdoms" => &GAME_SELECTED_ICONS.three_kingdoms,
+            "warhammer_2" => &GAME_SELECTED_ICONS.warhammer_2,
+            "warhammer" => &GAME_SELECTED_ICONS.warhammer,
+            "thrones_of_britannia" => &GAME_SELECTED_ICONS.thrones_of_britannia,
+            "attila" => &GAME_SELECTED_ICONS.attila,
+            "rome_2" => &GAME_SELECTED_ICONS.rome_2,
+            "shogun_2" => &GAME_SELECTED_ICONS.shogun_2,
+            "napoleon" => &GAME_SELECTED_ICONS.napoleon,
+            "empire" => &GAME_SELECTED_ICONS.empire,
+            "arena" => &GAME_SELECTED_ICONS.arena,
+            _ => unimplemented!(),
+        };
+        main_window.set_window_icon(icon);
     }
 }

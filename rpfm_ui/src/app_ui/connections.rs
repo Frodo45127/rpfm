@@ -47,6 +47,20 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.view_toggle_global_search_panel.as_ref().unwrap().signals().triggered().connect(&slots.view_toggle_global_search_panel); }
     
     //-----------------------------------------------//
+    // `Game Selected` menu connections.
+    //-----------------------------------------------//
+    unsafe { app_ui.game_selected_three_kingdoms.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_warhammer_2.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_warhammer.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_thrones_of_britannia.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_attila.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_rome_2.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_shogun_2.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_napoleon.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_empire.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+    unsafe { app_ui.game_selected_arena.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
+
+    //-----------------------------------------------//
     // `About` menu connections.
     //-----------------------------------------------//
     unsafe { app_ui.about_about_qt.as_ref().unwrap().signals().triggered().connect(&slots.about_about_qt); }

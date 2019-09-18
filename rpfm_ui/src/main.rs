@@ -32,6 +32,7 @@
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
 
+use crate::ui::GameSelectedIcons;
 use rpfm_lib::SCHEMA;
 use crate::pack_tree::icons::Icons;
 use crate::ui_state::UIState;
@@ -190,6 +191,9 @@ lazy_static! {
 
     /// Icons for the PackFile TreeView.
     static ref TREEVIEW_ICONS: Icons = Icons::new();
+
+    /// Icons for the `Game Selected` in the TitleBar.
+    static ref GAME_SELECTED_ICONS: GameSelectedIcons = GameSelectedIcons::new();
 
     /// Bright and dark palettes of colours for Windows.
     /// The dark one is taken from here: https://gist.github.com/QuantumCD/6245215

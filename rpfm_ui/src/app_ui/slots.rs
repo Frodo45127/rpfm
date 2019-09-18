@@ -12,7 +12,6 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
-
 use qt_widgets::action::Action;
 use qt_widgets::completer::Completer;
 use qt_widgets::file_dialog::{FileDialog, FileMode};
@@ -40,6 +39,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::settings_ui::SettingsUI;
+use crate::ui::GameSelectedIcons;
 
 use crate::UI_STATE;
 use crate::utils::show_dialog;
@@ -73,6 +73,11 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub view_toggle_packfile_contents: SlotBool<'static>,
     pub view_toggle_global_search_panel: SlotBool<'static>,
+
+    //-----------------------------------------------//
+    // `Game Selected` menu slots.
+    //-----------------------------------------------//
+    pub change_game_selected: SlotBool<'static>,
 
     //-----------------------------------------------//
     // `About` menu slots.
@@ -285,6 +290,42 @@ impl AppUISlots {
             else {unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().show(); }}
         });
 
+        //-----------------------------------------------//
+        // `Game Selected` menu logic.
+        //-----------------------------------------------//
+
+        // What happens when we trigger the "Change Game Selected" action.
+        let change_game_selected = SlotBool::new(move |_| {
+
+                // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
+                let mut new_game_selected = unsafe { app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap().text().to_std_string() };
+                if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
+                let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
+
+                // Disable the Main Window (so we can't do other stuff).
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
+                CENTRAL_COMMAND.send_message_qt(Command::SetGameSelected(new_game_selected));
+                UI_STATE.set_mymod_menu_needs_rebuild(true);
+
+                // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
+                app_ui.enable_packfile_actions(false);
+                if unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_ref().unwrap().row_count(()) } != 0 { 
+                    app_ui.enable_packfile_actions(true); 
+                }
+
+                // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+                UI_STATE.set_operational_mode(&app_ui, None);
+
+                // Re-enable the Main Window.
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                // Change the GameSelected Icon. Disabled until we find better icons.
+                GameSelectedIcons::set_game_selected_icon(app_ui.main_window);
+            }
+        );
+
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
@@ -321,6 +362,11 @@ impl AppUISlots {
             //-----------------------------------------------//
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
+
+            //-----------------------------------------------//
+            // `Game Selected` menu slots.
+            //-----------------------------------------------//
+            change_game_selected,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.

@@ -36,9 +36,7 @@ use qt_core::flags::Flags;
 use qt_core::object::Object;
 use qt_core::qt::CaseSensitivity;
 
-
 use crate::ffi::new_tableview_command_palette;
-
 use crate::locale::tr;
 use crate::QString;
 use crate::RPFM_PATH;
@@ -131,6 +129,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // `MyMod` menu.
     //-------------------------------------------------------------------------------//
+    pub mymod_new: *mut Action,
     pub mymod_delete_selected: *mut Action,
     pub mymod_install: *mut Action,
     pub mymod_uninstall: *mut Action,
@@ -366,11 +365,13 @@ impl Default for AppUI {
 
         // Populate the `Game Selected` menu.
         let menu_bar_mymod_ref_mut = unsafe { menu_bar_mymod.as_mut().unwrap() };
+        let mymod_new = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&New MyMod"));
         let mymod_delete_selected = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Delete Selected MyMod"));
         let mymod_install = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Install"));
         let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Uninstall"));
 
         // Disable all the Contextual Menu actions by default.
+        unsafe { mymod_new.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_delete_selected.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_install.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_uninstall.as_mut().unwrap().set_enabled(false); }
@@ -560,6 +561,7 @@ impl Default for AppUI {
             //-------------------------------------------------------------------------------//
             // `MyMod` menu.
             //-------------------------------------------------------------------------------//
+            mymod_new,
             mymod_delete_selected,
             mymod_install,
             mymod_uninstall,

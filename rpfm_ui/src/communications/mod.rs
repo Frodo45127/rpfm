@@ -79,6 +79,9 @@ pub enum Command {
 
     /// This command is used when we want to perform an update over a `Global Search`. It requires the search info.
     GlobalSearchUpdate(GlobalSearch, Vec<PathType>),
+    
+    /// This command is used when we want to change the `Game Selected`. It contains the name of the game to select.
+    SetGameSelected(String),
     /*
     OpenPackFileExtra,
     SavePackFile,

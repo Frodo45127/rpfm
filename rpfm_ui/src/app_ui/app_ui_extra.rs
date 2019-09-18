@@ -16,26 +16,27 @@ they're here and not in the main file is because I don't want to polute that one
 as it's mostly meant for initialization and configuration.
 !*/
 
-use qt_widgets::menu::Menu;
+
 use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::widget::Widget;
 
 use qt_core::object::Object;
 
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 
 use rpfm_error::Result;
+
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
+use rpfm_lib::SETTINGS;
 
+use super::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
-use super::{AppUI, slots::AppUISlots, connections, shortcuts, tips};
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -291,5 +292,157 @@ impl AppUI {
 
         // Return success.
         Ok(())
+    }
+
+    /// This function enables/disables the actions on the main window, depending on the current state of the Application.
+    ///
+    /// You have to pass `enable = true` if you are trying to enable actions, and `false` to disable them.
+    pub fn enable_packfile_actions(&self, enable: bool) {
+
+        // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
+        if &**GAME_SELECTED.lock().unwrap() == "arena" {
+
+            // Disable the actions that allow to create and save PackFiles.
+            unsafe { self.packfile_new_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.packfile_save_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.packfile_save_packfile_as.as_mut().unwrap().set_enabled(false); }
+
+            // This one too, though we had to deal with it specially later on.
+            unsafe { self.mymod_new.as_mut().unwrap().set_enabled(false); }
+        }
+
+        // Otherwise...
+        else {
+
+            // Enable or disable the actions from "PackFile" Submenu.
+            unsafe { self.packfile_new_packfile.as_mut().unwrap().set_enabled(true); }
+            unsafe { self.packfile_save_packfile.as_mut().unwrap().set_enabled(enable); }
+            unsafe { self.packfile_save_packfile_as.as_mut().unwrap().set_enabled(enable); }
+
+            // If there is a "MyMod" path set in the settings...
+            if let Some(ref path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+
+                // And it's a valid directory, enable the "New MyMod" button.
+                if path.is_dir() { unsafe { self.mymod_new.as_mut().unwrap().set_enabled(true); }}
+
+                // Otherwise, disable it.
+                else { unsafe { self.mymod_new.as_mut().unwrap().set_enabled(false); }}
+            }
+
+            // Otherwise, disable it.
+            else { unsafe { self.mymod_new.as_mut().unwrap().set_enabled(false); }}
+        }
+
+        // These actions are common, no matter what game we have.    
+        unsafe { self.change_packfile_type_group.as_mut().unwrap().set_enabled(enable); }
+        unsafe { self.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_enabled(enable); }
+
+        // If we are enabling...
+        if enable {
+
+            // Check the Game Selected and enable the actions corresponding to out game.
+            match &**GAME_SELECTED.lock().unwrap() {
+                "three_kingdoms" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_three_k_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_three_k_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+                },
+                "warhammer_2" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_wh2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+                },
+                "warhammer" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+                    unsafe { self.special_stuff_wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_wh_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+                },
+                "thrones_of_britannia" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+                    unsafe { self.special_stuff_tob_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_tob_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+                },
+                "attila" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+                    unsafe { self.special_stuff_att_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_att_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+                },
+                "rome_2" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+                    unsafe { self.special_stuff_rom2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_rom2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+                },
+                "shogun_2" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+                    unsafe { self.special_stuff_sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                    unsafe { self.special_stuff_sho2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
+                },
+                "napoleon" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+                    unsafe { self.special_stuff_nap_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                },
+                "empire" => {
+                    unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+                    unsafe { self.special_stuff_emp_optimize_packfile.as_mut().unwrap().set_enabled(true); }
+                },
+                _ => {},
+            }
+        }
+
+        // If we are disabling...
+        else {
+
+            // Universal Actions.
+            unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Three Kingdoms actions...
+            unsafe { self.special_stuff_three_k_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_three_k_generate_pak_file.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Warhammer 2 actions...
+            unsafe { self.special_stuff_wh2_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_wh2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_wh2_generate_pak_file.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Warhammer actions...
+            unsafe { self.special_stuff_wh_patch_siege_ai.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_wh_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_wh_generate_pak_file.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Thrones of Britannia actions...
+            unsafe { self.special_stuff_tob_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_tob_generate_pak_file.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Attila actions...
+            unsafe { self.special_stuff_att_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_att_generate_pak_file.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Rome 2 actions...
+            unsafe { self.special_stuff_rom2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_rom2_generate_pak_file.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Shogun 2 actions...
+            unsafe { self.special_stuff_sho2_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            unsafe { self.special_stuff_sho2_generate_pak_file.as_mut().unwrap().set_enabled(false); }
+
+            // Disable Napoleon actions...
+            unsafe { self.special_stuff_nap_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+            
+            // Disable Empire actions...
+            unsafe { self.special_stuff_emp_optimize_packfile.as_mut().unwrap().set_enabled(false); }
+        }
+
+        // The assembly kit thing should only be available for Rome 2 and later games.
+        match &**GAME_SELECTED.lock().unwrap() {
+            "three_kingdoms" |
+            "warhammer_2" |
+            "warhammer" |
+            "thrones_of_britannia" |
+            "attila" |
+            "rome_2" => unsafe { self.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(true); }
+            _ => unsafe { self.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(false); }
+        }
     }
 }

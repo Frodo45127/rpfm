@@ -163,7 +163,7 @@ impl DB {
     /// - `mysterious_byte`: don't know.
     /// - `entry_count`: amount of entries this `DB` has.
     /// - `index`: position where the header ends. Useful if you want to decode the data of the `DB` after this.
-    pub fn get_header(packed_file_data:&[u8]) -> Result<(i32, bool, u32, usize)> {
+    pub fn get_header(packed_file_data: &[u8]) -> Result<(i32, bool, u32, usize)> {
 
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
@@ -232,6 +232,11 @@ impl DB {
     /// This function returns a copy of the entries of this DB Table.
     pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
         self.entries.to_vec()
+    }
+
+    /// This function returns the amount of entries in this DB Table.
+    pub fn get_entry_count(&self) -> usize {
+        self.entries.len()
     }
 
     /// This function replaces the definition of this table with the one provided.

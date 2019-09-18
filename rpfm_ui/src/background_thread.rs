@@ -8,42 +8,30 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// Here should go just the Background loop.
+/*!
+Module with the background loop.
 
-//use crate::communications::THREADS_MESSAGE_ERROR;
-//use crate::communications::check_message_validity_recv;
-use crate::communications::{Command, Response};
-use crate::CENTRAL_COMMAND;
-use std::collections::BTreeMap;
-use std::env::temp_dir;
-use std::sync::mpsc::{Sender, Receiver};
-use std::path::PathBuf;
-use std::fs::{DirBuilder, File};
+Basically, this does the heavy load of the program.
+!*/
+
+use std::fs::File;
 use std::io::{BufWriter, Write};
-//use std::process::Command;
-use regex::Regex;
+use std::path::PathBuf;
 
-//use rpfm_lib::common::coding_helpers::*;
-
-use rpfm_error::{Error, ErrorKind};
-use rpfm_lib::packfile::{PackFile, PackFileInfo, PFHFlags};
-use rpfm_lib::packedfile::*;
-//use rpfm_lib::packedfile::loc::*;
-//use rpfm_lib::packedfile::db::*;
-use rpfm_lib::packedfile::rigidmodel::*;
-use rpfm_lib::schema::*;
-//use rpfm_lib::schema::assembly_kit::*;
-//use rpfm_lib::updater::*;
-
-use rpfm_lib::common::*;
-use crate::RPFM_PATH;
-use rpfm_lib::SUPPORTED_GAMES;
-use rpfm_lib::SETTINGS;
-use rpfm_lib::SCHEMA;
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
-use crate::GlobalMatch;
+use rpfm_lib::packedfile::*;
+use rpfm_lib::packedfile::table::db::DB;
+use rpfm_lib::packfile::{PackFile, PackFileInfo};
+use rpfm_lib::schema::*;
+use rpfm_lib::SCHEMA;
+use rpfm_lib::SETTINGS;
+use rpfm_lib::SUPPORTED_GAMES;
+
+use crate::CENTRAL_COMMAND;
+use crate::communications::{Command, Response};
+use crate::RPFM_PATH;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -143,13 +131,55 @@ pub fn background_loop() {
                 global_search.update(&mut pack_file_decoded, &path_types);
                 CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
             }
+
+            // In case we want to change the current `Game Selected`...
+            Command::SetGameSelected(game_selected) => {
+                *GAME_SELECTED.lock().unwrap() = game_selected.to_owned();
+
+                // Try to load the Schema for this game.
+                *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
+
+                // Change the `dependency_database` for that game.
+                *DEPENDENCY_DATABASE.lock().unwrap() = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
+
+                // Change the `fake dependency_database` for that game.
+                *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = DB::read_pak_file();
+
+                // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
+                if !pack_file_decoded.get_file_name().is_empty() { 
+                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version); 
+                }
+
+                // Test to see if every DB Table can be decoded. This is slow and only useful when
+                // a new patch lands and you want to know what tables you need to decode. So, unless you want 
+                // to decode new tables, leave the setting as false.
+                if SETTINGS.lock().unwrap().settings_bool["check_for_missing_table_definitions"] {
+                    let mut counter = 0;
+                    let mut table_list = String::new();
+                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                        for packed_file in pack_file_decoded.get_ref_mut_packed_files_by_path_start(&["db".to_owned()]) {
+                            match packed_file.decode_return_ref_no_locks(schema) {
+                                Ok(data) => {
+                                    if let DecodedPackedFile::DB(data) = data {
+                                        if data.get_entry_count() > 0 {
+                                            counter += 1;
+                                            table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_ref_raw().get_path()))
+                                        }
+                                    }
+                                }
+                                Err(_) => table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_ref_raw().get_path())),
+                            }
+                        }
+                    }
+                    
+                    // Try to save the file.
+                    let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
+                    let mut file = BufWriter::new(File::create(path).unwrap());
+                    file.write_all(table_list.as_bytes()).unwrap();
+                }
+            }
         }
     }
-
-
-
-
-
 
 
 /*
