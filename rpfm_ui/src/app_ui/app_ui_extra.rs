@@ -46,7 +46,7 @@ use crate::UI_STATE;
 impl AppUI {
 
     /// This function takes care of updating the Main Window's title to reflect the current state of the program.
-    fn update_window_title(&self, packfile_contents_ui: &PackFileContentsUI) {
+    pub fn update_window_title(&self, packfile_contents_ui: &PackFileContentsUI) {
 
         // First check if we have a PackFile open. If not, just leave the default title.
         let model = unsafe { packfile_contents_ui.packfile_contents_tree_model.as_ref().unwrap() };

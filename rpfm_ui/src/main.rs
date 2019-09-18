@@ -237,7 +237,7 @@ lazy_static! {
     };
 
     /// Stylesheet used by the dark theme in Windows.
-    //static ref DARK_STYLESHEET: String = create_dark_theme_stylesheet();
+    static ref DARK_STYLESHEET: String = utils::create_dark_theme_stylesheet();
 
     // Colors used all over the program for theming and stuff.
     static ref MEDIUM_DARK_GREY: &'static str = "333333";            // Medium-Dark Grey. The color of the background of the Main Window.
@@ -342,7 +342,7 @@ fn main() {
     Application::create_and_exit(|app| {
 
 
-        let (ui, slots) = ui::UI::new();
+        let (ui, slots) = ui::UI::new(app);
         // Try to load the Schema for this game.
         *SCHEMA.lock().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
 

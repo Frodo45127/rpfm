@@ -480,10 +480,8 @@ impl Default for AppUI {
         let about_patreon_link = menu_bar_about_ref_mut.add_action(&QString::from_std_str("&Support me on Patreon"));
         let about_check_updates = menu_bar_about_ref_mut.add_action(&QString::from_std_str("&Check Updates"));
         let about_check_schema_updates = menu_bar_about_ref_mut.add_action(&QString::from_std_str("Check Schema &Updates"));
-
-        // Show the window.
+        
         command_palette_widget.hide();
-        main_window.show();
 
         // Create ***Da monsta***.
         AppUI {

@@ -14,24 +14,38 @@ Module with all the code for managing the UI.
 This module contains the code to manage the main UI and store all his slots.
 !*/
 
+use qt_widgets::application::Application;
 use qt_widgets::main_window::MainWindow;
+use qt_widgets::widget::Widget;
 
 use qt_gui::icon::Icon;
 
+use qt_core::flags::Flags;
+use qt_core::qt::WindowState;
+
+use std::env::args;
+use std::path::PathBuf;
+
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui;
 use crate::app_ui::AppUI;
 use crate::app_ui::slots::AppUISlots;
+use crate::DARK_PALETTE;
+use crate::DARK_STYLESHEET;
 use crate::GAME_SELECTED_ICONS;
 use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
+use crate::LIGHT_PALETTE;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
 use crate::QString;
+use crate::UI_STATE;
+use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -76,7 +90,7 @@ pub struct GameSelectedIcons {
 impl UI {
 
     /// This function initialize the entire `UI`.
-    pub fn new() -> (Self, Slots) {
+    pub fn new(app: &mut Application) -> (Self, Slots) {
         let app_ui = AppUI::default();
         let global_search_ui = GlobalSearchUI::new(app_ui.main_window);
         let pack_file_contents_ui = PackFileContentsUI::new(app_ui.main_window);
@@ -96,6 +110,80 @@ impl UI {
         packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
         packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);
         packfile_contents_ui::shortcuts::set_shortcuts(&pack_file_contents_ui);
+
+        // Here we also initialize the UI.
+        app_ui.update_window_title(&pack_file_contents_ui);
+        UI_STATE.set_operational_mode(&app_ui, None);
+
+        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+        match &*game_selected {
+            "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+            "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+            "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
+            "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+            "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
+            "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
+            "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+            "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
+            "empire" => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
+            "arena" | _ => unsafe { app_ui.game_selected_arena.as_mut().unwrap().trigger(); }
+        }
+
+
+        // Show the Main Window...
+        unsafe { app_ui.main_window.as_mut().unwrap().show(); }
+
+        // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
+        // in which case, we automatically try to open it.
+        let args = args().collect::<Vec<String>>();
+        if args.len() > 1 {
+            let path = PathBuf::from(&args[1]);
+            if path.is_file() {
+                if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &[path], "") { 
+                    show_dialog(app_ui.main_window as *mut Widget, error, false); 
+                }
+            }
+        }
+
+        // If we want the window to start maximized...
+        if SETTINGS.lock().unwrap().settings_bool["start_maximized"] { 
+            unsafe { (app_ui.main_window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); } 
+        }
+
+        // If we want to use the dark theme (Only in windows)...
+        if cfg!(target_os = "windows") {
+            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { 
+                Application::set_style(&QString::from_std_str("fusion"));
+                Application::set_palette(&DARK_PALETTE);
+                app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
+            } else { 
+                Application::set_style(&QString::from_std_str("windowsvista"));
+                Application::set_palette(&LIGHT_PALETTE);
+            }
+        }
+
+        // If we have it enabled in the prefs, check if there are updates.
+        //if SETTINGS.lock().unwrap().settings_bool["check_updates_on_start"] { check_updates(&app_ui, false) };
+
+        // If we have it enabled in the prefs, check if there are schema updates.
+        //if SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"] { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };
+
+        // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
+        //if GENERATE_NEW_SCHEMA {
+
+            // These are the paths needed for the new schemas. First one should be `assembly_kit/raw_data/db`.
+            // The second one should contain all the tables of the game, extracted directly from `data.pack`.
+            //let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_raw");
+            //let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_bin/");
+            //match import_schema(Schema::load("schema_wh.json").ok(), &assembly_kit_schemas_path, &testing_tables_path) {
+                //Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
+                //Err(error) => show_dialog(app_ui.window, false, error),
+            //}
+
+            // Close the program with code 69
+            //return 69
+        //}
+
         
         (Self {
             app_ui,
