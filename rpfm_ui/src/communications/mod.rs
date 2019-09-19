@@ -82,6 +82,16 @@ pub enum Command {
     
     /// This command is used when we want to change the `Game Selected`. It contains the name of the game to select.
     SetGameSelected(String),
+
+    /// This command is used when we want to generate a PAK file for the currently selected game. It contains the path of the
+    /// source files and the `Raw DB Version` of the currently selected game.
+    GeneratePakFile(PathBuf, i16),
+
+    /// This command is used when we want to trigger an optimization pass over the currently open `PackFile`.
+    OptimizePackFile,
+
+    /// This command is used to patch the SiegeAI of a Siege Map for warhammer games.
+    PatchSiegeAI,
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -167,11 +177,17 @@ pub enum Response {
     /// Respone to return (PackFileInfo).
     PackFileInfo(PackFileInfo),
 
-    /// Response to return (<Vec<PackedFileInfo>).
+    /// Response to return (Vec<Option<PackedFileInfo>>).
     VecOptionPackedFileInfo(Vec<Option<PackedFileInfo>>),
 
     /// Response to return (GlobalSearch).
     GlobalSearch(GlobalSearch),
+
+    /// Response to return (Vec<Vec<String>>).
+    VecVecString(Vec<Vec<String>>),
+
+    /// Response to return (String, Vec<Vec<String>>).
+    StringVecVecString((String, Vec<Vec<String>>))
 /*
     Bool(bool),
     I32(i32),

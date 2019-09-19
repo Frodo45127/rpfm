@@ -14,7 +14,7 @@ Module with all the code related to the main `AppUISlot`.
 
 use qt_widgets::action::Action;
 use qt_widgets::completer::Completer;
-use qt_widgets::file_dialog::{FileDialog, FileMode};
+use qt_widgets::file_dialog::{FileDialog, FileMode, Option::ShowDirsOnly};
 use qt_widgets::message_box::MessageBox;
 use qt_widgets::widget::Widget;
 
@@ -29,6 +29,7 @@ use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
+use rpfm_lib::SUPPORTED_GAMES;
 
 use std::path::PathBuf;
 
@@ -40,6 +41,7 @@ use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
 use crate::ui::GameSelectedIcons;
 
@@ -82,6 +84,13 @@ pub struct AppUISlots {
     pub game_selected_open_game_data_folder: SlotBool<'static>,
     pub game_selected_open_game_assembly_kit_folder: SlotBool<'static>,
     pub change_game_selected: SlotBool<'static>,
+
+    //-----------------------------------------------//
+    // `Special Stuff` menu slots.
+    //-----------------------------------------------//
+    pub special_stuff_generate_pak_file: SlotBool<'static>,
+    pub special_stuff_optimize_packfile: SlotBool<'static>,
+    pub special_stuff_patch_siege_ai: SlotBool<'static>,
 
     //-----------------------------------------------//
     // `About` menu slots.
@@ -350,6 +359,143 @@ impl AppUISlots {
             }
         );
 
+        //-----------------------------------------------------//
+        // `Special Stuff` menu logic.
+        //-----------------------------------------------------//
+
+        // What happens when we trigger the "Generate Pak File" action.
+        let special_stuff_generate_pak_file = SlotBool::new(move |_| {
+
+                // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
+                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
+                let path = match version {
+
+                    // Post-Shogun 2 games.
+                    2 => {
+                        let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone().unwrap();
+                        path.push("assembly_kit");
+                        path.push("raw_data");
+                        path.push("db");
+                        path
+                    }
+
+                    // Shogun 2.
+                    1 => {
+
+                        // Create the FileDialog to get the path of the Assembly Kit.
+                        let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                            app_ui.main_window as *mut Widget,
+                            &QString::from_std_str("Select Assembly Kit's Folder"),
+                        )) };
+
+                        // Set it to only search Folders.
+                        file_dialog.set_file_mode(FileMode::Directory);
+                        file_dialog.set_option(ShowDirsOnly);
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        let mut path = if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        } else { PathBuf::from("") };
+                        path.push("raw_data");
+                        path.push("db");
+                        path
+                    }
+
+                    // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
+                    0 => {
+
+                        // Create the FileDialog to get the path of the Assembly Kit.
+                        let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                            app_ui.main_window as *mut Widget,
+                            &QString::from_std_str("Select Raw DB Folder"),
+                        )) };
+
+                        // Set it to only search Folders.
+                        file_dialog.set_file_mode(FileMode::Directory);
+                        file_dialog.set_option(ShowDirsOnly);
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        } else { PathBuf::from("") }
+                    }
+
+                    // For any other game, return an empty path.
+                    _ => PathBuf::new(),
+                };
+
+                if path.file_name().is_some() {
+
+                    // If there is no problem, ere we go.
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                    CENTRAL_COMMAND.send_message_qt(Command::GeneratePakFile(path, version));
+                    match CENTRAL_COMMAND.recv_message_qt_try() {
+                        Response::Success => show_dialog(app_ui.main_window as *mut Widget, "PAK File succesfully created and reloaded.", true),
+                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    }
+                    
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                }
+                else {
+                    show_dialog(app_ui.main_window as *mut Widget, "This operation is not supported for the Game Selected.", false);
+                }
+            }
+        );
+
+        // What happens when we trigger the "Optimize PackFile" action.
+        let special_stuff_optimize_packfile = SlotBool::new(move |_| {
+
+                // This cannot be done if there is a PackedFile open. Well, can be done, but it's a pain in the ass to do it.
+                if !UI_STATE.get_open_packedfiles().is_empty() { 
+                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::OperationNotAllowedWithPackedFileOpen, false); 
+                }
+            
+                // If there is no problem, ere we go.
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
+                match CENTRAL_COMMAND.recv_message_qt_try() {
+                    Response::VecVecString(response) => {
+                        let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
+                        show_dialog(app_ui.main_window as *mut Widget, "PackFile optimized.", true);
+
+                        // Update the global search stuff, if needed.
+                        //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+                    }
+                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                }
+
+                // Re-enable the Main Window.
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        );
+
+        // What happens when we trigger the "Patch Siege AI" action.
+        let special_stuff_patch_siege_ai = SlotBool::new(move |_| {
+
+                // Ask the background loop to patch the PackFile, and wait for a response.
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                CENTRAL_COMMAND.send_message_qt(Command::PatchSiegeAI);
+                match CENTRAL_COMMAND.recv_message_qt_try() {
+                    Response::StringVecVecString(response) => {
+                        let message = response.0;
+                        let paths = response.1.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();;
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths));
+                        show_dialog(app_ui.main_window as *mut Widget, &message, true);
+                    }
+
+                    // If the PackFile is empty or is not patchable, report it. Otherwise, praise the nine divines.
+                    Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                    _ => panic!(THREADS_COMMUNICATION_ERROR)
+                }
+
+                // Re-enable the Main Window.
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        );
+
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
@@ -393,6 +539,13 @@ impl AppUISlots {
             game_selected_open_game_data_folder,
             game_selected_open_game_assembly_kit_folder,
             change_game_selected,
+
+            //-----------------------------------------------//
+            // `Special Stuff` menu slots.
+            //-----------------------------------------------//
+            special_stuff_generate_pak_file,
+            special_stuff_optimize_packfile,
+            special_stuff_patch_siege_ai,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.

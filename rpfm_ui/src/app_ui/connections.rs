@@ -64,6 +64,30 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.game_selected_arena.as_ref().unwrap().signals().triggered().connect(&slots.change_game_selected); }
 
     //-----------------------------------------------//
+    // `Special Stuff` menu connections.
+    //-----------------------------------------------//
+    unsafe { app_ui.special_stuff_wh2_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_patch_siege_ai); }
+    unsafe { app_ui.special_stuff_wh_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_patch_siege_ai); }
+
+    unsafe { app_ui.special_stuff_three_k_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_wh2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_wh_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_tob_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_att_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_rom2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_sho2_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_nap_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+    unsafe { app_ui.special_stuff_emp_optimize_packfile.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_optimize_packfile); }
+
+    unsafe { app_ui.special_stuff_three_k_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_generate_pak_file); }
+    unsafe { app_ui.special_stuff_wh2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_generate_pak_file); }
+    unsafe { app_ui.special_stuff_wh_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_generate_pak_file); }
+    unsafe { app_ui.special_stuff_tob_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_generate_pak_file); }
+    unsafe { app_ui.special_stuff_att_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_generate_pak_file); }
+    unsafe { app_ui.special_stuff_rom2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_generate_pak_file); }
+    unsafe { app_ui.special_stuff_sho2_generate_pak_file.as_ref().unwrap().signals().triggered().connect(&slots.special_stuff_generate_pak_file); }
+
+    //-----------------------------------------------//
     // `About` menu connections.
     //-----------------------------------------------//
     unsafe { app_ui.about_about_qt.as_ref().unwrap().signals().triggered().connect(&slots.about_about_qt); }

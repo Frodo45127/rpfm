@@ -846,7 +846,7 @@ impl PackTree for *mut TreeView {
                     }
                 }
             },
-/*
+
             // If we want to delete something from the TreeView...
             // NOTE: You're responsible of removing redundant types from here BEFORE passing them here for deletion.
             TreeViewOperation::Delete(path_types) => {
@@ -856,34 +856,23 @@ impl PackTree for *mut TreeView {
                         // Different types require different methods...
                         TreePathType::File(path) => {
 
-                            // Get the PackFile's item and the one we're gonna swap around.
-                            let packfile = unsafe { model.as_ref().unwrap().item(0) };
-                            let mut item = unsafe { model.as_ref().unwrap().item(0) };
-
-                            // And the indexes to see how deep we must go.
+                            // Get the PackFile's item and the one we're gonna swap around, and the info to see how deep must we go.
+                            let packfile = unsafe { model.item(0).as_ref().unwrap() };
+                            let mut item = unsafe { model.item(0).as_ref().unwrap() };
                             let mut index = 0;
                             let path_deep = path.len();
 
                             // First looping downwards.
                             loop {
 
-                                // If we reached the folder of the file...
+                                // If we reached the folder of the file, search through all his children for the file we want.
                                 if index == (path_deep - 1) {
+                                    for row in 0..item.row_count() {
+                                        let child = unsafe { item.child(row).as_ref().unwrap() };
+                                        if child.data(20).to_int() == 2 { continue }
 
-                                    // Get the amount of children of the current item.
-                                    let children_count = unsafe { item.as_ref().unwrap().row_count() };
-
-                                    // For each children we have, check if it has children of his own.
-                                    // We want a file, so skip the folders.
-                                    for row in 0..children_count {
-                                        let child = unsafe { item.as_ref().unwrap().child(row) };
-                                        if unsafe { child.as_ref().unwrap().data(20).to_int() == 2 } { continue }
-
-                                        // If we found one with children, check if it's the one we want.
-                                        let text = unsafe { child.as_ref().unwrap().text().to_std_string() };
-                                        if text == path[index] {
-
-                                            // If it is, we're done.
+                                        // If we found it, we're done.
+                                        if child.text().to_std_string() == path[index] {
                                             item = child;
                                             break;
                                         }
@@ -893,21 +882,14 @@ impl PackTree for *mut TreeView {
                                     break;
                                 }
 
-                                // If we are not still in the folder of the file...
+                                // If we are not still in the folder of the file, search the next folder of the path, and get it as new item.
                                 else {
+                                    for row in 0..item.row_count() {
+                                        let child = unsafe { item.child(row).as_ref().unwrap() };
+                                        if child.data(20).to_int() == 1 { continue }
 
-                                    // For each children we have, check if it has children of his own.
-                                    // We want a folder, so skip the files.
-                                    let children_count = unsafe { item.as_ref().unwrap().row_count() };
-                                    for row in 0..children_count {
-                                        let child = unsafe { item.as_ref().unwrap().child(row) };
-                                        if unsafe { child.as_ref().unwrap().data(20).to_int() == 1 } { continue }
-
-                                        // If we found one with children, check if it's the one we want.
-                                        let text = unsafe { child.as_ref().unwrap().text().to_std_string() };
-                                        if text == path[index] {
-
-                                            // If it is, that's out new good boy.
+                                        // If we found one with children, check if it's the one we want. If it is, that's out new good boy.
+                                        if child.text().to_std_string() == path[index] {
                                             item = child;
                                             index += 1;
                                             break;
@@ -923,40 +905,33 @@ impl PackTree for *mut TreeView {
                             loop {
 
                                 // Get the parent of the item, and kill the item in a cruel way.
-                                unsafe { parent = item.as_mut().unwrap().parent(); }
-                                unsafe { parent.as_mut().unwrap().remove_row(item.as_mut().unwrap().row()); }
-                                unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21)); }
-                                if !unsafe { parent.as_mut().unwrap().data(22).to_bool() } == false {
-                                    unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
+                                unsafe { parent = item.parent().as_mut().unwrap(); }
+                                parent.remove_row(item.row());
+                                parent.set_data((&Variant::new0(2i32), 21));
+                                if !parent.data(22).to_bool() == false {
+                                    parent.set_data((&Variant::new0(true), 22));
                                 }
 
-                                // Check if the parent and the PackFile still has children.
-                                let has_children = unsafe { parent.as_mut().unwrap().has_children() };
-                                let packfile_has_children = unsafe { packfile.as_ref().unwrap().has_children() };
-
                                 // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
-                                if has_children | !packfile_has_children { break; }
+                                if parent.has_children() || !packfile.has_children() { break; }
                                 else { item = parent }
                             }
 
                             // Third time's a charm.
-                            let item_type = get_type_of_item(parent, model);
-                            if let TreePathType::File(ref path) | TreePathType::Folder(ref path) = item_type {
+                            if let TreePathType::Folder(ref path) = Self::get_type_from_item(parent, model) {
                                 for _ in 0..path.len() {
-                                    parent = unsafe { parent.as_ref().unwrap().parent() }; 
-                                    unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21)); }
-                                    unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
+                                    parent.set_data((&Variant::new0(2i32), 21));
+                                    parent.set_data((&Variant::new0(true), 22));
+                                    parent = unsafe { parent.parent().as_mut().unwrap() }; 
                                 }
                             }
                         }
 
                         TreePathType::Folder(path) => {
 
-                            // Get the PackFile's item and the one we're gonna swap around.
-                            let packfile = unsafe { model.as_ref().unwrap().item(0) };
-                            let mut item = unsafe { model.as_ref().unwrap().item(0) };
-
-                            // And the indexes to see how deep we must go.
+                            // Get the PackFile's item and the one we're gonna swap around, and the info to see how deep must we go.
+                            let packfile = unsafe { model.item(0).as_ref().unwrap() };
+                            let mut item = unsafe { model.item(0).as_ref().unwrap() };
                             let mut index = 0;
                             let path_deep = path.len();
 
@@ -969,18 +944,13 @@ impl PackTree for *mut TreeView {
                                 // If we are not still in the folder...
                                 else {
 
-                                    // For each children we have, check if it has children of his own.
-                                    // We want a folder, so skip the files.
-                                    let children_count = unsafe { item.as_ref().unwrap().row_count() };
-                                    for row in 0..children_count {
-                                        let child = unsafe { item.as_ref().unwrap().child(row) };
-                                        if unsafe { child.as_ref().unwrap().data(20).to_int() == 1 } { continue }
+                                    // For each children we have, check if it's a folder.
+                                    for row in 0..item.row_count() {
+                                        let child = unsafe { item.child(row).as_ref().unwrap() };
+                                        if child.data(20).to_int() == 1 { continue }
 
-                                        // If we found one with children, check if it's the one we want.
-                                        let text = unsafe { child.as_ref().unwrap().text().to_std_string() };
-                                        if text == path[index] {
-
-                                            // If it is, that's out new good boy.
+                                        // If we found a folder that matches the one we want, that's out new good boy.
+                                        if child.text().to_std_string() == path[index] {
                                             item = child;
                                             index += 1;
                                             break;
@@ -996,54 +966,36 @@ impl PackTree for *mut TreeView {
                             loop {
 
                                 // Get the parent of the item and kill the item in a cruel way.
-                                unsafe { parent = item.as_mut().unwrap().parent(); }
-                                unsafe { parent.as_mut().unwrap().remove_row(item.as_mut().unwrap().row()); }
-                                unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21)); }
-                                if !unsafe { parent.as_mut().unwrap().data(22).to_bool() } == false {
-                                    unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
+                                unsafe { parent = item.parent().as_mut().unwrap(); }
+                                parent.remove_row(item.row());
+                                parent.set_data((&Variant::new0(2i32), 21));
+                                if !parent.data(22).to_bool() == false {
+                                    parent.set_data((&Variant::new0(true), 22));
                                 }
 
-                                // Check if the parent and the PackFile still has children.
-                                let has_children = unsafe { parent.as_mut().unwrap().has_children() };
-                                let packfile_has_children = unsafe { packfile.as_ref().unwrap().has_children() };
-
                                 // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
-                                if has_children | !packfile_has_children { break; }
+                                if parent.has_children() | !packfile.has_children() { break; }
                                 else { item = parent }
                             }
 
                             // Third time's a charm.
-                            let item_type = get_type_of_item(parent, model);
-                            if let TreePathType::File(ref path) | TreePathType::Folder(ref path) = item_type {
+                            if let TreePathType::Folder(ref path) = Self::get_type_from_item(parent, model) {
                                 for _ in 0..path.len() {
-                                    unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21)); }
-                                    unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
-                                    parent = unsafe { parent.as_ref().unwrap().parent() }; 
+                                    parent.set_data((&Variant::new0(2i32), 21));
+                                    parent.set_data((&Variant::new0(true), 22));
+                                    parent = unsafe { parent.parent().as_mut().unwrap() }; 
                                 }
                             }
                         }
 
-                        TreePathType::PackFile => {
-
-                            // Just rebuild the TreeView. It's easier that way.
-                            update_treeview(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &receiver_qt_data,
-                                app_ui,
-                                tree_view,
-                                filter,
-                                model,
-                                TreeViewOperation::Build(false),
-                            );
-                        },
+                        TreePathType::PackFile => self.update_treeview(true, TreeViewOperation::Build(false)),
 
                         // If we don't have anything selected, we do nothing.
                         _ => {},
                     }
                 }
             },
-
+/*
             // If you want to modify the contents of something...
             TreeViewOperation::Modify(path_types) => {
                 for path_type in path_types {
