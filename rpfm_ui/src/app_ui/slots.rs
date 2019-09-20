@@ -23,15 +23,17 @@ use qt_gui::desktop_services::DesktopServices;
 use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
+use std::path::PathBuf;
+
 use rpfm_error::ErrorKind;
 use rpfm_lib::common::*;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
-use std::path::PathBuf;
 
 use crate::QString;
 use crate::app_ui::AppUI;
@@ -69,6 +71,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub packfile_new_packfile: SlotBool<'static>,
     pub packfile_open_packfile: SlotBool<'static>,
+    pub packfile_change_packfile_type: SlotBool<'static>,
     pub packfile_preferences: SlotBool<'static>,
     pub packfile_quit: SlotBool<'static>,
 
@@ -234,6 +237,27 @@ impl AppUISlots {
                         if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &paths, "") { show_dialog(app_ui.main_window as *mut Widget, error, false); }
                     }
                 }
+            }
+        );
+
+
+        // What happens when we trigger the "Change PackFile Type" action.
+        let packfile_change_packfile_type = SlotBool::new(move |_| {
+
+                // Get the currently selected PackFile's Type.
+                let packfile_type = unsafe { match &*(app_ui.change_packfile_type_group.as_ref().unwrap()
+                    .checked_action().as_ref().unwrap().text().to_std_string()) {
+                    "&Boot" => PFHFileType::Boot,
+                    "&Release" => PFHFileType::Release,
+                    "&Patch" => PFHFileType::Patch,
+                    "&Mod" => PFHFileType::Mod,
+                    "Mo&vie" => PFHFileType::Movie,
+                    _ => PFHFileType::Other(99),
+                } };
+
+                // Send the type to the Background Thread, and update the UI.
+                CENTRAL_COMMAND.send_message_qt(Command::SetPackFileType(packfile_type));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![TreePathType::PackFile]));
             }
         );
 
@@ -524,6 +548,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             packfile_new_packfile,
             packfile_open_packfile,
+            packfile_change_packfile_type,
             packfile_preferences,
             packfile_quit,
 

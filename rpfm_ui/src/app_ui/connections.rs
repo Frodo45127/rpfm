@@ -36,7 +36,15 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     // `PackFile` menu connections.
     //-----------------------------------------------//
     unsafe { app_ui.packfile_new_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_new_packfile); }    
-    unsafe { app_ui.packfile_open_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_open_packfile); }    
+    unsafe { app_ui.packfile_open_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_open_packfile); }
+
+    unsafe { app_ui.change_packfile_type_boot.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
+    unsafe { app_ui.change_packfile_type_release.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
+    unsafe { app_ui.change_packfile_type_patch.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
+    unsafe { app_ui.change_packfile_type_mod.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
+    unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
+    unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
+
     unsafe { app_ui.packfile_preferences.as_ref().unwrap().signals().triggered().connect(&slots.packfile_preferences); }    
     unsafe { app_ui.packfile_quit.as_ref().unwrap().signals().triggered().connect(&slots.packfile_quit); }    
 

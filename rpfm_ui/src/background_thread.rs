@@ -203,6 +203,9 @@ pub fn background_loop() {
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error))
                 }
             }
+
+            // In case we want to change the PackFile's Type...
+            Command::SetPackFileType(new_type) => pack_file_decoded.set_pfh_file_type(new_type),
         }
     }
 

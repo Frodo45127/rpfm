@@ -21,7 +21,7 @@ use std::process::exit;
 
 use rpfm_error::Error;
 use rpfm_lib::settings::*;
-use rpfm_lib::packfile::{PackFileInfo, PathType};
+use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::ui_state::global_search::GlobalSearch;
@@ -82,6 +82,9 @@ pub enum Command {
     
     /// This command is used when we want to change the `Game Selected`. It contains the name of the game to select.
     SetGameSelected(String),
+
+    /// This command is used when we want to change the `Type` of the currently open `PackFile`. It contains the new type.
+    SetPackFileType(PFHFileType),
 
     /// This command is used when we want to generate a PAK file for the currently selected game. It contains the path of the
     /// source files and the `Raw DB Version` of the currently selected game.
