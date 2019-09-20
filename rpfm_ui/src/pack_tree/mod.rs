@@ -995,47 +995,47 @@ impl PackTree for *mut TreeView {
                     }
                 }
             },
-/*
+
             // If you want to modify the contents of something...
             TreeViewOperation::Modify(path_types) => {
                 for path_type in path_types {
                     match path_type {
                         TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
-                            let item = get_item_from_type(model, &path_type);
-                            match unsafe { item.as_ref().unwrap().data(21).to_int() } {
-                                0 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
-                                1 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
+                            let item = Self::get_item_from_type(&path_type, model);
+                            match item.data(21).to_int() {
+                                0 => item.set_data((&Variant::new0(2i32), 21)),
+                                1 => item.set_data((&Variant::new0(3i32), 21)),
                                 2 | 3 => {},
                                 _ => unimplemented!(),
                             };
 
                             let cycles = if !path.is_empty() { path.len() } else { 0 };
-                            let mut parent = unsafe { item.as_mut().unwrap().parent() };
+                            let mut parent = unsafe { item.parent().as_mut().unwrap() };
                             for _ in 0..cycles {
 
                                 // Get the status and mark them as needed.
-                                match unsafe { parent.as_ref().unwrap().data(21).to_int() } {
-                                    0 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
-                                    1 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
+                                match parent.data(21).to_int() {
+                                    0 => parent.set_data((&Variant::new0(2i32), 21)),
+                                    1 => parent.set_data((&Variant::new0(3i32), 21)),
                                     2 | 3 => {},
                                     _ => unimplemented!(),
                                 };
 
                                 // Set the new parent.
-                                unsafe { parent = parent.as_mut().unwrap().parent(); }
+                                unsafe { parent = parent.parent().as_mut().unwrap(); }
                             }
                         }
 
                         TreePathType::PackFile => {
-                            let item = unsafe { model.as_mut().unwrap().item(0) };
-                            let status = unsafe { item.as_ref().unwrap().data(21).to_int() }; 
+                            let item = unsafe { model.item(0).as_mut().unwrap() };
+                            let status = item.data(21).to_int(); 
                             match status {
-                                0 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
-                                1 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
+                                0 => item.set_data((&Variant::new0(2i32), 21)),
+                                1 => item.set_data((&Variant::new0(3i32), 21)),
                                 2 | 3 => {},
                                 _ => unimplemented!(),
                             };
-                            unsafe { item.as_mut().unwrap().set_data((&Variant::new0(true), 22))};
+                            item.set_data((&Variant::new0(true), 22));
 
                         }
 
@@ -1047,41 +1047,42 @@ impl PackTree for *mut TreeView {
             // If we want to rename something...
             TreeViewOperation::Rename(mut path_types) => {
                 for (path_type, new_name) in &mut path_types {
-                    let item = get_item_from_type(model, &path_type);
+                    let path_type_clone = path_type.clone();
+                    let item = Self::get_item_from_type(&path_type_clone, model);
+
                     if let TreePathType::Folder(ref mut path) | TreePathType::File(ref mut path) = path_type {
-                        unsafe { item.as_mut().unwrap().set_text(&QString::from_std_str(&new_name)); }
+                        item.set_text(&QString::from_std_str(&new_name));
                         if let Some(ref mut old_name) = path.last_mut() { *old_name = &mut new_name.to_owned(); }
 
-                        match unsafe { item.as_ref().unwrap().data(21).to_int() } {
-                            0 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
-                            1 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
+                        match item.data(21).to_int() {
+                            0 => item.set_data((&Variant::new0(2i32), 21)),
+                            1 => item.set_data((&Variant::new0(3i32), 21)),
                             2 | 3 => {},
                             _ => unimplemented!(),
                         };
-                        if !unsafe { item.as_ref().unwrap().data(22).to_bool() } {
-                            unsafe { item.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
+                        if !item.data(22).to_bool() {
+                            item.set_data((&Variant::new0(true), 22));
                         }
 
                         // Mark his entire path as "modified".
                         let cycles = if !path.is_empty() { path.len() } else { 0 };
-                        let mut parent = unsafe { item.as_mut().unwrap().parent() };
+                        let mut parent = unsafe { item.parent().as_mut().unwrap() };
                         for _ in 0..cycles {
 
                             // Get the status and mark them as needed.
-                            let status = unsafe { parent.as_ref().unwrap().data(21).to_int() }; 
-                            match status {
-                                0 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
-                                1 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
+                            match parent.data(21).to_int() {
+                                0 => parent.set_data((&Variant::new0(2i32), 21)),
+                                1 => parent.set_data((&Variant::new0(3i32), 21)),
                                 2 | 3 => {},
                                 _ => unimplemented!(),
                             };
 
-                            if !unsafe { parent.as_ref().unwrap().data(22).to_bool() } {
-                                unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
+                            if !parent.data(22).to_bool() {
+                                parent.set_data((&Variant::new0(true), 22));
                             }
 
                             // Set the new parent.
-                            unsafe { parent = parent.as_mut().unwrap().parent(); }
+                            unsafe { parent = parent.parent().as_mut().unwrap(); }
                         }
 
                         // Sort it.
@@ -1093,7 +1094,7 @@ impl PackTree for *mut TreeView {
                     }
                 }
             },
-*/
+
             // If you want to mark an item so it can't lose his modified state...
             TreeViewOperation::MarkAlwaysModified(item_types) => {
                 for item_type in &item_types {
@@ -1103,7 +1104,7 @@ impl PackTree for *mut TreeView {
                     }
                 }
             }
-/*
+
             // If we want to undo the doings of any PackFile.
             TreeViewOperation::Undo(item_types) => {
                 for item_type in item_types {
@@ -1111,58 +1112,57 @@ impl PackTree for *mut TreeView {
                         TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
 
                             // Get the item and only try to restore it if we didn't set it as "not to restore".
-                            let item = get_item_from_type(app_ui.folder_tree_model, &item_type);
-                            if !unsafe { item.as_ref().unwrap().data(22).to_bool() } {
-                                if unsafe { item.as_ref().unwrap().data(21).to_int() } != 0 {
-                                    unsafe { item.as_mut().unwrap().set_data((&Variant::new0(0i32), 21))};
+                            let item = Self::get_item_from_type(&item_type, model);
+                            if !item.data(22).to_bool() {
+                                if item.data(21).to_int() != 0 {
+                                    item.set_data((&Variant::new0(0i32), 21));
                                 }
 
                                 // Get the times we must to go up until we reach the parent.
                                 let cycles = if !path.is_empty() { path.len() } else { 0 };
-                                let mut parent = unsafe { item.as_mut().unwrap().parent() };
+                                let mut parent = unsafe { item.parent().as_mut().unwrap() };
 
                                 // Unleash hell upon the land.
                                 for _ in 0..cycles {
 
-                                    if !unsafe { parent.as_ref().unwrap().data(22).to_bool() } {
-                                        if unsafe { parent.as_ref().unwrap().data(21).to_int() } != 0 {
-                                            unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(0i32), 21))};
+                                    if !parent.data(22).to_bool() {
+                                        if parent.data(21).to_int() != 0 {
+                                            parent.set_data((&Variant::new0(0i32), 21));
                                         }
                                         else { break; }
                                     }
                                     else { break; }
-                                    unsafe { parent = parent.as_mut().unwrap().parent(); }
+                                    unsafe { parent = parent.parent().as_mut().unwrap(); }
                                 }
                             }
                         }
 
                         // This one is a bit special. We need to check, not only him, but all his children too.
                         TreePathType::PackFile => {
-                            let item = unsafe { model.as_ref().unwrap().item(0) };
+                            let item = unsafe { model.item(0).as_mut().unwrap() };
                             let mut packfile_is_modified = false;
-                            for row in 0..unsafe { item.as_ref().unwrap().row_count() } {
-                                let child = unsafe { item.as_ref().unwrap().child(row) };
-                                if unsafe { child.as_ref().unwrap().data(21).to_int() != 0 } { 
+                            for row in 0..item.row_count() {
+                                let child = unsafe { item.child(row).as_ref().unwrap() };
+                                if child.data(21).to_int() != 0 { 
                                     packfile_is_modified = true;
                                     break;
                                 }
                             }
 
                             if !packfile_is_modified {
-                                unsafe { item.as_mut().unwrap().set_data((&Variant::new0(0i32), 21))};
+                                item.set_data((&Variant::new0(0i32), 21));
                             }
                         }
                         TreePathType::None => unimplemented!(),
                     }
                 }
-            }*/
+            }
 
             // If we want to remove the colour of the TreeView...
             TreeViewOperation::Clean => clean_treeview(None, model),
 
             // If we want to remove everything from the TreeView...
             TreeViewOperation::Clear => model.clear(),
-            _ => unimplemented!(),
         }
         //*IS_MODIFIED.lock().unwrap() = update_packfile_state(None, &app_ui);
     }
