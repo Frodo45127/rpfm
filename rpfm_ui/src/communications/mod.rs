@@ -95,6 +95,12 @@ pub enum Command {
 
     /// This command is used to patch the SiegeAI of a Siege Map for warhammer games.
     PatchSiegeAI,
+
+    /// This command is used when we want to change the `Index Includes Timestamp` flag in the currently open `PackFile`
+    ChangeIndexIncludesTimestamp(bool),
+
+    /// This command is used when we want to change the `Data is Compressed` flag in the currently open `PackFile`
+    ChangeDataIsCompressed(bool),
     /*
     OpenPackFileExtra,
     SavePackFile,

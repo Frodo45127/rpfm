@@ -985,6 +985,16 @@ impl PackFile {
         self.bitmask
     }
 
+    /// This function returns a reference to the `Bitmask` of the provided `PackFile`.
+    pub fn get_ref_bitmask(&self) -> &PFHFlags {
+        &self.bitmask
+    }
+
+    /// This function returns a mutable reference to the `Bitmask` of the provided `PackFile`.
+    pub fn get_ref_mut_bitmask(&mut self) -> &mut PFHFlags {
+        &mut self.bitmask
+    }
+
     /// This function sets the `Bitmask` of the provided `PackFile`.
     pub fn set_bitmask(&mut self, bitmask: PFHFlags) {
         self.bitmask = bitmask;

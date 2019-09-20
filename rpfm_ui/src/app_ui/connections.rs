@@ -44,6 +44,8 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.change_packfile_type_mod.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
     unsafe { app_ui.change_packfile_type_movie.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
     unsafe { app_ui.change_packfile_type_other.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
+    unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().signals().triggered().connect(&slots.packfile_index_includes_timestamp); }
+    unsafe { app_ui.change_packfile_type_data_is_compressed.as_ref().unwrap().signals().triggered().connect(&slots.packfile_data_is_compressed); }
 
     unsafe { app_ui.packfile_preferences.as_ref().unwrap().signals().triggered().connect(&slots.packfile_preferences); }    
     unsafe { app_ui.packfile_quit.as_ref().unwrap().signals().triggered().connect(&slots.packfile_quit); }    

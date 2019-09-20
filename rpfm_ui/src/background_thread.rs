@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -23,7 +23,7 @@ use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::table::db::DB;
-use rpfm_lib::packfile::{PackFile, PackFileInfo};
+use rpfm_lib::packfile::{PackFile, PackFileInfo, PFHFlags};
 use rpfm_lib::schema::*;
 use rpfm_lib::schema::assembly_kit::*;
 use rpfm_lib::SCHEMA;
@@ -60,7 +60,7 @@ pub fn background_loop() {
 
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
-            
+
             // In case we want to reset the Secondary PackFile to his original state (dummy)...
             Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
 
@@ -120,7 +120,7 @@ pub fn background_loop() {
                     paths.iter().map(|x| pack_file_decoded.get_packed_file_info_by_path(x)).collect()
                 ));
             }
-            
+
             // In case we want to launch a global search on a `PackFile`...
             Command::GlobalSearch(mut global_search) => {
                 global_search.search(&mut pack_file_decoded);
@@ -147,12 +147,12 @@ pub fn background_loop() {
                 *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = DB::read_pak_file();
 
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
-                if !pack_file_decoded.get_file_name().is_empty() { 
-                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version); 
+                if !pack_file_decoded.get_file_name().is_empty() {
+                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version);
                 }
 
                 // Test to see if every DB Table can be decoded. This is slow and only useful when
-                // a new patch lands and you want to know what tables you need to decode. So, unless you want 
+                // a new patch lands and you want to know what tables you need to decode. So, unless you want
                 // to decode new tables, leave the setting as false.
                 if SETTINGS.lock().unwrap().settings_bool["check_for_missing_table_definitions"] {
                     let mut counter = 0;
@@ -172,7 +172,7 @@ pub fn background_loop() {
                             }
                         }
                     }
-                    
+
                     // Try to save the file.
                     let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
                     let mut file = BufWriter::new(File::create(path).unwrap());
@@ -206,6 +206,12 @@ pub fn background_loop() {
 
             // In case we want to change the PackFile's Type...
             Command::SetPackFileType(new_type) => pack_file_decoded.set_pfh_file_type(new_type),
+
+            // In case we want to change the "Include Last Modified Date" setting of the PackFile...
+            Command::ChangeIndexIncludesTimestamp(state) => pack_file_decoded.get_ref_mut_bitmask().set(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS, state),
+
+            // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
+            Command::ChangeDataIsCompressed(state) => pack_file_decoded.toggle_compression(state),
         }
     }
 
@@ -377,7 +383,7 @@ pub fn background_loop() {
 
                         // Wait until we get the needed data from the UI thread, then save our Shortcuts to a shortcuts file, and report in case of error.
                         let new_shortcuts = if let Data::Shortcuts(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
-                        loop { if let Ok(ref mut shortcuts) = SHORTCUTS.try_lock() { 
+                        loop { if let Ok(ref mut shortcuts) = SHORTCUTS.try_lock() {
                             **shortcuts = new_shortcuts;
                             match shortcuts.save() {
                                 Ok(()) => sender.send(Data::Success).unwrap(),
@@ -410,7 +416,7 @@ pub fn background_loop() {
                         if !pack_file_decoded.get_file_name().is_empty() { pack_file_decoded.pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().id; }
 
                         // Test to see if every DB Table can be decoded. This is slow and only useful when
-                        // a new patch lands and you want to know what tables you need to decode. So, unless you want 
+                        // a new patch lands and you want to know what tables you need to decode. So, unless you want
                         // to decode new tables, leave the setting as false.
                         if SETTINGS.lock().unwrap().settings_bool["check_for_missing_table_definitions"] {
                             let mut counter = 0;
@@ -465,7 +471,7 @@ pub fn background_loop() {
 
                     // In case we want to Patch the SiegeAI of a PackFile...
                     Commands::PatchSiegeAI => {
-                        
+
                         // First, we try to patch the PackFile.
                         match rpfm_lib::patch_siege_ai(&mut pack_file_decoded) {
                             Ok(result) => sender.send(Data::StringVecPathType(result)).unwrap(),
@@ -509,7 +515,7 @@ pub fn background_loop() {
 
                     // In case we want to delete PackedFiles from a PackFile...
                     Commands::DeletePackedFile => {
-                        
+
                         // Delete the PackedFiles from the PackFile, changing his return in case of success.
                         let item_types = if let Data::VecPathType(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR); };
                         sender.send(Data::VecPathType(rpfm_lib::delete_from_packfile(&mut pack_file_decoded, &item_types))).unwrap();
@@ -579,7 +585,7 @@ pub fn background_loop() {
 
                         // Get the name and the PackedFile list, and send it.
                         sender.send(Data::StringI64VecVecString((
-                            pack_file_decoded.get_file_name(), 
+                            pack_file_decoded.get_file_name(),
                             pack_file_decoded.timestamp,
                             pack_file_decoded.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
                         ))).unwrap();
@@ -590,7 +596,7 @@ pub fn background_loop() {
 
                         // Get the name and the PackedFile list, and serialize it.
                         sender.send(Data::StringI64VecVecString((
-                            pack_file_decoded_extra.get_file_name(), 
+                            pack_file_decoded_extra.get_file_name(),
                             pack_file_decoded_extra.timestamp,
                             pack_file_decoded_extra.packed_files.iter().map(|x| x.path.to_vec()).collect::<Vec<Vec<String>>>(),
                         ))).unwrap();
@@ -756,7 +762,7 @@ pub fn background_loop() {
                             Some(packed_file) => {
                                 match packed_file.get_data_and_keep_it() {
                                     Ok(data) => {
-                                        
+
                                         // NOTE: This only works for UTF-8 and ISO_8859_1 encoded files. Check their encoding before adding them here to be decoded.
                                         // Try to decode the PackedFile as a normal UTF-8 string.
                                         let mut decoded_string = decode_string_u8(&data);
@@ -809,7 +815,7 @@ pub fn background_loop() {
                             Some(packed_file) => {
                                 match packed_file.get_data_and_keep_it() {
                                     Ok(data) => {
-                                        
+
                                         // We try to decode it as a RigidModel.
                                         match RigidModel::read(&data) {
 
@@ -885,7 +891,7 @@ pub fn background_loop() {
                             Some(packed_file) => {
                                 match packed_file.get_data_and_keep_it() {
                                     Ok(image_data) => {
-                                        
+
                                         let image_name = &packed_file.path.last().unwrap().to_owned();
 
                                         // Create a temporal file for the image in the TEMP directory of the filesystem.
@@ -928,7 +934,7 @@ pub fn background_loop() {
 
                         // Find the PackedFile we want and send back the response.
                         match pack_file_decoded.packed_files.iter_mut().find(|x| x.path == path) {
-                            Some(packed_file) => { 
+                            Some(packed_file) => {
                                 match packed_file.load_data() {
                                     Ok(_) => sender.send(Data::PackedFile(packed_file.clone())).unwrap(),
                                     Err(_) => sender.send(Data::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))).unwrap(),
@@ -1002,7 +1008,7 @@ pub fn background_loop() {
 
                     // In case we want to save the PackFiles List of our PackFile...
                     Commands::SetPackFilesList => {
-                       
+
                         // Wait until we get the needed data from the UI thread.
                         let list = if let Data::VecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         pack_file_decoded.save_packfiles_list(list);
@@ -1065,7 +1071,7 @@ pub fn background_loop() {
                                         match packed_file.get_data_and_keep_it() {
                                             Ok(data) => {
                                                 File::create(&path).unwrap().write_all(&data).unwrap();
-                                                
+
                                                 // Create the Kailua config file.
                                                 let config = format!("
                                                 {{
@@ -1086,7 +1092,7 @@ pub fn background_loop() {
                                         }
                                     }
                                 }
-    
+
                                 // Send back the result.
                                 if !error { sender.send(Data::VecString(results)).unwrap(); }
                             }
@@ -1178,15 +1184,15 @@ pub fn background_loop() {
                                                     DecodedData::StringU8(ref data) |
                                                     DecodedData::StringU16(ref data) |
                                                     DecodedData::OptionalStringU8(ref data) |
-                                                    DecodedData::OptionalStringU16(ref data) => 
+                                                    DecodedData::OptionalStringU16(ref data) =>
 
                                                         if let Ok(ref regex) = regex {
                                                             if regex.is_match(&data) {
-                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                             }
                                                         }
                                                         else if data.contains(&pattern) {
-                                                            matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                            matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                         }
 
                                                     _ => continue
@@ -1210,7 +1216,7 @@ pub fn background_loop() {
                                         }
                                     };
 
-                                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {   
+                                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                         if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
 
                                             let mut matches_in_file = vec![];
@@ -1222,15 +1228,15 @@ pub fn background_loop() {
                                                         DecodedData::StringU8(ref data) |
                                                         DecodedData::StringU16(ref data) |
                                                         DecodedData::OptionalStringU8(ref data) |
-                                                        DecodedData::OptionalStringU16(ref data) => 
+                                                        DecodedData::OptionalStringU16(ref data) =>
 
                                                             if let Ok(ref regex) = regex {
                                                                 if regex.is_match(&data) {
-                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                                 }
                                                             }
                                                             else if data.contains(&pattern) {
-                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                             }
 
                                                         _ => continue
@@ -1254,7 +1260,7 @@ pub fn background_loop() {
 
                     // In case we want to perform a "Global Search"...
                     Commands::UpdateGlobalSearchData => {
-                       
+
                         // Wait until we get the needed data from the UI thread.
                         let (pattern, paths) = if let Data::StringVecVecString(data) = check_message_validity_recv(&receiver_data) { data } else { panic!(THREADS_MESSAGE_ERROR) };
                         let regex = Regex::new(&pattern);
@@ -1343,15 +1349,15 @@ pub fn background_loop() {
                                                         DecodedData::StringU8(ref data) |
                                                         DecodedData::StringU16(ref data) |
                                                         DecodedData::OptionalStringU8(ref data) |
-                                                        DecodedData::OptionalStringU16(ref data) => 
+                                                        DecodedData::OptionalStringU16(ref data) =>
 
                                                             if let Ok(ref regex) = regex {
                                                                 if regex.is_match(&data) {
-                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                                 }
                                                             }
                                                             else if data.contains(&pattern) {
-                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                             }
 
                                                         _ => continue
@@ -1375,7 +1381,7 @@ pub fn background_loop() {
                                             }
                                         };
 
-                                        if let Some(ref schema) = *SCHEMA.lock().unwrap() {   
+                                        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                                             if let Ok(packed_file) = DB::read(&data, &path[1], &schema) {
 
                                                 let mut matches_in_file = vec![];
@@ -1387,15 +1393,15 @@ pub fn background_loop() {
                                                             DecodedData::StringU8(ref data) |
                                                             DecodedData::StringU16(ref data) |
                                                             DecodedData::OptionalStringU8(ref data) |
-                                                            DecodedData::OptionalStringU16(ref data) => 
+                                                            DecodedData::OptionalStringU16(ref data) =>
 
                                                             if let Ok(ref regex) = regex {
                                                                 if regex.is_match(&data) {
-                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned())); 
+                                                                    matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                                 }
                                                             }
                                                             else if data.contains(&pattern) {
-                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));     
+                                                                matches_in_file.push((field.field_name.to_owned(), column as i32, index as i64, data.to_owned()));
                                                             }
 
                                                             _ => continue
@@ -1442,7 +1448,7 @@ pub fn background_loop() {
                                                 }
 
                                                 // Otherwise...
-                                                else { 
+                                                else {
 
                                                     // No matter how many times I tried, it's IMPOSSIBLE to open a file on windows, so instead we use this magic crate that seems to work everywhere.
                                                     if open::that(&temp_path).is_err() { sender.send(Data::Error(Error::from(ErrorKind::IOGeneric))).unwrap(); }

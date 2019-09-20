@@ -72,6 +72,8 @@ pub struct AppUISlots {
     pub packfile_new_packfile: SlotBool<'static>,
     pub packfile_open_packfile: SlotBool<'static>,
     pub packfile_change_packfile_type: SlotBool<'static>,
+    pub packfile_index_includes_timestamp: SlotBool<'static>,
+    pub packfile_data_is_compressed: SlotBool<'static>,
     pub packfile_preferences: SlotBool<'static>,
     pub packfile_quit: SlotBool<'static>,
 
@@ -258,6 +260,20 @@ impl AppUISlots {
                 // Send the type to the Background Thread, and update the UI.
                 CENTRAL_COMMAND.send_message_qt(Command::SetPackFileType(packfile_type));
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![TreePathType::PackFile]));
+            }
+        );
+
+        // What happens when we change the value of "Include Last Modified Date" action.
+        let packfile_index_includes_timestamp = SlotBool::new(move |_| {
+                let state = unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().is_checked() };
+                CENTRAL_COMMAND.send_message_qt(Command::ChangeIndexIncludesTimestamp(state));
+            }
+        );
+
+        // What happens when we enable/disable compression on the current PackFile.
+        let packfile_data_is_compressed = SlotBool::new(move |_| {
+                let state = unsafe { app_ui.change_packfile_type_data_is_compressed.as_ref().unwrap().is_checked() };
+                CENTRAL_COMMAND.send_message_qt(Command::ChangeDataIsCompressed(state));
             }
         );
 
@@ -549,6 +565,8 @@ impl AppUISlots {
             packfile_new_packfile,
             packfile_open_packfile,
             packfile_change_packfile_type,
+            packfile_index_includes_timestamp,
+            packfile_data_is_compressed,
             packfile_preferences,
             packfile_quit,
 
