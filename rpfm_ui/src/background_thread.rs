@@ -18,6 +18,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
+use rpfm_error::{Error, ErrorKind};
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
@@ -80,6 +81,22 @@ pub fn background_loop() {
                         CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
                     }
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // In case we want to "Save a PackFile"...
+            Command::SavePackFile => {
+                match pack_file_decoded.save(None) {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::I64(pack_file_decoded.get_timestamp())),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))),
+                }
+            }
+
+            // In case we want to "Save a PackFile As"...
+            Command::SavePackFileAs(path) => {
+                match pack_file_decoded.save(Some(path.to_path_buf())) {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::I64(pack_file_decoded.get_timestamp())),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))),
                 }
             }
 
@@ -212,6 +229,9 @@ pub fn background_loop() {
 
             // In case we want to compress/decompress the PackedFiles of the currently open PackFile...
             Command::ChangeDataIsCompressed(state) => pack_file_decoded.toggle_compression(state),
+
+            // In case we want to get the path of the currently open `PackFile`.
+            Command::GetPackFilePath => CENTRAL_COMMAND.send_message_rust(Response::PathBuf(pack_file_decoded.get_file_path().to_path_buf())),
         }
     }
 

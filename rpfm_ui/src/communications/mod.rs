@@ -1,14 +1,14 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*! 
+/*!
 This module defines the code used for thread communication.
 !*/
 
@@ -59,6 +59,12 @@ pub enum Command {
     /// This command is used when we want to create a new `PackFile`.
     NewPackFile,
 
+    /// This command is used when we want to save our currently open `PackFile`.
+    SavePackFile,
+
+    /// This command is used when we want to save our currently open `PackFile` as another `PackFile`.
+    SavePackFileAs(PathBuf),
+
     /// This command is used when we want to save our settings to disk. It requires the settings to save.
     SetSettings(Settings),
 
@@ -79,7 +85,7 @@ pub enum Command {
 
     /// This command is used when we want to perform an update over a `Global Search`. It requires the search info.
     GlobalSearchUpdate(GlobalSearch, Vec<PathType>),
-    
+
     /// This command is used when we want to change the `Game Selected`. It contains the name of the game to select.
     SetGameSelected(String),
 
@@ -101,6 +107,10 @@ pub enum Command {
 
     /// This command is used when we want to change the `Data is Compressed` flag in the currently open `PackFile`
     ChangeDataIsCompressed(bool),
+
+    /// This command is used when we want to know the current path of our currently open `PackFile`.
+    GetPackFilePath,
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -174,8 +184,17 @@ pub enum Response {
     /// Generic response for situations that returned an error.
     Error(Error),
 
+    /// Respone to return (bool).
+    Bool(bool),
+
     /// Respone to return (u32).
     U32(u32),
+
+    /// Respone to return (i64).
+    I64(i64),
+
+    /// Respone to return (PathBuf).
+    PathBuf(PathBuf),
 
     /// Respone to return (String, i64, Vec<Vec<String>>).
     StringI64VecVecString((String, i64, Vec<Vec<String>>)),
@@ -207,7 +226,7 @@ pub enum Response {
     StringVecVecString((String, Vec<Vec<String>>)),
     PathBuf(PathBuf),
     PathBufI16((PathBuf, i16)),
-    
+
     Settings(Settings),
     Shortcuts(Shortcuts),
     Schema(Schema),
@@ -232,7 +251,7 @@ pub enum Response {
     PathType(PathType),
 
     OptionStringVecPathBuf((Option<String>, Vec<PathBuf>)),
-    
+
     StringVecPathType((String, Vec<PathType>)),
     VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),
     VecString(Vec<String>),
@@ -270,7 +289,7 @@ impl Default for CentralCommand {
 
 /// Implementation of `CentralCommand`.
 impl CentralCommand {
-    
+
     /// This function serves to send message from the main thread to the background thread.
     #[allow(dead_code)]
     pub fn send_message_qt(&self, data: Command) {
@@ -319,7 +338,7 @@ impl CentralCommand {
     pub fn recv_message_qt_try(&self) -> Response {
         let mut event_loop = EventLoop::new();
         loop {
-            
+
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
             match self.receiver_qt.try_recv() {
                 Ok(data) => return data,

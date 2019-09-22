@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -35,8 +35,10 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `PackFile` menu connections.
     //-----------------------------------------------//
-    unsafe { app_ui.packfile_new_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_new_packfile); }    
+    unsafe { app_ui.packfile_new_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_new_packfile); }
     unsafe { app_ui.packfile_open_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_open_packfile); }
+    unsafe { app_ui.packfile_save_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_save_packfile); }
+    unsafe { app_ui.packfile_save_packfile_as.as_ref().unwrap().signals().triggered().connect(&slots.packfile_save_packfile_as); }
 
     unsafe { app_ui.change_packfile_type_boot.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
     unsafe { app_ui.change_packfile_type_release.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
@@ -47,15 +49,15 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_ref().unwrap().signals().triggered().connect(&slots.packfile_index_includes_timestamp); }
     unsafe { app_ui.change_packfile_type_data_is_compressed.as_ref().unwrap().signals().triggered().connect(&slots.packfile_data_is_compressed); }
 
-    unsafe { app_ui.packfile_preferences.as_ref().unwrap().signals().triggered().connect(&slots.packfile_preferences); }    
-    unsafe { app_ui.packfile_quit.as_ref().unwrap().signals().triggered().connect(&slots.packfile_quit); }    
+    unsafe { app_ui.packfile_preferences.as_ref().unwrap().signals().triggered().connect(&slots.packfile_preferences); }
+    unsafe { app_ui.packfile_quit.as_ref().unwrap().signals().triggered().connect(&slots.packfile_quit); }
 
     //-----------------------------------------------//
     // `View` menu connections.
     //-----------------------------------------------//
     unsafe { app_ui.view_toggle_packfile_contents.as_ref().unwrap().signals().triggered().connect(&slots.view_toggle_packfile_contents); }
     unsafe { app_ui.view_toggle_global_search_panel.as_ref().unwrap().signals().triggered().connect(&slots.view_toggle_global_search_panel); }
-    
+
     //-----------------------------------------------//
     // `Game Selected` menu connections.
     //-----------------------------------------------//

@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -16,16 +16,19 @@ they're here and not in the main file is because I don't want to polute that one
 as it's mostly meant for initialization and configuration.
 !*/
 
-
+use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::widget::Widget;
 
 use qt_core::object::Object;
 
+use chrono::NaiveDateTime;
+
 use std::path::PathBuf;
 
 use rpfm_error::Result;
 
+use rpfm_lib::common::get_game_selected_data_path;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
 use rpfm_lib::SETTINGS;
@@ -61,11 +64,11 @@ impl AppUI {
             if UI_STATE.get_is_modified() { window_title = format!("{} - Modified", pack_file_name); }
             else { window_title = format!("{} - Not Modified", pack_file_name); }
         }
-        main_window.set_window_title(&QString::from_std_str(window_title)); 
+        main_window.set_window_title(&QString::from_std_str(window_title));
     }
 
     /// This function pops up a modal asking you if you're sure you want to do an action that may result in unsaved data loss.
-    /// 
+    ///
     /// If you are trying to delete the open MyMod, pass it true.
     pub fn are_you_sure(&self, is_delete_my_mod: bool) -> bool {
         let title = "Rusted PackFile Manager";
@@ -120,7 +123,7 @@ impl AppUI {
         // Set it as not having an opened PackedFile, just in case.
         open_packedfiles.remove(path);
 
-        // We check if there are more tables open. This is beacuse we cannot change the GameSelected 
+        // We check if there are more tables open. This is beacuse we cannot change the GameSelected
         // when there is a PackedFile using his Schema.
         let mut enable_game_selected_menu = true;
         for path in open_packedfiles.keys() {
@@ -158,7 +161,7 @@ impl AppUI {
 
         // Check what response we got.
         match CENTRAL_COMMAND.recv_message_qt() {
-        
+
             // If it's success....
             Response::PackFileInfo(ui_data) => {
 
@@ -219,12 +222,12 @@ impl AppUI {
                         PFHVersion::PFH5 => {
 
                             // If the PackFile has the mysterious byte enabled, it's from Arena.
-                            if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { 
-                                unsafe { self.game_selected_arena.as_mut().unwrap().trigger(); } 
+                            if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
+                                unsafe { self.game_selected_arena.as_mut().unwrap().trigger(); }
                             }
 
                             // Otherwise, it's from Three Kingdoms or Warhammer 2.
-                            else { 
+                            else {
                                 let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
                                 match &*game_selected {
                                     "three_kingdoms" => unsafe { self.game_selected_three_kingdoms.as_mut().unwrap().trigger(); },
@@ -277,7 +280,7 @@ impl AppUI {
                 //display_help_tips(&app_ui);
 
                 // Clean the TableStateData.
-                //*table_state_data.borrow_mut() = TableStateData::new(); 
+                //*table_state_data.borrow_mut() = TableStateData::new();
             }
 
             // If we got an error...
@@ -292,6 +295,104 @@ impl AppUI {
 
         // Return success.
         Ok(())
+    }
+
+
+    /// This function is used to save the currently open `PackFile` to disk.
+    ///
+    /// If the PackFile doesn't exist or we pass `save_as = true`,
+    /// it opens a dialog asking for a path.
+    pub fn save_packfile(
+        &self,
+        pack_file_contents_ui: &PackFileContentsUI,
+        save_as: bool,
+    ) -> Result<()> {
+
+        let mut result = Ok(());
+        let main_window = unsafe { self.main_window.as_mut().unwrap() as &mut Widget};
+        main_window.set_enabled(false);
+
+        CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+        let path = if let Response::PathBuf(path) = CENTRAL_COMMAND.recv_message_qt() { path } else { panic!(THREADS_COMMUNICATION_ERROR) };
+        if !path.is_file() || save_as {
+
+            // Create the FileDialog to save the PackFile and configure it.
+            let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                self.main_window as *mut Widget,
+                &QString::from_std_str("Save PackFile"),
+            )) };
+            file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
+            file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+            file_dialog.set_confirm_overwrite(true);
+            file_dialog.set_default_suffix(&QString::from_std_str("pack"));
+            file_dialog.select_file(&QString::from_std_str(&path.file_name().unwrap().to_string_lossy()));
+
+            // If we are saving an existing PackFile with another name, we start in his current path.
+            if path.is_file() {
+                let mut path = path.to_path_buf();
+                path.pop();
+                file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned()));
+            }
+
+            // In case we have a default path for the Game Selected and that path is valid,
+            // we use his data folder as base path for saving our PackFile.
+            else if let Some(ref path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+                if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
+            }
+
+            // Run it and act depending on the response we get (1 => Accept, 0 => Cancel).
+            if file_dialog.exec() == 1 {
+                let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(path));
+                match CENTRAL_COMMAND.recv_message_qt_try() {
+                    Response::I64(date) => {
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                        let date = QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)));
+                        let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
+                        packfile_item.set_tool_tip(&date);
+                        packfile_item.set_text(&QString::from_std_str(&file_name));
+
+                        UI_STATE.set_operational_mode(self, None);
+                    }
+                    Response::Error(error) => result = Err(error),
+
+                    // In ANY other situation, it's a message problem.
+                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                }
+            }
+        }
+
+        else {
+            CENTRAL_COMMAND.send_message_qt(Command::SavePackFile);
+            match CENTRAL_COMMAND.recv_message_qt_try() {
+                Response::I64(date) => {
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                    let date = QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)));
+                    unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&date); }
+
+                }
+                Response::Error(error) => result = Err(error),
+
+                // In ANY other situation, it's a message problem.
+                _ => panic!(THREADS_COMMUNICATION_ERROR),
+            }
+        }
+
+        // Then we re-enable the main Window and return whatever we've received.
+        main_window.set_enabled(true);
+
+        // Clean all the modified items EXCEPT those open. That way we can still undo changes there.
+        /*
+        if result.is_ok() {
+            let iter = table_state_data.borrow().iter().map(|x| x.0).cloned().collect::<Vec<Vec<String>>>();
+            for path in &iter {
+                if !packedfiles_open_in_packedfile_view.borrow().values().any(|x| *x.borrow() == *path) {
+                    table_state_data.borrow_mut().remove(path);
+                }
+            }
+        }*/
+        result
     }
 
     /// This function enables/disables the actions on the main window, depending on the current state of the Application.
@@ -333,7 +434,7 @@ impl AppUI {
             else { unsafe { self.mymod_new.as_mut().unwrap().set_enabled(false); }}
         }
 
-        // These actions are common, no matter what game we have.    
+        // These actions are common, no matter what game we have.
         unsafe { self.change_packfile_type_group.as_mut().unwrap().set_enabled(enable); }
         unsafe { self.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_enabled(enable); }
 
@@ -429,7 +530,7 @@ impl AppUI {
 
             // Disable Napoleon actions...
             unsafe { self.special_stuff_nap_optimize_packfile.as_mut().unwrap().set_enabled(false); }
-            
+
             // Disable Empire actions...
             unsafe { self.special_stuff_emp_optimize_packfile.as_mut().unwrap().set_enabled(false); }
         }

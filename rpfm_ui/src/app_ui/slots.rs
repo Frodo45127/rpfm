@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -71,6 +71,8 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub packfile_new_packfile: SlotBool<'static>,
     pub packfile_open_packfile: SlotBool<'static>,
+    pub packfile_save_packfile: SlotBool<'static>,
+    pub packfile_save_packfile_as: SlotBool<'static>,
     pub packfile_change_packfile_type: SlotBool<'static>,
     pub packfile_index_includes_timestamp: SlotBool<'static>,
     pub packfile_data_is_compressed: SlotBool<'static>,
@@ -122,14 +124,14 @@ impl AppUISlots {
 		//-----------------------------------------------//
         // Command Palette logic.
         //-----------------------------------------------//
-		
+
         // This one puts the command palette in the top center part of the window, make it appear and gives it the focus.
 		let command_palette_show = SlotNoArgs::new(move || {
             let line_edit = unsafe { app_ui.command_palette_line_edit.as_mut().unwrap() };
             let command_palette = unsafe { app_ui.command_palette.as_mut().unwrap() };
             let completer = unsafe { app_ui.command_palette_completer.as_mut().unwrap() };
             let main_window = unsafe { app_ui.main_window.as_mut().unwrap() };
-            
+
             let width = (main_window.width() / 2 ) - (command_palette.width() / 2 );
 			let height = 80;
             command_palette.move_((width, height));
@@ -145,7 +147,7 @@ impl AppUISlots {
         });
 
 		// This one hides the command palette.
-        let command_palette_hide = SlotNoArgs::new(move || { 
+        let command_palette_hide = SlotNoArgs::new(move || {
             unsafe { app_ui.command_palette_line_edit.as_mut().unwrap().set_completer(Completer::new(()).as_mut_ptr()) }
             unsafe { app_ui.command_palette.as_mut().unwrap().hide(); }
         });
@@ -162,13 +164,13 @@ impl AppUISlots {
 
         // What happens when we trigger the "New PackFile" action.
         let packfile_new_packfile = SlotBool::new(move |_| {
-                
+
                 // Check first if there has been changes in the PackFile.
                 if app_ui.are_you_sure(false) {
 
                     // Tell the Background Thread to create a new PackFile.
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
-                    
+
                     // Disable the main window, so the user can't interrupt the process or iterfere with it.
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
@@ -207,7 +209,7 @@ impl AppUISlots {
                     //set_my_mod_mode(&mymod_stuff, &mode, None);
 
                     // Clean the TableStateData.
-                    //*table_state_data.borrow_mut() = TableStateData::new(); 
+                    //*table_state_data.borrow_mut() = TableStateData::new();
                 }
             }
         );
@@ -242,6 +244,21 @@ impl AppUISlots {
             }
         );
 
+        // What happens when we trigger the "Save PackFile" action.
+        let packfile_save_packfile = SlotBool::new(move |_| {
+                if let Err(error) = app_ui.save_packfile(&pack_file_contents_ui, false) {
+                    show_dialog(app_ui.main_window as *mut Widget, error, false);
+                }
+            }
+        );
+
+        // What happens when we trigger the "Save PackFile As" action.
+        let packfile_save_packfile_as = SlotBool::new(move |_| {
+                if let Err(error) = app_ui.save_packfile(&pack_file_contents_ui, true) {
+                    show_dialog(app_ui.main_window as *mut Widget, error, false);
+                }
+            }
+        );
 
         // What happens when we trigger the "Change PackFile Type" action.
         let packfile_change_packfile_type = SlotBool::new(move |_| {
@@ -331,13 +348,13 @@ impl AppUISlots {
         //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
-        let view_toggle_packfile_contents = SlotBool::new(move |_| { 
+        let view_toggle_packfile_contents = SlotBool::new(move |_| {
             let is_visible = unsafe { pack_file_contents_ui.packfile_contents_dock_widget.as_mut().unwrap().is_visible() };
             if is_visible { unsafe { pack_file_contents_ui.packfile_contents_dock_widget.as_mut().unwrap().hide(); }}
             else {unsafe { pack_file_contents_ui.packfile_contents_dock_widget.as_mut().unwrap().show(); }}
         });
 
-        let view_toggle_global_search_panel = SlotBool::new(move |_| { 
+        let view_toggle_global_search_panel = SlotBool::new(move |_| {
             let is_visible = unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().is_visible() };
             if is_visible { unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().hide(); }}
             else {unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().show(); }}
@@ -350,8 +367,8 @@ impl AppUISlots {
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotBool::new(move |_| {
             if let Some(path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
-                if open::that(&path).is_err() { 
-                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false); 
+                if open::that(&path).is_err() {
+                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
             else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false); }
@@ -361,7 +378,7 @@ impl AppUISlots {
         let game_selected_open_game_assembly_kit_folder = SlotBool::new(move |_| {
             if let Some(path) = get_game_selected_assembly_kit_path(&*GAME_SELECTED.lock().unwrap()) {
                 if open::that(&path).is_err() {
-                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false); 
+                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
             else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false); }
@@ -384,8 +401,8 @@ impl AppUISlots {
 
                 // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
                 app_ui.enable_packfile_actions(false);
-                if unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_ref().unwrap().row_count(()) } != 0 { 
-                    app_ui.enable_packfile_actions(true); 
+                if unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_ref().unwrap().row_count(()) } != 0 {
+                    app_ui.enable_packfile_actions(true);
                 }
 
                 // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
@@ -433,7 +450,7 @@ impl AppUISlots {
                         file_dialog.set_option(ShowDirsOnly);
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        let mut path = if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        let mut path = if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
                         } else { PathBuf::from("") };
                         path.push("raw_data");
                         path.push("db");
@@ -454,7 +471,7 @@ impl AppUISlots {
                         file_dialog.set_option(ShowDirsOnly);
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
                         } else { PathBuf::from("") }
                     }
 
@@ -473,7 +490,7 @@ impl AppUISlots {
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
                         _ => panic!(THREADS_COMMUNICATION_ERROR),
                     }
-                    
+
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
                 }
                 else {
@@ -486,10 +503,10 @@ impl AppUISlots {
         let special_stuff_optimize_packfile = SlotBool::new(move |_| {
 
                 // This cannot be done if there is a PackedFile open. Well, can be done, but it's a pain in the ass to do it.
-                if !UI_STATE.get_open_packedfiles().is_empty() { 
-                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::OperationNotAllowedWithPackedFileOpen, false); 
+                if !UI_STATE.get_open_packedfiles().is_empty() {
+                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::OperationNotAllowedWithPackedFileOpen, false);
                 }
-            
+
                 // If there is no problem, ere we go.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
@@ -539,7 +556,7 @@ impl AppUISlots {
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
-        
+
         // What happens when we trigger the "About Qt" action.
         let about_about_qt = SlotBool::new(move |_| { unsafe { MessageBox::about_qt(app_ui.main_window as *mut Widget); }});
 
@@ -551,7 +568,7 @@ impl AppUISlots {
 
         // And here... we return all the slots.
 		Self {
-		
+
 			//-----------------------------------------------//
 	        // Command Palette slots.
 	        //-----------------------------------------------//
@@ -564,6 +581,8 @@ impl AppUISlots {
             //-----------------------------------------------//
             packfile_new_packfile,
             packfile_open_packfile,
+            packfile_save_packfile,
+            packfile_save_packfile_as,
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
             packfile_data_is_compressed,
