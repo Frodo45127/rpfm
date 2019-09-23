@@ -22,8 +22,6 @@ use qt_widgets::widget::Widget;
 
 use qt_core::object::Object;
 
-use chrono::NaiveDateTime;
-
 use std::path::PathBuf;
 
 use rpfm_error::Result;
@@ -36,7 +34,7 @@ use rpfm_lib::SETTINGS;
 use super::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::pack_tree::{PackTree, TreeViewOperation};
+use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -346,11 +344,10 @@ impl AppUI {
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                 CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(path));
                 match CENTRAL_COMMAND.recv_message_qt_try() {
-                    Response::I64(date) => {
+                    Response::PackFileInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
-                        let date = QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)));
                         let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
-                        packfile_item.set_tool_tip(&date);
+                        packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                         packfile_item.set_text(&QString::from_std_str(&file_name));
 
                         UI_STATE.set_operational_mode(self, None);
@@ -366,11 +363,10 @@ impl AppUI {
         else {
             CENTRAL_COMMAND.send_message_qt(Command::SavePackFile);
             match CENTRAL_COMMAND.recv_message_qt_try() {
-                Response::I64(date) => {
+                Response::PackFileInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
-                    let date = QString::from_std_str(format!("Last Modified: {:?}", NaiveDateTime::from_timestamp(date, 0)));
-                    unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap().set_tool_tip(&date); }
-
+                    let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
+                    packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                 }
                 Response::Error(error) => result = Err(error),
 

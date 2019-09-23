@@ -111,6 +111,9 @@ pub enum Command {
     /// This command is used when we want to know the current path of our currently open `PackFile`.
     GetPackFilePath,
 
+    // This command is used when we want to get the info of the provided `PackedFile`.
+    GetPackedFileInfo(Vec<String>),
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -204,6 +207,9 @@ pub enum Response {
 
     /// Respone to return (PackFileInfo).
     PackFileInfo(PackFileInfo),
+
+    /// Response to return (Option<PackedFileInfo>).
+    OptionPackedFileInfo(Option<PackedFileInfo>),
 
     /// Response to return (Vec<Option<PackedFileInfo>>).
     VecOptionPackedFileInfo(Vec<Option<PackedFileInfo>>),

@@ -87,7 +87,7 @@ pub fn background_loop() {
             // In case we want to "Save a PackFile"...
             Command::SavePackFile => {
                 match pack_file_decoded.save(None) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::I64(pack_file_decoded.get_timestamp())),
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))),
                 }
             }
@@ -95,7 +95,7 @@ pub fn background_loop() {
             // In case we want to "Save a PackFile As"...
             Command::SavePackFileAs(path) => {
                 match pack_file_decoded.save(Some(path.to_path_buf())) {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::I64(pack_file_decoded.get_timestamp())),
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))),
                 }
             }
@@ -131,7 +131,14 @@ pub fn background_loop() {
                 )));
             }
 
-            // In case we want to get the info of one or more PackedFiles from the TreeView.
+            // In case we want to get the info of one PackedFile from the TreeView.
+            Command::GetPackedFileInfo(path) => {
+                CENTRAL_COMMAND.send_message_rust(Response::OptionPackedFileInfo(
+                    pack_file_decoded.get_packed_file_info_by_path(&path)
+                ));
+            }
+
+            // In case we want to get the info of more than one PackedFiles from the TreeView.
             Command::GetPackedFilesInfo(paths) => {
                 CENTRAL_COMMAND.send_message_rust(Response::VecOptionPackedFileInfo(
                     paths.iter().map(|x| pack_file_decoded.get_packed_file_info_by_path(x)).collect()
