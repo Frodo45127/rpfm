@@ -23,6 +23,7 @@ use qt_gui::desktop_services::DesktopServices;
 use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
+use std::fs::{copy, remove_file};
 use std::path::PathBuf;
 
 use rpfm_error::ErrorKind;
@@ -46,8 +47,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
 use crate::ui::GameSelectedIcons;
-
-use crate::UI_STATE;
+use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
 use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
@@ -78,6 +78,12 @@ pub struct AppUISlots {
     pub packfile_data_is_compressed: SlotBool<'static>,
     pub packfile_preferences: SlotBool<'static>,
     pub packfile_quit: SlotBool<'static>,
+
+    //-----------------------------------------------//
+    // `MyMod` menu slots.
+    //-----------------------------------------------//
+    pub mymod_install: SlotBool<'static>,
+    pub mymod_uninstall: SlotBool<'static>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -346,6 +352,84 @@ impl AppUISlots {
         ));
 
         //-----------------------------------------------//
+        // `MyMod` menu logic.
+        //-----------------------------------------------//
+
+        // This slot is used for the "Install MyMod" action.
+        let mymod_install = SlotBool::new(move |_| {
+
+                // Depending on our current "Mode", we choose what to do.
+                match UI_STATE.get_operational_mode() {
+
+                    // If we have a "MyMod" selected, and everything we need it's configured,
+                    // copy the PackFile to the data folder of the selected game.
+                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                        let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                        if let Some(ref mymods_base_path) = mymods_base_path {
+                            if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+
+                                // We get the "MyMod"s PackFile path.
+                                let mut mymod_path = mymods_base_path.to_path_buf();
+                                mymod_path.push(&game_folder_name);
+                                mymod_path.push(&mod_name);
+
+                                if !mymod_path.is_file() {
+                                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPackFileDoesntExist, false);
+                                }
+
+                                if !game_data_path.is_dir() {
+                                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModInstallFolderDoesntExists, false);
+                                }
+
+                                // Get the destination path for the PackFile with the PackFile name included.
+                                // And copy the PackFile to his destination. If the copy fails, return an error.
+                                game_data_path.push(&mod_name);
+                                if copy(mymod_path, game_data_path.to_path_buf()).is_err() {
+                                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOGenericCopy(game_data_path), false);
+                                }
+                            }
+                            else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false); }
+                        }
+                        else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
+                    }
+
+                    // If we have no "MyMod" selected, return an error.
+                    OperationalMode::Normal => show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                }
+
+            }
+        );
+
+        // This slot is used for the "Uninstall MyMod" action.
+        let mymod_uninstall = SlotBool::new(move |_| {
+
+                // Depending on our current "Mode", we choose what to do.
+                match UI_STATE.get_operational_mode() {
+
+                    // If we have a "MyMod" selected, and everything we need it's configured,
+                    // try to delete the PackFile (if exists) from the data folder of the selected game.
+                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                        if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+                            game_data_path.push(&mod_name);
+
+                            if !game_data_path.is_file() {
+                                return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModNotInstalled, false);
+                            }
+
+                            else if remove_file(game_data_path.to_path_buf()).is_err() {
+                                return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+                            }
+                        }
+                        else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false); }
+                    }
+
+                   // If we have no "MyMod" selected, return an error.
+                    OperationalMode::Normal => show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                }
+            }
+        );
+
+        //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
         let view_toggle_packfile_contents = SlotBool::new(move |_| {
@@ -588,6 +672,12 @@ impl AppUISlots {
             packfile_data_is_compressed,
             packfile_preferences,
             packfile_quit,
+
+            //-----------------------------------------------//
+            // `MyMod` menu slots.
+            //-----------------------------------------------//
+            mymod_install,
+            mymod_uninstall,
 
             //-----------------------------------------------//
             // `View` menu slots.

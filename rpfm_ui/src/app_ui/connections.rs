@@ -53,6 +53,12 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.packfile_quit.as_ref().unwrap().signals().triggered().connect(&slots.packfile_quit); }
 
     //-----------------------------------------------//
+    // `MyMod` menu connections.
+    //-----------------------------------------------//
+    unsafe { app_ui.mymod_install.as_ref().unwrap().signals().triggered().connect(&slots.mymod_install); }
+    unsafe { app_ui.mymod_uninstall.as_ref().unwrap().signals().triggered().connect(&slots.mymod_uninstall); }
+
+    //-----------------------------------------------//
     // `View` menu connections.
     //-----------------------------------------------//
     unsafe { app_ui.view_toggle_packfile_contents.as_ref().unwrap().signals().triggered().connect(&slots.view_toggle_packfile_contents); }

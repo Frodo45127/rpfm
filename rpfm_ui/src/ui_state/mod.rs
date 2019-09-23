@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -26,7 +26,7 @@ use crate::shortcuts::Shortcuts;
 use crate::ui_state::op_mode::OperationalMode;
 use crate::ui_state::global_search::GlobalSearch;
 
-mod op_mode;
+pub mod op_mode;
 pub mod global_search;
 
 //-------------------------------------------------------------------------------//
@@ -64,7 +64,7 @@ pub struct UIState {
 
 /// Implementation of `Default` for `UIState`.
 impl Default for UIState {
-    
+
     /// This function creates an entire `UIState` struct. Used to create the initial `UIState`.
     fn default() -> Self {
         Self {
@@ -115,7 +115,7 @@ impl UIState {
     }
 
     /// This function returns a reference to the current `Operational Mode`.
-    pub fn get_operational_mode(&self) -> OperationalMode { 
+    pub fn get_operational_mode(&self) -> OperationalMode {
         self.operational_mode.read().unwrap().get_ref_operational_mode().clone()
     }
 

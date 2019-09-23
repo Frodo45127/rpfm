@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -81,8 +81,8 @@ pub struct AppUI {
     // `MenuBar` menus.
     //-------------------------------------------------------------------------------//
     pub menu_bar_packfile: *mut Menu,
-    pub menu_bar_view: *mut Menu,
     pub menu_bar_mymod: *mut Menu,
+    pub menu_bar_view: *mut Menu,
     pub menu_bar_game_seleted: *mut Menu,
     pub menu_bar_special_stuff: *mut Menu,
     pub menu_bar_about: *mut Menu,
@@ -121,18 +121,18 @@ pub struct AppUI {
     pub change_packfile_type_group: *mut ActionGroup,
 
     //-------------------------------------------------------------------------------//
-    // `View` menu.
-    //-------------------------------------------------------------------------------//
-    pub view_toggle_packfile_contents: *mut Action,
-    pub view_toggle_global_search_panel: *mut Action,
-
-    //-------------------------------------------------------------------------------//
     // `MyMod` menu.
     //-------------------------------------------------------------------------------//
     pub mymod_new: *mut Action,
     pub mymod_delete_selected: *mut Action,
     pub mymod_install: *mut Action,
     pub mymod_uninstall: *mut Action,
+
+    //-------------------------------------------------------------------------------//
+    // `View` menu.
+    //-------------------------------------------------------------------------------//
+    pub view_toggle_packfile_contents: *mut Action,
+    pub view_toggle_global_search_panel: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
@@ -210,7 +210,7 @@ pub struct AppUI {
 
 /// Implementation of `Default` for `AppUI`.
 impl Default for AppUI {
-    
+
     /// This function creates an entire `AppUI` struct. Used to create the entire UI at start.
     fn default() -> Self {
 
@@ -228,7 +228,7 @@ impl Default for AppUI {
         //-----------------------------------------------//
         // `Command Palette` DockWidget.
         //-----------------------------------------------//
-        
+
         // Create and configure the 'Command Palette` Dock Widget and all his contents.
         let command_palette_window_flags = Flags::from_int(8);
         let mut command_palette_widget = unsafe { DockWidget::new_unsafe((main_window.as_mut_ptr() as *mut Widget, command_palette_window_flags)) };
@@ -237,18 +237,18 @@ impl Default for AppUI {
         unsafe { command_palette_widget.set_widget(command_palette_inner_widget.into_raw()); }
         command_palette_widget.set_features(Flags::from_int(0));
         command_palette_widget.set_minimum_width(500);
-        
+
         // Create and configure the `Command Palette` itself.
         let command_palette_line_edit = LineEdit::new(());
         let mut command_palette_completer = Completer::new(());
         let command_palette_completer_view = unsafe { new_tableview_command_palette() };
         let command_palette_completer_model = StandardItemModel::new(());
 
-        // This means our completer search with case-insensitive and contains filters. 
+        // This means our completer search with case-insensitive and contains filters.
         command_palette_completer.set_filter_mode(Flags::from_int(1));
         command_palette_completer.set_case_sensitivity(CaseSensitivity::Insensitive);
         command_palette_completer.set_max_visible_items(8);
-        
+
         unsafe { command_palette_completer_view.as_mut().unwrap().set_show_grid(false); }
         unsafe { command_palette_completer_view.as_mut().unwrap().set_selection_behavior(SelectionBehavior::Rows); }
         unsafe { command_palette_completer_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().hide(); }
@@ -269,8 +269,8 @@ impl Default for AppUI {
         // Create the `MenuBar` menus.
         let menu_bar_ref_mut = unsafe { menu_bar.as_mut().unwrap() };
         let menu_bar_packfile = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-packfile")));
-        let menu_bar_view = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-view")));
         let menu_bar_mymod = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-mymod")));
+        let menu_bar_view = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-view")));
         let menu_bar_game_seleted = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-game-selected")));
         let menu_bar_special_stuff = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-special-stuff")));
         let menu_bar_about = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-about")));
@@ -351,15 +351,6 @@ impl Default for AppUI {
         unsafe { packfile_menu_change_packfile_type.insert_separator(change_packfile_type_data_is_compressed); }
 
         //-----------------------------------------------//
-        // `View` Menu.
-        //-----------------------------------------------//
-
-        // Populate the `Game Selected` menu.
-        let menu_bar_view_ref_mut = unsafe { menu_bar_view.as_mut().unwrap() };
-        let view_toggle_packfile_contents = menu_bar_view_ref_mut.add_action(&QString::from_std_str("Toggle &PackFile Contents"));
-        let view_toggle_global_search_panel = menu_bar_view_ref_mut.add_action(&QString::from_std_str("Toggle Global Search Window"));
-
-        //-----------------------------------------------//
         // `MyMod` Menu.
         //-----------------------------------------------//
 
@@ -370,11 +361,22 @@ impl Default for AppUI {
         let mymod_install = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Install"));
         let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Uninstall"));
 
+        unsafe { menu_bar_mymod_ref_mut.insert_separator(mymod_install); }
+
         // Disable all the Contextual Menu actions by default.
         unsafe { mymod_new.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_delete_selected.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_install.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_uninstall.as_mut().unwrap().set_enabled(false); }
+
+        //-----------------------------------------------//
+        // `View` Menu.
+        //-----------------------------------------------//
+
+        // Populate the `Game Selected` menu.
+        let menu_bar_view_ref_mut = unsafe { menu_bar_view.as_mut().unwrap() };
+        let view_toggle_packfile_contents = menu_bar_view_ref_mut.add_action(&QString::from_std_str("Toggle &PackFile Contents"));
+        let view_toggle_global_search_panel = menu_bar_view_ref_mut.add_action(&QString::from_std_str("Toggle Global Search Window"));
 
         //-----------------------------------------------//
         // `Game Selected` Menu.
@@ -384,7 +386,7 @@ impl Default for AppUI {
         let menu_bar_game_seleted_ref_mut = unsafe { menu_bar_game_seleted.as_mut().unwrap() };
         let game_selected_open_game_data_folder = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str("&Open Game's Data Folder"));
         let game_selected_open_game_assembly_kit_folder = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str("Open &Game's Assembly Kit Folder"));
-        
+
         let game_selected_three_kingdoms = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str("Three &Kingdoms"));
         let game_selected_warhammer_2 = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str("&Warhammer 2"));
         let game_selected_warhammer = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str("War&hammer"));
@@ -467,7 +469,7 @@ impl Default for AppUI {
         let special_stuff_sho2_optimize_packfile = menu_shogun_2_ref_mut.add_action(&QString::from_std_str("&Optimize PackFile"));
         let special_stuff_nap_optimize_packfile = menu_napoleon_ref_mut.add_action(&QString::from_std_str("&Optimize PackFile"));
         let special_stuff_emp_optimize_packfile = menu_empire_ref_mut.add_action(&QString::from_std_str("&Optimize PackFile"));
-        
+
         //-----------------------------------------------//
         // `About` Menu.
         //-----------------------------------------------//
@@ -480,7 +482,7 @@ impl Default for AppUI {
         let about_patreon_link = menu_bar_about_ref_mut.add_action(&QString::from_std_str("&Support me on Patreon"));
         let about_check_updates = menu_bar_about_ref_mut.add_action(&QString::from_std_str("&Check Updates"));
         let about_check_schema_updates = menu_bar_about_ref_mut.add_action(&QString::from_std_str("Check Schema &Updates"));
-        
+
         command_palette_widget.hide();
 
         // Create ***Da monsta***.
@@ -509,8 +511,8 @@ impl Default for AppUI {
             // `MenuBar` menus.
             //-------------------------------------------------------------------------------//
             menu_bar_packfile,
-            menu_bar_view,
             menu_bar_mymod,
+            menu_bar_view,
             menu_bar_game_seleted,
             menu_bar_special_stuff,
             menu_bar_about,
@@ -543,7 +545,7 @@ impl Default for AppUI {
             change_packfile_type_index_includes_timestamp,
             change_packfile_type_index_is_encrypted,
             change_packfile_type_data_is_encrypted,
-            
+
             // Action for the PackFile compression.
             change_packfile_type_data_is_compressed,
 
@@ -551,25 +553,25 @@ impl Default for AppUI {
             change_packfile_type_group: change_packfile_type_group.into_raw(),
 
             //-------------------------------------------------------------------------------//
-            // "View" menu.
-            //-------------------------------------------------------------------------------//
-            view_toggle_packfile_contents,
-            view_toggle_global_search_panel,
-        
-            //-------------------------------------------------------------------------------//
             // `MyMod` menu.
             //-------------------------------------------------------------------------------//
             mymod_new,
             mymod_delete_selected,
             mymod_install,
             mymod_uninstall,
-            
+
+            //-------------------------------------------------------------------------------//
+            // "View" menu.
+            //-------------------------------------------------------------------------------//
+            view_toggle_packfile_contents,
+            view_toggle_global_search_panel,
+
             //-------------------------------------------------------------------------------//
             // "Game Selected" menu.
             //-------------------------------------------------------------------------------//
             game_selected_open_game_data_folder,
             game_selected_open_game_assembly_kit_folder,
-        
+
             game_selected_three_kingdoms,
             game_selected_warhammer_2,
             game_selected_warhammer,
@@ -600,7 +602,7 @@ impl Default for AppUI {
             special_stuff_wh_generate_pak_file,
             special_stuff_wh_optimize_packfile,
             special_stuff_wh_patch_siege_ai,
-            
+
             // Thrones of Britannia's actions.
             special_stuff_tob_generate_pak_file,
             special_stuff_tob_optimize_packfile,
