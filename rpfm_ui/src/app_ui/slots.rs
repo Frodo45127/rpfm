@@ -23,7 +23,7 @@ use qt_gui::desktop_services::DesktopServices;
 use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
-use std::fs::{copy, remove_file};
+use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 
 use rpfm_error::ErrorKind;
@@ -35,14 +35,14 @@ use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
-
 use crate::QString;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::command_palette;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::pack_tree::{PackTree, TreeViewOperation};
+use crate::mymod_ui::MyModUI;
+use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
@@ -82,6 +82,8 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `MyMod` menu slots.
     //-----------------------------------------------//
+    pub mymod_new: SlotBool<'static>,
+    pub mymod_delete_selected: SlotBool<'static>,
     pub mymod_install: SlotBool<'static>,
     pub mymod_uninstall: SlotBool<'static>,
 
@@ -318,7 +320,6 @@ impl AppUISlots {
                             // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
                                 UI_STATE.set_operational_mode(&app_ui, None);
-                                UI_STATE.set_mymod_menu_needs_rebuild(true);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -354,6 +355,173 @@ impl AppUISlots {
         //-----------------------------------------------//
         // `MyMod` menu logic.
         //-----------------------------------------------//
+
+
+        // This slot is used for the "New MyMod" action.
+        let mymod_new = SlotBool::new(move |_| {
+
+                // Trigger the `New MyMod` Dialog, and get the result.
+                match MyModUI::new(&app_ui) {
+
+                    // If we accepted, create the new `MyMod` with the name and game from the dialog.
+                    Some((mod_name, mod_game)) => {
+                        let full_mod_name = format!("{}.pack", mod_name);
+
+                        // Change the Game Selected to match the one we chose for the new "MyMod".
+                        // NOTE: Arena should not be on this list.
+                        match &*mod_game {
+                            "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+                            "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+                            "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
+                            "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+                            "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
+                            "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
+                            "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+                            "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
+                            "empire" | _ => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
+                        }
+
+                        // Get his new path from the base "MyMod" path + `mod_game`.
+                        let mut mymod_path = SETTINGS.lock().unwrap().paths["mymods_base_path"].clone().unwrap();
+                        mymod_path.push(&mod_game);
+
+                        // Just in case the folder doesn't exist, we try to create it.
+                        if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
+                            return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateAssetFolder, false);
+                        }
+
+                        // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
+                        let mut mymod_path_private = mymod_path.to_path_buf();
+                        mymod_path_private.push(&mod_name);
+                        if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
+                            return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateNestedAssetFolder, false);
+                        };
+
+                        // Complete the mymod PackFile path and create it.
+                        mymod_path.push(&full_mod_name);
+                        CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
+                        CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
+                        match CENTRAL_COMMAND.recv_message_qt_try() {
+                            Response::PackFileInfo(pack_file_info) => {
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                                let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
+                                packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                                packfile_item.set_text(&QString::from_std_str(&full_mod_name));
+
+                                // Set the UI to the state it should be in.
+                                unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+                                unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+                                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
+
+                                app_ui.enable_packfile_actions(true);
+
+                                UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
+
+                                // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                                //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+
+                                // Close the Global Search stuff and reset the filter's history.
+                                //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
+                                //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
+
+                                // Show the "Tips".
+                                //display_help_tips(&app_ui);
+
+
+
+                                // Clean the TableStateData.
+                                //*table_state_data.borrow_mut() = TableStateData::new();
+
+                            }
+                            Response::Error(error) => return show_dialog(app_ui.main_window as *mut Widget, error, false),
+
+
+                            // In ANY other situation, it's a message problem.
+                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        }
+                    }
+
+                    // If we canceled the creation of a "MyMod", just return.
+                    None => return,
+                }
+            }
+        );
+
+
+        // This slot is used for the "Delete Selected MyMod" action.
+        let mymod_delete_selected = SlotBool::new(move |_| {
+
+                // Ask before doing it, as this will permanently delete the mod from the Disk.
+                if app_ui.are_you_sure(true) {
+
+                    // We want to keep our "MyMod" name for the success message, so we store it here.
+                    let old_mod_name: String;
+
+                    // Depending on our current "Mode", we choose what to do.
+                    let mod_deleted = match UI_STATE.get_operational_mode() {
+
+                        // If we have a "MyMod" selected, and everything we need it's configured,
+                        // copy the PackFile to the data folder of the selected game.
+                        OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                            old_mod_name = mod_name.to_owned();
+                            let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                            if let Some(ref mymods_base_path) = mymods_base_path {
+
+                                // We get the "MyMod"s PackFile path.
+                                let mut mymod_path = mymods_base_path.to_path_buf();
+                                mymod_path.push(&game_folder_name);
+                                mymod_path.push(&mod_name);
+
+                                if !mymod_path.is_file() {
+                                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPackFileDoesntExist, false);
+                                }
+
+                                // Try to delete his PackFile. If it fails, return error.
+                                if remove_file(&mymod_path).is_err() {
+                                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOGenericDelete(vec![mymod_path; 1]), false);
+                                }
+
+                                // Now we get his assets folder.
+                                let mut mymod_assets_path = mymod_path.to_path_buf();
+                                mymod_assets_path.pop();
+                                mymod_assets_path.push(&mymod_path.file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+
+                                // We check that path exists. This is optional, so it should allow the deletion
+                                // process to continue with a warning.
+                                if !mymod_assets_path.is_dir() {
+                                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPackFileDeletedFolderNotFound, false);
+                                }
+
+                                // If the assets folder exists, we try to delete it. Again, this is optional, so it should not stop the deleting process.
+                                else if remove_dir_all(&mymod_assets_path).is_err() {
+                                    show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOGenericDelete(vec![mymod_assets_path; 1]), false);
+                                }
+
+                                // We return true, as we have delete the files of the "MyMod".
+                                true
+                            }
+                            else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
+                        }
+
+                        // If we have no "MyMod" selected, return an error.
+                        OperationalMode::Normal => return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                    };
+
+                    // If we deleted the "MyMod", we allow chaos to form below.
+                    if mod_deleted {
+                        UI_STATE.set_operational_mode(&app_ui, None);
+                        CENTRAL_COMMAND.send_message_qt(Command::ResetPackFile);
+                        app_ui.enable_packfile_actions(false);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear);
+
+                        show_dialog(app_ui.main_window as *mut Widget, format!("MyMod successfully deleted: \"{}\".", old_mod_name), true);
+                    }
+                }
+            }
+        );
 
         // This slot is used for the "Install MyMod" action.
         let mymod_install = SlotBool::new(move |_| {
@@ -408,7 +576,7 @@ impl AppUISlots {
 
                     // If we have a "MyMod" selected, and everything we need it's configured,
                     // try to delete the PackFile (if exists) from the data folder of the selected game.
-                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                    OperationalMode::MyMod(_, ref mod_name) => {
                         if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
                             game_data_path.push(&mod_name);
 
@@ -481,7 +649,6 @@ impl AppUISlots {
 
                 // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
                 CENTRAL_COMMAND.send_message_qt(Command::SetGameSelected(new_game_selected));
-                UI_STATE.set_mymod_menu_needs_rebuild(true);
 
                 // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
                 app_ui.enable_packfile_actions(false);
@@ -676,6 +843,8 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `MyMod` menu slots.
             //-----------------------------------------------//
+            mymod_new,
+            mymod_delete_selected,
             mymod_install,
             mymod_uninstall,
 

@@ -55,6 +55,8 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `MyMod` menu connections.
     //-----------------------------------------------//
+    unsafe { app_ui.mymod_new.as_ref().unwrap().signals().triggered().connect(&slots.mymod_new); }
+    unsafe { app_ui.mymod_delete_selected.as_ref().unwrap().signals().triggered().connect(&slots.mymod_delete_selected); }
     unsafe { app_ui.mymod_install.as_ref().unwrap().signals().triggered().connect(&slots.mymod_install); }
     unsafe { app_ui.mymod_uninstall.as_ref().unwrap().signals().triggered().connect(&slots.mymod_uninstall); }
 

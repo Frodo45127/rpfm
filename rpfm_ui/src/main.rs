@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -21,7 +21,7 @@
     clippy::module_inception,               // Disabled because it's quite useless.
     clippy::needless_bool,                  // Disabled because the solutions it provides are harder to read than the current code.
     clippy::new_ret_no_self,                // Disabled because the reported situations are special cases. So no, I'm not going to rewrite them.
-    clippy::redundant_closure,              // Disabled because the solutions it provides doesn't even work.             
+    clippy::redundant_closure,              // Disabled because the solutions it provides doesn't even work.
     clippy::suspicious_else_formatting,     // Disabled because the errors it gives are actually false positives due to comments.
     clippy::too_many_arguments,             // Disabled because you never have enough arguments.
     clippy::type_complexity,                // Disabled temporarily because there are other things to do before rewriting the types it warns about.
@@ -168,6 +168,7 @@ mod communications;
 mod background_thread;
 mod ffi;
 mod locale;
+mod mymod_ui;
 mod pack_tree;
 mod shortcuts;
 mod settings_ui;
@@ -265,7 +266,7 @@ lazy_static! {
 
     /// Variable to lock/unlock certain actions of the Folder TreeView.
     //static ref IS_FOLDER_TREE_VIEW_LOCKED: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
-    
+
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Arc<RwLock<FluentBundle<FluentResource>>> = {
         match locale::initialize("en") {
@@ -273,7 +274,7 @@ lazy_static! {
             Err(_) => locale::initialize_empty(),
         }
     };
-    
+
     /// Variable to keep the locale data used by the UI loaded and available. If we fail to load the selected locale data, copy the english one instead.
     static ref LOCALE: Arc<RwLock<FluentBundle<FluentResource>>> = {
         match SETTINGS.lock().unwrap().settings_string.get("language") {
@@ -323,7 +324,7 @@ pub enum GlobalMatch {
 
 /// Main function.
 fn main() {
-    
+
     // Log the crashes so the user can send them himself.
     //if !cfg!(debug_assertions) { panic::set_hook(Box::new(move |info: &panic::PanicInfo| { Report::new(info, VERSION).save().unwrap(); })); }
 
@@ -603,7 +604,7 @@ fn main() {
                     set_my_mod_mode(&mymod_stuff, &mode, None);
 
                     // Clean the TableStateData.
-                    *table_state_data.borrow_mut() = TableStateData::new(); 
+                    *table_state_data.borrow_mut() = TableStateData::new();
                 }
             }
         ));
@@ -700,7 +701,7 @@ fn main() {
                     &receiver_qt,
                     &table_state_data,
                     &packedfiles_open_in_packedfile_view
-                ) { show_dialog(app_ui.window, false, error); }   
+                ) { show_dialog(app_ui.window, false, error); }
             }
         ));
 
@@ -721,7 +722,7 @@ fn main() {
                     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                     sender_qt.send(Commands::LoadAllCAPackFiles).unwrap();
                     match check_message_validity_tryrecv(&receiver_qt) {
-                    
+
                         // If it's success....
                         Data::PackFileUIData(data) => {
 
@@ -781,7 +782,7 @@ fn main() {
                             display_help_tips(&app_ui);
 
                             // Clean the TableStateData.
-                            *table_state_data.borrow_mut() = TableStateData::new(); 
+                            *table_state_data.borrow_mut() = TableStateData::new();
                         }
 
                         // If we got an error...
@@ -898,7 +899,7 @@ fn main() {
                                 if key != "mymods_base_path" && &old_settings.paths[key] != value {
                                     games_with_changed_paths.push(key.to_owned());
                                 }
-                            } 
+                            }
 
                             // If our current `GameSelected` is in the `games_with_changed_paths` list...
                             let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
@@ -1056,7 +1057,7 @@ fn main() {
 
                 // This cannot be done if there is a PackedFile open. Well, can be done, but it's a pain in the ass to do it.
                 if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::OperationNotAllowedWithPackedFileOpen); }
-            
+
                 // If there is no problem, ere we go.
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                 sender_qt.send(Commands::OptimizePackFile).unwrap();
@@ -1137,7 +1138,7 @@ fn main() {
                         file_dialog.set_option(ShowDirsOnly);
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        let mut path = if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        let mut path = if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
                         } else { PathBuf::from("") };
                         path.push("raw_data");
                         path.push("db");
@@ -1158,7 +1159,7 @@ fn main() {
                         file_dialog.set_option(ShowDirsOnly);
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string()) 
+                        if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
                         } else { PathBuf::from("") }
                     }
 
@@ -1184,7 +1185,7 @@ fn main() {
             }
         ));
 
-        // "Special Stuff" Menu Actions.        
+        // "Special Stuff" Menu Actions.
         unsafe { app_ui.wh2_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
         unsafe { app_ui.wh_patch_siege_ai.as_ref().unwrap().signals().triggered().connect(&slot_patch_siege_ai); }
 
@@ -1305,10 +1306,10 @@ fn main() {
 
                 // Now we do some bitwise magic to get what type of selection combination we have.
                 let mut contents: u8 = 0;
-                if file != 0 { contents |= 1; } 
-                if folder != 0 { contents |= 2; } 
-                if packfile != 0 { contents |= 4; } 
-                if none != 0 { contents |= 8; } 
+                if file != 0 { contents |= 1; }
+                if folder != 0 { contents |= 2; }
+                if packfile != 0 { contents |= 4; }
+                if none != 0 { contents |= 8; }
                 match contents {
 
                     // Only one or more files selected.
@@ -1349,7 +1350,7 @@ fn main() {
                         // If we only have selected one file and it's a DB, we should enable this too.
                         let mut enable_db_decoder = false;
                         if file == 1 {
-                            if let TreePathType::File(data) = &item_types[0] {                                
+                            if let TreePathType::File(data) = &item_types[0] {
                                 if !data.is_empty() && data.starts_with(&["db".to_owned()]) && data.len() == 3 {
                                     enable_db_decoder = true;
                                 }
@@ -1520,7 +1521,7 @@ fn main() {
                         }
                     },
 
-                    // No paths selected, none selected, invalid path selected, or invalid value. 
+                    // No paths selected, none selected, invalid path selected, or invalid value.
                     0 | 8..=255 => {
                         unsafe {
                             app_ui.context_menu_add_file.as_mut().unwrap().set_enabled(false);
@@ -1667,9 +1668,9 @@ fn main() {
 
                                     // 16384 means yes.
                                     if dialog.exec() != 16384 { return }
-                                    else { 
+                                    else {
                                         for view in &views {
-                                            purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                            purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
                                             let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
                                             let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
                                             if visible_widgets == 0 { display_help_tips(&app_ui); }
@@ -1760,9 +1761,9 @@ fn main() {
 
                                 // 16384 means yes.
                                 if dialog.exec() != 16384 { return }
-                                else { 
+                                else {
                                     for view in &views {
-                                        purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                        purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
                                         let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
                                         let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
                                         if visible_widgets == 0 { display_help_tips(&app_ui); }
@@ -1918,9 +1919,9 @@ fn main() {
 
                                     // 16384 means yes.
                                     if dialog.exec() != 16384 { return }
-                                    else { 
+                                    else {
                                         for view in &views {
-                                            purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                            purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
                                             let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
                                             let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
                                             if visible_widgets == 0 { display_help_tips(&app_ui); }
@@ -2016,9 +2017,9 @@ fn main() {
 
                                 // 16384 means yes.
                                 if dialog.exec() != 16384 { return }
-                                else { 
+                                else {
                                     for view in &views {
-                                        purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view); 
+                                        purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
                                         let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
                                         let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
                                         if visible_widgets == 0 { display_help_tips(&app_ui); }
@@ -2109,7 +2110,7 @@ fn main() {
 
                     // Get the data from the operation...
                     match check_message_validity_tryrecv(&receiver_qt) {
-                        
+
                         // If it's success....
                         Data::Success => {
 
@@ -2266,7 +2267,7 @@ fn main() {
                         sender_qt.send(Commands::MassImportTSV).unwrap();
                         sender_qt_data.send(Data::OptionStringVecPathBuf(data)).unwrap();
                         match check_message_validity_tryrecv(&receiver_qt) {
-                            
+
                             // If it's success....
                             Data::VecVecStringVecVecString(paths) => {
 
@@ -2347,7 +2348,7 @@ fn main() {
         let slot_contextual_menu_check_tables = SlotBool::new(clone!(
             sender_qt,
             receiver_qt => move |_| {
-                
+
                 // Disable the window and trigger the check for all tables in the PackFile.
                 unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                 sender_qt.send(Commands::CheckTables).unwrap();
@@ -2368,7 +2369,7 @@ fn main() {
             packedfiles_open_in_packedfile_view,
             global_search_explicit_paths,
             table_state_data => move |_| {
-                
+
                 // Get the currently selected paths, and get how many we have of each type.
                 let selected_paths = get_path_from_main_treeview_selection(&app_ui);
 
@@ -2395,7 +2396,7 @@ fn main() {
 
                             if path[1] != db_folder {
                                 db_pass = false;
-                                break;                                
+                                break;
                             }
                         }
                         else {
@@ -2411,7 +2412,7 @@ fn main() {
 
                 // If we got valid files, create the dialog to ask for the needed info.
                 if (loc_pass || db_pass) && !(loc_pass && db_pass) {
-    
+
                     // If we have a PackedFile open, throw the usual warning.
                     if !packedfiles_open_in_packedfile_view.borrow().is_empty() {
 
@@ -2428,7 +2429,7 @@ fn main() {
                         dialog.show();
 
                         // If we hit "Accept", close all PackedFiles.
-                        if dialog.exec() == 0 { 
+                        if dialog.exec() == 0 {
                             purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
                             display_help_tips(&app_ui);
                         } else { return }
@@ -2492,7 +2493,7 @@ fn main() {
                                     table_state_data.borrow_mut().insert(path.to_vec(), data);
                                 }
                             }
-                            
+
                             Data::Error(error) => show_dialog(app_ui.window, false, error),
                             _ => panic!(THREADS_MESSAGE_ERROR),
                         }
@@ -2510,7 +2511,7 @@ fn main() {
             receiver_qt,
             packedfiles_open_in_packedfile_view,
             table_state_data => move |_| {
-                
+
                 // Get the currently selected items, and get how many we have of each type.
                 let selected_items = get_items_from_main_treeview_selection(&app_ui);
 
@@ -2526,7 +2527,7 @@ fn main() {
                             let mut add_type = true;
                             for selected_item in &selected_items {
                                 let item_type = get_type_of_item(*selected_item, app_ui.folder_tree_model);
-                                
+
                                 // Skip the current file from checks.
                                 if let TreePathType::File(ref path) = item_type {
                                     if path == path_to_add { continue; }
@@ -2534,7 +2535,7 @@ fn main() {
 
                                 // If the other one is a folder that contains it, dont add it.
                                 else if let TreePathType::Folder(ref path) = item_type {
-                                    if path_to_add.starts_with(path) { 
+                                    if path_to_add.starts_with(path) {
                                         add_type = false;
                                         break;
                                     }
@@ -2551,7 +2552,7 @@ fn main() {
                                 // If the other one is a folder that contains it, dont add it.
                                 if let TreePathType::Folder(ref path) = item_type {
                                     if path == path_to_add { continue; }
-                                    if path_to_add.starts_with(path) { 
+                                    if path_to_add.starts_with(path) {
                                         add_type = false;
                                         break;
                                     }
@@ -2566,7 +2567,7 @@ fn main() {
                             break;
                         }
                         TreePathType::None => unimplemented!(),
-                    }   
+                    }
                 }
 
                 for item_type in &item_types_clean {
@@ -2580,10 +2581,10 @@ fn main() {
 
                 // Now we do some bitwise magic to get what type of selection combination we have.
                 let mut contents: u8 = 0;
-                if file != 0 { contents |= 1; } 
-                if folder != 0 { contents |= 2; } 
-                if packfile != 0 { contents |= 4; } 
-                if none != 0 { contents |= 8; } 
+                if file != 0 { contents |= 1; }
+                if folder != 0 { contents |= 2; }
+                if packfile != 0 { contents |= 4; }
+                if none != 0 { contents |= 8; }
                 match contents {
 
                     // Any combination of files and folders.
@@ -2595,7 +2596,7 @@ fn main() {
                                 TreePathType::File(path) => {
                                     for (view, open_path) in &packed_files_open {
                                         if path == &*open_path.borrow() {
-                                            if !skaven_confirm { 
+                                            if !skaven_confirm {
 
                                                 let mut dialog = unsafe { MessageBox::new_unsafe((
                                                     message_box::Icon::Information,
@@ -2610,7 +2611,7 @@ fn main() {
                                                 dialog.show();
 
                                                 // If we hit "Accept", close the PackedFile and continue. Otherwise return.
-                                                if dialog.exec() == 0 { 
+                                                if dialog.exec() == 0 {
                                                     purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
 
                                                     let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
@@ -2642,7 +2643,7 @@ fn main() {
                                         }
 
                                         if open_path.borrow().starts_with(&path) || path_is_contained_in_deletion {
-                                            if !skaven_confirm { 
+                                            if !skaven_confirm {
 
                                                 let mut dialog = unsafe { MessageBox::new_unsafe((
                                                     message_box::Icon::Information,
@@ -2657,7 +2658,7 @@ fn main() {
                                                 dialog.show();
 
                                                 // If we hit "Accept", close the PackedFile and continue. Otherwise return.
-                                                if dialog.exec() == 0 { 
+                                                if dialog.exec() == 0 {
                                                     purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
 
                                                     let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
@@ -2675,7 +2676,7 @@ fn main() {
                                 },
 
                                 _ => unreachable!(),
-                            } 
+                            }
                         }
                     },
 
@@ -2697,7 +2698,7 @@ fn main() {
                             dialog.show();
 
                             // If we hit "Accept", close all PackedFiles and stop the loop.
-                            if dialog.exec() == 0 { 
+                            if dialog.exec() == 0 {
                                 purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
                                 display_help_tips(&app_ui);
                                 table_state_data.borrow_mut().clear();
@@ -2705,7 +2706,7 @@ fn main() {
                         }
                     },
 
-                    // No paths selected, none selected, invalid path selected, or invalid value. 
+                    // No paths selected, none selected, invalid path selected, or invalid value.
                     0 | 8..=255 => return,
                 }
 
@@ -2781,7 +2782,7 @@ fn main() {
                             app_ui.window as *mut Widget,
                             &QString::from_std_str("Extract PackFile"),
                         )) };
-                        
+
                         if !extraction_path.is_empty() { PathBuf::from(extraction_path.to_std_string()) }
                         else { return }
                     }
@@ -2954,7 +2955,7 @@ fn main() {
                 // Create the widget that'll act as a container for the view.
                 let widget = Widget::new().into_raw();
                 let widget_layout = create_grid_layout_unsafe(widget);
-                
+
                 let path = Rc::new(RefCell::new(vec![]));
                 let view_position = 1;
 
@@ -2977,16 +2978,16 @@ fn main() {
 
         // What happens when we trigger one of the "Filter Updater" events for the Folder TreeView.
         let slot_folder_view_filter_change_text = SlotStringRef::new(move |_| {
-            filter_files(&app_ui); 
+            filter_files(&app_ui);
         });
         let slot_folder_tree_filter_change_autoexpand_matches = SlotBool::new(move |_| {
-            filter_files(&app_ui); 
+            filter_files(&app_ui);
         });
         let slot_folder_view_filter_change_case_sensitive = SlotBool::new(move |_| {
-            filter_files(&app_ui); 
+            filter_files(&app_ui);
         });
         let slot_folder_tree_filter_filter_by_folder_button = SlotBool::new(move |_| {
-            filter_files(&app_ui); 
+            filter_files(&app_ui);
         });
 
         // Contextual Menu Actions.
@@ -3029,7 +3030,7 @@ fn main() {
             sender_qt_data,
             packedfiles_open_in_packedfile_view,
             receiver_qt => move |_| {
-                
+
                 // Get the currently selected items, and check how many of them are valid before trying to rewrite them.
                 // Why? Because I'm sure there is an asshole out there that it's going to try to give the files duplicated
                 // names, and if that happen, we have to stop right there that criminal scum.
@@ -3057,7 +3058,7 @@ fn main() {
 
                         // We receive the PathTypes that could be renamed. The rest are ignored.
                         Data::VecPathTypeString(ref renamed_items) => {
-                            
+
                             // Update the TreeView.
                             let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, String)>>();
                             update_treeview(
@@ -3071,10 +3072,10 @@ fn main() {
                                 TreeViewOperation::Rename(renamed_items.to_vec()),
                             );
 
-                            // If we have a PackedFile open, we have to rename it in that list too. Note that a path 
+                            // If we have a PackedFile open, we have to rename it in that list too. Note that a path
                             // can be empty (the dep manager), so we have to check that too.
                             for open_path in packedfiles_open_in_packedfile_view.borrow().values() {
-                                if !open_path.borrow().is_empty() { 
+                                if !open_path.borrow().is_empty() {
                                     for (item_type, new_name) in &renamed_items {
                                         match item_type {
                                             TreePathType::File(ref item_path) => {
@@ -3088,7 +3089,7 @@ fn main() {
                                                     // Update the global search stuff, if needed.
                                                     global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
                                                 }
-                                            } 
+                                            }
 
                                             TreePathType::Folder(ref item_path) => {
                                                 if !item_path.is_empty() && open_path.borrow().starts_with(&item_path) {
@@ -3106,25 +3107,25 @@ fn main() {
                                             }
                                             _ => unreachable!(),
                                         }
-                                        
+
                                         // Same for the TableStateData stuff. If we find one of the paths in it, we remove it and re-insert it with the new name.
                                         match item_type {
                                             TreePathType::File(ref item_path) => {
                                                 if table_state_data.borrow().get(item_path).is_some() {
                                                     let mut new_path = item_path.to_vec();
                                                     *new_path.last_mut().unwrap() = new_name.to_owned();
-                                                    
+
                                                     let data = table_state_data.borrow_mut().remove(item_path).unwrap();
                                                     table_state_data.borrow_mut().insert(new_path.to_vec(), data);
                                                 }
-                                            } 
+                                            }
 
                                             TreePathType::Folder(ref item_path) => {
                                                 let matches = table_state_data.borrow().keys().filter(|x| x.starts_with(item_path) && !x.is_empty()).cloned().collect::<Vec<Vec<String>>>();
                                                 for old_path in matches {
                                                     let mut new_path = item_path.to_vec();
                                                     *new_path.last_mut().unwrap() = new_name.to_owned();
-                                                    
+
                                                     let data = table_state_data.borrow_mut().remove(&old_path).unwrap();
                                                     table_state_data.borrow_mut().insert(new_path.to_vec(), data);
                                                 }
@@ -3213,9 +3214,9 @@ fn main() {
                         Data::VecGlobalMatch(matches) => {
 
                             // If there are no matches, just report it.
-                            if matches.is_empty() { 
+                            if matches.is_empty() {
                                 dialog.set_standard_buttons(Flags::from_int(2_097_152));
-                                dialog.set_text(&QString::from_std_str("<p>No matches found.</p>")); 
+                                dialog.set_text(&QString::from_std_str("<p>No matches found.</p>"));
                                 dialog.exec();
                             }
 
@@ -3227,7 +3228,7 @@ fn main() {
                                 unsafe { model_matches_db.as_mut().unwrap().clear(); }
                                 unsafe { model_matches_loc.as_mut().unwrap().clear(); }
 
-                                // For each match, generate an entry in their respective table, 
+                                // For each match, generate an entry in their respective table,
                                 for match_found in &matches {
                                     match match_found {
 
@@ -3382,7 +3383,7 @@ fn main() {
                     )); }
 
                     unsafe { packed_file_table.as_mut().unwrap().scroll_to(&packed_file_model.as_mut().unwrap().index((row, column))); }
-                    
+
                 }
                 else { show_dialog(app_ui.window, false, ErrorKind::PackedFileNotInFilter); }
             }
@@ -3405,7 +3406,7 @@ fn main() {
                 // Expand and select the item in the TreeView.
                 let item = get_item_from_type(app_ui.folder_tree_model, &TreePathType::File(path.to_vec()));
                 let model_index = unsafe { app_ui.folder_tree_model.as_mut().unwrap().index_from_item(item) };
-                
+
                 let filtered_index = unsafe { app_ui.folder_tree_filter.as_ref().unwrap().map_from_source(&model_index) };
                 let selection_model = unsafe { app_ui.folder_tree_view.as_mut().unwrap().selection_model() };
 
@@ -3495,7 +3496,7 @@ fn main() {
                                 unsafe { model_matches_db.as_mut().unwrap().clear(); }
                                 unsafe { model_matches_loc.as_mut().unwrap().clear(); }
 
-                                // For each match, generate an entry in their respective table, 
+                                // For each match, generate an entry in their respective table,
                                 for match_found in &matches {
                                     match match_found {
 
@@ -3607,7 +3608,7 @@ fn main() {
                 filter_matches_db_line_edit,
                 filter_matches_db_column_selector,
                 filter_matches_db_case_sensitive_button,
-            ); 
+            );
         });
         let slot_matches_filter_db_change_column = SlotCInt::new(move |index| {
             filter_matches_result(
@@ -3618,7 +3619,7 @@ fn main() {
                 filter_matches_db_line_edit,
                 filter_matches_db_column_selector,
                 filter_matches_db_case_sensitive_button,
-            ); 
+            );
         });
         let slot_matches_filter_db_change_case_sensitivity = SlotBool::new(move |case_sensitive| {
             filter_matches_result(
@@ -3629,7 +3630,7 @@ fn main() {
                 filter_matches_db_line_edit,
                 filter_matches_db_column_selector,
                 filter_matches_db_case_sensitive_button,
-            ); 
+            );
         });
 
         let slot_matches_filter_loc_change_text = SlotStringRef::new(move |filter_text| {
@@ -3641,7 +3642,7 @@ fn main() {
                 filter_matches_loc_line_edit,
                 filter_matches_loc_column_selector,
                 filter_matches_loc_case_sensitive_button,
-            ); 
+            );
         });
         let slot_matches_filter_loc_change_column = SlotCInt::new(move |index| {
             filter_matches_result(
@@ -3652,7 +3653,7 @@ fn main() {
                 filter_matches_loc_line_edit,
                 filter_matches_loc_column_selector,
                 filter_matches_loc_case_sensitive_button,
-            ); 
+            );
         });
         let slot_matches_filter_loc_change_case_sensitivity = SlotBool::new(move |case_sensitive| {
             filter_matches_result(
@@ -3663,7 +3664,7 @@ fn main() {
                 filter_matches_loc_line_edit,
                 filter_matches_loc_column_selector,
                 filter_matches_loc_case_sensitive_button,
-            ); 
+            );
         });
 
         // Action to try to open a PackedFile.
@@ -3676,7 +3677,7 @@ fn main() {
 
         // Action to paint the TreeView.
         unsafe { app_ui.folder_tree_model.as_mut().unwrap().signals().item_changed().connect(&slot_paint_treeview); }
-        
+
         // Global search actions.
         unsafe { app_ui.context_menu_global_search.as_ref().unwrap().signals().triggered().connect(&slot_contextual_menu_global_search); }
         unsafe { table_view_matches_loc.as_mut().unwrap().signals().double_clicked().connect(&slot_load_match_loc); }
@@ -3810,11 +3811,11 @@ fn main() {
 
         // If we want to use the dark theme (Only in windows)...
         if cfg!(target_os = "windows") {
-            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { 
+            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] {
                 Application::set_style(&QString::from_std_str("fusion"));
                 Application::set_palette(&DARK_PALETTE);
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
-            } else { 
+            } else {
                 Application::set_style(&QString::from_std_str("windowsvista"));
                 Application::set_palette(&LIGHT_PALETTE);
             }
