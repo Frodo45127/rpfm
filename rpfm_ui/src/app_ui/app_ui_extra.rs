@@ -17,19 +17,24 @@ as it's mostly meant for initialization and configuration.
 !*/
 
 use qt_widgets::file_dialog::FileDialog;
+use qt_widgets::menu::Menu;
 use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::widget::Widget;
 
+use qt_core::connection::Signal;
 use qt_core::object::Object;
+use qt_core::slots::SlotBool;
 
+use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use rpfm_error::Result;
 
-use rpfm_lib::common::get_game_selected_data_path;
+use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths};
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
 use rpfm_lib::SETTINGS;
+use rpfm_lib::SUPPORTED_GAMES;
 
 use super::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -38,6 +43,7 @@ use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
+use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -541,5 +547,141 @@ impl AppUI {
             "rome_2" => unsafe { self.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(true); }
             _ => unsafe { self.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(false); }
         }
+    }
+
+    /// This function takes care of recreating the dynamic submenus under `PackFile` menu.
+    pub fn build_open_from_submenus(self, pack_file_contents_ui: PackFileContentsUI) -> Vec<SlotBool<'static>> {
+        let packfile_open_from_content = unsafe { self.packfile_open_from_content.as_mut().unwrap() };
+        let packfile_open_from_data = unsafe { self.packfile_open_from_data.as_mut().unwrap() };
+
+        // First, we clear both menus, so we can rebuild them properly.
+        packfile_open_from_content.clear();
+        packfile_open_from_data.clear();
+
+        // And we create the slots.
+        let mut open_from_slots = vec![];
+
+        //---------------------------------------------------------------------------------------//
+        // Build the menus...
+        //---------------------------------------------------------------------------------------//
+
+        // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
+        if let Some(ref mut paths) = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.lock().unwrap()) {
+            paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+            for path in paths {
+
+                // That means our file is a valid PackFile and it needs to be added to the menu.
+                let path = path.clone();
+                let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                let open_mod_action = packfile_open_from_content.add_action(&QString::from_std_str(mod_name));
+
+                // Create the slot for that action.
+                let slot_open_mod = SlotBool::new(move |_| {
+                    if self.are_you_sure(false) {
+                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "") {
+                            show_dialog(self.main_window as *mut Widget, error, false);
+                        }
+                    }
+                });
+
+                // Connect the slot and store it.
+                unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(&slot_open_mod); }
+                open_from_slots.push(slot_open_mod);
+            }
+        }
+
+        // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
+        if let Some(ref mut paths) = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap()) {
+            paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+            for path in paths.clone() {
+
+                // That means our file is a valid PackFile and it needs to be added to the menu.
+                let path = path.clone();
+                let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                let open_mod_action = packfile_open_from_data.add_action(&QString::from_std_str(mod_name));
+
+                // Create the slot for that action.
+                let slot_open_mod = SlotBool::new(move |_| {
+                    if self.are_you_sure(false) {
+                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "") {
+                            show_dialog(self.main_window as *mut Widget, error, false);
+                        }
+                    }
+                });
+
+                // Connect the slot and store it.
+                unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(&slot_open_mod); }
+                open_from_slots.push(slot_open_mod);
+            }
+        }
+
+        // Only if the submenu has items, we enable it.
+        unsafe { packfile_open_from_content.menu_action().as_mut().unwrap().set_visible(!packfile_open_from_content.actions().is_empty()); }
+        unsafe { packfile_open_from_data.menu_action().as_mut().unwrap().set_visible(!packfile_open_from_data.actions().is_empty()); }
+
+        // Return the slots.
+        open_from_slots
+    }
+
+
+    /// This function takes care of the re-creation of the "MyMod" list in the following moments:
+    /// - At the start of the program.
+    /// - At the end of MyMod deletion.
+    /// - At the end of MyMod creation.
+    /// - At the end of settings update.
+    /// We need to return a tuple with the actions (for further manipulation) and the slots (to keep them alive).
+    pub fn build_open_mymod_submenus(self, pack_file_contents_ui: PackFileContentsUI) -> Vec<SlotBool<'static>> {
+        let mut slots = vec![];
+
+        // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
+        let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing).map(|(folder_name,_)| *folder_name).collect::<Vec<&str>>();
+        if let Some(ref mymod_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+            if let Ok(game_folder_list) = mymod_base_path.read_dir() {
+                for game_folder in game_folder_list {
+                    if let Ok(game_folder) = game_folder {
+
+                        // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
+                        let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
+                        if game_folder.path().is_dir() && supported_folders.contains(&&*game_folder_name) {
+                            let game_display_name = &SUPPORTED_GAMES[&*game_folder_name].display_name;
+                            let mut game_submenu = Menu::new(&QString::from_std_str(&game_display_name));
+
+                            if let Ok(game_folder_files) = game_folder.path().read_dir() {
+                                let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|x| x.unwrap().path()).collect();
+                                game_folder_files_sorted.sort();
+
+                                for pack_file in &game_folder_files_sorted {
+                                    if pack_file.is_file() && pack_file.extension().unwrap_or_else(||OsStr::new("invalid")).to_string_lossy() == "pack" {
+                                        let pack_file = pack_file.clone();
+                                        let mod_name = pack_file.file_name().unwrap().to_string_lossy();
+                                        let open_mod_action = game_submenu.add_action(&QString::from_std_str(&mod_name));
+
+                                        // Create the slot for that action.
+                                        let slot_open_mod = SlotBool::new(clone!(
+                                            game_folder_name => move |_| {
+                                            if self.are_you_sure(false) {
+                                                if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[pack_file.to_path_buf()], &game_folder_name) {
+                                                    show_dialog(self.main_window as *mut Widget, error, false);
+                                                }
+                                            }
+                                        }));
+
+                                        unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(&slot_open_mod); }
+                                        slots.push(slot_open_mod);
+                                    }
+                                }
+                            }
+
+                            // Only if the submenu has items, we add it to the big menu.
+                            if game_submenu.actions().count() > 0 {
+                                unsafe { self.menu_bar_mymod.as_mut().unwrap().add_menu_unsafe(game_submenu.into_raw()); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        slots
     }
 }

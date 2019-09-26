@@ -23,8 +23,10 @@ use qt_gui::desktop_services::DesktopServices;
 use qt_core::qt::FocusReason;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
+use std::cell::RefCell;
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 use rpfm_lib::common::*;
@@ -73,6 +75,7 @@ pub struct AppUISlots {
     pub packfile_open_packfile: SlotBool<'static>,
     pub packfile_save_packfile: SlotBool<'static>,
     pub packfile_save_packfile_as: SlotBool<'static>,
+    pub packfile_open_from: Vec<SlotBool<'static>>,
     pub packfile_change_packfile_type: SlotBool<'static>,
     pub packfile_index_includes_timestamp: SlotBool<'static>,
     pub packfile_data_is_compressed: SlotBool<'static>,
@@ -86,6 +89,7 @@ pub struct AppUISlots {
     pub mymod_delete_selected: SlotBool<'static>,
     pub mymod_install: SlotBool<'static>,
     pub mymod_uninstall: SlotBool<'static>,
+    pub mymod_open: Vec<SlotBool<'static>>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -115,6 +119,11 @@ pub struct AppUISlots {
     pub about_patreon_link: SlotBool<'static>,
 }
 
+pub struct AppUITempSlots {
+    pub packfile_open_from: Vec<SlotBool<'static>>,
+    pub mymod_open: Vec<SlotBool<'static>>,
+}
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -127,6 +136,7 @@ impl AppUISlots {
         app_ui: AppUI,
         global_search_ui: GlobalSearchUI,
         pack_file_contents_ui: PackFileContentsUI,
+        app_temp_slots: &Rc<RefCell<AppUITempSlots>>,
     ) -> Self {
 
 		//-----------------------------------------------//
@@ -268,6 +278,8 @@ impl AppUISlots {
             }
         );
 
+        let packfile_open_from = vec![];
+
         // What happens when we trigger the "Change PackFile Type" action.
         let packfile_change_packfile_type = SlotBool::new(move |_| {
 
@@ -403,7 +415,7 @@ impl AppUISlots {
                         CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
                         match CENTRAL_COMMAND.recv_message_qt_try() {
                             Response::PackFileInfo(pack_file_info) => {
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
                                 let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
                                 packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                                 packfile_item.set_text(&QString::from_std_str(&full_mod_name));
@@ -597,6 +609,8 @@ impl AppUISlots {
             }
         );
 
+        let mymod_open = vec![];
+
         //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
@@ -637,7 +651,8 @@ impl AppUISlots {
         });
 
         // What happens when we trigger the "Change Game Selected" action.
-        let change_game_selected = SlotBool::new(move |_| {
+        let change_game_selected = SlotBool::new(clone!(
+            app_temp_slots => move |_| {
 
                 // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
                 let mut new_game_selected = unsafe { app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap().text().to_std_string() };
@@ -656,6 +671,9 @@ impl AppUISlots {
                     app_ui.enable_packfile_actions(true);
                 }
 
+                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui);
+                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui);
+
                 // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                 UI_STATE.set_operational_mode(&app_ui, None);
 
@@ -665,7 +683,7 @@ impl AppUISlots {
                 // Change the GameSelected Icon. Disabled until we find better icons.
                 GameSelectedIcons::set_game_selected_icon(app_ui.main_window);
             }
-        );
+        ));
 
         //-----------------------------------------------------//
         // `Special Stuff` menu logic.
@@ -834,6 +852,7 @@ impl AppUISlots {
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
+            packfile_open_from,
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
             packfile_data_is_compressed,
@@ -847,6 +866,7 @@ impl AppUISlots {
             mymod_delete_selected,
             mymod_install,
             mymod_uninstall,
+            mymod_open,
 
             //-----------------------------------------------//
             // `View` menu slots.
@@ -876,4 +896,13 @@ impl AppUISlots {
             about_patreon_link,
 		}
 	}
+}
+
+impl AppUITempSlots {
+    pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI) -> Self {
+        Self {
+            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui),
+            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui),
+        }
+    }
 }

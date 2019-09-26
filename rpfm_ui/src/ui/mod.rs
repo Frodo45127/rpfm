@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -23,8 +23,10 @@ use qt_gui::icon::Icon;
 use qt_core::flags::Flags;
 use qt_core::qt::WindowState;
 
+use std::cell::RefCell;
 use std::env::args;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::SETTINGS;
@@ -32,7 +34,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui;
 use crate::app_ui::AppUI;
-use crate::app_ui::slots::AppUISlots;
+use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
 use crate::DARK_PALETTE;
 use crate::DARK_STYLESHEET;
 use crate::GAME_SELECTED_ICONS;
@@ -64,6 +66,7 @@ pub struct UI {
 /// This struct contains all the slots of the main UI, so we got all of them in one place.
 pub struct Slots {
     pub app_slots: AppUISlots,
+    pub app_temp_slots: Rc<RefCell<AppUITempSlots>>,
     pub pack_file_contents_slots: PackFileContentsSlots,
     pub global_search_slots: GlobalSearchSlots,
 }
@@ -90,12 +93,13 @@ pub struct GameSelectedIcons {
 impl UI {
 
     /// This function initialize the entire `UI`.
-    pub fn new(app: &mut Application) -> (Self, Slots) {
+    pub fn new(app: &mut Application) -> (Self, Slots, ) {
         let app_ui = AppUI::default();
         let global_search_ui = GlobalSearchUI::new(app_ui.main_window);
         let pack_file_contents_ui = PackFileContentsUI::new(app_ui.main_window);
-        
-        let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui);
+
+        let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui)));
+        let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, &app_temp_slots);
         let global_search_slots = GlobalSearchSlots::new(global_search_ui);
         let pack_file_contents_slots = PackFileContentsSlots::new(pack_file_contents_ui);
 
@@ -139,24 +143,24 @@ impl UI {
         if args.len() > 1 {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
-                if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &[path], "") { 
-                    show_dialog(app_ui.main_window as *mut Widget, error, false); 
+                if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &[path], "") {
+                    show_dialog(app_ui.main_window as *mut Widget, error, false);
                 }
             }
         }
 
         // If we want the window to start maximized...
-        if SETTINGS.lock().unwrap().settings_bool["start_maximized"] { 
-            unsafe { (app_ui.main_window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); } 
+        if SETTINGS.lock().unwrap().settings_bool["start_maximized"] {
+            unsafe { (app_ui.main_window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); }
         }
 
         // If we want to use the dark theme (Only in windows)...
         if cfg!(target_os = "windows") {
-            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { 
+            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] {
                 Application::set_style(&QString::from_std_str("fusion"));
                 Application::set_palette(&DARK_PALETTE);
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
-            } else { 
+            } else {
                 Application::set_style(&QString::from_std_str("windowsvista"));
                 Application::set_palette(&LIGHT_PALETTE);
             }
@@ -184,7 +188,7 @@ impl UI {
             //return 69
         //}
 
-        
+
         (Self {
             app_ui,
             global_search_ui,
@@ -192,6 +196,7 @@ impl UI {
         },
         Slots {
             app_slots,
+            app_temp_slots,
             global_search_slots,
             pack_file_contents_slots
         })

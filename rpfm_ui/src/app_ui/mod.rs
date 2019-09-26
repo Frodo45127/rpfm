@@ -127,6 +127,7 @@ pub struct AppUI {
     pub mymod_delete_selected: *mut Action,
     pub mymod_install: *mut Action,
     pub mymod_uninstall: *mut Action,
+    pub mymod_open_separator: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // `View` menu.
@@ -360,6 +361,7 @@ impl Default for AppUI {
         let mymod_delete_selected = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Delete Selected MyMod"));
         let mymod_install = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Install"));
         let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Uninstall"));
+        let mymod_open_separator = menu_bar_mymod_ref_mut.add_separator();
 
         unsafe { menu_bar_mymod_ref_mut.insert_separator(mymod_install); }
 
@@ -559,6 +561,7 @@ impl Default for AppUI {
             mymod_delete_selected,
             mymod_install,
             mymod_uninstall,
+            mymod_open_separator,
 
             //-------------------------------------------------------------------------------//
             // "View" menu.
