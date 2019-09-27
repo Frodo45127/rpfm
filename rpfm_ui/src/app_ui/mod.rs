@@ -127,7 +127,16 @@ pub struct AppUI {
     pub mymod_delete_selected: *mut Action,
     pub mymod_install: *mut Action,
     pub mymod_uninstall: *mut Action,
-    pub mymod_open_separator: *mut Action,
+
+    pub mymod_open_three_kingdoms: *mut Menu,
+    pub mymod_open_warhammer_2: *mut Menu,
+    pub mymod_open_warhammer: *mut Menu,
+    pub mymod_open_thrones_of_britannia: *mut Menu,
+    pub mymod_open_attila: *mut Menu,
+    pub mymod_open_rome_2: *mut Menu,
+    pub mymod_open_shogun_2: *mut Menu,
+    pub mymod_open_napoleon: *mut Menu,
+    pub mymod_open_empire: *mut Menu,
 
     //-------------------------------------------------------------------------------//
     // `View` menu.
@@ -361,7 +370,18 @@ impl Default for AppUI {
         let mymod_delete_selected = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Delete Selected MyMod"));
         let mymod_install = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Install"));
         let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&QString::from_std_str("&Uninstall"));
-        let mymod_open_separator = menu_bar_mymod_ref_mut.add_separator();
+
+        menu_bar_mymod_ref_mut.add_separator();
+
+        let mymod_open_three_kingdoms = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Three Kingdoms"));
+        let mymod_open_warhammer_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Warhammer 2"));
+        let mymod_open_warhammer = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Warhammer"));
+        let mymod_open_thrones_of_britannia = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Thrones of Britannia"));
+        let mymod_open_attila = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Attila"));
+        let mymod_open_rome_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Rome 2"));
+        let mymod_open_shogun_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Shogun 2"));
+        let mymod_open_napoleon = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Napoleon"));
+        let mymod_open_empire = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str("Empire"));
 
         unsafe { menu_bar_mymod_ref_mut.insert_separator(mymod_install); }
 
@@ -370,6 +390,16 @@ impl Default for AppUI {
         unsafe { mymod_delete_selected.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_install.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_uninstall.as_mut().unwrap().set_enabled(false); }
+
+        unsafe { mymod_open_three_kingdoms.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_warhammer_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_warhammer.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_thrones_of_britannia.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_attila.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_rome_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_shogun_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_napoleon.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { mymod_open_empire.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
 
         //-----------------------------------------------//
         // `View` Menu.
@@ -561,7 +591,16 @@ impl Default for AppUI {
             mymod_delete_selected,
             mymod_install,
             mymod_uninstall,
-            mymod_open_separator,
+
+            mymod_open_three_kingdoms,
+            mymod_open_warhammer_2,
+            mymod_open_warhammer,
+            mymod_open_thrones_of_britannia,
+            mymod_open_attila,
+            mymod_open_rome_2,
+            mymod_open_shogun_2,
+            mymod_open_napoleon,
+            mymod_open_empire,
 
             //-------------------------------------------------------------------------------//
             // "View" menu.

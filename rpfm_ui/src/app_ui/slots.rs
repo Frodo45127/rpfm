@@ -315,7 +315,8 @@ impl AppUISlots {
         );
 
         // What happens when we trigger the "Preferences" action.
-        let packfile_preferences = SlotBool::new(move |_| {
+        let packfile_preferences = SlotBool::new(clone!(
+            app_temp_slots => move |_| {
 
                 // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
                 let old_settings = SETTINGS.lock().unwrap().clone();
@@ -332,6 +333,7 @@ impl AppUISlots {
                             // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
                                 UI_STATE.set_operational_mode(&app_ui, None);
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -353,7 +355,7 @@ impl AppUISlots {
                     }
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Quit" action.
         let packfile_quit = SlotBool::new(clone!(
@@ -464,7 +466,8 @@ impl AppUISlots {
 
 
         // This slot is used for the "Delete Selected MyMod" action.
-        let mymod_delete_selected = SlotBool::new(move |_| {
+        let mymod_delete_selected = SlotBool::new(clone!(
+            app_temp_slots => move |_| {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
                 if app_ui.are_you_sure(true) {
@@ -512,7 +515,8 @@ impl AppUISlots {
                                     show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOGenericDelete(vec![mymod_assets_path; 1]), false);
                                 }
 
-                                // We return true, as we have delete the files of the "MyMod".
+                                // Update the MyMod list and return true, as we have effectively deleted the MyMod.
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui);
                                 true
                             }
                             else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
@@ -533,7 +537,7 @@ impl AppUISlots {
                     }
                 }
             }
-        );
+        ));
 
         // This slot is used for the "Install MyMod" action.
         let mymod_install = SlotBool::new(move |_| {

@@ -624,13 +624,30 @@ impl AppUI {
     }
 
 
-    /// This function takes care of the re-creation of the "MyMod" list in the following moments:
-    /// - At the start of the program.
-    /// - At the end of MyMod deletion.
-    /// - At the end of MyMod creation.
-    /// - At the end of settings update.
-    /// We need to return a tuple with the actions (for further manipulation) and the slots (to keep them alive).
+    /// This function takes care of the re-creation of the `MyMod` list for each game.
     pub fn build_open_mymod_submenus(self, pack_file_contents_ui: PackFileContentsUI) -> Vec<SlotBool<'static>> {
+
+        // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
+        unsafe { self.mymod_open_three_kingdoms.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_warhammer_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_warhammer.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_thrones_of_britannia.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_attila.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_rome_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_shogun_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_napoleon.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        unsafe { self.mymod_open_empire.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+
+        unsafe { self.mymod_open_three_kingdoms.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_warhammer_2.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_warhammer.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_thrones_of_britannia.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_attila.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_rome_2.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_shogun_2.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_napoleon.as_mut().unwrap().clear(); }
+        unsafe { self.mymod_open_empire.as_mut().unwrap().clear(); }
+
         let mut slots = vec![];
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
@@ -643,8 +660,17 @@ impl AppUI {
                         // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
                         if game_folder.path().is_dir() && supported_folders.contains(&&*game_folder_name) {
-                            let game_display_name = &SUPPORTED_GAMES[&*game_folder_name].display_name;
-                            let mut game_submenu = Menu::new(&QString::from_std_str(&game_display_name));
+                            let game_submenu = match &*game_folder_name {
+                                "three_kingdoms" => unsafe { self.mymod_open_three_kingdoms.as_mut().unwrap() },
+                                "warhammer_2" => unsafe { self.mymod_open_warhammer_2.as_mut().unwrap() },
+                                "warhammer" => unsafe { self.mymod_open_warhammer.as_mut().unwrap() },
+                                "thrones_of_britannia" => unsafe { self.mymod_open_thrones_of_britannia.as_mut().unwrap() },
+                                "attila" => unsafe { self.mymod_open_attila.as_mut().unwrap() },
+                                "rome_2" => unsafe { self.mymod_open_rome_2.as_mut().unwrap() },
+                                "shogun_2" => unsafe { self.mymod_open_shogun_2.as_mut().unwrap() },
+                                "napoleon" => unsafe { self.mymod_open_napoleon.as_mut().unwrap() },
+                                "empire" | _ => unsafe { self.mymod_open_empire.as_mut().unwrap() },
+                            };
 
                             if let Ok(game_folder_files) = game_folder.path().read_dir() {
                                 let mut game_folder_files_sorted: Vec<_> = game_folder_files.map(|x| x.unwrap().path()).collect();
@@ -672,9 +698,9 @@ impl AppUI {
                                 }
                             }
 
-                            // Only if the submenu has items, we add it to the big menu.
+                            // Only if the submenu has items, we show it to the big menu.
                             if game_submenu.actions().count() > 0 {
-                                unsafe { self.menu_bar_mymod.as_mut().unwrap().add_menu_unsafe(game_submenu.into_raw()); }
+                                unsafe { game_submenu.menu_action().as_mut().unwrap().set_visible(true); }
                             }
                         }
                     }
