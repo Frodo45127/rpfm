@@ -19,6 +19,7 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use rpfm_error::{Error, ErrorKind};
+use rpfm_lib::common::get_game_selected_data_packfiles_paths;
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
@@ -81,6 +82,22 @@ pub fn background_loop() {
                         CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
                     }
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // In case we want to "Load All CA PackFiles"...
+            Command::LoadAllCAPackFiles => {
+                match get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap()) {
+                    Some(paths) => {
+                        match PackFile::open_packfiles(&paths, true, true, true) {
+                            Ok(pack_file) => {
+                                pack_file_decoded = pack_file;
+                                CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
+                            }
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::GamePathNotConfigured))),
                 }
             }
 

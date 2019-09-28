@@ -17,7 +17,6 @@ as it's mostly meant for initialization and configuration.
 !*/
 
 use qt_widgets::file_dialog::FileDialog;
-use qt_widgets::menu::Menu;
 use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::widget::Widget;
 

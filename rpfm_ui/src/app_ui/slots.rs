@@ -32,7 +32,7 @@ use rpfm_error::ErrorKind;
 use rpfm_lib::common::*;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::packfile::PFHFileType;
+use rpfm_lib::packfile::{PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
@@ -76,6 +76,7 @@ pub struct AppUISlots {
     pub packfile_save_packfile: SlotBool<'static>,
     pub packfile_save_packfile_as: SlotBool<'static>,
     pub packfile_open_from: Vec<SlotBool<'static>>,
+    pub packfile_load_all_ca_packfiles: SlotBool<'static>,
     pub packfile_change_packfile_type: SlotBool<'static>,
     pub packfile_index_includes_timestamp: SlotBool<'static>,
     pub packfile_data_is_compressed: SlotBool<'static>,
@@ -279,6 +280,83 @@ impl AppUISlots {
         );
 
         let packfile_open_from = vec![];
+
+        // What happens when we trigger the "Load All CA PackFiles" action.
+        let packfile_load_all_ca_packfiles = SlotBool::new(move |_| {
+
+            // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
+            // and open them all together, skipping mods.
+            if app_ui.are_you_sure(false) {
+
+                // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
+                match CENTRAL_COMMAND.recv_message_qt() {
+
+                    // If it's success....
+                    Response::PackFileInfo(ui_data) => {
+
+                        // Set this PackFile always to type `Other`.
+                        unsafe { app_ui.change_packfile_type_other.as_mut().unwrap().set_checked(true); }
+
+                        // Disable all of these.
+                        unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                        unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
+                        unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                        unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+
+                        // Set the compression level correctly, because otherwise we may fuckup some files.
+                        let compression_state = match ui_data.compression_state {
+                            CompressionState::Enabled => true,
+                            CompressionState::Partial | CompressionState::Disabled => false,
+                        };
+                        unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(compression_state); }
+
+                        // Update the TreeView.
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
+
+                        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                        match &*game_selected {
+                            "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+                            "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+                            "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
+                            "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+                            "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
+                            "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
+                            "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+                            "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
+                            "empire" => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
+                            "arena" => unsafe { app_ui.game_selected_arena.as_mut().unwrap().trigger(); }
+                            _ => unreachable!(),
+                        }
+
+                        UI_STATE.set_operational_mode(&app_ui, None);
+
+                        // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                        //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+
+                        // Close the Global Search stuff and reset the filter's history.
+                        //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
+                        //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
+
+                        // Show the "Tips".
+                        //display_help_tips(&app_ui);
+
+                        // Clean the TableStateData.
+                        //*table_state_data.borrow_mut() = TableStateData::new();
+                    }
+
+                    // If we got an error...
+                    Response::Error(error) => {
+                        unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                        show_dialog(app_ui.main_window as *mut Widget, error, false);
+                    }
+
+                    // In ANY other situation, it's a message problem.
+                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                }
+            }
+        });
 
         // What happens when we trigger the "Change PackFile Type" action.
         let packfile_change_packfile_type = SlotBool::new(move |_| {
@@ -857,6 +935,7 @@ impl AppUISlots {
             packfile_save_packfile,
             packfile_save_packfile_as,
             packfile_open_from,
+            packfile_load_all_ca_packfiles,
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
             packfile_data_is_compressed,

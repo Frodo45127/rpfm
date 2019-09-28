@@ -39,6 +39,7 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.packfile_open_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_open_packfile); }
     unsafe { app_ui.packfile_save_packfile.as_ref().unwrap().signals().triggered().connect(&slots.packfile_save_packfile); }
     unsafe { app_ui.packfile_save_packfile_as.as_ref().unwrap().signals().triggered().connect(&slots.packfile_save_packfile_as); }
+    unsafe { app_ui.packfile_load_all_ca_packfiles.as_ref().unwrap().signals().triggered().connect(&slots.packfile_load_all_ca_packfiles); }
 
     unsafe { app_ui.change_packfile_type_boot.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }
     unsafe { app_ui.change_packfile_type_release.as_ref().unwrap().signals().triggered().connect(&slots.packfile_change_packfile_type); }

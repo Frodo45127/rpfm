@@ -77,6 +77,9 @@ pub enum Command {
     /// This command is used to open one or more `PackFiles`. It requires the paths of the `PackFiles`.
     OpenPackFiles(Vec<PathBuf>),
 
+    /// This command is used to open all the CA PackFiles for the game selected as one.
+    LoadAllCAPackFiles,
+
     /// This command is used when we want to get the `PackedFileInfo` of one or more `PackedFiles`.
     GetPackedFilesInfo(Vec<Vec<String>>),
 
