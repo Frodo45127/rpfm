@@ -167,7 +167,7 @@ impl UI {
         }
 
         // If we have it enabled in the prefs, check if there are updates.
-        //if SETTINGS.lock().unwrap().settings_bool["check_updates_on_start"] { check_updates(&app_ui, false) };
+        if SETTINGS.lock().unwrap().settings_bool["check_updates_on_start"] { app_ui.check_updates(false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
         //if SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"] { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };

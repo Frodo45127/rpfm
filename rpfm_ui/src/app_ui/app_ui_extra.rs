@@ -21,6 +21,7 @@ use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::widget::Widget;
 
 use qt_core::connection::Signal;
+use qt_core::flags::Flags;
 use qt_core::object::Object;
 use qt_core::slots::SlotBool;
 
@@ -37,7 +38,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 
 use super::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
 use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
@@ -708,5 +709,71 @@ impl AppUI {
         }
 
         slots
+    }
+
+    /// This function checks if there is any newer version of RPFM released.
+    ///
+    /// If the `use_dialog` is false, we make the checks in the background, and pop up a dialog only in case there is an update available.
+    pub fn check_updates(&self, use_dialog: bool) {
+
+        CENTRAL_COMMAND.send_message_qt(Command::CheckUpdates);
+
+        // If we want to use a Dialog to show the full searching process (clicking in the
+        // menu button) we show the dialog, then change its text.
+        if use_dialog {
+            let mut dialog = unsafe { MessageBox::new_unsafe((
+                message_box::Icon::Information,
+                &QString::from_std_str("Update Checker"),
+                &QString::from_std_str("Searching for updates..."),
+                Flags::from_int(2_097_152), // Close button.
+                self.main_window as *mut Widget,
+            )) };
+
+            dialog.set_modal(true);
+            dialog.show();
+
+            let message = match CENTRAL_COMMAND.recv_message_qt_try() {
+                Response::APIResponse(response) => {
+                    match response {
+                        APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        APIResponse::SuccessNoUpdate => "<h4>No new updates available</h4> <p>More luck next time :)</p>".to_owned(),
+                        APIResponse::SuccessUnknownVersion => "<h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>".to_owned(),
+                        APIResponse::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
+                    }
+                }
+
+                _ => panic!(THREADS_COMMUNICATION_ERROR),
+            };
+
+            dialog.set_text(&QString::from_std_str(message));
+            dialog.exec();
+        }
+
+        // Otherwise, we just wait until we got a response, and only then (and only in case of new update)... we show a dialog.
+        else {
+            let message = match CENTRAL_COMMAND.recv_message_qt_try() {
+                Response::APIResponse(response) => {
+                    match response {
+                        APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        _ => return,
+                    }
+                }
+
+                _ => panic!(THREADS_COMMUNICATION_ERROR),
+            };
+
+            let mut dialog = unsafe { MessageBox::new_unsafe((
+                message_box::Icon::Information,
+                &QString::from_std_str("Update Checker"),
+                &QString::from_std_str(message),
+                Flags::from_int(2_097_152), // Close button.
+                self.main_window as *mut Widget,
+            )) };
+
+            dialog.set_modal(true);
+            dialog.exec();
+        }
     }
 }

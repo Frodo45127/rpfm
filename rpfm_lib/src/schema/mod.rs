@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -11,7 +11,7 @@
 /*!
 Module with all the code to interact with Schemas.
 
-This module contains all the code related with the schemas used by this lib to decode many PackedFile types. 
+This module contains all the code related with the schemas used by this lib to decode many PackedFile types.
 
 The basic structure of an `Schema` is:
 ```rust
@@ -98,10 +98,10 @@ pub struct Schema(Vec<VersionedFile>);
 /// This enum defines all types of versioned files that the schema system supports.
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum VersionedFile {
-    
+
     /// It stores the name of the table, and a `Vec<Definition>` with the definitions for each version of that table decoded.
     DB(String, Vec<Definition>),
-    
+
     /// It stores a `Vec<Definition>` to decode the dependencies of a PackFile.
     DepManager(Vec<Definition>),
 
@@ -126,13 +126,13 @@ pub struct Definition {
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Field {
-    
+
     /// Name of the field. Should contain no spaces, using `_` instead.
     pub name: String,
 
     /// Type of the field.
     pub field_type: FieldType,
-    
+
     /// `True` if the field is a `Key` field of a table. `False` otherwise.
     pub is_key: bool,
 
@@ -219,7 +219,7 @@ impl Schema {
 
         // If there was no coincidence in the dependency database... we risk ourselfs getting the last definition we have for
         // that db from the schema.
-        else{ 
+        else{
             let versioned_file = self.get_versioned_file_db(table_name)?;
             if let VersionedFile::DB(_,definitions) = versioned_file {
                 if let Some(definition) = definitions.get(0) {
@@ -321,7 +321,7 @@ impl Schema {
 
     /// This function generates a diff between the local schema files and the remote ones and drops it in the config folder.
     ///
-    /// If it detects that you're using the git repo (debug), it adds the diff to the proper place in the docs_src folder instead. 
+    /// If it detects that you're using the git repo (debug), it adds the diff to the proper place in the docs_src folder instead.
     pub fn generate_schema_diff() -> Result<()> {
 
         // To avoid doing a lot of useless checking, we only check for schemas with different version.
@@ -342,7 +342,7 @@ impl Schema {
             let mut schema_version = 0;
             let mut skip_it = true;
             for (schema_to_update, schema_version_to_update) in &mut schemas_to_update {
-                if schema_to_update == schema_name { 
+                if schema_to_update == schema_name {
                     skip_it = false;
                     schema_version = **schema_version_to_update;
                     break;
@@ -373,7 +373,7 @@ impl Schema {
                                 if table_local != table_current {
                                     for version_local in versions_local {
                                         match versions_current.iter().find(|x| x.version == version_local.version) {
-                                            
+
                                             // If the version has been found, it's a correction for a current version. So we check every
                                             // field for references.
                                             Some(version_current) => version_local.get_pretty_diff(&version_current, &name_local, &mut new_corrections),
@@ -438,11 +438,11 @@ impl Schema {
                 }
             }
 
-            // If it's not empty, save it. Otherwise, we just ignore it. 
+            // If it's not empty, save it. Otherwise, we just ignore it.
             if !diff.is_empty() {
 
                 // If we are in debug mode, save it to his proper file in the docs.
-                if cfg!(debug_assertions) { 
+                if cfg!(debug_assertions) {
                     let mut docs_path = std::env::current_dir().unwrap().to_path_buf();
                     docs_path.push("docs_src");
                     docs_path.push("changelogs_tables");
@@ -470,7 +470,7 @@ impl Schema {
                 }
 
                 // Otherwise, save it to a file in RPFM's folder.
-                else { 
+                else {
                     let mut changes_path = get_config_path()?.to_path_buf();
                     changes_path.push(&format!("changelog_{}.txt", schema_name));
                     let mut file = File::create(changes_path)?;
@@ -693,7 +693,7 @@ impl Definition {
             fields,
         }
     }
-        
+
     /// This function creates a new fake `Definition` from an imported definition from the Assembly Kit.
     ///
     /// For use with the raw table processing.
@@ -814,7 +814,7 @@ impl Definition {
                         }
 
                         if field_local.is_reference != field_current.is_reference {
-                            changes.push(("Is Reference".to_owned(), 
+                            changes.push(("Is Reference".to_owned(),
                                 (
                                     if let Some((ref_table, ref_column)) = &field_current.is_reference { format!("{}, {}", ref_table, ref_column) }
                                     else { String::new() },
@@ -848,7 +848,7 @@ impl Definition {
 
         if !new_fields.is_empty() || !changed_fields.is_empty() || !removed_fields.is_empty() {
             changes.push(format!("  - ***{}***:", table_name));
-        } 
+        }
 
         for (index, new_field) in new_fields.iter().enumerate() {
             if index == 0 { changes.push("    - **New fields**:".to_owned()); }
@@ -884,14 +884,14 @@ impl Field {
 
     /// This function creates a `Field` using the provided data.
     pub fn new(
-        name: String, 
-        field_type: FieldType, 
-        is_key: bool, 
+        name: String,
+        field_type: FieldType,
+        is_key: bool,
         default_value: Option<String>,
         max_length: i32,
         is_filename: bool,
         filename_relative_path: Option<String>,
-        is_reference: Option<(String, String)>, 
+        is_reference: Option<(String, String)>,
         lookup: Option<Vec<String>>,
         description: String
     ) -> Self {
@@ -969,7 +969,7 @@ impl VersionsFile {
     /// If no local `VersionsFile` is found, it downloads it from the repo, along with all the schema files.
     pub fn update() -> Result<()> {
 
-        // If there is a local schema, match it against the remote one, download the different schemas, 
+        // If there is a local schema, match it against the remote one, download the different schemas,
         // then update our local schema with the remote one's data.
         let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
         match Self::load() {

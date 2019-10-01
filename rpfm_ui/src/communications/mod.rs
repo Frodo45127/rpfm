@@ -25,6 +25,9 @@ use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::ui_state::global_search::GlobalSearch;
+use self::network::*;
+
+pub mod network;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
@@ -117,6 +120,9 @@ pub enum Command {
     // This command is used when we want to get the info of the provided `PackedFile`.
     GetPackedFileInfo(Vec<String>),
 
+    /// This command is used when we want to check if there is an RPFM update available.
+    CheckUpdates,
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -190,25 +196,25 @@ pub enum Response {
     /// Generic response for situations that returned an error.
     Error(Error),
 
-    /// Respone to return (bool).
+    /// Response to return (bool).
     Bool(bool),
 
-    /// Respone to return (u32).
+    /// Response to return (u32).
     U32(u32),
 
-    /// Respone to return (i64).
+    /// Response to return (i64).
     I64(i64),
 
-    /// Respone to return (PathBuf).
+    /// Response to return (PathBuf).
     PathBuf(PathBuf),
 
-    /// Respone to return (String, i64, Vec<Vec<String>>).
+    /// Response to return (String, i64, Vec<Vec<String>>).
     StringI64VecVecString((String, i64, Vec<Vec<String>>)),
 
-    /// Respone to return (PackFileInfo, Vec<PackedFileInfo>).
+    /// Response to return (PackFileInfo, Vec<PackedFileInfo>).
     PackFileInfoVecPackedFileInfo((PackFileInfo, Vec<PackedFileInfo>)),
 
-    /// Respone to return (PackFileInfo).
+    /// Response to return (PackFileInfo).
     PackFileInfo(PackFileInfo),
 
     /// Response to return (Option<PackedFileInfo>).
@@ -224,7 +230,10 @@ pub enum Response {
     VecVecString(Vec<Vec<String>>),
 
     /// Response to return (String, Vec<Vec<String>>).
-    StringVecVecString((String, Vec<Vec<String>>))
+    StringVecVecString((String, Vec<Vec<String>>)),
+
+    /// Response to return `APIResponse`.
+    APIResponse(APIResponse),
 /*
     Bool(bool),
     I32(i32),

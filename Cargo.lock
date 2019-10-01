@@ -1556,22 +1556,22 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "1.6.2"
+version = "2.0.0"
 dependencies = [
  "bytesize 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "colored 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "prettytable-rs 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rpfm_error 1.6.2",
- "rpfm_lib 1.6.2",
+ "rpfm_error 2.0.0",
+ "rpfm_lib 2.0.0",
  "simple_logger 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "simplelog 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rpfm_error"
-version = "1.6.2"
+version = "2.0.0"
 dependencies = [
  "bincode 1.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "csv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1593,7 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "1.6.2"
+version = "2.0.0"
 dependencies = [
  "bincode 1.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1607,7 +1607,7 @@ dependencies = [
  "regex 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "ron 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rpfm_error 1.6.2",
+ "rpfm_error 2.0.0",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde-xml-rs 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1618,7 +1618,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "1.6.2"
+version = "2.0.0"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "cpp_utils 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1634,8 +1634,8 @@ dependencies = [
  "regex 1.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "restson 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rpfm_error 1.6.2",
- "rpfm_lib 1.6.2",
+ "rpfm_error 2.0.0",
+ "rpfm_lib 2.0.0",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",

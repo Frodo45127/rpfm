@@ -118,6 +118,7 @@ pub struct AppUISlots {
     pub about_about_qt: SlotBool<'static>,
     pub about_open_manual: SlotBool<'static>,
     pub about_patreon_link: SlotBool<'static>,
+    pub about_check_updates: SlotBool<'static>,
 }
 
 pub struct AppUITempSlots {
@@ -917,6 +918,9 @@ impl AppUISlots {
         // What happens when we trigger the "Support me on Patreon" action.
         let about_patreon_link = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(PATREON_URL))); });
 
+        // What happens when we trigger the "Check Update" action.
+        let about_check_updates = SlotBool::new(move |_| { app_ui.check_updates(true); });
+
         // And here... we return all the slots.
 		Self {
 
@@ -977,6 +981,7 @@ impl AppUISlots {
     		about_about_qt,
             about_open_manual,
             about_patreon_link,
+            about_check_updates,
 		}
 	}
 }
