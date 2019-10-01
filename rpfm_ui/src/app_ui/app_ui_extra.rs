@@ -31,8 +31,10 @@ use std::path::PathBuf;
 use rpfm_error::Result;
 
 use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths};
+use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
+use rpfm_lib::schema::APIResponseSchema;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
@@ -715,7 +717,6 @@ impl AppUI {
     ///
     /// If the `use_dialog` is false, we make the checks in the background, and pop up a dialog only in case there is an update available.
     pub fn check_updates(&self, use_dialog: bool) {
-
         CENTRAL_COMMAND.send_message_qt(Command::CheckUpdates);
 
         // If we want to use a Dialog to show the full searching process (clicking in the
@@ -774,6 +775,153 @@ impl AppUI {
 
             dialog.set_modal(true);
             dialog.exec();
+        }
+    }
+
+    /// This function checks if there is any newer version of RPFM's schemas released.
+    ///
+    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
+    pub fn check_schema_updates(&self, use_dialog: bool) {
+        CENTRAL_COMMAND.send_message_qt(Command::CheckSchemaUpdates);
+
+        // If we want to use a Dialog to show the full searching process.
+        if use_dialog {
+
+            // Create the dialog to show the response and configure it.
+            let mut dialog = unsafe { MessageBox::new_unsafe((
+                message_box::Icon::Information,
+                &QString::from_std_str("Update Schema Checker"),
+                &QString::from_std_str("Searching for updates..."),
+                Flags::from_int(2_097_152), // Close button.
+                self.main_window as *mut Widget,
+            )) };
+
+            let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
+            unsafe { update_button.as_mut().unwrap().set_enabled(false); }
+
+            dialog.set_modal(true);
+            dialog.show();
+
+            // When we get a response, act depending on the kind of response we got.
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let message = match response {
+                Response::APIResponseSchema(ref response) => {
+                    match response {
+                        APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
+                            unsafe { update_button.as_mut().unwrap().set_enabled(true); }
+
+                            // Build a table with each one of the remote schemas to show what ones got updated.
+                            let mut message = "<h4>New schema update available</h4> <table>".to_owned();
+                            for (remote_schema_name, remote_schema_version) in remote_versions.get() {
+                                message.push_str("<tr>");
+                                message.push_str(&format!("<td>{}:</td>", remote_schema_name));
+
+                                // If the game exist in the local version, show both versions.
+                                let game_name = SUPPORTED_GAMES.iter().find(|x| &x.1.schema == remote_schema_name).unwrap().0;
+                                if let Some(local_schema_version) = local_versions.get().get(remote_schema_name) {
+                                    message.push_str(&format!("<td>{lsv} => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, lsv = local_schema_version, rsv = remote_schema_version));
+                                } else { message.push_str(&format!("<td>0 => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, rsv = remote_schema_version)); }
+
+                                message.push_str("</tr>");
+                            }
+                            message.push_str("</table>");
+                            message.push_str("<p>Do you want to update the schemas?</p>");
+                            message
+                        }
+                        APIResponseSchema::SuccessNoUpdate => "<h4>No new schema updates available</h4> <p>More luck next time :)</p>".to_owned(),
+                        APIResponseSchema::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
+                    }
+                }
+
+                Response::Error(error) => return show_dialog(self.main_window as *mut Widget, error, false),
+                _ => panic!(THREADS_COMMUNICATION_ERROR),
+            };
+
+            // If we hit "Update", try to update the schemas.
+            dialog.set_text(&QString::from_std_str(message));
+            if dialog.exec() == 0 {
+                if let Response::APIResponseSchema(response) = response {
+                    if let APIResponseSchema::SuccessNewUpdate(_,_) = response {
+
+                        CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
+
+                        dialog.show();
+                        dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
+                        unsafe { update_button.as_mut().unwrap().set_enabled(false); }
+
+                        match CENTRAL_COMMAND.recv_message_qt_try() {
+                            Response::Success => show_dialog(self.main_window as *mut Widget, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
+                            Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
+                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        }
+                    }
+                }
+            }
+        }
+
+        // Otherwise, we just wait until we got a response, and only then (and only in case of new schema update) we show a dialog.
+        else {
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let message = match response {
+                Response::APIResponseSchema(ref response) => {
+                    match response {
+                        APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
+
+                            // Build a table with each one of the remote schemas to show what ones got updated.
+                            let mut message = "<h4>New schema update available</h4> <table>".to_owned();
+                            for (remote_schema_name, remote_schema_version) in remote_versions.get() {
+                                message.push_str("<tr>");
+                                message.push_str(&format!("<td>{}:</td>", remote_schema_name));
+
+                                // If the game exist in the local version, show both versions.
+                                let game_name = SUPPORTED_GAMES.iter().find(|x| &x.1.schema == remote_schema_name).unwrap().0;
+                                if let Some(local_schema_version) = local_versions.get().get(remote_schema_name) {
+                                    message.push_str(&format!("<td>{lsv} => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, lsv = local_schema_version, rsv = remote_schema_version));
+                                } else { message.push_str(&format!("<td>0 => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, rsv = remote_schema_version)); }
+
+                                message.push_str("</tr>");
+                            }
+                            message.push_str("</table>");
+                            message.push_str("<p>Do you want to update the schemas?</p>");
+                            message
+                        }
+                        _ => return
+                    }
+                }
+                _ => return
+            };
+
+            // Create the dialog to show the response.
+            let mut dialog = unsafe { MessageBox::new_unsafe((
+                message_box::Icon::Information,
+                &QString::from_std_str("Update Schema Checker"),
+                &QString::from_std_str(message),
+                Flags::from_int(2_097_152), // Close button.
+                self.main_window as *mut Widget,
+            )) };
+
+            let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
+            dialog.set_modal(true);
+
+            // If we hit "Update", try to update the schemas.
+            if dialog.exec() == 0 {
+                if let Response::APIResponseSchema(response) = response {
+                    if let APIResponseSchema::SuccessNewUpdate(_,_) = response {
+
+                        CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
+
+                        dialog.show();
+                        dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
+                        unsafe { update_button.as_mut().unwrap().set_enabled(false); }
+
+                        match CENTRAL_COMMAND.recv_message_qt_try() {
+                            Response::Success => show_dialog(self.main_window as *mut Widget, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
+                            Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
+                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        }
+                    }
+                }
+            }
         }
     }
 }

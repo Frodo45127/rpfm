@@ -170,7 +170,7 @@ impl UI {
         if SETTINGS.lock().unwrap().settings_bool["check_updates_on_start"] { app_ui.check_updates(false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        //if SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"] { check_schema_updates(&app_ui, false, &sender_qt, &sender_qt_data, &receiver_qt) };
+        if SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"] { app_ui.check_schema_updates(false) };
 
         // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
         //if GENERATE_NEW_SCHEMA {

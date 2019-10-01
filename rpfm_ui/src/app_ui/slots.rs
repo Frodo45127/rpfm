@@ -119,6 +119,7 @@ pub struct AppUISlots {
     pub about_open_manual: SlotBool<'static>,
     pub about_patreon_link: SlotBool<'static>,
     pub about_check_updates: SlotBool<'static>,
+    pub about_check_schema_updates: SlotBool<'static>,
 }
 
 pub struct AppUITempSlots {
@@ -921,6 +922,9 @@ impl AppUISlots {
         // What happens when we trigger the "Check Update" action.
         let about_check_updates = SlotBool::new(move |_| { app_ui.check_updates(true); });
 
+        // What happens when we trigger the "Check Schema Update" action.
+        let about_check_schema_updates = SlotBool::new(move |_| { app_ui.check_schema_updates(true); });
+
         // And here... we return all the slots.
 		Self {
 
@@ -982,6 +986,7 @@ impl AppUISlots {
             about_open_manual,
             about_patreon_link,
             about_check_updates,
+            about_check_schema_updates,
 		}
 	}
 }

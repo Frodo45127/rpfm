@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use std::process::exit;
 
 use rpfm_error::Error;
+use rpfm_lib::schema::APIResponseSchema;
 use rpfm_lib::settings::*;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
@@ -122,6 +123,12 @@ pub enum Command {
 
     /// This command is used when we want to check if there is an RPFM update available.
     CheckUpdates,
+
+    /// This command is used when we want to check if there is an Schema update available.
+    CheckSchemaUpdates,
+
+    /// This command is used when we want to update our schemas.
+    UpdateSchemas,
 
     /*
     OpenPackFileExtra,
@@ -234,6 +241,9 @@ pub enum Response {
 
     /// Response to return `APIResponse`.
     APIResponse(APIResponse),
+
+    /// Response to return `APIResponseSchema`.
+    APIResponseSchema(APIResponseSchema),
 /*
     Bool(bool),
     I32(i32),

@@ -330,6 +330,22 @@ pub fn background_loop() {
                     Err(_) => CENTRAL_COMMAND.send_message_rust(Response::APIResponse(APIResponse::Error)),
                 }
             }
+
+            // When we want to check if there is a schema's update available...
+            Command::CheckSchemaUpdates => {
+                match VersionsFile::check_update() {
+                    Ok(response) => CENTRAL_COMMAND.send_message_rust(Response::APIResponseSchema(response)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to update our schemas...
+            Command::UpdateSchemas => {
+                match VersionsFile::update() {
+                    Ok(_ ) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
         }
     }
 

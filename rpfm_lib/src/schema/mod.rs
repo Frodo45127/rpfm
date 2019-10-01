@@ -88,7 +88,7 @@ const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo
 //---------------------------------------------------------------------------//
 
 /// This struct represents a Versions File in memory, keeping track of the local version of each schema.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VersionsFile(BTreeMap<String, u32>);
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
@@ -170,6 +170,16 @@ pub enum FieldType {
     OptionalStringU8,
     OptionalStringU16,
     Sequence(Vec<Field>)
+}
+
+/// This enum controls the possible responses from the server when asking if there is a new Schema update.
+///
+/// The (Versions, Versions) is local, current.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum APIResponseSchema {
+    SuccessNewUpdate(VersionsFile, VersionsFile),
+    SuccessNoUpdate,
+    Error,
 }
 
 //---------------------------------------------------------------------------//
@@ -948,6 +958,11 @@ impl Display for FieldType {
 /// Implementation of `VersionsFile`.
 impl VersionsFile {
 
+    /// This function returns a reference to the internal `BTreeMap` of the provided `VersionsFile`.
+    pub fn get(&self) -> &BTreeMap<String, u32> {
+        &self.0
+    }
+
     /// This function loads the local `VersionsFile` to memory.
     pub fn load() -> Result<Self> {
         let file_path = get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE);
@@ -962,6 +977,33 @@ impl VersionsFile {
         let config = PrettyConfig::default();
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
+    }
+
+    /// This function match your local schemas against the remote ones, and downloads any updated ones.
+    ///
+    /// If no local `VersionsFile` is found, it downloads it from the repo, along with all the schema files.
+    pub fn check_update() -> Result<APIResponseSchema> {
+
+        // If there is a local schema, match it against the remote one, to check if there is an update or not.
+        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
+        match Self::load() {
+            Ok(local) => {
+                let remote: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
+                if local == remote { return Ok(APIResponseSchema::SuccessNoUpdate); }
+
+                for (remote_file_name, remote_version) in &remote.0 {
+                    if let Some(local_version) = local.0.get(remote_file_name) {
+                        if remote_version > local_version { return Ok(APIResponseSchema::SuccessNewUpdate(local, remote)); }
+                    }
+                }
+            },
+
+            // If there is no local `VersionsFile`, return an error.
+            Err(_) => return Ok(APIResponseSchema::Error),
+        }
+
+        // If we reached this place, return a "no update found" response.
+        Ok(APIResponseSchema::SuccessNoUpdate)
     }
 
     /// This function match your local schemas against the remote ones, and downloads any updated ones.
