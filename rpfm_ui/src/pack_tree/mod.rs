@@ -82,7 +82,7 @@ const ITEM_STATUS_DELETED: i32 = 4;
 /// This trait adds multiple util functions to the `TreeView` you implement it for.
 ///
 /// Keep in mind that this trait has been created with `PackFile TreeView's` in mind, so his methods
-/// may not be suitable for all purpouses.
+/// may not be suitable for all purposes.
 pub trait PackTree {
 
     /// This function is used to expand the entire path from the PackFile to an specific item in the `TreeView`.
@@ -102,6 +102,10 @@ pub trait PackTree {
 
     /// This function gives you the item corresponding to an specific `TreePathType`.
     fn get_item_from_type(item_type: &TreePathType, model: *mut StandardItemModel) -> &mut StandardItem;
+
+    /// This function gives you a bitmask with what's selected in the PackFile Content's TreeView,
+    /// the number of selected files, and the number of selected folders.
+    fn get_combination_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> (u8, u32, u32);
 
     /// This function returns the `TreePathType` of the provided item. Unsafe version.
     fn get_type_from_item(item: *mut StandardItem, model: *mut StandardItemModel) -> TreePathType;
@@ -415,6 +419,32 @@ impl PackTree for *mut TreeView {
             TreePathType::PackFile => item,
             TreePathType::None => unimplemented!(),
         }
+    }
+
+    fn get_combination_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> (u8, u32, u32) {
+
+        // Get the currently selected paths, and get how many we have of each type.
+        let selected_items = Self::get_item_types_from_main_treeview_selection(app_ui, pack_file_contents_ui);
+        let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
+        let mut item_types = vec![];
+        for item_type in &selected_items {
+            match item_type {
+                TreePathType::File(_) => file += 1,
+                TreePathType::Folder(_) => folder += 1,
+                TreePathType::PackFile => packfile += 1,
+                TreePathType::None => none += 1,
+            }
+            item_types.push(item_type);
+        }
+
+        // Now we do some bitwise magic to get what type of selection combination we have.
+        let mut contents: u8 = 0;
+        if file != 0 { contents |= 1; }
+        if folder != 0 { contents |= 2; }
+        if packfile != 0 { contents |= 4; }
+        if none != 0 { contents |= 8; }
+
+        (contents, file, folder)
     }
 
     fn get_type_from_item(item: *mut StandardItem, model: *mut StandardItemModel) -> TreePathType {

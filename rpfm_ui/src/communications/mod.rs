@@ -130,6 +130,12 @@ pub enum Command {
     /// This command is used when we want to update our schemas.
     UpdateSchemas,
 
+    /// This command is used when we want to know if there is a Dependency Database loaded in memory.
+    IsThereADependencyDatabase,
+
+    /// This command is used when we want to know if there is a Schema loaded in memory.
+    IsThereASchema,
+
     /*
     OpenPackFileExtra,
     SavePackFile,

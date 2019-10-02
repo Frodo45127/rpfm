@@ -260,6 +260,12 @@ pub fn background_loop() {
             // In case we want to get the path of the currently open `PackFile`.
             Command::GetPackFilePath => CENTRAL_COMMAND.send_message_rust(Response::PathBuf(pack_file_decoded.get_file_path().to_path_buf())),
 
+            // In case we want to check if there is a Dependency Database loaded...
+            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!DEPENDENCY_DATABASE.lock().unwrap().is_empty())),
+
+            // In case we want to check if there is a Schema loaded...
+            Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.lock().unwrap().is_some())),
+
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
 
