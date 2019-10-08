@@ -1,20 +1,20 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
 /*!
-This crate is the old `Error` module of RPFM, who fought in the splitting war and gained independence. 
+This crate is the old `Error` module of RPFM, who fought in the splitting war and gained independence.
 
-It has been put into his own lib so there is no need to keep a couple of duplicated `Error` modules 
+It has been put into his own lib so there is no need to keep a couple of duplicated `Error` modules
 for `rpfm-ui` and `rpfm-cli`. As such, **this lib is not intended to be standalone, but a dependency of the `rpfm-lib` crate.
 
-If you need a custom `From` implementation for any error of any lib, add it here. 
+If you need a custom `From` implementation for any error of any lib, add it here.
 !*/
 
 use failure::{Backtrace, Context, Fail};
@@ -51,8 +51,8 @@ pub struct Error {
     context: Context<ErrorKind>,
 }
 
-/// Custom `ErrorKind` Type. To be able to return different errors using the same `Error` type. 
-/// 
+/// Custom `ErrorKind` Type. To be able to return different errors using the same `Error` type.
+///
 /// This type implements the `Display` trait to return a meaningful, user-readable error message.
 /// Most of the messages contain HTML tags for formatting. If you don't want the HTML tags, use the `Error::to_terminal()` function to remove them.
 #[derive(Clone, Eq, PartialEq, Debug, Fail)]
@@ -70,7 +70,7 @@ pub enum ErrorKind {
 
     /// Error for when deserializing from `RON` fails.
     RonDeserializerError,
-    
+
     /// Error for when deserializing from `XML` fails.
     XMLDeserializerError,
 
@@ -88,7 +88,7 @@ pub enum ErrorKind {
 
     /// Error for when there is an problem while importing a TSV. It contains the row and column of the problematic field.
     ImportTSVIncorrectRow(usize, usize),
-    
+
     /// Error for when the first field of a TSV file is incorrect.
     ImportTSVWrongTypeTable,
 
@@ -107,7 +107,7 @@ pub enum ErrorKind {
     /// Generic error for when Fluent fails to load a resource.
     FluentResourceLoadingError,
 
-    /// Generic error for when parsing a String as a F32 fails. 
+    /// Generic error for when parsing a String as a F32 fails.
     ParsingFloatError,
 
     /// Generic error for when parsing a String as an I32 fails.
@@ -152,7 +152,7 @@ pub enum ErrorKind {
 
     /// Error for IO errors when reading files using `read_dir()`. Contains the path of the file.
     IOReadFile(PathBuf),
-    
+
     /// Error for IO errors when reading folders using `read_dir()`. Contains the path of the folder.
     IOReadFolder(PathBuf),
 
@@ -402,7 +402,7 @@ pub enum ErrorKind {
 
     /// Error for when we're trying to use two paths and both are the same.
     PathsAreEqual,
-    
+
     /// Error for when mass-importing TSV file without selecting any file.
     NoFilesToImport,
 
@@ -424,7 +424,7 @@ pub enum ErrorKind {
 
     /// Error for when we're trying add/rename/whatever a file with a reserved path.
     ReservedFiles,
-    
+
     /// Error for when trying to do something to a file that doesn't exists anymore.
     NonExistantFile,
 
@@ -441,7 +441,7 @@ pub enum ErrorKind {
 /// Implementation of `Error`.
 impl Error {
 
-    /// This function returns the `ErrorKind` of the provided `Error`. 
+    /// This function returns the `ErrorKind` of the provided `Error`.
     pub fn kind(&self) -> ErrorKind {
         self.context.get_context().clone()
     }
@@ -587,10 +587,10 @@ impl Display for ErrorKind {
             //--------------------------------//
             // Table Errors
             //--------------------------------//
-            ErrorKind::TableRowWrongFieldCount(expected, real) => write!(f, "<p>Error while trying to save a row from a table:</p><p>We expected a row with \"{}\" fields, but we got a row with \"{}\" fields instead.</p>", expected, real),
+            ErrorKind::TableRowWrongFieldCount(expected, real) => write!(f, "<p>E</p>rror while trying to save a row from a table:</p><p>We expected a row with \"{}\" fields, but we got a row with \"{}\" fields instead.</p><p>Before anything else, please check your game selected is really the one this PackFile is for! If it isn't, change your game selected and try again.</p>", expected, real),
             ErrorKind::TableWrongFieldType(expected, real) => write!(f, "<p>Error while trying to save a row from a table:</p><p>We expected a field of type \"{}\", but we got a field of type \"{}\".</p>", expected, real),
             ErrorKind::TableEmptyWithNoDefinition => write!(f, "<p>This table is empty and there is not a Definition for it. That means is undecodeable.</p>"),
-            
+
             //--------------------------------//
             // DB Table Errors
             //--------------------------------//

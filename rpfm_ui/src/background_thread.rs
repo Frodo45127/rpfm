@@ -352,6 +352,19 @@ pub fn background_loop() {
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
+
+            // When we want to add one or more PackedFiles to our PackFile...
+            Command::AddPackedFiles((source_paths, destination_paths)) => {
+                for (source_path, destination_path) in source_paths.iter().zip(destination_paths.iter()) {
+                    if let Err(error) = pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
+                        CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                        break;
+                    }
+                }
+
+                // If nothing failed, send back success.
+                CENTRAL_COMMAND.send_message_rust(Response::Success);
+            }
         }
     }
 

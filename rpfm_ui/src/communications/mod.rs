@@ -136,6 +136,11 @@ pub enum Command {
     /// This command is used when we want to know if there is a Schema loaded in memory.
     IsThereASchema,
 
+    /// This command is used when we want to add one or more Files to our currently open `PackFile`.
+    ///
+    /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
+    AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>)),
+
     /*
     OpenPackFileExtra,
     SavePackFile,

@@ -12,12 +12,15 @@
 This module contains code to make our live easier when dealing with `TreeViews`.
 !*/
 
+use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::tree_view::TreeView;
+use qt_widgets::widget::Widget;
 
 use qt_gui::brush::Brush;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
+use qt_core::flags::Flags;
 use qt_core::model_index::ModelIndex;
 use qt_core::qt::GlobalColor;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
@@ -41,6 +44,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
+use crate::UI_STATE;
 
 // This one is needed for initialization on boot, so it has to be public.
 pub mod icons;
@@ -1323,6 +1327,39 @@ fn clean_treeview(item: Option<&mut StandardItem>, model: &mut StandardItemModel
             let child = unsafe { item.child(row).as_mut().unwrap() };
             clean_treeview(Some(child), model);
         }
+    }
+}
+
+/// This function checks if a PackedFile is open in the program.
+///
+/// It'll prompt you a message asking you to close it, and it'll close it if you accept it.
+/// It returns `true` if the PackedFile is no longer open. Otherwise, it returns `false`.
+pub fn check_if_path_is_closed(app_ui: &AppUI, paths: &[Vec<String>]) -> bool {
+
+    // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
+    let open_packedfiles = UI_STATE.get_open_packedfiles();
+    if paths.iter().all(|x| !open_packedfiles.keys().any(|y| &y == &x)) { true }
+    else {
+        let mut dialog = unsafe { MessageBox::new_unsafe((
+            message_box::Icon::Information,
+            &QString::from_std_str("One or more of the PackedFiles you want to replace/delete is open."),
+            &QString::from_std_str("Are you sure you want to do it? Hitting yes will close it."),
+            Flags::from_int(16384) | Flags::from_int(65536),
+            app_ui.main_window as *mut Widget,
+        )) };
+
+        // 16384 means yes.
+        if dialog.exec() == 16384 {
+            //for view in &views {
+                //purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
+                //let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
+                //let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
+                //if visible_widgets == 0 { display_help_tips(&app_ui); }
+            //}
+            true
+        }
+        else { false }
+
     }
 }
 

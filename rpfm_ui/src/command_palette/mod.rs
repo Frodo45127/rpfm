@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -86,7 +86,7 @@ pub fn get_actions(
 	actions.push((app_ui.special_stuff_sho2_optimize_packfile, shortcuts.menu_bar_packfile["new_packfile"].to_owned()));
 
 	actions.push((app_ui.special_stuff_nap_optimize_packfile, shortcuts.menu_bar_packfile["new_packfile"].to_owned()));
-	
+
 	actions.push((app_ui.special_stuff_emp_optimize_packfile, shortcuts.menu_bar_packfile["new_packfile"].to_owned()));
 
     //-------------------------------------------------------------------------------//
@@ -122,7 +122,6 @@ pub fn get_actions(
 	actions.push((pack_file_contents_ui.context_menu_open_notes, shortcuts.tree_view["open_notes"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_check_tables, shortcuts.tree_view["check_tables"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_merge_tables, shortcuts.tree_view["merge_tables"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_global_search, shortcuts.tree_view["global_search"].to_owned()));
 
 	actions
 }
@@ -141,7 +140,7 @@ pub fn load_actions(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) 
 
 		let mut action_name = StandardItem::new(&action_name);
 		action_name.set_text_alignment(Flags::from_int(128));
-		
+
 		let mut action_shortcut = StandardItem::new(&QString::from_std_str(&action_shortcut));
 		action_shortcut.set_text_alignment(Flags::from_int(130));
 

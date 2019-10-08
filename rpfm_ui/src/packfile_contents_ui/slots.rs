@@ -12,18 +12,31 @@
 Module with all the code related to the main `PackFileContentsSlots`.
 !*/
 
-use qt_widgets::tree_view::TreeView;
+use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::slots::SlotQtCorePointRef;
+use qt_widgets::tree_view::TreeView;
+use qt_widgets::widget::Widget;
 
 use qt_gui::cursor::Cursor;
 
-use qt_core::slots::{SlotItemSelectionRefItemSelectionRef, SlotNoArgs};
+use qt_core::slots::{SlotItemSelectionRefItemSelectionRef, SlotNoArgs, SlotBool};
+
+use std::fs::DirBuilder;
+use std::path::{Path, PathBuf};
+
+use rpfm_error::ErrorKind;
+use rpfm_lib::common::get_files_from_subdir;
+use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::pack_tree::PackTree;
+use crate::pack_tree::{check_if_path_is_closed, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::QString;
+use crate::utils::show_dialog;
+use crate::UI_STATE;
+use crate::ui_state::op_mode::OperationalMode;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -33,6 +46,9 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 pub struct PackFileContentsSlots {
     pub contextual_menu: SlotQtCorePointRef<'static>,
     pub contextual_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
+
+    pub contextual_menu_add_file: SlotBool<'static>,
+    pub contextual_menu_add_folder: SlotBool<'static>,
     pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
     pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
 }
@@ -306,6 +322,183 @@ impl PackFileContentsSlots {
             }
         );
 
+        // What happens when we trigger the "Add File/s" action in the Contextual Menu.
+        let contextual_menu_add_file = SlotBool::new(move |_| {
+
+                // Create the FileDialog to get the file/s to add and configure it.
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                    app_ui.main_window as *mut Widget,
+                    &QString::from_std_str("Add File/s"),
+                )) };
+                file_dialog.set_file_mode(FileMode::ExistingFiles);
+                match UI_STATE.get_operational_mode() {
+
+                    // If we have a "MyMod" selected...
+                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                        if let Some(ref mymods_base_path) = mymods_base_path {
+
+                            // We get the assets folder of our mod (without .pack extension).
+                            let mut assets_folder = mymods_base_path.to_path_buf();
+                            assets_folder.push(&game_folder_name);
+                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+                            file_dialog.set_directory(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
+
+                            // We check that path exists, and create it if it doesn't.
+                            if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
+                                return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateAssetFolder, false);
+                            }
+
+                            // Run it and expect a response (1 => Accept, 0 => Cancel).
+                            if file_dialog.exec() == 1 {
+
+                                // Get the Paths of the files we want to add.
+                                let mut paths: Vec<PathBuf> = vec![];
+                                let paths_qt = file_dialog.selected_files();
+                                for index in 0..paths_qt.size() { paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                                // Check if the files are in the Assets Folder. The file chooser kinda guarantees that
+                                // all are in the same folder, so we can just check the first one.
+                                let paths_packedfile: Vec<Vec<String>> = if paths[0].starts_with(&assets_folder) {
+                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                    for path in &paths {
+                                        let filtered_path = path.strip_prefix(&assets_folder).unwrap();
+                                        paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                                    }
+                                    paths_packedfile
+                                }
+
+                                // Otherwise, they are added like normal files.
+                                else {
+                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                    for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+                                    paths_packedfile
+                                };
+
+                                pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                            }
+                        }
+
+                        // If there is no "MyMod" path configured, report it.
+                        else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
+                    }
+
+                    // If it's in "Normal" mode...
+                    OperationalMode::Normal => {
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        if file_dialog.exec() == 1 {
+
+                            // Get the Paths of the files we want to add.
+                            let mut paths: Vec<PathBuf> = vec![];
+                            let paths_qt = file_dialog.selected_files();
+                            for index in 0..paths_qt.size() { paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                            // Get their final paths in the PackFile and only proceed if all of them are closed.
+                            let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                            for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+
+                            pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                        }
+                    }
+                }
+            }
+        );
+
+
+        // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
+        let contextual_menu_add_folder = SlotBool::new(move |_| {
+
+                // Create the FileDialog to get the folder/s to add and configure it.
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                    app_ui.main_window as *mut Widget,
+                    &QString::from_std_str("Add Folder/s"),
+                )) };
+                file_dialog.set_file_mode(FileMode::Directory);
+                match UI_STATE.get_operational_mode() {
+
+                    // If we have a "MyMod" selected...
+                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                        if let Some(ref mymods_base_path) = mymods_base_path {
+
+                            // We get the assets folder of our mod (without .pack extension).
+                            let mut assets_folder = mymods_base_path.to_path_buf();
+                            assets_folder.push(&game_folder_name);
+                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+                            file_dialog.set_directory(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
+
+                            // We check that path exists, and create it if it doesn't.
+                            if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
+                                return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateAssetFolder, false);
+                            }
+
+                            // Run it and expect a response (1 => Accept, 0 => Cancel).
+                            if file_dialog.exec() == 1 {
+
+                                // Get the Paths of the folders we want to add.
+                                let mut folder_paths: Vec<PathBuf> = vec![];
+                                let paths_qt = file_dialog.selected_files();
+                                for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                                // Get the Paths of the files inside the folders we want to add.
+                                let mut paths: Vec<PathBuf> = vec![];
+                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
+
+                                // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
+                                let paths_packedfile = if paths[0].starts_with(&assets_folder) {
+                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                    for path in &paths {
+                                        let filtered_path = path.strip_prefix(&assets_folder).unwrap();
+                                        paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                                    }
+                                    paths_packedfile
+                                }
+
+                                // Otherwise, they are added like normal files.
+                                else {
+                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                    for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+                                    paths_packedfile
+                                };
+
+                                pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                            }
+                        }
+
+                        // If there is no "MyMod" path configured, report it.
+                        else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
+                    }
+
+                    // If it's in "Normal" mode, we just get the paths of the files inside them and add those files.
+                    OperationalMode::Normal => {
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        if file_dialog.exec() == 1 {
+
+                            // Get the Paths of the folders we want to add.
+                            let mut folder_paths: Vec<PathBuf> = vec![];
+                            let paths_qt = file_dialog.selected_files();
+                            for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                            // Get the Paths of the files inside the folders we want to add.
+                            let mut paths: Vec<PathBuf> = vec![];
+                            for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
+
+                            // Get their final paths in the PackFile and only proceed if all of them are closed.
+                            let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                            for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+                            pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                        }
+                    }
+                }
+            }
+        );
+
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
 
@@ -314,6 +507,9 @@ impl PackFileContentsSlots {
 		Self {
             contextual_menu,
             contextual_menu_enabler,
+
+            contextual_menu_add_file,
+            contextual_menu_add_folder,
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,
 		}

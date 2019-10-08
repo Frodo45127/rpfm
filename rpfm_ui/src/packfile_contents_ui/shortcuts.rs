@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -52,7 +52,6 @@ pub fn set_shortcuts(ui: &PackFileContentsUI) {
     unsafe { ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["open_with_external_program"]))); }
     unsafe { ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["open_in_multi_view"]))); }
     unsafe { ui.context_menu_open_notes.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["open_notes"]))); }
-    unsafe { ui.context_menu_global_search.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["global_search"]))); }
     unsafe { ui.packfile_contents_tree_view_expand_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["expand_all"]))); }
     unsafe { ui.packfile_contents_tree_view_collapse_all.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["collapse_all"]))); }
 
@@ -77,7 +76,6 @@ pub fn set_shortcuts(ui: &PackFileContentsUI) {
     unsafe { ui.context_menu_open_with_external_program.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.context_menu_open_in_multi_view.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.context_menu_open_notes.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-    unsafe { ui.context_menu_global_search.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.packfile_contents_tree_view_expand_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.packfile_contents_tree_view_collapse_all.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
 
@@ -102,7 +100,6 @@ pub fn set_shortcuts(ui: &PackFileContentsUI) {
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_open_with_external_program); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_open_in_multi_view); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_open_notes); }
-    unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_global_search); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.packfile_contents_tree_view_expand_all); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.packfile_contents_tree_view_collapse_all); }
 

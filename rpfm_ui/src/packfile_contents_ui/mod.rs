@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -34,6 +34,7 @@ use crate::QString;
 use crate::utils::create_grid_layout_unsafe;
 
 pub mod connections;
+pub mod extra;
 pub mod shortcuts;
 pub mod slots;
 pub mod tips;
@@ -83,7 +84,6 @@ pub struct PackFileContentsUI {
     pub context_menu_open_notes: *mut Action,
     pub context_menu_check_tables: *mut Action,
     pub context_menu_merge_tables: *mut Action,
-    pub context_menu_global_search: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // Actions not in the UI.
@@ -98,7 +98,7 @@ pub struct PackFileContentsUI {
 
 /// Implementation of `PackFileContentsUI`.
 impl PackFileContentsUI {
-    
+
     /// This function creates an entire `PackFileContentsUI` struct.
     pub fn new(main_window: *mut MainWindow) -> Self {
 
@@ -177,7 +177,6 @@ impl PackFileContentsUI {
         let context_menu_open_notes = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Notes"));
         let context_menu_check_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables"));
         let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables"));
-        let context_menu_global_search = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Global Search"));
         let packfile_contents_tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All"));
         let packfile_contents_tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All"));
 
@@ -208,7 +207,7 @@ impl PackFileContentsUI {
             context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
             context_menu_open_notes.as_mut().unwrap().set_enabled(false);
         }
-        
+
         // Create ***Da monsta***.
         Self {
 
@@ -252,10 +251,9 @@ impl PackFileContentsUI {
             context_menu_open_with_external_program,
             context_menu_open_in_multi_view,
             context_menu_open_notes,
-            
+
             context_menu_check_tables,
             context_menu_merge_tables,
-            context_menu_global_search,
 
             //-------------------------------------------------------------------------------//
             // "Special" Actions for the TreeView.
