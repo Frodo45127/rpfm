@@ -141,6 +141,8 @@ pub enum Command {
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
     AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>)),
 
+    /// This command is used when we want to decode an image to be shown in the UI.
+    DecodePackedFileImage(Vec<String>),
     /*
     OpenPackFileExtra,
     SavePackFile,

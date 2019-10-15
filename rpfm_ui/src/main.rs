@@ -170,6 +170,7 @@ mod ffi;
 mod locale;
 mod mymod_ui;
 mod pack_tree;
+mod packedfile_views;
 mod shortcuts;
 mod settings_ui;
 mod ui;

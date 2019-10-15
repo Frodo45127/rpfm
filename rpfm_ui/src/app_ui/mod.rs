@@ -25,6 +25,7 @@ use qt_widgets::main_window::MainWindow;
 use qt_widgets::menu::Menu;
 use qt_widgets::menu_bar::MenuBar;
 use qt_widgets::status_bar::StatusBar;
+use qt_widgets::tab_widget::TabWidget;
 use qt_widgets::table_view::TableView;
 use qt_widgets::widget::Widget;
 
@@ -74,6 +75,7 @@ pub struct AppUI {
     // Main Window.
     //-------------------------------------------------------------------------------//
     pub main_window: *mut MainWindow,
+    pub tab_bar_packed_file: *mut TabWidget,
     pub menu_bar: *mut MenuBar,
     pub status_bar: *mut StatusBar,
 
@@ -227,6 +229,7 @@ impl Default for AppUI {
         // Initialize and configure the main window.
         let mut main_window = MainWindow::new();
         let widget = Widget::new();
+        let layout = create_grid_layout_unsafe(widget.as_mut_ptr());
         unsafe { main_window.set_central_widget(widget.into_raw()); }
         main_window.resize((1100, 400));
         Application::set_window_icon(&Icon::new(&QString::from_std_str(format!("{}/img/rpfm.png", RPFM_PATH.to_string_lossy()))));
@@ -234,6 +237,10 @@ impl Default for AppUI {
         // Get the menu and status bars.
         let menu_bar = main_window.menu_bar();
         let status_bar = main_window.status_bar();
+        let mut tab_bar_packed_file = TabWidget::new();
+        tab_bar_packed_file.set_tabs_closable(true);
+        tab_bar_packed_file.set_movable(true);
+        unsafe { layout.as_mut().unwrap().add_widget((tab_bar_packed_file.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
 
         //-----------------------------------------------//
         // `Command Palette` DockWidget.
@@ -524,6 +531,7 @@ impl Default for AppUI {
             // Main Window.
             //-------------------------------------------------------------------------------//
             main_window: main_window.into_raw(),
+            tab_bar_packed_file: tab_bar_packed_file.into_raw(),
             menu_bar,
             status_bar,
 

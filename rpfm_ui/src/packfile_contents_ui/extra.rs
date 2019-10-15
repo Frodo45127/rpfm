@@ -16,7 +16,6 @@ The reason they're here and not in the main file is because I don't want to polu
 that one, as it's mostly meant for initialization and configuration.
 !*/
 
-use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
 use std::path::PathBuf;

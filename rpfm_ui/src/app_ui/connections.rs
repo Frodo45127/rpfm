@@ -21,7 +21,7 @@ use super::{AppUI, slots::AppUISlots};
 /// This function connects all the actions from the provided `AppUI` with their slots in `AppUISlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
-/// to not polute the other modules with a ton of connections.
+/// to not pollute the other modules with a ton of connections.
 pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
 
 	//-----------------------------------------------//
@@ -116,4 +116,9 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.about_patreon_link.as_ref().unwrap().signals().triggered().connect(&slots.about_patreon_link); }
     unsafe { app_ui.about_check_updates.as_ref().unwrap().signals().triggered().connect(&slots.about_check_updates); }
     unsafe { app_ui.about_check_schema_updates.as_ref().unwrap().signals().triggered().connect(&slots.about_check_schema_updates); }
+
+    //-----------------------------------------------//
+    // `PackedFileView` connections.
+    //-----------------------------------------------//
+    unsafe { app_ui.tab_bar_packed_file.as_ref().unwrap().signals().tab_close_requested().connect(&slots.packed_file_hide); }
 }

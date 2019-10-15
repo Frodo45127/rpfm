@@ -24,12 +24,14 @@ use rpfm_error::{Error, ErrorKind, Result};
 use std::{fmt, fmt::Display};
 use std::ops::Deref;
 
+use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
 use crate::packedfile::text::Text;
 use crate::packfile::packedfile::RawPackedFile;
 use crate::schema::{FieldType, Schema};
 use crate::SCHEMA;
 
+pub mod image;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -49,7 +51,7 @@ pub enum DecodedPackedFile {
     AnimTable,
     CEO,
     DB(DB),
-    Image,
+    Image(Image),
     Loc(Loc),
     MatchedCombat,
     RigidModel,
@@ -118,6 +120,12 @@ impl DecodedPackedFile {
                 }
             }
 
+            PackedFileType::Image => {
+                let data = data.get_data()?;
+                let packed_file = Image::read(&data)?;
+                Ok(DecodedPackedFile::Image(packed_file))
+            }
+
             PackedFileType::Loc => {
                 let schema = SCHEMA.lock().unwrap();
                 match schema.deref() {
@@ -149,6 +157,12 @@ impl DecodedPackedFile {
                 Ok(DecodedPackedFile::DB(packed_file))
             }
 
+            PackedFileType::Image => {
+                let data = data.get_data()?;
+                let packed_file = Text::read(&data)?;
+                Ok(DecodedPackedFile::Text(packed_file))
+            }
+
             PackedFileType::Loc => {
                 let data = data.get_data()?;
                 let packed_file = Loc::read(&data, &schema)?;
@@ -168,6 +182,7 @@ impl DecodedPackedFile {
     pub fn encode(&self) -> Result<Vec<u8>> {
         match self {
             DecodedPackedFile::DB(data) => data.save(),
+            DecodedPackedFile::Image(_) => unimplemented!(),
             DecodedPackedFile::Loc(data) => data.save(),
             DecodedPackedFile::Text(data) => data.save(),
             _=> unimplemented!(),

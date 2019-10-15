@@ -16,23 +16,31 @@ they're here and not in the main file is because I don't want to polute that one
 as it's mostly meant for initialization and configuration.
 !*/
 
+
 use qt_widgets::file_dialog::FileDialog;
+use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::{message_box, message_box::MessageBox};
+use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::object::Object;
+
 use qt_core::slots::SlotBool;
 
+use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::atomic::AtomicPtr;
 
-use rpfm_error::Result;
+use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths};
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
 use rpfm_lib::schema::APIResponseSchema;
 use rpfm_lib::SETTINGS;
@@ -41,11 +49,12 @@ use rpfm_lib::SUPPORTED_GAMES;
 use super::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
-use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
+use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
+use crate::packedfile_views::{image::*, PackedFileView};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
-use crate::utils::show_dialog;
+use crate::utils::{create_grid_layout_unsafe, show_dialog};
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -95,7 +104,7 @@ impl AppUI {
             self.main_window as *mut Widget,
         )) }.exec() == 3
     }
-
+/*
     /// This function deletes all the widgets corresponding to opened PackedFiles.
     pub fn purge_them_all(&self) {
 
@@ -129,7 +138,7 @@ impl AppUI {
         // Set it as not having an opened PackedFile, just in case.
         open_packedfiles.remove(path);
 
-        // We check if there are more tables open. This is beacuse we cannot change the GameSelected
+        // We check if there are more tables open. This is because we cannot change the GameSelected
         // when there is a PackedFile using his Schema.
         let mut enable_game_selected_menu = true;
         for path in open_packedfiles.keys() {
@@ -150,7 +159,7 @@ impl AppUI {
 
         if enable_game_selected_menu { unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }}
     }
-
+*/
     /// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending on the situation.
     ///
     /// NOTE: The `game_folder` is for when using this function with *MyMods*. If you're opening a normal mod, pass it empty.
@@ -276,7 +285,7 @@ impl AppUI {
                 unsafe { (self.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                self.purge_them_all();
+                //self.purge_them_all();
 
                 // Close the Global Search stuff and reset the filter's history.
                 //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
@@ -920,6 +929,177 @@ impl AppUI {
                             _ => panic!(THREADS_COMMUNICATION_ERROR),
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// This function is used to open ANY supported PackedFiles in a DockWidget, docked in the Main Window.
+    pub fn open_packedfile(&self, pack_file_contents_ui: &PackFileContentsUI, is_preview: bool) {
+
+        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
+        // Also, only open the selection when there is only one thing selected.
+        if !UI_STATE.get_packfile_contents_read_only() {
+            let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(self, pack_file_contents_ui);
+            let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
+            match item_type {
+
+                // Only in case it's a file, we do something.
+                TreePathType::File(path) => {
+
+                    // Close all preview views except the file we're opening.
+                    for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+                        if open_path != path && packed_file_view.get_is_preview() {
+                            let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(packed_file_view.get_mut_widget()) };
+                            unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
+                        }
+                    }
+
+
+                    // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
+                    if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(path) {
+                        if unsafe { !tab_widget.get_mut_widget().as_ref().unwrap().parent_widget().as_ref().is_none() } {
+                            unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget.get_mut_widget(), &QString::from_std_str(&path.last().unwrap()))); }
+                        }
+
+                        unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget.get_mut_widget()); }
+                        return;
+                    }
+
+                    let mut tab = PackedFileView::default();
+                    let tab_widget = tab.get_mut_widget();
+                    tab.set_is_preview(is_preview);
+                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, &QString::from_std_str(&path.last().unwrap()))); }
+
+                    // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
+                    let packed_file_type = PackedFileType::get_packed_file_type(&path);
+                    let path = Rc::new(RefCell::new(path.to_vec()));
+                    println!("{:?}", is_preview);
+                    match packed_file_type {/*
+
+                        // If the file is a Loc PackedFile...
+                        DecodeablePackedFileType::Loc => {
+
+                            // Try to get the view build, or return error.
+                            match create_loc_view(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                widget_layout,
+                                &path,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
+                                table_state_data,
+                            ) {
+                                Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::Table(new_slots)); },
+                                Err(error) => return Err(ErrorKind::LocDecode(format!("{}", error)))?,
+                            }
+
+                            // Tell the program there is an open PackedFile and finish the table.
+                            purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                            packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                            unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+                        }
+
+                        // If the file is a DB PackedFile...
+                        DecodeablePackedFileType::DB => {
+
+                            // Try to get the view build, or return error.
+                            match create_db_view(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                widget_layout,
+                                &path,
+                                &global_search_explicit_paths,
+                                update_global_search_stuff,
+                                table_state_data
+                            ) {
+                                Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::Table(new_slots)); },
+                                Err(error) => return Err(ErrorKind::DBTableDecode(format!("{}", error)))?,
+                            }
+
+                            // Tell the program there is an open PackedFile and finish the table.
+                            purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                            packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                            unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+
+                            // Disable the "Change game selected" function, so we cannot change the current schema with an open table.
+                            unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(false); }
+                        }*/
+/*
+                        // If the file is a Text PackedFile...
+                        PackedFileType::Text => {
+
+                            // Try to get the view build, or return error.
+                            match create_text_view(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                widget_layout,
+                                &path,
+                                &packedfiles_open_in_packedfile_view
+                            ) {
+                                Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::Text(new_slots)); },
+                                Err(error) => return Err(ErrorKind::TextDecode(format!("{}", error)))?,
+                            }
+
+                            // Tell the program there is an open PackedFile and finish the table.
+                            //purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                            //packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                            //unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+                        }*//*
+
+                        // If the file is a Text PackedFile...
+                        DecodeablePackedFileType::RigidModel => {
+
+                            // Try to get the view build, or return error.
+                            match PackedFileRigidModelDataView::create_data_view(
+                                &sender_qt,
+                                &sender_qt_data,
+                                &receiver_qt,
+                                &app_ui,
+                                widget_layout,
+                                &path
+                            ) {
+                                Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::RigidModel(new_slots)); },
+                                Err(error) => return Err(ErrorKind::RigidModelDecode(format!("{}", error)))?,
+                            }
+
+                            // Tell the program there is an open PackedFile and finish the table.
+                            purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
+                            packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
+                            unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
+                        }*/
+
+                        // If the file is a Text PackedFile...
+                        PackedFileType::Image => {
+
+                            // Try to get the view build, or return error.
+                            if let Err(error) = PackedFileImageView::new_view(&path, &mut tab)
+                            { show_dialog(self.main_window as *mut Widget, ErrorKind::ImageDecode(format!("{}", error)), false) }
+
+                            // Add the file to the 'Currently open' list and make it visible.
+                            unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.insert(path.borrow().to_vec(), tab);
+                        }
+
+                        // For any other PackedFile, just restore the display tips.
+                        _ => {
+                            //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                            //display_help_tips(&app_ui);
+                        }
+                    }
+                }
+
+                // If it's anything else, then we just show the "Tips" list.
+                _ => {
+                    //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                    //display_help_tips(&app_ui);
                 }
             }
         }

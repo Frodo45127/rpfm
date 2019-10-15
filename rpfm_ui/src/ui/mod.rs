@@ -198,7 +198,7 @@ impl UI {
             app_slots,
             app_temp_slots,
             global_search_slots,
-            pack_file_contents_slots
+            pack_file_contents_slots,
         })
     }
 }

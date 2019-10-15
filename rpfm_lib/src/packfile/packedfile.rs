@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -11,8 +11,8 @@
 /*!
 Module with all the code to interact with infividual PackedFiles.
 
-This module contains all the code related with the interaction with individual PackFiles, 
-meaning the code that takes care of loading/writing their data from/to disk. 
+This module contains all the code related with the interaction with individual PackFiles,
+meaning the code that takes care of loading/writing their data from/to disk.
 
 You'll rarely have to touch anything here.
 !*/
@@ -72,10 +72,10 @@ pub enum PackedFileData {
     /// The data is loaded to memory and the variant holds the data and info about the current state of the data (data, is_compressed, is_encrypted).
     OnMemory(Vec<u8>, bool, Option<PFHVersion>),
 
-    /// The data is not loaded to memory and the variant holds the info needed to get the data loaded to memory on demand 
+    /// The data is not loaded to memory and the variant holds the info needed to get the data loaded to memory on demand
     /// (reader of the file, position of the start of the data, size of the data, is_compressed, is_encrypted).
     OnDisk(Arc<Mutex<BufReader<File>>>, u64, u32, bool, Option<PFHVersion>),
-} 
+}
 
 /// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
 #[derive(Clone, Debug)]
@@ -109,7 +109,7 @@ pub struct PackedFileInfo {
 
 /// Implementation of `PackedFile`.
 impl PackedFile {
-    
+
     /// This function creates a new empty `PackedFile` in the provided path.
     pub fn new(
         path: Vec<String>,
@@ -179,6 +179,8 @@ impl PackedFile {
                 };
                 DecodedPackedFile::DB(DB::new(&table_name, &table_definition))
             }
+
+            // TODO: Add Text files here.
 
             // For anything else, just return `Unkown`.
             _ => DecodedPackedFile::Unknown,
@@ -311,7 +313,7 @@ impl RawPackedFile {
         path: Vec<String>,
         packfile_name: String,
         timestamp: i64,
-        should_be_compressed: bool, 
+        should_be_compressed: bool,
         data: Vec<u8>
     ) -> Self {
         Self {
@@ -327,10 +329,10 @@ impl RawPackedFile {
     /// This function creates a new `RawPackedFile` from a another's `RawPackedFile`'s data, and some extra data. What an asshole.
     pub fn read_from_data(
         path: Vec<String>,
-        packfile_name: String, 
+        packfile_name: String,
         timestamp: i64,
-        should_be_compressed: bool, 
-        should_be_encrypted: Option<PFHVersion>, 
+        should_be_compressed: bool,
+        should_be_encrypted: Option<PFHVersion>,
         data: PackedFileData
     ) -> Self {
         Self {
@@ -364,7 +366,7 @@ impl RawPackedFile {
             file.lock().unwrap().read_exact(&mut data)?;
             PackedFileData::OnMemory(data, is_compressed, is_encrypted)
         } else { return Ok(()) };
-        
+
         self.data = data_on_memory;
         Ok(())
     }
@@ -551,9 +553,9 @@ impl PartialEq for PackedFileData {
     fn eq(&self, other: &PackedFileData) -> bool {
         match (self, other) {
             (
-                &PackedFileData::OnMemory(ref data, is_compressed, is_encrypted), 
-                &PackedFileData::OnMemory(ref data_2, is_compressed_2, is_encrypted_2)) => 
-                    data == data_2 && 
+                &PackedFileData::OnMemory(ref data, is_compressed, is_encrypted),
+                &PackedFileData::OnMemory(ref data_2, is_compressed_2, is_encrypted_2)) =>
+                    data == data_2 &&
                     is_compressed == is_compressed_2 &&
                     is_encrypted == is_encrypted_2,
             _ => false,

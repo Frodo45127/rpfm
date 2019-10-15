@@ -31,7 +31,7 @@ use rpfm_lib::SETTINGS;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::pack_tree::{check_if_path_is_closed, PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::PackTree;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::utils::show_dialog;
@@ -44,6 +44,9 @@ use crate::ui_state::op_mode::OperationalMode;
 
 /// This struct contains all the slots we need to respond to signals of the PackFile Contents panel.
 pub struct PackFileContentsSlots {
+    pub open_packedfile_preview: SlotNoArgs<'static>,
+    pub open_packedfile_full: SlotNoArgs<'static>,
+
     pub contextual_menu: SlotQtCorePointRef<'static>,
     pub contextual_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
 
@@ -62,6 +65,16 @@ impl PackFileContentsSlots {
 
 	/// This function creates an entire `PackFileContentsSlots` struct.
 	pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI) -> Self {
+
+        // Slot to open the selected PackedFile as a preview.
+        let open_packedfile_preview = SlotNoArgs::new(move || {
+            app_ui.open_packedfile(&pack_file_contents_ui, true);
+        });
+
+        // Slot to open the selected PackedFile as a permanent view.
+        let open_packedfile_full = SlotNoArgs::new(move || {
+            app_ui.open_packedfile(&pack_file_contents_ui, false);
+        });
 
         // Slot to show the Contextual Menu for the TreeView.
         let contextual_menu = SlotQtCorePointRef::new(move |_| {
@@ -505,6 +518,9 @@ impl PackFileContentsSlots {
 
         // And here... we return all the slots.
 		Self {
+            open_packedfile_preview,
+            open_packedfile_full,
+
             contextual_menu,
             contextual_menu_enabler,
 

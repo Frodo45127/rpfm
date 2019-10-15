@@ -14,14 +14,13 @@ Module with all the code related to the main `UIState`.
 This module contains the code needed to keep track of the current state of the UI.
 !*/
 
-use qt_widgets::widget::Widget;
-
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::app_ui::AppUI;
+use crate::packedfile_views::PackedFileView;
 use crate::shortcuts::Shortcuts;
 use crate::ui_state::op_mode::OperationalMode;
 use crate::ui_state::global_search::GlobalSearch;
@@ -46,7 +45,7 @@ pub struct UIState {
     packfile_contents_read_only: AtomicBool,
 
     /// This stores the list to all the widgets of the open PackedFiles.
-    open_packedfiles: Arc<RwLock<BTreeMap<Vec<String>, &'static mut Widget>>>,
+    open_packedfiles: Arc<RwLock<BTreeMap<Vec<String>, PackedFileView>>>,
 
     /// This stores the current operational mode of the application.
     operational_mode: Arc<RwLock<OperationalMode>>,
@@ -99,14 +98,14 @@ impl UIState {
     }
 
     /// This function returns the open packedfiles list with a reading lock.
-    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<BTreeMap<Vec<String>, &'static mut Widget>> {
+    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<BTreeMap<Vec<String>, PackedFileView>> {
         self.open_packedfiles.read().unwrap()
     }
 
     /// This function returns the open packedfiles list with a writing lock. This acts kinda like a setter.
     ///
     /// Use this only if you need to perform multiple write operations with this.
-    pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<BTreeMap<Vec<String>, &'static mut Widget>> {
+    pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<BTreeMap<Vec<String>, PackedFileView>> {
         self.open_packedfiles.write().unwrap()
     }
 

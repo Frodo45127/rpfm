@@ -21,7 +21,7 @@ use qt_widgets::widget::Widget;
 use qt_gui::desktop_services::DesktopServices;
 
 use qt_core::qt::FocusReason;
-use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
+use qt_core::slots::{SlotBool, SlotCInt, SlotNoArgs, SlotStringRef};
 
 use std::cell::RefCell;
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
@@ -120,6 +120,11 @@ pub struct AppUISlots {
     pub about_patreon_link: SlotBool<'static>,
     pub about_check_updates: SlotBool<'static>,
     pub about_check_schema_updates: SlotBool<'static>,
+
+    //-----------------------------------------------//
+    // `PackedFileView` slots.
+    //-----------------------------------------------//
+    pub packed_file_hide: SlotCInt<'static>,
 }
 
 pub struct AppUITempSlots {
@@ -197,7 +202,7 @@ impl AppUISlots {
 
                     // Close any open PackedFile and clear the global search pannel.
                     // TODO: Clear the global search panel.
-                    app_ui.purge_them_all();
+                    //app_ui.purge_them_all();
                     unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().hide(); }
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
@@ -925,6 +930,13 @@ impl AppUISlots {
         // What happens when we trigger the "Check Schema Update" action.
         let about_check_schema_updates = SlotBool::new(move |_| { app_ui.check_schema_updates(true); });
 
+        //-----------------------------------------------//
+        // `PackedFileView` logic.
+        //-----------------------------------------------//
+        let packed_file_hide = SlotCInt::new(move |index| {
+            unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
+        });
+
         // And here... we return all the slots.
 		Self {
 
@@ -987,6 +999,11 @@ impl AppUISlots {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
+
+            //-----------------------------------------------//
+            // `PackedFileView` slots.
+            //-----------------------------------------------//
+            packed_file_hide,
 		}
 	}
 }
