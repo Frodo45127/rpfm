@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -38,7 +38,7 @@ pub mod text;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This enum represents a ***decoded `PackedFile`***, 
+/// This enum represents a ***decoded `PackedFile`***,
 ///
 /// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
 #[derive(PartialEq, Clone, Debug)]
@@ -104,9 +104,9 @@ impl DecodedPackedFile {
 
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
     pub fn decode(data: &RawPackedFile) -> Result<Self> {
-        let schema = SCHEMA.lock().unwrap();
         match PackedFileType::get_packed_file_type(data.get_path()) {
             PackedFileType::DB => {
+                let schema = SCHEMA.lock().unwrap();
                 match schema.deref() {
                     Some(schema) => {
                         let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
@@ -119,6 +119,7 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::Loc => {
+                let schema = SCHEMA.lock().unwrap();
                 match schema.deref() {
                     Some(schema) => {
                         let data = data.get_data()?;
@@ -427,11 +428,11 @@ pub fn tsv_mass_import(
                 let table_version = match tsv_info[1].parse::<i32>() {
                     Ok(version) => version,
                     Err(_) => {
-                        error_files.push(path.to_string_lossy().to_string()); 
+                        error_files.push(path.to_string_lossy().to_string());
                         continue
                     }
                 };
-                
+
                 let table_definition = if let Some(ref schema) = *SCHEMA.lock().unwrap() {
                     schema.get_versioned_file_db(&table_type)?.get_version(table_version)?.clone()
                 } else { error_files.push(path.to_string_lossy().to_string()); continue };
@@ -468,7 +469,7 @@ pub fn tsv_mass_import(
                                 // Create and add the new PackedFile to the list of PackedFiles to add.
                                 packed_files.push(PackedFile::read_from_vec(path, pack_file.get_file_name(), get_current_time(), false, raw_data));
                             }
-        
+
                             // DB Tables.
                             _ => {
                                 let mut db = DB::new(table_type, &table_definition);
@@ -482,14 +483,14 @@ pub fn tsv_mass_import(
                                 };
 
                                 let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
-                        
+
                                 // If that path already exists in the list of new PackedFiles to add, change it using the index.
                                 let mut index = 1;
                                 while packed_files.iter().any(|x| x.get_path() == &*path) {
                                     path[2] = format!("{}_{}", name, index);
                                     index += 1;
                                 }
-                                
+
                                 // If that path already exists in the PackFile, add it to the "remove" list.
                                 if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
@@ -573,7 +574,7 @@ pub fn tsv_mass_export(
                             Err(error) => error_list.push((packed_file.get_path().to_vec().join("\\"), error)),
                         }
                     }
-                    
+
                     // Otherwise, we check if it's a Loc PackedFile, and try to decode it and export it.
                     else if packed_file.get_path().last().unwrap().ends_with(".loc") {
                         match Loc::read(&(packed_file.get_data()?)) {
