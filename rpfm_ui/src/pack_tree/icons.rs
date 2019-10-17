@@ -1,14 +1,14 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-/*! 
+/*!
 This module contains the code to load the icons used in the `TreeView`.
 !*/
 
@@ -132,6 +132,66 @@ impl IconType {
             }
         };
         item.set_icon(icon);
+    }
+
+    /// This function is used to get the icon corresponding to an IconType.
+    pub fn get_icon_from_path(&self) -> &Icon {
+        match self {
+
+            // For PackFiles.
+            IconType::PackFile(editable) => {
+                if *editable { &TREEVIEW_ICONS.packfile_editable }
+                else { &TREEVIEW_ICONS.packfile_locked }
+            },
+
+            // For folders.
+            IconType::Folder => &TREEVIEW_ICONS.folder,
+
+            // For files.
+            IconType::File(path) => {
+
+                // Get the name of the file.
+                let packed_file_name = path.last().unwrap();
+
+                // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
+                if path[0] == "db" { &TREEVIEW_ICONS.table }
+
+                // If it ends in ".loc", it's a localisation PackedFile.
+                else if packed_file_name.ends_with(".loc") { &TREEVIEW_ICONS.table }
+
+                // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
+                else if packed_file_name.ends_with(".rigid_model_v2") { &TREEVIEW_ICONS.rigid_model }
+
+                // If it ends in any of these, it's a plain text PackedFile.
+                else if packed_file_name.ends_with(".lua") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".xml") { &TREEVIEW_ICONS.text_xml }
+                else if packed_file_name.ends_with(".xml.shader") { &TREEVIEW_ICONS.text_xml }
+                else if packed_file_name.ends_with(".xml.material") { &TREEVIEW_ICONS.text_xml }
+                else if packed_file_name.ends_with(".variantmeshdefinition") { &TREEVIEW_ICONS.text_xml }
+                else if packed_file_name.ends_with(".environment") { &TREEVIEW_ICONS.text_xml }
+                else if packed_file_name.ends_with(".lighting") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".wsmodel") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".csv") { &TREEVIEW_ICONS.text_csv }
+                else if packed_file_name.ends_with(".tsv") { &TREEVIEW_ICONS.text_csv }
+                else if packed_file_name.ends_with(".inl") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".battle_speech_camera") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".bob") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".cindyscene") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".cindyscenemanager") { &TREEVIEW_ICONS.text_generic }
+                //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
+                else if packed_file_name.ends_with(".txt") { &TREEVIEW_ICONS.text_txt }
+
+                // If it ends in any of these, it's an image.
+                else if packed_file_name.ends_with(".jpg") { &TREEVIEW_ICONS.image_jpg }
+                else if packed_file_name.ends_with(".jpeg") { &TREEVIEW_ICONS.image_jpg }
+                else if packed_file_name.ends_with(".tga") { &TREEVIEW_ICONS.image_generic }
+                else if packed_file_name.ends_with(".dds") { &TREEVIEW_ICONS.image_generic }
+                else if packed_file_name.ends_with(".png") { &TREEVIEW_ICONS.image_png }
+
+                // Otherwise, it's a generic file.
+                else { &TREEVIEW_ICONS.file }
+            }
+        }
     }
 
     /// This function is used to set the icon of an Item in the `TreeView` depending on his type.

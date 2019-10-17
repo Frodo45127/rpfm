@@ -14,14 +14,14 @@ Module with all the submodules for controlling the views of each decodeable Pack
 This module contains the code to manage the views and actions of each decodeable PackedFile View.
 !*/
 
-pub mod image;
-
 use qt_widgets::widget::Widget;
 
 use core::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::packedfile_views::image::slots::PackedFileImageViewSlots;
 use crate::utils::create_grid_layout_unsafe;
+
+pub mod image;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

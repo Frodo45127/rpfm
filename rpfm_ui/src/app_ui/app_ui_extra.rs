@@ -18,22 +18,18 @@ as it's mostly meant for initialization and configuration.
 
 
 use qt_widgets::file_dialog::FileDialog;
-use qt_widgets::grid_layout::GridLayout;
 use qt_widgets::{message_box, message_box::MessageBox};
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
-use qt_core::object::Object;
-
 use qt_core::slots::SlotBool;
 
 use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -49,12 +45,12 @@ use rpfm_lib::SUPPORTED_GAMES;
 use super::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
-use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{image::*, PackedFileView};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
-use crate::utils::{create_grid_layout_unsafe, show_dialog};
+use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -949,19 +945,31 @@ impl AppUI {
 
                     // Close all preview views except the file we're opening.
                     for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
-                        if open_path != path && packed_file_view.get_is_preview() {
-                            let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(packed_file_view.get_mut_widget()) };
+                        let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(packed_file_view.get_mut_widget()) };
+                        if open_path != path && packed_file_view.get_is_preview() && index != -1 {
                             unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
                         }
                     }
 
-
                     // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
+                    // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
                     if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(path) {
-                        if unsafe { !tab_widget.get_mut_widget().as_ref().unwrap().parent_widget().as_ref().is_none() } {
-                            unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget.get_mut_widget(), &QString::from_std_str(&path.last().unwrap()))); }
+                        let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(tab_widget.get_mut_widget()) };
+
+                        // If we're trying to open as preview something already open as full, we don't do anything.
+                        if !(index != -1 && is_preview && !tab_widget.get_is_preview()) {
+                            tab_widget.set_is_preview(is_preview);
                         }
 
+                        if index == -1 {
+                            let icon_type = IconType::File(path.to_vec());
+                            let icon = icon_type.get_icon_from_path();
+                            unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget.get_mut_widget(), icon, &QString::from_std_str(""))); }
+                        }
+
+                        let name = if tab_widget.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
+                        let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(tab_widget.get_mut_widget()) };
+                        unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_tab_text(index, &QString::from_std_str(&name)); }
                         unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget.get_mut_widget()); }
                         return;
                     }
@@ -969,12 +977,15 @@ impl AppUI {
                     let mut tab = PackedFileView::default();
                     let tab_widget = tab.get_mut_widget();
                     tab.set_is_preview(is_preview);
-                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, &QString::from_std_str(&path.last().unwrap()))); }
+                    let name = if tab.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
+                    let icon_type = IconType::File(path.to_vec());
+                    let icon = icon_type.get_icon_from_path();
+                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
 
                     // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
                     let packed_file_type = PackedFileType::get_packed_file_type(&path);
                     let path = Rc::new(RefCell::new(path.to_vec()));
-                    println!("{:?}", is_preview);
+
                     match packed_file_type {/*
 
                         // If the file is a Loc PackedFile...

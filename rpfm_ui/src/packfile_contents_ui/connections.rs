@@ -24,8 +24,9 @@ use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
-    unsafe { ui.packfile_contents_tree_view.as_ref().unwrap().signals().activated().connect(&slots.open_packedfile_preview); }
     unsafe { ui.packfile_contents_tree_view.as_ref().unwrap().signals().clicked().connect(&slots.open_packedfile_preview); }
+    unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.open_packedfile_preview); }
+    unsafe { ui.packfile_contents_tree_view.as_ref().unwrap().signals().activated().connect(&slots.open_packedfile_full); }
     unsafe { ui.packfile_contents_tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.open_packedfile_full); }
 
     unsafe { (ui.packfile_contents_tree_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.contextual_menu); }
