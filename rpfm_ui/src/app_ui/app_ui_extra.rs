@@ -24,6 +24,7 @@ use qt_widgets::widget::Widget;
 
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
+use qt_core::object::Object;
 use qt_core::slots::SlotBool;
 
 use std::cell::RefCell;
@@ -100,18 +101,23 @@ impl AppUI {
             self.main_window as *mut Widget,
         )) }.exec() == 3
     }
-/*
+
     /// This function deletes all the widgets corresponding to opened PackedFiles.
     pub fn purge_them_all(&self) {
 
         // Black magic.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-        for ui in open_packedfiles.values_mut() {
-            let ui: *mut Widget = &mut **ui;
-            unsafe { (ui as *mut Object).as_mut().unwrap().delete_later(); }
+        for (path, packed_file_view) in open_packedfiles.iter_mut() {
+            packed_file_view.save(path);
+            let widget: *mut Widget = packed_file_view.get_mut_widget();
+            let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
+            unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
+
+            // Delete the widget manually to free memory.
+            unsafe { (widget as *mut Object).as_mut().unwrap().delete_later(); }
         }
 
-        // Set it as not having an opened PackedFile, just in case.
+        // Remove all open PackedFiles.
         open_packedfiles.clear();
 
         // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
@@ -120,7 +126,7 @@ impl AppUI {
         // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
         UI_STATE.set_packfile_contents_read_only(false);
     }
-
+/*
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
     pub fn purge_that_one_specifically(app_ui: &AppUI, path: &[String]) {
 
@@ -281,7 +287,7 @@ impl AppUI {
                 unsafe { (self.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                //self.purge_them_all();
+                self.purge_them_all();
 
                 // Close the Global Search stuff and reset the filter's history.
                 //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }

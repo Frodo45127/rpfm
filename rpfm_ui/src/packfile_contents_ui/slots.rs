@@ -386,7 +386,7 @@ impl PackFileContentsSlots {
                                 // Otherwise, they are added like normal files.
                                 else {
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+                                    for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
                                     paths_packedfile
                                 };
 
@@ -411,7 +411,7 @@ impl PackFileContentsSlots {
 
                             // Get their final paths in the PackFile and only proceed if all of them are closed.
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                            for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+                            for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
 
                             pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
                         }
@@ -475,7 +475,7 @@ impl PackFileContentsSlots {
                                 // Otherwise, they are added like normal files.
                                 else {
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+                                    for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
                                     paths_packedfile
                                 };
 
@@ -504,7 +504,7 @@ impl PackFileContentsSlots {
 
                             // Get their final paths in the PackFile and only proceed if all of them are closed.
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                            for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&app_ui, &pack_file_contents_ui, &path, true)); }
+                            for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
                             pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
                         }
                     }

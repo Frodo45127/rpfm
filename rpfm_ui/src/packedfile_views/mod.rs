@@ -18,6 +18,10 @@ use qt_widgets::widget::Widget;
 
 use core::sync::atomic::{AtomicPtr, Ordering};
 
+use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
+
+use crate::CENTRAL_COMMAND;
+use crate::communications::Command;
 use crate::packedfile_views::image::slots::PackedFileImageViewSlots;
 use crate::utils::create_grid_layout_unsafe;
 
@@ -32,6 +36,7 @@ pub struct PackedFileView {
     widget: AtomicPtr<Widget>,
     is_preview: bool,
     slots: TheOneSlot,
+    packed_file_type: PackedFileType,
 }
 
 /// One slot to rule them all,
@@ -60,10 +65,12 @@ impl Default for PackedFileView {
         create_grid_layout_unsafe(widget.load(Ordering::SeqCst));
         let is_preview = true;
         let slots = TheOneSlot::None;
+        let packed_file_type = PackedFileType::Unknown;
         Self {
             widget,
             is_preview,
             slots,
+            packed_file_type,
         }
     }
 }
@@ -89,5 +96,19 @@ impl PackedFileView {
     /// This function allows you to set a `PackedFileView` as a preview or normal view.
     pub fn set_is_preview(&mut self, is_preview: bool) {
         self.is_preview = is_preview;
+    }
+
+    /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
+    pub fn save(&self, path: &[String]) {
+
+        // This is a two-step process. First, we take the data from the view into a `DecodedPackedFile` format.
+        // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
+        let data = match self.packed_file_type {
+            PackedFileType::Image => DecodedPackedFile::Unknown,
+            PackedFileType::Unknown => DecodedPackedFile::Unknown,
+            _ => unimplemented!(),
+        };
+
+        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(path.to_vec(), data));
     }
 }

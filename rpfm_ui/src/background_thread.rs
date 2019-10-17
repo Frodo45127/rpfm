@@ -405,9 +405,15 @@ pub fn background_loop() {
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
             }
+
+            // When we want to save a PackedFile from the view....
+            Command::SavePackedFileFromView(path, decoded_packed_file) => {
+                if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    *packed_file.get_ref_mut_decoded() = decoded_packed_file;
+                }
+            }
         }
     }
-
 
 /*
     // Start the main loop.

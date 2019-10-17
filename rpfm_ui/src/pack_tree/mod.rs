@@ -133,7 +133,7 @@ pub trait PackTree {
     fn get_path_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<Vec<String>>;
 
     /// This function gives you the path it'll have in the PackFile Content's TreeView a file from disk.
-    fn get_path_from_pathbuf(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>>;
+    fn get_path_from_pathbuf(pack_file_contents_ui: &PackFileContentsUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>>;
 
     /// This function changes the color of an specific item from the PackFile Content's TreeView according to his current state.
     fn paint_specific_item_treeview(item: *mut StandardItem);
@@ -528,7 +528,7 @@ impl PackTree for *mut TreeView {
         paths
     }
 
-    fn get_path_from_pathbuf(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>> {
+    fn get_path_from_pathbuf(pack_file_contents_ui: &PackFileContentsUI, file_path: &PathBuf, is_file: bool) -> Vec<Vec<String>> {
         let mut paths = vec![];
 
         // If it's a single file, we get his name and push it to the paths vector.

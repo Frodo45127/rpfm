@@ -182,7 +182,7 @@ impl PackedFile {
 
             // TODO: Add Text files here.
 
-            // For anything else, just return `Unkown`.
+            // For anything else, just return `Unknown`.
             _ => DecodedPackedFile::Unknown,
         };
 

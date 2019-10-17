@@ -22,6 +22,7 @@ use std::process::exit;
 use rpfm_error::Error;
 use rpfm_lib::schema::APIResponseSchema;
 use rpfm_lib::settings::*;
+use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
@@ -37,7 +38,7 @@ pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication sys
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the senders and receivers neccesary to communicate both, backend and frontend threads.
+/// This struct contains the senders and receivers necessary to communicate both, backend and frontend threads.
 ///
 /// You can use them by using the send/recv functions implemented for it.
 pub struct CentralCommand {
@@ -143,6 +144,10 @@ pub enum Command {
 
     /// This command is used when we want to decode an image to be shown in the UI.
     DecodePackedFileImage(Vec<String>),
+
+    /// This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
+    SavePackedFileFromView(Vec<String>, DecodedPackedFile),
+
     /*
     OpenPackFileExtra,
     SavePackFile,
