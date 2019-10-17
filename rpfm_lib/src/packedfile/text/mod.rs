@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -21,6 +21,9 @@ use rpfm_error::{ErrorKind, Result};
 
 use crate::common::{decoder::Decoder, encoder::Encoder};
 
+/// UTF-8 BOM (Byte Order Mark).
+const BOM: [u8;3] = [0xEF,0xBB,0xBF];
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -28,10 +31,10 @@ use crate::common::{decoder::Decoder, encoder::Encoder};
 /// This holds an entire Text PackedFile decoded in memory.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Text {
-    
+
     /// The encoding used by the text of the PackedFile.
     encoding: SupportedEncodings,
-    
+
     /// The text inside the PackedFile.
     contents: String
 }
@@ -70,9 +73,12 @@ impl Text {
     /// This function creates a `Text` from a `Vec<u8>`.
     pub fn read(packed_file_data: &[u8]) -> Result<Self> {
 
+        // Check for BOM and remove it if it finds it. It's useless in UTF-8, after all.
+        let packed_file_data = if packed_file_data.len() > 2 && packed_file_data[0..3] == BOM { &packed_file_data[3..] } else { packed_file_data };
+
         // This is simple: we try to decode it as an UTF-8 text file. If that doesn't work, we try as 8859-1.
         // If that fails too... fuck you and your abnormal encodings.
-        let (encoding, contents) = match packed_file_data.decode_string_u8(0, packed_file_data.len()) { 
+        let (encoding, contents) = match packed_file_data.decode_string_u8(0, packed_file_data.len()) {
             Ok(string) => (SupportedEncodings::UTF8, string),
             Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
                 Ok(string) => (SupportedEncodings::Iso8859_1, string),
