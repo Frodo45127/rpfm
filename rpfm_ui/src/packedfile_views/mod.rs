@@ -22,10 +22,12 @@ use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::Command;
-use crate::packedfile_views::image::slots::PackedFileImageViewSlots;
 use crate::utils::create_grid_layout_unsafe;
+use self::image::slots::PackedFileImageViewSlots;
+use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 
 pub mod image;
+pub mod text;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -35,8 +37,20 @@ pub mod image;
 pub struct PackedFileView {
     widget: AtomicPtr<Widget>,
     is_preview: bool,
+    view: View,
     slots: TheOneSlot,
     packed_file_type: PackedFileType,
+}
+
+pub enum View {
+    //Table(PackedFileTableViewSlots),
+    //Text(PackedFileTextViewSlots),
+    Image,
+    Text(PackedFileTextView),
+    //TreeView(AddFromPackFileViewSlots),
+    //Decoder(PackedFileDBDecoder),
+    //RigidModel(PackedFileRigidModelDataView),
+    None,
 }
 
 /// One slot to rule them all,
@@ -47,7 +61,7 @@ pub enum TheOneSlot {
     //Table(PackedFileTableViewSlots),
     //Text(PackedFileTextViewSlots),
     Image(PackedFileImageViewSlots),
-    //Text(PackedFileTextViewSlots),
+    Text(PackedFileTextViewSlots),
     //TreeView(AddFromPackFileViewSlots),
     //Decoder(PackedFileDBDecoder),
     //RigidModel(PackedFileRigidModelDataView),
@@ -64,11 +78,13 @@ impl Default for PackedFileView {
         let widget = AtomicPtr::new(Widget::new().into_raw());
         create_grid_layout_unsafe(widget.load(Ordering::SeqCst));
         let is_preview = true;
+        let view = View::None;
         let slots = TheOneSlot::None;
         let packed_file_type = PackedFileType::Unknown;
         Self {
             widget,
             is_preview,
+            view,
             slots,
             packed_file_type,
         }
@@ -96,6 +112,16 @@ impl PackedFileView {
     /// This function allows you to set a `PackedFileView` as a preview or normal view.
     pub fn set_is_preview(&mut self, is_preview: bool) {
         self.is_preview = is_preview;
+    }
+
+    /// This function returns the view of the specific `PackedFile`.
+    pub fn get_view(&self) -> &View {
+        &self.view
+    }
+
+    /// This function allows you to set an specific View for the `PackedFile`.
+    pub fn set_view(&mut self, view: View) {
+        self.view = view;
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.

@@ -23,6 +23,7 @@ use rpfm_error::Error;
 use rpfm_lib::schema::APIResponseSchema;
 use rpfm_lib::settings::*;
 use rpfm_lib::packedfile::DecodedPackedFile;
+use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
@@ -145,6 +146,9 @@ pub enum Command {
     /// This command is used when we want to decode an image to be shown in the UI.
     DecodePackedFileImage(Vec<String>),
 
+    /// This command is used when we want to decode a text PackedFile to be shown in the UI.
+    DecodePackedFileText(Vec<String>),
+
     /// This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
     SavePackedFileFromView(Vec<String>, DecodedPackedFile),
 
@@ -262,6 +266,9 @@ pub enum Response {
 
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
+
+    /// Response to return `Text`.
+    Text(Text),
 /*
     Bool(bool),
     I32(i32),

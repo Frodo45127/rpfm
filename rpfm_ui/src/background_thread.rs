@@ -373,14 +373,14 @@ pub fn background_loop() {
                 // Find the PackedFile we want and send back the response.
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     Some(ref mut packed_file) => {
-                        let image_name = &packed_file.get_ref_raw().get_path().last().unwrap().to_owned();
+                        let name = &packed_file.get_ref_raw().get_path().last().unwrap().to_owned();
                         match packed_file.decode_return_ref() {
                             Ok(image) => {
                                 if let DecodedPackedFile::Image(image) = image {
 
                                     // Create a temporal file for the image in the TEMP directory of the filesystem.
                                     let mut temporal_file_path = temp_dir();
-                                    temporal_file_path.push(image_name);
+                                    temporal_file_path.push(name);
                                     match File::create(&temporal_file_path) {
                                         Ok(mut temporal_file) => {
 
@@ -396,6 +396,26 @@ pub fn background_loop() {
                                         // If there is an error when trying to create the file into the TEMP folder, report it.
                                         Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
                                     }
+                                }
+                                // TODO: Put an error here.
+                            }
+                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                }
+            }
+
+            // In case we want to decode a Text PackedFile...
+            Command::DecodePackedFileText(path) => {
+
+                // Find the PackedFile we want and send back the response.
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(ref mut packed_file) => {
+                        match packed_file.decode_return_ref() {
+                            Ok(text) => {
+                                if let DecodedPackedFile::Text(text) = text {
+                                    CENTRAL_COMMAND.send_message_rust(Response::Text(text.clone()));
                                 }
                                 // TODO: Put an error here.
                             }

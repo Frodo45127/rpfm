@@ -9,20 +9,16 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with all the code for managing the view for Images.
+Module with all the code for managing the view for Text PackedFiles.
 !*/
 
 use qt_widgets::grid_layout::GridLayout;
-use qt_widgets::label::Label;
+use qt_widgets::plain_text_edit::PlainTextEdit;
 use qt_widgets::widget::Widget;
-
-use qt_gui::pixmap::Pixmap;
-
-use qt_core::qt::AspectRatioMode;
-use qt_core::flags::Flags;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::Result;
 
@@ -30,7 +26,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::{PackedFileView, View, TheOneSlot};
 use crate::QString;
-use self::slots::PackedFileImageViewSlots;
+use self::slots::PackedFileTextViewSlots;
 
 pub mod slots;
 
@@ -39,15 +35,17 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the widget of the view of a PackedFile and his info.
-pub struct PackedFileImageView {}
+pub struct PackedFileTextView {
+    editor: AtomicPtr<PlainTextEdit>,
+}
 
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation for `PackedFileImageView`.
-impl PackedFileImageView {
+/// Implementation for `PackedFileTextView`.
+impl PackedFileTextView {
 
     /// This function creates a new Image View, and sets up his slots and connections.
     pub fn new_view(
@@ -56,34 +54,19 @@ impl PackedFileImageView {
     ) -> Result<()> {
 
         // Get the path of the extracted Image.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileImage(packed_file_path.borrow().to_vec()));
-        let path = match CENTRAL_COMMAND.recv_message_qt() {
-            Response::PathBuf(data) => data,
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileText(packed_file_path.borrow().to_vec()));
+        let text = match CENTRAL_COMMAND.recv_message_qt() {
+            Response::Text(text) => text,
             Response::Error(error) => return Err(error),
             _ => panic!(THREADS_COMMUNICATION_ERROR),
         };
 
-        // Get the image's path.
-        let path_string = path.to_string_lossy().as_ref().to_string();
-        let image = Pixmap::new(&QString::from_std_str(&path_string));
-
-        // Get the size of the holding widget.
+        let editor = PlainTextEdit::new(&QString::from_std_str(&text.get_ref_contents()));
         let layout = unsafe { packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout };
-        let widget_height = unsafe { layout.as_mut().unwrap().parent_widget().as_mut().unwrap().height() };
-        let widget_width = unsafe { layout.as_mut().unwrap().parent_widget().as_mut().unwrap().width() };
+        unsafe { layout.as_mut().unwrap().add_widget((editor.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
 
-        let scaled_image = if image.height() >= widget_height || image.width() >= widget_width {
-            image.scaled((widget_height - 25, widget_width - 25, AspectRatioMode::KeepAspectRatio))
-        } else { image };
-
-        // Create a Label.
-        let label = Label::new(()).into_raw();
-        unsafe { label.as_mut().unwrap().set_alignment(Flags::from_int(132))}
-        unsafe { label.as_mut().unwrap().set_pixmap(&scaled_image); }
-        unsafe { layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
-
-        packed_file_view.view = View::Image;
-        packed_file_view.slots = TheOneSlot::Image(PackedFileImageViewSlots::new(packed_file_view.get_mut_widget()));
+        packed_file_view.view = View::Text(Self{ editor: AtomicPtr::new(editor.into_raw()) });
+        //packed_file_view.slots = TheOneSlot::Text(PackedFileTextViewSlots::new(packed_file_view.get_mut_widget()));
 
         // Return success.
         Ok(())
