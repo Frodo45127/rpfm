@@ -329,6 +329,9 @@ impl AppUI {
         let main_window = unsafe { self.main_window.as_mut().unwrap() as &mut Widget};
         main_window.set_enabled(false);
 
+        // First, we need to save all open `PackedFiles` to the backend.
+        UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path));
+
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let path = if let Response::PathBuf(path) = CENTRAL_COMMAND.recv_message_qt() { path } else { panic!(THREADS_COMMUNICATION_ERROR) };
         if !path.is_file() || save_as {

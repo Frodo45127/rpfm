@@ -18,7 +18,7 @@ use qt_widgets::widget::Widget;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
 
@@ -70,5 +70,10 @@ impl PackedFileTextView {
 
         // Return success.
         Ok(())
+    }
+
+    /// This function returns a pointer to the editor widget.
+    pub fn get_editor(&self) -> &mut PlainTextEdit {
+        unsafe { self.editor.load(Ordering::SeqCst).as_mut().unwrap() }
     }
 }

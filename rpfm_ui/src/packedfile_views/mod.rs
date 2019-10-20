@@ -19,6 +19,7 @@ use qt_widgets::widget::Widget;
 use core::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
+use rpfm_lib::packedfile::text::Text;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::Command;
@@ -131,6 +132,13 @@ impl PackedFileView {
         // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
         let data = match self.packed_file_type {
             PackedFileType::Image => DecodedPackedFile::Unknown,
+            PackedFileType::Text => {
+                if let View::Text(view) = self.get_view() {
+                    let mut text = Text::default();
+                    text.set_contents(&view.get_editor().to_plain_text().to_std_string());
+                    DecodedPackedFile::Text(text)
+                } else { return }
+            },
             PackedFileType::Unknown => DecodedPackedFile::Unknown,
             _ => unimplemented!(),
         };
