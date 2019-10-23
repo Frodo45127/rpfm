@@ -42,6 +42,7 @@ use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
+use crate::packedfile_views::TheOneSlot;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
@@ -93,7 +94,7 @@ pub struct GameSelectedIcons {
 impl UI {
 
     /// This function initialize the entire `UI`.
-    pub fn new(app: &mut Application) -> (Self, Slots, ) {
+    pub fn new(app: &mut Application, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> (Self, Slots) {
         let app_ui = AppUI::default();
         let global_search_ui = GlobalSearchUI::new(app_ui.main_window);
         let pack_file_contents_ui = PackFileContentsUI::new(app_ui.main_window);
@@ -101,7 +102,7 @@ impl UI {
         let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui)));
         let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, &app_temp_slots);
         let global_search_slots = GlobalSearchSlots::new(global_search_ui);
-        let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui);
+        let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui, slot_holder);
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&app_ui);

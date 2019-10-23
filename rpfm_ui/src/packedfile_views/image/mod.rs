@@ -28,7 +28,7 @@ use rpfm_error::Result;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::packedfile_views::{PackedFileView, View, TheOneSlot};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
 use self::slots::PackedFileImageViewSlots;
 
@@ -38,7 +38,7 @@ pub mod slots;
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the widget of the view of a PackedFile and his info.
+/// This struct contains the view of an Image PackedFile.
 pub struct PackedFileImageView {}
 
 
@@ -53,7 +53,7 @@ impl PackedFileImageView {
     pub fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
-    ) -> Result<()> {
+    ) -> Result<TheOneSlot> {
 
         // Get the path of the extracted Image.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileImage(packed_file_path.borrow().to_vec()));
@@ -82,10 +82,9 @@ impl PackedFileImageView {
         unsafe { label.as_mut().unwrap().set_pixmap(&scaled_image); }
         unsafe { layout.as_mut().unwrap().add_widget((label as *mut Widget, 0, 0, 1, 1)); }
 
-        packed_file_view.view = View::Image;
-        packed_file_view.slots = TheOneSlot::Image(PackedFileImageViewSlots::new(packed_file_view.get_mut_widget()));
+        packed_file_view.view = View::Image(Self {});
 
         // Return success.
-        Ok(())
+        Ok(TheOneSlot::Image(PackedFileImageViewSlots {}))
     }
 }

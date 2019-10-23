@@ -426,6 +426,27 @@ pub fn background_loop() {
                 }
             }
 
+            // In case we want to decode a Table PackedFile...
+            Command::DecodePackedFileTable(path) => {
+
+                // Find the PackedFile we want and send back the response.
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(ref mut packed_file) => {
+                        match packed_file.decode_return_ref() {
+                            Ok(table) => {
+                                match table {
+                                    DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DB(table.clone())),
+                                    DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::Loc(table.clone())),
+                                    _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
+                                }
+                            }
+                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                }
+            }
+
             // When we want to save a PackedFile from the view....
             Command::SavePackedFileFromView(path, decoded_packed_file) => {
                 if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {

@@ -21,8 +21,10 @@ use qt_gui::cursor::Cursor;
 
 use qt_core::slots::{SlotItemSelectionRefItemSelectionRef, SlotNoArgs, SlotBool};
 
+use std::cell::RefCell;
 use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 use rpfm_lib::common::get_files_from_subdir;
@@ -33,6 +35,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::pack_tree::PackTree;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::packedfile_views::TheOneSlot;
 use crate::QString;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
@@ -64,17 +67,17 @@ pub struct PackFileContentsSlots {
 impl PackFileContentsSlots {
 
 	/// This function creates an entire `PackFileContentsSlots` struct.
-	pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI) -> Self {
+	pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Self {
 
         // Slot to open the selected PackedFile as a preview.
-        let open_packedfile_preview = SlotNoArgs::new(move || {
-            app_ui.open_packedfile(&pack_file_contents_ui, true);
-        });
+        let open_packedfile_preview = SlotNoArgs::new(clone!(slot_holder => move || {
+            app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, true);
+        }));
 
         // Slot to open the selected PackedFile as a permanent view.
-        let open_packedfile_full = SlotNoArgs::new(move || {
-            app_ui.open_packedfile(&pack_file_contents_ui, false);
-        });
+        let open_packedfile_full = SlotNoArgs::new(clone!(slot_holder => move || {
+            app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, false);
+        }));
 
         // Slot to show the Contextual Menu for the TreeView.
         let contextual_menu = SlotQtCorePointRef::new(move |_| {

@@ -198,7 +198,7 @@ lazy_static! {
     static ref GAME_SELECTED_ICONS: GameSelectedIcons = GameSelectedIcons::new();
 
     /// Bright and dark palettes of colours for Windows.
-    /// The dark one is taken from here: https://gist.github.com/QuantumCD/6245215
+    /// The dark one is taken from here, with some modifications: https://gist.github.com/QuantumCD/6245215
     static ref LIGHT_PALETTE: Palette = Palette::new(());
     static ref DARK_PALETTE: Palette = {
         let mut palette = Palette::new(());
@@ -343,11 +343,14 @@ fn main() {
     // Create the application...
     Application::create_and_exit(|app| {
 
+        // Create the slot holder, so we can keep slots alive all the time we need.
+        let slot_holder = Rc::new(RefCell::new(vec![]));
 
-        let (ui, slots) = ui::UI::new(app);
+        // Initialize the entire UI.
+        let (ui, slots) = ui::UI::new(app, &slot_holder);
+
         // Try to load the Schema for this game.
         *SCHEMA.lock().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
-
 
 
 

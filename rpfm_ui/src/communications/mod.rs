@@ -23,6 +23,7 @@ use rpfm_error::Error;
 use rpfm_lib::schema::APIResponseSchema;
 use rpfm_lib::settings::*;
 use rpfm_lib::packedfile::DecodedPackedFile;
+use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
@@ -152,6 +153,9 @@ pub enum Command {
     /// This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
     SavePackedFileFromView(Vec<String>, DecodedPackedFile),
 
+    /// This command is used when we want to decode a table PackedFile to be shown in the UI.
+    DecodePackedFileTable(Vec<String>),
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -269,6 +273,15 @@ pub enum Response {
 
     /// Response to return `Text`.
     Text(Text),
+
+    /// Response to return `DB`.
+    DB(DB),
+
+    /// Response to return `Loc`.
+    Loc(Loc),
+
+    /// Response to return `Unknown`.
+    Unknown
 /*
     Bool(bool),
     I32(i32),

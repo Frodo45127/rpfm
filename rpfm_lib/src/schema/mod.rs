@@ -291,6 +291,11 @@ impl Schema {
         self.0.iter().collect()
     }
 
+    /// This function returns a reference to all the `VersionedFile` in the provided `Schema` of type `DB`.
+    pub fn get_ref_versioned_file_db_all(&self) -> Vec<&VersionedFile> {
+        self.0.iter().filter(|x| x.is_db()).collect()
+    }
+
     /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
     pub fn load(schema_file: &str) -> Result<Self> {
         let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);

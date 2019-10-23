@@ -24,10 +24,12 @@ use rpfm_lib::packedfile::text::Text;
 use crate::CENTRAL_COMMAND;
 use crate::communications::Command;
 use crate::utils::create_grid_layout_unsafe;
-use self::image::slots::PackedFileImageViewSlots;
+use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
+use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 
 pub mod image;
+pub mod table;
 pub mod text;
 
 //-------------------------------------------------------------------------------//
@@ -39,15 +41,13 @@ pub struct PackedFileView {
     widget: AtomicPtr<Widget>,
     is_preview: bool,
     view: View,
-    slots: TheOneSlot,
     packed_file_type: PackedFileType,
 }
 
 pub enum View {
-    //Table(PackedFileTableViewSlots),
-    //Text(PackedFileTextViewSlots),
-    Image,
+    Table(PackedFileTableView),
     Text(PackedFileTextView),
+    Image(PackedFileImageView),
     //TreeView(AddFromPackFileViewSlots),
     //Decoder(PackedFileDBDecoder),
     //RigidModel(PackedFileRigidModelDataView),
@@ -59,8 +59,7 @@ pub enum View {
 /// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
-    //Table(PackedFileTableViewSlots),
-    //Text(PackedFileTextViewSlots),
+    Table(PackedFileTableViewSlots),
     Image(PackedFileImageViewSlots),
     Text(PackedFileTextViewSlots),
     //TreeView(AddFromPackFileViewSlots),
@@ -80,13 +79,11 @@ impl Default for PackedFileView {
         create_grid_layout_unsafe(widget.load(Ordering::SeqCst));
         let is_preview = true;
         let view = View::None;
-        let slots = TheOneSlot::None;
         let packed_file_type = PackedFileType::Unknown;
         Self {
             widget,
             is_preview,
             view,
-            slots,
             packed_file_type,
         }
     }
