@@ -1,6 +1,6 @@
 #ifndef QT_SUBCLASSES_GLOBAL_H
 
-#define QT_SUBCLASSES__GLOBAL_H
+#define QT_SUBCLASSES_GLOBAL_H
 
 #include <QtCore/qglobal.h>
 

@@ -14,7 +14,7 @@ extern "C" void new_doublespinbox_item_delegate(QObject *parent, const int colum
 QDoubleSpinBoxItemDelegate::QDoubleSpinBoxItemDelegate(QObject *parent): QStyledItemDelegate(parent) {}
 
 // Function called when the spinbox it's created. Here we configure the limits and decimals of the spinbox.
-QWidget* QDoubleSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+QWidget* QDoubleSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
     QDoubleSpinBox* spinBox = new QDoubleSpinBox(parent);
     spinBox->setRange(-3.402823e+38, 3.402823e+38);
     spinBox->setDecimals(3);
@@ -36,6 +36,6 @@ void QDoubleSpinBoxItemDelegate::setModelData(QWidget *editor, QAbstractItemMode
 }
 
 // Function for the spinbox to show up properly.
-void QDoubleSpinBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+void QDoubleSpinBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &) const {
     editor->setGeometry(option.rect);
 }

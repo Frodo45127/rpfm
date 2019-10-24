@@ -20,7 +20,7 @@ QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_ty
 }
 
 // Function called when the widget it's created. Here we configure the spinbox/linedit.
-QWidget* QSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+QWidget* QSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
 
     // SpinBoxes only support i32, not i64, so for i64 we use a linedit with validation.
     if (type == 64) {
@@ -90,6 +90,6 @@ void QSpinBoxItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *mod
 }
 
 // Function for the spinbox to show up properly.
-void QSpinBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+void QSpinBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &) const {
     editor->setGeometry(option.rect);
 }

@@ -17,7 +17,7 @@ QComboBoxItemDelegate::QComboBoxItemDelegate(QObject *parent, const QStringList 
 }
 
 // Function called when the combo it's created. It just put the values into the combo and returns it.
-QWidget* QComboBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+QWidget* QComboBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
     QComboBox* comboBox = new QComboBox(parent);
     comboBox->setEditable(editable);
     comboBox->addItems(values);
@@ -47,6 +47,6 @@ void QComboBoxItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *mo
 }
 
 // Function for the combo to show up properly.
-void QComboBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+void QComboBoxItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &) const {
     editor->setGeometry(option.rect);
 }

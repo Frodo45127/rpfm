@@ -5,8 +5,8 @@
 #include <QSortFilterProxyModel>
 #include <QStandardItem>
 
-extern "C" QSortFilterProxyModel* new_treeview_filter(QObject *parent = 0);
-extern "C" void trigger_treeview_filter(QSortFilterProxyModel *filter = 0, QRegExp* pattern = 0, bool filter_by_folder = false);
+extern "C" QSortFilterProxyModel* new_treeview_filter(QObject *parent = nullptr);
+extern "C" void trigger_treeview_filter(QSortFilterProxyModel *filter = nullptr, QRegExp* pattern = nullptr, bool filter_by_folder = false);
 
 class QTreeViewSortFilterProxyModel : public QSortFilterProxyModel
 {
@@ -14,7 +14,7 @@ class QTreeViewSortFilterProxyModel : public QSortFilterProxyModel
 
 public:
 
-    explicit QTreeViewSortFilterProxyModel(QObject *parent = 0);
+    explicit QTreeViewSortFilterProxyModel(QObject *parent = nullptr);
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
 
     bool filter_by_folder;

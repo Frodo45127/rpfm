@@ -442,7 +442,6 @@ impl PackFileContentsSlots {
             }
         );
 
-
         // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
         let contextual_menu_add_folder = SlotBool::new(move |_| {
 
@@ -536,8 +535,6 @@ impl PackFileContentsSlots {
 
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
-
-
 
         // And here... we return all the slots.
 		Self {

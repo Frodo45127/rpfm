@@ -8,6 +8,6 @@ extern "C" QTableView* new_tableview_command_palette() {
 
 QTableViewCommandPalette::QTableViewCommandPalette(): QTableView() {}
 
-int QTableViewCommandPalette::sizeHintForRow(int row) const {
+int QTableViewCommandPalette::sizeHintForRow(int) const {
     return 36;
 }

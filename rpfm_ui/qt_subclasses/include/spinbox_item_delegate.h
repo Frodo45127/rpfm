@@ -6,7 +6,7 @@
 #include <QAbstractItemDelegate>
 #include <QSpinBox>
 
-extern "C" void new_spinbox_item_delegate(QObject *parent = 0, const int column = 0, const int integer_type = 0, const bool is_optional = false);
+extern "C" void new_spinbox_item_delegate(QObject *parent = nullptr, const int column = 0, const int integer_type = 0, const bool is_optional = false);
 
 class QSpinBoxItemDelegate : public QStyledItemDelegate
 {
@@ -14,7 +14,7 @@ class QSpinBoxItemDelegate : public QStyledItemDelegate
 
 public:
 
-    explicit QSpinBoxItemDelegate(QObject *parent = 0, const int integer_type = 0, const bool is_optional = false);
+    explicit QSpinBoxItemDelegate(QObject *parent = nullptr, const int integer_type = 0, const bool is_optional = false);
 
     QWidget* createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;

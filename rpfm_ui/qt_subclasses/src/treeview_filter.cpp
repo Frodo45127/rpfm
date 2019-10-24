@@ -11,7 +11,7 @@ extern "C" QSortFilterProxyModel* new_treeview_filter(QObject *parent) {
     return dynamic_cast<QSortFilterProxyModel*>(filter);
 }
 
-// Funtion to trigger the filter we want, instead of the default one from Rust.
+// Funtion to trigger the filter we want, instead of the default one, from Rust.
 extern "C" void trigger_treeview_filter(QSortFilterProxyModel* filter, QRegExp* pattern, bool filter_by_folder) {
     QTreeViewSortFilterProxyModel* filter2 = static_cast<QTreeViewSortFilterProxyModel*>(filter);
     filter2->filter_by_folder = filter_by_folder;

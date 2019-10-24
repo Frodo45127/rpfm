@@ -4,14 +4,14 @@
 #include "qt_subclasses_global.h"
 #include <QTableView>
 
-extern "C" QTableView* new_tableview_frozen(QAbstractItemModel* model = 0, QTableView* frozen_table = 0);
+extern "C" QTableView* new_tableview_frozen(QAbstractItemModel* model = nullptr, QTableView* frozen_table = nullptr);
 
 class QTableViewFrozen : public QTableView {
      Q_OBJECT
 
 public:
       QTableViewFrozen(QAbstractItemModel* model, QTableView* tableview);
-      ~QTableViewFrozen();
+      ~QTableViewFrozen() override;
 
 protected:
       void resizeEvent(QResizeEvent *event) override;
