@@ -45,6 +45,7 @@ use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::mymod_ui::MyModUI;
 use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
+use crate::packedfile_views::TheOneSlot;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
@@ -145,6 +146,7 @@ impl AppUISlots {
         global_search_ui: GlobalSearchUI,
         pack_file_contents_ui: PackFileContentsUI,
         app_temp_slots: &Rc<RefCell<AppUITempSlots>>,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Self {
 
 		//-----------------------------------------------//
@@ -240,7 +242,8 @@ impl AppUISlots {
             }
         );
 
-        let packfile_open_packfile = SlotBool::new(move |_| {
+        let packfile_open_packfile = SlotBool::new(clone!(
+            slot_holder => move |_| {
 
                 // Check first if there has been changes in the PackFile.
                 if app_ui.are_you_sure(false) {
@@ -264,11 +267,11 @@ impl AppUISlots {
                         }
 
                         // Try to open it, and report it case of error.
-                        if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &paths, "") { show_dialog(app_ui.main_window as *mut Widget, error, false); }
+                        if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &paths, "", &slot_holder) { show_dialog(app_ui.main_window as *mut Widget, error, false); }
                     }
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Save PackFile" action.
         let packfile_save_packfile = SlotBool::new(move |_| {
@@ -401,6 +404,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Preferences" action.
         let packfile_preferences = SlotBool::new(clone!(
+            slot_holder,
             app_temp_slots => move |_| {
 
                 // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
@@ -418,7 +422,7 @@ impl AppUISlots {
                             // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
                                 UI_STATE.set_operational_mode(&app_ui, None);
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui);
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, &slot_holder);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -552,6 +556,7 @@ impl AppUISlots {
 
         // This slot is used for the "Delete Selected MyMod" action.
         let mymod_delete_selected = SlotBool::new(clone!(
+            slot_holder,
             app_temp_slots => move |_| {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
@@ -601,7 +606,7 @@ impl AppUISlots {
                                 }
 
                                 // Update the MyMod list and return true, as we have effectively deleted the MyMod.
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui);
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, &slot_holder);
                                 true
                             }
                             else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
@@ -741,6 +746,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Change Game Selected" action.
         let change_game_selected = SlotBool::new(clone!(
+            slot_holder,
             app_temp_slots => move |_| {
 
                 // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
@@ -760,8 +766,8 @@ impl AppUISlots {
                     app_ui.enable_packfile_actions(true);
                 }
 
-                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui);
-                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui);
+                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, &slot_holder);
+                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, &slot_holder);
 
                 // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                 UI_STATE.set_operational_mode(&app_ui, None);
@@ -1009,10 +1015,10 @@ impl AppUISlots {
 }
 
 impl AppUITempSlots {
-    pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI) -> Self {
+    pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Self {
         Self {
-            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui),
-            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui),
+            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui, slot_holder),
+            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui, slot_holder),
         }
     }
 }

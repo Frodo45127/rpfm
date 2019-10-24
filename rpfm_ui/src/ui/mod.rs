@@ -99,8 +99,8 @@ impl UI {
         let global_search_ui = GlobalSearchUI::new(app_ui.main_window);
         let pack_file_contents_ui = PackFileContentsUI::new(app_ui.main_window);
 
-        let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui)));
-        let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, &app_temp_slots);
+        let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui, &slot_holder)));
+        let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, &app_temp_slots, &slot_holder);
         let global_search_slots = GlobalSearchSlots::new(global_search_ui);
         let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui, slot_holder);
 
@@ -144,7 +144,7 @@ impl UI {
         if args.len() > 1 {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
-                if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &[path], "") {
+                if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &[path], "", &slot_holder) {
                     show_dialog(app_ui.main_window as *mut Widget, error, false);
                 }
             }

@@ -29,6 +29,12 @@ pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
     //unsafe { ui.packfile_contents_tree_view.as_ref().unwrap().signals().activated().connect(&slots.open_packedfile_full); }
     //unsafe { ui.packfile_contents_tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.open_packedfile_full); }
 
+    // Trigger the filter whenever the "filtered" text or any of his settings changes.
+    unsafe { ui.filter_line_edit.as_mut().unwrap().signals().text_changed().connect(&slots.filter_change_text); }
+    unsafe { ui.filter_autoexpand_matches_button.as_mut().unwrap().signals().toggled().connect(&slots.filter_change_autoexpand_matches); }
+    unsafe { ui.filter_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slots.filter_change_case_sensitive); }
+    unsafe { ui.filter_filter_by_folder_button.as_mut().unwrap().signals().toggled().connect(&slots.filter_change_filter_by_folder); }
+
     unsafe { (ui.packfile_contents_tree_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.contextual_menu); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.contextual_menu_enabler); }
 

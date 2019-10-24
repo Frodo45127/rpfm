@@ -103,7 +103,7 @@ impl AppUI {
     }
 
     /// This function deletes all the widgets corresponding to opened PackedFiles.
-    pub fn purge_them_all(&self) {
+    pub fn purge_them_all(&self, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
 
         // Black magic.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
@@ -117,8 +117,9 @@ impl AppUI {
             unsafe { (widget as *mut Object).as_mut().unwrap().delete_later(); }
         }
 
-        // Remove all open PackedFiles.
+        // Remove all open PackedFiles and their slots.
         open_packedfiles.clear();
+        slot_holder.borrow_mut().clear();
 
         // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
         unsafe { self.game_selected_group.as_mut().unwrap().set_enabled(true); }
@@ -170,6 +171,7 @@ impl AppUI {
         pack_file_contents_ui: &PackFileContentsUI,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Result<()> {
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
@@ -287,7 +289,7 @@ impl AppUI {
                 unsafe { (self.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                self.purge_them_all();
+                self.purge_them_all(slot_holder);
 
                 // Close the Global Search stuff and reset the filter's history.
                 //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
@@ -566,7 +568,7 @@ impl AppUI {
     }
 
     /// This function takes care of recreating the dynamic submenus under `PackFile` menu.
-    pub fn build_open_from_submenus(self, pack_file_contents_ui: PackFileContentsUI) -> Vec<SlotBool<'static>> {
+    pub fn build_open_from_submenus(self, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotBool<'static>> {
         let packfile_open_from_content = unsafe { self.packfile_open_from_content.as_mut().unwrap() };
         let packfile_open_from_data = unsafe { self.packfile_open_from_data.as_mut().unwrap() };
 
@@ -592,13 +594,14 @@ impl AppUI {
                 let open_mod_action = packfile_open_from_content.add_action(&QString::from_std_str(mod_name));
 
                 // Create the slot for that action.
-                let slot_open_mod = SlotBool::new(move |_| {
+                let slot_open_mod = SlotBool::new(clone!(
+                    slot_holder => move |_| {
                     if self.are_you_sure(false) {
-                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "", &slot_holder) {
                             show_dialog(self.main_window as *mut Widget, error, false);
                         }
                     }
-                });
+                }));
 
                 // Connect the slot and store it.
                 unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(&slot_open_mod); }
@@ -617,13 +620,14 @@ impl AppUI {
                 let open_mod_action = packfile_open_from_data.add_action(&QString::from_std_str(mod_name));
 
                 // Create the slot for that action.
-                let slot_open_mod = SlotBool::new(move |_| {
+                let slot_open_mod = SlotBool::new(clone!(
+                    slot_holder => move |_| {
                     if self.are_you_sure(false) {
-                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "", &slot_holder) {
                             show_dialog(self.main_window as *mut Widget, error, false);
                         }
                     }
-                });
+                }));
 
                 // Connect the slot and store it.
                 unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(&slot_open_mod); }
@@ -641,7 +645,7 @@ impl AppUI {
 
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
-    pub fn build_open_mymod_submenus(self, pack_file_contents_ui: PackFileContentsUI) -> Vec<SlotBool<'static>> {
+    pub fn build_open_mymod_submenus(self, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotBool<'static>> {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
         unsafe { self.mymod_open_three_kingdoms.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
@@ -700,9 +704,10 @@ impl AppUI {
 
                                         // Create the slot for that action.
                                         let slot_open_mod = SlotBool::new(clone!(
+                                            slot_holder,
                                             game_folder_name => move |_| {
                                             if self.are_you_sure(false) {
-                                                if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[pack_file.to_path_buf()], &game_folder_name) {
+                                                if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[pack_file.to_path_buf()], &game_folder_name, &slot_holder) {
                                                     show_dialog(self.main_window as *mut Widget, error, false);
                                                 }
                                             }

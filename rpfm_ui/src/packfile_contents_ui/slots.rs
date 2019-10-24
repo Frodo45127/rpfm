@@ -19,7 +19,7 @@ use qt_widgets::widget::Widget;
 
 use qt_gui::cursor::Cursor;
 
-use qt_core::slots::{SlotItemSelectionRefItemSelectionRef, SlotNoArgs, SlotBool};
+use qt_core::slots::{SlotBool, SlotItemSelectionRefItemSelectionRef, SlotNoArgs, SlotStringRef};
 
 use std::cell::RefCell;
 use std::fs::DirBuilder;
@@ -50,6 +50,11 @@ pub struct PackFileContentsSlots {
     pub open_packedfile_preview: SlotNoArgs<'static>,
     pub open_packedfile_full: SlotNoArgs<'static>,
 
+    pub filter_change_text: SlotStringRef<'static>,
+    pub filter_change_autoexpand_matches: SlotBool<'static>,
+    pub filter_change_case_sensitive: SlotBool<'static>,
+    pub filter_change_filter_by_folder: SlotBool<'static>,
+
     pub contextual_menu: SlotQtCorePointRef<'static>,
     pub contextual_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
 
@@ -78,6 +83,20 @@ impl PackFileContentsSlots {
         let open_packedfile_full = SlotNoArgs::new(clone!(slot_holder => move || {
             app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, false);
         }));
+
+        // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
+        let filter_change_text = SlotStringRef::new(move |_| {
+            pack_file_contents_ui.filter_files();
+        });
+        let filter_change_autoexpand_matches = SlotBool::new(move |_| {
+            pack_file_contents_ui.filter_files();
+        });
+        let filter_change_case_sensitive = SlotBool::new(move |_| {
+            pack_file_contents_ui.filter_files();
+        });
+        let filter_change_filter_by_folder = SlotBool::new(move |_| {
+            pack_file_contents_ui.filter_files();
+        });
 
         // Slot to show the Contextual Menu for the TreeView.
         let contextual_menu = SlotQtCorePointRef::new(move |_| {
@@ -519,10 +538,16 @@ impl PackFileContentsSlots {
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
 
 
+
         // And here... we return all the slots.
 		Self {
             open_packedfile_preview,
             open_packedfile_full,
+
+            filter_change_text,
+            filter_change_autoexpand_matches,
+            filter_change_case_sensitive,
+            filter_change_filter_by_folder,
 
             contextual_menu,
             contextual_menu_enabler,
