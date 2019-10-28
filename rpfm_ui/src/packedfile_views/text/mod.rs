@@ -23,7 +23,7 @@ use rpfm_error::Result;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::{new_text_editor, set_text};
+use crate::ffi::{config, new_text_editor, set_text};
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
 use self::slots::PackedFileTextViewSlots;
@@ -75,12 +75,19 @@ impl PackedFileTextView {
         Ok(TheOneSlot::Text(PackedFileTextViewSlots {}))
     }
 
-    /// This function returns a pointer to the editor widget.
-    pub fn get_editor(&self) -> &mut Widget {
+    /// This function returns a mutable reference to the editor widget.
+    pub fn get_ref_mut_editor(&self) -> &mut Widget {
         unsafe { self.editor.load(Ordering::SeqCst).as_mut().unwrap() }
     }
 
+    /// This function returns a pointer to the editor widget.
     pub fn get_mut_editor(&self) -> *mut Widget {
-        unsafe { self.editor.load(Ordering::SeqCst) }
+        self.editor.load(Ordering::SeqCst)
+    }
+
+    /// This function triggers the config dialog for the editor.
+    pub fn show_config(packed_file_view: &PackedFileView) {
+        unsafe { config(packed_file_view.get_mut_widget()) };
+
     }
 }

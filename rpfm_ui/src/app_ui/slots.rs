@@ -902,7 +902,7 @@ impl AppUISlots {
                 match CENTRAL_COMMAND.recv_message_qt_try() {
                     Response::StringVecVecString(response) => {
                         let message = response.0;
-                        let paths = response.1.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();;
+                        let paths = response.1.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths));
                         show_dialog(app_ui.main_window as *mut Widget, &message, true);
                     }

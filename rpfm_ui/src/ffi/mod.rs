@@ -44,6 +44,10 @@ extern "C" { pub fn new_tableview_frozen(model: *mut AbstractItemModel, frozen_t
 /// This function allow us to create a properly sized TableView for the Command Palette.
 extern "C" { pub fn new_tableview_command_palette() -> *mut TableView; }
 
+//---------------------------------------------------------------------------//
+// KTextEditor stuff.
+//---------------------------------------------------------------------------//
+
 /// This function allow us to create a complete KTextEditor.
 extern "C" { pub fn new_text_editor(parent: *mut Widget) -> *mut Widget; }
 
@@ -52,3 +56,6 @@ extern "C" { pub fn get_text(document: *mut Widget) -> QString; }
 
 /// This function allow us to set the text of  the provided KTextEditor.
 extern "C" { pub fn set_text(document: *mut Widget, string: *mut QString); }
+
+/// This function triggers the config dialog for the KTextEditor.
+extern "C" { pub fn config(parent: *mut Widget); }
