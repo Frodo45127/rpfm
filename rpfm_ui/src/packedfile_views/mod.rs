@@ -22,6 +22,7 @@ use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
 use rpfm_lib::packedfile::text::Text;
 
 use crate::CENTRAL_COMMAND;
+use crate::ffi::get_text;
 use crate::communications::Command;
 use crate::utils::create_grid_layout_unsafe;
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
@@ -132,7 +133,7 @@ impl PackedFileView {
             PackedFileType::Text => {
                 if let View::Text(view) = self.get_view() {
                     let mut text = Text::default();
-                    text.set_contents(&view.get_editor().to_plain_text().to_std_string());
+                    unsafe { text.set_contents(&get_text(view.get_mut_editor()).to_std_string()) };
                     DecodedPackedFile::Text(text)
                 } else { return }
             },

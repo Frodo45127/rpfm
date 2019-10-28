@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT       += widgets
+QT       += KTextEditor
 
 TARGET = qt_subclasses
 TEMPLATE = lib
@@ -32,6 +33,7 @@ SOURCES += \
     src/doublespinbox_item_delegate.cpp \
     src/tableview_command_palette.cpp \
     src/tableview_frozen.cpp \
+    src/text_editor.cpp \
     src/treeview_filter.cpp
 
 INCLUDEPATH += include
@@ -43,6 +45,7 @@ HEADERS += \
     include/combobox_item_delegate.h \
     include/spinbox_item_delegate.h \
     include/doublespinbox_item_delegate.h \
+    include/text_editor.h \
     include/treeview_filter.h
 
 release:DESTDIR = release

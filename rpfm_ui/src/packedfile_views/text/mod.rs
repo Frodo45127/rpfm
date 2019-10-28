@@ -13,7 +13,6 @@ Module with all the code for managing the view for Text PackedFiles.
 !*/
 
 use qt_widgets::grid_layout::GridLayout;
-use qt_widgets::plain_text_edit::PlainTextEdit;
 use qt_widgets::widget::Widget;
 
 use std::cell::RefCell;
@@ -24,6 +23,7 @@ use rpfm_error::Result;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::ffi::{new_text_editor, set_text};
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
 use self::slots::PackedFileTextViewSlots;
@@ -36,7 +36,7 @@ pub mod slots;
 
 /// This struct contains the view of a Text PackedFile.
 pub struct PackedFileTextView {
-    editor: AtomicPtr<PlainTextEdit>,
+    editor: AtomicPtr<Widget>,
 }
 
 
@@ -61,12 +61,14 @@ impl PackedFileTextView {
             _ => panic!(THREADS_COMMUNICATION_ERROR),
         };
 
-        let editor = PlainTextEdit::new(&QString::from_std_str(&text.get_ref_contents()));
+        let editor = unsafe { new_text_editor(packed_file_view.get_mut_widget()) };
         let layout = unsafe { packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout };
-        unsafe { layout.as_mut().unwrap().add_widget((editor.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((editor, 0, 0, 1, 1)); }
+
+        unsafe { set_text(editor, &mut QString::from_std_str(text.get_ref_contents())) };
 
         packed_file_view.view = View::Text(Self{
-            editor: AtomicPtr::new(editor.into_raw())
+            editor: AtomicPtr::new(editor)
         });
 
         // Return success.
@@ -74,7 +76,11 @@ impl PackedFileTextView {
     }
 
     /// This function returns a pointer to the editor widget.
-    pub fn get_editor(&self) -> &mut PlainTextEdit {
+    pub fn get_editor(&self) -> &mut Widget {
         unsafe { self.editor.load(Ordering::SeqCst).as_mut().unwrap() }
+    }
+
+    pub fn get_mut_editor(&self) -> *mut Widget {
+        unsafe { self.editor.load(Ordering::SeqCst) }
     }
 }
