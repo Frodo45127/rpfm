@@ -28,8 +28,10 @@ use crate::utils::create_grid_layout_unsafe;
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
 use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
+use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 
 pub mod image;
+pub mod packfile;
 pub mod table;
 pub mod text;
 
@@ -49,7 +51,7 @@ pub enum View {
     Table(PackedFileTableView),
     Text(PackedFileTextView),
     Image(PackedFileImageView),
-    //TreeView(AddFromPackFileViewSlots),
+    PackFile(PackFileExtraView),
     //Decoder(PackedFileDBDecoder),
     //RigidModel(PackedFileRigidModelDataView),
     None,
@@ -63,7 +65,7 @@ pub enum TheOneSlot {
     Table(PackedFileTableViewSlots),
     Image(PackedFileImageViewSlots),
     Text(PackedFileTextViewSlots),
-    //TreeView(AddFromPackFileViewSlots),
+    PackFile(PackFileExtraViewSlots),
     //Decoder(PackedFileDBDecoder),
     //RigidModel(PackedFileRigidModelDataView),
     None,

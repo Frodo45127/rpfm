@@ -36,7 +36,7 @@ extern "C" { pub fn new_doublespinbox_item_delegate(table_view: *mut Object, col
 extern "C" { pub fn new_treeview_filter(parent: *mut Object) -> *mut SortFilterProxyModel; }
 
 /// This function triggers the special filter used for the PackFile Contents `TreeView`. It has to be triggered here to work properly.
-extern "C" { pub fn trigger_treeview_filter(filter: *mut SortFilterProxyModel, pattern: *mut RegExp, filter_by_folder: bool); }
+extern "C" { pub fn trigger_treeview_filter(filter: *mut SortFilterProxyModel, pattern: *mut RegExp); }
 
 /// This function allows you to create a table capable of freezing columns.
 extern "C" { pub fn new_tableview_frozen(model: *mut AbstractItemModel, frozen_table: *mut TableView) -> *mut TableView; }

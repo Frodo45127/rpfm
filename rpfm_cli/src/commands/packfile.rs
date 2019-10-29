@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -26,9 +26,9 @@ use crate::config::Config;
 
 /// This function adds a File/Folder to a PackFile, then saves it.
 pub fn add_file(
-	config: &Config, 
-	packfile: &str, 
-	packed_file_path: &str, 
+	config: &Config,
+	packfile: &str,
+	packed_file_path: &str,
 	destination_path: Option<&str>
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
@@ -51,9 +51,9 @@ pub fn add_file(
 
 /// This function adds a Folder to a `PackFile`, then saves it.
 pub fn add_folder(
-	config: &Config, 
-	packfile: &str, 
-	packed_file_path: &str, 
+	config: &Config,
+	packfile: &str,
+	packed_file_path: &str,
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
 		info!("Operation: Add Folder to PackFile.");
@@ -70,9 +70,9 @@ pub fn add_folder(
 
 /// This function deletes all the provided paths from the PackFile, then saves it.
 pub fn delete_file(
-	config: &Config, 
-	packfile: &str, 
-	path: &str, 
+	config: &Config,
+	packfile: &str,
+	path: &str,
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
 		info!("Operation: Delete File from PackFile.");
@@ -88,9 +88,9 @@ pub fn delete_file(
 }
 
 pub fn delete_folder(
-	config: &Config, 
-	packfile: &str, 
-	path: &str, 
+	config: &Config,
+	packfile: &str,
+	path: &str,
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
 		info!("Operation: Delete Folder from PackFile.");
@@ -112,7 +112,7 @@ pub fn list_packfile_contents(config: &Config, packfile: &str) -> Result<()> {
 	}
 	let packfile_path = PathBuf::from(packfile);
 	let packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
-    
+
 	let mut table = Table::new();
     table.add_row(row!["PackedFile Path", "Type", "Size"]);
     for file in packfile.get_ref_all_packed_files() {

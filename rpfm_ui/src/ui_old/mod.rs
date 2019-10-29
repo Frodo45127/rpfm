@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -97,9 +97,9 @@ pub mod qt_custom_stuff;
 //             UI Structs (to hold slots, actions and what not)
 //----------------------------------------------------------------------------//
 
-/// One slot to rule them all, 
-/// One slot to find them, 
-/// One slot to bring them all 
+/// One slot to rule them all,
+/// One slot to find them,
+/// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
     Table(PackedFileTableView),
@@ -160,7 +160,7 @@ impl AddFromPackFileSlots {
         let widget = Widget::new().into_raw();
         let widget_layout = create_grid_layout_unsafe(widget);
         unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(0, widget); }
-        
+
         // Create the stuff.
         let tree_view = TreeView::new().into_raw();
         let tree_model = StandardItemModel::new(()).into_raw();
@@ -199,7 +199,7 @@ impl AddFromPackFileSlots {
 
                         // Check what response we got.
                         match check_message_validity_tryrecv(&receiver_qt) {
-                        
+
                             // If it's success....
                             Data::VecPathType(paths) => {
 
@@ -217,7 +217,7 @@ impl AddFromPackFileSlots {
                                 );
 
                                 // Update the global search stuff, if needed.
-                                let paths = paths.iter().map(|x| 
+                                let paths = paths.iter().map(|x|
                                     match x {
                                         TreePathType::File(ref path) => path.to_vec(),
                                         TreePathType::Folder(ref path) => path.to_vec(),
@@ -233,7 +233,7 @@ impl AddFromPackFileSlots {
                                     if table_state_data.borrow().get(path).is_some() {
                                         table_state_data.borrow_mut().remove(path);
                                     }
-                                
+
                                     // Set it to not remove his color.
                                     let data = TableStateData::new_empty();
                                     table_state_data.borrow_mut().insert(path.to_vec(), data);
@@ -279,7 +279,7 @@ impl AddFromPackFileSlots {
 
         let tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All")).into_raw();
         let tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All")).into_raw();
-        
+
         // Actions for the slots...
         unsafe { tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.copy); }
         unsafe { exit_button.as_ref().unwrap().signals().released().connect(&slots.exit); }
@@ -338,15 +338,15 @@ It's easy, but you'll not understand it without an example, so here it's one:
  - Hit 'Accept'.
  - RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.
 And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
-    "    
+    "
     ));
     unsafe { instructions_grid.as_mut().unwrap().add_widget((instructions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
 
     let mut rewrite_sequence_line_edit = LineEdit::new(());
     rewrite_sequence_line_edit.set_placeholder_text(&QString::from_std_str("Write here whatever you want. {x} it's your current name."));
-    
+
     // If we only have one selected item, put his name by default in the rename dialog.
-    if selected_items.len() == 1 { 
+    if selected_items.len() == 1 {
         if let TreePathType::File(path) | TreePathType::Folder(path) = &selected_items[0] {
             rewrite_sequence_line_edit.set_text(&QString::from_std_str(path.last().unwrap()));
         }
@@ -359,9 +359,9 @@ And, in case you ask, works with numeric cells too, as long as the resulting tex
 
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
-    if dialog.exec() == 1 { 
+    if dialog.exec() == 1 {
         let new_text = rewrite_sequence_line_edit.text().to_std_string();
-        if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) } 
+        if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
     } else { None }
 }
 
@@ -502,10 +502,10 @@ pub fn create_new_packed_file_dialog(
                 // Get the data of the table used in the dependency database.
                 sender.send(Commands::GetTableVersionFromDependencyPackFile).unwrap();
                 sender_data.send(Data::String(table.to_owned())).unwrap();
-                let version = match check_message_validity_recv2(&receiver) { 
+                let version = match check_message_validity_recv2(&receiver) {
                     Data::I32(data) => data,
                     Data::Error(error) => return Some(Err(error)),
-                    _ => panic!(THREADS_MESSAGE_ERROR), 
+                    _ => panic!(THREADS_MESSAGE_ERROR),
                 };
                 Some(Ok(PackedFileType::DB(packed_file_name, table, version)))
             },
@@ -621,12 +621,12 @@ pub fn create_global_search_dialog(app_ui: &AppUI) -> Option<String> {
     unsafe { search_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
     // Execute the dialog.
-    if dialog.exec() == 1 { 
+    if dialog.exec() == 1 {
         let text = pattern.text().to_std_string();
         if !text.is_empty() { Some(text) }
         else { None }
     }
-    
+
     // Otherwise, return None.
     else { None }
 }
@@ -654,13 +654,13 @@ pub fn create_merge_tables_dialog(app_ui: &AppUI) -> Option<(String, bool)> {
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
     // Execute the dialog.
-    if dialog.exec() == 1 { 
+    if dialog.exec() == 1 {
         let text = name.text().to_std_string();
         let delete_source_tables = delete_source_tables.is_checked();
         if !text.is_empty() { Some((text, delete_source_tables)) }
         else { None }
     }
-    
+
     // Otherwise, return None.
     else { None }
 }
@@ -745,7 +745,7 @@ pub fn purge_that_one_specifically(app_ui: &AppUI, the_one: i32, packedfiles_ope
     // Turns out that deleting an item alters the order of the other items, so we schedule it for deletion, then put
     // an invisible item in his place. That does the job.
     unsafe {
-        if app_ui.packed_file_splitter.as_mut().unwrap().count() > the_one {        
+        if app_ui.packed_file_splitter.as_mut().unwrap().count() > the_one {
             let child = app_ui.packed_file_splitter.as_mut().unwrap().widget(the_one);
             child.as_mut().unwrap().hide();
             (child as *mut Object).as_mut().unwrap().delete_later();
@@ -843,7 +843,7 @@ pub fn are_you_sure(
 pub fn create_grid_layout_safe(widget: &mut CppBox<Widget>) -> CppBox<GridLayout> {
     let mut widget_layout = GridLayout::new();
     unsafe { widget.set_layout(widget_layout.static_cast_mut() as *mut Layout); }
-    
+
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
     if cfg!(target_os = "windows") {
         widget_layout.set_contents_margins((2, 2, 2, 2));
@@ -851,7 +851,7 @@ pub fn create_grid_layout_safe(widget: &mut CppBox<Widget>) -> CppBox<GridLayout
     }
     else {
         widget_layout.set_contents_margins((0, 0, 0, 0));
-        widget_layout.set_spacing(0);            
+        widget_layout.set_spacing(0);
     }
 
     widget_layout
@@ -863,15 +863,15 @@ pub fn create_grid_layout_safe(widget: &mut CppBox<Widget>) -> CppBox<GridLayout
 pub fn create_grid_layout_unsafe(widget: *mut Widget) -> *mut GridLayout {
     let widget_layout = GridLayout::new().into_raw();
     unsafe { widget.as_mut().unwrap().set_layout(widget_layout as *mut Layout); }
-    
+
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
     if cfg!(target_os = "windows") {
         unsafe { widget_layout.as_mut().unwrap().set_contents_margins((2, 2, 2, 2)) };
-        unsafe { widget_layout.as_mut().unwrap().set_spacing(1) }; 
+        unsafe { widget_layout.as_mut().unwrap().set_spacing(1) };
     }
     else {
         unsafe { widget_layout.as_mut().unwrap().set_contents_margins((0, 0, 0, 0)) };
-        unsafe { widget_layout.as_mut().unwrap().set_spacing(0) };           
+        unsafe { widget_layout.as_mut().unwrap().set_spacing(0) };
     }
 
     widget_layout
@@ -936,7 +936,7 @@ pub fn create_dark_theme_stylesheet() -> String {
 
         /* Tweaked TableView, so the Checkboxes are white and easy to see. */
 
-        /* Checkboxes */                    
+        /* Checkboxes */
         QTableView::indicator:unchecked {{
             border-style: solid;
             border-width: 1px;
@@ -1001,7 +1001,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-color: #{button_bd_off};
         }}
 
-        ", 
+        ",
         button_bd_hover = *ORANGE,
         button_bd_off = *SLIGHTLY_DARKER_GREY,
         button_bg_on = *SLIGHTLY_DARKER_GREY,

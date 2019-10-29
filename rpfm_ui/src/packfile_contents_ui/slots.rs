@@ -53,7 +53,6 @@ pub struct PackFileContentsSlots {
     pub filter_change_text: SlotStringRef<'static>,
     pub filter_change_autoexpand_matches: SlotBool<'static>,
     pub filter_change_case_sensitive: SlotBool<'static>,
-    pub filter_change_filter_by_folder: SlotBool<'static>,
 
     pub contextual_menu: SlotQtCorePointRef<'static>,
     pub contextual_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
@@ -92,9 +91,6 @@ impl PackFileContentsSlots {
             pack_file_contents_ui.filter_files();
         });
         let filter_change_case_sensitive = SlotBool::new(move |_| {
-            pack_file_contents_ui.filter_files();
-        });
-        let filter_change_filter_by_folder = SlotBool::new(move |_| {
             pack_file_contents_ui.filter_files();
         });
 
@@ -544,7 +540,6 @@ impl PackFileContentsSlots {
             filter_change_text,
             filter_change_autoexpand_matches,
             filter_change_case_sensitive,
-            filter_change_filter_by_folder,
 
             contextual_menu,
             contextual_menu_enabler,

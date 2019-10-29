@@ -58,7 +58,6 @@ pub struct PackFileContentsUI {
     pub filter_line_edit: *mut LineEdit,
     pub filter_autoexpand_matches_button: *mut PushButton,
     pub filter_case_sensitive_button: *mut PushButton,
-    pub filter_filter_by_folder_button: *mut PushButton,
 
     //-------------------------------------------------------------------------------//
     // Contextual menu for the PackFile Contents TreeView.
@@ -130,19 +129,15 @@ impl PackFileContentsUI {
         let mut filter_line_edit = LineEdit::new(());
         let mut filter_autoexpand_matches_button = PushButton::new(&QString::from_std_str("Auto-Expand Matches"));
         let mut filter_case_sensitive_button = PushButton::new(&QString::from_std_str("AaI"));
-        let mut filter_filter_by_folder_button = PushButton::new(&QString::from_std_str("Filter By Folder"));
         filter_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the files in the PackFile. Works with Regex too!"));
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
-        filter_filter_by_folder_button.set_checkable(true);
-        filter_filter_by_folder_button.set_checked(true);
 
         // Add everything to the `TreeView`s Dock Layout.
         unsafe { packfile_contents_dock_layout.as_mut().unwrap().add_widget((packfile_contents_tree_view.as_mut_ptr() as *mut Widget, 0, 0, 1, 2)); }
         unsafe { packfile_contents_dock_layout.as_mut().unwrap().add_widget((filter_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 2)); }
         unsafe { packfile_contents_dock_layout.as_mut().unwrap().add_widget((filter_autoexpand_matches_button.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
         unsafe { packfile_contents_dock_layout.as_mut().unwrap().add_widget((filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
-        unsafe { packfile_contents_dock_layout.as_mut().unwrap().add_widget((filter_filter_by_folder_button.as_mut_ptr() as *mut Widget, 3, 0, 1, 2)); }
 
         //-------------------------------------------------------------------------------//
         // Contextual menu for the PackFile Contents TreeView.
@@ -221,7 +216,6 @@ impl PackFileContentsUI {
             filter_line_edit: filter_line_edit.into_raw(),
             filter_autoexpand_matches_button: filter_autoexpand_matches_button.into_raw(),
             filter_case_sensitive_button: filter_case_sensitive_button.into_raw(),
-            filter_filter_by_folder_button: filter_filter_by_folder_button.into_raw(),
 
             //-------------------------------------------------------------------------------//
             // Contextual menu for the PackFile Contents TreeView.

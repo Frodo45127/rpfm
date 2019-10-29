@@ -78,14 +78,13 @@ impl PackFileContentsUI {
         // Set the pattern to search.
         let mut pattern = unsafe { RegExp::new(&self.filter_line_edit.as_mut().unwrap().text()) };
 
-        // Check if the filter should be "Case Sensitive" and if it should "Filter By Folders".
-        let filter_by_folder = unsafe { self.filter_filter_by_folder_button.as_mut().unwrap().is_checked() };
+        // Check if the filter should be "Case Sensitive".
         let case_sensitive = unsafe { self.filter_case_sensitive_button.as_mut().unwrap().is_checked() };
         if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
         else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
 
         // Filter whatever it's in that column by the text we got.
-        unsafe { trigger_treeview_filter(self.packfile_contents_tree_model_filter, &mut pattern, filter_by_folder); }
+        unsafe { trigger_treeview_filter(self.packfile_contents_tree_model_filter, &mut pattern); }
 
         // Expand all the matches, if the option for it is enabled.
         if unsafe { self.filter_autoexpand_matches_button.as_ref().unwrap().is_checked() } {

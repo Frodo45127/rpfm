@@ -12,9 +12,8 @@ extern "C" QSortFilterProxyModel* new_treeview_filter(QObject *parent) {
 }
 
 // Funtion to trigger the filter we want, instead of the default one, from Rust.
-extern "C" void trigger_treeview_filter(QSortFilterProxyModel* filter, QRegExp* pattern, bool filter_by_folder) {
+extern "C" void trigger_treeview_filter(QSortFilterProxyModel* filter, QRegExp* pattern) {
     QTreeViewSortFilterProxyModel* filter2 = static_cast<QTreeViewSortFilterProxyModel*>(filter);
-    filter2->filter_by_folder = filter_by_folder;
     filter2->setFilterRegExp(*pattern);
 }
 
@@ -33,21 +32,13 @@ bool QTreeViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMode
         for (int i = 0; i < sourceModel()->rowCount(currntIndex) && !result; ++i) {
 
             // Keep the parent if a children is shown.
-            result = result || filterAcceptsRow(i, currntIndex);
+            result |= filterAcceptsRow(i, currntIndex);
         }
     }
 
-    // Otherwise, it's a file. If we have the "Filter By Folder"...
-    else if (filter_by_folder) {
-
-        // Get his parent's parent, and check if that one is visible.
-        QModelIndex parent = sourceModel()->parent(currntIndex);
-        if (parent.isValid()) {
-            QModelIndex parent2 = sourceModel()->parent(parent);
-            if (parent2.isValid()) {
-                result = QSortFilterProxyModel::filterAcceptsRow(parent.row(), parent2);
-            }
-        }
+    // If it's a file, we just call the parent's filter.
+    else {
+        result = QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);
     }
 
     return result;
