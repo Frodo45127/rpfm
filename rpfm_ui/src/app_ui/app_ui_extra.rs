@@ -127,42 +127,54 @@ impl AppUI {
         // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
         UI_STATE.set_packfile_contents_read_only(false);
     }
-/*
+
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
-    pub fn purge_that_one_specifically(app_ui: &AppUI, path: &[String]) {
+    pub fn purge_that_one_specifically(&self, path: &[String], save_before_deleting: bool) {
 
         // Black magic to remove widgets.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-        if let Some(ui) = open_packedfiles.get_mut(path) {
-            let ui: *mut Widget = &mut **ui;
-            unsafe { (ui as *mut Object).as_mut().unwrap().delete_later(); }
+        if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
+            if save_before_deleting && path != &["extra_packfile.rpfm_reserved".to_owned()] {
+                packed_file_view.save(path);
+            }
+            let widget: *mut Widget = packed_file_view.get_mut_widget();
+            let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
+            unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
+
+            // Delete the widget manually to free memory.
+            unsafe { (widget as *mut Object).as_mut().unwrap().delete_later(); }
         }
 
-        // Set it as not having an opened PackedFile, just in case.
-        open_packedfiles.remove(path);
+        if !path.is_empty() {
+            open_packedfiles.remove(path);
+            if path != &["extra_packfile.rpfm_reserved".to_owned()] {
 
-        // We check if there are more tables open. This is because we cannot change the GameSelected
-        // when there is a PackedFile using his Schema.
-        let mut enable_game_selected_menu = true;
-        for path in open_packedfiles.keys() {
-            if let Some(folder) = path.get(0) {
-                if folder.to_lowercase() == "db" {
-                    enable_game_selected_menu = false;
-                    break;
+                // We check if there are more tables open. This is because we cannot change the GameSelected
+                // when there is a PackedFile using his Schema.
+                let mut enable_game_selected_menu = true;
+                for path in open_packedfiles.keys() {
+                    if let Some(folder) = path.get(0) {
+                        if folder.to_lowercase() == "db" {
+                            enable_game_selected_menu = false;
+                            break;
+                        }
+                    }
+
+                    else if let Some(file) = path.last() {
+                        if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
+                            enable_game_selected_menu = false;
+                            break;
+                        }
+                    }
                 }
-            }
 
-            else if let Some(file) = path.last() {
-                if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
-                    enable_game_selected_menu = false;
-                    break;
+                if enable_game_selected_menu {
+                    unsafe { self.game_selected_group.as_mut().unwrap().set_enabled(true); }
                 }
             }
         }
-
-        if enable_game_selected_menu { unsafe { app_ui.game_selected_group.as_mut().unwrap().set_enabled(true); }}
     }
-*/
+
     /// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending on the situation.
     ///
     /// NOTE: The `game_folder` is for when using this function with *MyMods*. If you're opening a normal mod, pass it empty.

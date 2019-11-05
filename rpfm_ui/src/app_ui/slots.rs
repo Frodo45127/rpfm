@@ -940,7 +940,25 @@ impl AppUISlots {
         // `PackedFileView` logic.
         //-----------------------------------------------//
         let packed_file_hide = SlotCInt::new(move |index| {
-            unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
+
+            // PackFile Views must be deleted on close.
+            let mut purge_on_delete = vec![];
+            {
+                let open_packedfiles = UI_STATE.set_open_packedfiles();
+                for (path, packed_file_view) in open_packedfiles.iter() {
+                    let widget = packed_file_view.get_mut_widget();
+                    if unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().index_of(widget) } == index {
+
+                        if !path.is_empty() && path.starts_with(&["extra_packfile.rpfm_reserved".to_owned()]) {
+                            purge_on_delete = path.to_vec();
+                        }
+                        break;
+                    }
+                }
+
+                unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
+            }
+            app_ui.purge_that_one_specifically(&purge_on_delete, false);
         });
 
         // And here... we return all the slots.

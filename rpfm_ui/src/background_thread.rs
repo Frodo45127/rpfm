@@ -89,6 +89,17 @@ pub fn background_loop() {
                 }
             }
 
+            // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
+            Command::OpenPackFileExtra(path) => {
+                match PackFile::open_packfiles(&[path], true, false, true) {
+                     Ok(pack_file) => {
+                        pack_file_decoded_extra = pack_file;
+                        CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded_extra)));
+                    }
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // In case we want to "Load All CA PackFiles"...
             Command::LoadAllCAPackFiles => {
                 match get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap()) {
@@ -365,6 +376,14 @@ pub fn background_loop() {
 
                 // If nothing failed, send back success.
                 CENTRAL_COMMAND.send_message_rust(Response::Success);
+            }
+
+            // In case we want to move stuff from one PackFile to another...
+            Command::AddPackedFileFromPackFile(paths) => {
+
+                // Try to add the PackedFile to the main PackFile.
+                let (paths_success, paths_error) = pack_file_decoded.add_from_packfile(&pack_file_decoded_extra, &paths, true);
+                CENTRAL_COMMAND.send_message_rust(Response::VecPathTypeVecPathType((paths_success, paths_error)));
             }
 
             // In case we want to decode an Image...

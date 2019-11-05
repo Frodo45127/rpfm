@@ -80,7 +80,7 @@ impl Default for PackedFileView {
     fn default() -> Self {
         let widget = AtomicPtr::new(Widget::new().into_raw());
         create_grid_layout_unsafe(widget.load(Ordering::SeqCst));
-        let is_preview = true;
+        let is_preview = false;
         let view = View::None;
         let packed_file_type = PackedFileType::Unknown;
         Self {

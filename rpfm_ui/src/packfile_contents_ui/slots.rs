@@ -33,9 +33,10 @@ use rpfm_lib::SETTINGS;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::pack_tree::PackTree;
+use crate::pack_tree::{icons::IconType, PackTree};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::TheOneSlot;
+use crate::packedfile_views::packfile::PackFileExtraView;
+use crate::packedfile_views::{PackedFileView, TheOneSlot};
 use crate::QString;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
@@ -59,6 +60,7 @@ pub struct PackFileContentsSlots {
 
     pub contextual_menu_add_file: SlotBool<'static>,
     pub contextual_menu_add_folder: SlotBool<'static>,
+    pub contextual_menu_add_from_packfile: SlotBool<'static>,
     pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
     pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
 }
@@ -529,6 +531,59 @@ impl PackFileContentsSlots {
             }
         );
 
+
+        // What happens when we trigger the "Add From PackFile" action in the Contextual Menu.
+        let contextual_menu_add_from_packfile = SlotBool::new(clone!(
+            slot_holder => move |_| {
+
+                // Create the FileDialog to get the PackFile to open, configure it and run it.
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                    app_ui.main_window as *mut Widget,
+                    &QString::from_std_str("Select PackFile"),
+                )) };
+
+                file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
+                if file_dialog.exec() == 1 {
+                    let path_str = file_dialog.selected_files().at(0).to_std_string();
+                    let path = PathBuf::from(path_str.to_owned());
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                    let mut tab = PackedFileView::default();
+                    match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, path) {
+                        Ok(slots) => {
+                            slot_holder.borrow_mut().push(slots);
+
+                            // Add the file to the 'Currently open' list and make it visible.
+                            let tab_widget = tab.get_mut_widget();
+                            let name = path_str;
+                            let icon_type = IconType::PackFile(false);
+                            let icon = icon_type.get_icon_from_path();
+
+                            // If there is another Extra PackFile already open, close it.
+                            {
+                                let open_packedfiles = UI_STATE.set_open_packedfiles();
+                                if let Some(view) = open_packedfiles.get(&vec!["extra_packfile.rpfm_reserved".to_owned()]) {
+                                    let widget = view.get_mut_widget();
+                                    let index = unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
+
+                                    unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
+                                }
+                            }
+                            app_ui.purge_that_one_specifically(&["extra_packfile.rpfm_reserved".to_owned()], false);
+
+                            unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
+                            unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
+                            let mut open_list = UI_STATE.set_open_packedfiles();
+                            open_list.insert(vec!["packfile_extra.rpfm_reserved".to_owned()], tab);
+
+                        }
+                        Err(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                    }
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                }
+            }
+        ));
+
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
 
@@ -546,6 +601,8 @@ impl PackFileContentsSlots {
 
             contextual_menu_add_file,
             contextual_menu_add_folder,
+            contextual_menu_add_from_packfile,
+
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,
 		}

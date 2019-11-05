@@ -227,6 +227,9 @@ pub enum ErrorKind {
     /// Error for when we try to open a PackedFile not in the filter from the GlobalSearch.
     PackedFileNotInFilter,
 
+    /// Error for when we try to import a PackedFile from another PackFile and it fails miserably. It contains the paths that failed.
+    PackedFileCouldNotBeImported(Vec<String>),
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -583,6 +586,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileDataCouldNotBeDecompressed => write!(f, "<p>This is a compressed file and the decompresion failed for some reason. This means this PackedFile cannot be opened in RPFM.</p>"),
             ErrorKind::PackedFileDataIsNotInMemory => write!(f, "<p>This PackedFile's data is not in memory. If you see this, report it, as it's a bug.</p>"),
             ErrorKind::PackedFileNotInFilter => write!(f, "<p>This PackedFile is not in the current TreeView filter. If you want to open it, remove the filter.</p>"),
+            ErrorKind::PackedFileCouldNotBeImported(paths) => write!(f, "<p>The following failed to be imported:<ul>{}</ul></p>", paths.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
 
             //--------------------------------//
             // Table Errors

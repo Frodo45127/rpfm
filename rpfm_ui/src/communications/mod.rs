@@ -84,6 +84,9 @@ pub enum Command {
     /// This command is used to open one or more `PackFiles`. It requires the paths of the `PackFiles`.
     OpenPackFiles(Vec<PathBuf>),
 
+    /// This command is used to open an extra `PackFile`. It requires the path of the `PackFile`.
+    OpenPackFileExtra(PathBuf),
+
     /// This command is used to open all the CA PackFiles for the game selected as one.
     LoadAllCAPackFiles,
 
@@ -155,6 +158,9 @@ pub enum Command {
 
     /// This command is used when we want to decode a table PackedFile to be shown in the UI.
     DecodePackedFileTable(Vec<String>),
+
+    /// This command is used when we want to add a PackedFile from one PackFile into another.
+    AddPackedFileFromPackFile(Vec<PathType>),
 
     /*
     OpenPackFileExtra,
@@ -261,6 +267,9 @@ pub enum Response {
 
     /// Response to return (Vec<Vec<String>>).
     VecVecString(Vec<Vec<String>>),
+
+    /// Response to return (Vec<PathType>),
+    VecPathTypeVecPathType((Vec<PathType>, Vec<PathType>)),
 
     /// Response to return (String, Vec<Vec<String>>).
     StringVecVecString((String, Vec<Vec<String>>)),
