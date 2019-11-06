@@ -103,7 +103,7 @@ impl PackFileContentsSlots {
 
         // Slot to enable/disable contextual actions depending on the selected item.
         let contextual_menu_enabler = SlotItemSelectionRefItemSelectionRef::new(move |_,_| {
-                let (contents, files, folders) = <*mut TreeView as PackTree>::get_combination_from_main_treeview_selection(&app_ui, &pack_file_contents_ui);
+                let (contents, files, folders) = <*mut TreeView as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
                 match contents {
 
                     // Only one or more files selected.

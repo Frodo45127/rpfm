@@ -14,7 +14,7 @@ Module with the slots for PackFile Views.
 
 use qt_widgets::widget::Widget;
 
-use qt_core::slots::{SlotModelIndexRef, SlotNoArgs};
+use qt_core::slots::{SlotBool, SlotModelIndexRef, SlotNoArgs, SlotStringRef};
 
 use rpfm_error::ErrorKind;
 use rpfm_lib::packfile::PathType;
@@ -25,7 +25,7 @@ use crate::communications::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::utils::show_dialog;
-use super::PackFileExtraViewRaw;
+use super::{PackFileExtraView, PackFileExtraViewRaw};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -34,6 +34,11 @@ use super::PackFileExtraViewRaw;
 /// This struct contains the slots of the view of the extra PackFile.
 pub struct PackFileExtraViewSlots {
     pub import: SlotModelIndexRef<'static>,
+
+    pub filter_change_text: SlotStringRef<'static>,
+    pub filter_change_autoexpand_matches: SlotBool<'static>,
+    pub filter_change_case_sensitive: SlotBool<'static>,
+
     pub expand_all: SlotNoArgs<'static>,
     pub collapse_all: SlotNoArgs<'static>,
 }
@@ -54,7 +59,7 @@ impl PackFileExtraViewSlots {
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = unsafe { pack_file_view.tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
                 if selection_file_to_move.count(()) == 1 {
-                    let item_types = pack_file_view.tree_view.get_item_types_from_selection(false).iter().map(|x| From::from(x)).collect();
+                    let item_types = pack_file_view.tree_view.get_item_types_from_selection_filtered().iter().map(|x| From::from(x)).collect();
 
                     // Ask the Background Thread to move the files, and send him the path.
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -115,6 +120,17 @@ impl PackFileExtraViewSlots {
             }
         );
 
+        // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
+        let filter_change_text = SlotStringRef::new(move |_| {
+            PackFileExtraView::filter_files(&pack_file_view);
+        });
+        let filter_change_autoexpand_matches = SlotBool::new(move |_| {
+            PackFileExtraView::filter_files(&pack_file_view);
+        });
+        let filter_change_case_sensitive = SlotBool::new(move |_| {
+            PackFileExtraView::filter_files(&pack_file_view);
+        });
+
         // Actions without buttons for the TreeView.
         let expand_all = SlotNoArgs::new(move || { unsafe { pack_file_view.tree_view.as_mut().unwrap().expand_all(); }});
         let collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_view.tree_view.as_mut().unwrap().collapse_all(); }});
@@ -122,6 +138,11 @@ impl PackFileExtraViewSlots {
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             import,
+
+            filter_change_text,
+            filter_change_autoexpand_matches,
+            filter_change_case_sensitive,
+
             expand_all,
             collapse_all,
         }

@@ -93,23 +93,28 @@ pub trait PackTree {
     fn expand_treeview_to_item(&self, path: &[String]);
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
-    fn get_items_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem>;
+    fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem>;
 
     /// This function gives you the items selected in the provided `TreeView`.
     fn get_items_from_selection(&self, has_filter: bool) -> Vec<*mut StandardItem>;
 
     /// This function gives you the `TreeViewTypes` of the items selected in the PackFile Content's TreeView.
-    fn get_item_types_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<TreePathType>;
+    fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<TreePathType>;
 
     /// This function gives you the `TreeViewTypes` of the items selected in the provided.
     fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<TreePathType>;
+
+    /// This function returns the `TreePathType`s not hidden by the applied filter corresponding to the current selection.
+    ///
+    /// This always assumes the `TreeView` has a filter. It'll die horrendously otherwise.
+    fn get_item_types_from_selection_filtered(&self) -> Vec<TreePathType>;
 
     /// This function gives you the item corresponding to an specific `TreePathType`.
     fn get_item_from_type(item_type: &TreePathType, model: *mut StandardItemModel) -> &mut StandardItem;
 
     /// This function gives you a bitmask with what's selected in the PackFile Content's TreeView,
     /// the number of selected files, and the number of selected folders.
-    fn get_combination_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> (u8, u32, u32);
+    fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> (u8, u32, u32);
 
     /// This function returns the `TreePathType` of the provided item. Unsafe version.
     fn get_type_from_item(item: *mut StandardItem, model: *mut StandardItemModel) -> TreePathType;
@@ -309,7 +314,7 @@ impl PackTree for *mut TreeView {
         }
     }
 
-    fn get_items_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem> {
+    fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem> {
         let tree_view = unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap() };
         let filter = unsafe { (tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
         let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_ref().unwrap() };
@@ -339,8 +344,8 @@ impl PackTree for *mut TreeView {
         items
     }
 
-    fn get_item_types_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> Vec<TreePathType> {
-        let items = Self::get_items_from_main_treeview_selection(app_ui, pack_file_contents_ui);
+    fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<TreePathType> {
+        let items = Self::get_items_from_main_treeview_selection(pack_file_contents_ui);
         let types = items.iter().map(|x| Self::get_type_from_item(*x, pack_file_contents_ui.packfile_contents_tree_model)).collect();
         types
     }
@@ -357,6 +362,28 @@ impl PackTree for *mut TreeView {
 
         let types = items.iter().map(|x| Self::get_type_from_item(*x, model)).collect();
         types
+    }
+
+    fn get_item_types_from_selection_filtered(&self)-> Vec<TreePathType> {
+
+        let tree_view = unsafe { self.as_mut().unwrap() };
+        let filter = unsafe { (tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
+        let model = filter.source_model() as *mut StandardItemModel;
+
+        let mut item_types = vec![];
+        let item_types_selected = self.get_item_types_from_selection(true);
+        for item_type in &item_types_selected {
+            match item_type {
+                 TreePathType::File(_) => item_types.push(item_type.clone()),
+                 TreePathType::Folder(_) | TreePathType::PackFile => {
+                    let item = <*mut TreeView as PackTree>::get_item_from_type(item_type, model);
+                    get_visible_childs_of_item(item, tree_view, filter, model, &mut item_types);
+                 }
+                 TreePathType::None => unreachable!(),
+            }
+        }
+
+        return item_types;
     }
 
     fn get_item_from_type(item_type: &TreePathType, model: *mut StandardItemModel) -> &mut StandardItem {
@@ -425,10 +452,10 @@ impl PackTree for *mut TreeView {
         }
     }
 
-    fn get_combination_from_main_treeview_selection(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) -> (u8, u32, u32) {
+    fn get_combination_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> (u8, u32, u32) {
 
         // Get the currently selected paths, and get how many we have of each type.
-        let selected_items = Self::get_item_types_from_main_treeview_selection(app_ui, pack_file_contents_ui);
+        let selected_items = Self::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
         let (mut file, mut folder, mut packfile, mut none) = (0, 0, 0, 0);
         let mut item_types = vec![];
         for item_type in &selected_items {
@@ -1326,6 +1353,24 @@ fn clean_treeview(item: Option<&mut StandardItem>, model: &mut StandardItemModel
         for row in 0..children_count {
             let child = unsafe { item.child(row).as_mut().unwrap() };
             clean_treeview(Some(child), model);
+        }
+    }
+}
+
+/// This function returns the currently visible childs of the given parent, and add them as `TreePathType`s to the provided list.
+fn get_visible_childs_of_item(parent: &StandardItem, tree_view: &TreeView, filter: &SortFilterProxyModel, model: *mut StandardItemModel, item_types: &mut Vec<TreePathType>) {
+    for row in 0..parent.row_count() {
+        let child = parent.child(row);
+        let child_safe = unsafe { child.as_ref().unwrap() };
+        let child_index = child_safe.index();
+        let filtered_index = filter.map_from_source(&child_index);
+        if filtered_index.is_valid() {
+            if child_safe.has_children() {
+                get_visible_childs_of_item(child_safe, tree_view, filter, model, item_types);
+            }
+            else {
+                item_types.push(<*mut TreeView as PackTree>::get_type_from_item(child, model));
+            }
         }
     }
 }

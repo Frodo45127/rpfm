@@ -962,7 +962,7 @@ impl AppUI {
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
         // Also, only open the selection when there is only one thing selected.
         if !UI_STATE.get_packfile_contents_read_only() {
-            let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(self, pack_file_contents_ui);
+            let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
             match item_type {
 
