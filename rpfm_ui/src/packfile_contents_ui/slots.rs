@@ -56,7 +56,7 @@ pub struct PackFileContentsSlots {
     pub filter_change_case_sensitive: SlotBool<'static>,
 
     pub contextual_menu: SlotQtCorePointRef<'static>,
-    pub contextual_menu_enabler: SlotItemSelectionRefItemSelectionRef<'static>,
+    pub contextual_menu_enabler: SlotNoArgs<'static>,
 
     pub contextual_menu_add_file: SlotBool<'static>,
     pub contextual_menu_add_folder: SlotBool<'static>,
@@ -102,7 +102,7 @@ impl PackFileContentsSlots {
         });
 
         // Slot to enable/disable contextual actions depending on the selected item.
-        let contextual_menu_enabler = SlotItemSelectionRefItemSelectionRef::new(move |_,_| {
+        let contextual_menu_enabler = SlotNoArgs::new(move || {
                 let (contents, files, folders) = <*mut TreeView as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
                 match contents {
 

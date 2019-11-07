@@ -35,7 +35,7 @@ pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
     unsafe { ui.filter_case_sensitive_button.as_mut().unwrap().signals().toggled().connect(&slots.filter_change_case_sensitive); }
 
     unsafe { (ui.packfile_contents_tree_view as *mut Widget).as_ref().unwrap().signals().custom_context_menu_requested().connect(&slots.contextual_menu); }
-    unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().selection_model().as_ref().unwrap().signals().selection_changed().connect(&slots.contextual_menu_enabler); }
+    unsafe { ui.packfile_contents_tree_view_context_menu.as_mut().unwrap().signals().about_to_show().connect(&slots.contextual_menu_enabler); }
 
     unsafe { ui.context_menu_add_file.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_add_file); }
     unsafe { ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_add_folder); }
