@@ -477,6 +477,15 @@ pub fn background_loop() {
             Command::DeletePackedFiles(item_types) => {
                 CENTRAL_COMMAND.send_message_rust(Response::VecPathType(pack_file_decoded.remove_packed_files_by_type(&item_types)));
             }
+
+            // In case we want to extract PackedFiles from a PackFile...
+            Command::ExtractPackedFiles(item_types, path) => {
+                match pack_file_decoded.extract_packed_files_by_type(&item_types, &path) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(format!("{} files extracted. No errors detected.", result))),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
         }
     }
 

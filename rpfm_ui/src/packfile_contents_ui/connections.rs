@@ -41,7 +41,7 @@ pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
     unsafe { ui.context_menu_add_folder.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_add_folder); }
     unsafe { ui.context_menu_add_from_packfile.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_add_from_packfile); }
     unsafe { ui.context_menu_delete.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_delete); }
-
+    unsafe { ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_extract); }
 
     unsafe { ui.packfile_contents_tree_view_expand_all.as_ref().unwrap().signals().triggered().connect(&slots.packfile_contents_tree_view_expand_all); }
     unsafe { ui.packfile_contents_tree_view_collapse_all.as_ref().unwrap().signals().triggered().connect(&slots.packfile_contents_tree_view_collapse_all); }

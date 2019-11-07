@@ -63,6 +63,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_add_folder: SlotBool<'static>,
     pub contextual_menu_add_from_packfile: SlotBool<'static>,
     pub contextual_menu_delete: SlotBool<'static>,
+    pub contextual_menu_extract: SlotBool<'static>,
 
     pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
     pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
@@ -628,6 +629,63 @@ impl PackFileContentsSlots {
             }
         ));
 
+        // What happens when we trigger the "Extract" action in the Contextual Menu.
+        let contextual_menu_extract = SlotBool::new(move |_| {
+
+                // Get the currently selected paths (and visible) paths.
+                let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                let selected_items = selected_items.iter().map(|x| From::from(x)).collect::<Vec<PathType>>();
+                let extraction_path = match UI_STATE.get_operational_mode() {
+
+                    // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
+                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+
+                            // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
+                            let mut mod_name = mod_name.to_owned();
+                            mod_name.pop();
+                            mod_name.pop();
+                            mod_name.pop();
+                            mod_name.pop();
+                            mod_name.pop();
+
+                            let mut assets_folder = mymods_base_path.to_path_buf();
+                            assets_folder.push(&game_folder_name);
+                            assets_folder.push(&mod_name);
+                            assets_folder
+                        }
+
+                        // If there is no MyMod path configured, report it.
+                        else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, true); }
+                    }
+
+                    // In normal mode, we ask the user to provide us with a path.
+                    OperationalMode::Normal => {
+                        let extraction_path = unsafe { FileDialog::get_existing_directory_unsafe((
+                            app_ui.main_window as *mut Widget,
+                            &QString::from_std_str("Extract PackFile"),
+                        )) };
+
+                        if !extraction_path.is_empty() { PathBuf::from(extraction_path.to_std_string()) }
+                        else { return }
+                    }
+                };
+
+                // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
+                // TODO: Make this more... optimal.
+                UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path));
+
+                CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                match CENTRAL_COMMAND.recv_message_qt() {
+                    Response::String(result) => show_dialog(app_ui.main_window as *mut Widget, result, true),
+                    Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                }
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        );
+
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
 
@@ -647,6 +705,7 @@ impl PackFileContentsSlots {
             contextual_menu_add_folder,
             contextual_menu_add_from_packfile,
             contextual_menu_delete,
+            contextual_menu_extract,
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,

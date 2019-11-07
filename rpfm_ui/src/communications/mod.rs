@@ -165,6 +165,9 @@ pub enum Command {
     /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
     DeletePackedFiles(Vec<PathType>),
 
+    /// This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the PathTypes to extract and the extraction path.
+    ExtractPackedFiles(Vec<PathType>, PathBuf),
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -249,6 +252,9 @@ pub enum Response {
 
     /// Response to return (PathBuf).
     PathBuf(PathBuf),
+
+    /// Response to return (String)
+    String(String),
 
     /// Response to return (String, i64, Vec<Vec<String>>).
     StringI64VecVecString((String, i64, Vec<Vec<String>>)),
