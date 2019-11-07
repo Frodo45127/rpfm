@@ -19,7 +19,7 @@ use qt_widgets::widget::Widget;
 
 use qt_gui::cursor::Cursor;
 
-use qt_core::slots::{SlotBool, SlotItemSelectionRefItemSelectionRef, SlotNoArgs, SlotStringRef};
+use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
 use std::cell::RefCell;
 use std::fs::DirBuilder;
@@ -28,12 +28,13 @@ use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 use rpfm_lib::common::get_files_from_subdir;
+use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::pack_tree::{icons::IconType, PackTree};
+use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
 use crate::packedfile_views::{PackedFileView, TheOneSlot};
@@ -61,6 +62,8 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_add_file: SlotBool<'static>,
     pub contextual_menu_add_folder: SlotBool<'static>,
     pub contextual_menu_add_from_packfile: SlotBool<'static>,
+    pub contextual_menu_delete: SlotBool<'static>,
+
     pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
     pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
 }
@@ -531,7 +534,6 @@ impl PackFileContentsSlots {
             }
         );
 
-
         // What happens when we trigger the "Add From PackFile" action in the Contextual Menu.
         let contextual_menu_add_from_packfile = SlotBool::new(clone!(
             slot_holder => move |_| {
@@ -584,6 +586,48 @@ impl PackFileContentsSlots {
             }
         ));
 
+        // What happens when we trigger the "Delete" action in the Contextual Menu.
+        let contextual_menu_delete = SlotBool::new(clone!(
+            slot_holder => move |_| {
+                let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                let selected_items = selected_items.iter().map(|x| From::from(x)).collect::<Vec<PathType>>();
+
+                CENTRAL_COMMAND.send_message_qt(Command::DeletePackedFiles(selected_items));
+                match CENTRAL_COMMAND.recv_message_qt() {
+                    Response::VecPathType(deleted_items) => {
+                        let items = deleted_items.iter().map(|x| From::from(x)).collect::<Vec<TreePathType>>();
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()));
+
+                        // Remove all the deleted PackedFiles from the cache.
+                        for item in &items {
+                            match item {
+                                TreePathType::File(path) => app_ui.purge_that_one_specifically(path, false),
+                                TreePathType::Folder(path) => {
+                                    let mut paths_to_remove = vec![];
+                                    {
+                                        let open_packedfiles = UI_STATE.set_open_packedfiles();
+                                        for packed_file_path in open_packedfiles.keys() {
+                                            if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
+                                                paths_to_remove.push(packed_file_path.to_vec());
+                                            }
+                                        }
+                                    }
+
+                                    for path in paths_to_remove {
+                                        app_ui.purge_that_one_specifically(&path, false);
+                                    }
+
+                                }
+                                TreePathType::PackFile => app_ui.purge_them_all(&slot_holder),
+                                TreePathType::None => unreachable!(),
+                            }
+                        }
+                    },
+                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                };
+            }
+        ));
+
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
 
@@ -602,6 +646,7 @@ impl PackFileContentsSlots {
             contextual_menu_add_file,
             contextual_menu_add_folder,
             contextual_menu_add_from_packfile,
+            contextual_menu_delete,
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,

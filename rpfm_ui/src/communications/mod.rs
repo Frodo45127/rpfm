@@ -162,6 +162,9 @@ pub enum Command {
     /// This command is used when we want to add a PackedFile from one PackFile into another.
     AddPackedFileFromPackFile(Vec<PathType>),
 
+    /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
+    DeletePackedFiles(Vec<PathType>),
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -268,6 +271,9 @@ pub enum Response {
     /// Response to return (Vec<Vec<String>>).
     VecVecString(Vec<Vec<String>>),
 
+    /// Response to return (Vec<PathType).
+    VecPathType(Vec<PathType>),
+
     /// Response to return (Vec<PathType>),
     VecPathTypeVecPathType((Vec<PathType>, Vec<PathType>)),
 
@@ -290,7 +296,9 @@ pub enum Response {
     Loc(Loc),
 
     /// Response to return `Unknown`.
-    Unknown
+    Unknown,
+
+
 /*
     Bool(bool),
     I32(i32),

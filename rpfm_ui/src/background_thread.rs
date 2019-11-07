@@ -472,6 +472,11 @@ pub fn background_loop() {
                     *packed_file.get_ref_mut_decoded() = decoded_packed_file;
                 }
             }
+
+            // In case we want to delete PackedFiles from a PackFile...
+            Command::DeletePackedFiles(item_types) => {
+                CENTRAL_COMMAND.send_message_rust(Response::VecPathType(pack_file_decoded.remove_packed_files_by_type(&item_types)));
+            }
         }
     }
 
