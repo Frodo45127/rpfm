@@ -16,8 +16,14 @@ The reason they're here and not in the main file is because I don't want to polu
 that one, as it's mostly meant for initialization and configuration.
 !*/
 
+use qt_widgets::dialog::Dialog;
+use qt_widgets::group_box::GroupBox;
+use qt_widgets::label::Label;
+use qt_widgets::line_edit::LineEdit;
+use qt_widgets::push_button::PushButton;
 use qt_widgets::widget::Widget;
 
+use qt_core::connection::Signal;
 use qt_core::qt::CaseSensitivity;
 use qt_core::reg_exp::RegExp;
 
@@ -29,7 +35,8 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter;
 use crate::pack_tree::{check_if_path_is_closed, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::utils::show_dialog;
+use crate::QString;
+use crate::utils::{create_grid_layout_unsafe, show_dialog};
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -90,5 +97,55 @@ impl PackFileContentsUI {
         if unsafe { self.filter_autoexpand_matches_button.as_ref().unwrap().is_checked() } {
             unsafe { self.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }
         }
+    }
+
+    /// This function creates the entire "Rename" dialog.
+    ///
+    ///It returns the new name of the Item, or `None` if the dialog is canceled or closed.
+    pub fn create_rename_dialog(app_ui: &AppUI, selected_items: &[TreePathType]) -> Option<String> {
+
+        // Create and configure the dialog.
+        let mut dialog = unsafe { Dialog::new_unsafe(app_ui.main_window as *mut Widget) };
+        dialog.set_window_title(&QString::from_std_str("Rename Selection"));
+        dialog.set_modal(true);
+        dialog.resize((400, 50));
+        let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
+
+        // Create a little frame with some instructions.
+        let instructions_frame = GroupBox::new(&QString::from_std_str("Instructions"));
+        let instructions_grid = create_grid_layout_unsafe(instructions_frame.as_mut_ptr() as *mut Widget);
+        let instructions_label = Label::new(&QString::from_std_str(
+        "\
+    It's easy, but you'll not understand it without an example, so here it's one:
+     - Your files/folders says 'you' and 'I'.
+     - Write 'whatever {x} want' in the box below.
+     - Hit 'Accept'.
+     - RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.
+    And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
+        "
+        ));
+        unsafe { instructions_grid.as_mut().unwrap().add_widget((instructions_label.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+
+        let mut rewrite_sequence_line_edit = LineEdit::new(());
+        rewrite_sequence_line_edit.set_placeholder_text(&QString::from_std_str("Write here whatever you want. {x} it's your current name."));
+
+        // If we only have one selected item, put his name by default in the rename dialog.
+        if selected_items.len() == 1 {
+            if let TreePathType::File(path) | TreePathType::Folder(path) = &selected_items[0] {
+                rewrite_sequence_line_edit.set_text(&QString::from_std_str(path.last().unwrap()));
+            }
+        }
+        let accept_button = PushButton::new(&QString::from_std_str("Accept"));
+
+        unsafe { main_grid.as_mut().unwrap().add_widget((instructions_frame.into_raw() as *mut Widget, 0, 0, 1, 2)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((rewrite_sequence_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((accept_button.as_mut_ptr() as *mut Widget, 1, 1, 1, 1)); }
+
+        accept_button.signals().released().connect(&dialog.slots().accept());
+
+        if dialog.exec() == 1 {
+            let new_text = rewrite_sequence_line_edit.text().to_std_string();
+            if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
+        } else { None }
     }
 }

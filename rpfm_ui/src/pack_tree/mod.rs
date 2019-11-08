@@ -1179,7 +1179,7 @@ impl PackTree for *mut TreeView {
                         // Mark his entire path as "modified".
                         let cycles = if !path.is_empty() { path.len() } else { 0 };
                         let mut parent = unsafe { item.parent().as_mut().unwrap() };
-                        for _ in 0..cycles {
+                        for index in 0..cycles {
 
                             // Get the status and mark them as needed.
                             match parent.data(ITEM_STATUS).to_int() {
@@ -1193,8 +1193,10 @@ impl PackTree for *mut TreeView {
                                 parent.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
                             }
 
-                            // Set the new parent.
-                            unsafe { parent = parent.parent().as_mut().unwrap(); }
+                            // Set the new parent, if there are still parents to set.
+                            if index < cycles - 1 {
+                                unsafe { parent = parent.parent().as_mut().unwrap(); }
+                            }
                         }
 
                         // Sort it.

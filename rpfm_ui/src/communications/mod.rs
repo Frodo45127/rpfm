@@ -168,6 +168,9 @@ pub enum Command {
     /// This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the PathTypes to extract and the extraction path.
     ExtractPackedFiles(Vec<PathType>, PathBuf),
 
+    /// This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original PathType and their new name.
+    RenamePackedFiles(Vec<(PathType, String)>)
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -277,8 +280,11 @@ pub enum Response {
     /// Response to return (Vec<Vec<String>>).
     VecVecString(Vec<Vec<String>>),
 
-    /// Response to return (Vec<PathType).
+    /// Response to return (Vec<PathType>).
     VecPathType(Vec<PathType>),
+
+    /// Response to return (Vec<(PathType, String)>).
+    VecPathTypeString(Vec<(PathType, String)>),
 
     /// Response to return (Vec<PathType>),
     VecPathTypeVecPathType((Vec<PathType>, Vec<PathType>)),

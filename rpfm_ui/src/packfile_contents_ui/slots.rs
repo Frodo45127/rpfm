@@ -14,11 +14,13 @@ Module with all the code related to the main `PackFileContentsSlots`.
 
 use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::slots::SlotQtCorePointRef;
+use qt_widgets::tab_widget::TabWidget;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
 use qt_gui::cursor::Cursor;
 
+use qt_core::qt::CaseSensitivity;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
 use std::cell::RefCell;
@@ -64,6 +66,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_add_from_packfile: SlotBool<'static>,
     pub contextual_menu_delete: SlotBool<'static>,
     pub contextual_menu_extract: SlotBool<'static>,
+    pub contextual_menu_rename: SlotBool<'static>,
 
     pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
     pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
@@ -686,6 +689,97 @@ impl PackFileContentsSlots {
             }
         );
 
+
+        // What happens when we trigger the "Rename" Action.
+        let contextual_menu_rename = SlotBool::new(move |_| {
+
+                // Get the currently selected items, and check how many of them are valid before trying to rewrite them.
+                // Why? Because I'm sure there is an asshole out there that it's going to try to give the files duplicated
+                // names, and if that happen, we have to stop right there that criminal scum.
+                let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                if let Some(rewrite_sequence) = PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
+                    let mut renaming_data_background: Vec<(PathType, String)> = vec![];
+                    for item_type in selected_items {
+                        match item_type {
+                            TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
+                                let original_name = path.last().unwrap();
+                                let new_name = rewrite_sequence.to_owned().replace("{x}", &original_name);
+                                renaming_data_background.push((From::from(&item_type), new_name));
+
+                            },
+
+                            // These two should, if everything works properly, never trigger.
+                            TreePathType::PackFile | TreePathType::None => unimplemented!(),
+                        }
+                    }
+
+                    // Send the renaming data to the Background Thread, wait for a response.
+                    CENTRAL_COMMAND.send_message_qt(Command::RenamePackedFiles(renaming_data_background));
+                    match CENTRAL_COMMAND.recv_message_qt() {
+                        Response::VecPathTypeString(renamed_items) => {
+                            let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, String)>>();
+
+                            let mut path_changes = vec![];
+                            let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                            for (path, _) in open_packedfiles.iter_mut() {
+                                if !path.is_empty() {
+                                    for (item_type, new_name) in &renamed_items {
+                                        match item_type {
+                                            TreePathType::File(ref item_path) => {
+                                                if item_path == path {
+
+                                                    // Get the new path.
+                                                    let mut new_path = item_path.to_vec();
+                                                    *new_path.last_mut().unwrap() = new_name.to_owned();
+                                                    path_changes.push((path.to_vec(), new_path.to_vec()));
+
+                                                    // Update the global search stuff, if needed.
+                                                    //global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                                }
+                                            }
+
+                                            TreePathType::Folder(ref item_path) => {
+                                                if !item_path.is_empty() && path.starts_with(&item_path) {
+
+                                                    let mut new_folder_path = item_path.to_vec();
+                                                    *new_folder_path.last_mut().unwrap() = new_name.to_owned();
+
+                                                    let mut new_file_path = new_folder_path.to_vec();
+                                                    new_file_path.append(&mut (&path[item_path.len()..]).to_vec());
+                                                    path_changes.push((path.to_vec(), new_file_path.to_vec()));
+
+                                                    // Update the global search stuff, if needed.
+                                                    //global_search_explicit_paths.borrow_mut().append(&mut vec![new_folder_path; 1]);
+                                                }
+                                            }
+                                            _ => unreachable!(),
+                                        }
+                                    }
+                                }
+                            }
+
+                            for (path_before, path_after) in &path_changes {
+                                let data = open_packedfiles.remove(path_before).unwrap();
+                                let widget = data.get_mut_widget();
+                                let index = unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
+                                let mut text = unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().tab_text(index) };
+                                let old_name = path_before.last().unwrap();
+                                let new_name = path_after.last().unwrap();
+                                text.replace((&QString::from_std_str(old_name), &QString::from_std_str(new_name), CaseSensitivity::Sensitive));
+                                unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().set_tab_text(index, &text); }
+                                open_packedfiles.insert(path_after.to_vec(), data);
+                            }
+
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Rename(renamed_items));
+                        },
+                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    }
+                }
+            }
+        );
+
+
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
 
@@ -706,6 +800,7 @@ impl PackFileContentsSlots {
             contextual_menu_add_from_packfile,
             contextual_menu_delete,
             contextual_menu_extract,
+            contextual_menu_rename,
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,
