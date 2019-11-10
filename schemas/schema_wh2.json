@@ -39176,6 +39176,46 @@
       ]
     },
     {
+      "name": "effect_bonus_value_building_chain_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "effect",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "effects",
+                "effect"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "bonus_value_id",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "campaign_bonus_value_ids_building_chain",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "building_chain",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "building_chains",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "effect_bonus_value_building_set_junctions_tables",
       "versions": [
         {
@@ -64533,8 +64573,8 @@
               "field_type": "OptionalStringU8",
               "field_is_key": false,
               "field_is_reference": [
-                "unit_variants",
-                "name"
+                "land_units",
+                "key"
               ],
               "field_description": ""
             }
