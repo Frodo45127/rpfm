@@ -141,7 +141,6 @@ impl PackFileContentsSlots {
                         let enabled = if files == 1 { true } else { false };
                         unsafe {
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(enabled);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(enabled);
                         }
 
@@ -168,7 +167,6 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
 
@@ -204,7 +202,6 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
@@ -230,7 +227,6 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
@@ -256,7 +252,6 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
@@ -281,7 +276,6 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
@@ -307,7 +301,6 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
                         }
                     },
@@ -333,7 +326,6 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
                         }
                     },

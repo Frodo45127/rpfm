@@ -118,7 +118,6 @@ pub fn get_actions(
 	actions.push((pack_file_contents_ui.context_menu_open_dependency_manager, shortcuts.tree_view["open_packfiles_list"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_open_containing_folder, shortcuts.tree_view["open_containing_folder"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_open_with_external_program, shortcuts.tree_view["open_with_external_program"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_open_in_multi_view, shortcuts.tree_view["open_in_multi_view"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_open_notes, shortcuts.tree_view["open_notes"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_check_tables, shortcuts.tree_view["check_tables"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_merge_tables, shortcuts.tree_view["merge_tables"].to_owned()));

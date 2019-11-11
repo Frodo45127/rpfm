@@ -79,7 +79,6 @@ pub struct PackFileContentsUI {
     pub context_menu_open_dependency_manager: *mut Action,
     pub context_menu_open_containing_folder: *mut Action,
     pub context_menu_open_with_external_program: *mut Action,
-    pub context_menu_open_in_multi_view: *mut Action,
     pub context_menu_open_notes: *mut Action,
     pub context_menu_check_tables: *mut Action,
     pub context_menu_merge_tables: *mut Action,
@@ -169,7 +168,6 @@ impl PackFileContentsUI {
         let context_menu_open_dependency_manager = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Dependency Manager"));
         let context_menu_open_containing_folder = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Containing Folder"));
         let context_menu_open_with_external_program = menu_open_ref_mut.add_action(&QString::from_std_str("Open with &External Program"));
-        let context_menu_open_in_multi_view = menu_open_ref_mut.add_action(&QString::from_std_str("Open in &Multi-View"));
         let context_menu_open_notes = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Notes"));
         let context_menu_check_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables"));
         let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables"));
@@ -200,7 +198,6 @@ impl PackFileContentsUI {
             context_menu_open_dependency_manager.as_mut().unwrap().set_enabled(false);
             context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
             context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
-            context_menu_open_in_multi_view.as_mut().unwrap().set_enabled(false);
             context_menu_open_notes.as_mut().unwrap().set_enabled(false);
         }
 
@@ -244,7 +241,6 @@ impl PackFileContentsUI {
             context_menu_open_dependency_manager,
             context_menu_open_containing_folder,
             context_menu_open_with_external_program,
-            context_menu_open_in_multi_view,
             context_menu_open_notes,
 
             context_menu_check_tables,
