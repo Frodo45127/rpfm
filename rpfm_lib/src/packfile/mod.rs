@@ -717,6 +717,21 @@ impl PackFile {
         self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).collect()
     }
 
+    /// This function returns a copy of all the `PackedFiles` ending with the provided extension.
+    pub fn get_packed_files_by_extension(&self, extension: &str) -> Vec<PackedFile> {
+        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).cloned().collect()
+    }
+
+    /// This function returns a reference of all the `PackedFiles` ending with the provided extension.
+    pub fn get_ref_packed_files_by_extension(&self, extension: &str) -> Vec<&PackedFile> {
+        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).collect()
+    }
+
+    /// This function returns a mutable reference of all the `PackedFiles` ending with the provided extension.
+    pub fn get_ref_mut_packed_files_by_extension(&mut self, extension: &str) -> Vec<&mut PackedFile> {
+        self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).collect()
+    }
+
     /// This function returns a copy of all `PackedFiles` in the provided `PackFile`.
     pub fn get_all_packed_files(&self) -> Vec<PackedFile> {
         self.packed_files.clone()
