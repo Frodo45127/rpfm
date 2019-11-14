@@ -147,7 +147,7 @@ pub fn background_loop() {
                 // Get the name and the PackedFile list, and send it.
                 CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
                     From::from(&pack_file_decoded),
-                    pack_file_decoded.get_all_packed_files_info(),
+                    pack_file_decoded.get_packed_files_all_info(),
 
                 )));
             }
@@ -158,7 +158,7 @@ pub fn background_loop() {
                 // Get the name and the PackedFile list, and serialize it.
                 CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
                     From::from(&pack_file_decoded_extra),
-                    pack_file_decoded_extra.get_all_packed_files_info(),
+                    pack_file_decoded_extra.get_packed_files_all_info(),
 
                 )));
             }

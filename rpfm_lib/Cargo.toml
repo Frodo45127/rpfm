@@ -46,6 +46,9 @@ ron = "^0.5"
 # Compression support.
 xz2 = "^0.1"
 
+# Multithread iterator support.
+rayon = "^1.2"
+
 [profile.release]
 lto = true
 debug = true

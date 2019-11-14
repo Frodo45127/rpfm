@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -15,7 +15,7 @@ This module contains the code needed to get a `GlobalSeach` over an entire `Pack
 !*/
 
 use qt_widgets::header_view::ResizeMode;
-use qt_widgets::table_view::TableView;
+use qt_widgets::tree_view::TreeView;
 
 use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
@@ -25,10 +25,11 @@ use qt_core::qt::{Orientation, SortOrder};
 use qt_core::variant::Variant;
 
 use regex::Regex;
+use rayon::prelude::*;
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packfile::{PackFile, PathType};
-use rpfm_lib::packedfile::{DecodedData, DecodedPackedFile};
+use rpfm_lib::packedfile::{DecodedData, DecodedPackedFile, PackedFileType};
 use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::schema::{Definition, Schema, VersionedFile};
@@ -69,10 +70,10 @@ pub struct GlobalSearch {
     pub use_regex: bool,
 
     /// If we should search on DB Tables.
-    pub search_on_dbs: bool, 
-    
+    pub search_on_dbs: bool,
+
     /// If we should search on Loc Tables.
-    pub search_on_locs: bool, 
+    pub search_on_locs: bool,
 
     /// If we should search on Text PackedFiles.
     pub search_on_texts: bool,
@@ -81,11 +82,11 @@ pub struct GlobalSearch {
     pub search_on_schema: bool,
 
     /// Matches on DB Tables.
-    pub matches_db: Vec<TableMatches>, 
+    pub matches_db: Vec<TableMatches>,
 
     /// Matches on Loc Tables.
-    pub matches_loc: Vec<TableMatches>, 
-    
+    pub matches_loc: Vec<TableMatches>,
+
     /// Matches on Text Tables.
     pub matches_text: Vec<TextMatches>,
 
@@ -101,7 +102,7 @@ enum MatchingMode {
     Pattern,
 }
 
-//-------------------------------------------------------------------------------//
+//---------------------------------------------------------------p----------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
@@ -112,13 +113,13 @@ impl Default for GlobalSearch {
             pattern: "".to_owned(),
             replace_text: "".to_owned(),
             case_sensitive: false,
-            use_regex: false, 
-            search_on_dbs: true, 
-            search_on_locs: true, 
+            use_regex: false,
+            search_on_dbs: true,
+            search_on_locs: true,
             search_on_texts: true,
             search_on_schema: false,
-            matches_db: vec![], 
-            matches_loc: vec![], 
+            matches_db: vec![],
+            matches_loc: vec![],
             matches_text: vec![],
             matches_schema: vec![],
         }
@@ -127,7 +128,7 @@ impl Default for GlobalSearch {
 
 /// Implementation of `GlobalMatch`.
 impl GlobalSearch {
-    
+
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
     pub fn search(&mut self, pack_file: &mut PackFile) {
 
@@ -138,7 +139,7 @@ impl GlobalSearch {
             }
             else { MatchingMode::Pattern }
         } else { MatchingMode::Pattern };
-        
+
         // Ensure we don't store results from previous searches.
         self.matches_db = vec![];
         self.matches_loc = vec![];
@@ -147,32 +148,46 @@ impl GlobalSearch {
 
         // If we got no schema, don't even decode.
         if let Some(ref schema) = *SCHEMA.lock().unwrap() {
-            for packed_file in pack_file.get_ref_mut_all_packed_files() {
-                let path = packed_file.get_ref_raw().get_path().to_vec();
-                match packed_file.decode_return_ref_no_locks(&schema).unwrap_or_else(|_| &DecodedPackedFile::Unknown) {
-                    DecodedPackedFile::DB(data) => {
-                        if self.search_on_dbs { 
-                            self.search_on_db(&path, data, &matching_mode);
-                        }
-                    }
-                    DecodedPackedFile::Loc(data) => {
-                        if self.search_on_locs { 
-                            self.search_on_loc(&path, data, &matching_mode);
-                        }
-                    }
-                    DecodedPackedFile::Text(data) => {
-                        if self.search_on_texts {
-                            self.search_on_text(&path, data, &matching_mode);
-                        }
-                    }
-                    _ => continue,
-                }
+            if self.search_on_dbs {
+                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::DB);
+                self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
+                    let path = packed_file.get_ref_raw().get_path().to_vec();
+                    if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
+                        if let DecodedPackedFile::DB(data) = decoded_packed_file {
+                            Some(self.search_on_db(&path, &data, &matching_mode))
+                        } else { None }
+                    } else { None }
+                }).collect();
+            }
+
+            if self.search_on_locs {
+                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Loc);
+                self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
+                    let path = packed_file.get_ref_raw().get_path().to_vec();
+                    if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
+                        if let DecodedPackedFile::Loc(data) = decoded_packed_file {
+                            Some(self.search_on_loc(&path, &data, &matching_mode))
+                        } else { None }
+                    } else { None }
+                }).collect();
+            }
+
+            if self.search_on_texts {
+                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Text);
+                self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
+                    let path = packed_file.get_ref_raw().get_path().to_vec();
+                    if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
+                        if let DecodedPackedFile::Text(data) = decoded_packed_file {
+                            Some(self.search_on_text(&path, &data, &matching_mode))
+                        } else { None }
+                    } else { None }
+                }).collect();
             }
 
             if self.search_on_schema {
                 self.search_on_schema(schema, &matching_mode);
-            } 
-        } 
+            }
+        }
     }
 
     /// This function performs a limited search on the `PackedFiles` in the provided paths, and updates the `GlobalSearch` with the results.
@@ -185,7 +200,7 @@ impl GlobalSearch {
     ///
     /// NOTE: The schema search is not updated on schema change. Remember that.
     pub fn update(&mut self, pack_file: &mut PackFile, updated_paths: &[PathType]) {
-        
+
         // Don't do anything if we have no pattern to search.
         if &self.pattern == "" { return }
 
@@ -220,12 +235,12 @@ impl GlobalSearch {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&path) {
                     match packed_file.decode_return_ref_no_locks(&schema).unwrap_or_else(|_| &DecodedPackedFile::Unknown) {
                         DecodedPackedFile::DB(data) => {
-                            if self.search_on_dbs { 
+                            if self.search_on_dbs {
                                 self.search_on_db(&path, data, &matching_mode);
                             }
                         }
                         DecodedPackedFile::Loc(data) => {
-                            if self.search_on_locs { 
+                            if self.search_on_locs {
                                 self.search_on_loc(&path, data, &matching_mode);
                             }
                         }
@@ -238,7 +253,7 @@ impl GlobalSearch {
                     }
                 }
             }
-        } 
+        }
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
@@ -248,8 +263,10 @@ impl GlobalSearch {
         self.matches_text = vec![];
         self.matches_schema = vec![];
 
-        unsafe { ui.global_search_matches_db_table_model.as_mut().unwrap().clear() };
-        unsafe { ui.global_search_matches_loc_table_model.as_mut().unwrap().clear() };
+        unsafe { ui.global_search_matches_db_tree_model.as_mut().unwrap().clear() };
+        unsafe { ui.global_search_matches_loc_tree_model.as_mut().unwrap().clear() };
+        unsafe { ui.global_search_matches_text_tree_model.as_mut().unwrap().clear() };
+        unsafe { ui.global_search_matches_schema_tree_model.as_mut().unwrap().clear() };
     }
 
     /// This function performs a replace operation over the entire match set, except schemas..
@@ -328,9 +345,9 @@ impl GlobalSearch {
 
     /// This function tries to replace data in a Table PackedFile. It fails if the data is not suitable for that column.
     fn replace_match_table(
-        &self, 
-        data: &mut Vec<Vec<DecodedData>>, 
-        changed_files: &mut Vec<Vec<String>>, 
+        &self,
+        data: &mut Vec<Vec<DecodedData>>,
+        changed_files: &mut Vec<Vec<String>>,
         match_table: &TableMatches,
         match_data: &TableMatch,
         matching_mode: &MatchingMode,
@@ -364,7 +381,7 @@ impl GlobalSearch {
                     DecodedData::OptionalStringU16(ref mut field) => self.replace_match(field, matching_mode),
                     DecodedData::Sequence(_) => return Err(ErrorKind::Generic)?,
                 }
-                
+
                 if !changed_files.contains(&match_table.path) {
                     changed_files.push(match_table.path.to_vec());
                 }
@@ -378,7 +395,7 @@ impl GlobalSearch {
     fn replace_match(&self, text: &mut String, matching_mode: &MatchingMode) {
         match matching_mode {
             MatchingMode::Regex(regex) => {
-                if regex.is_match(&text) { 
+                if regex.is_match(&text) {
                     *text = regex.replace_all(&text, &*self.replace_text).to_string();
                 }
             }
@@ -391,58 +408,193 @@ impl GlobalSearch {
         }
     }
 
-    /// This function takes care of loading the table results of a global search into a model. 
-    pub fn load_table_matches_to_ui(model: &mut StandardItemModel, table_view: &mut TableView, matches: &[TableMatches]) {
+    /// This function takes care of loading the results of a global search of `TableMatches` into a model.
+    pub fn load_table_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[TableMatches]) {
         if !matches.is_empty() {
+
             for match_table in matches {
-                let path = match_table.path.join("/");
-
-                for match_row in &match_table.matches {
-
-                    // Create a new list of StandardItem.
-                    let mut qlist = ListStandardItemMutPtr::new(());
-
-                    // Create an empty row.
+                if !match_table.matches.is_empty() {
+                    let path = match_table.path.join("/");
+                    let mut qlist_daddy = ListStandardItemMutPtr::new(());
                     let mut file = StandardItem::new(());
-                    let mut column_name = StandardItem::new(());
-                    let mut column_number = StandardItem::new(());
-                    let mut row = StandardItem::new(());
-                    let mut text = StandardItem::new(());
-
+                    let mut fill1 = StandardItem::new(());
+                    let mut fill2 = StandardItem::new(());
+                    let mut fill3 = StandardItem::new(());
                     file.set_text(&QString::from_std_str(&path));
-                    column_name.set_text(&QString::from_std_str(&match_row.column_name));
-                    column_number.set_data((&Variant::new2(match_row.column_number), 2));
-                    row.set_data((&Variant::new2(match_row.row_number + 1), 2));
-                    text.set_text(&QString::from_std_str(&match_row.contents));
-
                     file.set_editable(false);
-                    column_name.set_editable(false);
-                    column_number.set_editable(false);
-                    row.set_editable(false);
-                    text.set_editable(false);
+                    fill1.set_editable(false);
+                    fill2.set_editable(false);
+                    fill3.set_editable(false);
 
-                    // Add an empty row to the list.
-                    unsafe { qlist.append_unsafe(&file.into_raw()); }
-                    unsafe { qlist.append_unsafe(&column_name.into_raw()); }
-                    unsafe { qlist.append_unsafe(&row.into_raw()); }
-                    unsafe { qlist.append_unsafe(&text.into_raw()); }
-                    unsafe { qlist.append_unsafe(&column_number.into_raw()); }
+                    for match_row in &match_table.matches {
 
-                    // Append the new row.
-                    model.append_row(&qlist);
+                        // Create a new list of StandardItem.
+                        let mut qlist_boi = ListStandardItemMutPtr::new(());
+
+                        // Create an empty row.
+                        let mut column_name = StandardItem::new(());
+                        let mut column_number = StandardItem::new(());
+                        let mut row = StandardItem::new(());
+                        let mut text = StandardItem::new(());
+
+                        column_name.set_text(&QString::from_std_str(&match_row.column_name));
+                        column_number.set_data((&Variant::new2(match_row.column_number), 2));
+                        row.set_data((&Variant::new2(match_row.row_number + 1), 2));
+                        text.set_text(&QString::from_std_str(&match_row.contents));
+
+                        column_name.set_editable(false);
+                        column_number.set_editable(false);
+                        row.set_editable(false);
+                        text.set_editable(false);
+
+                        // Add an empty row to the list.
+                        unsafe { qlist_boi.append_unsafe(&column_name.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&row.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&text.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&column_number.into_raw()); }
+
+                        // Append the new row.
+                        file.append_row(&qlist_boi);
+                    }
+                    unsafe { qlist_daddy.append_unsafe(&file.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill1.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill2.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill3.into_raw()); }
+                    model.append_row(&qlist_daddy);
                 }
             }
 
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
-            model.set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Column"))));
+            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
 
             // Hide the column number column for tables.
-            table_view.hide_column(4);
-            table_view.sort_by_column((0, SortOrder::Ascending));
+            tree_view.hide_column(3);
+            tree_view.sort_by_column((0, SortOrder::Ascending));
 
-            unsafe { table_view.horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+            unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+        }
+    }
+
+    /// This function takes care of loading the results of a global search of `TextMatches` into a model.
+    pub fn load_text_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[TextMatches]) {
+        if !matches.is_empty() {
+
+            for match_table in matches {
+                if !match_table.matches.is_empty() {
+                    let path = match_table.path.join("/");
+                    let mut qlist_daddy = ListStandardItemMutPtr::new(());
+                    let mut file = StandardItem::new(());
+                    let mut fill1 = StandardItem::new(());
+                    let mut fill2 = StandardItem::new(());
+                    let mut fill3 = StandardItem::new(());
+                    file.set_text(&QString::from_std_str(&path));
+                    file.set_editable(false);
+                    fill1.set_editable(false);
+                    fill2.set_editable(false);
+                    fill3.set_editable(false);
+
+                    for match_row in &match_table.matches {
+
+                        // Create a new list of StandardItem.
+                        let mut qlist_boi = ListStandardItemMutPtr::new(());
+
+                        // Create an empty row.
+                        let mut column = StandardItem::new(());
+                        let mut row = StandardItem::new(());
+                        let mut len = StandardItem::new(());
+
+                        column.set_data((&Variant::new0(match_row.column), 2));
+                        row.set_data((&Variant::new0(match_row.row + 1), 2));
+                        len.set_data((&Variant::new2(match_row.len), 2));
+
+                        column.set_editable(false);
+                        row.set_editable(false);
+                        len.set_editable(false);
+
+                        // Add an empty row to the list.
+                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&row.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&len.into_raw()); }
+
+                        // Append the new row.
+                        file.append_row(&qlist_boi);
+                    }
+                    unsafe { qlist_daddy.append_unsafe(&file.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill1.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill2.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill3.into_raw()); }
+                    model.append_row(&qlist_daddy);
+                }
+            }
+
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Column"))));
+            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
+
+            // Hide the column number column for tables.
+            tree_view.hide_column(3);
+            tree_view.sort_by_column((0, SortOrder::Ascending));
+
+            unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+        }
+    }
+
+    /// This function takes care of loading the results of a global search of `SchemaMatches` into a model.
+    pub fn load_schema_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[SchemaMatches]) {
+        if !matches.is_empty() {
+
+            for match_table in matches {
+                if !match_table.matches.is_empty() {
+                    let mut qlist_daddy = ListStandardItemMutPtr::new(());
+                    let mut file = StandardItem::new(());
+                    let mut fill1 = StandardItem::new(());
+                    let mut fill2 = StandardItem::new(());
+                    let mut fill3 = StandardItem::new(());
+                    file.set_editable(false);
+                    fill1.set_editable(false);
+                    fill2.set_editable(false);
+                    fill3.set_editable(false);
+
+                    for match_row in &match_table.matches {
+
+                        // Create a new list of StandardItem.
+                        let mut qlist_boi = ListStandardItemMutPtr::new(());
+
+                        // Create an empty row.
+                        let mut column = StandardItem::new(());
+                        let mut version = StandardItem::new(());
+
+                        column.set_data((&Variant::new2(match_row.column), 2));
+                        version.set_data((&Variant::new0(match_row.version), 2));
+
+                        column.set_editable(false);
+                        version.set_editable(false);
+
+                        // Add an empty row to the list.
+                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&version.into_raw()); }
+
+                        // Append the new row.
+                        file.append_row(&qlist_boi);
+                    }
+                    unsafe { qlist_daddy.append_unsafe(&file.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill1.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill2.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&fill3.into_raw()); }
+                    model.append_row(&qlist_daddy);
+                }
+            }
+
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Column"))));
+            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
+
+            // Hide the column number column for tables.
+            tree_view.hide_column(3);
+            tree_view.sort_by_column((0, SortOrder::Ascending));
+
+            unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
         }
     }
 
@@ -457,12 +609,12 @@ impl GlobalSearch {
         CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchUpdate(global_search, paths));
 
         // While we wait for an answer, we need to clear the current results panels.
-        let table_view_db = unsafe { ui.global_search_matches_db_table_view.as_mut().unwrap() };
-        let table_view_loc = unsafe { ui.global_search_matches_loc_table_view.as_mut().unwrap() };
+        let tree_view_db = unsafe { ui.global_search_matches_db_tree_view.as_mut().unwrap() };
+        let tree_view_loc = unsafe { ui.global_search_matches_loc_tree_view.as_mut().unwrap() };
 
-        let model_db = unsafe { ui.global_search_matches_db_table_model.as_mut().unwrap() };
-        let model_loc = unsafe { ui.global_search_matches_loc_table_model.as_mut().unwrap() };
-        
+        let model_db = unsafe { ui.global_search_matches_db_tree_model.as_mut().unwrap() };
+        let model_loc = unsafe { ui.global_search_matches_loc_tree_model.as_mut().unwrap() };
+
         model_db.clear();
         model_loc.clear();
 
@@ -470,8 +622,8 @@ impl GlobalSearch {
             Response::GlobalSearch(global_search) => {
 
                 // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                GlobalSearch::load_table_matches_to_ui(model_db, table_view_db, &global_search.matches_db);
-                GlobalSearch::load_table_matches_to_ui(model_loc, table_view_loc, &global_search.matches_loc);
+                GlobalSearch::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
+                GlobalSearch::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
             }
 
             // In ANY other situation, it's a message problem.
@@ -480,7 +632,7 @@ impl GlobalSearch {
     }
 
     /// This function performs a search over the provided DB Table.
-    fn search_on_db(&mut self, path: &[String], table_data: &DB, matching_mode: &MatchingMode) {
+    fn search_on_db(&self, path: &[String], table_data: &DB, matching_mode: &MatchingMode) -> TableMatches {
         let mut matches = TableMatches::new(path);
 
         for (row_number, row) in table_data.get_ref_table_data().iter().enumerate() {
@@ -498,16 +650,16 @@ impl GlobalSearch {
                     DecodedData::StringU16(ref data) |
                     DecodedData::OptionalStringU8(ref data) |
                     DecodedData::OptionalStringU16(ref data) => self.match_decoded_data(data, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::Sequence(_) => continue, 
+                    DecodedData::Sequence(_) => continue,
                 }
             }
         }
 
-        if !matches.matches.is_empty() { self.matches_db.push(matches); }
+        matches
     }
 
     /// This function performs a search over the provided Loc Table.
-    fn search_on_loc(&mut self, path: &[String], table_data: &Loc, matching_mode: &MatchingMode) {
+    fn search_on_loc(&self, path: &[String], table_data: &Loc, matching_mode: &MatchingMode) -> TableMatches {
         let mut matches = TableMatches::new(path);
 
         for (row_number, row) in table_data.get_ref_table_data().iter().enumerate() {
@@ -525,16 +677,16 @@ impl GlobalSearch {
                     DecodedData::StringU16(ref data) |
                     DecodedData::OptionalStringU8(ref data) |
                     DecodedData::OptionalStringU16(ref data) => self.match_decoded_data(data, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::Sequence(_) => continue, 
+                    DecodedData::Sequence(_) => continue,
                 }
             }
         }
 
-        if !matches.matches.is_empty() { self.matches_loc.push(matches); }
+        matches
     }
 
     /// This function performs a search over the provided Text PackedFile.
-    fn search_on_text(&mut self, path: &[String], data: &Text, matching_mode: &MatchingMode) {
+    fn search_on_text(&self, path: &[String], data: &Text, matching_mode: &MatchingMode) -> TextMatches {
         let mut matches = TextMatches::new(path);
         match matching_mode {
             MatchingMode::Regex(regex) => {
@@ -571,7 +723,7 @@ impl GlobalSearch {
             }
         }
 
-        if !matches.matches.is_empty() { self.matches_text.push(matches); }
+        matches
     }
 
 
@@ -580,8 +732,8 @@ impl GlobalSearch {
         for versioned_file in schema.get_ref_versioned_file_all() {
             let mut matches = vec![];
             match versioned_file {
-                VersionedFile::DB(_, definitions) | 
-                VersionedFile::Loc(definitions) | 
+                VersionedFile::DB(_, definitions) |
+                VersionedFile::Loc(definitions) |
                 VersionedFile::DepManager(definitions)  => {
 
                     match matching_mode {
@@ -620,8 +772,8 @@ impl GlobalSearch {
 
     /// This function check if the provided `&str` matches our search.
     fn match_decoded_data(
-        &mut self, 
-        text: &str, 
+        &self,
+        text: &str,
         matching_mode: &MatchingMode,
         matches: &mut Vec<TableMatch>,
         definition: &Definition,
@@ -632,14 +784,14 @@ impl GlobalSearch {
             MatchingMode::Regex(regex) => {
                 if regex.is_match(&text) {
                     let column_name = &definition.fields[column_number as usize].name;
-                    matches.push(TableMatch::new(&column_name, column_number, row_number, text)); 
+                    matches.push(TableMatch::new(&column_name, column_number, row_number, text));
                 }
             }
 
             MatchingMode::Pattern => {
                 if text.contains(&self.pattern) {
                     let column_name = &definition.fields[column_number as usize].name;
-                    matches.push(TableMatch::new(column_name, column_number, row_number, text)); 
+                    matches.push(TableMatch::new(column_name, column_number, row_number, text));
                 }
             }
         }

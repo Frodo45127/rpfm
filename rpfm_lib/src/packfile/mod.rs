@@ -21,6 +21,7 @@ so you don't have to worry about that.
 
 use bitflags::bitflags;
 use itertools::{Itertools, Either};
+use rayon::prelude::*;
 
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
@@ -40,7 +41,7 @@ use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
-use crate::packedfile::{DecodedData, DecodedPackedFile};
+use crate::packedfile::{DecodedData, DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::db::DB;
 use crate::packedfile::table::loc::Loc;
 
@@ -456,7 +457,7 @@ impl PackFile {
 
     /// This function retuns the list of PackedFiles inside a `PackFile`.
     pub fn get_packedfiles_list(&self) -> Vec<Vec<String>> {
-        self.packed_files.iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()
+        self.packed_files.par_iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()
     }
 
     /// This function adds a `PackedFiles` to an existing `PackFile`.
@@ -585,7 +586,7 @@ impl PackFile {
 
                 // If we want to add an entire PackedFile, just repeat the process with all the `PackedFiles`.
                 PathType::PackFile => {
-                    for packed_file in source.get_ref_all_packed_files() {
+                    for packed_file in source.get_ref_packed_files_all() {
                         match self.add_packed_file(&packed_file, overwrite) {
                             Ok(path) => paths_ok.push(PathType::File(path)),
                             Err(_) =>  paths_err.push(PathType::File(packed_file.get_ref_raw().get_path().to_vec())),
@@ -679,92 +680,113 @@ impl PackFile {
 
     /// This function returns a reference to the `PackedFile` with the provided path, if exists.
     pub fn get_ref_packed_file_by_path(&self, path: &[String]) -> Option<&PackedFile> {
-        self.packed_files.iter().find(|x| x.get_ref_raw().get_path() == path)
+        self.packed_files.par_iter().find_first(|x| x.get_ref_raw().get_path() == path)
     }
 
     /// This function returns a mutable reference to the `PackedFile` with the provided path, if exists.
     pub fn get_ref_mut_packed_file_by_path(&mut self, path: &[String]) -> Option<&mut PackedFile> {
-        self.packed_files.iter_mut().find(|x| x.get_ref_raw().get_path() == path)
+        self.packed_files.par_iter_mut().find_first(|x| x.get_ref_raw().get_path() == path)
     }
 
     /// This function returns a copy of all the `PackedFiles` starting with the provided path.
     pub fn get_packed_files_by_path_start(&self, path: &[String]) -> Vec<PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).cloned().collect()
+        self.packed_files.par_iter().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).cloned().collect()
     }
 
     /// This function returns a reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_packed_files_by_path_start(&self, path: &[String]) -> Vec<&PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
+        self.packed_files.par_iter().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
     }
 
     /// This function returns a mutable reference of all the `PackedFiles` starting with the provided path.
     pub fn get_ref_mut_packed_files_by_path_start(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
-        self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
+        self.packed_files.par_iter_mut().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
     }
 
     /// This function returns a copy of all the `PackedFiles` ending with the provided path.
     pub fn get_packed_files_by_path_end(&self, path: &[String]) -> Vec<PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).cloned().collect()
+        self.packed_files.par_iter().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).cloned().collect()
     }
 
     /// This function returns a reference of all the `PackedFiles` ending with the provided path.
     pub fn get_ref_packed_files_by_path_end(&self, path: &[String]) -> Vec<&PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).collect()
+        self.packed_files.par_iter().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).collect()
     }
 
     /// This function returns a mutable reference of all the `PackedFiles` ending with the provided path.
     pub fn get_ref_mut_packed_files_by_path_end(&mut self, path: &[String]) -> Vec<&mut PackedFile> {
-        self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).collect()
+        self.packed_files.par_iter_mut().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).collect()
     }
 
     /// This function returns a copy of all the `PackedFiles` ending with the provided extension.
     pub fn get_packed_files_by_extension(&self, extension: &str) -> Vec<PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).cloned().collect()
+        self.packed_files.par_iter().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).cloned().collect()
     }
 
     /// This function returns a reference of all the `PackedFiles` ending with the provided extension.
     pub fn get_ref_packed_files_by_extension(&self, extension: &str) -> Vec<&PackedFile> {
-        self.packed_files.iter().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).collect()
+        self.packed_files.par_iter().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).collect()
     }
 
     /// This function returns a mutable reference of all the `PackedFiles` ending with the provided extension.
     pub fn get_ref_mut_packed_files_by_extension(&mut self, extension: &str) -> Vec<&mut PackedFile> {
-        self.packed_files.iter_mut().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).collect()
+        self.packed_files.par_iter_mut().filter(|x| x.get_ref_raw().get_path().last().unwrap().ends_with(extension) && !extension.is_empty()).collect()
+    }
+
+    /// This function returns a copy of all the PackedFiles in the current PackFile of the provided type.
+    ///
+    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` the type.
+    pub fn get_packed_files_by_type(&self, packed_file_type: &PackedFileType) -> Vec<PackedFile> {
+        self.packed_files.par_iter().filter(|x| &PackedFileType::get_packed_file_type(x.get_ref_raw().get_path()) == packed_file_type).cloned().collect()
+    }
+
+    /// This function returns a reference of all the PackedFiles in the current PackFile of the provided type.
+    ///
+    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` the type.
+    pub fn get_ref_packed_files_by_type(&self, packed_file_type: &PackedFileType) -> Vec<&PackedFile> {
+        self.packed_files.par_iter().filter(|x| &PackedFileType::get_packed_file_type(x.get_ref_raw().get_path()) == packed_file_type).collect()
+    }
+
+    /// This function returns a mutable reference of all the PackedFiles in the current PackFile of the provided type.
+    ///
+    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` the type.
+    pub fn get_ref_mut_packed_files_by_type(&mut self, packed_file_type: &PackedFileType) -> Vec<&mut PackedFile> {
+        self.packed_files.par_iter_mut().filter(|x| &PackedFileType::get_packed_file_type(x.get_ref_raw().get_path()) == packed_file_type).collect()
     }
 
     /// This function returns a copy of all `PackedFiles` in the provided `PackFile`.
-    pub fn get_all_packed_files(&self) -> Vec<PackedFile> {
+    pub fn get_packed_files_all(&self) -> Vec<PackedFile> {
         self.packed_files.clone()
     }
 
     /// This function returns a reference of all the `PackedFiles` in the provided `PackFile`.
-    pub fn get_ref_all_packed_files(&self) -> Vec<&PackedFile> {
-        self.packed_files.iter().collect()
+    pub fn get_ref_packed_files_all(&self) -> Vec<&PackedFile> {
+        self.packed_files.par_iter().collect()
     }
 
     /// This function returns a mutable reference of all the `PackedFiles` in the provided `PackFile`.
-    pub fn get_ref_mut_all_packed_files(&mut self) -> Vec<&mut PackedFile> {
-        self.packed_files.iter_mut().collect()
+    pub fn get_ref_mut_packed_files_all(&mut self) -> Vec<&mut PackedFile> {
+        self.packed_files.par_iter_mut().collect()
     }
 
     /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile`.
-    pub fn get_all_packed_files_paths(&self) -> Vec<Vec<String>> {
-        self.packed_files.iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()
+    pub fn get_packed_files_all_paths(&self) -> Vec<Vec<String>> {
+        self.packed_files.par_iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()
     }
 
     /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile`.
     pub fn get_ref_all_packed_files_paths(&self) -> Vec<&[String]> {
-        self.packed_files.iter().map(|x| x.get_ref_raw().get_path()).collect()
+        self.packed_files.par_iter().map(|x| x.get_ref_raw().get_path()).collect()
     }
 
     /// This function returns a copy of all the `PackedFileInfo` corresponding to the provided `PackFile`.
-    pub fn get_all_packed_files_info(&self) -> Vec<PackedFileInfo> {
-        self.packed_files.iter().map(|x| From::from(x)).collect()
+    pub fn get_packed_files_all_info(&self) -> Vec<PackedFileInfo> {
+        self.packed_files.par_iter().map(|x| From::from(x)).collect()
     }
 
     /// This function returns a copy of the `PackedFileInfo` of the `Packedfile` in the provided path.
     pub fn get_packed_file_info_by_path(&self, path: &[String]) -> Option<PackedFileInfo> {
-        self.packed_files.iter().find(|x| x.get_ref_raw().get_path() == path).map(|x| From::from(x))
+        self.packed_files.par_iter().find_first(|x| x.get_ref_raw().get_path() == path).map(|x| From::from(x))
     }
 
     /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
@@ -933,7 +955,7 @@ impl PackFile {
             4 | 5 | 6 | 7 => {
 
                 // For each PackedFile we have, just extracted in the folder we got, under the PackFile's folder.
-                for packed_file in self.get_ref_all_packed_files() {
+                for packed_file in self.get_ref_packed_files_all() {
                     match self.extract_packed_file_by_path(packed_file.get_ref_raw().get_path(), extracted_path) {
                         Ok(_) => files_extracted += 1,
                         Err(_) => error_files.push(format!("{:?}", packed_file.get_ref_raw().get_path())),
@@ -957,7 +979,7 @@ impl PackFile {
 
     /// This function enables/disables compression in all `PackedFiles` inside the `PackFile`. Partial compression is not supported.
     pub fn toggle_compression(&mut self, enable: bool) {
-        self.packed_files.iter_mut().for_each(|x| x.get_ref_mut_raw().set_should_be_compressed(enable));
+        self.packed_files.par_iter_mut().for_each(|x| x.get_ref_mut_raw().set_should_be_compressed(enable));
     }
 
     /// This function returns the notes contained within the provided `PackFile`.
@@ -1343,7 +1365,7 @@ impl PackFile {
             });
 
         // We do this in two passes. First, we optimize the data inside the `PackedFiles`. Then, we do a *cleaning* pass, removing empty or useless `PackedFiles`.
-        for packed_file in self.get_ref_mut_all_packed_files() {
+        for packed_file in self.get_ref_mut_packed_files_all() {
             let path = packed_file.get_ref_raw().get_path().to_vec();
 
             // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
@@ -1657,11 +1679,11 @@ impl PackFile {
             for path in packs_paths {
                 match Self::read(&path, use_lazy_loading) {
                     Ok(pack) => match pack.get_pfh_file_type() {
-                        PFHFileType::Boot => boot_files.append(&mut pack.get_all_packed_files()),
-                        PFHFileType::Release => release_files.append(&mut pack.get_all_packed_files()),
-                        PFHFileType::Patch => patch_files.append(&mut pack.get_all_packed_files()),
-                        PFHFileType::Mod => mod_files.append(&mut pack.get_all_packed_files()),
-                        PFHFileType::Movie => movie_files.append(&mut pack.get_all_packed_files()),
+                        PFHFileType::Boot => boot_files.append(&mut pack.get_packed_files_all()),
+                        PFHFileType::Release => release_files.append(&mut pack.get_packed_files_all()),
+                        PFHFileType::Patch => patch_files.append(&mut pack.get_packed_files_all()),
+                        PFHFileType::Mod => mod_files.append(&mut pack.get_packed_files_all()),
+                        PFHFileType::Movie => movie_files.append(&mut pack.get_packed_files_all()),
 
                         // If we find an unknown one, return an error.
                         PFHFileType::Other(_) => return Err(ErrorKind::PackFileTypeUknown)?,

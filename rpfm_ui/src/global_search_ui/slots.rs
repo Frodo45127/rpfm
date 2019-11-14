@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -48,7 +48,7 @@ impl GlobalSearchSlots {
 	pub fn new(global_search_ui: GlobalSearchUI) -> Self {
 
         // What happens when we trigger the "Global Search" action.
-        let global_search_search = SlotNoArgs::new(move || { 
+        let global_search_search = SlotNoArgs::new(move || {
 
             // Create the global search and populate it with all the settings for the search.
             let mut global_search = GlobalSearch::default();
@@ -73,24 +73,32 @@ impl GlobalSearchSlots {
             CENTRAL_COMMAND.send_message_qt(Command::GlobalSearch(global_search));
 
             // While we wait for an answer, we need to clear the current results panels.
-            let table_view_db = unsafe { global_search_ui.global_search_matches_db_table_view.as_mut().unwrap() };
-            let table_view_loc = unsafe { global_search_ui.global_search_matches_loc_table_view.as_mut().unwrap() };
+            let tree_view_db = unsafe { global_search_ui.global_search_matches_db_tree_view.as_mut().unwrap() };
+            let tree_view_loc = unsafe { global_search_ui.global_search_matches_loc_tree_view.as_mut().unwrap() };
+            let tree_view_text = unsafe { global_search_ui.global_search_matches_text_tree_view.as_mut().unwrap() };
+            let tree_view_schema = unsafe { global_search_ui.global_search_matches_schema_tree_view.as_mut().unwrap() };
 
-            let model_db = unsafe { global_search_ui.global_search_matches_db_table_model.as_mut().unwrap() };
-            let model_loc = unsafe { global_search_ui.global_search_matches_loc_table_model.as_mut().unwrap() };
-            
+            let model_db = unsafe { global_search_ui.global_search_matches_db_tree_model.as_mut().unwrap() };
+            let model_loc = unsafe { global_search_ui.global_search_matches_loc_tree_model.as_mut().unwrap() };
+            let model_text = unsafe { global_search_ui.global_search_matches_text_tree_model.as_mut().unwrap() };
+            let model_schema = unsafe { global_search_ui.global_search_matches_schema_tree_model.as_mut().unwrap() };
+
             model_db.clear();
             model_loc.clear();
+            model_text.clear();
+            model_schema.clear();
 
             match CENTRAL_COMMAND.recv_message_qt() {
                 Response::GlobalSearch(global_search) => {
-                    
-                    println!("{:?}", t.elapsed());
+
+                    println!("Time to search from click to search complete: {:?}", t.elapsed().unwrap());
 
                     // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                    GlobalSearch::load_table_matches_to_ui(model_db, table_view_db, &global_search.matches_db);
-                    GlobalSearch::load_table_matches_to_ui(model_loc, table_view_loc, &global_search.matches_loc);
-                    println!("{:?}", global_search);
+                    GlobalSearch::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
+                    GlobalSearch::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
+                    GlobalSearch::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
+                    GlobalSearch::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
+                    //println!("{:?}", global_search);
                     UI_STATE.set_global_search(&global_search);
                 }
 
@@ -100,7 +108,7 @@ impl GlobalSearchSlots {
         });
 
         // What happens when we trigger the "Check Regex" action.
-        let global_search_check_regex = SlotStringRef::new(move |string| { 
+        let global_search_check_regex = SlotStringRef::new(move |string| {
             let mut palette = Palette::new(());
             if unsafe { global_search_ui.global_search_use_regex_checkbox.as_ref().unwrap().is_checked() } {
                 if Regex::new(&string.to_std_string()).is_ok() {

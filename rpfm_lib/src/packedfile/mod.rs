@@ -63,7 +63,7 @@ pub enum DecodedPackedFile {
 /// This enum specifies the different types of `PackedFile` we can find in a `PackFile`.
 ///
 /// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PackedFileType {
     Anim,
     AnimFragment,
