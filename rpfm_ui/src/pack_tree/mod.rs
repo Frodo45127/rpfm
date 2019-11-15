@@ -27,6 +27,7 @@ use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::variant::Variant;
 
 use chrono::naive::NaiveDateTime;
+use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
@@ -644,14 +645,13 @@ impl PackTree for *mut TreeView {
                 big_parent.set_data((&Variant::new0(ITEM_STATUS_PRISTINE), ITEM_STATUS));
                 let icon_type = IconType::PackFile(is_extra_packfile);
                 icon_type.set_icon_to_item_safe(&mut big_parent);
-                unsafe { model.append_row_unsafe(big_parent.into_raw()); }
 
                 // We sort the paths with this horrific monster I don't want to touch ever again, using the following format:
                 // - FolderA
                 // - FolderB
                 // - FileA
                 // - FileB
-                sorted_path_list.sort_unstable_by(|a, b| {
+                sorted_path_list.par_sort_unstable_by(|a, b| {
                     let a = &a.path;
                     let b = &b.path;
                     let mut index = 0;
@@ -702,7 +702,7 @@ impl PackTree for *mut TreeView {
 
                     // First, we reset the parent to the big_parent (the PackFile).
                     // Then, we form the path ("parent -> child" style path) to add to the model.
-                    let mut parent = unsafe { model.item(0).as_mut().unwrap() };
+                    let mut parent = unsafe { big_parent.as_mut_ptr().as_mut().unwrap() };
                     for (index_in_path, name) in packed_file.path.iter().enumerate() {
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
@@ -765,6 +765,9 @@ impl PackTree for *mut TreeView {
                         }
                     }
                 }
+
+                // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
+                unsafe { model.append_row_unsafe(big_parent.into_raw()); }
             },
 
             // If we want to add a file/folder to the `TreeView`...
