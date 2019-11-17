@@ -215,7 +215,7 @@ pub enum PFHFileType {
 ///
 /// Keep in mind that, in the lib we don't have a reliable way to determine if a path is a file or a folder if their path conflicts.
 /// For example, if we have the folder "x/y/z/" and the file "x/y/z", and we ask the lib what type of path it's, we'll default to a file.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PathType {
 
     /// Used for PackedFile paths. Contains the path of the PackedFile.
@@ -334,65 +334,78 @@ impl Display for PFHVersion {
 /// Implementation of `PathType`.
 impl PathType {
 
-    /// This function removes duplicates and collisioned items from the provided list of `PathType`.
+    /// This function removes collisioned items from the provided list of `PathType`.
     ///
     /// This means, if you have an item of type `PackFile` it removes the rest of the items.
     /// If you have a file and a folder containing the file, it removes the file. And so on.
+    ///
+    /// NOTE: It DOES NOT remove duplicated PathTypes. This means, if you pass it a slice with the same PathType duplicated,
+    /// it'll give it you back as it came. This is for removing collisioned PathTypes, not duplicated ones!!!!
     pub fn dedup(path_types: &[Self]) -> Vec<Self> {
-        let mut item_types_clean = vec![];
-        for item_type_to_add in path_types {
-            match item_type_to_add {
+        let mut path_types = path_types.to_vec();
 
-                // If it's a file, we have to check both, if the file is duplicate and if there is a folder containing it.
-                PathType::File(ref path_to_add) => {
-                    let mut add_type = true;
-                    for item_type in path_types {
+        // As this operation can get very expensive very fast, we first check if we have a PackFile.
+        // If so, we just leave the PackFile and remove everything else.
+        let we_have_packfile = path_types.par_iter().find_any(|item| {
+            if let PathType::PackFile = item { true } else { false }
+        });
 
-                        // Skip the current file from checks.
-                        if let PathType::File(ref path) = item_type {
-                            if path == path_to_add { continue; }
-                        }
+        match we_have_packfile {
+            Some(path_type) => path_types = vec![path_type.clone(); 1],
 
-                        // If the other one is a folder that contains it, dont add it.
-                        else if let PathType::Folder(ref path) = item_type {
-                            if path_to_add.starts_with(path) {
-                                add_type = false;
-                                break;
+            // If we don't have a PackFile, we check the rest of the items (files and folders).
+            None => {
+                let we_have_folder = path_types.par_iter().any(|item| {
+                    if let PathType::Folder(_) = item { true } else { false }
+                });
+
+                // If we don't have a folder, we assume the entire set are unique files.
+                // Otherwise, we proceed to do the expensive dedup operation.
+                if we_have_folder {
+                    let items_to_remove = path_types.par_iter().filter(|item_type_to_add| {
+                        match item_type_to_add {
+
+                            // If it's a file, we have to check if there is a folder containing it.
+                            PathType::File(ref path_to_add) => {
+                                path_types.par_iter().filter(|x| {
+                                    if let PathType::File(_) = x { false } else { true }
+                                }).any(|item_type| {
+
+                                    // If the other one is a folder that contains it, dont add it.
+                                    if let PathType::Folder(ref path) = item_type {
+                                        path_to_add.starts_with(path)
+                                    } else { false }
+                                })
                             }
-                        }
-                    }
-                    if add_type { item_types_clean.push(item_type_to_add.clone()); }
-                }
 
-                // If it's a folder, we have to check if there is already another folder containing it.
-                PathType::Folder(ref path_to_add) => {
-                    let mut add_type = true;
-                    for item_type in path_types {
+                            // If it's a folder, we have to check if there is already another folder containing it.
+                            PathType::Folder(ref path_to_add) => {
+                                path_types.par_iter().filter(|x| {
+                                    if let PathType::File(_) = x { false } else { true }
+                                }).any(|item_type| {
 
-                        // If the other one is a folder that contains it, dont add it.
-                        if let PathType::Folder(ref path) = item_type {
-                            if path == path_to_add { continue; }
-                            if path_to_add.starts_with(path) {
-                                add_type = false;
-                                break;
+                                    // If the other one is a folder that contains it, dont add it.
+                                    if let PathType::Folder(ref path) = item_type {
+                                        path_to_add.starts_with(path) && path_to_add.len() > path.len()
+                                    } else { false }
+                                })
                             }
+
+                            // If we receive one of these... better start praying.
+                            _ => unimplemented!(),
                         }
-                    }
-                    if add_type { item_types_clean.push(item_type_to_add.clone()); }
-                }
+                    }).cloned().collect::<Vec<PathType>>();
 
-                // If we got the PackFile, remove everything.
-                PathType::PackFile => {
-                    item_types_clean.clear();
-                    item_types_clean.push(item_type_to_add.clone());
-                    break;
+                    // Remove the duplicated items.
+                    items_to_remove.iter().for_each(|x| {
+                        let index = path_types.iter().position(|y| x == y).unwrap();
+                        path_types.remove(index);
+                    });
                 }
-
-                // If we receive one of these... better start praying.
-                PathType::None => unimplemented!(),
             }
         }
-        item_types_clean
+
+        path_types
     }
 }
 
@@ -460,44 +473,104 @@ impl PackFile {
         self.packed_files.par_iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()
     }
 
-    /// This function adds a `PackedFiles` to an existing `PackFile`.
+    /// This function adds a `PackedFile` to an existing `PackFile`.
     ///
-    /// This function returns the paths of the `PackedFile` which got added succesfully. Also, if you set `overwrite` to `true`,
+    /// This function returns the path of the `PackedFile` which got added succesfully. Also, if you set `overwrite` to `true`,
     /// in case of conflict, the `PackedFile` is overwritten. If set to false, it'll be renamed instead.
+    ///
+    /// This is a convenience function to add just one PackedFile to our PackFile.
     pub fn add_packed_file(&mut self, packed_file: &PackedFile, overwrite: bool) -> Result<Vec<String>> {
+        self.add_packed_files(&[packed_file], overwrite).map(|x| x[0].to_vec())
+    }
+
+    /// This function adds one or more `PackedFiles` to an existing `PackFile`.
+    ///
+    /// This function returns the paths of the `PackedFiles` which got added succesfully, which should be all. Also, if you set `overwrite` to `true`,
+    /// in case of conflict the destination `PackedFiles`, if exists, are overwritten. If set to false, they'll be renamed instead.
+    ///
+    /// NOTE: This assumes the paths of the list of PackedFiles you pass it are unique among themselfs. It'll do weird things otherwise.
+    pub fn add_packed_files(&mut self, packed_files: &[&PackedFile], overwrite: bool) -> Result<Vec<Vec<String>>> {
 
         // If we hit a reserved name, stop. Don't add anything.
-        if packed_file.get_ref_raw().get_path() == RESERVED_PACKED_FILE_NAMES { return Err(ErrorKind::ReservedFiles)? }
+        let pack_file_name = self.get_file_name();
+        let reserved_names = Self::get_reserved_packed_file_names();
+        if packed_files.par_iter().any(|x| reserved_names.iter().any(|y| x.get_ref_raw().get_path() == &**y)) { return Err(ErrorKind::ReservedFiles)? }
 
-        // Get his path, and update his `PackFile` name.
-        let mut packed_file = packed_file.clone();
-        let mut destination_path = packed_file.get_ref_raw().get_path().to_vec();
-        packed_file.get_ref_mut_raw().set_packfile_name(&self.get_file_name());
-        match self.packed_files.iter().position(|x| x.get_ref_raw().get_path() == packed_file.get_ref_raw().get_path()) {
+        // Prepare the list of added paths and get all the PackedFiles with all the info needed for them to be added.
+        let mut destination_paths = Vec::with_capacity(packed_files.len());
+        let packed_files = packed_files.par_iter()
+            .map(|x| (x.get_ref_raw().get_path(), *x,
+                self.packed_files.par_iter().position_any(|y| x.get_ref_raw().get_path() == y.get_ref_raw().get_path())
+            )).collect::<Vec<(&[String], &PackedFile, Option<usize>)>>();
 
-            // Here is were the fun starts. If there is a conflict, we act depending on the `overwrite` value.
-            Some(index) => {
-                if overwrite { self.packed_files[index] = packed_file }
-                else {
-                    let reserved_names = Self::get_reserved_packed_file_names();
-                    let name_current = destination_path.last().unwrap().to_owned();
+        // Get all the PackedFiles that are not in conflict with the ones we already have in our PackFile,
+        // prepare them to be added, then add them all at once.
+        let mut packed_files_new = packed_files.par_iter()
+            .filter(|(_, _, position)| position.is_none())
+            .map(|(_, packed_file, _)| {
+                let mut packed_file = (*packed_file).clone();
+                packed_file.get_ref_mut_raw().set_packfile_name(&pack_file_name);
+                packed_file
+            })
+            .collect::<Vec<PackedFile>>();
+
+        // Prepare the paths of the no-conflict PackedFiles to be returned.
+        destination_paths.append(&mut packed_files_new.par_iter()
+            .map(|packed_file| packed_file.get_ref_raw().get_path().to_vec())
+            .collect::<Vec<Vec<String>>>());
+        self.packed_files.append(&mut packed_files_new);
+
+
+        // Now we deal with the problematic ones. If we set them to overwrite the conflicting files...we just replace them.
+        if overwrite {
+            let packed_files_conflict = packed_files.par_iter()
+                .filter(|(_, _, position)| position.is_some())
+                .map(|(_, packed_file, position)| (*packed_file, position.unwrap()))
+                .collect::<Vec<(&PackedFile, usize)>>();
+
+            packed_files_conflict.iter().for_each(|(packed_file, position)| {
+                self.packed_files[*position] = (*packed_file).clone();
+            });
+
+            destination_paths.append(&mut packed_files_conflict.par_iter()
+                .map(|(packed_file, _)| packed_file.get_ref_raw().get_path().to_vec())
+                .collect::<Vec<Vec<String>>>());
+        }
+
+        // If not, then we need to do some path testing to rename them to something that doesn't match any other PackedFile we have.
+        else {
+            let mut packed_files_conflict = packed_files.par_iter()
+                .filter(|(_, _, position)| position.is_some())
+                .map(|(path, packed_file, _)| {
+                    let mut path = path.to_vec();
+                    let mut packed_file = (*packed_file).clone();
+                    packed_file.get_ref_mut_raw().set_packfile_name(&pack_file_name);
+
+                    let name_current = path.last().unwrap().to_owned();
                     let name_splitted = name_current.split('.').collect::<Vec<&str>>();
                     let name = name_splitted[0];
                     let extension = if name_splitted.len() > 1 { name_splitted[1..].join(".") } else { "".to_owned() };
                     for number in 0.. {
                         let name = if extension.is_empty() { format!("{}_{}", name, number) } else { format!("{}_{}.{}", name, number, extension) };
-                        *destination_path.last_mut().unwrap() = name;
-                        if !self.packedfile_exists(&destination_path) && !reserved_names.contains(&destination_path) {
+                        *path.last_mut().unwrap() = name;
+                        if !self.packedfile_exists(&path) && !reserved_names.contains(&path) {
+
+                            // Ignorable result. This will never fail due to the replacing code before this.
+                            let _ = packed_file.get_ref_mut_raw().set_path(&path);
                             break;
                         }
                     }
-                }
-            }
+                    packed_file
+                })
+                .collect::<Vec<PackedFile>>();
 
-            // If there is no conflict, just add the `PackedFile`.
-            None => self.packed_files.push(packed_file),
+            destination_paths.append(&mut packed_files_conflict.par_iter()
+                .map(|packed_file| packed_file.get_ref_raw().get_path().to_vec())
+                .collect::<Vec<Vec<String>>>());
+            self.packed_files.append(&mut packed_files_conflict);
         }
-        Ok(destination_path)
+
+        Ok(destination_paths)
     }
 
     /// This function is used to add a file from disk to a `PackFile`, turning it into a `PackedFile`.
@@ -547,60 +620,62 @@ impl PackFile {
     /// This function is used to add a `PackedFile` from one `PackFile` into another.
     ///
     /// It's a ***Copy from another PackFile*** kind of function. It returns the PathTypes
-    /// of whatever got added to our `PackFile`, and the PathTypes that failed.
+    /// of whatever got added to our `PackFile`.
     pub fn add_from_packfile(
         &mut self,
         source: &Self,
         path_types: &[PathType],
         overwrite: bool,
-    ) -> (Vec<PathType>, Vec<PathType>) {
+    ) -> Result<Vec<PathType>> {
 
         // Keep the PathTypes added so we can return them to the UI easely.
-        let mut paths_ok = vec![];
-        let mut paths_err = vec![];
-
+        let paths;
         let path_types = PathType::dedup(path_types);
-        for path_type in path_types {
 
-            match path_type {
+        // As this can get very slow very quickly, we do here some... optimizations.
+        // First, we get if there are PackFiles or folders in our list of PathTypes.
+        let we_have_packfile = path_types.par_iter().any(|item| {
+            if let PathType::PackFile = item { true } else { false }
+        });
 
-                // If the `PathType` is a file, we just get the `PackedFile` and add it to our `PackFile`.
-                PathType::File(path) => {
-                    if let Some(packed_file) = source.get_ref_packed_file_by_path(&path) {
-                        match self.add_packed_file(&packed_file, overwrite) {
-                            Ok(path) => paths_ok.push(PathType::File(path)),
-                            Err(_) => paths_err.push(PathType::File(path)),
-                        }
-                    }
-                }
+        let we_have_folder = path_types.par_iter().any(|item| {
+            if let PathType::Folder(_) = item { true } else { false }
+        });
 
-                // If the `PathType` is a folder we just replicate the file behavior in a loop.
-                PathType::Folder(ref path) => {
-                    for packed_file in source.get_ref_packed_files_by_path_start(path) {
-                        match self.add_packed_file(&packed_file, overwrite) {
-                            Ok(path) => paths_ok.push(PathType::File(path)),
-                            Err(_) => paths_err.push(PathType::File(packed_file.get_ref_raw().get_path().to_vec())),
-                        }
-                    }
-                }
-
-                // If we want to add an entire PackedFile, just repeat the process with all the `PackedFiles`.
-                PathType::PackFile => {
-                    for packed_file in source.get_ref_packed_files_all() {
-                        match self.add_packed_file(&packed_file, overwrite) {
-                            Ok(path) => paths_ok.push(PathType::File(path)),
-                            Err(_) =>  paths_err.push(PathType::File(packed_file.get_ref_raw().get_path().to_vec())),
-                        }
-                    }
-                },
-
-                // In any other case, there is a problem somewhere. Otherwise, this is unreachable.
-                _ => unreachable!()
-            }
+        // Then, if we have a PackFile,... just import all PackedFiles.
+        if we_have_packfile {
+            let packed_files = source.get_ref_packed_files_all();
+            paths = self.add_packed_files(&packed_files, overwrite)?;
         }
-        (paths_ok, paths_err)
-    }
 
+        // If we only have files, get all the files we have at once, then add them all together.
+        else if !we_have_folder {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(&**path) } else { None }
+            }).collect::<Vec<&[String]>>();
+            let packed_files = source.get_ref_packed_files_by_paths(paths_files);
+            paths = self.add_packed_files(&packed_files, overwrite)?;
+        }
+
+        // Otherwise, we have a mix of Files and Folders (or folders only).
+        // In this case, we get all the individual files, then the ones inside folders.
+        // Then we merge them, and add all of them together.
+        else {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(&**path) } else { None }
+            }).collect::<Vec<&[String]>>();
+            let mut packed_files = source.get_ref_packed_files_by_paths(paths_files);
+
+            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
+                if let PathType::Folder(path) = x { Some(&**path) } else { None }
+            }).map(|path| source.get_ref_packed_files_by_path_start(path))
+            .flatten()
+            .collect::<Vec<&PackedFile>>());
+            paths = self.add_packed_files(&packed_files, overwrite)?;
+        }
+
+        Ok(paths.par_iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>())
+    }
 
     /// This function returns the name of the PackFile. If it's empty, it's an in-memory only PackFile.
     pub fn get_file_name(&self) -> String {
@@ -680,12 +755,27 @@ impl PackFile {
 
     /// This function returns a reference to the `PackedFile` with the provided path, if exists.
     pub fn get_ref_packed_file_by_path(&self, path: &[String]) -> Option<&PackedFile> {
-        self.packed_files.par_iter().find_first(|x| x.get_ref_raw().get_path() == path)
+        self.packed_files.par_iter().find_any(|x| x.get_ref_raw().get_path() == path)
     }
 
     /// This function returns a mutable reference to the `PackedFile` with the provided path, if exists.
     pub fn get_ref_mut_packed_file_by_path(&mut self, path: &[String]) -> Option<&mut PackedFile> {
-        self.packed_files.par_iter_mut().find_first(|x| x.get_ref_raw().get_path() == path)
+        self.packed_files.par_iter_mut().find_any(|x| x.get_ref_raw().get_path() == path)
+    }
+
+    /// This function returns a copy of all the `PackedFiles` in the provided paths.
+    pub fn get_packed_files_by_paths(&self, paths: Vec<&[String]>) -> Vec<PackedFile> {
+        self.packed_files.par_iter().filter(|x| paths.contains(&x.get_ref_raw().get_path())).cloned().collect()
+    }
+
+    /// This function returns a reference of all the `PackedFiles` in the provided paths.
+    pub fn get_ref_packed_files_by_paths(&self, paths: Vec<&[String]>) -> Vec<&PackedFile> {
+        self.packed_files.par_iter().filter(|x| paths.contains(&x.get_ref_raw().get_path())).collect()
+    }
+
+    /// This function returns a mutable reference of all the `PackedFiles` in the provided paths.
+    pub fn get_ref_mut_packed_files_by_paths(&mut self, paths: Vec<&[String]>) -> Vec<&mut PackedFile> {
+        self.packed_files.par_iter_mut().filter(|x| paths.contains(&x.get_ref_raw().get_path())).collect()
     }
 
     /// This function returns a copy of all the `PackedFiles` starting with the provided path.
@@ -791,7 +881,7 @@ impl PackFile {
 
     /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
     pub fn remove_packed_file_by_path(&mut self, path: &[String]) {
-        if let Some(position) = self.packed_files.iter().position(|x| x.get_ref_raw().get_path() == path) {
+        if let Some(position) = self.packed_files.par_iter().position_any(|x| x.get_ref_raw().get_path() == path) {
             self.packed_files.remove(position);
         }
     }
@@ -1049,12 +1139,12 @@ impl PackFile {
 
     /// This function checks if a `PackedFile` with a certain path exists in a `PackFile`.
     pub fn packedfile_exists(&self, path: &[String]) -> bool {
-        self.packed_files.iter().any(|x| x.get_ref_raw().get_path() == path)
+        self.packed_files.par_iter().any(|x| x.get_ref_raw().get_path() == path)
     }
 
     /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
     pub fn folder_exists(&self, path: &[String]) -> bool {
-        self.packed_files.iter().any(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len())
+        self.packed_files.par_iter().any(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len())
     }
 
     /// This function allows you to change the path of a `PackedFile` inside a `PackFile`.

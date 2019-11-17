@@ -65,7 +65,7 @@ impl PackFileExtraViewSlots {
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                     CENTRAL_COMMAND.send_message_qt(Command::AddPackedFileFromPackFile(item_types));
                     match CENTRAL_COMMAND.recv_message_qt() {
-                        Response::VecPathTypeVecPathType((paths_ok, paths_err)) => {
+                        Response::VecPathType(paths_ok) => {
 
                             // If any of the PackedFiles was already open (and we overwote them) remove his view.
                             for path in &paths_ok {
@@ -102,12 +102,6 @@ impl PackFileExtraViewSlots {
                                 table_state_data.borrow_mut().insert(path.to_vec(), data);
                             }
                             */
-
-                            // If something failed, report it.
-                            if !paths_err.is_empty() {
-                                let error = ErrorKind::PackedFileCouldNotBeImported(paths_err.iter().map(|x| if let PathType::File(path) = x { path.join("/") } else { "".to_owned() }).collect::<Vec<String>>());
-                                show_dialog(app_ui.main_window as *mut Widget, error, false);
-                            }
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
                         _ => panic!(THREADS_COMMUNICATION_ERROR),

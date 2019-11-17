@@ -382,8 +382,11 @@ pub fn background_loop() {
             Command::AddPackedFileFromPackFile(paths) => {
 
                 // Try to add the PackedFile to the main PackFile.
-                let (paths_success, paths_error) = pack_file_decoded.add_from_packfile(&pack_file_decoded_extra, &paths, true);
-                CENTRAL_COMMAND.send_message_rust(Response::VecPathTypeVecPathType((paths_success, paths_error)));
+                match pack_file_decoded.add_from_packfile(&pack_file_decoded_extra, &paths, true) {
+                    Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+
+                }
             }
 
             // In case we want to decode an Image...
