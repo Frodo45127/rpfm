@@ -479,10 +479,9 @@ impl GlobalSearch {
     /// This function takes care of loading the results of a global search of `TextMatches` into a model.
     pub fn load_text_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[TextMatches]) {
         if !matches.is_empty() {
-
-            for match_table in matches {
-                if !match_table.matches.is_empty() {
-                    let path = match_table.path.join("/");
+            for match_text in matches {
+                if !match_text.matches.is_empty() {
+                    let path = match_text.path.join("/");
                     let mut qlist_daddy = ListStandardItemMutPtr::new(());
                     let mut file = StandardItem::new(());
                     let mut fill1 = StandardItem::new(());
@@ -494,27 +493,31 @@ impl GlobalSearch {
                     fill2.set_editable(false);
                     fill3.set_editable(false);
 
-                    for match_row in &match_table.matches {
+                    for match_row in &match_text.matches {
 
                         // Create a new list of StandardItem.
                         let mut qlist_boi = ListStandardItemMutPtr::new(());
 
                         // Create an empty row.
-                        let mut column = StandardItem::new(());
+                        let mut text = StandardItem::new(());
                         let mut row = StandardItem::new(());
+                        let mut column = StandardItem::new(());
                         let mut len = StandardItem::new(());
 
-                        column.set_data((&Variant::new0(match_row.column), 2));
+                        text.set_text(&QString::from_std_str(&match_row.text));
                         row.set_data((&Variant::new0(match_row.row + 1), 2));
+                        column.set_data((&Variant::new0(match_row.column), 2));
                         len.set_data((&Variant::new2(match_row.len), 2));
 
-                        column.set_editable(false);
+                        text.set_editable(false);
                         row.set_editable(false);
+                        column.set_editable(false);
                         len.set_editable(false);
 
                         // Add an empty row to the list.
-                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&text.into_raw()); }
                         unsafe { qlist_boi.append_unsafe(&row.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
                         unsafe { qlist_boi.append_unsafe(&len.into_raw()); }
 
                         // Append the new row.
@@ -528,11 +531,13 @@ impl GlobalSearch {
                 }
             }
 
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Column"))));
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Text"))));
             model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column"))));
+            model.set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Length"))));
 
-            // Hide the column number column for tables.
+            // Hide the column and lenght numbers on the TreeView.
+            tree_view.hide_column(2);
             tree_view.hide_column(3);
             tree_view.sort_by_column((0, SortOrder::Ascending));
 
@@ -544,54 +549,61 @@ impl GlobalSearch {
     pub fn load_schema_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[SchemaMatches]) {
         if !matches.is_empty() {
 
-            for match_table in matches {
-                if !match_table.matches.is_empty() {
+            for match_schema in matches {
+                if !match_schema.matches.is_empty() {
                     let mut qlist_daddy = ListStandardItemMutPtr::new(());
-                    let mut file = StandardItem::new(());
+                    let mut versioned_file = StandardItem::new(());
                     let mut fill1 = StandardItem::new(());
                     let mut fill2 = StandardItem::new(());
-                    let mut fill3 = StandardItem::new(());
-                    file.set_editable(false);
+
+                    let name = if let Some(ref name) = match_schema.versioned_file_name {
+                        format!("{}/{}", match_schema.versioned_file_type, name)
+                    } else { format!("{}", match_schema.versioned_file_type) };
+
+                    versioned_file.set_text(&QString::from_std_str(&name));
+                    versioned_file.set_editable(false);
                     fill1.set_editable(false);
                     fill2.set_editable(false);
-                    fill3.set_editable(false);
 
-                    for match_row in &match_table.matches {
+                    for match_row in &match_schema.matches {
 
                         // Create a new list of StandardItem.
                         let mut qlist_boi = ListStandardItemMutPtr::new(());
 
                         // Create an empty row.
-                        let mut column = StandardItem::new(());
+                        let mut name = StandardItem::new(());
                         let mut version = StandardItem::new(());
+                        let mut column = StandardItem::new(());
 
-                        column.set_data((&Variant::new2(match_row.column), 2));
+                        name.set_text(&QString::from_std_str(&match_row.name));
                         version.set_data((&Variant::new0(match_row.version), 2));
+                        column.set_data((&Variant::new2(match_row.column), 2));
 
-                        column.set_editable(false);
+                        name.set_editable(false);
                         version.set_editable(false);
+                        column.set_editable(false);
 
                         // Add an empty row to the list.
-                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&name.into_raw()); }
                         unsafe { qlist_boi.append_unsafe(&version.into_raw()); }
+                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
 
                         // Append the new row.
-                        file.append_row(&qlist_boi);
+                        versioned_file.append_row(&qlist_boi);
                     }
-                    unsafe { qlist_daddy.append_unsafe(&file.into_raw()); }
+                    unsafe { qlist_daddy.append_unsafe(&versioned_file.into_raw()); }
                     unsafe { qlist_daddy.append_unsafe(&fill1.into_raw()); }
                     unsafe { qlist_daddy.append_unsafe(&fill2.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill3.into_raw()); }
                     model.append_row(&qlist_daddy);
                 }
             }
 
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Column"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("VersionedFile (Type, Name)/Column Name"))));
+            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Definition Version"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column Index"))));
 
             // Hide the column number column for tables.
-            tree_view.hide_column(3);
+            tree_view.hide_column(2);
             tree_view.sort_by_column((0, SortOrder::Ascending));
 
             unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
@@ -692,7 +704,14 @@ impl GlobalSearch {
             MatchingMode::Regex(regex) => {
                 for (row, data) in data.get_ref_contents().lines().enumerate() {
                     for match_data in regex.find_iter(data) {
-                        matches.matches.push(TextMatch::new(match_data.start() as u64, row as u64, (match_data.end() - match_data.start()) as i64));
+                        matches.matches.push(
+                            TextMatch::new(
+                                match_data.start() as u64,
+                                row as u64,
+                                (match_data.end() - match_data.start()) as i64,
+                                data.to_owned()
+                            )
+                        );
                     }
                 }
             }
@@ -708,7 +727,7 @@ impl GlobalSearch {
                             Some(text) => {
                                 match text.find(&self.pattern) {
                                     Some(position) => {
-                                        matches.matches.push(TextMatch::new(column as u64, row as u64, lenght as i64));
+                                        matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
                                         column += position + lenght;
                                     }
                                     None => break,
@@ -741,7 +760,11 @@ impl GlobalSearch {
                             for definition in definitions {
                                 for (index, field) in definition.fields.iter().enumerate() {
                                     if regex.is_match(&field.name) {
-                                        matches.push(SchemaMatch::new(index as u32, definition.version));
+                                        matches.push(SchemaMatch::new(
+                                            definition.version,
+                                            index as u32,
+                                            field.name.to_owned()
+                                        ));
                                     }
                                 }
                             }
@@ -752,7 +775,11 @@ impl GlobalSearch {
                             for definition in definitions {
                                 for (index, field) in definition.fields.iter().enumerate() {
                                     if field.name.contains(&self.pattern) {
-                                        matches.push(SchemaMatch::new(index as u32, definition.version));
+                                        matches.push(SchemaMatch::new(
+                                            definition.version,
+                                            index as u32,
+                                            field.name.to_owned()
+                                        ));
                                     }
                                 }
                             }
@@ -762,7 +789,12 @@ impl GlobalSearch {
             }
 
             if !matches.is_empty() {
-                let mut schema_matches = SchemaMatches::new(versioned_file);
+                let (versioned_file_type, versioned_file_name) = match versioned_file {
+                    VersionedFile::DB(name, _) => ("DB".to_owned(), Some(name.to_owned())),
+                    VersionedFile::Loc(_) => ("Loc".to_owned(), None),
+                    VersionedFile::DepManager(_) => ("Dependency Manager".to_owned(), None),
+                };
+                let mut schema_matches = SchemaMatches::new(versioned_file_type, versioned_file_name);
                 schema_matches.matches = matches;
                 self.matches_schema.push(schema_matches);
             }

@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -41,6 +41,9 @@ pub struct TextMatch {
 
     // Lenght of the matched pattern.
     pub len: i64,
+
+    // Line of text containing the match.
+    pub text: String,
 }
 
 //-------------------------------------------------------------------------------//
@@ -63,11 +66,12 @@ impl TextMatches {
 impl TextMatch {
 
     /// This function creates a new `TextMatch` with the provided data.
-    pub fn new(column: u64, row: u64, len: i64) -> Self {
+    pub fn new(column: u64, row: u64, len: i64, text: String) -> Self {
         Self {
             column,
             row,
             len,
+            text,
         }
     }
 }
