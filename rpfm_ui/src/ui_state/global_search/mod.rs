@@ -151,7 +151,7 @@ impl GlobalSearch {
             if self.search_on_dbs {
                 let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::DB);
                 self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    let path = packed_file.get_ref_raw().get_path().to_vec();
+                    let path = packed_file.get_path().to_vec();
                     if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
                         if let DecodedPackedFile::DB(data) = decoded_packed_file {
                             Some(self.search_on_db(&path, &data, &matching_mode))
@@ -163,7 +163,7 @@ impl GlobalSearch {
             if self.search_on_locs {
                 let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Loc);
                 self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    let path = packed_file.get_ref_raw().get_path().to_vec();
+                    let path = packed_file.get_path().to_vec();
                     if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
                         if let DecodedPackedFile::Loc(data) = decoded_packed_file {
                             Some(self.search_on_loc(&path, &data, &matching_mode))
@@ -175,7 +175,7 @@ impl GlobalSearch {
             if self.search_on_texts {
                 let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Text);
                 self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
-                    let path = packed_file.get_ref_raw().get_path().to_vec();
+                    let path = packed_file.get_path().to_vec();
                     if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
                         if let DecodedPackedFile::Text(data) = decoded_packed_file {
                             Some(self.search_on_text(&path, &data, &matching_mode))
@@ -217,7 +217,7 @@ impl GlobalSearch {
         for path_type in updated_paths {
             match path_type {
                 PathType::File(path) => paths.push(path.to_vec()),
-                PathType::Folder(path) => paths.append(&mut pack_file.get_ref_packed_files_by_path_start(path).iter().map(|x| x.get_ref_raw().get_path().to_vec()).collect()),
+                PathType::Folder(path) => paths.append(&mut pack_file.get_ref_packed_files_by_path_start(path).iter().map(|x| x.get_path().to_vec()).collect()),
                 _ => unimplemented!()
             }
         }

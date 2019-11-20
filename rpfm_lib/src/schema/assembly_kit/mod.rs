@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -46,7 +46,7 @@ use crate::schema::*;
 //---------------------------------------------------------------------------//
 
 /// This is the raw equivalent to a `Definition` struct. In files, this is the equivalent to a `TWaD_` file.
-/// 
+///
 /// It contains a vector with all the fields that forms it.
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize)]
@@ -167,10 +167,10 @@ pub fn generate_pak_file(
                 let file_name = definition.file_name().unwrap().to_str().unwrap().split_at(5).1;
                 let file_name_no_xml = file_name.split_at(file_name.len() - 4).0;
                 let table_name = format!("{}_tables", file_name_no_xml);
-                
+
                 // This file is present in Rome 2, Attila and Thrones. It's almost 400mb. And we don't need it.
                 if file_name == "translated_texts.xml" { continue; }
-                
+
                 let definition_file = File::open(&definition).unwrap();
                 let mut data_file = {
                     let mut result = Err(Error::from(ErrorKind::IOFileNotFound));
@@ -188,7 +188,7 @@ pub fn generate_pak_file(
                 // If the table already exist in the data.pack, skip it.
                 let mut exist = false;
                 for table in &*dep_db {
-                    if table.get_ref_raw().get_path()[1] == table_name {
+                    if table.get_path()[1] == table_name {
                         exist = true;
                         break;
                     }
@@ -204,8 +204,8 @@ pub fn generate_pak_file(
                 // rows in each file is not supported for deserializing. Same for the fields, we have to change them to something more generic.
                 let mut buffer = String::new();
                 data_file.read_to_string(&mut buffer)?;
-                buffer = buffer.replace(&format!("<{} record_uuid", file_name_no_xml), "<rows record_uuid"); 
-                buffer = buffer.replace(&format!("<{}>", file_name_no_xml), "<rows>"); 
+                buffer = buffer.replace(&format!("<{} record_uuid", file_name_no_xml), "<rows record_uuid");
+                buffer = buffer.replace(&format!("<{}>", file_name_no_xml), "<rows>");
                 buffer = buffer.replace(&format!("</{}>", file_name_no_xml), "</rows>");
                 for field in &imported_table_definition.fields {
                     let field_name_regex = Regex::new(&format!("\n<{}>", field.name)).unwrap();
@@ -222,7 +222,7 @@ pub fn generate_pak_file(
                 buffer = field_data_regex1.replace_all(&buffer, "\">Frodo Best Waifu</datafield>").to_string();
                 buffer = field_data_regex2.replace_all(&buffer, "\"> Frodo Best Waifu</datafield>").to_string();
                 buffer = field_data_regex3.replace_all(&buffer, "\">  Frodo Best Waifu</datafield>").to_string();
-                
+
                 // Only if the table has data we deserialize it.
                 if buffer.contains("</rows>\r\n</dataroot>") {
                     //if cfg!(debug_assertions) { println!("{}", buffer); }
@@ -249,7 +249,7 @@ pub fn generate_pak_file(
                                         FieldType::StringU16 => DecodedData::StringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
                                         FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
                                         FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
-                                        
+
                                         // This type is not used in the raw tables so, if we find it, we skip it.
                                         FieldType::Sequence(_) => continue,
                                     });
@@ -289,7 +289,7 @@ pub fn generate_pak_file(
     let game_selected = GAME_SELECTED.lock().unwrap();
     let pak_name = SUPPORTED_GAMES.get(&**game_selected).unwrap().pak_file.clone().unwrap();
     pak_path.push("pak_files");
-    
+
     DirBuilder::new().recursive(true).create(&pak_path)?;
     pak_path.push(pak_name);
 
@@ -297,21 +297,21 @@ pub fn generate_pak_file(
     file.write_all(&bincode::serialize(&processed_db_files)?)?;
 
     // If we reach this point, return success.
-    Ok(())   
+    Ok(())
 }
 
 /// This function uses the provided Assembly Kit path to *complete* our schema's missing data.
 ///
-/// It takes the Assembly Kit's DB Files and matches them against our own schema files, filling missing info, 
+/// It takes the Assembly Kit's DB Files and matches them against our own schema files, filling missing info,
 /// or even generating new definitions if there are none for the tables.
-/// 
+///
 /// It requires:
 /// - schema: The schema where all the definitions will be put. None to put all the definitions into a new schema.
 /// - assembly_kit_schemas_path: this is the path with the TWaD_*****.xml syntax. They are usually in GameFolder/assembly_kit/raw_data/db/.
 /// - db_binary_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table inside.
 pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()> {
     if let Some(mut schema) = SCHEMA.lock().unwrap().clone() {
-        
+
         // This has to do a different process depending on the `raw_db_version`.
         let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].raw_db_version;
         match raw_db_version {
@@ -319,14 +319,14 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                 let packfile_db_path = get_game_selected_db_pack_path(&**GAME_SELECTED.lock().unwrap()).ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
                 let packfile_db = PackFile::open_packfiles(&packfile_db_path, true, false, false)?;
 
-                let mut ass_kit_schemas_path = 
-                    if raw_db_version == 1 { 
+                let mut ass_kit_schemas_path =
+                    if raw_db_version == 1 {
                         if let Some(path) = ass_kit_path { path }
                         else { return Err(ErrorKind::SchemaNotFound)? }
                     }
                     else if let Some(path) = get_game_selected_assembly_kit_path(&**GAME_SELECTED.lock().unwrap()) { path }
                     else { return Err(ErrorKind::SchemaNotFound)? };
-                    
+
                 ass_kit_schemas_path.push("raw_data");
                 ass_kit_schemas_path.push("db");
 
@@ -394,7 +394,7 @@ pub fn get_raw_definitions(current_path: &Path, version: i16) -> Result<Vec<Path
                 match file {
                     Ok(file) => {
                         let file_path = file.path();
-                        
+
                         // If it's a file and starts with "TWaD_", to the file_list it goes (except if it's one of those special files).
                         if version == 1 || version == 2 {
                             if file_path.is_file() &&
@@ -410,10 +410,10 @@ pub fn get_raw_definitions(current_path: &Path, version: i16) -> Result<Vec<Path
                         }
 
                         // In this case, we just catch all the xsd files on the folder.
-                        else if version == 0 && 
+                        else if version == 0 &&
                             file_path.is_file() &&
                             file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xsd") {
-                            file_list.push(file_path);   
+                            file_list.push(file_path);
                         }
                     }
                     Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
@@ -440,7 +440,7 @@ pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
                 match file {
                     Ok(file) => {
                         let file_path = file.path();
-                        
+
                         // If it's a file and it doesn't start with "TWaD_", to the file_list it goes.
                         if version == 1 || version == 2 {
                             if file_path.is_file() && !file_path.file_stem().unwrap().to_str().unwrap().to_string().starts_with("TWaD_") {
@@ -450,7 +450,7 @@ pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
 
                         // In this case, if it's an xml, to the file_list it goes.
                         else if version == 0 &&
-                            file_path.is_file() && 
+                            file_path.is_file() &&
                             !file_path.file_stem().unwrap().to_str().unwrap().to_string().ends_with(".xml") {
                             file_list.push(file_path);
                         }

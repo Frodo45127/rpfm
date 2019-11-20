@@ -220,11 +220,11 @@ pub fn background_loop() {
                                     if let DecodedPackedFile::DB(data) = data {
                                         if data.get_entry_count() > 0 {
                                             counter += 1;
-                                            table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_ref_raw().get_path()))
+                                            table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_path()))
                                         }
                                     }
                                 }
-                                Err(_) => table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_ref_raw().get_path())),
+                                Err(_) => table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_path())),
                             }
                         }
                     }
@@ -395,7 +395,7 @@ pub fn background_loop() {
                 // Find the PackedFile we want and send back the response.
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     Some(ref mut packed_file) => {
-                        let name = &packed_file.get_ref_raw().get_path().last().unwrap().to_owned();
+                        let name = &packed_file.get_path().last().unwrap().to_owned();
                         match packed_file.decode_return_ref() {
                             Ok(image) => {
                                 if let DecodedPackedFile::Image(image) = image {

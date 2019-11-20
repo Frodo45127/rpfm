@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -48,16 +48,16 @@ const VERSION_MARKER: &[u8] = &[252, 253, 254, 255];
 /// This holds an entire DB Table decoded in memory.
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct DB {
-    
+
     /// The name of the table. Not his literal file name, but the name of the table it represents, usually, db/"this_name"/yourtable. Needed to get his `Definition`.
     pub name: String,
-    
+
     /// Don't know his use, but it's in all the tables I've seen, always being `1` or `0`.
     pub mysterious_byte: bool,
-    
+
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
     definition: Definition,
-    
+
     /// The decoded entries of the table. This list is a Vec(rows) of a Vec(fields of a row) of DecodedData (decoded field).
     entries: Vec<Vec<DecodedData>>,
 }
@@ -71,7 +71,7 @@ impl DB {
 
     /// This function creates a new empty `DB` from a definition and his name.
     pub fn new(
-        name: &str, 
+        name: &str,
         definition: &Definition
     ) -> Self {
         Self{
@@ -266,7 +266,7 @@ impl DB {
         for row in &mut self.entries {
             let mut entry = vec![];
             for (old_pos, new_pos) in &positions {
-                
+
                 // If the new position is -1, it means the column got removed. We skip it.
                 if *new_pos == -1 { continue; }
 
@@ -295,12 +295,12 @@ impl DB {
         for row in data {
 
             // First, we need to make sure all rows we have are exactly what we expect.
-            if row.len() != self.definition.fields.len() { Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32))? } 
+            if row.len() != self.definition.fields.len() { Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32))? }
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
-                if !DecodedData::is_field_type_correct(cell, self.definition.fields[index].field_type.clone()) { 
-                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].field_type)))? 
+                if !DecodedData::is_field_type_correct(cell, self.definition.fields[index].field_type.clone()) {
+                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].field_type)))?
                 }
             }
         }
@@ -312,22 +312,22 @@ impl DB {
 
     /// This function is used to optimize the size of a DB Table.
     ///
-    /// It scans every line to check if it's a vanilla line, and remove it in that case. Also, if the entire 
+    /// It scans every line to check if it's a vanilla line, and remove it in that case. Also, if the entire
     /// file is composed of only vanilla lines, it marks the entire PackedFile for removal.
     pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
-        
-        // For each vanilla table, if it's the same table/version as our own, we check 
+
+        // For each vanilla table, if it's the same table/version as our own, we check
         let mut new_entries = Vec::with_capacity(self.entries.len());
         for entry in &self.entries {
             for vanilla_entries in vanilla_tables.iter().filter(|x| x.name == self.name && x.definition.version == self.definition.version).map(|x| &x.entries) {
-                if vanilla_entries.contains(entry) { 
+                if vanilla_entries.contains(entry) {
                     new_entries.push(entry.to_vec());
                     continue;
                 }
             }
         }
 
-        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.        
+        // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.
         self.entries = new_entries;
         self.entries.is_empty()
     }
@@ -346,7 +346,7 @@ impl DB {
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
         let mut iter = real_dep_db.iter_mut();
-        while let Some(packed_file) = iter.find(|x| x.get_ref_raw().get_path().starts_with(&["db".to_owned(), format!("{}_tables", ref_table)])) {
+        while let Some(packed_file) = iter.find(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", ref_table)])) {
             if let Ok(table) = packed_file.decode_return_ref_no_locks(schema) {
                 if let DecodedPackedFile::DB(db) = table {
                     for row in &db.get_table_data() {
@@ -355,7 +355,7 @@ impl DB {
 
                         // First, we get the reference data.
                         if let Some(index) = db.get_definition().fields.iter().position(|x| x.name == ref_column) {
-                            match row[index] { 
+                            match row[index] {
                                 DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::Float(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::Integer(ref entry) => reference_data = format!("{}", entry),
@@ -371,7 +371,7 @@ impl DB {
                         // Then, we get the lookup data.
                         for column in ref_lookup_columns {
                             if let Some(index) = db.get_definition().fields.iter().position(|x| &x.name == column) {
-                                match row[index] { 
+                                match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::Float(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::Integer(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -388,7 +388,7 @@ impl DB {
                         references.push((reference_data, lookup_data.join(" ")));
                     }
                 }
-            } 
+            }
         }
     }
 
@@ -412,7 +412,7 @@ impl DB {
 
                 // First, we get the reference data.
                 if let Some(index) = table.get_definition().fields.iter().position(|x| x.name == ref_column) {
-                    match row[index] { 
+                    match row[index] {
                         DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
                         DecodedData::Float(ref entry) => reference_data = format!("{}", entry),
                         DecodedData::Integer(ref entry) => reference_data = format!("{}", entry),
@@ -428,7 +428,7 @@ impl DB {
                 // Then, we get the lookup data.
                 for column in ref_lookup_columns {
                     if let Some(index) = table.get_definition().fields.iter().position(|x| &x.name == column) {
-                        match row[index] { 
+                        match row[index] {
                             DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                             DecodedData::Float(ref entry) => lookup_data.push(format!("{}", entry)),
                             DecodedData::Integer(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -469,7 +469,7 @@ impl DB {
 
                         // First, we get the reference data.
                         if let Some(index) = db.get_definition().fields.iter().position(|x| x.name == ref_column) {
-                            match row[index] { 
+                            match row[index] {
                                 DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::Float(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::Integer(ref entry) => reference_data = format!("{}", entry),
@@ -485,7 +485,7 @@ impl DB {
                         // Then, we get the lookup data.
                         for column in ref_lookup_columns {
                             if let Some(index) = db.get_definition().fields.iter().position(|x| &x.name == column) {
-                                match row[index] { 
+                                match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::Float(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::Integer(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -502,11 +502,11 @@ impl DB {
                         references.push((reference_data, lookup_data.join(" ")));
                     }
                 }
-            } 
+            }
         }
     }
 
-    /// This function returns the dependency/lookup data of each column of a DB Table. 
+    /// This function returns the dependency/lookup data of each column of a DB Table.
     pub fn get_dependency_data(
         pack_file: &mut PackFile,
         schema: &Schema,
