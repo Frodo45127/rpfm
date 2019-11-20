@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -26,4 +26,6 @@ pub fn set_connections(global_search_ui: &GlobalSearchUI, slots: &GlobalSearchSl
     unsafe { global_search_ui.global_search_search_button.as_ref().unwrap().signals().released().connect(&slots.global_search_search); }
     unsafe { global_search_ui.global_search_search_line_edit.as_ref().unwrap().signals().return_pressed().connect(&slots.global_search_search); }
     unsafe { global_search_ui.global_search_search_line_edit.as_ref().unwrap().signals().text_changed().connect(&slots.global_search_check_regex); }
+
+    unsafe { global_search_ui.global_search_search_on_all_checkbox.as_ref().unwrap().signals().toggled().connect(&slots.global_search_toggle_all); }
 }

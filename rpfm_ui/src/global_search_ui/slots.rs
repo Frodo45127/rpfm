@@ -16,7 +16,7 @@ use qt_gui::color::Color;
 use qt_gui::palette::{ColorRole, Palette};
 
 use qt_core::qt::GlobalColor;
-use qt_core::slots::{SlotNoArgs, SlotStringRef};
+use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
 use regex::Regex;
 
@@ -35,6 +35,8 @@ use crate::UI_STATE;
 pub struct GlobalSearchSlots {
     pub global_search_search: SlotNoArgs<'static>,
     pub global_search_check_regex: SlotStringRef<'static>,
+
+    pub global_search_toggle_all: SlotBool<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -125,10 +127,20 @@ impl GlobalSearchSlots {
             unsafe { global_search_ui.global_search_search_line_edit.as_mut().unwrap().set_palette(&palette); }
         });
 
+        // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes..
+        let global_search_toggle_all = SlotBool::new(move |state| {
+            unsafe { global_search_ui.global_search_search_on_dbs_checkbox.as_mut().unwrap().set_enabled(!state) };
+            unsafe { global_search_ui.global_search_search_on_locs_checkbox.as_mut().unwrap().set_enabled(!state) };
+            unsafe { global_search_ui.global_search_search_on_texts_checkbox.as_mut().unwrap().set_enabled(!state) };
+            unsafe { global_search_ui.global_search_search_on_schemas_checkbox.as_mut().unwrap().set_enabled(!state) };
+        });
+
         // And here... we return all the slots.
 		Self {
             global_search_search,
             global_search_check_regex,
+
+            global_search_toggle_all,
 		}
 	}
 }
