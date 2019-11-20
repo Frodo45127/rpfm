@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -40,9 +40,9 @@ pub trait Table {
 
     /// This function decodes all the fields of a table from raw bytes.
     fn decode(fields: &[Field], data: &[u8], entry_count: u32, index: &mut usize) -> Result<Self> where Self:Sized;
-    
+
     /// This function encodes all the fields of a table to raw bytes.
-    fn encode(&self, fields: &[Field], packed_file: &mut Vec<u8>) -> Result<()>; 
+    fn encode(&self, fields: &[Field], packed_file: &mut Vec<u8>) -> Result<()>;
 
     /// This function imports a TSV file into a decoded table.
     fn import_tsv(definition: &Definition, path: &PathBuf, name: &str, version: i32) -> Result<Self> where Self:Sized;
@@ -68,7 +68,7 @@ impl Table for Vec<Vec<DecodedData>> {
         fields: &[Field],
         data: &[u8],
         entry_count: u32,
-        mut index: &mut usize, 
+        mut index: &mut usize,
     ) -> Result<Self> {
         let mut entries = Vec::with_capacity(entry_count as usize);
         for row in 0..entry_count {
@@ -101,7 +101,7 @@ impl Table for Vec<Vec<DecodedData>> {
                     }
                     FieldType::OptionalStringU8 => {
                         if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, &mut index) { DecodedData::OptionalStringU8(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1)))? }    
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1)))? }
                     }
                     FieldType::OptionalStringU16 => {
                         if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, &mut index) { DecodedData::OptionalStringU16(data) }
@@ -125,12 +125,12 @@ impl Table for Vec<Vec<DecodedData>> {
         for row in self {
 
             // First, we need to make sure all rows we're going to encode are exactly what we expect.
-            if row.len() != fields.len() { Err(ErrorKind::TableRowWrongFieldCount(fields.len() as u32, row.len() as u32))? } 
+            if row.len() != fields.len() { Err(ErrorKind::TableRowWrongFieldCount(fields.len() as u32, row.len() as u32))? }
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
-                if !DecodedData::is_field_type_correct(cell, fields[index].field_type.clone()) { 
-                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", fields[index].field_type)))? 
+                if !DecodedData::is_field_type_correct(cell, fields[index].field_type.clone()) {
+                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", fields[index].field_type)))?
                 }
 
                 // If there are no problems, encode the data.
@@ -174,7 +174,7 @@ impl Table for Vec<Vec<DecodedData>> {
             .flexible(true)
             .from_path(&path)?;
 
-        // If we succesfully load the TSV file into a reader, check the first two lines to ensure 
+        // If we succesfully load the TSV file into a reader, check the first two lines to ensure
         // it's a valid TSV for our specific table.
         let mut entries = vec![];
         for (row, record) in reader.records().enumerate() {
@@ -182,9 +182,9 @@ impl Table for Vec<Vec<DecodedData>> {
 
                 // The first line should contain the "table_folder_name"/"Loc PackedFile/PackFile List", and the version (1 for Locs).
                 // If it doesn't match with the name we provided, return an error.
-                if row == 0 { 
+                if row == 0 {
                     if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable)?; }
-                    if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != version { 
+                    if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != version {
                         return Err(ErrorKind::ImportTSVWrongVersion)?;
                     }
                 }
@@ -304,7 +304,7 @@ impl Table for Vec<Vec<DecodedData>> {
         else {
             let mut file = db::DB::new(&table_type, &definition);
             file.set_table_data(&entries)?;
-            file.save()   
+            file.save()
         }?;
 
         // Then, we try to write it on disk. If there is an error, report it.
@@ -316,9 +316,9 @@ impl Table for Vec<Vec<DecodedData>> {
     }
 
     fn export_tsv(
-        &self, 
+        &self,
         path: &PathBuf,
-        headers: &[String], 
+        headers: &[String],
         table_name: &str,
         table_version: i32
     ) -> Result<()> {
@@ -362,13 +362,13 @@ impl Table for Vec<Vec<DecodedData>> {
             .from_path(destination_path)?;
 
         // We don't know what type this file is, so we try to decode it as a Loc. If that fails, we try
-        // to decode it as a DB using the name of his parent folder. If that fails too, run before it explodes! 
+        // to decode it as a DB using the name of his parent folder. If that fails too, run before it explodes!
         let mut file = BufReader::new(File::open(source_path)?);
         let mut data = vec![];
         file.read_to_end(&mut data)?;
 
-        let (table_type, version, entries) = if let Ok(data) = loc::Loc::read(&data, schema) { 
-            (loc::TSV_NAME, data.get_definition().version, data.get_table_data()) 
+        let (table_type, version, entries) = if let Ok(data) = loc::Loc::read(&data, schema) {
+            (loc::TSV_NAME, data.get_definition().version, data.get_table_data())
         }
         else {
             let table_type = source_path.parent().unwrap().file_name().unwrap().to_str().unwrap();

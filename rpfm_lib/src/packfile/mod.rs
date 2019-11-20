@@ -29,7 +29,7 @@ use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::GAME_SELECTED;
 use crate::DEPENDENCY_DATABASE;
@@ -793,6 +793,16 @@ impl PackFile {
         self.packed_files.par_iter_mut().filter(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len()).collect()
     }
 
+    /// This function returns a copy of the paths of all the `PackedFiles` in the provided `PackFile` under the provided path.
+    pub fn get_packed_files_paths_by_path_start(&self, path: &[String]) -> Vec<Vec<String>> {
+        self.packed_files.par_iter().map(|x| x.get_ref_raw().get_path()).filter(|x| x.starts_with(path) && !path.is_empty() && x.len() > path.len()).map(|x| x.to_vec()).collect()
+    }
+
+    /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile` under the provided path.
+    pub fn get_ref_packed_files_paths_by_path_start(&self, path: &[String]) -> Vec<&[String]> {
+        self.packed_files.par_iter().map(|x| x.get_ref_raw().get_path()).filter(|x| x.starts_with(path) && !path.is_empty() && x.len() > path.len()).collect()
+    }
+
     /// This function returns a copy of all the `PackedFiles` ending with the provided path.
     pub fn get_packed_files_by_path_end(&self, path: &[String]) -> Vec<PackedFile> {
         self.packed_files.par_iter().filter(|x| x.get_ref_raw().get_path().ends_with(path) && !path.is_empty()).cloned().collect()
@@ -865,7 +875,7 @@ impl PackFile {
     }
 
     /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile`.
-    pub fn get_ref_all_packed_files_paths(&self) -> Vec<&[String]> {
+    pub fn get_ref_packed_files_all_paths(&self) -> Vec<&[String]> {
         self.packed_files.par_iter().map(|x| x.get_ref_raw().get_path()).collect()
     }
 
@@ -1145,6 +1155,42 @@ impl PackFile {
     /// This function checks if a folder with `PackedFiles` in it exists in a `PackFile`.
     pub fn folder_exists(&self, path: &[String]) -> bool {
         self.packed_files.par_iter().any(|x| x.get_ref_raw().get_path().starts_with(path) && !path.is_empty() && x.get_ref_raw().get_path().len() > path.len())
+    }
+
+    /// This function takes an slice of PathTypes and turns it into a vector of individual PackedFile's paths.
+    ///
+    /// This is intended to be done after a dedup. Otherwise, you'll probably get duplicated paths at the end.
+    pub fn get_paths_from_path_types(&self, path_types: &[PathType]) -> Vec<Vec<String>> {
+
+        // If we have a PackFile, just get the paths of all PackedFiles in the PackFile.
+        let we_have_packfile = path_types.par_iter().any(|item| {
+            if let PathType::PackFile = item { true } else { false }
+        });
+
+        if we_have_packfile {
+            return self.get_packed_files_all_paths();
+        }
+
+        // If we don't have folders, the rest are files, so we just get the path stored in each PathType.
+        let we_have_folder = path_types.par_iter().any(|item| {
+            if let PathType::Folder(_) = item { true } else { false }
+        });
+
+        if !we_have_folder {
+            return path_types.par_iter().filter_map(|x| if let PathType::File(path) = x { Some(path.to_vec()) } else { None }).collect();
+        }
+
+        // If we have a mix of files and folders... then we get the paths according to the type.
+        let mut paths: Vec<Vec<String>> = path_types.par_iter()
+            .filter_map(|path_type| if let PathType::Folder(path) = path_type { Some(self.get_packed_files_paths_by_path_start(&path)) } else { None })
+            .flatten()
+            .collect::<Vec<Vec<String>>>();
+
+        paths.append(&mut path_types.par_iter()
+            .filter_map(|x| if let PathType::File(path) = x { Some(path.to_vec()) } else { None })
+            .collect::<Vec<Vec<String>>>());
+
+        return paths;
     }
 
     /// This function allows you to change the path of a `PackedFile` inside a `PackFile`.

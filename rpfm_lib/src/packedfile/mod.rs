@@ -324,8 +324,8 @@ impl DecodedData {
     }
 
     /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
-    pub fn is_field_type_correct(decoded_data: &DecodedData, field_type: FieldType) -> bool {
-        match decoded_data {
+    pub fn is_field_type_correct(&self, field_type: FieldType) -> bool {
+        match self {
             DecodedData::Boolean(_) => field_type == FieldType::Boolean,
             DecodedData::Float(_) => field_type == FieldType::Float,
             DecodedData::Integer(_) => field_type == FieldType::Integer,

@@ -189,44 +189,49 @@ impl PackedFile {
         Ok(Self::new_from_decoded(&data, path))
     }
 
-    /// This function returns a reference to the `RawPackedFile` part of a `PackFile`.
+    /// This function returns a reference to the `RawPackedFile` part of a `PackedFile`.
     pub fn get_ref_raw(&self) -> &RawPackedFile {
         &self.raw
     }
 
-    /// This function returns a reference to the `DecodedPackedFile` part of a `PackFile`.
+    /// This function returns a reference to the `DecodedPackedFile` part of a `PackedFile`.
     pub fn get_ref_decoded(&self) -> &DecodedPackedFile {
         &self.decoded
     }
 
-    /// This function returns a mutable reference to the `RawPackedFile` part of a `PackFile`.
+    /// This function returns a mutable reference to the `RawPackedFile` part of a `PackedFile`.
     pub fn get_ref_mut_raw(&mut self) -> &mut RawPackedFile {
         &mut self.raw
     }
 
-    /// This function returns a mutable reference to the `DecodedPackedFile` part of a `PackFile`.
+    /// This function returns a mutable reference to the `DecodedPackedFile` part of a `PackedFile`.
     pub fn get_ref_mut_decoded(&mut self) -> &mut DecodedPackedFile {
         &mut self.decoded
     }
 
-    /// This function returns a copy of the `RawPackedFile` part of a `PackFile`.
+    /// This function returns a copy of the `RawPackedFile` part of a `PackedFile`.
     pub fn get_raw(&self) -> RawPackedFile {
         self.raw.clone()
     }
 
-    /// This function returns a copy of the `DecodedPackedFile` part of a `PackFile`.
+    /// This function returns a copy of the `DecodedPackedFile` part of a `PackedFile`.
     pub fn get_decoded(&self) -> DecodedPackedFile {
         self.decoded.clone()
     }
 
-    /// This function replace the `RawPackedFile` part of a `PackFile` with the provided one.
+    /// This function replace the `RawPackedFile` part of a `PackedFile` with the provided one.
     pub fn set_raw(&mut self, data: &RawPackedFile) {
         self.raw = data.clone();
     }
 
-    /// This function replace the `DecodedPackedFile` part of a `PackFile` with the provided one.
+    /// This function replace the `DecodedPackedFile` part of a `PackedFile` with the provided one.
     pub fn set_decoded(&mut self, data: &DecodedPackedFile) {
         self.decoded = data.clone();
+    }
+
+    /// This function returns a reference of the path of a `PackedFile`.
+    pub fn get_path(&self) -> &[String] {
+        self.raw.get_path()
     }
 
     /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`.
