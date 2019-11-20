@@ -36,7 +36,7 @@ use crate::SCHEMA;
 //---------------------------------------------------------------------------//
 
 /// This struct represents a `PackedFile` in memory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PackedFile {
     raw: RawPackedFile,
     decoded: DecodedPackedFile,

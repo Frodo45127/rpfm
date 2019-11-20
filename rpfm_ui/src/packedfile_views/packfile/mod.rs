@@ -195,7 +195,7 @@ impl PackFileExtraView {
 
     /// This function returns a pointer to the `SortFilterProxyModel` widget.
     pub fn get_tree_model_filter(&self) -> *mut SortFilterProxyModel {
-        unsafe { self.tree_model_filter.load(Ordering::SeqCst) }
+        self.tree_model_filter.load(Ordering::SeqCst)
     }
 
     /// This function returns a mutable reference to the `Expand All` Action.

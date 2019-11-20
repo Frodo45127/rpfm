@@ -109,7 +109,7 @@ bitflags! {
 //---------------------------------------------------------------------------//
 
 /// This `Struct` stores the data of the PackFile in memory, along with some extra data needed to manipulate the PackFile.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct PackFile {
 
     /// The path of the PackFile on disk, if exists. If not, then this should be empty.
@@ -235,7 +235,7 @@ pub enum PathType {
 ///
 /// Despite compression being per-packedfile, we only support applying it to the full PackFile for now.
 /// Also, compression is only supported by `PFHVersion::PFH5` PackFiles.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CompressionState {
 
     /// All the PackedFiles in the PackFile are compressed.
