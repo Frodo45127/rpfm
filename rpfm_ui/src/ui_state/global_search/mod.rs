@@ -29,8 +29,8 @@ use rayon::prelude::*;
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packfile::{PackFile, PathType};
-use rpfm_lib::packedfile::{DecodedData, DecodedPackedFile, PackedFileType};
-use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
+use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
+use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::schema::{Definition, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;

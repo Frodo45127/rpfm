@@ -11,20 +11,19 @@
 /*!
 Module with all the code to interact with any kind of table data.
 
-This module contains the trait `Table`, used to easely decode/encode all the entries of a table.
-It also contains his implementation for `Vec<Vec<DecodedData>>`, the type used for that data in DB and LOC Tables.
+This module contains the struct `Table`, used to manage the decoded data of a table. For internal use only.
 !*/
 
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
+use serde_derive::{Serialize, Deserialize};
 
+use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
-use std::marker::Sized;
 use std::path::PathBuf;
 
 use rpfm_error::{Error, ErrorKind, Result};
 
-use super::DecodedData;
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::schema::*;
 
@@ -32,49 +31,234 @@ pub mod db;
 pub mod loc;
 
 //---------------------------------------------------------------------------//
-//                              Trait Definition
+//                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This trait contains the functions to decode/encode data of a table from/to raw bytes.
-pub trait Table {
+/// This struct contains the data of a Table-like PackedFile after being decoded.
+///
+/// This is for internal use. If you need to interact with this in any way, do it through the PackedFile that contains it, not directly.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Table {
 
-    /// This function decodes all the fields of a table from raw bytes.
-    fn decode(fields: &[Field], data: &[u8], entry_count: u32, index: &mut usize) -> Result<Self> where Self:Sized;
+    /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
+    definition: Definition,
 
-    /// This function encodes all the fields of a table to raw bytes.
-    fn encode(&self, fields: &[Field], packed_file: &mut Vec<u8>) -> Result<()>;
-
-    /// This function imports a TSV file into a decoded table.
-    fn import_tsv(definition: &Definition, path: &PathBuf, name: &str, version: i32) -> Result<Self> where Self:Sized;
-
-    /// This function imports a TSV file into a new Table File.
-    fn import_tsv_to_binary_file(schema: &Schema, source_path: &PathBuf, destination_path: &PathBuf) -> Result<()>;
-
-    /// This function exports the provided data to a TSV file.
-    fn export_tsv(&self, path: &PathBuf, headers: &[String], table_name: &str, table_version:i32) -> Result<()>;
-
-    /// This function exports the provided file to a TSV file..
-    fn export_tsv_from_binary_file(schema: &Schema, source_path: &PathBuf, destination_path: &PathBuf) -> Result<()>;
+    /// The decoded entries of the table. This list is a Vec(rows) of a Vec(fields of a row) of DecodedData (decoded field).
+    entries: Vec<Vec<DecodedData>>,
 }
 
-//---------------------------------------------------------------------------//
-//                              Trait Implementation
-//---------------------------------------------------------------------------//
+/// This enum is used to store different types of data in a unified way. Used, for example, to store the data from each field in a DB Table.
+///
+/// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
+/// inside a single field. Used, for example, in certain model tables.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum DecodedData {
+    Boolean(bool),
+    Float(f32),
+    Integer(i32),
+    LongInteger(i64),
+    StringU8(String),
+    StringU16(String),
+    OptionalStringU8(String),
+    OptionalStringU16(String),
+    Sequence(Table)
+}
 
-/// Implementation of the trait `Table` for `Vec<Vec<DecodedData>>`.
-impl Table for Vec<Vec<DecodedData>> {
+//----------------------------------------------------------------//
+// Implementations for `DecodedData`.
+//----------------------------------------------------------------//
 
-    fn decode(
-        fields: &[Field],
+/// Display implementation of `DecodedData`.
+impl Display for DecodedData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DecodedData::Boolean(_) => write!(f, "Boolean"),
+            DecodedData::Float(_) => write!(f, "Float"),
+            DecodedData::Integer(_) => write!(f, "Integer"),
+            DecodedData::LongInteger(_) => write!(f, "LongInteger"),
+            DecodedData::StringU8(_) => write!(f, "StringU8"),
+            DecodedData::StringU16(_) => write!(f, "StringU16"),
+            DecodedData::OptionalStringU8(_) => write!(f, "OptionalStringU8"),
+            DecodedData::OptionalStringU16(_) => write!(f, "OptionalStringU16"),
+            DecodedData::Sequence(_) => write!(f, "Sequence"),
+        }
+    }
+}
+
+/// PartialEq implementation of `DecodedData`. We need this implementation due to the float comparison being... special.
+impl PartialEq for DecodedData {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (DecodedData::Boolean(x), DecodedData::Boolean(y)) => x == y,
+            (DecodedData::Float(x), DecodedData::Float(y)) => ((x * 1_000_000f32).round() / 1_000_000f32) == ((y * 1_000_000f32).round() / 1_000_000f32),
+            (DecodedData::Integer(x), DecodedData::Integer(y)) => x == y,
+            (DecodedData::LongInteger(x), DecodedData::LongInteger(y)) => x == y,
+            (DecodedData::StringU8(x), DecodedData::StringU8(y)) => x == y,
+            (DecodedData::StringU16(x), DecodedData::StringU16(y)) => x == y,
+            (DecodedData::OptionalStringU8(x), DecodedData::OptionalStringU8(y)) => x == y,
+            (DecodedData::OptionalStringU16(x), DecodedData::OptionalStringU16(y)) => x == y,
+            (DecodedData::Sequence(x), DecodedData::Sequence(y)) => x == y,
+            _ => false
+        }
+    }
+}
+
+/// Implementation of `DecodedData`.
+impl DecodedData {
+
+    /// Default implementation of `DecodedData`.
+    pub fn default(field_type: &FieldType) -> Self {
+        match field_type {
+            FieldType::Boolean => DecodedData::Boolean(false),
+            FieldType::Float => DecodedData::Float(0.0),
+            FieldType::Integer => DecodedData::Integer(0),
+            FieldType::LongInteger => DecodedData::LongInteger(0),
+            FieldType::StringU8 => DecodedData::StringU8("".to_owned()),
+            FieldType::StringU16 => DecodedData::StringU16("".to_owned()),
+            FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
+            FieldType::OptionalStringU16 => DecodedData::OptionalStringU16("".to_owned()),
+            FieldType::Sequence(definition) => DecodedData::Sequence(Table::new(definition)),
+        }
+    }
+
+    /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
+    pub fn is_field_type_correct(&self, field_type: FieldType) -> bool {
+        match self {
+            DecodedData::Boolean(_) => field_type == FieldType::Boolean,
+            DecodedData::Float(_) => field_type == FieldType::Float,
+            DecodedData::Integer(_) => field_type == FieldType::Integer,
+            DecodedData::LongInteger(_) => field_type == FieldType::LongInteger,
+            DecodedData::StringU8(_) => field_type == FieldType::StringU8,
+            DecodedData::StringU16(_) => field_type == FieldType::StringU16,
+            DecodedData::OptionalStringU8(_) => field_type == FieldType::OptionalStringU8,
+            DecodedData::OptionalStringU16(_) => field_type == FieldType::OptionalStringU16,
+            DecodedData::Sequence(_) => if let FieldType::Sequence(_) = field_type { true } else { false },
+        }
+    }
+}
+
+//----------------------------------------------------------------//
+// Implementations for `Table`.
+//----------------------------------------------------------------//
+
+/// Implementation of `Table`.
+impl Table {
+
+    /// This function creates a new Table from an existing definition.
+    pub fn new(definition: &Definition) -> Self {
+        Table {
+            definition: definition.clone(),
+            entries: vec![],
+        }
+    }
+
+    /// This function returns a copy of the definition of this Table.
+    pub fn get_definition(&self) -> Definition {
+        self.definition.clone()
+    }
+
+    /// This function returns a reference to the definition of this Table.
+    pub fn get_ref_definition(&self) -> &Definition {
+        &self.definition
+    }
+
+    /// This function returns a copy of the entries of this Table.
+    pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
+        self.entries.to_vec()
+    }
+
+    /// This function returns a reference to the entries of this Table.
+    pub fn get_ref_table_data(&self) -> &[Vec<DecodedData>] {
+        &self.entries
+    }
+
+    /// This function returns the amount of entries in this Table.
+    pub fn get_entry_count(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// This function replaces the definition of this table with the one provided.
+    ///
+    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
+    pub fn set_definition(&mut self, new_definition: &Definition) {
+
+        // It's simple: we compare both schemas, and get the original and final positions of each column.
+        // If a row is new, his original position is -1. If has been removed, his final position is -1.
+        let mut positions: Vec<(i32, i32)> = vec![];
+        for (new_pos, new_field) in new_definition.fields.iter().enumerate() {
+            if let Some(old_pos) = self.definition.fields.iter().position(|x| x.name == new_field.name) {
+                positions.push((old_pos as i32, new_pos as i32))
+            } else { positions.push((-1, new_pos as i32)); }
+        }
+
+        // Then, for each field in the old definition, check if exists in the new one.
+        for (old_pos, old_field) in self.definition.fields.iter().enumerate() {
+            if !new_definition.fields.iter().any(|x| x.name == old_field.name) { positions.push((old_pos as i32, -1)); }
+        }
+
+        // We sort the columns by their destination.
+        positions.sort_by_key(|x| x.1);
+
+        // Then, we create the new data using the old one and the column changes.
+        let mut new_entries: Vec<Vec<DecodedData>> = vec![];
+        for row in &mut self.entries {
+            let mut entry = vec![];
+            for (old_pos, new_pos) in &positions {
+
+                // If the new position is -1, it means the column got removed. We skip it.
+                if *new_pos == -1 { continue; }
+
+                // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
+                else if *old_pos == -1 {
+                    entry.push(DecodedData::default(&self.definition.fields[*new_pos as usize].field_type));
+                }
+
+                // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.
+                else {
+                    entry.push(row[*old_pos as usize].clone());
+                }
+            }
+            new_entries.push(entry);
+        }
+
+        // Then, we finally replace our definition and our data.
+        self.definition = new_definition.clone();
+        self.entries = new_entries;
+    }
+
+    /// This function replaces the data of this table with the one provided.
+    ///
+    /// This can (and will) fail if the data is not of the format defined by the definition of the table.
+    pub fn set_table_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
+        for row in data {
+
+            // First, we need to make sure all rows we have are exactly what we expect.
+            if row.len() != self.definition.fields.len() { Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32))? }
+            for (index, cell) in row.iter().enumerate() {
+
+                // Next, we need to ensure each file is of the type we expected.
+                if !DecodedData::is_field_type_correct(cell, self.definition.fields[index].field_type.clone()) {
+                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].field_type)))?
+                }
+            }
+        }
+
+        // If we passed all the checks, replace the data.
+        self.entries = data.to_vec();
+        Ok(())
+    }
+
+    /// This function decodes all the fields of a table from raw bytes.
+    fn decode(&mut self,
         data: &[u8],
         entry_count: u32,
         mut index: &mut usize,
-    ) -> Result<Self> {
-        let mut entries = Vec::with_capacity(entry_count as usize);
+    ) -> Result<()> {
+        self.entries = Vec::with_capacity(entry_count as usize);
         for row in 0..entry_count {
-            let mut decoded_row = Vec::with_capacity(fields.len());
-            for column in 0..fields.len() {
-                let decoded_cell = match &fields[column].field_type {
+            let mut decoded_row = Vec::with_capacity(self.definition.fields.len());
+            for column in 0..self.definition.fields.len() {
+                let decoded_cell = match &self.definition.fields[column].field_type {
                     FieldType::Boolean => {
                         if let Ok(data) = data.decode_packedfile_bool(*index, &mut index) { DecodedData::Boolean(data) }
                         else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1)))? }
@@ -109,20 +293,25 @@ impl Table for Vec<Vec<DecodedData>> {
                     }
 
                     // This type is just a recursive type.
-                    FieldType::Sequence(fields) => {
-                        if let Ok(entry_count) = data.decode_packedfile_integer_u32(*index, &mut index) { DecodedData::Sequence(Self::decode(&*fields, &data, entry_count, index)?) }
+                    FieldType::Sequence(definition) => {
+                        if let Ok(entry_count) = data.decode_packedfile_integer_u32(*index, &mut index) {
+                            let mut sub_table = Table::new(definition);
+                            sub_table.decode(&data, entry_count, index)?;
+                            DecodedData::Sequence(sub_table) }
                         else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1)))? }
                     }
                 };
                 decoded_row.push(decoded_cell);
             }
-            entries.push(decoded_row);
+            self.entries.push(decoded_row);
         }
-        Ok(entries)
+        Ok(())
     }
 
-    fn encode(&self, fields: &[Field], mut packed_file: &mut Vec<u8>) -> Result<()> {
-        for row in self {
+    /// This function encodes all the fields of a table to raw bytes.
+    fn encode(&self, mut packed_file: &mut Vec<u8>) -> Result<()> {
+        let fields = &self.definition.fields;
+        for row in &self.entries {
 
             // First, we need to make sure all rows we're going to encode are exactly what we expect.
             if row.len() != fields.len() { Err(ErrorKind::TableRowWrongFieldCount(fields.len() as u32, row.len() as u32))? }
@@ -144,8 +333,10 @@ impl Table for Vec<Vec<DecodedData>> {
                     DecodedData::OptionalStringU8(ref data) => packed_file.encode_packedfile_optional_string_u8(data),
                     DecodedData::OptionalStringU16(ref data) => packed_file.encode_packedfile_optional_string_u16(data),
                     DecodedData::Sequence(ref data) => {
-                        packed_file.encode_integer_u32(data.len() as u32);
-                        Self::encode(&data, fields, &mut packed_file)?;
+                        if let FieldType::Sequence(_) = fields[index].field_type {
+                            packed_file.encode_integer_u32(data.entries.len() as u32);
+                            data.encode(&mut packed_file)?;
+                        }
                     },
                 }
             }
@@ -158,6 +349,7 @@ impl Table for Vec<Vec<DecodedData>> {
     // TSV Functions for PackedFiles.
     //----------------------------------------------------------------//
 
+    /// This function imports a TSV file into a decoded table.
     fn import_tsv(
         definition: &Definition,
         path: &PathBuf,
@@ -225,9 +417,12 @@ impl Table for Vec<Vec<DecodedData>> {
         }
 
         // If we reached this point without errors, we replace the old data with the new one and return success.
-        Ok(entries)
+        let mut table = Table::new(definition);
+        table.entries = entries;
+        Ok(table)
     }
 
+    /// This function imports a TSV file into a new Table File.
     fn import_tsv_to_binary_file(
         schema: &Schema,
         source_path: &PathBuf,
@@ -315,10 +510,10 @@ impl Table for Vec<Vec<DecodedData>> {
         Ok(())
     }
 
+    /// This function exports the provided data to a TSV file.
     fn export_tsv(
         &self,
         path: &PathBuf,
-        headers: &[String],
         table_name: &str,
         table_version: i32
     ) -> Result<()> {
@@ -334,10 +529,10 @@ impl Table for Vec<Vec<DecodedData>> {
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((table_name, table_version))?;
-        writer.serialize(headers)?;
+        writer.serialize(self.definition.fields.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
-        for entry in self { writer.serialize(&entry)?; }
+        for entry in &self.entries { writer.serialize(&entry)?; }
 
         // Then, we try to write it on disk. If there is an error, report it.
         let mut file = File::create(&path)?;
@@ -346,6 +541,7 @@ impl Table for Vec<Vec<DecodedData>> {
         Ok(())
     }
 
+    /// This function exports the provided file to a TSV file..
     fn export_tsv_from_binary_file(
         schema: &Schema,
         source_path: &PathBuf,

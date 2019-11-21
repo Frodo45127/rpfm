@@ -35,8 +35,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
-use rpfm_lib::packedfile::DecodedData;
-use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
+use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;

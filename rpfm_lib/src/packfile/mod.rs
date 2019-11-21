@@ -29,7 +29,7 @@ use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_error::{ErrorKind, Result};
 
 use crate::GAME_SELECTED;
 use crate::DEPENDENCY_DATABASE;
@@ -41,7 +41,8 @@ use crate::common::{*, decoder::Decoder, encoder::Encoder};
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
-use crate::packedfile::{DecodedData, DecodedPackedFile, PackedFileType};
+use crate::packedfile::{DecodedPackedFile, PackedFileType};
+use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
 use crate::packedfile::table::loc::Loc;
 

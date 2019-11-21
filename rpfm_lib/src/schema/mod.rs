@@ -88,15 +88,15 @@ const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo
 //---------------------------------------------------------------------------//
 
 /// This struct represents a Versions File in memory, keeping track of the local version of each schema.
-#[derive(Eq, PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct VersionsFile(BTreeMap<String, u32>);
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub struct Schema(Vec<VersionedFile>);
 
 /// This enum defines all types of versioned files that the schema system supports.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VersionedFile {
 
     /// It stores the name of the table, and a `Vec<Definition>` with the definitions for each version of that table decoded.
@@ -110,7 +110,7 @@ pub enum VersionedFile {
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Definition {
 
     /// The version of the PackedFile the definition is for. These versions are:
@@ -169,7 +169,7 @@ pub enum FieldType {
     StringU16,
     OptionalStringU8,
     OptionalStringU16,
-    Sequence(Vec<Field>)
+    Sequence(Definition)
 }
 
 /// This enum controls the possible responses from the server when asking if there is a new Schema update.

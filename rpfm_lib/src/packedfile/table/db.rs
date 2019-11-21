@@ -22,6 +22,7 @@ use uuid::Uuid;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
+use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -55,11 +56,8 @@ pub struct DB {
     /// Don't know his use, but it's in all the tables I've seen, always being `1` or `0`.
     pub mysterious_byte: bool,
 
-    /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
-    definition: Definition,
-
-    /// The decoded entries of the table. This list is a Vec(rows) of a Vec(fields of a row) of DecodedData (decoded field).
-    entries: Vec<Vec<DecodedData>>,
+    /// The table's data, containing all the stuff needed to decode/encode it.
+    table: Table,
 }
 
 //---------------------------------------------------------------------------//
@@ -77,9 +75,47 @@ impl DB {
         Self{
             name: name.to_owned(),
             mysterious_byte: true,
-            definition: definition.clone(),
-            entries: vec![],
+            table: Table::new(&definition),
         }
+    }
+
+    /// This function returns a copy of the definition of this DB Table.
+    pub fn get_definition(&self) -> Definition {
+        self.table.get_definition()
+    }
+
+    /// This function returns a reference to the definition of this DB Table.
+    pub fn get_ref_definition(&self) -> &Definition {
+        self.table.get_ref_definition()
+    }
+
+    /// This function returns a copy of the entries of this DB Table.
+    pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
+        self.table.get_table_data()
+    }
+
+    /// This function returns a reference to the entries of this DB Table.
+    pub fn get_ref_table_data(&self) -> &[Vec<DecodedData>] {
+        self.table.get_ref_table_data()
+    }
+
+    /// This function returns the amount of entries in this DB Table.
+    pub fn get_entry_count(&self) -> usize {
+        self.table.get_entry_count()
+    }
+
+    /// This function replaces the definition of this table with the one provided.
+    ///
+    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
+    pub fn set_definition(&mut self, new_definition: &Definition) {
+        self.table.set_definition(new_definition);
+    }
+
+    /// This function replaces the data of this table with the one provided.
+    ///
+    /// This can (and will) fail if the data is not of the format defined by the definition of the table.
+    pub fn set_table_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
+        self.table.set_table_data(data)
     }
 
     /// This function creates a `DB` from a `Vec<u8>`.
@@ -117,10 +153,10 @@ impl DB {
         if versioned_file.is_err() && entry_count == 0 { Err(ErrorKind::TableEmptyWithNoDefinition)? }
         let definition = versioned_file?.get_version(version);
         if definition.is_err() && entry_count == 0 { Err(ErrorKind::TableEmptyWithNoDefinition)? }
-        let definition = definition?;
 
         // Then try to decode all the entries.
-        let entries = Table::decode(&definition.fields, &packed_file_data, entry_count, &mut index)?;
+        let mut table = Table::new(definition?);
+        table.decode(&packed_file_data, entry_count, &mut index)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index))? }
@@ -129,8 +165,7 @@ impl DB {
         Ok(Self {
             name: name.to_owned(),
             mysterious_byte,
-            definition: definition.clone(),
-            entries,
+            table,
         })
     }
 
@@ -146,11 +181,11 @@ impl DB {
             packed_file.encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
         }
         packed_file.extend_from_slice(VERSION_MARKER);
-        packed_file.encode_integer_i32(self.definition.version);
+        packed_file.encode_integer_i32(self.table.definition.version);
         packed_file.encode_bool(self.mysterious_byte);
-        packed_file.encode_integer_u32(self.entries.len() as u32);
+        packed_file.encode_integer_u32(self.table.entries.len() as u32);
 
-        Table::encode(&self.entries, &self.definition.fields, &mut packed_file)?;
+        self.table.encode(&mut packed_file)?;
 
         // Return the encoded PackedFile.
         Ok(packed_file)
@@ -214,101 +249,6 @@ impl DB {
     }
 
 
-    /// This function returns a reference to the definition of this DB Table.
-    pub fn get_ref_definition(&self) -> &Definition {
-        &self.definition
-    }
-
-    /// This function returns a reference to the entries of this DB Table.
-    pub fn get_ref_table_data(&self) -> &Vec<Vec<DecodedData>> {
-        &self.entries
-    }
-
-    /// This function returns a copy of the definition of this DB Table.
-    pub fn get_definition(&self) -> Definition {
-        self.definition.clone()
-    }
-
-    /// This function returns a copy of the entries of this DB Table.
-    pub fn get_table_data(&self) -> Vec<Vec<DecodedData>> {
-        self.entries.to_vec()
-    }
-
-    /// This function returns the amount of entries in this DB Table.
-    pub fn get_entry_count(&self) -> usize {
-        self.entries.len()
-    }
-
-    /// This function replaces the definition of this table with the one provided.
-    ///
-    /// This updates the table's data to follow the format marked by the new definition, so you can use it to *update* the version of your table.
-    pub fn set_definition(&mut self, new_definition: &Definition) {
-
-        // It's simple: we compare both schemas, and get the original and final positions of each column.
-        // If a row is new, his original position is -1. If has been removed, his final position is -1.
-        let mut positions: Vec<(i32, i32)> = vec![];
-        for (new_pos, new_field) in new_definition.fields.iter().enumerate() {
-            if let Some(old_pos) = self.definition.fields.iter().position(|x| x.name == new_field.name) {
-                positions.push((old_pos as i32, new_pos as i32))
-            } else { positions.push((-1, new_pos as i32)); }
-        }
-
-        // Then, for each field in the old definition, check if exists in the new one.
-        for (old_pos, old_field) in self.definition.fields.iter().enumerate() {
-            if !new_definition.fields.iter().any(|x| x.name == old_field.name) { positions.push((old_pos as i32, -1)); }
-        }
-
-        // We sort the columns by their destination.
-        positions.sort_by_key(|x| x.1);
-
-        // Then, we create the new data using the old one and the column changes.
-        let mut new_entries: Vec<Vec<DecodedData>> = vec![];
-        for row in &mut self.entries {
-            let mut entry = vec![];
-            for (old_pos, new_pos) in &positions {
-
-                // If the new position is -1, it means the column got removed. We skip it.
-                if *new_pos == -1 { continue; }
-
-                // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
-                else if *old_pos == -1 {
-                    entry.push(DecodedData::default(&self.definition.fields[*new_pos as usize].field_type));
-                }
-
-                // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.
-                else {
-                    entry.push(row[*old_pos as usize].clone());
-                }
-            }
-            new_entries.push(entry);
-        }
-
-        // Then, we finally replace our definition and our data.
-        self.definition = new_definition.clone();
-        self.entries = new_entries;
-    }
-
-    /// This function replaces the data of this table with the one provided.
-    ///
-    /// This can (and will) fail if the data is not of the format defined by the definition of the table.
-    pub fn set_table_data(&mut self, data: &[Vec<DecodedData>]) -> Result<()> {
-        for row in data {
-
-            // First, we need to make sure all rows we have are exactly what we expect.
-            if row.len() != self.definition.fields.len() { Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32))? }
-            for (index, cell) in row.iter().enumerate() {
-
-                // Next, we need to ensure each file is of the type we expected.
-                if !DecodedData::is_field_type_correct(cell, self.definition.fields[index].field_type.clone()) {
-                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].field_type)))?
-                }
-            }
-        }
-
-        // If we passed all the checks, replace the data.
-        self.entries = data.to_vec();
-        Ok(())
-    }
 
     /// This function is used to optimize the size of a DB Table.
     ///
@@ -317,9 +257,11 @@ impl DB {
     pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
 
         // For each vanilla table, if it's the same table/version as our own, we check
-        let mut new_entries = Vec::with_capacity(self.entries.len());
-        for entry in &self.entries {
-            for vanilla_entries in vanilla_tables.iter().filter(|x| x.name == self.name && x.definition.version == self.definition.version).map(|x| &x.entries) {
+        let mut new_entries = Vec::with_capacity(self.table.get_entry_count());
+        let entries = self.get_ref_table_data();
+        let definition = self.get_ref_definition();
+        for entry in entries {
+            for vanilla_entries in vanilla_tables.iter().filter(|x| x.name == self.name && x.get_ref_definition().version == definition.version).map(|x| x.get_ref_table_data()) {
                 if vanilla_entries.contains(entry) {
                     new_entries.push(entry.to_vec());
                     continue;
@@ -328,8 +270,8 @@ impl DB {
         }
 
         // Then we overwrite the entries and return if the table is empty or now, so we can optimize it further at `PackedFile` level.
-        self.entries = new_entries;
-        self.entries.is_empty()
+        let _ = self.table.set_table_data(&new_entries);
+        self.table.get_ref_table_data().is_empty()
     }
 
     /// This function returns the dependency/lookup data of a column from the dependency database.
@@ -537,5 +479,39 @@ impl DB {
         }
 
         data
+    }
+
+    /// This function imports a TSV file into a decoded table.
+    pub fn import_tsv(
+        definition: &Definition,
+        path: &PathBuf,
+        name: &str,
+        version: i32,
+    ) -> Result<Self> {
+        let table = Table::import_tsv(definition, path, name, version)?;
+        let mut db = DB::from(table);
+        db.name = name.to_owned();
+        Ok(db)
+    }
+
+    /// This function exports the provided data to a TSV file.
+    pub fn export_tsv(
+        &self,
+        path: &PathBuf,
+        table_name: &str,
+        table_version: i32
+    ) -> Result<()> {
+        self.table.export_tsv(path, table_name, table_version)
+    }
+}
+
+/// Implementation to create a `DB` from a `Table`.
+impl From<Table> for DB {
+    fn from(table: Table) -> Self {
+        Self {
+            name: String::new(),
+            mysterious_byte: false,
+            table,
+        }
     }
 }

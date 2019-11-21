@@ -36,8 +36,8 @@ use rpfm_error::{Result, Error, ErrorKind};
 use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
 use crate::packfile::PackFile;
+use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
-use crate::packedfile::DecodedData;
 
 use crate::schema::*;
 

@@ -17,8 +17,6 @@ you can find in a `PackFile`. Here, you can find some generic enums used by the 
 For encoding/decoding/proper manipulation of the data in each type of `PackedFile`, check their respective submodules
 !*/
 
-use serde_derive::{Serialize, Deserialize};
-
 use rpfm_error::{Error, ErrorKind, Result};
 
 use std::{fmt, fmt::Display};
@@ -28,8 +26,9 @@ use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
 use crate::packedfile::text::Text;
 use crate::packfile::packedfile::RawPackedFile;
-use crate::schema::{FieldType, Schema};
+use crate::schema::Schema;
 use crate::SCHEMA;
+
 
 pub mod image;
 pub mod rigidmodel;
@@ -78,23 +77,6 @@ pub enum PackedFileType {
     StarPos,
     Text,
     Unknown,
-}
-
-/// This enum is used to store different types of data in a unified way. Used, for example, to store the data from each field in a DB Table.
-///
-/// NOTE: `Sequence` it's a recursive type. A Sequence/List means you got a repeated sequence of fields
-/// inside a single field. Used, for example, in certain model tables.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum DecodedData {
-    Boolean(bool),
-    Float(f32),
-    Integer(i32),
-    LongInteger(i64),
-    StringU8(String),
-    StringU16(String),
-    OptionalStringU8(String),
-    OptionalStringU16(String),
-    Sequence(Vec<Vec<DecodedData>>)
 }
 
 //----------------------------------------------------------------//
@@ -263,79 +245,6 @@ impl PackedFileType {
 
         // If we didn't got a name, it means something broke. Return none.
         else { PackedFileType::Unknown }
-    }
-}
-
-//----------------------------------------------------------------//
-// Implementations for `DecodedData`.
-//----------------------------------------------------------------//
-
-/// Display implementation of `DecodedData`.
-impl Display for DecodedData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            DecodedData::Boolean(_) => write!(f, "Boolean"),
-            DecodedData::Float(_) => write!(f, "Float"),
-            DecodedData::Integer(_) => write!(f, "Integer"),
-            DecodedData::LongInteger(_) => write!(f, "LongInteger"),
-            DecodedData::StringU8(_) => write!(f, "StringU8"),
-            DecodedData::StringU16(_) => write!(f, "StringU16"),
-            DecodedData::OptionalStringU8(_) => write!(f, "OptionalStringU8"),
-            DecodedData::OptionalStringU16(_) => write!(f, "OptionalStringU16"),
-            DecodedData::Sequence(_) => write!(f, "Sequence"),
-        }
-    }
-}
-
-/// PartialEq implementation of `DecodedData`. We need this implementation due to the float comparison being... special.
-impl PartialEq for DecodedData {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (DecodedData::Boolean(x), DecodedData::Boolean(y)) => x == y,
-            (DecodedData::Float(x), DecodedData::Float(y)) => ((x * 1_000_000f32).round() / 1_000_000f32) == ((y * 1_000_000f32).round() / 1_000_000f32),
-            (DecodedData::Integer(x), DecodedData::Integer(y)) => x == y,
-            (DecodedData::LongInteger(x), DecodedData::LongInteger(y)) => x == y,
-            (DecodedData::StringU8(x), DecodedData::StringU8(y)) => x == y,
-            (DecodedData::StringU16(x), DecodedData::StringU16(y)) => x == y,
-            (DecodedData::OptionalStringU8(x), DecodedData::OptionalStringU8(y)) => x == y,
-            (DecodedData::OptionalStringU16(x), DecodedData::OptionalStringU16(y)) => x == y,
-            (DecodedData::Sequence(x), DecodedData::Sequence(y)) => x == y,
-            _ => false
-        }
-    }
-}
-
-/// Implementation of `DecodedData`.
-impl DecodedData {
-
-    /// Default implementation of `DecodedData`.
-    pub fn default(field_type: &FieldType) -> Self {
-        match field_type {
-            FieldType::Boolean => DecodedData::Boolean(false),
-            FieldType::Float => DecodedData::Float(0.0),
-            FieldType::Integer => DecodedData::Integer(0),
-            FieldType::LongInteger => DecodedData::LongInteger(0),
-            FieldType::StringU8 => DecodedData::StringU8("".to_owned()),
-            FieldType::StringU16 => DecodedData::StringU16("".to_owned()),
-            FieldType::OptionalStringU8 => DecodedData::OptionalStringU8("".to_owned()),
-            FieldType::OptionalStringU16 => DecodedData::OptionalStringU16("".to_owned()),
-            FieldType::Sequence(fields) => DecodedData::Sequence(vec![fields.iter().map(|x| Self::default(&x.field_type)).collect::<Vec<DecodedData>>()]),
-        }
-    }
-
-    /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
-    pub fn is_field_type_correct(&self, field_type: FieldType) -> bool {
-        match self {
-            DecodedData::Boolean(_) => field_type == FieldType::Boolean,
-            DecodedData::Float(_) => field_type == FieldType::Float,
-            DecodedData::Integer(_) => field_type == FieldType::Integer,
-            DecodedData::LongInteger(_) => field_type == FieldType::LongInteger,
-            DecodedData::StringU8(_) => field_type == FieldType::StringU8,
-            DecodedData::StringU16(_) => field_type == FieldType::StringU16,
-            DecodedData::OptionalStringU8(_) => field_type == FieldType::OptionalStringU8,
-            DecodedData::OptionalStringU16(_) => field_type == FieldType::OptionalStringU16,
-            DecodedData::Sequence(_) => if let FieldType::Sequence(_) = field_type { true } else { false },
-        }
     }
 }
 
