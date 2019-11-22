@@ -29,7 +29,7 @@ use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use rpfm_error::{ErrorKind, Result};
+use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::GAME_SELECTED;
 use crate::DEPENDENCY_DATABASE;
@@ -44,7 +44,7 @@ use crate::packfile::packedfile::*;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
-use crate::packedfile::table::loc::Loc;
+use crate::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 
 mod compression;
 mod crypto;
@@ -1639,6 +1639,231 @@ impl PackFile {
         else {
             Ok((format!("{} files patched.\n{} files deleted.", files_patched, files_to_delete.len()), files_to_delete))
         }
+    }
+
+
+    /// This function is used to Mass-Import TSV files into a PackFile.
+    pub fn mass_import_tsv(
+        tsv_paths: &[PathBuf],
+        name: Option<String>,
+        pack_file: &mut PackFile,
+        overwrite: bool
+    ) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
+
+        // Create the following lists:
+        // - PackedFiles to add.
+        // - PackedFiles to remove.
+        // - Paths with errors.
+        let mut packed_files: Vec<PackedFile> = vec![];
+        let mut packed_files_to_remove = vec![];
+        let mut error_files = vec![];
+
+        // If there is not a schema, don't do anything.
+        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+            for path in tsv_paths {
+
+                // The first row has the PackedFile Type (or name, in case of tables) and version.
+                // The second row contains the column names, and it can be ignored.
+                let mut tsv = String::new();
+                BufReader::new(File::open(&path)?).read_to_string(&mut tsv)?;
+
+                // We get his first line, if it has it. Otherwise, we return an error in this file.
+                if let Some(line) = tsv.lines().next() {
+
+                    // Split the first line by \t so we can get the info of the table.
+                    // We expect to have 2 items here. If we have more or less, stop.
+                    let tsv_info = line.split('\t').collect::<Vec<&str>>();
+                    if tsv_info.len() == 2 {
+
+                        // Get the type and the version of the table.
+                        let table_type = tsv_info[0];
+                        let table_version = match tsv_info[1].parse::<i32>() {
+                            Ok(version) => version,
+                            Err(_) => {
+                                error_files.push(path.to_string_lossy().to_string());
+                                continue
+                            }
+                        };
+
+                        // Get the definition, depending on the table type and version.
+                        // If the name is not specific for a type of file, we trat it as a DB Table.
+                        match table_type {
+                            TSV_NAME_LOC => {
+                                let definition = schema.get_versioned_file_loc()?.get_version(table_version)?;
+                                if let Ok(table) = Loc::import_tsv(&definition, &path, &table_type, table_version) {
+
+                                    // Depending on the name received, call it one thing or another.
+                                    let name = match name {
+                                        Some(ref name) => name.to_string(),
+                                        None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                    };
+
+                                    let mut path = vec!["text".to_owned(), "db".to_owned(), format!("{}.loc", name)];
+
+                                    // If that path already exists in the list of new PackedFiles to add, change it using the index.
+                                    if !overwrite {
+                                        let mut index = 1;
+                                        while packed_files.iter().any(|x| x.get_path() == &*path) {
+                                            path[2] = format!("{}_{}.loc", name, index);
+                                            index += 1;
+                                        }
+                                    }
+
+                                    // If that path already exist in the PackFile, add it to the "remove" list.
+                                    if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+
+                                    // Create and add the new PackedFile to the list of PackedFiles to add.
+                                    let mut packed_file = PackedFile::new(path, pack_file.get_file_name());
+                                    packed_file.set_decoded(&DecodedPackedFile::Loc(table));
+                                    packed_files.push(packed_file);
+                                }
+                                else { error_files.push(path.to_string_lossy().to_string()); }
+                            }
+                            _ => {
+                                let definition = schema.get_versioned_file_db(&table_type)?.get_version(table_version)?;
+                                if let Ok(table) = DB::import_tsv(&definition, &path, &table_type, table_version) {
+
+                                    // Depending on the name received, call it one thing or another.
+                                    let name = match name {
+                                        Some(ref name) => name.to_string(),
+                                        None => path.file_stem().unwrap().to_str().unwrap().to_string(),
+                                    };
+
+                                    let mut path = vec!["db".to_owned(), table_type.to_owned(), name.to_owned()];
+
+                                    // If that path already exists in the list of new PackedFiles to add, change it using the index.
+                                    if !overwrite {
+                                        let mut index = 1;
+                                        while packed_files.iter().any(|x| x.get_path() == &*path) {
+                                            path[2] = format!("{}_{}", name, index);
+                                            index += 1;
+                                        }
+                                    }
+
+                                    // If that path already exists in the PackFile, add it to the "remove" list.
+                                    if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+
+                                    // Create and add the new PackedFile to the list of PackedFiles to add.
+                                    let mut packed_file = PackedFile::new(path, pack_file.get_file_name());
+                                    packed_file.set_decoded(&DecodedPackedFile::DB(table));
+                                    packed_files.push(packed_file);
+                                }
+                                else { error_files.push(path.to_string_lossy().to_string()); }
+                            }
+                        }
+                    }
+                    else { error_files.push(path.to_string_lossy().to_string()); }
+                }
+                else { error_files.push(path.to_string_lossy().to_string()); }
+            }
+
+            // If any of the files returned error, return error.
+            if !error_files.is_empty() {
+                let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<String>();
+                return Err(ErrorKind::MassImport(error_files_string))?
+            }
+
+            // Get the "TreePath" of the new PackFiles to return them.
+            let tree_path = packed_files.iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>();
+
+            // Remove all the "conflicting" PackedFiles from the PackFile, before adding the new ones.
+            for packed_file_to_remove in &packed_files_to_remove {
+                pack_file.remove_packed_file_by_path(packed_file_to_remove);
+            }
+
+            // We add all the files to the PackFile, and return success.
+            let packed_files_to_add = packed_files.iter().collect::<Vec<&PackedFile>>();
+            pack_file.add_packed_files(&packed_files_to_add, true)?;
+            Ok((packed_files_to_remove, tree_path))
+        }
+        else {
+            return Err(Error::from(ErrorKind::SchemaNotFound))
+        }
+    }
+
+    /// This function is used to Mass-Export TSV files from a PackFile.
+    ///
+    /// NOTE: this will OVERWRITE any existing file that has a name conflict with the TSV files provided.
+    pub fn mass_export_tsv(&mut self, path_types: &[PathType], export_path: &PathBuf) -> Result<String> {
+
+        // Lists of PackedFiles that couldn't be exported for one thing or another and exported PackedFile names,
+        // so we make sure we don't overwrite those with the following ones.
+        let mut error_list = vec![];
+        let mut exported_files = vec![];
+
+        // We need the schema to export. If there is no schema, return an error.
+        match *SCHEMA.lock().unwrap() {
+            Some(ref schema) => {
+
+                // Keep the PathTypes added so we can return them to the UI easely.
+                let path_types = PathType::dedup(path_types);
+                let paths = self.get_paths_from_path_types(&path_types);
+                let paths_ref = paths.par_iter().map(|x| (*x).as_ref()).collect::<Vec<&[String]>>();
+
+                let mut packed_files = self.get_ref_mut_packed_files_by_paths(paths_ref);
+
+                // Decode the entire set of PackedFiles we want to export.
+                packed_files.iter_mut().for_each(|packed_file| {
+                    let path = packed_file.get_path().to_vec();
+                    match packed_file.decode_return_ref_no_locks(schema) {
+                        Ok(data) => match data {
+                            DecodedPackedFile::DB(data) => {
+
+                                // His name will be "db_name_file_name.tsv". If that's taken, we'll add an index until we find one available.
+                                let mut name = format!("{}_{}.tsv", path[1], path.last().unwrap().to_owned());
+                                let mut export_path = export_path.to_path_buf();
+
+                                // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
+                                let mut index = 1;
+                                while exported_files.contains(&name) {
+                                    name = format!("{}_{}_{}.tsv", path[1], path.last().unwrap().to_owned(), index);
+                                    index += 1;
+                                }
+
+                                export_path.push(name.to_owned());
+                                match data.export_tsv(&export_path, &path[1], data.get_definition().version) {
+                                    Ok(_) => exported_files.push(name.to_owned()),
+                                    Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
+                                }
+
+                            }
+                            DecodedPackedFile::Loc(data) => {
+
+                                // His name will be "db_name_file_name.tsv". If that's taken, we'll add an index until we find one available.
+                                let mut name = format!("{}.tsv", path.last().unwrap().to_owned());
+                                let mut export_path = export_path.to_path_buf();
+
+                                // Checks to avoid overwriting exported files go here, in an infinite loop of life and death.
+                                let mut index = 1;
+                                while exported_files.contains(&name) {
+                                    name = format!("{}_{}.tsv", path.last().unwrap().to_owned(), index);
+                                    index += 1;
+                                }
+
+                                export_path.push(name.to_owned());
+                                match data.export_tsv(&export_path, &TSV_NAME_LOC, data.get_definition().version) {
+                                    Ok(_) => exported_files.push(name.to_owned()),
+                                    Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
+                                }
+
+                            }
+                            _ => unimplemented!()
+                        }
+                        Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
+                    }
+                });
+            }
+            None => return Err(Error::from(ErrorKind::SchemaNotFound)),
+        }
+
+        // If there has been errors, return ok with the list of errors.
+        if !error_list.is_empty() {
+            let error_files_string = error_list.iter().map(|x| format!("<li>{}</li>", x.0)).collect::<String>();
+            Ok(format!("<p>All exportable files have been exported, except the following ones:</p><ul>{}</ul>", error_files_string))
+        }
+
+        // Otherwise, just return success and an empty error list.
+        else { Ok("<p>All exportable files have been exported.</p>".to_owned()) }
     }
 
     /// This function loads to memory the vanilla (made by CA) dependencies of a `PackFile`.

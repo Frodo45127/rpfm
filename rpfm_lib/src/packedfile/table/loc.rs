@@ -32,7 +32,7 @@ const BYTEORDER_MARK: u16 = 65279; // FF FE
 const PACKED_FILE_TYPE: &str = "LOC";
 
 /// This is the name used in TSV-exported Loc files to identify them as Loc Files.
-pub const TSV_NAME: &str = "Loc PackedFile";
+pub const TSV_NAME_LOC: &str = "Loc PackedFile";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

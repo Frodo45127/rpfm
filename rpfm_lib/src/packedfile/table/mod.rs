@@ -448,7 +448,7 @@ impl Table {
         }
 
         // Get his definition depending on his first line's contents.
-        let definition = if table_type == loc::TSV_NAME { schema.get_versioned_file_loc()?.get_version(table_version)?.clone() }
+        let definition = if table_type == loc::TSV_NAME_LOC { schema.get_versioned_file_loc()?.get_version(table_version)?.clone() }
         else { schema.get_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
 
         // Try to import the entries of the file.
@@ -491,7 +491,7 @@ impl Table {
         }
 
         // If we reached this point without errors, we create the File in memory and add the entries to it.
-        let data = if table_type == loc::TSV_NAME {
+        let data = if table_type == loc::TSV_NAME_LOC {
             let mut file = loc::Loc::new(&definition);
             file.set_table_data(&entries)?;
             file.save()
@@ -564,7 +564,7 @@ impl Table {
         file.read_to_end(&mut data)?;
 
         let (table_type, version, entries) = if let Ok(data) = loc::Loc::read(&data, schema) {
-            (loc::TSV_NAME, data.get_definition().version, data.get_table_data())
+            (loc::TSV_NAME_LOC, data.get_definition().version, data.get_table_data())
         }
         else {
             let table_type = source_path.parent().unwrap().file_name().unwrap().to_str().unwrap();
@@ -572,7 +572,7 @@ impl Table {
             else { return Err(ErrorKind::ImportTSVWrongTypeTable)? }
         };
 
-        let definition = if table_type == loc::TSV_NAME { schema.get_versioned_file_loc()?.get_version(version)?.clone() }
+        let definition = if table_type == loc::TSV_NAME_LOC { schema.get_versioned_file_loc()?.get_version(version)?.clone() }
         else { schema.get_versioned_file_db(&table_type)?.get_version(version)?.clone() };
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
