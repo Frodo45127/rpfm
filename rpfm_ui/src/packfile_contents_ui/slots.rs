@@ -14,7 +14,6 @@ Module with all the code related to the main `PackFileContentsSlots`.
 
 use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::slots::SlotQtCorePointRef;
-use qt_widgets::tab_widget::TabWidget;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
@@ -67,6 +66,9 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_delete: SlotBool<'static>,
     pub contextual_menu_extract: SlotBool<'static>,
     pub contextual_menu_rename: SlotBool<'static>,
+
+    pub contextual_menu_mass_import_tsv: SlotBool<'static>,
+    pub contextual_menu_mass_export_tsv: SlotBool<'static>,
 
     pub packfile_contents_tree_view_expand_all: SlotNoArgs<'static>,
     pub packfile_contents_tree_view_collapse_all: SlotNoArgs<'static>,
@@ -351,6 +353,8 @@ impl PackFileContentsSlots {
                     unsafe { pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
                     unsafe { pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false); }
                 }
+                    unsafe { pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true); }
+                    unsafe { pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true); }
             }
         );
 
@@ -771,6 +775,95 @@ impl PackFileContentsSlots {
             }
         );
 
+        // What happens when we trigger the "Mass-Import TSV" Action.
+        //
+        // TODO: Make it so the name of the table is split off when importing keeping the original name.
+        let contextual_menu_mass_import_tsv = SlotBool::new(move |_| {
+
+                // Don't do anything if there is a PackedFile open. This fixes the situation where you could overwrite data already in the UI.
+                //if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
+
+                // Create the "Mass-Import TSV" dialog and wait for his data (or a cancelation).
+                if let Some(data) = PackFileContentsUI::create_mass_import_tsv_dialog(&app_ui) {
+
+                    // If there is no name provided, nor TSV file selected, return an error.
+                    if let Some(ref name) = data.1 {
+                        if name.is_empty() { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::EmptyInput, false) }
+                    }
+                    if data.0.is_empty() { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::NoFilesToImport, false) }
+
+                    // Otherwise, try to import all of them and report the result.
+                    else {
+                        unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                        CENTRAL_COMMAND.send_message_qt(Command::MassImportTSV(data.0, data.1));
+                        match CENTRAL_COMMAND.recv_message_qt() {
+
+                            // If it's success....
+                            Response::VecVecStringVecVecString(paths) => {
+
+                                // Get the list of paths to add, removing those we "replaced".
+                                let mut paths_to_add = paths.1.to_vec();
+                                paths_to_add.retain(|x| !paths.0.contains(&x));
+                                let paths_to_add2 = paths_to_add.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+
+                                // Update the TreeView.
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2));
+
+                                // Update the global search stuff, if needed.
+                                //global_search_explicit_paths.borrow_mut().append(&mut paths_to_add);
+                                //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                                // For each file added, remove it from the data history if exists.
+                                /*
+                                for path in &paths.1 {
+                                    if table_state_data.borrow().get(path).is_some() {
+                                        table_state_data.borrow_mut().remove(path);
+                                    }
+
+                                    let data = TableStateData::new_empty();
+                                    table_state_data.borrow_mut().insert(path.to_vec(), data);
+                                }*/
+                            }
+
+                            Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        }
+
+                        // Re-enable the Main Window.
+                        unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                    }
+                }
+            }
+        );
+
+        // What happens when we trigger the "Mass-Export TSV" Action.
+        let contextual_menu_mass_export_tsv = SlotBool::new(move |_| {
+
+                // Get a "Folder-only" FileDialog.
+                let export_path = unsafe { FileDialog::get_existing_directory_unsafe((
+                    app_ui.main_window as *mut Widget,
+                    &QString::from_std_str("Select destination folder")
+                )) };
+
+                // If we got an export path and it's not empty, try to export all selected files there.
+                if !export_path.is_empty() {
+                    let export_path = PathBuf::from(export_path.to_std_string());
+                    if export_path.is_dir() {
+                        unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                        let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                        let selected_items = selected_items.iter().map(|x| From::from(x)).collect::<Vec<PathType>>();
+                        CENTRAL_COMMAND.send_message_qt(Command::MassExportTSV(selected_items, export_path));
+                        match CENTRAL_COMMAND.recv_message_qt() {
+                            Response::String(response) => show_dialog(app_ui.main_window as *mut Widget, response, true),
+                            Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        }
+
+                        unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                    }
+                }
+            }
+        );
 
         let packfile_contents_tree_view_expand_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().expand_all(); }});
         let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap().collapse_all(); }});
@@ -793,6 +886,9 @@ impl PackFileContentsSlots {
             contextual_menu_delete,
             contextual_menu_extract,
             contextual_menu_rename,
+
+            contextual_menu_mass_import_tsv,
+            contextual_menu_mass_export_tsv,
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,

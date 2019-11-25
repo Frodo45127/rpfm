@@ -169,7 +169,13 @@ pub enum Command {
     ExtractPackedFiles(Vec<PathType>, PathBuf),
 
     /// This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original PathType and their new name.
-    RenamePackedFiles(Vec<(PathType, String)>)
+    RenamePackedFiles(Vec<(PathType, String)>),
+
+    /// This command is used when we want to import a large amount of table-like files from TSV files.
+    MassImportTSV(Vec<PathBuf>, Option<String>),
+
+    /// This command is used when we want to export a large amount of table-like files as TSV files.
+    MassExportTSV(Vec<PathType>, PathBuf),
 
     /*
     OpenPackFileExtra,
@@ -310,7 +316,8 @@ pub enum Response {
     /// Response to return `Unknown`.
     Unknown,
 
-
+    /// Response to return `(Vec<Vec<String>>, Vec<Vec<String>>)`.
+    VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
 /*
     Bool(bool),
     I32(i32),

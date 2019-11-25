@@ -494,6 +494,22 @@ pub fn background_loop() {
                 CENTRAL_COMMAND.send_message_rust(Response::VecPathTypeString(pack_file_decoded.rename_packedfiles(&renaming_data, false)));
             }
 
+            // In case we want to Mass-Import TSV Files...
+            Command::MassImportTSV(paths, name) => {
+                match pack_file_decoded.mass_import_tsv(&paths, name, true) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+
+            }
+
+            // In case we want to Mass-Export TSV Files...
+            Command::MassExportTSV(path_types, path) => {
+                match pack_file_decoded.mass_export_tsv(&path_types, &path) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
         }
     }
 

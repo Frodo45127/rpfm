@@ -1644,9 +1644,9 @@ impl PackFile {
 
     /// This function is used to Mass-Import TSV files into a PackFile.
     pub fn mass_import_tsv(
+        &mut self,
         tsv_paths: &[PathBuf],
         name: Option<String>,
-        pack_file: &mut PackFile,
         overwrite: bool
     ) -> Result<(Vec<Vec<String>>, Vec<Vec<String>>)> {
 
@@ -1710,10 +1710,10 @@ impl PackFile {
                                     }
 
                                     // If that path already exist in the PackFile, add it to the "remove" list.
-                                    if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                                    if self.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                                     // Create and add the new PackedFile to the list of PackedFiles to add.
-                                    let mut packed_file = PackedFile::new(path, pack_file.get_file_name());
+                                    let mut packed_file = PackedFile::new(path, self.get_file_name());
                                     packed_file.set_decoded(&DecodedPackedFile::Loc(table));
                                     packed_files.push(packed_file);
                                 }
@@ -1741,10 +1741,10 @@ impl PackFile {
                                     }
 
                                     // If that path already exists in the PackFile, add it to the "remove" list.
-                                    if pack_file.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
+                                    if self.packedfile_exists(&path) { packed_files_to_remove.push(path.to_vec()) }
 
                                     // Create and add the new PackedFile to the list of PackedFiles to add.
-                                    let mut packed_file = PackedFile::new(path, pack_file.get_file_name());
+                                    let mut packed_file = PackedFile::new(path, self.get_file_name());
                                     packed_file.set_decoded(&DecodedPackedFile::DB(table));
                                     packed_files.push(packed_file);
                                 }
@@ -1768,12 +1768,12 @@ impl PackFile {
 
             // Remove all the "conflicting" PackedFiles from the PackFile, before adding the new ones.
             for packed_file_to_remove in &packed_files_to_remove {
-                pack_file.remove_packed_file_by_path(packed_file_to_remove);
+                self.remove_packed_file_by_path(packed_file_to_remove);
             }
 
             // We add all the files to the PackFile, and return success.
             let packed_files_to_add = packed_files.iter().collect::<Vec<&PackedFile>>();
-            pack_file.add_packed_files(&packed_files_to_add, true)?;
+            self.add_packed_files(&packed_files_to_add, true)?;
             Ok((packed_files_to_remove, tree_path))
         }
         else {
@@ -1847,7 +1847,9 @@ impl PackFile {
                                 }
 
                             }
-                            _ => unimplemented!()
+
+                            // Ignore any other PackedFiles.
+                            _ => {}
                         }
                         Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                     }

@@ -16,7 +16,9 @@ The reason they're here and not in the main file is because I don't want to polu
 that one, as it's mostly meant for initialization and configuration.
 !*/
 
+use qt_widgets::check_box::CheckBox;
 use qt_widgets::dialog::Dialog;
+use qt_widgets::file_dialog::{FileDialog, FileMode};
 use qt_widgets::group_box::GroupBox;
 use qt_widgets::label::Label;
 use qt_widgets::line_edit::LineEdit;
@@ -26,8 +28,11 @@ use qt_widgets::widget::Widget;
 use qt_core::connection::Signal;
 use qt_core::qt::CaseSensitivity;
 use qt_core::reg_exp::RegExp;
+use qt_core::slots::SlotNoArgs;
 
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -147,5 +152,87 @@ impl PackFileContentsUI {
             let new_text = rewrite_sequence_line_edit.text().to_std_string();
             if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
         } else { None }
+    }
+
+    /// This function creates the "Mass-Import TSV" dialog. Nothing too massive.
+    ///
+    /// It returns the name of the new imported PackedFiles & their Paths, or None in case of closing the dialog.
+    pub fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(Vec<PathBuf>, Option<String>)> {
+
+        // Create the "Mass-Import TSV" Dialog and configure it.
+        let mut dialog = unsafe { Dialog::new_unsafe(app_ui.main_window as *mut Widget) };
+        dialog.set_window_title(&QString::from_std_str("Mass-Import TSV Files"));
+        dialog.set_modal(true);
+        dialog.resize((400, 100));
+
+        // Create the main Grid and his stuff.
+        let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
+        let mut files_to_import_label = Label::new(&QString::from_std_str("Files to import: 0."));
+        let select_files_button = PushButton::new(&QString::from_std_str("..."));
+        let mut imported_files_name_line_edit = LineEdit::new(());
+        let use_original_filenames_label = Label::new(&QString::from_std_str("Use original filename:"));
+        let use_original_filenames_checkbox = CheckBox::new(());
+        let import_button = PushButton::new(&QString::from_std_str("Import"));
+
+        // Set a dummy name as default.
+        imported_files_name_line_edit.set_text(&QString::from_std_str("new_imported_file"));
+
+        // Add all the widgets to the main grid, and the main grid to the dialog.
+        unsafe { main_grid.as_mut().unwrap().add_widget((files_to_import_label.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((select_files_button.as_mut_ptr() as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((use_original_filenames_label.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((use_original_filenames_checkbox.as_mut_ptr() as *mut Widget, 1, 1, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((imported_files_name_line_edit.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((import_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
+
+        //-------------------------------------------------------------------------------------------//
+        // Actions for the Mass-Import TSV Dialog...
+        //-------------------------------------------------------------------------------------------//
+
+        // Create the list of Paths to import.
+        let files_to_import = Rc::new(RefCell::new(vec![]));
+        let dialog = dialog.into_raw();
+
+        // What happens when we hit the "..." button.
+        let slot_select_files = SlotNoArgs::new(clone!(
+            files_to_import => move || {
+
+                // Create the FileDialog to get the TSV files, and add them to the list if we accept.
+                let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                    dialog as *mut Widget,
+                    &QString::from_std_str("Select TSV Files to Import..."),
+                )) };
+
+                file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
+                file_dialog.set_file_mode(FileMode::ExistingFiles);
+
+                if file_dialog.exec() == 1 {
+                    let selected_files = file_dialog.selected_files();
+                    files_to_import.borrow_mut().clear();
+                    for index in 0..selected_files.count(()) {
+                        files_to_import.borrow_mut().push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
+                    }
+
+                    files_to_import_label.set_text(&QString::from_std_str(&format!("Files to import: {}.", selected_files.count(()))));
+                }
+            }
+        ));
+
+        select_files_button.signals().released().connect(&slot_select_files);
+        unsafe { import_button.signals().released().connect(&dialog.as_ref().unwrap().slots().accept()); }
+
+        // If we hit the "Create" button, check if we want to use their native name and send the info back.
+        if unsafe { dialog.as_mut().unwrap().exec() } == 1 {
+            if use_original_filenames_checkbox.is_checked() {
+                Some((files_to_import.borrow().to_vec(), None))
+            }
+            else {
+                let packed_file_name = imported_files_name_line_edit.text().to_std_string();
+                Some((files_to_import.borrow().to_vec(), Some(packed_file_name)))
+            }
+        }
+
+        // In any other case, we return None.
+        else { None }
     }
 }
