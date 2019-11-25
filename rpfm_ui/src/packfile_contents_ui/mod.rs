@@ -66,7 +66,7 @@ pub struct PackFileContentsUI {
     pub context_menu_add_file: *mut Action,
     pub context_menu_add_folder: *mut Action,
     pub context_menu_add_from_packfile: *mut Action,
-    pub context_menu_create_folder: *mut Action,
+    pub context_menu_new_folder: *mut Action,
     pub context_menu_create_db: *mut Action,
     pub context_menu_create_loc: *mut Action,
     pub context_menu_create_text: *mut Action,
@@ -155,7 +155,7 @@ impl PackFileContentsUI {
         let context_menu_add_file = menu_add_ref_mut.add_action(&QString::from_std_str("&Add File"));
         let context_menu_add_folder = menu_add_ref_mut.add_action(&QString::from_std_str("Add &Folder"));
         let context_menu_add_from_packfile = menu_add_ref_mut.add_action(&QString::from_std_str("Add from &PackFile"));
-        let context_menu_create_folder = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Folder"));
+        let context_menu_new_folder = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Folder"));
         let context_menu_create_loc = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Loc"));
         let context_menu_create_db = menu_create_ref_mut.add_action(&QString::from_std_str("Create &DB"));
         let context_menu_create_text = menu_create_ref_mut.add_action(&QString::from_std_str("Create &Text"));
@@ -185,7 +185,7 @@ impl PackFileContentsUI {
             context_menu_add_file.as_mut().unwrap().set_enabled(false);
             context_menu_add_folder.as_mut().unwrap().set_enabled(false);
             context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
-            context_menu_create_folder.as_mut().unwrap().set_enabled(false);
+            context_menu_new_folder.as_mut().unwrap().set_enabled(false);
             context_menu_create_db.as_mut().unwrap().set_enabled(false);
             context_menu_create_loc.as_mut().unwrap().set_enabled(false);
             context_menu_create_text.as_mut().unwrap().set_enabled(false);
@@ -225,7 +225,7 @@ impl PackFileContentsUI {
             context_menu_add_folder,
             context_menu_add_from_packfile,
 
-            context_menu_create_folder,
+            context_menu_new_folder,
             context_menu_create_loc,
             context_menu_create_db,
             context_menu_create_text,

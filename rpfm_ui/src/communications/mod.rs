@@ -177,6 +177,9 @@ pub enum Command {
     /// This command is used when we want to export a large amount of table-like files as TSV files.
     MassExportTSV(Vec<PathType>, PathBuf),
 
+    /// This command is used when we want to know if a folder exists in the currently open PackFile.
+    FolderExists(Vec<String>),
+
     /*
     OpenPackFileExtra,
     SavePackFile,

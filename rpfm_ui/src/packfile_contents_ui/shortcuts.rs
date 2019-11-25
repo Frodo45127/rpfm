@@ -36,7 +36,7 @@ pub fn set_shortcuts(ui: &PackFileContentsUI) {
     unsafe { ui.context_menu_add_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["add_folder"]))); }
     unsafe { ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["add_from_packfile"]))); }
     unsafe { ui.context_menu_check_tables.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["check_tables"]))); }
-    unsafe { ui.context_menu_create_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["create_folder"]))); }
+    unsafe { ui.context_menu_new_folder.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["create_folder"]))); }
     unsafe { ui.context_menu_create_db.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["create_db"]))); }
     unsafe { ui.context_menu_create_loc.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["create_loc"]))); }
     unsafe { ui.context_menu_create_text.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["create_text"]))); }
@@ -59,7 +59,7 @@ pub fn set_shortcuts(ui: &PackFileContentsUI) {
     unsafe { ui.context_menu_add_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.context_menu_add_from_packfile.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.context_menu_check_tables.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
-    unsafe { ui.context_menu_create_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
+    unsafe { ui.context_menu_new_folder.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.context_menu_create_db.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.context_menu_create_loc.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
     unsafe { ui.context_menu_create_text.as_mut().unwrap().set_shortcut_context(ShortcutContext::Widget); }
@@ -82,7 +82,7 @@ pub fn set_shortcuts(ui: &PackFileContentsUI) {
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_add_folder); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_add_from_packfile); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_check_tables); }
-    unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_create_folder); }
+    unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_new_folder); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_create_db); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_create_loc); }
     unsafe { ui.packfile_contents_tree_view.as_mut().unwrap().add_action(ui.context_menu_create_text); }

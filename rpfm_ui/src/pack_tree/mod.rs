@@ -779,8 +779,10 @@ impl PackTree for *mut TreeView {
                 // First, get the `PackedFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
                 let mut item_paths = vec![];
                 for item_type in &item_types {
-                    if let TreePathType::File(path) = item_type {
-                        item_paths.push(path.to_vec());
+                    match item_type {
+                        TreePathType::File(path) => item_paths.push(path.to_vec()),
+                        TreePathType::Folder(path) => item_paths.push(path.to_vec()),
+                        _ => unimplemented!()
                     }
                 }
 

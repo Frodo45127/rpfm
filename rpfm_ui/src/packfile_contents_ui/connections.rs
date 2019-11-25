@@ -44,6 +44,8 @@ pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
     unsafe { ui.context_menu_extract.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_extract); }
     unsafe { ui.context_menu_rename.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_rename); }
 
+    unsafe { ui.context_menu_new_folder.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_new_folder); }
+
     unsafe { ui.context_menu_mass_import_tsv.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_mass_import_tsv); }
     unsafe { ui.context_menu_mass_export_tsv.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_mass_export_tsv); }
 

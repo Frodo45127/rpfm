@@ -510,6 +510,11 @@ pub fn background_loop() {
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
+
+            // In case we want to know if a Folder exists, knowing his path...
+            Command::FolderExists(path) => {
+                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.folder_exists(&path)));
+            }
         }
     }
 

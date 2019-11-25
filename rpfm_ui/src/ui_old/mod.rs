@@ -365,45 +365,6 @@ And, in case you ask, works with numeric cells too, as long as the resulting tex
     } else { None }
 }
 
-/// This function creates the entire "New Folder" dialog. It returns the new name of the Folder, or
-/// None if the dialog is canceled or closed.
-pub fn create_new_folder_dialog(app_ui: &AppUI) -> Option<String> {
-
-    //-------------------------------------------------------------------------------------------//
-    // Creating the New Folder Dialog...
-    //-------------------------------------------------------------------------------------------//
-
-    // Create the "New Folder" Dialog and configure it.
-    let mut dialog = unsafe { Dialog::new_unsafe(app_ui.window as *mut Widget) };
-    dialog.set_window_title(&QString::from_std_str("New Folder"));
-    dialog.set_modal(true);
-
-    // Create the main Grid.
-    let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
-
-    // Create the "New Folder" LineEdit and configure it.
-    let mut new_folder_line_edit = LineEdit::new(());
-    new_folder_line_edit.set_text(&QString::from_std_str("new_folder"));
-    let new_folder_button = PushButton::new(&QString::from_std_str("New Folder")).into_raw();
-
-    // Add all the widgets to the main grid.
-    unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_line_edit.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
-    unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_button as *mut Widget, 0, 1, 1, 1)); }
-
-    //-------------------------------------------------------------------------------------------//
-    // Actions for the New Folder Dialog...
-    //-------------------------------------------------------------------------------------------//
-
-    // What happens when we hit the "New Folder" button.
-    unsafe { new_folder_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
-
-    // Show the Dialog and, if we hit the "New Folder" button, return the new name.
-    if dialog.exec() == 1 { Some(new_folder_line_edit.text().to_std_string()) }
-
-    // Otherwise, return None.
-    else { None }
-}
-
 /// This function creates all the "New PackedFile" dialogs. It returns the type/name of the new file,
 /// or None if the dialog is canceled or closed.
 pub fn create_new_packed_file_dialog(

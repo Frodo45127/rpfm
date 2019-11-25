@@ -16,9 +16,11 @@ they're here and not in the main file is because I don't want to polute that one
 as it's mostly meant for initialization and configuration.
 !*/
 
-
+use qt_widgets::dialog::Dialog;
 use qt_widgets::file_dialog::FileDialog;
+use qt_widgets::line_edit::LineEdit;
 use qt_widgets::{message_box, message_box::MessageBox};
+use qt_widgets::push_button::PushButton;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
@@ -51,7 +53,7 @@ use crate::packedfile_views::{image::*, PackedFileView, table::*, TheOneSlot, te
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
-use crate::utils::show_dialog;
+use crate::utils::{create_grid_layout_unsafe, show_dialog};
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -1089,5 +1091,28 @@ impl AppUI {
                 }
             }
         }
+    }
+
+
+    /// This function creates the entire "New Folder" dialog.
+    ///
+    /// It returns the new name of the Folder, or None if the dialog is canceled or closed.
+    pub fn new_folder_dialog(&self) -> Option<String> {
+        let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
+        dialog.set_window_title(&QString::from_std_str("New Folder"));
+        dialog.set_modal(true);
+
+        let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
+
+        let mut new_folder_line_edit = LineEdit::new(());
+        new_folder_line_edit.set_text(&QString::from_std_str("new_folder"));
+        let new_folder_button = PushButton::new(&QString::from_std_str("New Folder")).into_raw();
+
+        unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_line_edit.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_button as *mut Widget, 0, 1, 1, 1)); }
+        unsafe { new_folder_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
+
+        if dialog.exec() == 1 { Some(new_folder_line_edit.text().to_std_string()) }
+        else { None }
     }
 }
