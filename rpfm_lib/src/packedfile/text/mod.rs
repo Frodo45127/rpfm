@@ -82,7 +82,7 @@ impl Text {
             Ok(string) => (SupportedEncodings::UTF8, string),
             Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
                 Ok(string) => (SupportedEncodings::Iso8859_1, string),
-                Err(_) => return Err(ErrorKind::TextDecodeWrongEncodingOrNotATextFile)?,
+                Err(_) => return Err(ErrorKind::TextDecodeWrongEncodingOrNotATextFile.into()),
             }
         };
 

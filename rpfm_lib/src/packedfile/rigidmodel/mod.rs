@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -108,8 +108,8 @@ impl RigidModel {
                 }
                 Ok("RigidModel patched succesfully.".to_owned())
             },
-            7 => Err(ErrorKind::RigidModelPatchToWarhammer("This is not an Attila's RigidModel, but a Warhammer one.".to_owned()))?,
-            _ => Err(ErrorKind::RigidModelPatchToWarhammer("I don't even know from what game is this RigidModel.".to_owned()))?,
+            7 => Err(ErrorKind::RigidModelPatchToWarhammer("This is not an Attila's RigidModel, but a Warhammer one.".to_owned()).into()),
+            _ => Err(ErrorKind::RigidModelPatchToWarhammer("I don't even know from what game is this RigidModel.".to_owned()).into()),
         }
     }
 }
@@ -136,7 +136,7 @@ impl RigidModelHeader {
         // We check this, just in case we try to read some malformed file with a string in the first
         // four bytes (which is not uncommon).
         if packed_file_header.packed_file_header_signature != "RMV2" {
-            return Err(ErrorKind::RigidModelNotSupportedFile)?
+            return Err(ErrorKind::RigidModelNotSupportedFile.into())
         }
 
         match packed_file_data.decode_integer_u32(4) {
@@ -181,7 +181,7 @@ impl RigidModelData {
         let offset: usize = match packed_file_header_model_type {
             6 => 20, // Attila
             7 => 28, // Warhammer 1&2
-            _ => return Err(ErrorKind::RigidModelNotSupportedType)?
+            _ => return Err(ErrorKind::RigidModelNotSupportedType.into())
         };
 
         // We get the "headers" of every lod.

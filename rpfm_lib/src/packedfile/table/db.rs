@@ -146,20 +146,20 @@ impl DB {
                                                     version == 11)) ||
             (name == "models_sieges_tables" && (version == 2 ||
                                                     version == 3))
-        { return Err(ErrorKind::DBTableContainsListField)? }
+        { return Err(ErrorKind::DBTableContainsListField.into()) }
 
         // Try to get the table_definition for this table, if exists.
         let versioned_file = schema.get_versioned_file_db(&name);
-        if versioned_file.is_err() && entry_count == 0 { Err(ErrorKind::TableEmptyWithNoDefinition)? }
+        if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
         let definition = versioned_file?.get_version(version);
-        if definition.is_err() && entry_count == 0 { Err(ErrorKind::TableEmptyWithNoDefinition)? }
+        if definition.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
 
         // Then try to decode all the entries.
         let mut table = Table::new(definition?);
         table.decode(&packed_file_data, entry_count, &mut index)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
-        if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index))? }
+        if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
 
         // If we've reached this, we've succesfully decoded the table.
         Ok(Self {
@@ -202,7 +202,7 @@ impl DB {
 
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
-        if packed_file_data.len() < 5 { return Err(ErrorKind::DBTableIsNotADBTable)? }
+        if packed_file_data.len() < 5 { return Err(ErrorKind::DBTableIsNotADBTable.into()) }
 
         // Create the index that we'll use to decode the entire table.
         let mut index = 0;

@@ -322,10 +322,10 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                 let mut ass_kit_schemas_path =
                     if raw_db_version == 1 {
                         if let Some(path) = ass_kit_path { path }
-                        else { return Err(ErrorKind::SchemaNotFound)? }
+                        else { return Err(ErrorKind::SchemaNotFound.into()) }
                     }
                     else if let Some(path) = get_game_selected_assembly_kit_path(&**GAME_SELECTED.lock().unwrap()) { path }
-                    else { return Err(ErrorKind::SchemaNotFound)? };
+                    else { return Err(ErrorKind::SchemaNotFound.into()) };
 
                 ass_kit_schemas_path.push("raw_data");
                 ass_kit_schemas_path.push("db");
@@ -370,12 +370,12 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
 
                 Ok(())
             }
-            0 => { Err(ErrorKind::SchemaNotFound)? }
-            _ => { Err(ErrorKind::SchemaNotFound)? }
+            0 => { Err(ErrorKind::SchemaNotFound.into()) }
+            _ => { Err(ErrorKind::SchemaNotFound.into()) }
         }
     }
 
-    else { Err(ErrorKind::SchemaNotFound)? }
+    else { Err(ErrorKind::SchemaNotFound.into()) }
 }
 
 //---------------------------------------------------------------------------//
@@ -416,11 +416,11 @@ pub fn get_raw_definitions(current_path: &Path, version: i16) -> Result<Vec<Path
                             file_list.push(file_path);
                         }
                     }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
+                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()).into()),
                 }
             }
         }
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()).into()),
     }
 
     // Sort the files alphabetically.
@@ -455,11 +455,11 @@ pub fn get_raw_data(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
                             file_list.push(file_path);
                         }
                     }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
+                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()).into()),
                 }
             }
         }
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()).into()),
     }
 
     // Sort the files alphabetically.

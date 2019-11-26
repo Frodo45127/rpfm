@@ -103,19 +103,19 @@ impl Loc {
     pub fn read(packed_file_data: &[u8], schema: &Schema) -> Result<Self> {
 
         // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
-        if packed_file_data.len() < 14 { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        if packed_file_data.len() < 14 { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
 
         // More checks to ensure this is a valid Loc PAckedFile.
-        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
-        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile)? }
+        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
+        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
         let version = packed_file_data.decode_integer_i32(6)?;
         let entry_count = packed_file_data.decode_integer_u32(10)?;
 
         // Try to get the table_definition for this table, if exists.
         let versioned_file = schema.get_versioned_file_loc();
-        if versioned_file.is_err() && entry_count == 0 { Err(ErrorKind::TableEmptyWithNoDefinition)? }
+        if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
         let definition = versioned_file?.get_version(version);
-        if definition.is_err() && entry_count == 0 { Err(ErrorKind::TableEmptyWithNoDefinition)? }
+        if definition.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
         let definition = definition?;
 
         // Then try to decode all the entries.
@@ -124,7 +124,7 @@ impl Loc {
         table.decode(&packed_file_data, entry_count, &mut index)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
-        if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index))? }
+        if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
 
         // If we've reached this, we've succesfully decoded the table.
         Ok(Self {

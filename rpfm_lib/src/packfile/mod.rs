@@ -315,7 +315,7 @@ impl PFHVersion {
             PFH4_PREAMBLE => Ok(PFHVersion::PFH4),
             PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
             PFH0_PREAMBLE => Ok(PFHVersion::PFH0),
-            _ => Err(ErrorKind::PackFileIsNotAPackFile)?,
+            _ => Err(ErrorKind::PackFileIsNotAPackFile.into()),
         }
     }
 }
@@ -495,7 +495,7 @@ impl PackFile {
         // If we hit a reserved name, stop. Don't add anything.
         let pack_file_name = self.get_file_name();
         let reserved_names = Self::get_reserved_packed_file_names();
-        if packed_files.par_iter().any(|x| reserved_names.iter().any(|y| x.get_path() == &**y)) { return Err(ErrorKind::ReservedFiles)? }
+        if packed_files.par_iter().any(|x| reserved_names.iter().any(|y| x.get_path() == &**y)) { return Err(ErrorKind::ReservedFiles.into()) }
 
         // Prepare the list of added paths and get all the PackedFiles with all the info needed for them to be added.
         let mut destination_paths = Vec::with_capacity(packed_files.len());
@@ -614,7 +614,7 @@ impl PackFile {
                 }
                 Ok(added_paths)
             }
-            Err(error) => Err(error)?
+            Err(error) => Err(error)
         }
     }
 
@@ -695,7 +695,7 @@ impl PackFile {
     ///
     /// This can fail if you pass it an empty path.
     pub fn set_file_path(&mut self, path: &Path) -> Result<()> {
-        if path.components().count() == 0 { return Err(ErrorKind::EmptyInput)? }
+        if path.components().count() == 0 { return Err(ErrorKind::EmptyInput.into()) }
         self.file_path = path.to_path_buf();
 
         // We have to change the name of the PackFile in all his `PackedFiles` too.
@@ -882,12 +882,12 @@ impl PackFile {
 
     /// This function returns a copy of all the `PackedFileInfo` corresponding to the provided `PackFile`.
     pub fn get_packed_files_all_info(&self) -> Vec<PackedFileInfo> {
-        self.packed_files.par_iter().map(|x| From::from(x)).collect()
+        self.packed_files.par_iter().map(From::from).collect()
     }
 
     /// This function returns a copy of the `PackedFileInfo` of the `Packedfile` in the provided path.
     pub fn get_packed_file_info_by_path(&self, path: &[String]) -> Option<PackedFileInfo> {
-        self.packed_files.par_iter().find_first(|x| x.get_path() == path).map(|x| From::from(x))
+        self.packed_files.par_iter().find_first(|x| x.get_path() == path).map(From::from)
     }
 
     /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
@@ -983,11 +983,11 @@ impl PackFile {
                 current_path.push(&file_name);
                 let mut file = BufWriter::new(File::create(&current_path)?);
                 if file.write_all(&packed_file.get_ref_raw().get_data()?).is_err() {
-                    return Err(ErrorKind::ExtractError(path.to_vec()))?;
+                    return Err(ErrorKind::ExtractError(path.to_vec()).into());
                 }
                 Ok(())
             }
-            None => Err(ErrorKind::PackedFileNotFound)?
+            None => Err(ErrorKind::PackedFileNotFound.into())
         }
     }
 
@@ -1065,13 +1065,13 @@ impl PackFile {
             },
 
             // No paths selected, none selected, invalid path selected, or invalid value.
-            0 | 8..=255 => return Err(ErrorKind::NonExistantFile)?,
+            0 | 8..=255 => return Err(ErrorKind::NonExistantFile.into()),
         }
 
         // If there is any error in the list, report it.
         if !error_files.is_empty() {
             let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<Vec<String>>();
-            return Err(ErrorKind::ExtractError(error_files_string))?
+            return Err(ErrorKind::ExtractError(error_files_string).into())
         }
 
         // If we reach this, return the amount of extracted files.
@@ -1191,7 +1191,7 @@ impl PackFile {
             .filter_map(|x| if let PathType::File(path) = x { Some(path.to_vec()) } else { None })
             .collect::<Vec<Vec<String>>>());
 
-        return paths;
+        paths
     }
 
     /// This function allows you to change the path of a `PackedFile` inside a `PackFile`.
@@ -1209,9 +1209,9 @@ impl PackFile {
 
         // First, ensure we can move between the paths.
         let reserved_names = Self::get_reserved_packed_file_names();
-        if destination_path.is_empty() { return Err(ErrorKind::EmptyInput)? }
-        if source_path == destination_path { return Err(ErrorKind::PathsAreEqual)? }
-        if reserved_names.contains(&destination_path.to_vec()) { return Err(ErrorKind::ReservedFiles)? }
+        if destination_path.is_empty() { return Err(ErrorKind::EmptyInput.into()) }
+        if source_path == destination_path { return Err(ErrorKind::PathsAreEqual.into()) }
+        if reserved_names.contains(&destination_path.to_vec()) { return Err(ErrorKind::ReservedFiles.into()) }
 
         // We may need to modify his destination path if we're not overwriting so...
         let mut destination_path = destination_path.to_vec();
@@ -1246,7 +1246,7 @@ impl PackFile {
                 packed_file.get_ref_mut_raw().set_path(&destination_path)?;
                 Ok(destination_path)
             },
-            None => Err(ErrorKind::PackedFileNotFound)?
+            None => Err(ErrorKind::PackedFileNotFound.into())
         }
     }
 
@@ -1264,8 +1264,8 @@ impl PackFile {
     ) -> Result<Vec<(Vec<String>, Vec<String>)>> {
 
         // First, ensure we can move between the paths.
-        if source_path.is_empty() || destination_path.is_empty() { return Err(ErrorKind::EmptyInput)? }
-        if source_path == destination_path { return Err(ErrorKind::PathsAreEqual)? }
+        if source_path.is_empty() || destination_path.is_empty() { return Err(ErrorKind::EmptyInput.into()) }
+        if source_path == destination_path { return Err(ErrorKind::PathsAreEqual.into()) }
 
         // Next... just get all the PackedFiles to move, and move them one by one.
         let mut successes = vec![];
@@ -1389,9 +1389,9 @@ impl PackFile {
 
                 // If all tables are Ok, return it. Otherwise, return an error with the list of broken tables.
                 if broken_tables.is_empty() { Ok(()) }
-                else { Err(ErrorKind::DBMissingReferences(broken_tables))? }
+                else { Err(ErrorKind::DBMissingReferences(broken_tables).into()) }
             }
-            None => Err(ErrorKind::SchemaNotFound)?
+            None => Err(ErrorKind::SchemaNotFound.into())
         }
     }
 
@@ -1407,7 +1407,7 @@ impl PackFile {
 
         // Get the schema, as we'll need it unlocked to decode all the files fast.
         let schema = SCHEMA.lock().unwrap();
-        let schema = if let Some(ref schema) = *schema { schema } else { return Err(ErrorKind::SchemaNotFound)? };
+        let schema = if let Some(ref schema) = *schema { schema } else { return Err(ErrorKind::SchemaNotFound.into()) };
 
         let mut db_files = vec![];
         let mut loc_files = vec![];
@@ -1418,14 +1418,14 @@ impl PackFile {
                 match packed_file.decode_return_ref_no_locks(&schema)? {
                     DecodedPackedFile::DB(table) => db_files.push(table.clone()),
                     DecodedPackedFile::Loc(table) => loc_files.push(table.clone()),
-                    _ => return Err(ErrorKind::InvalidFilesForMerging)?
+                    _ => return Err(ErrorKind::InvalidFilesForMerging.into())
                 }
             }
         }
 
         // If we have no tables, or we have both, db and loc, return an error. If we have only tables, but different tables, we also return an error.
-        if (!db_files.is_empty() && !loc_files.is_empty()) || (db_files.is_empty() && loc_files.is_empty()) { return Err(ErrorKind::InvalidFilesForMerging)? }
-        else if !db_files.is_empty() && !db_files.iter().all(|x| x.name == db_files[0].name) { return Err(ErrorKind::InvalidFilesForMerging)? }
+        if (!db_files.is_empty() && !loc_files.is_empty()) || (db_files.is_empty() && loc_files.is_empty()) ||
+        (!db_files.is_empty() && !db_files.iter().all(|x| x.name == db_files[0].name)) { return Err(ErrorKind::InvalidFilesForMerging.into()) }
 
         // If we have db tables, get their newest definition, update all the tables to that definition if needed,
         // and then merge all their data in one table.
@@ -1553,7 +1553,7 @@ impl PackFile {
 
         // If there are no files, directly return an error.
         if self.packed_files.is_empty() {
-            Err(ErrorKind::PatchSiegeAIEmptyPackFile)?
+            return Err(ErrorKind::PatchSiegeAIEmptyPackFile.into())
         }
 
         let mut files_patched = 0;
@@ -1594,7 +1594,7 @@ impl PackFile {
         files_to_delete.iter().for_each(|x| self.remove_packed_file_by_path(x));
 
         // If we didn't found any file to patch or delete, return an error.
-        if files_patched == 0 && files_to_delete.is_empty() { Err(ErrorKind::PatchSiegeAINoPatchableFiles)? }
+        if files_patched == 0 && files_to_delete.is_empty() { Err(ErrorKind::PatchSiegeAINoPatchableFiles.into()) }
 
         // TODO: make this more.... `fluent`.
         // If we found files to delete, but not to patch, return a message reporting it.
@@ -1760,7 +1760,7 @@ impl PackFile {
             // If any of the files returned error, return error.
             if !error_files.is_empty() {
                 let error_files_string = error_files.iter().map(|x| format!("<li>{}</li>", x)).collect::<String>();
-                return Err(ErrorKind::MassImport(error_files_string))?
+                return Err(ErrorKind::MassImport(error_files_string).into())
             }
 
             // Get the "TreePath" of the new PackFiles to return them.
@@ -1777,7 +1777,7 @@ impl PackFile {
             Ok((packed_files_to_remove, tree_path))
         }
         else {
-            return Err(Error::from(ErrorKind::SchemaNotFound))
+            Err(ErrorKind::SchemaNotFound.into())
         }
     }
 
@@ -2020,7 +2020,7 @@ impl PackFile {
 
         // If we just have one `PackFile`, just read it. No fancy logic needed. If you're an asshole and tried to break this
         // by passing it no paths, enjoy the error.
-        if packs_paths.is_empty() { Err(ErrorKind::PackFileNoPathProvided)? }
+        if packs_paths.is_empty() { return Err(ErrorKind::PackFileNoPathProvided.into()) }
         if packs_paths.len() == 1 { Self::read(&packs_paths[0], use_lazy_loading) }
 
         // Otherwise, read all of them into a *fake* `PackFile` and take care of the duplicated files like the game will do.
@@ -2050,7 +2050,7 @@ impl PackFile {
                         PFHFileType::Movie => movie_files.append(&mut pack.get_packed_files_all()),
 
                         // If we find an unknown one, return an error.
-                        PFHFileType::Other(_) => return Err(ErrorKind::PackFileTypeUknown)?,
+                        PFHFileType::Other(_) => return Err(ErrorKind::PackFileTypeUknown.into()),
                     },
                     Err(error) => return Err(error)
                 }
@@ -2112,7 +2112,7 @@ impl PackFile {
     ) -> Result<Self> {
 
         // Check if what we received is even a `PackFile`.
-        if !file_path.file_name().unwrap().to_string_lossy().to_string().ends_with(".pack") { Err(ErrorKind::OpenPackFileInvalidExtension)? }
+        if !file_path.file_name().unwrap().to_string_lossy().to_string().ends_with(".pack") { return Err(ErrorKind::OpenPackFileInvalidExtension.into()) }
 
         // Prepare the PackFile to be read and the virtual PackFile to be written.
         let mut pack_file = BufReader::new(File::open(&file_path)?);
@@ -2122,7 +2122,7 @@ impl PackFile {
         // First, we do some quick checkings to ensure it's a valid PackFile.
         // 24 is the bare minimum that we need to check how a PackFile should be internally, so any file with less than that is not a valid PackFile.
         let pack_file_len = pack_file.get_ref().metadata()?.len();
-        if pack_file_len < 24 { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+        if pack_file_len < 24 { return Err(ErrorKind::PackFileHeaderNotComplete.into()) }
 
         // Create a little buffer to read the basic data from the header of the PackFile.
         let mut buffer = vec![0; 24];
@@ -2144,7 +2144,7 @@ impl PackFile {
         match pack_file_decoded.pfh_version {
             PFHVersion::PFH5 | PFHVersion::PFH4 => {
                 if (pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 48) ||
-                    (!pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 28) { return Err(ErrorKind::PackFileHeaderNotComplete)? }
+                    (!pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 28) { return Err(ErrorKind::PackFileHeaderNotComplete.into()) }
 
                 if pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { buffer = vec![0; 48]; }
                 else { buffer = vec![0; 28]; }
@@ -2175,7 +2175,7 @@ impl PackFile {
             pack_file_decoded.pfh_version == PFHVersion::PFH5 {
             data_position = if (data_position % 8) > 0 { data_position + 8 - (data_position % 8) } else { data_position };
         }
-        if pack_file_len < data_position { return Err(ErrorKind::PackFileIndexesNotComplete)? }
+        if pack_file_len < data_position { return Err(ErrorKind::PackFileIndexesNotComplete.into()) }
 
         // Create the buffers for the indexes data.
         let mut pack_file_index = vec![0; pack_file_index_size as usize];
@@ -2307,9 +2307,9 @@ impl PackFile {
         // If at this point we have not reached the end of the PackFile, there is something wrong with it.
         // NOTE: Arena PackFiles have extra data at the end. If we detect one of those PackFiles, take that into account.
         if pack_file_decoded.pfh_version == PFHVersion::PFH5 && pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
-            if data_position + 256 != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, data_position))? }
+            if data_position + 256 != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, data_position).into()) }
         }
-        else if data_position != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, data_position))? }
+        else if data_position != pack_file_len { return Err(ErrorKind::PackFileSizeIsNotWhatWeExpect(pack_file_len, data_position).into()) }
 
         // If we disabled lazy-loading, load every PackedFile to memory.
         if !use_lazy_loading { for packed_file in &mut pack_file_decoded.packed_files { packed_file.get_ref_mut_raw().load_data()?; }}
@@ -2325,11 +2325,11 @@ impl PackFile {
     pub fn save(&mut self, new_path: Option<PathBuf>) -> Result<()> {
 
         // If any of the problematic masks in the header is set or is one of CA's, return an error.
-        if !self.is_editable(*SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) { return Err(ErrorKind::PackFileIsNonEditable)? }
+        if !self.is_editable(*SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) { return Err(ErrorKind::PackFileIsNonEditable.into()) }
 
         // If we receive a new path, update it. Otherwise, ensure the file actually exists on disk.
         if let Some(path) = new_path { self.set_file_path(&path)?; }
-        else if !self.get_file_path().is_file() { return Err(ErrorKind::PackFileIsNotAFile)? }
+        else if !self.get_file_path().is_file() { return Err(ErrorKind::PackFileIsNotAFile.into()) }
 
         // Before everything else, add the file for the notes if we have them. We'll remove it later, after the file has been saved.
         if let Some(note) = &self.notes {

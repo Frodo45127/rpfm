@@ -235,8 +235,8 @@ impl Schema {
                 if let Some(definition) = definitions.get(0) {
                     Ok(definition)
                 }
-                else { Err(ErrorKind::SchemaDefinitionNotFound)? }
-            } else { Err(ErrorKind::SchemaVersionedFileNotFound)? }
+                else { Err(ErrorKind::SchemaDefinitionNotFound.into()) }
+            } else { Err(ErrorKind::SchemaVersionedFileNotFound.into()) }
         }
     }
 
@@ -247,8 +247,8 @@ impl Schema {
             if let Some(definition) = definitions.get(0) {
                 Ok(definition)
             }
-            else { Err(ErrorKind::SchemaDefinitionNotFound)? }
-        } else { Err(ErrorKind::SchemaVersionedFileNotFound)? }
+            else { Err(ErrorKind::SchemaDefinitionNotFound.into()) }
+        } else { Err(ErrorKind::SchemaVersionedFileNotFound.into()) }
     }
 
     /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.

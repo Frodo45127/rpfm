@@ -233,12 +233,12 @@ impl Table {
         for row in data {
 
             // First, we need to make sure all rows we have are exactly what we expect.
-            if row.len() != self.definition.fields.len() { Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32))? }
+            if row.len() != self.definition.fields.len() { return Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32).into()) }
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
                 if !DecodedData::is_field_type_correct(cell, self.definition.fields[index].field_type.clone()) {
-                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].field_type)))?
+                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].field_type)).into())
                 }
             }
         }
@@ -261,35 +261,35 @@ impl Table {
                 let decoded_cell = match &self.definition.fields[column].field_type {
                     FieldType::Boolean => {
                         if let Ok(data) = data.decode_packedfile_bool(*index, &mut index) { DecodedData::Boolean(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1)).into()) }
                     }
                     FieldType::Float => {
                         if let Ok(data) = data.decode_packedfile_float_f32(*index, &mut index) { DecodedData::Float(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: the value is not a valid F32, or there are insufficient bytes left to decode it as a F32 value.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>F32</b></i> value: the value is not a valid F32, or there are insufficient bytes left to decode it as a F32 value.</p>", row + 1, column + 1)).into()) }
                     }
                     FieldType::Integer => {
                         if let Ok(data) = data.decode_packedfile_integer_i32(*index, &mut index) { DecodedData::Integer(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: the value is not a valid I32, or there are insufficient bytes left to decode it as an I32 value.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I32</b></i> value: the value is not a valid I32, or there are insufficient bytes left to decode it as an I32 value.</p>", row + 1, column + 1)).into()) }
                     }
                     FieldType::LongInteger => {
                         if let Ok(data) = data.decode_packedfile_integer_i64(*index, &mut index) { DecodedData::LongInteger(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1)).into()) }
                     }
                     FieldType::StringU8 => {
                         if let Ok(data) = data.decode_packedfile_string_u8(*index, &mut index) { DecodedData::StringU8(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: the value is not a valid UTF-8 String, or there are insufficient bytes left to decode it as an UTF-8 String.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: the value is not a valid UTF-8 String, or there are insufficient bytes left to decode it as an UTF-8 String.</p>", row + 1, column + 1)).into()) }
                     }
                     FieldType::StringU16 => {
                         if let Ok(data) = data.decode_packedfile_string_u16(*index, &mut index) { DecodedData::StringU16(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: the value is not a valid UTF-16 String, or there are insufficient bytes left to decode it as an UTF-16 String.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: the value is not a valid UTF-16 String, or there are insufficient bytes left to decode it as an UTF-16 String.</p>", row + 1, column + 1)).into()) }
                     }
                     FieldType::OptionalStringU8 => {
                         if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, &mut index) { DecodedData::OptionalStringU8(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1)).into()) }
                     }
                     FieldType::OptionalStringU16 => {
                         if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, &mut index) { DecodedData::OptionalStringU16(data) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: the value is not a valid Optional UTF-16 String, or there are insufficient bytes left to decode it as an Optional UTF-16 String.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: the value is not a valid Optional UTF-16 String, or there are insufficient bytes left to decode it as an Optional UTF-16 String.</p>", row + 1, column + 1)).into()) }
                     }
 
                     // This type is just a recursive type.
@@ -298,7 +298,7 @@ impl Table {
                             let mut sub_table = Table::new(definition);
                             sub_table.decode(&data, entry_count, index)?;
                             DecodedData::Sequence(sub_table) }
-                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1)))? }
+                        else { return Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to get the Entry Count of<i><b>Row {}, Cell {}</b></i>: the value is not a valid U32, or there are insufficient bytes left to decode it as an U32 value.</p>", row + 1, column + 1)).into()) }
                     }
                 };
                 decoded_row.push(decoded_cell);
@@ -314,12 +314,12 @@ impl Table {
         for row in &self.entries {
 
             // First, we need to make sure all rows we're going to encode are exactly what we expect.
-            if row.len() != fields.len() { Err(ErrorKind::TableRowWrongFieldCount(fields.len() as u32, row.len() as u32))? }
+            if row.len() != fields.len() { return Err(ErrorKind::TableRowWrongFieldCount(fields.len() as u32, row.len() as u32).into()) }
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
                 if !DecodedData::is_field_type_correct(cell, fields[index].field_type.clone()) {
-                    Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", fields[index].field_type)))?
+                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", fields[index].field_type)).into())
                 }
 
                 // If there are no problems, encode the data.
@@ -375,9 +375,9 @@ impl Table {
                 // The first line should contain the "table_folder_name"/"Loc PackedFile/PackFile List", and the version (1 for Locs).
                 // If it doesn't match with the name we provided, return an error.
                 if row == 0 {
-                    if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable)?; }
+                    if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable.into()); }
                     if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != version {
-                        return Err(ErrorKind::ImportTSVWrongVersion)?;
+                        return Err(ErrorKind::ImportTSVWrongVersion.into());
                     }
                 }
 
@@ -393,7 +393,7 @@ impl Table {
                                 let value = field.to_lowercase();
                                 if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
                                 else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
-                                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?; }
+                                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
                             }
                             FieldType::Float => entry.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
                             FieldType::Integer => entry.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
@@ -404,16 +404,16 @@ impl Table {
                             FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
 
                             // For now fail on Sequences. These are a bit special and I don't know if the're even possible in TSV.
-                            FieldType::Sequence(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?
+                            FieldType::Sequence(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into())
                         }
                     }
                     entries.push(entry);
                 }
 
                 // If it fails here, return an error with the len of the record instead a field.
-                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()))?; }
+                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()).into()); }
             }
-            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0))?; }
+            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0).into()); }
         }
 
         // If we reached this point without errors, we replace the old data with the new one and return success.
@@ -443,8 +443,8 @@ impl Table {
         let table_version;
         {
             let headers = reader.headers()?;
-            table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable)? };
-            table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion)? };
+            table_type = if let Some(table_type) = headers.get(0) { table_type.to_owned() } else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) };
+            table_version = if let Some(table_version) = headers.get(1) { table_version.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? } else { return Err(ErrorKind::ImportTSVInvalidVersion.into()) };
         }
 
         // Get his definition depending on his first line's contents.
@@ -468,7 +468,7 @@ impl Table {
                                 let value = field.to_lowercase();
                                 if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
                                 else if value == "false" || value == "0" { entry.push(DecodedData::Boolean(false)); }
-                                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?; }
+                                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into()); }
                             }
                             FieldType::Float => entry.push(DecodedData::Float(field.parse::<f32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
                             FieldType::Integer => entry.push(DecodedData::Integer(field.parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVIncorrectRow(row, column)))?)),
@@ -477,17 +477,17 @@ impl Table {
                             FieldType::StringU16 => entry.push(DecodedData::StringU16(field.to_owned())),
                             FieldType::OptionalStringU8 => entry.push(DecodedData::OptionalStringU8(field.to_owned())),
                             FieldType::OptionalStringU16 => entry.push(DecodedData::OptionalStringU16(field.to_owned())),
-                            FieldType::Sequence(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column))?
+                            FieldType::Sequence(_) => return Err(ErrorKind::ImportTSVIncorrectRow(row, column).into())
                         }
                     }
                     entries.push(entry);
                 }
 
                 // If it fails here, return an error with the len of the record instead a field.
-                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()))?; }
+                else { return Err(ErrorKind::ImportTSVIncorrectRow(row, record.len()).into()); }
             }
 
-            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0))?; }
+            else { return Err(ErrorKind::ImportTSVIncorrectRow(row, 0).into()); }
         }
 
         // If we reached this point without errors, we create the File in memory and add the entries to it.
@@ -569,7 +569,7 @@ impl Table {
         else {
             let table_type = source_path.parent().unwrap().file_name().unwrap().to_str().unwrap();
             if let Ok(data) = db::DB::read(&data, table_type, schema) { (table_type, data.get_definition().version, data.get_table_data()) }
-            else { return Err(ErrorKind::ImportTSVWrongTypeTable)? }
+            else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) }
         };
 
         let definition = if table_type == loc::TSV_NAME_LOC { schema.get_versioned_file_loc()?.get_version(version)?.clone() }

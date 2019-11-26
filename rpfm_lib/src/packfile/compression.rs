@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -29,7 +29,7 @@ use crate::common::decoder::Decoder;
 pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
     if !data.is_empty() {
         if data.len() >= 9 {
-            
+
             // CA Tweaks their headers to remove 4 bytes per PackedFile, while losing +4GB File Compression Support.
             // We need to fix their headers so the normal LZMA lib can read them.
             let mut fixed_data: Vec<u8> = vec![];
@@ -46,10 +46,10 @@ pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
             let mut compress_data = vec![];
             match encoder.read_to_end(&mut compress_data) {
                 Ok(_) => Ok(compress_data),
-                Err(_) => Err(ErrorKind::PackedFileDataCouldNotBeDecompressed)?
+                Err(_) => Err(ErrorKind::PackedFileDataCouldNotBeDecompressed.into())
             }
         }
-        else { Err(ErrorKind::PackedFileDataCouldNotBeDecompressed)? }
+        else { Err(ErrorKind::PackedFileDataCouldNotBeDecompressed.into()) }
     }
     else { Ok(vec![]) }
 }
@@ -62,7 +62,7 @@ pub fn decompress_data(data: &[u8]) -> Result<Vec<u8>> {
 /// So we do it the hard way: write the uncompressed file to disk, call 7z, compress it
 /// to 7z LZMA1 Level 3 format, read the compressed file, and remove the 7z part.
 /// Sadly, this means we have to ship 7z with RPFM. But hey, we're not the ones doing a
-/// fucking exception to a known format because we don't want to support the original format. 
+/// fucking exception to a known format because we don't want to support the original format.
 pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
 
     // Prepare both paths, uncompressed and compressed.

@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -11,7 +11,7 @@
 /*!
 Module with the `Encoder` trait, to encode data to `Vec<u8>`..
 
-This module contains the `Encoder` trait and his implementation for `Vec<u8>`. This trait allow us 
+This module contains the `Encoder` trait and his implementation for `Vec<u8>`. This trait allow us
 to encode any type of data contained within a PackFile/PackedFile, so it can be saved to disk and
 read by the games.
 
@@ -78,7 +78,7 @@ pub trait Encoder {
 
 /// Implementation of trait `Encoder` for `Vec<u8>`.
 impl Encoder for Vec<u8> {
-    
+
     //---------------------------------------------------------------------------//
     //                          Normal Encoders
     //---------------------------------------------------------------------------//
@@ -121,7 +121,7 @@ impl Encoder for Vec<u8> {
             self.extend_from_slice(&vec![0; size - string.len()]);
             Ok(())
         } else {
-            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-8 0-Padded String: \"{}\" has a lenght of {} chars, but his length should be less or equal than {}.", string, string.len(), size)))?
+            Err(ErrorKind::HelperDecodingEncodingError(format!("Error trying to encode an UTF-8 0-Padded String: \"{}\" has a lenght of {} chars, but his length should be less or equal than {}.", string, string.len(), size)).into())
         }
     }
 

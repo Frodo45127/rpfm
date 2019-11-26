@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -11,7 +11,7 @@
 /*!
 Module with the `Decoder` trait, to decode bytes to readable data.
 
-This module contains the `Decoder` trait and his implementation for `&[u8]`. This trait allow us 
+This module contains the `Decoder` trait and his implementation for `&[u8]`. This trait allow us
 to safely (yes, it covers your `index-out-of-bounds` bugs) decode any type of data contained within
 a PackFile/PackedFile.
 
@@ -33,17 +33,17 @@ pub trait Decoder {
 
     /// This function returns a byte from an slice after his bounds have been checked, to avoid `index-out-of-range` errors.
     ///
-    /// You must provide an slice to read from, and the index of the byte you want to read. 
+    /// You must provide an slice to read from, and the index of the byte you want to read.
     fn get_byte_checked(&self, byte: usize) -> Result<&u8>;
-    
+
     /// This function returns an slice after his bounds have been checked, to avoid `index-out-of-range` errors.
     ///
-    /// You must provide an slice to read from, the position of the first byte you want to read, and the amount of bytes to read. 
+    /// You must provide an slice to read from, the position of the first byte you want to read, and the amount of bytes to read.
     fn get_bytes_checked(&self, offset:usize, size: usize) -> Result<&Self>;
 
     /// This function allows us to decode a boolean from a byte. This is simple: 0 is false, 1 is true. It only uses a byte.
     fn decode_bool(&self, offset: usize) -> Result<bool>;
-    
+
     /// This function allows us to decode an u16 integer from raw data.
     fn decode_integer_u16(&self, offset: usize) -> Result<u16>;
 
@@ -76,7 +76,7 @@ pub trait Decoder {
 
     /// This function allows us to decode a 00-Terminated UTF-8 String from raw data.
     ///
-    /// This type of String has a 00 byte at his end and variable size. It advances the provided offset while decoding. 
+    /// This type of String has a 00 byte at his end and variable size. It advances the provided offset while decoding.
     /// We return the decoded String and his size.
     fn decode_string_u8_0terminated(&self, offset: usize) -> Result<(String, usize)>;
 
@@ -128,7 +128,7 @@ pub trait Decoder {
 
 /// Implementation of trait `Decoder` for `&[u8]`.
 impl Decoder for [u8] {
-    
+
     fn get_byte_checked(&self, byte: usize) -> Result<&u8> {
         self.get(byte).ok_or_else(||Error::from(ErrorKind::NotEnoughBytesToDecode))
     }
@@ -137,9 +137,9 @@ impl Decoder for [u8] {
         if size == 0 { Ok(&[]) }
         else if self.len() >= offset + size {
             if self.get(size - 1).is_some() { Ok(&self[..size]) }
-            else { Err(ErrorKind::NotEnoughBytesToDecode)? }
+            else { Err(ErrorKind::NotEnoughBytesToDecode.into()) }
         }
-        else { Err(ErrorKind::NotEnoughBytesToDecode)? }
+        else { Err(ErrorKind::NotEnoughBytesToDecode.into()) }
     }
 
     //---------------------------------------------------------------------------//
@@ -151,52 +151,52 @@ impl Decoder for [u8] {
         match value {
             0 => Ok(false),
             1 => Ok(true),
-            _ => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode \"{}\" as boolean.</p>", value)))?,
+            _ => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode \"{}\" as boolean.</p>", value)).into()),
         }
     }
 
     fn decode_integer_u16(&self, offset: usize) -> Result<u16> {
         if self.len() >= offset + 2 { Ok(LittleEndian::read_u16(&self[offset..])) }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u16 number:</p><ul><li>Required bytes: 2.</li><li>Provided bytes: {}.</li></ul>", self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u16 number:</p><ul><li>Required bytes: 2.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
     }
 
     fn decode_integer_u32(&self, offset: usize) -> Result<u32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_u32(&self[offset..])) }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {}.</li></ul>", self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
     }
 
     fn decode_integer_u64(&self, offset: usize) -> Result<u64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_u64(&self[offset..])) }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u64 number:</p><ul><li>Required bytes: 8.</li><li>Provided bytes: {}.</li></ul>", self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u64 number:</p><ul><li>Required bytes: 8.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
     }
 
     fn decode_integer_i32(&self, offset: usize) -> Result<i32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_i32(&self[offset..])) }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {}.</li></ul>", self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
     }
 
     fn decode_integer_i64(&self, offset: usize) -> Result<i64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_i64(&self[offset..])) }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i64 number:</p><ul><li>Required bytes: 8.</li><li>Provided bytes: {}.</li></ul>", self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i64 number:</p><ul><li>Required bytes: 8.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
     }
 
     fn decode_float_f32(&self, offset: usize) -> Result<f32> {
         if self.len() >= offset + 4 { Ok(LittleEndian::read_f32(&self[offset..])) }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an f32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {}.</li></ul>", self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an f32 number:</p><ul><li>Required bytes: 4.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
     }
 
     fn decode_string_u8(&self, offset: usize, size: usize) -> Result<String> {
         if self.len() >= offset + size {
             String::from_utf8(self[offset..offset + size].to_vec()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 String.</p>".to_owned())))
         }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())).into()) }
     }
 
     fn decode_string_u8_iso_8859_1(&self, offset: usize, size: usize) -> Result<String> {
         if self.len() >= offset + size {
             ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map(|x| x.to_string()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 String.</p>".to_owned())))
         }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())).into()) }
     }
 
     fn decode_string_u8_0padded(&self, offset: usize, size: usize) -> Result<(String, usize)> {
@@ -205,7 +205,7 @@ impl Decoder for [u8] {
             let string_decoded = String::from_utf8(self[offset..offset + size_no_zeros].to_vec()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Padded String.</p>".to_owned())))?;
             Ok((string_decoded, size))
         }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 0-Padded String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 0-Padded String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())).into()) }
     }
 
     fn decode_string_u8_0terminated(&self, offset: usize) -> Result<(String, usize)> {
@@ -213,7 +213,7 @@ impl Decoder for [u8] {
             let (ends_in_zero, size) = self[offset..].iter().position(|x| *x == 0).map_or((false, self.len()), |x| (true, x));
             let string_decoded = String::from_utf8(self[offset..offset + size].to_vec()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String.</p>".to_owned())))?;
             Ok((string_decoded, if ends_in_zero { size + 1 } else { size }))
-        } else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String:</p><p>Not enough bytes to decode.</p>".to_owned()))? }
+        } else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 0-Terminated String:</p><p>Not enough bytes to decode.</p>".to_owned()).into()) }
     }
 
     fn decode_string_u16(&self, offset: usize, size: usize) -> Result<String> {
@@ -221,7 +221,7 @@ impl Decoder for [u8] {
             let u16_characters = self[offset..offset + size].chunks_exact(2).map(|x| u16::from_le_bytes([x[0], x[1]])).collect::<Vec<u16>>();
             String::from_utf16(&u16_characters).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 String.</p>".to_owned())))
         }
-        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())).into()) }
     }
 
     //---------------------------------------------------------------------------//
@@ -277,7 +277,7 @@ impl Decoder for [u8] {
             result
         }
         else {
-            Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><p>Not enough bytes (only {}, minimum required is 2) to get his size.</p>", self.len())))?
+            Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><p>Not enough bytes (only {}, minimum required is 2) to get his size.</p>", self.len())).into())
         }
     }
 
@@ -298,7 +298,7 @@ impl Decoder for [u8] {
             result
         }
         else {
-            Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 String:</p><p>Not enough bytes (only {}, minimum required is 2) to get his size.</p>", self.len())))?
+            Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-16 String:</p><p>Not enough bytes (only {}, minimum required is 2) to get his size.</p>", self.len())).into())
         }
     }
 
@@ -310,7 +310,7 @@ impl Decoder for [u8] {
                 result
             } else { Ok(String::new()) }
         }
-        else{ Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 Optional String:</p><p>The first byte is not a boolean.</p>".to_owned()))? }
+        else{ Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 Optional String:</p><p>The first byte is not a boolean.</p>".to_owned()).into()) }
     }
 
     fn decode_packedfile_optional_string_u16(&self, offset: usize, mut index: &mut usize) -> Result<String> {
@@ -321,6 +321,6 @@ impl Decoder for [u8] {
                 result
             } else { Ok(String::new()) }
         }
-        else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 Optional String:</p><p>The first byte is not a boolean.</p>".to_owned()))? }
+        else { Err(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-16 Optional String:</p><p>The first byte is not a boolean.</p>".to_owned()).into()) }
     }
 }

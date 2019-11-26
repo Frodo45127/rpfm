@@ -165,7 +165,7 @@ impl PackedFile {
             PackedFileType::Loc => {
                 let definition = match *schema {
                     Some(ref schema) => schema.get_last_definition_loc()?,
-                    None => return Err(ErrorKind::SchemaNotFound)?
+                    None => return Err(ErrorKind::SchemaNotFound.into())
                 };
                 DecodedPackedFile::Loc(Loc::new(&definition))
             },
@@ -175,7 +175,7 @@ impl PackedFile {
                 let table_name = path.get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
                 let table_definition = match *schema {
                     Some(ref schema) => schema.get_last_definition_db(table_name)?,
-                    None => return Err(ErrorKind::SchemaNotFound)?
+                    None => return Err(ErrorKind::SchemaNotFound.into())
                 };
                 DecodedPackedFile::DB(DB::new(&table_name, &table_definition))
             }
@@ -460,7 +460,7 @@ impl RawPackedFile {
                 Ok((data, is_compressed, is_encrypted, &mut self.should_be_compressed, &mut self.should_be_encrypted))
             },
             PackedFileData::OnDisk(_, _, _, _, _) => {
-                Err(ErrorKind::PackedFileDataIsNotInMemory)?
+                Err(ErrorKind::PackedFileDataIsNotInMemory.into())
             }
         }
     }
@@ -547,7 +547,7 @@ impl RawPackedFile {
     ///
     /// ***WARNING***: DON'T USE THIS IF YOUR PACKEDFILE IS INSIDE A PACKFILE. USE THE `move_packedfile` FUNCTION INSTEAD.
     pub fn set_path(&mut self, path: &[String]) -> Result<()> {
-        if path.is_empty() { return Err(ErrorKind::EmptyInput)? }
+        if path.is_empty() { return Err(ErrorKind::EmptyInput.into()) }
         self.path = path.to_vec();
         Ok(())
     }

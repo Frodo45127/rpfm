@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -27,7 +27,7 @@ use crate::{SETTINGS, SUPPORTED_GAMES};
 pub mod decoder;
 pub mod encoder;
 
-// This tells the compiler to only compile these mods when testing. It's just to make sure 
+// This tells the compiler to only compile these mods when testing. It's just to make sure
 // the encoders and decoders don't break between updates.
 #[cfg(test)]
 mod decoder_test;
@@ -55,13 +55,13 @@ pub fn get_files_from_subdir(current_path: &Path) -> Result<Vec<PathBuf>> {
                             file_list.append(&mut subfolder_files_path);
                         }
                     }
-                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()))?,
+                    Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()).into()),
                 }
             }
         }
 
         // In case of reading error, report it.
-        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()))?,
+        Err(_) => return Err(ErrorKind::IOReadFolder(current_path.to_path_buf()).into()),
     }
 
     // Return the list of paths.
@@ -116,7 +116,7 @@ pub fn get_game_selected_db_pack_path(game_selected: &str) -> Option<Vec<PathBuf
         path.push("data");
         path.push(pack);
         db_paths.push(path);
-    } 
+    }
     Some(db_paths)
 }
 
@@ -132,7 +132,7 @@ pub fn get_game_selected_loc_pack_path(game_selected: &str) -> Option<Vec<PathBu
         path.push("data");
         path.push(pack);
         loc_paths.push(path);
-    } 
+    }
     Some(loc_paths)
 }
 
@@ -190,7 +190,7 @@ pub fn get_game_selected_pak_file(game_selected: &str) -> Result<PathBuf> {
         base_path.push(pak_file);
 
         if base_path.is_file() { Ok(base_path) }
-        else { Err(ErrorKind::IOFileNotFound)? }
+        else { Err(ErrorKind::IOFileNotFound.into()) }
     }
-    else { Err(ErrorKind::PAKFileNotSupportedForThisGame)? }
+    else { Err(ErrorKind::PAKFileNotSupportedForThisGame.into()) }
 }

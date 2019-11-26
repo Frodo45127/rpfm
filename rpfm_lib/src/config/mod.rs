@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -47,7 +47,7 @@ pub fn init_config_path() -> Result<()> {
 	        DirBuilder::new().recursive(true).create(&schemas_path)?;
 	        Ok(())
 		},
-		None => Err(ErrorKind::IOFolderCannotBeOpened)?
+		None => Err(ErrorKind::IOFolderCannotBeOpened.into())
 	}
 }
 
@@ -58,7 +58,7 @@ pub fn get_config_path() -> Result<PathBuf> {
 	if cfg!(debug_assertions) { std::env::current_dir().map_err(From::from) } else {
 		match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
 			Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
-			None => Err(ErrorKind::IOFolderCannotBeOpened)?
+			None => Err(ErrorKind::IOFolderCannotBeOpened.into())
 		}
 	}
 }
