@@ -28,6 +28,7 @@ use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
+use crate::app_ui::NewPackedFile;
 use crate::ui_state::global_search::GlobalSearch;
 use self::network::*;
 
@@ -142,6 +143,11 @@ pub enum Command {
     /// This command is used when we want to know if there is a Schema loaded in memory.
     IsThereASchema,
 
+    /// This command is used when we want to create a new `PackedFile` inside the currently open `PackFile`.
+    ///
+    /// It requires the path of the new PackedFile, and the `NewPackedFile` with the new PackedFile's info.
+    NewPackedFile(Vec<String>, NewPackedFile),
+
     /// This command is used when we want to add one or more Files to our currently open `PackFile`.
     ///
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
@@ -179,6 +185,15 @@ pub enum Command {
 
     /// This command is used when we want to know if a folder exists in the currently open PackFile.
     FolderExists(Vec<String>),
+
+    /// This command is used when we want to know if a PackedFile exists in the currently open PackFile.
+    PackedFileExists(Vec<String>),
+
+    /// This command is used when we want to get the table names (the folder of the tables) of all DB files in our dependency PackFiles.
+    GetTableListFromDependencyPackFile,
+
+    /// This command is used when we want to get the version of the table provided that's compatible with the version of the game we currently have installed.
+    GetTableVersionFromDependencyPackFile(String),
 
     /*
     OpenPackFileExtra,
@@ -259,6 +274,9 @@ pub enum Response {
     /// Response to return (u32).
     U32(u32),
 
+    /// Response to return (i32).
+    I32(i32),
+
     /// Response to return (i64).
     I64(i64),
 
@@ -321,6 +339,9 @@ pub enum Response {
 
     /// Response to return `(Vec<Vec<String>>, Vec<Vec<String>>)`.
     VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
+
+    /// Response to return `Vec<String>`.
+    VecString(Vec<String>),
 /*
     Bool(bool),
     I32(i32),

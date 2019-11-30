@@ -14,6 +14,7 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
+use rayon::prelude::*;
 use restson::RestClient;
 
 use std::env::temp_dir;
@@ -28,13 +29,16 @@ use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::table::db::DB;
-use rpfm_lib::packfile::{PackFile, PackFileInfo, PFHFlags};
+use rpfm_lib::packedfile::table::loc::Loc;
+use rpfm_lib::packedfile::text::Text;
+use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PFHFlags};
 use rpfm_lib::schema::*;
 use rpfm_lib::schema::assembly_kit::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
+use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, network::LastestRelease, network::APIResponse};
 use crate::RPFM_PATH;
@@ -360,22 +364,66 @@ pub fn background_loop() {
             // When we want to update our schemas...
             Command::UpdateSchemas => {
                 match VersionsFile::update() {
-                    Ok(_ ) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 
+            // In case we want to create a PackedFile from scratch...
+            Command::NewPackedFile(path, new_packed_file) => {
+                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                    let decoded = match new_packed_file {
+                        NewPackedFile::DB(_, table, version) => {
+                            match schema.get_versioned_file_db(&table) {
+                                Ok(versioned_file) => {
+                                    match versioned_file.get_version(version) {
+                                        Ok(definition) =>  DecodedPackedFile::DB(DB::new(&table, definition)),
+                                        Err(error) => {
+                                            CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                                            continue;
+                                        }
+                                    }
+                                }
+                                Err(error) => {
+                                    CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                                    continue;
+                                }
+                            }
+                        },
+                        NewPackedFile::Loc(_) => {
+                            match schema.get_last_definition_loc() {
+                                Ok(definition) => DecodedPackedFile::Loc(Loc::new(definition)),
+                                Err(error) => {
+                                    CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                                    continue;
+                                }
+                            }
+                        }
+                        NewPackedFile::Text(_) => DecodedPackedFile::Text(Text::new()),
+                    };
+                    let packed_file = PackedFile::new_from_decoded(&decoded, path);
+                    match pack_file_decoded.add_packed_file(&packed_file, false) {
+                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    }
+                } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
+            }
+
             // When we want to add one or more PackedFiles to our PackFile...
             Command::AddPackedFiles((source_paths, destination_paths)) => {
+                let mut broke = false;
                 for (source_path, destination_path) in source_paths.iter().zip(destination_paths.iter()) {
                     if let Err(error) = pack_file_decoded.add_from_file(source_path, destination_path.to_vec(), true) {
                         CENTRAL_COMMAND.send_message_rust(Response::Error(error));
+                        broke = true;
                         break;
                     }
                 }
 
                 // If nothing failed, send back success.
-                CENTRAL_COMMAND.send_message_rust(Response::Success);
+                if !broke {
+                    CENTRAL_COMMAND.send_message_rust(Response::Success);
+                }
             }
 
             // In case we want to move stuff from one PackFile to another...
@@ -514,6 +562,27 @@ pub fn background_loop() {
             // In case we want to know if a Folder exists, knowing his path...
             Command::FolderExists(path) => {
                 CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.folder_exists(&path)));
+            }
+
+            // In case we want to know if PackedFile exists, knowing his path...
+            Command::PackedFileExists(path) => {
+                CENTRAL_COMMAND.send_message_rust(Response::Bool(pack_file_decoded.packedfile_exists(&path)));
+            }
+
+            // In case we want to get the list of tables in the dependency database...
+            Command::GetTableListFromDependencyPackFile => {
+                let tables = (*DEPENDENCY_DATABASE.lock().unwrap()).par_iter().filter(|x| x.get_path().len() > 2).filter(|x| x.get_path()[1].ends_with("_tables")).map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
+                CENTRAL_COMMAND.send_message_rust(Response::VecString(tables));
+            }
+
+            // In case we want to get the version of an specific table from the dependency database...
+            Command::GetTableVersionFromDependencyPackFile(table_name) => {
+                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                    match schema.get_last_definition_db(&table_name) {
+                        Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.version)),
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    }
+                } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
         }
     }

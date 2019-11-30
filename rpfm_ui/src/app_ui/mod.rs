@@ -216,6 +216,20 @@ pub struct AppUI {
     pub about_check_schema_updates: *mut Action,
 }
 
+/// This enum contains the data needed to create a new PackedFile.
+#[derive(Clone, Debug)]
+pub enum NewPackedFile {
+
+    /// Name of the PackedFile, Name of the Table, Version of the Table.
+    DB(String, String, i32),
+
+    /// Name of the Table.
+    Loc(String),
+
+    /// Name of the Table.
+    Text(String)
+}
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//

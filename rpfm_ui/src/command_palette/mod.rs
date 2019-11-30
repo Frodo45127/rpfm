@@ -106,9 +106,9 @@ pub fn get_actions(
 	actions.push((pack_file_contents_ui.context_menu_add_folder, shortcuts.tree_view["add_folder"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_add_from_packfile, shortcuts.tree_view["add_from_packfile"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_new_folder, shortcuts.tree_view["create_folder"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_create_db, shortcuts.tree_view["create_db"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_create_loc, shortcuts.tree_view["create_loc"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_create_text, shortcuts.tree_view["create_text"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_new_packed_file_db, shortcuts.tree_view["create_db"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_new_packed_file_loc, shortcuts.tree_view["create_loc"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_new_packed_file_text, shortcuts.tree_view["create_text"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_mass_import_tsv, shortcuts.tree_view["mass_import_tsv"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_mass_export_tsv, shortcuts.tree_view["mass_export_tsv"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_rename, shortcuts.tree_view["rename"].to_owned()));

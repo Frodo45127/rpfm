@@ -17,6 +17,7 @@ as it's mostly meant for initialization and configuration.
 !*/
 
 use qt_widgets::dialog::Dialog;
+use qt_widgets::combo_box::ComboBox;
 use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::{message_box, message_box::MessageBox};
@@ -24,10 +25,15 @@ use qt_widgets::push_button::PushButton;
 use qt_widgets::tree_view::TreeView;
 use qt_widgets::widget::Widget;
 
+use qt_gui::standard_item_model::StandardItemModel;
+
+use qt_core::abstract_item_model::AbstractItemModel;
 use qt_core::connection::Signal;
 use qt_core::flags::Flags;
 use qt_core::object::Object;
-use qt_core::slots::SlotBool;
+use qt_core::reg_exp::RegExp;
+use qt_core::slots::{SlotBool, SlotStringRef};
+use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 
 use std::cell::RefCell;
 use std::ffi::OsStr;
@@ -41,11 +47,13 @@ use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
-use rpfm_lib::schema::APIResponseSchema;
+use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
+use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
 use super::AppUI;
+use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
@@ -1093,6 +1101,113 @@ impl AppUI {
         }
     }
 
+    /// This function is the one that takes care of the creation of different PackedFiles.
+    pub fn new_packed_file(&self, pack_file_contents_ui: &PackFileContentsUI, packed_file_type: &PackedFileType) {
+
+        // Create the "New PackedFile" dialog and wait for his data (or a cancelation). If we receive None, we do nothing. If we receive Some,
+        // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
+        if let Some(new_packed_file) = self.new_packed_file_dialog(packed_file_type) {
+            match new_packed_file {
+                Ok(mut new_packed_file) => {
+
+                    // First we make sure the name is correct, and fix it if needed.
+                    match new_packed_file {
+                        NewPackedFile::Loc(ref mut name) |
+                        NewPackedFile::Text(ref mut name) |
+                        NewPackedFile::DB(ref mut name, _, _) => {
+
+                            // If the name is_empty, stop.
+                            if name.is_empty() {
+                                return show_dialog(self.main_window as *mut Widget, ErrorKind::EmptyInput, false)
+                            }
+
+                            // Fix their name termination if needed.
+                            if let PackedFileType::Loc = packed_file_type {
+                                if !name.ends_with(".loc") { name.push_str(".loc"); }
+                            }
+                            if let PackedFileType::Text = packed_file_type {
+                                if !name.ends_with(".lua") &&
+                                    !name.ends_with(".xml") &&
+                                    !name.ends_with(".xml.shader") &&
+                                    !name.ends_with(".xml.material") &&
+                                    !name.ends_with(".variantmeshdefinition") &&
+                                    !name.ends_with(".environment") &&
+                                    !name.ends_with(".lighting") &&
+                                    !name.ends_with(".wsmodel") &&
+                                    !name.ends_with(".csv") &&
+                                    !name.ends_with(".tsv") &&
+                                    !name.ends_with(".inl") &&
+                                    !name.ends_with(".battle_speech_camera") &&
+                                    !name.ends_with(".bob") &&
+                                    !name.ends_with(".cindyscene") &&
+                                    !name.ends_with(".cindyscenemanager") &&
+                                    !name.ends_with(".txt") {
+                                    name.push_str(".txt");
+                                }
+                            }
+                        }
+                    }
+
+                    // If we reach this place, we got all alright.
+                    match new_packed_file {
+                        NewPackedFile::Loc(ref name) |
+                        NewPackedFile::Text(ref name) |
+                        NewPackedFile::DB(ref name, _, _) => {
+
+                            // Get the currently selected paths (or the complete path, in case of DB Tables),
+                            // and only continue if there is only one and it's not empty.
+                            let selected_paths = <*mut TreeView as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
+                            let complete_path = if let NewPackedFile::DB(name, table,_) = &new_packed_file {
+                                vec!["db".to_owned(), table.to_owned(), name.to_owned()]
+                            }
+                            else {
+
+                                // We want to be able to write relative paths with this so, if a `/` is detected, split the name.
+                                if selected_paths.len() == 1 {
+                                    let mut complete_path = selected_paths[0].to_vec();
+                                    complete_path.append(&mut (name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
+                                    complete_path
+                                }
+                                else { vec![] }
+                            };
+
+                            // If and only if, after all these checks, we got a path to save the PackedFile, we continue.
+                            if !complete_path.is_empty() {
+
+                                // Check if the PackedFile already exists, and report it if so.
+                                CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(complete_path.to_vec()));
+                                let exists = if let Response::Bool(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                                if exists { return show_dialog(self.main_window as *mut Widget, ErrorKind::FileAlreadyInPackFile, false)}
+
+                                // Get the response, just in case it failed.
+                                CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(complete_path.to_vec(), new_packed_file));
+                                match CENTRAL_COMMAND.recv_message_qt() {
+                                    Response::Success => {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path); 1]));
+
+                                        /*
+                                        // If, for some reason, there is a TableState data for this file, remove it.
+                                        if table_state_data.borrow().get(&complete_path).is_some() {
+                                            table_state_data.borrow_mut().remove(&complete_path);
+                                        }
+
+                                        // Set it to not remove his color.
+                                        let data = TableStateData::new_empty();
+                                        table_state_data.borrow_mut().insert(complete_path, data);
+                                        */
+                                    }
+
+                                    Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
+                                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(error) => show_dialog(self.main_window as *mut Widget, error, false),
+            }
+        }
+    }
 
     /// This function creates the entire "New Folder" dialog.
     ///
@@ -1113,6 +1228,96 @@ impl AppUI {
         unsafe { new_folder_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
         if dialog.exec() == 1 { Some(new_folder_line_edit.text().to_std_string()) }
+        else { None }
+    }
+
+    /// This function creates all the "New PackedFile" dialogs.
+    ///
+    /// It returns the type/name of the new file, or None if the dialog is canceled or closed.
+    pub fn new_packed_file_dialog(&self, packed_file_type: &PackedFileType) -> Option<Result<NewPackedFile>> {
+
+        // Create and configure the "New PackedFile" Dialog.
+        let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
+        match packed_file_type {
+            PackedFileType::DB => dialog.set_window_title(&QString::from_std_str("New DB Table")),
+            PackedFileType::Loc => dialog.set_window_title(&QString::from_std_str("New Loc PackedFile")),
+            PackedFileType::Text => dialog.set_window_title(&QString::from_std_str("New Text PackedFile")),
+            _ => unimplemented!(),
+        }
+        dialog.set_modal(true);
+
+        // Create the main Grid and his widgets.
+        let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
+        let mut name_line_edit = LineEdit::new(());
+        let table_filter_line_edit = LineEdit::new(()).into_raw();
+        let create_button = PushButton::new(&QString::from_std_str("Create"));
+        let mut table_dropdown = ComboBox::new();
+        let table_filter = SortFilterProxyModel::new().into_raw();
+        let table_model = StandardItemModel::new(());
+
+        name_line_edit.set_text(&QString::from_std_str("new_file"));
+        unsafe { table_dropdown.set_model(table_model.as_mut_ptr() as *mut AbstractItemModel); }
+        unsafe { table_filter_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the tables of the list. Works with Regex too!")); }
+
+        // Add all the widgets to the main grid, except those specific for a PackedFileType.
+        unsafe { main_grid.as_mut().unwrap().add_widget((name_line_edit.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((create_button.as_mut_ptr() as *mut Widget, 0, 1, 1, 1)); }
+
+        // If it's a DB Table, add its widgets, and populate the table list.
+        if let PackedFileType::DB = packed_file_type {
+            CENTRAL_COMMAND.send_message_qt(Command::GetTableListFromDependencyPackFile);
+            let tables = if let Response::VecString(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+            match *SCHEMA.lock().unwrap() {
+                Some(ref schema) => {
+
+                    // Add every table to the dropdown if exists in the dependency database.
+                    schema.get_ref_versioned_file_db_all().iter()
+                        .filter_map(|x| if let VersionedFile::DB(name, _) = x { Some(name) } else { None })
+                        .filter(|x| tables.contains(&x))
+                        .for_each(|x| table_dropdown.add_item(&QString::from_std_str(&x)));
+                    unsafe { table_filter.as_mut().unwrap().set_source_model(table_model.as_mut_ptr() as *mut AbstractItemModel); }
+                    unsafe { table_dropdown.set_model(table_filter as *mut AbstractItemModel); }
+
+                    unsafe { main_grid.as_mut().unwrap().add_widget((table_dropdown.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
+                    unsafe { main_grid.as_mut().unwrap().add_widget((table_filter_line_edit as *mut Widget, 2, 0, 1, 1)); }
+                }
+                None => return Some(Err(ErrorKind::SchemaNotFound.into())),
+            }
+        }
+
+        // What happens when we search in the filter.
+        let slot_table_filter_change_text = SlotStringRef::new(move |_| {
+            let pattern = unsafe { RegExp::new(&table_filter_line_edit.as_ref().unwrap().text()) };
+            unsafe { table_filter.as_mut().unwrap().set_filter_reg_exp(&pattern); }
+        });
+
+        // What happens when we hit the "Create" button.
+        create_button.signals().released().connect(&dialog.slots().accept());
+
+        // What happens when we edit the search filter.
+        unsafe { table_filter_line_edit.as_ref().unwrap().signals().text_changed().connect(&slot_table_filter_change_text); }
+
+        // Show the Dialog and, if we hit the "Create" button, return the corresponding NewPackedFileType.
+        if dialog.exec() == 1 {
+            let packed_file_name = name_line_edit.text().to_std_string();
+            match packed_file_type {
+                PackedFileType::DB => {
+                    let table = table_dropdown.current_text().to_std_string();
+                    CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
+                    let version = match CENTRAL_COMMAND.recv_message_qt() {
+                        Response::I32(data) => data,
+                        Response::Error(error) => return Some(Err(error)),
+                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    };
+                    Some(Ok(NewPackedFile::DB(packed_file_name, table, version)))
+                },
+                PackedFileType::Loc => Some(Ok(NewPackedFile::Loc(packed_file_name))),
+                PackedFileType::Text => Some(Ok(NewPackedFile::Text(packed_file_name))),
+                _ => unimplemented!(),
+            }
+        }
+
+        // Otherwise, return None.
         else { None }
     }
 }

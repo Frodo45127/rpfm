@@ -29,6 +29,7 @@ use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 use rpfm_lib::common::get_files_from_subdir;
+use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -67,6 +68,9 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_extract: SlotBool<'static>,
     pub contextual_menu_rename: SlotBool<'static>,
 
+    pub contextual_menu_new_packed_file_db: SlotBool<'static>,
+    pub contextual_menu_new_packed_file_loc: SlotBool<'static>,
+    pub contextual_menu_new_packed_file_text: SlotBool<'static>,
     pub contextual_menu_new_folder: SlotBool<'static>,
 
     pub contextual_menu_mass_import_tsv: SlotBool<'static>,
@@ -127,9 +131,9 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
@@ -162,7 +166,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_extract.as_mut().unwrap().set_enabled(true);
@@ -180,8 +184,8 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_file.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(enabled);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(enabled);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(enabled);
                         }
                     },
 
@@ -193,9 +197,9 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -218,9 +222,9 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -243,9 +247,9 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -268,9 +272,9 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
@@ -292,9 +296,9 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(true);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -317,9 +321,9 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-                            pack_file_contents_ui.context_menu_create_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -351,7 +355,7 @@ impl PackFileContentsSlots {
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_there_a_schema {
                     unsafe { pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false); }
-                    unsafe { pack_file_contents_ui.context_menu_create_db.as_mut().unwrap().set_enabled(false); }
+                    unsafe { pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(false); }
                     unsafe { pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
                     unsafe { pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false); }
                 }
@@ -777,6 +781,21 @@ impl PackFileContentsSlots {
             }
         );
 
+        // What happens when we trigger the "Create DB PackedFile" Action.
+        let contextual_menu_new_packed_file_db = SlotBool::new(move |_| {
+            app_ui.new_packed_file(&pack_file_contents_ui, &PackedFileType::DB);
+        });
+
+        // What happens when we trigger the "Create Loc PackedFile" Action.
+        let contextual_menu_new_packed_file_loc = SlotBool::new(move |_| {
+            app_ui.new_packed_file(&pack_file_contents_ui, &PackedFileType::Loc);
+        });
+
+        // What happens when we trigger the "Create Text PackedFile" Action.
+        let contextual_menu_new_packed_file_text = SlotBool::new(move |_| {
+            app_ui.new_packed_file(&pack_file_contents_ui, &PackedFileType::Text);
+        });
+
         // What happens when we trigger the "New Folder" Action.
         let contextual_menu_new_folder = SlotBool::new(move |_| {
 
@@ -915,6 +934,9 @@ impl PackFileContentsSlots {
             contextual_menu_extract,
             contextual_menu_rename,
 
+            contextual_menu_new_packed_file_db,
+            contextual_menu_new_packed_file_loc,
+            contextual_menu_new_packed_file_text,
             contextual_menu_new_folder,
 
             contextual_menu_mass_import_tsv,

@@ -67,9 +67,9 @@ pub struct PackFileContentsUI {
     pub context_menu_add_folder: *mut Action,
     pub context_menu_add_from_packfile: *mut Action,
     pub context_menu_new_folder: *mut Action,
-    pub context_menu_create_db: *mut Action,
-    pub context_menu_create_loc: *mut Action,
-    pub context_menu_create_text: *mut Action,
+    pub context_menu_new_packed_file_db: *mut Action,
+    pub context_menu_new_packed_file_loc: *mut Action,
+    pub context_menu_new_packed_file_text: *mut Action,
     pub context_menu_mass_import_tsv: *mut Action,
     pub context_menu_mass_export_tsv: *mut Action,
     pub context_menu_rename: *mut Action,
@@ -156,9 +156,9 @@ impl PackFileContentsUI {
         let context_menu_add_folder = menu_add_ref_mut.add_action(&QString::from_std_str("Add &Folder"));
         let context_menu_add_from_packfile = menu_add_ref_mut.add_action(&QString::from_std_str("Add from &PackFile"));
         let context_menu_new_folder = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Folder"));
-        let context_menu_create_loc = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Loc"));
-        let context_menu_create_db = menu_create_ref_mut.add_action(&QString::from_std_str("Create &DB"));
-        let context_menu_create_text = menu_create_ref_mut.add_action(&QString::from_std_str("Create &Text"));
+        let context_menu_new_packed_file_loc = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Loc"));
+        let context_menu_new_packed_file_db = menu_create_ref_mut.add_action(&QString::from_std_str("Create &DB"));
+        let context_menu_new_packed_file_text = menu_create_ref_mut.add_action(&QString::from_std_str("Create &Text"));
         let context_menu_mass_import_tsv = menu_create_ref_mut.add_action(&QString::from_std_str("Mass-Import TSV"));
         let context_menu_mass_export_tsv = menu_create_ref_mut.add_action(&QString::from_std_str("Mass-Export TSV"));
         let context_menu_rename = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Rename"));
@@ -186,9 +186,9 @@ impl PackFileContentsUI {
             context_menu_add_folder.as_mut().unwrap().set_enabled(false);
             context_menu_add_from_packfile.as_mut().unwrap().set_enabled(false);
             context_menu_new_folder.as_mut().unwrap().set_enabled(false);
-            context_menu_create_db.as_mut().unwrap().set_enabled(false);
-            context_menu_create_loc.as_mut().unwrap().set_enabled(false);
-            context_menu_create_text.as_mut().unwrap().set_enabled(false);
+            context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(false);
+            context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
+            context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
             context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
             context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
             context_menu_delete.as_mut().unwrap().set_enabled(false);
@@ -226,9 +226,9 @@ impl PackFileContentsUI {
             context_menu_add_from_packfile,
 
             context_menu_new_folder,
-            context_menu_create_loc,
-            context_menu_create_db,
-            context_menu_create_text,
+            context_menu_new_packed_file_loc,
+            context_menu_new_packed_file_db,
+            context_menu_new_packed_file_text,
 
             context_menu_mass_import_tsv,
             context_menu_mass_export_tsv,

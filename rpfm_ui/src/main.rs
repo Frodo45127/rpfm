@@ -37,107 +37,31 @@ use rpfm_lib::SCHEMA;
 use crate::pack_tree::icons::Icons;
 use crate::ui_state::UIState;
 use crate::app_ui::AppUI;
-use crate::app_ui::slots::AppUISlots;
-use crate::communications::{CentralCommand, Command, Response};
-use crossbeam::channel::{unbounded, Sender, Receiver};
+
+use crate::communications::{CentralCommand};
+
 use rpfm_lib::SETTINGS;
 use fluent_bundle::{FluentBundle, FluentResource};
-use unic_langid::langid;
+
 use std::sync::RwLock;
 // Uses for everything we need. It's a looooong list.
-use qt_widgets::abstract_item_view::{SelectionMode, ScrollMode};
-use qt_widgets::action::Action;
-use qt_widgets::action_group::ActionGroup;
+
+
+
 use qt_widgets::application::Application;
-use qt_widgets::combo_box::ComboBox;
-use qt_widgets::file_dialog::{FileDialog, FileMode, Option::ShowDirsOnly};
-use qt_widgets::group_box::GroupBox;
-use qt_widgets::header_view::ResizeMode;
-use qt_widgets::line_edit::LineEdit;
-use qt_widgets::main_window::MainWindow;
-use qt_widgets::menu::Menu;
-use qt_widgets::message_box;
-use qt_widgets::message_box::MessageBox;
-use qt_widgets::push_button::PushButton;
-use qt_widgets::slots::SlotQtCorePointRef;
-use qt_widgets::splitter::Splitter;
-use qt_widgets::table_view::TableView;
-use qt_widgets::tree_view::TreeView;
-use qt_widgets::widget::Widget;
 
 use qt_gui::color::Color;
-use qt_gui::cursor::Cursor;
-use qt_gui::desktop_services::DesktopServices;
-use qt_gui::font::Font;
-use qt_gui::icon::Icon;
-use qt_gui::key_sequence::KeySequence;
-use qt_gui::list::ListStandardItemMutPtr;
+
 use qt_gui::palette::{Palette, ColorGroup, ColorRole};
-use qt_gui::slots::SlotStandardItemMutPtr;
-use qt_gui::standard_item::StandardItem;
-use qt_gui::standard_item_model::StandardItemModel;
-
-use qt_core::abstract_item_model::AbstractItemModel;
-use qt_core::connection::Signal;
-use qt_core::flags::Flags;
-use qt_core::item_selection_model::SelectionFlag;
-use qt_core::object::Object;
-use qt_core::qt::{CaseSensitivity, ContextMenuPolicy, Orientation, ShortcutContext, SortOrder, WindowState};
-use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef, SlotCInt, SlotModelIndexRef, SlotItemSelectionRefItemSelectionRef};
-use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
-use qt_core::reg_exp::RegExp;
-use qt_core::variant::Variant;
-use cpp_utils::StaticCast;
-
-use std::env::args;
-use std::collections::BTreeMap;
-use std::ops::DerefMut;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread;
-use std::ffi::OsStr;
-use std::panic;
-use std::path::{Path, PathBuf};
-use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
-
-use chrono::NaiveDateTime;
+use std::path::{PathBuf};
 use lazy_static::lazy_static;
 
 use rpfm_lib::SUPPORTED_GAMES;
-use crate::shortcuts::Shortcuts;
-use rpfm_error::{ErrorKind, Result};/*
-use rpfm_lib::packfile::{CompressionState, PathType};
-use rpfm_lib::packfile::{PFHVersion, PFHFileType, PFHFlags};
 
-use rpfm_lib::packedfile::*;
-
-use rpfm_lib::schema::assembly_kit::*;
-use rpfm_lib::schema::Schema;
-use rpfm_lib::config::init_config_path;
-
-use rpfm_lib::common::*;
-use rpfm_lib::SETTINGS;
-use rpfm_lib::DOCS_BASE_URL;
-use rpfm_lib::PATREON_URL;
-use rpfm_lib::GAME_SELECTED;
-
-use crate::communications::*;
-use crate::main_extra::*;
-use crate::ui::*;
-use crate::ui::packedfile_table::db_decoder::*;
-use crate::ui::packedfile_table::dependency_manager::*;
-use crate::ui::packedfile_table::packedfile_db::*;
-use crate::ui::packedfile_table::packedfile_loc::*;
-use crate::ui::packedfile_text::packedfile_text::*;
-use crate::ui::packedfile_text::packfile_notes::*;
-use crate::ui::packedfile_rigidmodel::*;
-use crate::ui::packfile_treeview::*;
-use crate::ui::qt_custom_stuff::*;
-use crate::ui::settings::*;
-use crate::ui::table_state::*;
-use crate::ui::updater::*;
-*/
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
 macro_rules! clone {
