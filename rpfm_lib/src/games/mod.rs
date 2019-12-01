@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -29,7 +29,7 @@ pub struct GameInfo {
     pub display_name: String,
 
     /// This is the PFHVersion used at the start of every PackFile for that game.
-    pub pfh_version: PFHVersion,
+    pub pfh_version: Vec<PFHVersion>,
 
     /// This is the full name of the schema file used for the game. For example: `schema_wh2.ron`.
     pub schema: String,
@@ -66,7 +66,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Three Kingdoms
     list.insert("three_kingdoms", GameInfo {
         display_name: "Three Kingdoms".to_owned(),
-        pfh_version: PFHVersion::PFH5,
+        pfh_version: vec![PFHVersion::PFH5],
         schema: "schema_3k.ron".to_owned(),
         db_packs: vec!["database.pack".to_owned()],
         loc_packs: vec![
@@ -95,7 +95,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Warhammer 2
     list.insert("warhammer_2", GameInfo {
         display_name: "Warhammer 2".to_owned(),
-        pfh_version: PFHVersion::PFH5,
+        pfh_version: vec![PFHVersion::PFH5],
         schema: "schema_wh2.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
         loc_packs: vec![
@@ -124,7 +124,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Warhammer
     list.insert("warhammer", GameInfo {
         display_name: "Warhammer".to_owned(),
-        pfh_version: PFHVersion::PFH4,
+        pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_wh.ron".to_owned(),
         db_packs: vec![
             "data.pack".to_owned(),         // Central data PackFile
@@ -157,7 +157,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Thrones of Britannia
     list.insert("thrones_of_britannia", GameInfo {
         display_name: "Thrones of Britannia".to_owned(),
-        pfh_version: PFHVersion::PFH4,
+        pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_tob.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
         loc_packs: vec![
@@ -186,7 +186,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Attila
     list.insert("attila", GameInfo {
         display_name: "Attila".to_owned(),
-        pfh_version: PFHVersion::PFH4,
+        pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_att.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
         loc_packs: vec![
@@ -215,7 +215,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Rome 2
     list.insert("rome_2", GameInfo {
         display_name: "Rome 2".to_owned(),
-        pfh_version: PFHVersion::PFH4,
+        pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_rom2.ron".to_owned(),
         db_packs: vec!["data_rome2.pack".to_owned()],
         loc_packs: vec![
@@ -244,7 +244,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Shogun 2
     list.insert("shogun_2", GameInfo {
         display_name: "Shogun 2".to_owned(),
-        pfh_version: PFHVersion::PFH3,
+        pfh_version: vec![PFHVersion::PFH3, PFHVersion::PFH2],
         schema: "schema_sho2.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
         loc_packs: vec![
@@ -273,7 +273,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Napoleon
     list.insert("napoleon", GameInfo {
         display_name: "Napoleon".to_owned(),
-        pfh_version: PFHVersion::PFH0,
+        pfh_version: vec![PFHVersion::PFH0],
         schema: "schema_nap.ron".to_owned(),
         db_packs: vec![                     // NOTE: Patches 5 and 7 has no table changes, so they should not be here.
             "data.pack".to_owned(),         // Main DB PackFile
@@ -322,7 +322,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Empire
     list.insert("empire", GameInfo {
         display_name: "Empire".to_owned(),
-        pfh_version: PFHVersion::PFH0,
+        pfh_version: vec![PFHVersion::PFH0],
         schema: "schema_emp.ron".to_owned(),
         db_packs: vec![
             "main.pack".to_owned(),         // Main DB PackFile
@@ -374,7 +374,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Arena
     list.insert("arena", GameInfo {
         display_name: "Arena".to_owned(),
-        pfh_version: PFHVersion::PFH5,
+        pfh_version: vec![PFHVersion::PFH5, PFHVersion::PFH4],
         schema: "schema_are.ron".to_owned(),
         db_packs: vec!["wad.pack".to_owned()],
         loc_packs: vec!["local_ex.pack".to_owned()],

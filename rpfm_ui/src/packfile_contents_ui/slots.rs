@@ -74,6 +74,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_new_folder: SlotBool<'static>,
 
     pub contextual_menu_new_queek_packed_file: SlotBool<'static>,
+    pub contextual_menu_tables_check_integrity: SlotBool<'static>,
 
     pub contextual_menu_mass_import_tsv: SlotBool<'static>,
     pub contextual_menu_mass_export_tsv: SlotBool<'static>,
@@ -837,6 +838,20 @@ impl PackFileContentsSlots {
             app_ui.new_queek_packed_file(&pack_file_contents_ui);
         });
 
+        // What happens when we trigger the "Check Tables" action in the Contextual Menu.
+        let contextual_menu_tables_check_integrity = SlotBool::new(move |_| {
+
+            // Disable the window and trigger the check for all tables in the PackFile.
+            unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+            CENTRAL_COMMAND.send_message_qt(Command::DBCheckTableIntegrity);
+            match CENTRAL_COMMAND.recv_message_qt() {
+                Response::Success => show_dialog(app_ui.main_window as *mut Widget, "No errors detected.", true),
+                Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                _ => panic!(THREADS_COMMUNICATION_ERROR),
+            }
+            unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+        });
+
         // What happens when we trigger the "Mass-Import TSV" Action.
         //
         // TODO: Make it so the name of the table is split off when importing keeping the original name.
@@ -955,6 +970,7 @@ impl PackFileContentsSlots {
             contextual_menu_new_folder,
 
             contextual_menu_new_queek_packed_file,
+            contextual_menu_tables_check_integrity,
 
             contextual_menu_mass_import_tsv,
             contextual_menu_mass_export_tsv,

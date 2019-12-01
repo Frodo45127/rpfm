@@ -291,7 +291,7 @@ impl AppUI {
                         },
 
                         // PFH3 is for Shogun 2.
-                        PFHVersion::PFH3 => unsafe { self.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+                        PFHVersion::PFH3 | PFHVersion::PFH2 => unsafe { self.game_selected_shogun_2.as_mut().unwrap().trigger(); }
 
                         // PFH0 is for Napoleon/Empire.
                         PFHVersion::PFH0 => {

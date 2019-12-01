@@ -195,6 +195,9 @@ pub enum Command {
     /// This command is used when we want to get the version of the table provided that's compatible with the version of the game we currently have installed.
     GetTableVersionFromDependencyPackFile(String),
 
+    /// This command is used when we want to check the integrity of all the DB Tables in the PackFile.
+    DBCheckTableIntegrity,
+
     /*
     OpenPackFileExtra,
     SavePackFile,

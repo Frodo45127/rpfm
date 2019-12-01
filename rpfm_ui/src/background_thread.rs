@@ -77,7 +77,7 @@ pub fn background_loop() {
             // In case we want to create a "New PackFile"...
             Command::NewPackFile => {
                 let game_selected = GAME_SELECTED.lock().unwrap();
-                let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version;
+                let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version[0];
                 pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
                 *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
             }
@@ -208,7 +208,7 @@ pub fn background_loop() {
 
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
-                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version);
+                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version[0]);
                 }
 
                 // Test to see if every DB Table can be decoded. This is slow and only useful when
@@ -583,6 +583,14 @@ pub fn background_loop() {
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     }
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
+            }
+
+            // In case we want to check the DB tables for dependency errors...
+            Command::DBCheckTableIntegrity => {
+                match pack_file_decoded.check_table_integrity() {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
             }
         }
     }
