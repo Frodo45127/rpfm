@@ -415,6 +415,9 @@ pub enum ErrorKind {
     /// Error for when the folder we are trying to create already exist in the current path.
     FolderAlreadyInPackFile,
 
+    /// Error for when we try to create a Queek PackedFile in a folder that doesn't fit the requirements.
+    NoQueekPackedFileHere,
+
     //-----------------------------------------------------//
     //                  Common Errors
     //-----------------------------------------------------//
@@ -686,6 +689,7 @@ impl Display for ErrorKind {
             ErrorKind::NoFilesToImport => write!(f, "<p>It's mathematically impossible to successfully import zero TSV files.</p>"),
             ErrorKind::FileAlreadyInPackFile => write!(f, "<p>The provided file/s already exists in the current path.</p>"),
             ErrorKind::FolderAlreadyInPackFile => write!(f, "<p>That folder already exists in the current path.</p>"),
+            ErrorKind::NoQueekPackedFileHere => write!(f, "<p>I don't know what type of file goes in that folder, boi.</p>"),
 
             //-----------------------------------------------------//
             //                  Common Errors

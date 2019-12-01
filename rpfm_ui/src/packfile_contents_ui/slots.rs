@@ -73,6 +73,8 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_new_packed_file_text: SlotBool<'static>,
     pub contextual_menu_new_folder: SlotBool<'static>,
 
+    pub contextual_menu_new_queek_packed_file: SlotBool<'static>,
+
     pub contextual_menu_mass_import_tsv: SlotBool<'static>,
     pub contextual_menu_mass_export_tsv: SlotBool<'static>,
 
@@ -150,6 +152,7 @@ impl PackFileContentsSlots {
                         unsafe {
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(enabled);
                         }
 
                         // Only if we have multiple files selected, we give the option to merge. Further checks are done when clicked.
@@ -186,6 +189,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_new_folder.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(enabled);
                         }
                     },
 
@@ -200,6 +204,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -225,6 +230,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -250,6 +256,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -275,6 +282,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_delete.as_mut().unwrap().set_enabled(true);
@@ -299,6 +307,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -324,6 +333,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_loc.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_new_packed_file_text.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(false);
@@ -822,6 +832,11 @@ impl PackFileContentsSlots {
             }
         );
 
+        // What happens when we trigger the "Create Text PackedFile" Action.
+        let contextual_menu_new_queek_packed_file = SlotBool::new(move |_| {
+            app_ui.new_queek_packed_file(&pack_file_contents_ui);
+        });
+
         // What happens when we trigger the "Mass-Import TSV" Action.
         //
         // TODO: Make it so the name of the table is split off when importing keeping the original name.
@@ -938,6 +953,8 @@ impl PackFileContentsSlots {
             contextual_menu_new_packed_file_loc,
             contextual_menu_new_packed_file_text,
             contextual_menu_new_folder,
+
+            contextual_menu_new_queek_packed_file,
 
             contextual_menu_mass_import_tsv,
             contextual_menu_mass_export_tsv,

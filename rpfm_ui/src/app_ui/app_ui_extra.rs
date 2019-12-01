@@ -1209,6 +1209,73 @@ impl AppUI {
         }
     }
 
+    /// This function creates a new PackedFile based on the current path selection, being:
+    /// - `db/xxxx` -> DB Table.
+    /// - `text/xxxx` -> Loc Table.
+    /// - `script/xxxx` -> Lua PackedFile.
+    /// The name used for each packfile is a generic one.
+    pub fn new_queek_packed_file(&self, pack_file_contents_ui: &PackFileContentsUI) {
+
+        // Get the currently selected path and, depending on the selected path, generate one packfile or another.
+        let selected_paths = <*mut TreeView as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
+        if selected_paths.len() == 1 {
+            let path = &selected_paths[0];
+            if let Some(mut name) = self.new_packed_file_name_dialog(path) {
+
+                // DB Check.
+                let (new_path, new_packed_file) = if path.starts_with(&["db".to_owned()]) && path.len() == 2 || path.len() == 3 {
+                    let new_path = vec!["db".to_owned(), path[1].to_owned(), name.to_owned()];
+                    let table = &path[1];
+
+                    CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
+                    let version = match CENTRAL_COMMAND.recv_message_qt() {
+                        Response::I32(data) => data,
+                        Response::Error(error) => return show_dialog(self.main_window as *mut Widget, error, false),
+                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    };
+
+                    let new_packed_file = NewPackedFile::DB(new_path.last().unwrap().to_owned(), table.to_owned(), version);
+                    (new_path, new_packed_file)
+                }
+
+                // Loc Check.
+                else if path.starts_with(&["text".to_owned()]) && path.len() >= 1 {
+                    if !name.ends_with(".loc") { name.push_str(".loc"); }
+                    let mut new_path = path.to_vec();
+                    let mut name = name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
+                    new_path.append(&mut name);
+
+                    let new_packed_file = NewPackedFile::Loc(new_path.last().unwrap().to_owned());
+                    (new_path, new_packed_file)
+                }
+
+                // Lua Check.
+                else if path.starts_with(&["script".to_owned()]) && path.len() >= 1 {
+                    if !name.ends_with(".lua") { name.push_str(".lua"); }
+                    let mut new_path = path.to_vec();
+                    let mut name = name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
+                    new_path.append(&mut name);
+
+                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned());
+                    (new_path, new_packed_file)
+                } else { return show_dialog(self.main_window as *mut Widget, ErrorKind::NoQueekPackedFileHere, false); };
+
+                // Check if the PackedFile already exists, and report it if so.
+                CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(new_path.to_vec()));
+                let exists = if let Response::Bool(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                if exists { return show_dialog(self.main_window as *mut Widget, ErrorKind::FileAlreadyInPackFile, false)}
+
+                // Create the PackFile.
+                CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
+                match CENTRAL_COMMAND.recv_message_qt() {
+                    Response::Success => pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path); 1])),
+                    Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
+                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                }
+            }
+        }
+    }
+
     /// This function creates the entire "New Folder" dialog.
     ///
     /// It returns the new name of the Folder, or None if the dialog is canceled or closed.
@@ -1319,5 +1386,33 @@ impl AppUI {
 
         // Otherwise, return None.
         else { None }
+    }
+
+    /// This function creates the "New PackedFile's Name" dialog when creating a new QueeK PackedFile.
+    ///
+    /// It returns the new name of the PackedFile, or `None` if the dialog is canceled or closed.
+    fn new_packed_file_name_dialog(&self, paths: &[String]) -> Option<String> {
+
+        // Create and configure the dialog.
+        let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
+        dialog.set_window_title(&QString::from_std_str("New PackedFile's Name"));
+        dialog.set_modal(true);
+        dialog.resize((400, 50));
+
+        let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
+        let mut name_line_edit = LineEdit::new(());
+        let accept_button = PushButton::new(&QString::from_std_str("Accept"));
+
+        name_line_edit.set_text(&QString::from_std_str("queek_headtaker_yes_yes"));
+
+        unsafe { main_grid.as_mut().unwrap().add_widget((name_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((accept_button.as_mut_ptr() as *mut Widget, 1, 1, 1, 1)); }
+
+        accept_button.signals().released().connect(&dialog.slots().accept());
+
+        if dialog.exec() == 1 {
+            let new_text = name_line_edit.text().to_std_string();
+            if new_text.is_empty() { None } else { Some(name_line_edit.text().to_std_string()) }
+        } else { None }
     }
 }
