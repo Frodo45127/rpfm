@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -29,6 +29,11 @@ fn test_decode_pfh4() {
 #[test]
 fn test_decode_pfh3() {
 	assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH3_test.pack"), false).is_ok(), true);
+}
+
+#[test]
+fn test_decode_pfh2() {
+	assert_eq!(PackFile::read(&PathBuf::from("../test_files/PFH2_test.pack"), false).is_ok(), true);
 }
 
 #[test]
@@ -83,6 +88,23 @@ fn test_encode_pfh3() {
 
 	assert_eq!(pack_file_base, pack_file_new);
 }
+
+#[test]
+fn test_encode_pfh2() {
+
+	// Both PackFiles are not *exactly* the same. We have to reset their timestamp and give them the same path.
+	let mut pack_file_base = PackFile::read(&PathBuf::from("../test_files/PFH2_test.pack"), false).unwrap();
+	pack_file_base.set_file_path(&PathBuf::from("../test_files/PFH2_test_encode.pack")).unwrap();
+	let mut pack_file_new = pack_file_base.clone();
+	pack_file_new.save(None).unwrap();
+
+	let mut pack_file_new = PackFile::read(&PathBuf::from("../test_files/PFH2_test_encode.pack"), false).unwrap();
+	pack_file_base.set_timestamp(0);
+	pack_file_new.set_timestamp(0);
+
+	assert_eq!(pack_file_base, pack_file_new);
+}
+
 
 #[test]
 fn test_encode_pfh0() {
