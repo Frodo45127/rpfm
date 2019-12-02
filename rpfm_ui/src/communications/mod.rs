@@ -198,6 +198,11 @@ pub enum Command {
     /// This command is used when we want to check the integrity of all the DB Tables in the PackFile.
     DBCheckTableIntegrity,
 
+    /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
+    /// - Vec<Vec<String>>: List of paths to merge.
+    /// - String: Name of the new merged table.
+    /// - Bool: Should we delete the source files after merging them?
+    MergeTables(Vec<Vec<String>>, String, bool),
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -345,6 +350,9 @@ pub enum Response {
 
     /// Response to return `Vec<String>`.
     VecString(Vec<String>),
+
+    /// Response to return `(Vec<String>, Vec<PathType>)`.
+    VecStringVecPathType((Vec<String>, Vec<PathType>))
 /*
     Bool(bool),
     I32(i32),

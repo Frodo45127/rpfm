@@ -592,6 +592,14 @@ pub fn background_loop() {
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
+
+            // In case we want to merge DB or Loc Tables from a PackFile...
+            Command::MergeTables(paths, name, delete_source_files) => {
+                match pack_file_decoded.merge_tables(&paths, &name, delete_source_files) {
+                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::VecString(data)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
         }
     }
 

@@ -75,6 +75,7 @@ pub struct PackFileContentsSlots {
 
     pub contextual_menu_new_queek_packed_file: SlotBool<'static>,
     pub contextual_menu_tables_check_integrity: SlotBool<'static>,
+    pub contextual_menu_tables_merge_tables: SlotBool<'static>,
 
     pub contextual_menu_mass_import_tsv: SlotBool<'static>,
     pub contextual_menu_mass_export_tsv: SlotBool<'static>,
@@ -852,6 +853,117 @@ impl PackFileContentsSlots {
             unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
         });
 
+        // What happens when we trigger the "Merge Tables" action in the Contextual Menu.
+        let contextual_menu_tables_merge_tables = SlotBool::new(move |_| {
+
+            // Get the currently selected paths, and get how many we have of each type.
+            let selected_paths = <*mut TreeView as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
+
+            // First, we check if we're merging locs, as it's far simpler.
+            let mut loc_pass = true;
+            for path in &selected_paths {
+                if !path.last().unwrap().ends_with(".loc") {
+                    loc_pass = false;
+                    break;
+                }
+            }
+
+            // Then DB Tables. The conditions are that they're in the same db folder and with the same version.
+            // If ANY of these fails (until the "update table version" feature it's done), we fail the pass.
+            // Due to performance reasons, the version thing will be done later.
+            let mut db_pass = true;
+            let mut db_folder = String::new();
+            for path in &selected_paths {
+                if path.len() == 3 {
+                    if path[0] == "db" {
+                        if db_folder.is_empty() {
+                            db_folder = path[1].to_owned();
+                        }
+
+                        if path[1] != db_folder {
+                            db_pass = false;
+                            break;
+                        }
+                    }
+                    else {
+                        db_pass = false;
+                        break;
+                    }
+                }
+                else {
+                    db_pass = false;
+                    break;
+                }
+            }
+
+            // If we got valid files, create the dialog to ask for the needed info.
+            if (loc_pass || db_pass) && !(loc_pass && db_pass) {
+
+                // Get the info for the merged file.
+                if let Some((mut name, delete_source_files)) = app_ui.merge_tables_dialog() {
+
+                    // If it's a loc file and the name doesn't end in a ".loc" termination, call it ".loc".
+                    if loc_pass && !name.ends_with(".loc") {
+                        name.push_str(".loc");
+                    }
+
+                    // Close the open and selected files.
+                    let mut paths_to_close = vec![];
+                    {
+                        let open_packedfiles = UI_STATE.set_open_packedfiles();
+                        for (path, _) in open_packedfiles.iter() {
+                            if selected_paths.contains(path) {
+                                paths_to_close.push(path.to_vec());
+                            }
+                        }
+                    }
+
+                    for path in paths_to_close {
+                        app_ui.purge_that_one_specifically(&path, true);
+                    }
+
+                    CENTRAL_COMMAND.send_message_qt(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
+                    match CENTRAL_COMMAND.recv_message_qt() {
+                        Response::VecString(path_to_add) => {
+
+                            // If we want to delete the sources, do it now.
+                            if delete_source_files {
+                                let items_to_remove = selected_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect();
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove));
+                            }
+
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]));
+
+                            /*
+                            // Update the global search stuff, if needed.
+                            global_search_explicit_paths.borrow_mut().append(&mut vec![path_to_add.to_vec()]);
+                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                            // Remove the added file from the data history if exists.
+                            if table_state_data.borrow().get(&path_to_add).is_some() {
+                                table_state_data.borrow_mut().remove(&path_to_add);
+                            }
+                            // Same with the deleted ones.
+                            for item in &items_to_remove {
+                                let path = if let TreePathType::File(path) = item { path.to_vec() } else { panic!("This should never happen.") };
+                                if table_state_data.borrow().get(&path).is_some() {
+                                    table_state_data.borrow_mut().remove(&path);
+                                }
+
+                                let data = TableStateData::new_empty();
+                                table_state_data.borrow_mut().insert(path.to_vec(), data);
+                            }*/
+                        }
+
+                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    }
+                }
+            }
+
+            else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::InvalidFilesForMerging, false); }
+        });
+
         // What happens when we trigger the "Mass-Import TSV" Action.
         //
         // TODO: Make it so the name of the table is split off when importing keeping the original name.
@@ -971,6 +1083,7 @@ impl PackFileContentsSlots {
 
             contextual_menu_new_queek_packed_file,
             contextual_menu_tables_check_integrity,
+            contextual_menu_tables_merge_tables,
 
             contextual_menu_mass_import_tsv,
             contextual_menu_mass_export_tsv,

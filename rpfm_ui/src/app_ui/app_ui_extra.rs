@@ -16,8 +16,9 @@ they're here and not in the main file is because I don't want to polute that one
 as it's mostly meant for initialization and configuration.
 !*/
 
-use qt_widgets::dialog::Dialog;
+use qt_widgets::check_box::CheckBox;
 use qt_widgets::combo_box::ComboBox;
+use qt_widgets::dialog::Dialog;
 use qt_widgets::file_dialog::FileDialog;
 use qt_widgets::line_edit::LineEdit;
 use qt_widgets::{message_box, message_box::MessageBox};
@@ -1414,5 +1415,39 @@ impl AppUI {
             let new_text = name_line_edit.text().to_std_string();
             if new_text.is_empty() { None } else { Some(name_line_edit.text().to_std_string()) }
         } else { None }
+    }
+
+    /// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
+    pub fn merge_tables_dialog(&self) -> Option<(String, bool)> {
+
+        let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
+        dialog.set_window_title(&QString::from_std_str("Merge Tables"));
+        dialog.set_modal(true);
+
+        // Create the main Grid.
+        let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
+        let mut name = LineEdit::new(());
+        name.set_placeholder_text(&QString::from_std_str("Write the name of the new file here."));
+
+        let delete_source_tables = CheckBox::new(&QString::from_std_str("Delete original tables"));
+
+        let accept_button = PushButton::new(&QString::from_std_str("Accept"));
+        unsafe { main_grid.as_mut().unwrap().add_widget((name.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((delete_source_tables.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { main_grid.as_mut().unwrap().add_widget((accept_button.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
+
+        // What happens when we hit the "Search" button.
+        accept_button.signals().released().connect(&dialog.slots().accept());
+
+        // Execute the dialog.
+        if dialog.exec() == 1 {
+            let text = name.text().to_std_string();
+            let delete_source_tables = delete_source_tables.is_checked();
+            if !text.is_empty() { Some((text, delete_source_tables)) }
+            else { None }
+        }
+
+        // Otherwise, return None.
+        else { None }
     }
 }
