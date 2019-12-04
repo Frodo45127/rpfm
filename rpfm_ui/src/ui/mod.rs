@@ -101,8 +101,8 @@ impl UI {
 
         let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui, &slot_holder)));
         let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, &app_temp_slots, &slot_holder);
-        let global_search_slots = GlobalSearchSlots::new(global_search_ui);
         let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui, slot_holder);
+        let global_search_slots = GlobalSearchSlots::new(app_ui, global_search_ui, pack_file_contents_ui, &slot_holder);
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&app_ui);

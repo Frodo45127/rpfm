@@ -27,5 +27,9 @@ pub fn set_connections(global_search_ui: &GlobalSearchUI, slots: &GlobalSearchSl
     unsafe { global_search_ui.global_search_search_line_edit.as_ref().unwrap().signals().return_pressed().connect(&slots.global_search_search); }
     unsafe { global_search_ui.global_search_search_line_edit.as_ref().unwrap().signals().text_changed().connect(&slots.global_search_check_regex); }
 
+    unsafe { global_search_ui.global_search_matches_db_tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.global_search_open_match); }
+    unsafe { global_search_ui.global_search_matches_loc_tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.global_search_open_match); }
+    unsafe { global_search_ui.global_search_matches_text_tree_view.as_ref().unwrap().signals().double_clicked().connect(&slots.global_search_open_match); }
+
     unsafe { global_search_ui.global_search_search_on_all_checkbox.as_ref().unwrap().signals().toggled().connect(&slots.global_search_toggle_all); }
 }

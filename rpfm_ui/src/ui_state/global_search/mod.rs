@@ -14,18 +14,28 @@ Module with all the code related to the `GlobalSearch`.
 This module contains the code needed to get a `GlobalSeach` over an entire `PackFile`.
 !*/
 
+use qt_widgets::action::Action;
 use qt_widgets::header_view::ResizeMode;
 use qt_widgets::tree_view::TreeView;
+use qt_widgets::widget::Widget;
 
 use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
+use qt_core::connection::Signal;
+use qt_core::flags::Flags;
+use qt_core::item_selection_model::SelectionFlag;
+use qt_core::model_index::ModelIndex;
 use qt_core::qt::{Orientation, SortOrder};
+use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::variant::Variant;
 
 use regex::Regex;
 use rayon::prelude::*;
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packfile::{PackFile, PathType};
@@ -35,11 +45,16 @@ use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::schema::{Definition, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::packedfile_views::{TheOneSlot, View};
+use crate::packfile_contents_ui::{PackFileContentsUI, slots::PackFileContentsSlots};
+use crate::pack_tree::{PackTree, TreePathType};
 use crate::QString;
 use crate::UI_STATE;
+use crate::utils::show_dialog;
 
 use self::schema::{SchemaMatches, SchemaMatch};
 use self::table::{TableMatches, TableMatch};
@@ -640,6 +655,89 @@ impl GlobalSearch {
 
             // In ANY other situation, it's a message problem.
             _ => panic!(THREADS_COMMUNICATION_ERROR)
+        }
+    }
+
+    /// This function tries to open the PackedFile where the selected match is.
+    ///
+    /// Remember, it TRIES to open it. It may fail if the file doesn't exist anymore and the update search
+    /// hasn't been triggered, or if the searched text doesn't exist anymore.
+    ///
+    /// In case the provided ModelIndex is the parent, we open the file without scrolling to the match.
+    pub fn open_match(
+        app_ui: AppUI,
+        pack_file_contents_ui: PackFileContentsUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        model_index_filtered: &ModelIndex
+    ) {
+
+        let tree_view = unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap() };
+        let filter_model = unsafe { (model_index_filtered.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
+        let model = unsafe { (filter_model.source_model() as *mut StandardItemModel).as_ref().unwrap() };
+        let model_index = filter_model.map_to_source(&model_index_filtered);
+
+        let gidhora = unsafe { model.item_from_index(&model_index).as_ref().unwrap() };
+        let is_match = !gidhora.has_children();
+
+        // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
+        if is_match {
+            let parent = unsafe { gidhora.parent().as_ref().unwrap() };
+            let path = parent.text().to_std_string();
+            let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+
+            if let Some(pack_file_contents_model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
+                let selection_model = unsafe { tree_view.selection_model().as_mut().unwrap() };
+
+                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
+                if pack_file_contents_model_index.is_valid() {
+                    selection_model.select((&pack_file_contents_model_index, Flags::from_enum(SelectionFlag::ClearAndSelect)));
+                    tree_view.scroll_to(&pack_file_contents_model_index);
+                    app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, false);
+
+                    if let Some((_, packed_file_view)) = UI_STATE.get_open_packedfiles().iter().find(|x| x.0 == &path) {
+                        match packed_file_view.get_view() {
+
+                            // In case of tables, we have to get the logical row/column of the match and select it.
+                            View::Table(view) => {
+                                let table_view = view.get_table();
+                                let table_filter = unsafe { (table_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
+                                let table_model = unsafe { (table_filter.source_model() as *mut StandardItemModel).as_ref().unwrap() };
+                                let table_selection_model = unsafe { table_view.selection_model().as_mut().unwrap() };
+
+                                let row = unsafe { parent.child((model_index.row(), 1)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1 };
+                                let column = unsafe { parent.child((model_index.row(), 3)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
+
+                                let table_model_index = table_model.index((row, column));
+                                let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                                if table_model_index_filtered.is_valid() {
+                                    table_selection_model.select((&table_model_index_filtered, Flags::from_enum(SelectionFlag::ClearAndSelect)));
+                                    table_view.scroll_to(&table_model_index_filtered);
+                                }
+                            },
+
+                            _ => {},
+                        }
+                    }
+                }
+            }
+        }
+
+        // If not... just expand and open the PackedFile.
+        else {
+            let path = gidhora.text().to_std_string();
+            let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+
+            if let Some(model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
+                let selection_model = unsafe { tree_view.selection_model().as_mut().unwrap() };
+
+                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
+                if model_index.is_valid() {
+                    selection_model.select((&model_index, Flags::from_enum(SelectionFlag::ClearAndSelect)));
+                    tree_view.scroll_to(&model_index);
+                    app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, false);
+                }
+            }
+            else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::PackedFileNotInFilter, false); }
         }
     }
 

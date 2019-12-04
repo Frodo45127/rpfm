@@ -91,7 +91,9 @@ const ITEM_STATUS_DELETED: i32 = 4;
 pub trait PackTree {
 
     /// This function is used to expand the entire path from the PackFile to an specific item in the `TreeView`.
-    fn expand_treeview_to_item(&self, path: &[String]);
+    ///
+    /// It returns the `ModelIndex` of the final item of the path, or None if it wasn't found or it's hidden by the filter.
+    fn expand_treeview_to_item(&self, path: &[String]) -> Option<ModelIndex>;
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
     fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem>;
@@ -256,7 +258,7 @@ impl From<&TreePathType> for PathType {
 /// Implementation of `PackTree`.
 impl PackTree for *mut TreeView {
 
-    fn expand_treeview_to_item(&self, path: &[String]) {
+    fn expand_treeview_to_item(&self, path: &[String]) -> Option<ModelIndex> {
 
         // First, make these pointers more... safe to use.
         let tree_view = unsafe { self.as_mut().unwrap() };
@@ -277,21 +279,33 @@ impl PackTree for *mut TreeView {
             let path_deep = path.len();
             loop {
 
-                // If we reached the folder of the file, stop. Otherwise, we check every one of its children to see what
-                // one do we need to expand next.
-                if index == (path_deep - 1) { return }
-                else {
+                let mut not_found = true;
+                for row in 0..item.row_count() {
+                    let child = unsafe { item.child(row).as_ref().unwrap() };
 
-                    let mut not_found = true;
-                    for row in 0..item.row_count() {
+                    // In the last cycle, we're interested in files, not folders.
+                    if index == (path_deep -1) {
 
-                        // Check if it has children of his own. If it doesn't have children, continue with the next child.
-                        let child = unsafe { item.child(row).as_ref().unwrap() };
+                        if child.has_children() { continue; }
+
+                        // We guarantee that the name of the files/folders is unique, so we use it to find the one to expand.
+                        if path[index] == child.text().to_std_string() {
+                            item = child;
+
+                            let model_index = unsafe { model.index_from_item(item) };
+                            let filtered_index = filter.map_from_source(&model_index);
+
+                            if filtered_index.is_valid() { return Some(filtered_index); }
+                            else { return None }
+                        }
+                    }
+
+                    // In the rest, we look for children with children of its own.
+                    else {
                         if !child.has_children() { continue; }
 
                         // We guarantee that the name of the files/folders is unique, so we use it to find the one to expand.
-                        let text = child.text().to_std_string();
-                        if text == path[index] {
+                        if path[index] == child.text().to_std_string() {
                             item = child;
                             index += 1;
                             not_found = false;
@@ -301,18 +315,19 @@ impl PackTree for *mut TreeView {
                             let filtered_index = filter.map_from_source(&model_index);
 
                             if filtered_index.is_valid() { tree_view.expand(&filtered_index); }
-                            else { return }
+                            else { not_found = true; }
 
                             // Break the loop.
                             break;
                         }
                     }
-
-                    // If the child was not found, stop and return the parent.
-                    if not_found { break; }
                 }
+
+                // If the child was not found, stop and return the parent.
+                if not_found { break; }
             }
         }
+        None
     }
 
     fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem> {

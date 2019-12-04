@@ -16,13 +16,19 @@ use qt_gui::color::Color;
 use qt_gui::palette::{ColorRole, Palette};
 
 use qt_core::qt::GlobalColor;
-use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
+use qt_core::slots::{SlotBool, SlotModelIndexRef, SlotNoArgs, SlotStringRef};
 
 use regex::Regex;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::packedfile_views::TheOneSlot;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::ui_state::global_search::GlobalSearch;
 use crate::UI_STATE;
 
@@ -35,7 +41,7 @@ use crate::UI_STATE;
 pub struct GlobalSearchSlots {
     pub global_search_search: SlotNoArgs<'static>,
     pub global_search_check_regex: SlotStringRef<'static>,
-
+    pub global_search_open_match: SlotModelIndexRef<'static>,
     pub global_search_toggle_all: SlotBool<'static>,
 }
 
@@ -47,7 +53,12 @@ pub struct GlobalSearchSlots {
 impl GlobalSearchSlots {
 
 	/// This function creates an entire `GlobalSearchSlots` struct.
-	pub fn new(global_search_ui: GlobalSearchUI) -> Self {
+	pub fn new(
+        app_ui: AppUI,
+        global_search_ui: GlobalSearchUI,
+        pack_file_contents_ui: PackFileContentsUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+    ) -> Self {
 
         // What happens when we trigger the "Global Search" action.
         let global_search_search = SlotNoArgs::new(move || {
@@ -127,6 +138,11 @@ impl GlobalSearchSlots {
             unsafe { global_search_ui.global_search_search_line_edit.as_mut().unwrap().set_palette(&palette); }
         });
 
+        // What happens when we try to open the file corresponding to one of the matches.
+        let global_search_open_match = SlotModelIndexRef::new(clone!(slot_holder => move |model_index_filter| {
+            GlobalSearch::open_match(app_ui, pack_file_contents_ui, &slot_holder, model_index_filter);
+        }));
+
         // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes..
         let global_search_toggle_all = SlotBool::new(move |state| {
             unsafe { global_search_ui.global_search_search_on_dbs_checkbox.as_mut().unwrap().set_enabled(!state) };
@@ -139,7 +155,7 @@ impl GlobalSearchSlots {
 		Self {
             global_search_search,
             global_search_check_regex,
-
+            global_search_open_match,
             global_search_toggle_all,
 		}
 	}
