@@ -37257,6 +37257,7 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="changelogs_tables/warhammer_2/changelog.html#021">021</a></li>
 <li><a href="changelogs_tables/warhammer_2/changelog.html#020">020</a></li>
 <li><a href="changelogs_tables/warhammer_2/changelog.html#018">018</a></li>
 <li><a href="changelogs_tables/warhammer_2/changelog.html#017">017</a></li>
@@ -37264,6 +37265,160 @@ mdbook build --open
 <li><a href="changelogs_tables/warhammer_2/changelog.html#015">015</a></li>
 </ul>
 <hr />
+<h1><a class="header" href="#021" id="021">021</a></h1>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>campaign_storm_region_display_settings_tables</em>.</li>
+<li><em>ritual_faction_target_criterias_tables</em>.</li>
+<li><em>ritual_military_force_target_criterias_tables</em>.</li>
+<li><em>ritual_payload_basic_components_tables</em>.</li>
+<li><em>ritual_performing_character_junctions_tables</em>.</li>
+<li><em>ritual_performing_characters_tables</em>.</li>
+<li><em>ritual_region_target_criterias_tables</em>.</li>
+<li><em>ritual_targets_tables</em>.</li>
+<li><em>ui_info_ritual_target_criterias_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><em><strong>audio_ui_categories_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>double_left_click</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>melee_weapons_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>scaling_damage</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>projectiles_scaling_damages</em>/<em>key</em>.</li>
+<li><strong>Description</strong>: <em>If damage calculation has to be scaled based on different rules</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ritual_payload_resource_transactions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>is_transfer</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>rituals_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>target</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>ritual_targets</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>delay_payload_application</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>special_ability_phase_displays_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>entity_vfx_attach_type</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>entity_vfx_attach_types</em>/<em>attach_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>unit_special_abilities_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>spawn_is_transformation</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>If spawning a unit will mean the owner unit will be replaced by the spawned one</em>.</li>
+</ul>
+</li>
+<li><em><strong>wind_down_stance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>special_ability_stance_enums</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>use_loop_stance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Entities will play a loop locomotion stance</em>.</li>
+</ul>
+</li>
+<li><em><strong>spawn_is_decoy</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>If spawning a unit the new one will be understood as a decoy of the owner one, the UI will show data for the owning one</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>units_custom_battle_permissions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign_exclusive</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>(puts the unit in a separate category)</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <h1><a class="header" href="#020" id="020">020</a></h1>
 <p>It contains the following changes:</p>
 <ul>
