@@ -65,7 +65,7 @@ impl RigidModel {
         }
     }
 }
-
+/*
 /// Struct "RigidModelHeader". For more info about this, check the comment at the start of "packedfile/
 /// rigidmodel/mod.rs".
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -341,3 +341,4 @@ impl RigidModelLodHeader {
         packed_file_data
     }
 }
+*/
