@@ -8,21 +8,62 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// In this file we define the PackedFile type RigidModel for decoding and encoding it.
-// This is the type used by 3D model files of units and buildings. Both are different, so we need to
-// take the type in count while processing them.
-use crate::common::encoder::Encoder;
-use crate::common::decoder::Decoder;
+/*!
+Module with all the code to interact with RigidModel PackedFiles.
+
+RigidModel PackedFiles are 3D models used by Total War games since Empire.
+This is basically a rewrite in Rust of the work done by Phazer on his tool.
+Because I want to avoid more C++ libs if posible.
+!*/
+
+use half::f16;
 use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::{ErrorKind, Result};
 
-/// Struct "RigidModel". For more info about this, check the comment at the start of "packedfile/
-/// rigidmodel/mod.rs".
-#[derive(Clone, Debug, Serialize, Deserialize)]
+use crate::common::{decoder::Decoder, encoder::Encoder};
+
+/// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
+const PACKED_FILE_TYPE: &str = "RMV2";
+
+//---------------------------------------------------------------------------//
+//                              Enum & Structs
+//---------------------------------------------------------------------------//
+
+/// This struct contains a RigidModel decoded in memory.
+#[derive(Clone, Debug,PartialEq, Serialize, Deserialize)]
 pub struct RigidModel {
-    pub packed_file_header: RigidModelHeader,
-    pub packed_file_data: RigidModelData,
+    pub header: Header,
+    //pub packed_file_data: RigidModelData,
+}
+
+/// This struct represents the header of a RigidModel.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Header {
+
+    /// The version of the RigidModel. The supported versions per game are:
+    /// - `6`: Attila or older.
+    /// - `7`: Warhammer 1 & 2.
+    /// - `8`: Three Kingdoms.
+    version: u32,
+
+    /// The skeleton used by this RigidModel.
+    skeleton_id: Vec<u8>,
+}
+
+//---------------------------------------------------------------------------//
+//                              Implementations
+//---------------------------------------------------------------------------//
+
+/// Implementation of RigidModel.
+impl RigidModel {
+
+    /// This function creates a new empty `Decal` RigidModel.
+    pub fn new_decal() -> Self {
+        Self {
+            header: Header::default(),
+        }
+    }
 }
 
 /// Struct "RigidModelHeader". For more info about this, check the comment at the start of "packedfile/

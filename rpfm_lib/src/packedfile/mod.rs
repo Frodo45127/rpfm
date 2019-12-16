@@ -25,6 +25,7 @@ use std::ops::Deref;
 use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
 use crate::packedfile::text::Text;
+use crate::packedfile::rigidmodel::RigidModel;
 use crate::packfile::packedfile::RawPackedFile;
 use crate::schema::Schema;
 use crate::SCHEMA;
@@ -53,7 +54,7 @@ pub enum DecodedPackedFile {
     Image(Image),
     Loc(Loc),
     MatchedCombat,
-    RigidModel,
+    RigidModel(RigidModel),
     StarPos,
     Text(Text),
     Unknown,

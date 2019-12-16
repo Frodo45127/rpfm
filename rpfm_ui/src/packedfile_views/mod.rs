@@ -29,9 +29,11 @@ use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
 use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
+use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
 
 pub mod image;
 pub mod packfile;
+pub mod rigidmodel;
 pub mod table;
 pub mod text;
 
@@ -48,12 +50,12 @@ pub struct PackedFileView {
 }
 
 pub enum View {
-    Table(PackedFileTableView),
-    Text(PackedFileTextView),
+    //Decoder(PackedFileDBDecoder),
     Image(PackedFileImageView),
     PackFile(PackFileExtraView),
-    //Decoder(PackedFileDBDecoder),
-    //RigidModel(PackedFileRigidModelDataView),
+    RigidModel(PackedFileRigidModelView),
+    Table(PackedFileTableView),
+    Text(PackedFileTextView),
     None,
 }
 
@@ -62,12 +64,12 @@ pub enum View {
 /// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
-    Table(PackedFileTableViewSlots),
-    Image(PackedFileImageViewSlots),
-    Text(PackedFileTextViewSlots),
-    PackFile(PackFileExtraViewSlots),
     //Decoder(PackedFileDBDecoder),
-    //RigidModel(PackedFileRigidModelDataView),
+    Image(PackedFileImageViewSlots),
+    PackFile(PackFileExtraViewSlots),
+    RigidModel(PackedFileRigidModelViewSlots),
+    Table(PackedFileTableViewSlots),
+    Text(PackedFileTextViewSlots),
     None,
 }
 

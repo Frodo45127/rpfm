@@ -25,6 +25,7 @@ use rpfm_lib::settings::*;
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
 use rpfm_lib::packedfile::text::Text;
+use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
@@ -125,7 +126,7 @@ pub enum Command {
     /// This command is used when we want to know the current path of our currently open `PackFile`.
     GetPackFilePath,
 
-    // This command is used when we want to get the info of the provided `PackedFile`.
+    /// This command is used when we want to get the info of the provided `PackedFile`.
     GetPackedFileInfo(Vec<String>),
 
     /// This command is used when we want to check if there is an RPFM update available.
@@ -158,6 +159,9 @@ pub enum Command {
 
     /// This command is used when we want to decode a text PackedFile to be shown in the UI.
     DecodePackedFileText(Vec<String>),
+
+    /// This command is used when we want to decode a rigidmodel PackedFile to be shown in the UI.
+    DecodePackedFileRigidModel(Vec<String>),
 
     /// This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
     SavePackedFileFromView(Vec<String>, DecodedPackedFile),
@@ -341,6 +345,9 @@ pub enum Response {
 
     /// Response to return `Loc`.
     Loc(Loc),
+
+    /// Response to return `RigidModel`.
+    RigidModel(RigidModel),
 
     /// Response to return `Unknown`.
     Unknown,

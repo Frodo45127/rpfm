@@ -49,6 +49,9 @@ xz2 = "^0.1"
 # Multithread iterator support.
 rayon = "^1.2"
 
+# F16 Support.
+half = "^1.4"
+
 [profile.release]
 lto = true
 debug = true

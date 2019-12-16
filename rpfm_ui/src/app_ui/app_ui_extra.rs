@@ -58,7 +58,7 @@ use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{image::*, PackedFileView, table::*, TheOneSlot, text::*};
+use crate::packedfile_views::{image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -1047,31 +1047,16 @@ impl AppUI {
                                 Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
                             }
                         }
-                        /*
 
-                        // If the file is a Text PackedFile...
-                        DecodeablePackedFileType::RigidModel => {
-
-                            // Try to get the view build, or return error.
-                            match PackedFileRigidModelDataView::create_data_view(
-                                &sender_qt,
-                                &sender_qt_data,
-                                &receiver_qt,
-                                &app_ui,
-                                widget_layout,
-                                &path
-                            ) {
-                                Ok(new_slots) => { slots.borrow_mut().push(TheOneSlot::RigidModel(new_slots)); },
-                                Err(error) => return Err(ErrorKind::RigidModelDecode(format!("{}", error)))?,
+                        // If the file is a RigidModel PackedFile...
+                        PackedFileType::RigidModel => {
+                            match PackedFileRigidModelView::new_view(&path, &mut tab) {
+                                Ok(slots) => slot_holder.borrow_mut().push(slots),
+                                Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
                             }
+                        }
 
-                            // Tell the program there is an open PackedFile and finish the table.
-                            purge_that_one_specifically(&app_ui, view_position, &packedfiles_open_in_packedfile_view);
-                            packedfiles_open_in_packedfile_view.borrow_mut().insert(view_position, path);
-                            unsafe { app_ui.packed_file_splitter.as_mut().unwrap().insert_widget(view_position, widget as *mut Widget); }
-                        }*/
-
-                        // If the file is a Text PackedFile...
+                        // If the file is a Image PackedFile...
                         PackedFileType::Image => {
                             match PackedFileImageView::new_view(&path, &mut tab) {
                                 Ok(slots) => slot_holder.borrow_mut().push(slots),

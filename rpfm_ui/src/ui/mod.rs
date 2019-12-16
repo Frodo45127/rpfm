@@ -155,7 +155,7 @@ impl UI {
             unsafe { (app_ui.main_window as *mut Widget).as_mut().unwrap().set_window_state(Flags::from_enum(WindowState::Maximized)); }
         }
 
-        // If we want to use the dark theme (Only in windows)...
+        // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
         if cfg!(target_os = "windows") {
             if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] {
                 Application::set_style(&QString::from_std_str("fusion"));
@@ -163,6 +163,16 @@ impl UI {
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
             } else {
                 Application::set_style(&QString::from_std_str("windowsvista"));
+                Application::set_palette(&LIGHT_PALETTE);
+            }
+        }
+
+        // On MacOS, we use the dark theme switch to control the StyleSheet and Palette.
+        else if cfg!(target_os = "macos") {
+            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] {
+                Application::set_palette(&DARK_PALETTE);
+                app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
+            } else {
                 Application::set_palette(&LIGHT_PALETTE);
             }
         }

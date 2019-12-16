@@ -242,7 +242,7 @@ impl SettingsUI {
         let mut ui_window_start_maximized_checkbox = CheckBox::new(());
 
         // Add all Label/Checkboxes to the grid.
-        if cfg!(target_os = "windows") {
+        if cfg!(not(target_os = "linux")) {
             unsafe { ui_grid.add_widget((ui_global_use_dark_theme_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
             unsafe { ui_grid.add_widget((ui_global_use_dark_theme_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
         }
