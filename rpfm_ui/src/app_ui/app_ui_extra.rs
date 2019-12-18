@@ -57,6 +57,7 @@ use super::AppUI;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
+use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -114,12 +115,12 @@ impl AppUI {
     }
 
     /// This function deletes all the widgets corresponding to opened PackedFiles.
-    pub fn purge_them_all(&self, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
+    pub fn purge_them_all(&self, global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
 
         // Black magic.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
         for (path, packed_file_view) in open_packedfiles.iter_mut() {
-            packed_file_view.save(path);
+            packed_file_view.save(path, global_search_ui);
             let widget: *mut Widget = packed_file_view.get_mut_widget();
             let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
             unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
@@ -140,13 +141,13 @@ impl AppUI {
     }
 
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
-    pub fn purge_that_one_specifically(&self, path: &[String], save_before_deleting: bool) {
+    pub fn purge_that_one_specifically(&self, global_search_ui: GlobalSearchUI, path: &[String], save_before_deleting: bool) {
 
         // Black magic to remove widgets.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
         if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
             if save_before_deleting && path != &["extra_packfile.rpfm_reserved".to_owned()] {
-                packed_file_view.save(path);
+                packed_file_view.save(path, global_search_ui);
             }
             let widget: *mut Widget = packed_file_view.get_mut_widget();
             let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
@@ -192,6 +193,7 @@ impl AppUI {
     pub fn open_packfile(
         &self,
         pack_file_contents_ui: &PackFileContentsUI,
+        global_search_ui: &GlobalSearchUI,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
@@ -312,7 +314,7 @@ impl AppUI {
                 unsafe { (self.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                self.purge_them_all(slot_holder);
+                self.purge_them_all(*global_search_ui, slot_holder);
 
                 // Close the Global Search stuff and reset the filter's history.
                 //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
@@ -347,6 +349,7 @@ impl AppUI {
     pub fn save_packfile(
         &self,
         pack_file_contents_ui: &PackFileContentsUI,
+        global_search_ui: &GlobalSearchUI,
         save_as: bool,
     ) -> Result<()> {
 
@@ -355,7 +358,7 @@ impl AppUI {
         main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend.
-        UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path));
+        UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui));
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let path = if let Response::PathBuf(path) = CENTRAL_COMMAND.recv_message_qt() { path } else { panic!(THREADS_COMMUNICATION_ERROR) };
@@ -591,7 +594,7 @@ impl AppUI {
     }
 
     /// This function takes care of recreating the dynamic submenus under `PackFile` menu.
-    pub fn build_open_from_submenus(self, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotBool<'static>> {
+    pub fn build_open_from_submenus(self, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotBool<'static>> {
         let packfile_open_from_content = unsafe { self.packfile_open_from_content.as_mut().unwrap() };
         let packfile_open_from_data = unsafe { self.packfile_open_from_data.as_mut().unwrap() };
 
@@ -620,7 +623,7 @@ impl AppUI {
                 let slot_open_mod = SlotBool::new(clone!(
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
-                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "", &slot_holder) {
+                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", &slot_holder) {
                             show_dialog(self.main_window as *mut Widget, error, false);
                         }
                     }
@@ -646,7 +649,7 @@ impl AppUI {
                 let slot_open_mod = SlotBool::new(clone!(
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
-                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[path.to_path_buf()], "", &slot_holder) {
+                        if let Err(error) = self.open_packfile(&pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", &slot_holder) {
                             show_dialog(self.main_window as *mut Widget, error, false);
                         }
                     }
@@ -668,7 +671,7 @@ impl AppUI {
 
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
-    pub fn build_open_mymod_submenus(self, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotBool<'static>> {
+    pub fn build_open_mymod_submenus(self, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotBool<'static>> {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
         unsafe { self.mymod_open_three_kingdoms.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
@@ -730,7 +733,7 @@ impl AppUI {
                                             slot_holder,
                                             game_folder_name => move |_| {
                                             if self.are_you_sure(false) {
-                                                if let Err(error) = self.open_packfile(&pack_file_contents_ui, &[pack_file.to_path_buf()], &game_folder_name, &slot_holder) {
+                                                if let Err(error) = self.open_packfile(&pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name, &slot_holder) {
                                                     show_dialog(self.main_window as *mut Widget, error, false);
                                                 }
                                             }
@@ -968,7 +971,13 @@ impl AppUI {
     }
 
     /// This function is used to open ANY supported PackedFiles in a DockWidget, docked in the Main Window.
-    pub fn open_packedfile(&self, pack_file_contents_ui: &PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>, is_preview: bool) {
+    pub fn open_packedfile(
+        &self,
+        pack_file_contents_ui: &PackFileContentsUI,
+        global_search_ui: &GlobalSearchUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        is_preview: bool
+    ) {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
         // Also, only open the selection when there is only one thing selected.
@@ -1026,7 +1035,7 @@ impl AppUI {
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&path, &mut tab) {
+                            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
                                 Ok(slots) => slot_holder.borrow_mut().push(slots),
                                 Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::LocDecode(format!("{}", error)), false),
                             }
@@ -1034,7 +1043,7 @@ impl AppUI {
 
                         // If the file is a DB PackedFile...
                         PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&path, &mut tab) {
+                            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
                                 Ok(slots) => slot_holder.borrow_mut().push(slots),
                                 Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::DBTableDecode(format!("{}", error)), false),
                             }

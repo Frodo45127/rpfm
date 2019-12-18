@@ -267,7 +267,7 @@ impl AppUISlots {
                         }
 
                         // Try to open it, and report it case of error.
-                        if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &paths, "", &slot_holder) { show_dialog(app_ui.main_window as *mut Widget, error, false); }
+                        if let Err(error) = app_ui.open_packfile(&pack_file_contents_ui, &global_search_ui, &paths, "", &slot_holder) { show_dialog(app_ui.main_window as *mut Widget, error, false); }
                     }
                 }
             }
@@ -275,7 +275,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Save PackFile" action.
         let packfile_save_packfile = SlotBool::new(move |_| {
-                if let Err(error) = app_ui.save_packfile(&pack_file_contents_ui, false) {
+                if let Err(error) = app_ui.save_packfile(&pack_file_contents_ui, &global_search_ui, false) {
                     show_dialog(app_ui.main_window as *mut Widget, error, false);
                 }
             }
@@ -283,7 +283,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Save PackFile As" action.
         let packfile_save_packfile_as = SlotBool::new(move |_| {
-                if let Err(error) = app_ui.save_packfile(&pack_file_contents_ui, true) {
+                if let Err(error) = app_ui.save_packfile(&pack_file_contents_ui, &global_search_ui, true) {
                     show_dialog(app_ui.main_window as *mut Widget, error, false);
                 }
             }
@@ -422,7 +422,7 @@ impl AppUISlots {
                             // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
                                 UI_STATE.set_operational_mode(&app_ui, None);
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, &slot_holder);
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -606,7 +606,7 @@ impl AppUISlots {
                                 }
 
                                 // Update the MyMod list and return true, as we have effectively deleted the MyMod.
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, &slot_holder);
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
                                 true
                             }
                             else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
@@ -766,8 +766,8 @@ impl AppUISlots {
                     app_ui.enable_packfile_actions(true);
                 }
 
-                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, &slot_holder);
-                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, &slot_holder);
+                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
 
                 // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                 UI_STATE.set_operational_mode(&app_ui, None);
@@ -958,7 +958,7 @@ impl AppUISlots {
 
                 unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
             }
-            app_ui.purge_that_one_specifically(&purge_on_delete, false);
+            app_ui.purge_that_one_specifically(global_search_ui, &purge_on_delete, false);
         });
 
         // And here... we return all the slots.
@@ -1033,10 +1033,10 @@ impl AppUISlots {
 }
 
 impl AppUITempSlots {
-    pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Self {
+    pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Self {
         Self {
-            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui, slot_holder),
-            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui, slot_holder),
+            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, slot_holder),
+            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, slot_holder),
         }
     }
 }

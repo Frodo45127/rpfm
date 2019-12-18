@@ -14,55 +14,25 @@ Module with all the code related to the `GlobalSearch`.
 This module contains the code needed to get a `GlobalSeach` over an entire `PackFile`.
 !*/
 
-use qt_widgets::action::Action;
-use qt_widgets::header_view::ResizeMode;
-use qt_widgets::tree_view::TreeView;
-use qt_widgets::widget::Widget;
-
-use qt_gui::list::ListStandardItemMutPtr;
-use qt_gui::standard_item::StandardItem;
-use qt_gui::standard_item_model::StandardItemModel;
-
-use qt_core::connection::Signal;
-use qt_core::flags::Flags;
-use qt_core::item_selection_model::SelectionFlag;
-use qt_core::model_index::ModelIndex;
-use qt_core::qt::{Orientation, SortOrder};
-use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
-use qt_core::variant::Variant;
-
 use regex::Regex;
 use rayon::prelude::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::packfile::{PackFile, PathType};
-use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
-use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
-use rpfm_lib::packedfile::text::Text;
-use rpfm_lib::schema::{Definition, Schema, VersionedFile};
-use rpfm_lib::SCHEMA;
 
-use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::{TheOneSlot, View};
-use crate::packfile_contents_ui::{PackFileContentsUI, slots::PackFileContentsSlots};
-use crate::pack_tree::{PackTree, TreePathType};
-use crate::QString;
-use crate::UI_STATE;
-use crate::utils::show_dialog;
+use crate::packfile::{PackFile, PathType};
+use crate::packedfile::{DecodedPackedFile, PackedFileType};
+use crate::packedfile::table::{DecodedData, db::DB, loc::Loc};
+use crate::packedfile::text::Text;
+use crate::schema::{Definition, Schema, VersionedFile};
+use crate::SCHEMA;
 
 use self::schema::{SchemaMatches, SchemaMatch};
 use self::table::{TableMatches, TableMatch};
 use self::text::{TextMatches, TextMatch};
 
-mod schema;
-mod table;
-mod text;
+pub mod schema;
+pub mod table;
+pub mod text;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -121,7 +91,7 @@ enum MatchingMode {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation of `Default` for `GlobalMatch`.
+/// Implementation of `Default` for `GlobalSearch`.
 impl Default for GlobalSearch {
     fn default() -> Self {
         Self {
@@ -141,7 +111,7 @@ impl Default for GlobalSearch {
     }
 }
 
-/// Implementation of `GlobalMatch`.
+/// Implementation of `GlobalSearch`.
 impl GlobalSearch {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
@@ -272,16 +242,8 @@ impl GlobalSearch {
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
-    pub fn clear(&mut self, ui: &GlobalSearchUI) {
-        self.matches_db = vec![];
-        self.matches_loc = vec![];
-        self.matches_text = vec![];
-        self.matches_schema = vec![];
-
-        unsafe { ui.global_search_matches_db_tree_model.as_mut().unwrap().clear() };
-        unsafe { ui.global_search_matches_loc_tree_model.as_mut().unwrap().clear() };
-        unsafe { ui.global_search_matches_text_tree_model.as_mut().unwrap().clear() };
-        unsafe { ui.global_search_matches_schema_tree_model.as_mut().unwrap().clear() };
+    pub fn clear(&mut self) {
+        *self = Self::default();
     }
 
     /// This function performs a replace operation over the entire match set, except schemas..
@@ -420,324 +382,6 @@ impl GlobalSearch {
                     text.replace_range(start..end, &self.replace_text);
                 }
             }
-        }
-    }
-
-    /// This function takes care of loading the results of a global search of `TableMatches` into a model.
-    pub fn load_table_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[TableMatches]) {
-        if !matches.is_empty() {
-
-            for match_table in matches {
-                if !match_table.matches.is_empty() {
-                    let path = match_table.path.join("/");
-                    let mut qlist_daddy = ListStandardItemMutPtr::new(());
-                    let mut file = StandardItem::new(());
-                    let mut fill1 = StandardItem::new(());
-                    let mut fill2 = StandardItem::new(());
-                    let mut fill3 = StandardItem::new(());
-                    file.set_text(&QString::from_std_str(&path));
-                    file.set_editable(false);
-                    fill1.set_editable(false);
-                    fill2.set_editable(false);
-                    fill3.set_editable(false);
-
-                    for match_row in &match_table.matches {
-
-                        // Create a new list of StandardItem.
-                        let mut qlist_boi = ListStandardItemMutPtr::new(());
-
-                        // Create an empty row.
-                        let mut column_name = StandardItem::new(());
-                        let mut column_number = StandardItem::new(());
-                        let mut row = StandardItem::new(());
-                        let mut text = StandardItem::new(());
-
-                        column_name.set_text(&QString::from_std_str(&match_row.column_name));
-                        column_number.set_data((&Variant::new2(match_row.column_number), 2));
-                        row.set_data((&Variant::new2(match_row.row_number + 1), 2));
-                        text.set_text(&QString::from_std_str(&match_row.contents));
-
-                        column_name.set_editable(false);
-                        column_number.set_editable(false);
-                        row.set_editable(false);
-                        text.set_editable(false);
-
-                        // Add an empty row to the list.
-                        unsafe { qlist_boi.append_unsafe(&column_name.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&row.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&text.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&column_number.into_raw()); }
-
-                        // Append the new row.
-                        file.append_row(&qlist_boi);
-                    }
-                    unsafe { qlist_daddy.append_unsafe(&file.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill1.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill2.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill3.into_raw()); }
-                    model.append_row(&qlist_daddy);
-                }
-            }
-
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Column"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
-
-            // Hide the column number column for tables.
-            tree_view.hide_column(3);
-            tree_view.sort_by_column((0, SortOrder::Ascending));
-
-            unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-        }
-    }
-
-    /// This function takes care of loading the results of a global search of `TextMatches` into a model.
-    pub fn load_text_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[TextMatches]) {
-        if !matches.is_empty() {
-            for match_text in matches {
-                if !match_text.matches.is_empty() {
-                    let path = match_text.path.join("/");
-                    let mut qlist_daddy = ListStandardItemMutPtr::new(());
-                    let mut file = StandardItem::new(());
-                    let mut fill1 = StandardItem::new(());
-                    let mut fill2 = StandardItem::new(());
-                    let mut fill3 = StandardItem::new(());
-                    file.set_text(&QString::from_std_str(&path));
-                    file.set_editable(false);
-                    fill1.set_editable(false);
-                    fill2.set_editable(false);
-                    fill3.set_editable(false);
-
-                    for match_row in &match_text.matches {
-
-                        // Create a new list of StandardItem.
-                        let mut qlist_boi = ListStandardItemMutPtr::new(());
-
-                        // Create an empty row.
-                        let mut text = StandardItem::new(());
-                        let mut row = StandardItem::new(());
-                        let mut column = StandardItem::new(());
-                        let mut len = StandardItem::new(());
-
-                        text.set_text(&QString::from_std_str(&match_row.text));
-                        row.set_data((&Variant::new0(match_row.row + 1), 2));
-                        column.set_data((&Variant::new0(match_row.column), 2));
-                        len.set_data((&Variant::new2(match_row.len), 2));
-
-                        text.set_editable(false);
-                        row.set_editable(false);
-                        column.set_editable(false);
-                        len.set_editable(false);
-
-                        // Add an empty row to the list.
-                        unsafe { qlist_boi.append_unsafe(&text.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&row.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&len.into_raw()); }
-
-                        // Append the new row.
-                        file.append_row(&qlist_boi);
-                    }
-                    unsafe { qlist_daddy.append_unsafe(&file.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill1.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill2.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill3.into_raw()); }
-                    model.append_row(&qlist_daddy);
-                }
-            }
-
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Text"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column"))));
-            model.set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Length"))));
-
-            // Hide the column and lenght numbers on the TreeView.
-            tree_view.hide_column(2);
-            tree_view.hide_column(3);
-            tree_view.sort_by_column((0, SortOrder::Ascending));
-
-            unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-        }
-    }
-
-    /// This function takes care of loading the results of a global search of `SchemaMatches` into a model.
-    pub fn load_schema_matches_to_ui(model: &mut StandardItemModel, tree_view: &mut TreeView, matches: &[SchemaMatches]) {
-        if !matches.is_empty() {
-
-            for match_schema in matches {
-                if !match_schema.matches.is_empty() {
-                    let mut qlist_daddy = ListStandardItemMutPtr::new(());
-                    let mut versioned_file = StandardItem::new(());
-                    let mut fill1 = StandardItem::new(());
-                    let mut fill2 = StandardItem::new(());
-
-                    let name = if let Some(ref name) = match_schema.versioned_file_name {
-                        format!("{}/{}", match_schema.versioned_file_type, name)
-                    } else { format!("{}", match_schema.versioned_file_type) };
-
-                    versioned_file.set_text(&QString::from_std_str(&name));
-                    versioned_file.set_editable(false);
-                    fill1.set_editable(false);
-                    fill2.set_editable(false);
-
-                    for match_row in &match_schema.matches {
-
-                        // Create a new list of StandardItem.
-                        let mut qlist_boi = ListStandardItemMutPtr::new(());
-
-                        // Create an empty row.
-                        let mut name = StandardItem::new(());
-                        let mut version = StandardItem::new(());
-                        let mut column = StandardItem::new(());
-
-                        name.set_text(&QString::from_std_str(&match_row.name));
-                        version.set_data((&Variant::new0(match_row.version), 2));
-                        column.set_data((&Variant::new2(match_row.column), 2));
-
-                        name.set_editable(false);
-                        version.set_editable(false);
-                        column.set_editable(false);
-
-                        // Add an empty row to the list.
-                        unsafe { qlist_boi.append_unsafe(&name.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&version.into_raw()); }
-                        unsafe { qlist_boi.append_unsafe(&column.into_raw()); }
-
-                        // Append the new row.
-                        versioned_file.append_row(&qlist_boi);
-                    }
-                    unsafe { qlist_daddy.append_unsafe(&versioned_file.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill1.into_raw()); }
-                    unsafe { qlist_daddy.append_unsafe(&fill2.into_raw()); }
-                    model.append_row(&qlist_daddy);
-                }
-            }
-
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("VersionedFile (Type, Name)/Column Name"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Definition Version"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column Index"))));
-
-            // Hide the column number column for tables.
-            tree_view.hide_column(2);
-            tree_view.sort_by_column((0, SortOrder::Ascending));
-
-            unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-        }
-    }
-
-    /// This function takes care of updating the results of a global search.
-    ///
-    /// It's here instead of in a slot because we need to pass the paths to update to it.
-    pub fn update_matches_ui(ui: &GlobalSearchUI, paths: Vec<PathType>) {
-
-        // Create the global search and populate it with all the settings for the search.
-        let global_search = (*UI_STATE.global_search.read().unwrap()).clone();
-
-        CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchUpdate(global_search, paths));
-
-        // While we wait for an answer, we need to clear the current results panels.
-        let tree_view_db = unsafe { ui.global_search_matches_db_tree_view.as_mut().unwrap() };
-        let tree_view_loc = unsafe { ui.global_search_matches_loc_tree_view.as_mut().unwrap() };
-
-        let model_db = unsafe { ui.global_search_matches_db_tree_model.as_mut().unwrap() };
-        let model_loc = unsafe { ui.global_search_matches_loc_tree_model.as_mut().unwrap() };
-
-        model_db.clear();
-        model_loc.clear();
-
-        match CENTRAL_COMMAND.recv_message_qt() {
-            Response::GlobalSearch(global_search) => {
-
-                // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                GlobalSearch::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
-                GlobalSearch::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
-            }
-
-            // In ANY other situation, it's a message problem.
-            _ => panic!(THREADS_COMMUNICATION_ERROR)
-        }
-    }
-
-    /// This function tries to open the PackedFile where the selected match is.
-    ///
-    /// Remember, it TRIES to open it. It may fail if the file doesn't exist anymore and the update search
-    /// hasn't been triggered, or if the searched text doesn't exist anymore.
-    ///
-    /// In case the provided ModelIndex is the parent, we open the file without scrolling to the match.
-    pub fn open_match(
-        app_ui: AppUI,
-        pack_file_contents_ui: PackFileContentsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
-        model_index_filtered: &ModelIndex
-    ) {
-
-        let tree_view = unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap() };
-        let filter_model = unsafe { (model_index_filtered.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
-        let model = unsafe { (filter_model.source_model() as *mut StandardItemModel).as_ref().unwrap() };
-        let model_index = filter_model.map_to_source(&model_index_filtered);
-
-        let gidhora = unsafe { model.item_from_index(&model_index).as_ref().unwrap() };
-        let is_match = !gidhora.has_children();
-
-        // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
-        if is_match {
-            let parent = unsafe { gidhora.parent().as_ref().unwrap() };
-            let path = parent.text().to_std_string();
-            let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
-
-            if let Some(pack_file_contents_model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
-                let selection_model = unsafe { tree_view.selection_model().as_mut().unwrap() };
-
-                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
-                if pack_file_contents_model_index.is_valid() {
-                    selection_model.select((&pack_file_contents_model_index, Flags::from_enum(SelectionFlag::ClearAndSelect)));
-                    tree_view.scroll_to(&pack_file_contents_model_index);
-                    app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, false);
-
-                    if let Some((_, packed_file_view)) = UI_STATE.get_open_packedfiles().iter().find(|x| x.0 == &path) {
-                        match packed_file_view.get_view() {
-
-                            // In case of tables, we have to get the logical row/column of the match and select it.
-                            View::Table(view) => {
-                                let table_view = view.get_table();
-                                let table_filter = unsafe { (table_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
-                                let table_model = unsafe { (table_filter.source_model() as *mut StandardItemModel).as_ref().unwrap() };
-                                let table_selection_model = unsafe { table_view.selection_model().as_mut().unwrap() };
-
-                                let row = unsafe { parent.child((model_index.row(), 1)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() - 1 };
-                                let column = unsafe { parent.child((model_index.row(), 3)).as_mut().unwrap().text().to_std_string().parse::<i32>().unwrap() };
-
-                                let table_model_index = table_model.index((row, column));
-                                let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                                if table_model_index_filtered.is_valid() {
-                                    table_selection_model.select((&table_model_index_filtered, Flags::from_enum(SelectionFlag::ClearAndSelect)));
-                                    table_view.scroll_to(&table_model_index_filtered);
-                                }
-                            },
-
-                            _ => {},
-                        }
-                    }
-                }
-            }
-        }
-
-        // If not... just expand and open the PackedFile.
-        else {
-            let path = gidhora.text().to_std_string();
-            let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
-
-            if let Some(model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
-                let selection_model = unsafe { tree_view.selection_model().as_mut().unwrap() };
-
-                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
-                if model_index.is_valid() {
-                    selection_model.select((&model_index, Flags::from_enum(SelectionFlag::ClearAndSelect)));
-                    tree_view.scroll_to(&model_index);
-                    app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, false);
-                }
-            }
-            else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::PackedFileNotInFilter, false); }
         }
     }
 

@@ -22,6 +22,7 @@ use rpfm_lib::packfile::PathType;
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::utils::show_dialog;
@@ -51,7 +52,7 @@ pub struct PackFileExtraViewSlots {
 impl PackFileExtraViewSlots {
 
     /// This function builds the entire slot set for the provided PackFileExtraView.
-    pub fn new(app_ui: AppUI, pack_file_contents_view: PackFileContentsUI, pack_file_view: PackFileExtraViewRaw) -> Self {
+    pub fn new(app_ui: AppUI, pack_file_contents_view: PackFileContentsUI, global_search_ui: GlobalSearchUI, pack_file_view: PackFileExtraViewRaw) -> Self {
 
         // When we want to import the selected PackedFile...
         let import = SlotModelIndexRef::new(move |_| {
@@ -70,7 +71,7 @@ impl PackFileExtraViewSlots {
                             // If any of the PackedFiles was already open (and we overwote them) remove his view.
                             for path in &paths_ok {
                                 if let PathType::File(path) = path {
-                                    app_ui.purge_that_one_specifically(&path, false);
+                                    app_ui.purge_that_one_specifically(global_search_ui, &path, false);
                                 }
                             }
 

@@ -23,13 +23,14 @@ use regex::Regex;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use rpfm_lib::global_search::GlobalSearch;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::TheOneSlot;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::ui_state::global_search::GlobalSearch;
 use crate::UI_STATE;
 
 
@@ -62,62 +63,7 @@ impl GlobalSearchSlots {
 
         // What happens when we trigger the "Global Search" action.
         let global_search_search = SlotNoArgs::new(move || {
-
-            // Create the global search and populate it with all the settings for the search.
-            let mut global_search = GlobalSearch::default();
-            global_search.pattern = unsafe { global_search_ui.global_search_search_line_edit.as_ref().unwrap().text().to_std_string() };
-            global_search.case_sensitive = unsafe { global_search_ui.global_search_case_sensitive_checkbox.as_ref().unwrap().is_checked() };
-            global_search.use_regex = unsafe { global_search_ui.global_search_use_regex_checkbox.as_ref().unwrap().is_checked() };
-
-            if unsafe { global_search_ui.global_search_search_on_all_checkbox.as_ref().unwrap().is_checked() } {
-                global_search.search_on_dbs = true;
-                global_search.search_on_locs = true;
-                global_search.search_on_texts = true;
-                global_search.search_on_schema = true;
-            }
-            else {
-                global_search.search_on_dbs = unsafe { global_search_ui.global_search_search_on_dbs_checkbox.as_ref().unwrap().is_checked() };
-                global_search.search_on_locs = unsafe { global_search_ui.global_search_search_on_locs_checkbox.as_ref().unwrap().is_checked() };
-                global_search.search_on_texts = unsafe { global_search_ui.global_search_search_on_texts_checkbox.as_ref().unwrap().is_checked() };
-                global_search.search_on_schema = unsafe { global_search_ui.global_search_search_on_schemas_checkbox.as_ref().unwrap().is_checked() };
-            }
-
-            let t = std::time::SystemTime::now();
-            CENTRAL_COMMAND.send_message_qt(Command::GlobalSearch(global_search));
-
-            // While we wait for an answer, we need to clear the current results panels.
-            let tree_view_db = unsafe { global_search_ui.global_search_matches_db_tree_view.as_mut().unwrap() };
-            let tree_view_loc = unsafe { global_search_ui.global_search_matches_loc_tree_view.as_mut().unwrap() };
-            let tree_view_text = unsafe { global_search_ui.global_search_matches_text_tree_view.as_mut().unwrap() };
-            let tree_view_schema = unsafe { global_search_ui.global_search_matches_schema_tree_view.as_mut().unwrap() };
-
-            let model_db = unsafe { global_search_ui.global_search_matches_db_tree_model.as_mut().unwrap() };
-            let model_loc = unsafe { global_search_ui.global_search_matches_loc_tree_model.as_mut().unwrap() };
-            let model_text = unsafe { global_search_ui.global_search_matches_text_tree_model.as_mut().unwrap() };
-            let model_schema = unsafe { global_search_ui.global_search_matches_schema_tree_model.as_mut().unwrap() };
-
-            model_db.clear();
-            model_loc.clear();
-            model_text.clear();
-            model_schema.clear();
-
-            match CENTRAL_COMMAND.recv_message_qt() {
-                Response::GlobalSearch(global_search) => {
-
-                    println!("Time to search from click to search complete: {:?}", t.elapsed().unwrap());
-
-                    // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                    GlobalSearch::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
-                    GlobalSearch::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
-                    GlobalSearch::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
-                    GlobalSearch::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
-                    //println!("{:?}", global_search);
-                    UI_STATE.set_global_search(&global_search);
-                }
-
-                // In ANY other situation, it's a message problem.
-                _ => panic!(THREADS_COMMUNICATION_ERROR)
-            }
+            global_search_ui.search();
         });
 
         // What happens when we trigger the "Check Regex" action.
@@ -140,7 +86,7 @@ impl GlobalSearchSlots {
 
         // What happens when we try to open the file corresponding to one of the matches.
         let global_search_open_match = SlotModelIndexRef::new(clone!(slot_holder => move |model_index_filter| {
-            GlobalSearch::open_match(app_ui, pack_file_contents_ui, &slot_holder, model_index_filter);
+            GlobalSearchUI::open_match(app_ui, pack_file_contents_ui, global_search_ui, &slot_holder, model_index_filter);
         }));
 
         // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes..

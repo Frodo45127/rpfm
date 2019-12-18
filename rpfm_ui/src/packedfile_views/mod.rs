@@ -18,13 +18,17 @@ use qt_widgets::widget::Widget;
 
 use core::sync::atomic::{AtomicPtr, Ordering};
 
+use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
 use rpfm_lib::packedfile::text::Text;
+use rpfm_lib::packfile::PathType;
 
 use crate::CENTRAL_COMMAND;
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::get_text;
-use crate::communications::Command;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::utils::create_grid_layout_unsafe;
+use crate::UI_STATE;
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
 use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
@@ -128,12 +132,18 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub fn save(&self, path: &[String]) {
+    pub fn save(&self, path: &[String], global_search_ui: GlobalSearchUI) {
 
         // This is a two-step process. First, we take the data from the view into a `DecodedPackedFile` format.
         // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
         let data = match self.packed_file_type {
+            PackedFileType::DB => return,
+
+            // Images are read-only.
             PackedFileType::Image => DecodedPackedFile::Unknown,
+            PackedFileType::Loc => return,
+            PackedFileType::RigidModel => return,
+
             PackedFileType::Text => {
                 if let View::Text(view) = self.get_view() {
                     let mut text = Text::default();
@@ -145,6 +155,22 @@ impl PackedFileView {
             _ => unimplemented!(),
         };
 
+        // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
         CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(path.to_vec(), data));
+        match CENTRAL_COMMAND.recv_message_qt_try() {
+            Response::Success => {
+
+                // If we have a GlobalSearch on, update the results for this specific PackedFile.
+                let global_search = UI_STATE.get_global_search();
+                if !global_search.pattern.is_empty() {
+                    let path_types = vec![PathType::File(path.to_vec())];
+                    global_search_ui.search_on_path(path_types);
+                    UI_STATE.set_global_search(&global_search);
+                }
+            }
+
+            // In ANY other situation, it's a message problem.
+            _ => panic!(THREADS_COMMUNICATION_ERROR),
+        }
     }
 }

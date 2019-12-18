@@ -20,17 +20,18 @@ use std::path::PathBuf;
 use std::process::exit;
 
 use rpfm_error::Error;
-use rpfm_lib::schema::APIResponseSchema;
-use rpfm_lib::settings::*;
+
+use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::schema::APIResponseSchema;
+use rpfm_lib::settings::*;
 
 use crate::app_ui::NewPackedFile;
-use crate::ui_state::global_search::GlobalSearch;
 use self::network::*;
 
 pub mod network;

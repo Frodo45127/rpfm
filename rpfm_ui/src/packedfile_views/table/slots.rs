@@ -12,10 +12,15 @@
 Module with the slots for Table Views.
 !*/
 
-use qt_core::slots::SlotStringRef;
+use qt_core::slots::{SlotNoArgs, SlotStringRef};
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
 use crate::QString;
+use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -24,6 +29,7 @@ use crate::QString;
 /// This struct contains the slots of the view of an Table PackedFile.
 pub struct PackedFileTableViewSlots {
     pub filter_line_edit: SlotStringRef<'static>,
+    pub save: SlotNoArgs<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -34,17 +40,24 @@ pub struct PackedFileTableViewSlots {
 impl PackedFileTableViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub fn new(packed_file_view: PackedFileTableViewRaw) -> Self {
+    pub fn new(packed_file_view: PackedFileTableViewRaw, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
 
         // When we want to filter when changing the pattern to filter with...
         let filter_line_edit = SlotStringRef::new(move |string| {
             packed_file_view.filter_table(Some(QString::from_std_str(string.to_std_string())));
-
         });
+
+        // When we want to save the contents of the UI to the backend...
+        let save = SlotNoArgs::new(clone!(packed_file_path => move || {
+            if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
+                packed_file.save(&packed_file_path.borrow(), global_search_ui);
+            }
+        }));
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             filter_line_edit,
+            save,
         }
     }
 }

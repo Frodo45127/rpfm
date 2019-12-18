@@ -36,6 +36,7 @@ use rpfm_lib::SETTINGS;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
@@ -92,16 +93,21 @@ pub struct PackFileContentsSlots {
 impl PackFileContentsSlots {
 
 	/// This function creates an entire `PackFileContentsSlots` struct.
-	pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Self {
+	pub fn new(
+        app_ui: AppUI,
+        pack_file_contents_ui: PackFileContentsUI,
+        global_search_ui: GlobalSearchUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
+    ) -> Self {
 
         // Slot to open the selected PackedFile as a preview.
         let open_packedfile_preview = SlotNoArgs::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, true);
+            app_ui.open_packedfile(&pack_file_contents_ui, &global_search_ui, &slot_holder, true);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
         let open_packedfile_full = SlotNoArgs::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&pack_file_contents_ui, &slot_holder, false);
+            app_ui.open_packedfile(&pack_file_contents_ui, &global_search_ui, &slot_holder, false);
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -569,7 +575,7 @@ impl PackFileContentsSlots {
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     let mut tab = PackedFileView::default();
-                    match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, path) {
+                    match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, &global_search_ui, path) {
                         Ok(slots) => {
                             slot_holder.borrow_mut().push(slots);
 
@@ -589,7 +595,7 @@ impl PackFileContentsSlots {
                                     unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
                                 }
                             }
-                            app_ui.purge_that_one_specifically(&["extra_packfile.rpfm_reserved".to_owned()], false);
+                            app_ui.purge_that_one_specifically(global_search_ui, &["extra_packfile.rpfm_reserved".to_owned()], false);
 
                             unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
                             unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
@@ -619,7 +625,7 @@ impl PackFileContentsSlots {
                         // Remove all the deleted PackedFiles from the cache.
                         for item in &items {
                             match item {
-                                TreePathType::File(path) => app_ui.purge_that_one_specifically(path, false),
+                                TreePathType::File(path) => app_ui.purge_that_one_specifically(global_search_ui, path, false),
                                 TreePathType::Folder(path) => {
                                     let mut paths_to_remove = vec![];
                                     {
@@ -632,11 +638,11 @@ impl PackFileContentsSlots {
                                     }
 
                                     for path in paths_to_remove {
-                                        app_ui.purge_that_one_specifically(&path, false);
+                                        app_ui.purge_that_one_specifically(global_search_ui, &path, false);
                                     }
 
                                 }
-                                TreePathType::PackFile => app_ui.purge_them_all(&slot_holder),
+                                TreePathType::PackFile => app_ui.purge_them_all(global_search_ui, &slot_holder),
                                 TreePathType::None => unreachable!(),
                             }
                         }
@@ -690,7 +696,7 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path));
+                UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, global_search_ui));
 
                 CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -919,7 +925,7 @@ impl PackFileContentsSlots {
                     }
 
                     for path in paths_to_close {
-                        app_ui.purge_that_one_specifically(&path, true);
+                        app_ui.purge_that_one_specifically(global_search_ui, &path, true);
                     }
 
                     CENTRAL_COMMAND.send_message_qt(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));

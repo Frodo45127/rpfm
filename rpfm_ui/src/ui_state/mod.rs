@@ -19,14 +19,14 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use rpfm_lib::global_search::GlobalSearch;
+
 use crate::app_ui::AppUI;
 use crate::packedfile_views::PackedFileView;
 use crate::shortcuts::Shortcuts;
 use crate::ui_state::op_mode::OperationalMode;
-use crate::ui_state::global_search::GlobalSearch;
 
 pub mod op_mode;
-pub mod global_search;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

@@ -43,6 +43,7 @@ use rpfm_lib::SETTINGS;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::new_tableview_frozen;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
 
@@ -95,6 +96,7 @@ impl PackedFileTableView {
     pub fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
+        global_search_ui: &GlobalSearchUI,
     ) -> Result<TheOneSlot> {
 
         // Get the decoded Table.
@@ -179,7 +181,7 @@ impl PackedFileTableView {
         };
 
 
-        let packed_file_table_view_slots = PackedFileTableViewSlots::new(packed_file_table_view_raw);
+        let packed_file_table_view_slots = PackedFileTableViewSlots::new(packed_file_table_view_raw, *global_search_ui, &packed_file_path);
 
 
         let packed_file_table_view = Self {

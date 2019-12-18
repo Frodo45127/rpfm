@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -24,6 +24,7 @@ use crate::settings::Settings;
 pub mod common;
 pub mod config;
 pub mod games;
+pub mod global_search;
 pub mod packedfile;
 pub mod packfile;
 pub mod schema;
@@ -45,7 +46,7 @@ lazy_static! {
 
     /// PackedFiles from the dependencies of the currently open PackFile.
     pub static ref DEPENDENCY_DATABASE: Mutex<Vec<PackedFile>> = Mutex::new(vec![]);
-    
+
     /// DB Files from the Pak File of the current game. Only for dependency checking.
     pub static ref FAKE_DEPENDENCY_DATABASE: Mutex<Vec<DB>> = Mutex::new(vec![]);
 

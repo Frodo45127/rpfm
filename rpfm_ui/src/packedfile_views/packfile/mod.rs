@@ -40,6 +40,7 @@ use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_treeview_filter, trigger_treeview_filter};
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -99,6 +100,7 @@ impl PackFileExtraView {
         pack_file_view: &mut PackedFileView,
         app_ui: &AppUI,
         pack_file_contents_ui: &PackFileContentsUI,
+        global_search_ui: &GlobalSearchUI,
         pack_file_path: PathBuf,
     ) -> Result<TheOneSlot> {
 
@@ -161,7 +163,7 @@ impl PackFileExtraView {
             collapse_all: collapse_all.into_raw(),
         };
 
-        let slots = PackFileExtraViewSlots::new(*app_ui, *pack_file_contents_ui, raw);
+        let slots = PackFileExtraViewSlots::new(*app_ui, *pack_file_contents_ui, *global_search_ui, raw);
         let view = Self {
             tree_view: AtomicPtr::new(raw.tree_view),
             tree_model_filter: AtomicPtr::new(raw.tree_model_filter),

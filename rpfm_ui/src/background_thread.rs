@@ -542,6 +542,7 @@ pub fn background_loop() {
                 if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     *packed_file.get_ref_mut_decoded() = decoded_packed_file;
                 }
+                CENTRAL_COMMAND.send_message_rust(Response::Success);
             }
 
             // In case we want to delete PackedFiles from a PackFile...
