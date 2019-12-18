@@ -262,6 +262,12 @@ pub enum ErrorKind {
     /// Error for when we find missing references when checking a DB Table. Contains a list with the tables with missing references.
     DBMissingReferences(Vec<String>),
 
+    /// Error for when we found no newer version of a table than the one we have.
+    NoDefinitionUpdateAvailable,
+
+    /// Error for when we can't find a vanilla version of a table to compare with.
+    NoTableInGameFilesToCompare,
+
     /// Error for when we don't have schema files and we couldn't download them.
     SchemaNotFoundAndNotDownloaded,
 
@@ -606,6 +612,8 @@ impl Display for ErrorKind {
             ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
             ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
+            ErrorKind::NoDefinitionUpdateAvailable => write!(f, "<p>This table already has the newer definition available.</p>"),
+            ErrorKind::NoTableInGameFilesToCompare => write!(f, "<p>This table cannot be found in the Game Files, so it cannot be automatically updated (yet).</p>"),
             ErrorKind::SchemaNotFoundAndNotDownloaded => write!(f, "<p>There is no Schema file to load on the disk, and the tries to download one have failed.</p>"),
             ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
             ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),

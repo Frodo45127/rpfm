@@ -83,6 +83,7 @@ pub struct PackFileContentsUI {
     pub context_menu_open_notes: *mut Action,
     pub context_menu_check_tables: *mut Action,
     pub context_menu_merge_tables: *mut Action,
+    pub context_menu_update_table: *mut Action,
 
     //-------------------------------------------------------------------------------//
     // Actions not in the UI.
@@ -173,6 +174,7 @@ impl PackFileContentsUI {
         let context_menu_open_notes = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Notes"));
         let context_menu_check_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables"));
         let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables"));
+        let context_menu_update_table = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Update Table"));
         let packfile_contents_tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All"));
         let packfile_contents_tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All"));
 
@@ -249,6 +251,7 @@ impl PackFileContentsUI {
 
             context_menu_check_tables,
             context_menu_merge_tables,
+            context_menu_update_table,
 
             //-------------------------------------------------------------------------------//
             // "Special" Actions for the TreeView.

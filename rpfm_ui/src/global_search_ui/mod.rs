@@ -79,6 +79,7 @@ pub struct GlobalSearchUI {
     pub global_search_replace_button: *mut PushButton,
     pub global_search_replace_all_button: *mut PushButton,
 
+    pub global_search_clear_button: *mut PushButton,
     pub global_search_case_sensitive_checkbox: *mut CheckBox,
     pub global_search_use_regex_checkbox: *mut CheckBox,
 
@@ -150,6 +151,7 @@ impl GlobalSearchUI {
         let global_search_replace_button = PushButton::new(&QString::from_std_str("Replace"));
         let global_search_replace_all_button = PushButton::new(&QString::from_std_str("Replace All"));
 
+        let global_search_clear_button = PushButton::new(&QString::from_std_str("Clear"));
         let global_search_case_sensitive_checkbox = CheckBox::new(&QString::from_std_str("Case Sensitive"));
         let global_search_use_regex_checkbox = CheckBox::new(&QString::from_std_str("Use Regex"));
 
@@ -171,8 +173,9 @@ impl GlobalSearchUI {
         unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_replace_button.as_mut_ptr() as *mut Widget, 1, 2, 1, 1)); }
         unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_replace_all_button.as_mut_ptr() as *mut Widget, 1, 3, 1, 1)); }
 
-        unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_case_sensitive_checkbox.as_mut_ptr() as *mut Widget, 0, 3, 1, 1)); }
-        unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_use_regex_checkbox.as_mut_ptr() as *mut Widget, 0, 4, 1, 1)); }
+        unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_clear_button.as_mut_ptr() as *mut Widget, 0, 3, 1, 1)); }
+        unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_case_sensitive_checkbox.as_mut_ptr() as *mut Widget, 0, 4, 1, 1)); }
+        unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_use_regex_checkbox.as_mut_ptr() as *mut Widget, 1, 4, 1, 1)); }
         unsafe { global_search_search_grid.as_mut().unwrap().add_widget((global_search_search_on_group_box.into_raw() as *mut Widget, 2, 0, 1, 10)); }
 
         unsafe { global_search_search_on_grid.as_mut().unwrap().add_widget((global_search_search_on_all_checkbox.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
@@ -338,6 +341,7 @@ impl GlobalSearchUI {
             global_search_replace_button: global_search_replace_button.into_raw(),
             global_search_replace_all_button: global_search_replace_all_button.into_raw(),
 
+            global_search_clear_button: global_search_clear_button.into_raw(),
             global_search_case_sensitive_checkbox: global_search_case_sensitive_checkbox.into_raw(),
             global_search_use_regex_checkbox: global_search_use_regex_checkbox.into_raw(),
 

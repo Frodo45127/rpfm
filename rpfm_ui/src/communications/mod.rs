@@ -208,6 +208,9 @@ pub enum Command {
     /// - String: Name of the new merged table.
     /// - Bool: Should we delete the source files after merging them?
     MergeTables(Vec<Vec<String>>, String, bool),
+
+    /// This command is used when we want to update a table to a newer version.
+    UpdateTable(PathType),
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -360,7 +363,10 @@ pub enum Response {
     VecString(Vec<String>),
 
     /// Response to return `(Vec<String>, Vec<PathType>)`.
-    VecStringVecPathType((Vec<String>, Vec<PathType>))
+    VecStringVecPathType((Vec<String>, Vec<PathType>)),
+
+    /// Response to return `(i32, i32)`.
+    I32I32((i32, i32))
 /*
     Bool(bool),
     I32(i32),

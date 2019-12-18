@@ -17,11 +17,14 @@ you can find in a `PackFile`. Here, you can find some generic enums used by the 
 For encoding/decoding/proper manipulation of the data in each type of `PackedFile`, check their respective submodules
 !*/
 
-use rpfm_error::{Error, ErrorKind, Result};
+use rayon::prelude::*;
 
 use std::{fmt, fmt::Display};
 use std::ops::Deref;
 
+use rpfm_error::{Error, ErrorKind, Result};
+
+use crate::DEPENDENCY_DATABASE;
 use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
 use crate::packedfile::text::Text;
@@ -29,7 +32,6 @@ use crate::packedfile::rigidmodel::RigidModel;
 use crate::packfile::packedfile::RawPackedFile;
 use crate::schema::Schema;
 use crate::SCHEMA;
-
 
 pub mod image;
 pub mod rigidmodel;
@@ -169,6 +171,39 @@ impl DecodedPackedFile {
             DecodedPackedFile::Loc(data) => data.save(),
             DecodedPackedFile::Text(data) => data.save(),
             _=> unimplemented!(),
+        }
+    }
+
+    /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the data.pack or equivalent of the game.
+    ///
+    /// It returns both, old and new versions, or an error.
+    pub fn update_table(&mut self) -> Result<(i32, i32)> {
+        match self {
+            DecodedPackedFile::DB(data) => {
+                let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
+                if let Some(schema) = &*SCHEMA.lock().unwrap() {
+                    if let Some(vanilla_db) = dep_db.par_iter_mut()
+                        .filter_map(|x| x.decode_return_ref_no_locks(&schema).ok())
+                        .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })
+                        .filter(|x| x.name == data.name)
+                        .max_by(|x, y| x.get_definition().version.cmp(&y.get_definition().version)) {
+
+                        let definition_new = vanilla_db.get_definition();
+                        let definition_old = data.get_definition();
+                        if definition_old != definition_new {
+                            data.set_definition(&definition_new);
+                            Ok((definition_old.version, definition_new.version))
+                        }
+                        else {
+                            Err(ErrorKind::NoDefinitionUpdateAvailable.into())
+                        }
+                    }
+                    else { Err(ErrorKind::NoTableInGameFilesToCompare.into()) }
+                }
+                else { Err(ErrorKind::SchemaNotFound.into()) }
+
+            }
+            _ => Err(ErrorKind::DBTableIsNotADBTable.into()),
         }
     }
 }

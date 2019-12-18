@@ -31,7 +31,7 @@ use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::Loc;
 use rpfm_lib::packedfile::text::Text;
-use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PFHFlags};
+use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags};
 use rpfm_lib::schema::*;
 use rpfm_lib::schema::assembly_kit::*;
 use rpfm_lib::SCHEMA;
@@ -620,6 +620,20 @@ pub fn background_loop() {
                     Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::VecString(data)),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
+            }
+
+            // In case we want to update a table...
+            Command::UpdateTable(path_type) => {
+                if let PathType::File(path) = path_type {
+                    if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                        if let Ok(packed_file) = packed_file.decode_return_ref_mut() {
+                            match packed_file.update_table() {
+                                Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::I32I32(data)),
+                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            }
+                        } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
+                    } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
+                } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
             }
         }
     }

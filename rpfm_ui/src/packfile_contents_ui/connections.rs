@@ -51,6 +51,7 @@ pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
     unsafe { ui.context_menu_new_queek_packed_file.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_new_queek_packed_file); }
     unsafe { ui.context_menu_check_tables.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_tables_check_integrity); }
     unsafe { ui.context_menu_merge_tables.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_tables_merge_tables); }
+    unsafe { ui.context_menu_update_table.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_tables_update_table); }
 
     unsafe { ui.context_menu_mass_import_tsv.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_mass_import_tsv); }
     unsafe { ui.context_menu_mass_export_tsv.as_ref().unwrap().signals().triggered().connect(&slots.contextual_menu_mass_export_tsv); }

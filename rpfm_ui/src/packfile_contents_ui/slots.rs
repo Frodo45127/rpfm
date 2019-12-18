@@ -77,6 +77,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_new_queek_packed_file: SlotBool<'static>,
     pub contextual_menu_tables_check_integrity: SlotBool<'static>,
     pub contextual_menu_tables_merge_tables: SlotBool<'static>,
+    pub contextual_menu_tables_update_table: SlotBool<'static>,
 
     pub contextual_menu_mass_import_tsv: SlotBool<'static>,
     pub contextual_menu_mass_export_tsv: SlotBool<'static>,
@@ -161,6 +162,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_new_queek_packed_file.as_mut().unwrap().set_enabled(enabled);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(enabled);
                         }
 
                         // Only if we have multiple files selected, we give the option to merge. Further checks are done when clicked.
@@ -187,6 +189,8 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false);
+
                         }
 
                         // These options are limited to only 1 folder selected.
@@ -224,6 +228,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -250,6 +255,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(true);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -276,6 +282,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -301,6 +308,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -327,6 +335,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(true);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false);
                         }
                     },
 
@@ -353,6 +362,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.context_menu_open_containing_folder.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(false);
                             pack_file_contents_ui.context_menu_open_notes.as_mut().unwrap().set_enabled(false);
+                            pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false);
                         }
                     },
                 }
@@ -373,12 +383,11 @@ impl PackFileContentsSlots {
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_there_a_schema {
                     unsafe { pack_file_contents_ui.context_menu_check_tables.as_mut().unwrap().set_enabled(false); }
+                    unsafe { pack_file_contents_ui.context_menu_update_table.as_mut().unwrap().set_enabled(false); }
                     unsafe { pack_file_contents_ui.context_menu_new_packed_file_db.as_mut().unwrap().set_enabled(false); }
                     unsafe { pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(false); }
                     unsafe { pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(false); }
                 }
-                    unsafe { pack_file_contents_ui.context_menu_mass_import_tsv.as_mut().unwrap().set_enabled(true); }
-                    unsafe { pack_file_contents_ui.context_menu_mass_export_tsv.as_mut().unwrap().set_enabled(true); }
             }
         );
 
@@ -970,6 +979,35 @@ impl PackFileContentsSlots {
             else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::InvalidFilesForMerging, false); }
         });
 
+
+        // What happens when we trigger the "Update Table" action in the Contextual Menu.
+        let contextual_menu_tables_update_table = SlotBool::new(move |_| {
+            let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+            let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
+            match item_type {
+                TreePathType::File(path) => {
+
+                    // First, if the PackedFile is open, save it.
+                    UI_STATE.get_open_packedfiles().iter()
+                        .filter(|(packed_file_path, _)| &path == packed_file_path)
+                        .for_each(|(path, packed_file)| packed_file.save(path, global_search_ui));
+
+                    let path_type = From::from(item_type);
+                    CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type));
+                    match CENTRAL_COMMAND.recv_message_qt() {
+                        Response::I32I32((old_version, new_version)) => {
+                            let message = format!("Table updated from version '{}' to version {}.", old_version, new_version);
+                            show_dialog(app_ui.main_window as *mut Widget, message, true);
+                        }
+
+                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    }
+                }
+                _ => unimplemented!()
+            }
+        });
+
         // What happens when we trigger the "Mass-Import TSV" Action.
         //
         // TODO: Make it so the name of the table is split off when importing keeping the original name.
@@ -1090,6 +1128,7 @@ impl PackFileContentsSlots {
             contextual_menu_new_queek_packed_file,
             contextual_menu_tables_check_integrity,
             contextual_menu_tables_merge_tables,
+            contextual_menu_tables_update_table,
 
             contextual_menu_mass_import_tsv,
             contextual_menu_mass_export_tsv,
