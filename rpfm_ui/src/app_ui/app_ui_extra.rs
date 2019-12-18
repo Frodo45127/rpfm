@@ -1051,7 +1051,7 @@ impl AppUI {
 
                         // If the file is a Text PackedFile...
                         PackedFileType::Text => {
-                            match PackedFileTextView::new_view(&path, &mut tab) {
+                            match PackedFileTextView::new_view(&path, &mut tab, global_search_ui) {
                                 Ok(slots) => slot_holder.borrow_mut().push(slots),
                                 Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
                             }
@@ -1059,7 +1059,7 @@ impl AppUI {
 
                         // If the file is a RigidModel PackedFile...
                         PackedFileType::RigidModel => {
-                            match PackedFileRigidModelView::new_view(&path, &mut tab) {
+                            match PackedFileRigidModelView::new_view(&path, &mut tab, global_search_ui) {
                                 Ok(slots) => slot_holder.borrow_mut().push(slots),
                                 Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
                             }

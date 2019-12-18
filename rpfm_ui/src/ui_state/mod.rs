@@ -124,6 +124,11 @@ impl UIState {
         self.global_search.read().unwrap().clone()
     }
 
+    /// This function returns a read-only non-locking guard to the global search info.
+    pub fn get_global_search_no_lock(&self) -> RwLockReadGuard<GlobalSearch> {
+        self.global_search.read().unwrap()
+    }
+
     /// This function replaces the current global search with the provided one.
     pub fn set_global_search(&self, global_search: &GlobalSearch) {
         *self.global_search.write().unwrap() = global_search.clone();

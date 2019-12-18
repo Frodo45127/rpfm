@@ -48,9 +48,13 @@ impl PackedFileTableViewSlots {
         });
 
         // When we want to save the contents of the UI to the backend...
+        //
+        // NOTE: in-edition saves to backend are only triggered when the GlobalSearch has search data, to keep it updated.
         let save = SlotNoArgs::new(clone!(packed_file_path => move || {
-            if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                packed_file.save(&packed_file_path.borrow(), global_search_ui);
+            if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
+                if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
+                    packed_file.save(&packed_file_path.borrow(), global_search_ui);
+                }
             }
         }));
 

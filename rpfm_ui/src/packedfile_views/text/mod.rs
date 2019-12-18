@@ -24,6 +24,7 @@ use rpfm_error::Result;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{config, new_text_editor, set_text};
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
 use self::slots::PackedFileTextViewSlots;
@@ -39,6 +40,15 @@ pub struct PackedFileTextView {
     editor: AtomicPtr<Widget>,
 }
 
+/// This struct contains the raw version of each pointer in `PackedFileTextViewRaw`, to be used when building the slots.
+///
+/// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
+/// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileTextViewRaw`.
+#[derive(Clone, Copy)]
+pub struct PackedFileTextViewRaw {
+    pub editor: *mut Widget,
+}
+
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -51,6 +61,7 @@ impl PackedFileTextView {
     pub fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
+        global_search_ui: &GlobalSearchUI,
     ) -> Result<TheOneSlot> {
 
         // Get the decoded Text.
@@ -67,12 +78,14 @@ impl PackedFileTextView {
 
         unsafe { set_text(editor, &mut QString::from_std_str(text.get_ref_contents())) };
 
-        packed_file_view.view = View::Text(Self{
-            editor: AtomicPtr::new(editor)
-        });
+        let packed_file_text_view_raw = PackedFileTextViewRaw {editor};
+        let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *global_search_ui, &packed_file_path);
+        let packed_file_text_view = Self { editor: AtomicPtr::new(packed_file_text_view_raw.editor)};
+
+        packed_file_view.view = View::Text(packed_file_text_view);
 
         // Return success.
-        Ok(TheOneSlot::Text(PackedFileTextViewSlots {}))
+        Ok(TheOneSlot::Text(packed_file_text_view_slots))
     }
 
     /// This function returns a mutable reference to the editor widget.
