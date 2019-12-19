@@ -257,10 +257,9 @@ impl GlobalSearch {
             }
             else { MatchingMode::Pattern }
         } else { MatchingMode::Pattern };
-
-        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+        let schema = SCHEMA.lock().unwrap().clone();
+        if let Some(ref schema) = schema {
             let mut changed_files = vec![];
-
             for match_table in &self.matches_db {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
                     if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(&schema) {
@@ -329,7 +328,7 @@ impl GlobalSearch {
         match_data: &TableMatch,
         matching_mode: &MatchingMode,
     ) -> Result<()> {
-        if let Some(row) = data.get_mut((match_data.row_number - 1) as usize) {
+        if let Some(row) = data.get_mut((match_data.row_number) as usize) {
             if let Some(field) = row.get_mut(match_data.column_number as usize) {
                 match field {
                     DecodedData::Boolean(ref mut field) => {
@@ -364,7 +363,6 @@ impl GlobalSearch {
                 }
             }
         }
-
         Ok(())
     }
 

@@ -211,6 +211,9 @@ pub enum Command {
 
     /// This command is used when we want to update a table to a newer version.
     UpdateTable(PathType),
+
+    /// This command is used when we want to replace all matches in a Global Search.
+    GlobalSearchReplaceAll(GlobalSearch)
     /*
     OpenPackFileExtra,
     SavePackFile,

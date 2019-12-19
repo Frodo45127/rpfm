@@ -54,6 +54,9 @@ rayon = "^1.2"
 [target.'cfg(windows)'.build-dependencies]
 winres = "^0.1"
 
+[profile.dev]
+incremental = true
+
 [profile.release]
 lto = true
 debug = true

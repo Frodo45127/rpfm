@@ -52,6 +52,9 @@ rayon = "^1.2"
 # F16 Support.
 half = "^1.4"
 
+[profile.dev]
+incremental = true
+
 [profile.release]
 lto = true
 debug = true

@@ -483,13 +483,69 @@ impl GlobalSearchUI {
     }
 
     /// This function clears the Global Search resutl's data, and reset the UI for it.
-    pub fn clear(&mut self) {
+    pub fn clear(&self) {
         UI_STATE.set_global_search(&GlobalSearch::default());
 
         unsafe { self.global_search_matches_db_tree_model.as_mut().unwrap().clear() };
         unsafe { self.global_search_matches_loc_tree_model.as_mut().unwrap().clear() };
         unsafe { self.global_search_matches_text_tree_model.as_mut().unwrap().clear() };
         unsafe { self.global_search_matches_schema_tree_model.as_mut().unwrap().clear() };
+    }
+
+    /// This function replace the currently selected match with the provided text.
+    pub fn replace(&self) {
+        UI_STATE.set_global_search(&GlobalSearch::default());
+
+        unsafe { self.global_search_matches_db_tree_model.as_mut().unwrap().clear() };
+        unsafe { self.global_search_matches_loc_tree_model.as_mut().unwrap().clear() };
+        unsafe { self.global_search_matches_text_tree_model.as_mut().unwrap().clear() };
+        unsafe { self.global_search_matches_schema_tree_model.as_mut().unwrap().clear() };
+    }
+
+    /// This function replace all the matches in the current search with the provided text.
+    pub fn replace_all(&self, app_ui: &AppUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
+
+        // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
+        app_ui.purge_them_all(*self, slot_holder);
+        self.search();
+
+        let mut global_search = UI_STATE.get_global_search();
+        global_search.pattern = unsafe { self.global_search_search_line_edit.as_ref().unwrap().text().to_std_string() };
+        global_search.replace_text = unsafe { self.global_search_replace_line_edit.as_ref().unwrap().text().to_std_string() };
+        global_search.case_sensitive = unsafe { self.global_search_case_sensitive_checkbox.as_ref().unwrap().is_checked() };
+        global_search.use_regex = unsafe { self.global_search_use_regex_checkbox.as_ref().unwrap().is_checked() };
+
+        if unsafe { self.global_search_search_on_all_checkbox.as_ref().unwrap().is_checked() } {
+            global_search.search_on_dbs = true;
+            global_search.search_on_locs = true;
+            global_search.search_on_texts = true;
+            global_search.search_on_schema = true;
+        }
+        else {
+            global_search.search_on_dbs = unsafe { self.global_search_search_on_dbs_checkbox.as_ref().unwrap().is_checked() };
+            global_search.search_on_locs = unsafe { self.global_search_search_on_locs_checkbox.as_ref().unwrap().is_checked() };
+            global_search.search_on_texts = unsafe { self.global_search_search_on_texts_checkbox.as_ref().unwrap().is_checked() };
+            global_search.search_on_schema = unsafe { self.global_search_search_on_schemas_checkbox.as_ref().unwrap().is_checked() };
+        }
+
+        CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchReplaceAll(global_search));
+
+        // While we wait for an answer, we need to clear the current results panels.
+        let model_db = unsafe { self.global_search_matches_db_tree_model.as_mut().unwrap() };
+        let model_loc = unsafe { self.global_search_matches_loc_tree_model.as_mut().unwrap() };
+        let model_text = unsafe { self.global_search_matches_text_tree_model.as_mut().unwrap() };
+
+        model_db.clear();
+        model_loc.clear();
+        model_text.clear();
+
+        match CENTRAL_COMMAND.recv_message_qt() {
+            Response::GlobalSearch(global_search) => {
+                UI_STATE.set_global_search(&global_search);
+                self.search();
+            },
+            _ => unimplemented!()
+        }
     }
 
     /// This function tries to open the PackedFile where the selected match is.

@@ -41,6 +41,8 @@ use crate::UI_STATE;
 /// This struct contains all the slots we need to respond to signals of the Global Search panel.
 pub struct GlobalSearchSlots {
     pub global_search_search: SlotNoArgs<'static>,
+    pub global_search_clear: SlotNoArgs<'static>,
+    pub global_search_replace_all: SlotNoArgs<'static>,
     pub global_search_check_regex: SlotStringRef<'static>,
     pub global_search_open_match: SlotModelIndexRef<'static>,
     pub global_search_toggle_all: SlotBool<'static>,
@@ -65,6 +67,17 @@ impl GlobalSearchSlots {
         let global_search_search = SlotNoArgs::new(move || {
             global_search_ui.search();
         });
+
+        // What happens when we trigger the "Clear Search" action.
+        let global_search_clear = SlotNoArgs::new(move || {
+            global_search_ui.clear();
+        });
+
+        // What happens when we trigger the "Replace All" action.
+        let global_search_replace_all = SlotNoArgs::new(clone!(slot_holder => move || {
+            global_search_ui.replace_all(&app_ui, &slot_holder);
+        }));
+
 
         // What happens when we trigger the "Check Regex" action.
         let global_search_check_regex = SlotStringRef::new(move |string| {
@@ -100,6 +113,8 @@ impl GlobalSearchSlots {
         // And here... we return all the slots.
 		Self {
             global_search_search,
+            global_search_clear,
+            global_search_replace_all,
             global_search_check_regex,
             global_search_open_match,
             global_search_toggle_all,

@@ -173,4 +173,49 @@ impl PackedFileView {
             _ => panic!(THREADS_COMMUNICATION_ERROR),
         }
     }
+    /*
+    /// This function allows you to load the data of a `PackedFile` in the backend to the corresponding `PackedFileView`.
+    ///
+    /// This is intended to be used when the data in the backend has changed. REMEMBER TO DO A SAVE BEFORE, OR YOU WILL LOSE DATA.
+    pub fn load(&self, path: &[String]) {
+        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(path.to_vec(), data));
+
+
+        let data = match self.packed_file_type {
+            PackedFileType::DB => return,
+
+            // Images are read-only.
+            PackedFileType::Image => DecodedPackedFile::Unknown,
+            PackedFileType::Loc => return,
+            PackedFileType::RigidModel => return,
+
+            PackedFileType::Text => {
+                if let View::Text(view) = self.get_view() {
+                    let mut text = Text::default();
+                    unsafe { text.set_contents(&get_text(view.get_mut_editor()).to_std_string()) };
+                    DecodedPackedFile::Text(text)
+                } else { return }
+            },
+            PackedFileType::Unknown => DecodedPackedFile::Unknown,
+            _ => unimplemented!(),
+        };
+
+        // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
+        CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(path.to_vec(), data));
+        match CENTRAL_COMMAND.recv_message_qt_try() {
+            Response::Success => {
+
+                // If we have a GlobalSearch on, update the results for this specific PackedFile.
+                let global_search = UI_STATE.get_global_search();
+                if !global_search.pattern.is_empty() {
+                    let path_types = vec![PathType::File(path.to_vec())];
+                    global_search_ui.search_on_path(path_types);
+                    UI_STATE.set_global_search(&global_search);
+                }
+            }
+
+            // In ANY other situation, it's a message problem.
+            _ => panic!(THREADS_COMMUNICATION_ERROR),
+        }
+    }*/
 }

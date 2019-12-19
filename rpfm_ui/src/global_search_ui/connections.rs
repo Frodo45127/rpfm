@@ -24,6 +24,8 @@ use super::{GlobalSearchUI, slots::GlobalSearchSlots};
 /// to not polute the other modules with a ton of connections.
 pub fn set_connections(global_search_ui: &GlobalSearchUI, slots: &GlobalSearchSlots) {
     unsafe { global_search_ui.global_search_search_button.as_ref().unwrap().signals().released().connect(&slots.global_search_search); }
+    unsafe { global_search_ui.global_search_clear_button.as_ref().unwrap().signals().released().connect(&slots.global_search_clear); }
+    unsafe { global_search_ui.global_search_replace_all_button.as_ref().unwrap().signals().released().connect(&slots.global_search_replace_all); }
     unsafe { global_search_ui.global_search_search_line_edit.as_ref().unwrap().signals().return_pressed().connect(&slots.global_search_search); }
     unsafe { global_search_ui.global_search_search_line_edit.as_ref().unwrap().signals().text_changed().connect(&slots.global_search_check_regex); }
 

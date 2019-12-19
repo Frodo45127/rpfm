@@ -469,7 +469,7 @@ pub fn background_loop() {
                                 }
                                 // TODO: Put an error here.
                             }
-                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))),
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
@@ -489,7 +489,7 @@ pub fn background_loop() {
                                 }
                                 // TODO: Put an error here.
                             }
-                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))),
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
@@ -510,7 +510,7 @@ pub fn background_loop() {
                                     _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
                                 }
                             }
-                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))),
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
@@ -530,7 +530,7 @@ pub fn background_loop() {
                                 }
                                 // TODO: Put an error here.
                             }
-                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileDataCouldNotBeLoaded))),
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
@@ -634,6 +634,12 @@ pub fn background_loop() {
                         } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
                     } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
+            }
+
+            // In case we want to replace all matches in a Global Search...
+            Command::GlobalSearchReplaceAll(mut global_search) => {
+                let _ = global_search.replace_all(&mut pack_file_decoded);
+                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
             }
         }
     }
