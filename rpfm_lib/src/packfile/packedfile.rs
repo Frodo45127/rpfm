@@ -158,7 +158,7 @@ impl PackedFile {
     ) -> Result<Self> {
 
         // Depending on their type, we do different things to prepare the PackedFile and get his data.
-        let schema = SCHEMA.lock().unwrap();
+        let schema = SCHEMA.read().unwrap();
         let data = match packed_file_type {
 
             // For locs, we just create them with their last definition.

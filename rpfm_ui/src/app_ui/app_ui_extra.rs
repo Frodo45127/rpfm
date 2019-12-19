@@ -1329,7 +1329,7 @@ impl AppUI {
         if let PackedFileType::DB = packed_file_type {
             CENTRAL_COMMAND.send_message_qt(Command::GetTableListFromDependencyPackFile);
             let tables = if let Response::VecString(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
-            match *SCHEMA.lock().unwrap() {
+            match *SCHEMA.read().unwrap() {
                 Some(ref schema) => {
 
                     // Add every table to the dropdown if exists in the dependency database.

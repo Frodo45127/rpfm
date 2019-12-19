@@ -210,7 +210,7 @@ impl Table {
 
                 // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
                 else if *old_pos == -1 {
-                    entry.push(DecodedData::default(&self.definition.fields[*new_pos as usize].field_type));
+                    entry.push(DecodedData::default(&new_definition.fields[*new_pos as usize].field_type));
                 }
 
                 // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.

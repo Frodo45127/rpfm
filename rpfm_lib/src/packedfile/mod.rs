@@ -93,7 +93,7 @@ impl DecodedPackedFile {
     pub fn decode(data: &RawPackedFile) -> Result<Self> {
         match PackedFileType::get_packed_file_type(data.get_path()) {
             PackedFileType::DB => {
-                let schema = SCHEMA.lock().unwrap();
+                let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
                         let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
@@ -112,7 +112,7 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::Loc => {
-                let schema = SCHEMA.lock().unwrap();
+                let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
                         let data = data.get_data()?;
@@ -181,7 +181,7 @@ impl DecodedPackedFile {
         match self {
             DecodedPackedFile::DB(data) => {
                 let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
-                if let Some(schema) = &*SCHEMA.lock().unwrap() {
+                if let Some(schema) = &*SCHEMA.read().unwrap() {
                     if let Some(vanilla_db) = dep_db.par_iter_mut()
                         .filter_map(|x| x.decode_return_ref_no_locks(&schema).ok())
                         .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })

@@ -1337,8 +1337,8 @@ impl PackFile {
     /// TODO2: Make this return the name of the columns instead of their index.
     pub fn check_table_integrity(&mut self) -> Result<()> {
 
-        let schema = SCHEMA.lock().unwrap();
-        match *schema {
+        let schema = &*SCHEMA.read().unwrap();
+        match schema {
             Some(ref schema) => {
 
                 let mut broken_tables = vec![];
@@ -1413,7 +1413,7 @@ impl PackFile {
     ) -> Result<Vec<String>> {
 
         // Get the schema, as we'll need it unlocked to decode all the files fast.
-        let schema = SCHEMA.lock().unwrap();
+        let schema = SCHEMA.read().unwrap();
         let schema = if let Some(ref schema) = *schema { schema } else { return Err(ErrorKind::SchemaNotFound.into()) };
 
         let mut db_files = vec![];
@@ -1666,7 +1666,7 @@ impl PackFile {
         let mut error_files = vec![];
 
         // If there is not a schema, don't do anything.
-        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
             for path in tsv_paths {
 
                 // The first row has the PackedFile Type (or name, in case of tables) and version.
@@ -1799,7 +1799,7 @@ impl PackFile {
         let mut exported_files = vec![];
 
         // We need the schema to export. If there is no schema, return an error.
-        match *SCHEMA.lock().unwrap() {
+        match *SCHEMA.read().unwrap() {
             Some(ref schema) => {
 
                 // Keep the PathTypes added so we can return them to the UI easely.

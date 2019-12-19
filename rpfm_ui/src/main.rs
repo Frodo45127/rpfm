@@ -274,7 +274,7 @@ fn main() {
         let (ui, slots) = ui::UI::new(app, &slot_holder);
 
         // Try to load the Schema for this game.
-        *SCHEMA.lock().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
+        *SCHEMA.write().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
 
 
 

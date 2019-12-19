@@ -132,7 +132,7 @@ impl GlobalSearch {
         self.matches_schema = vec![];
 
         // If we got no schema, don't even decode.
-        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
             if self.search_on_dbs {
                 let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::DB);
                 self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
@@ -215,7 +215,7 @@ impl GlobalSearch {
         }
 
         // If we got no schema, don't even decode.
-        if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
             for path in &paths {
                 if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&path) {
                     match packed_file.decode_return_ref_no_locks(&schema).unwrap_or_else(|_| &DecodedPackedFile::Unknown) {
@@ -257,7 +257,7 @@ impl GlobalSearch {
             }
             else { MatchingMode::Pattern }
         } else { MatchingMode::Pattern };
-        let schema = SCHEMA.lock().unwrap().clone();
+        let schema = &*SCHEMA.read().unwrap();
         if let Some(ref schema) = schema {
             let mut changed_files = vec![];
             for match_table in &self.matches_db {

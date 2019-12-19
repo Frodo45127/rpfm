@@ -981,22 +981,20 @@ impl PackFileContentsSlots {
 
 
         // What happens when we trigger the "Update Table" action in the Contextual Menu.
-        let contextual_menu_tables_update_table = SlotBool::new(move |_| {
+        let contextual_menu_tables_update_table = SlotBool::new(clone!(slot_holder => move |_| {
             let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
             match item_type {
-                TreePathType::File(path) => {
+                TreePathType::File(_) => {
 
                     // First, if the PackedFile is open, save it.
-                    UI_STATE.get_open_packedfiles().iter()
-                        .filter(|(packed_file_path, _)| &path == packed_file_path)
-                        .for_each(|(path, packed_file)| packed_file.save(path, global_search_ui));
+                    app_ui.purge_them_all(global_search_ui, &slot_holder);
 
                     let path_type = From::from(item_type);
                     CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type));
                     match CENTRAL_COMMAND.recv_message_qt() {
                         Response::I32I32((old_version, new_version)) => {
-                            let message = format!("Table updated from version '{}' to version {}.", old_version, new_version);
+                            let message = format!("Table updated from version '{}' to version '{}'.", old_version, new_version);
                             show_dialog(app_ui.main_window as *mut Widget, message, true);
                         }
 
@@ -1006,7 +1004,7 @@ impl PackFileContentsSlots {
                 }
                 _ => unimplemented!()
             }
-        });
+        }));
 
         // What happens when we trigger the "Mass-Import TSV" Action.
         //

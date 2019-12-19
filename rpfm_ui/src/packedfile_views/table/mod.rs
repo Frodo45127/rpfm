@@ -110,7 +110,7 @@ impl PackedFileTableView {
 
         let table_definition = match table_data {
             TableType::DependencyManager(_) => {
-                let schema = SCHEMA.lock().unwrap();
+                let schema = SCHEMA.read().unwrap();
                 schema.as_ref().unwrap().get_versioned_file_dep_manager().unwrap().get_version_list()[0].clone()
             },
             TableType::DB(ref table) => table.get_definition(),
@@ -133,9 +133,9 @@ impl PackedFileTableView {
         unsafe { filter_model.set_source_model(model.into_raw() as *mut AbstractItemModel); }
 
         // Prepare the TableViews.
-        let table_view_frozen = TableView::new();
+        let mut table_view_frozen = TableView::new();
         let table_view = unsafe { new_tableview_frozen(filter_model.into_raw() as *mut AbstractItemModel, table_view_frozen.as_mut_ptr()) };
-
+        table_view_frozen.hide();
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
@@ -392,7 +392,7 @@ impl PackedFileTableView {
         let table_view_frozen = unsafe { table_view_frozen.as_ref().unwrap() };
         let filter = unsafe { (table_view_primary.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
         let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_mut().unwrap() };
-        let schema = SCHEMA.lock().unwrap().clone();
+        let schema = SCHEMA.read().unwrap();
 
         // Create a list of "Key" columns.
         let mut keys = vec![];

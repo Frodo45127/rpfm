@@ -79,7 +79,7 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.lock().unwrap();
                 let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version[0];
                 pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
-                *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
+                *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
             }
 
             // In case we want to "Open one or more PackFiles"...
@@ -198,7 +198,7 @@ pub fn background_loop() {
                 *GAME_SELECTED.lock().unwrap() = game_selected.to_owned();
 
                 // Try to load the Schema for this game.
-                *SCHEMA.lock().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
+                *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
                 // Change the `dependency_database` for that game.
                 *DEPENDENCY_DATABASE.lock().unwrap() = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
@@ -217,7 +217,7 @@ pub fn background_loop() {
                 if SETTINGS.lock().unwrap().settings_bool["check_for_missing_table_definitions"] {
                     let mut counter = 0;
                     let mut table_list = String::new();
-                    if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
                         for packed_file in pack_file_decoded.get_ref_mut_packed_files_by_path_start(&["db".to_owned()]) {
                             match packed_file.decode_return_ref_no_locks(schema) {
                                 Ok(data) => {
@@ -280,7 +280,7 @@ pub fn background_loop() {
             Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!DEPENDENCY_DATABASE.lock().unwrap().is_empty())),
 
             // In case we want to check if there is a Schema loaded...
-            Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.lock().unwrap().is_some())),
+            Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
 
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
@@ -371,7 +371,7 @@ pub fn background_loop() {
 
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {
-                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     let decoded = match new_packed_file {
                         NewPackedFile::DB(_, table, version) => {
                             match schema.get_versioned_file_db(&table) {
@@ -598,7 +598,7 @@ pub fn background_loop() {
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
-                if let Some(ref schema) = *SCHEMA.lock().unwrap() {
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     match schema.get_last_definition_db(&table_name) {
                         Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.version)),
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),

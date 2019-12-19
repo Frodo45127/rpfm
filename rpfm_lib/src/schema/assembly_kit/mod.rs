@@ -310,7 +310,7 @@ pub fn generate_pak_file(
 /// - assembly_kit_schemas_path: this is the path with the TWaD_*****.xml syntax. They are usually in GameFolder/assembly_kit/raw_data/db/.
 /// - db_binary_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table inside.
 pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()> {
-    if let Some(mut schema) = SCHEMA.lock().unwrap().clone() {
+    if let Some(mut schema) = SCHEMA.read().unwrap().clone() {
 
         // This has to do a different process depending on the `raw_db_version`.
         let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].raw_db_version;

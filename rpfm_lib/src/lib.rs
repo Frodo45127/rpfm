@@ -12,8 +12,7 @@
 
 use lazy_static::lazy_static;
 
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, RwLock};
 
 use crate::games::{SupportedGames, get_supported_games_list};
 use crate::packedfile::table::db::DB;
@@ -51,7 +50,7 @@ lazy_static! {
     pub static ref FAKE_DEPENDENCY_DATABASE: Mutex<Vec<DB>> = Mutex::new(vec![]);
 
     /// Currently loaded schema.
-    pub static ref SCHEMA: Arc<Mutex<Option<Schema>>> = Arc::new(Mutex::new(None));
+    pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));
 }
 
 pub const DOCS_BASE_URL: &str = "https://frodo45127.github.io/rpfm/";
