@@ -136,7 +136,7 @@ impl Decoder for [u8] {
     fn get_bytes_checked(&self, offset: usize, size: usize) -> Result<&[u8]> {
         if size == 0 { Ok(&[]) }
         else if self.len() >= offset + size {
-            if self.get(size - 1).is_some() { Ok(&self[..size]) }
+            if self.get(size - 1).is_some() { Ok(&self[offset..offset + size]) }
             else { Err(ErrorKind::NotEnoughBytesToDecode.into()) }
         }
         else { Err(ErrorKind::NotEnoughBytesToDecode.into()) }
