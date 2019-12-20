@@ -446,7 +446,7 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
-                                pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                                pack_file_contents_ui.add_packedfiles(&app_ui, &global_search_ui, &paths, &paths_packedfile);
                             }
                         }
 
@@ -469,7 +469,7 @@ impl PackFileContentsSlots {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
 
-                            pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                            pack_file_contents_ui.add_packedfiles(&app_ui, &global_search_ui, &paths, &paths_packedfile);
                         }
                     }
                 }
@@ -534,7 +534,7 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
-                                pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                                pack_file_contents_ui.add_packedfiles(&app_ui, &global_search_ui, &paths, &paths_packedfile);
                             }
                         }
 
@@ -560,7 +560,7 @@ impl PackFileContentsSlots {
                             // Get their final paths in the PackFile and only proceed if all of them are closed.
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
-                            pack_file_contents_ui.add_packedfiles(&app_ui, &paths, &paths_packedfile);
+                            pack_file_contents_ui.add_packedfiles(&app_ui, &global_search_ui, &paths, &paths_packedfile);
                         }
                     }
                 }
@@ -763,7 +763,7 @@ impl PackFileContentsSlots {
                                                     path_changes.push((path.to_vec(), new_path.to_vec()));
 
                                                     // Update the global search stuff, if needed.
-                                                    //global_search_explicit_paths.borrow_mut().append(&mut vec![new_path; 1]);
+                                                    global_search_ui.search_on_path(vec![PathType::File(new_path); 1]);
                                                 }
                                             }
 
@@ -778,7 +778,7 @@ impl PackFileContentsSlots {
                                                     path_changes.push((path.to_vec(), new_file_path.to_vec()));
 
                                                     // Update the global search stuff, if needed.
-                                                    //global_search_explicit_paths.borrow_mut().append(&mut vec![new_folder_path; 1]);
+                                                    global_search_ui.search_on_path(vec![PathType::Folder(new_folder_path); 1]);
                                                 }
                                             }
                                             _ => unreachable!(),
@@ -949,10 +949,9 @@ impl PackFileContentsSlots {
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]));
 
-                            /*
                             // Update the global search stuff, if needed.
-                            global_search_explicit_paths.borrow_mut().append(&mut vec![path_to_add.to_vec()]);
-                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+                            global_search_ui.search_on_path(vec![PathType::File(path_to_add); 1]);
+                            /*
 
                             // Remove the added file from the data history if exists.
                             if table_state_data.borrow().get(&path_to_add).is_some() {
@@ -990,12 +989,13 @@ impl PackFileContentsSlots {
                     // First, if the PackedFile is open, save it.
                     app_ui.purge_them_all(global_search_ui, &slot_holder);
 
-                    let path_type = From::from(item_type);
-                    CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type));
+                    let path_type: PathType = From::from(item_type);
+                    CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type.clone()));
                     match CENTRAL_COMMAND.recv_message_qt() {
                         Response::I32I32((old_version, new_version)) => {
                             let message = format!("Table updated from version '{}' to version '{}'.", old_version, new_version);
                             show_dialog(app_ui.main_window as *mut Widget, message, true);
+                            global_search_ui.search_on_path(vec![path_type; 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
@@ -1041,8 +1041,7 @@ impl PackFileContentsSlots {
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2));
 
                                 // Update the global search stuff, if needed.
-                                //global_search_explicit_paths.borrow_mut().append(&mut paths_to_add);
-                                //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+                                global_search_ui.search_on_path(paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
 
                                 // For each file added, remove it from the data history if exists.
                                 /*

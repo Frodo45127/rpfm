@@ -34,10 +34,13 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_lib::packfile::PathType;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::{check_if_path_is_closed, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
@@ -51,7 +54,7 @@ use crate::utils::{create_grid_layout_unsafe, show_dialog};
 impl PackFileContentsUI {
 
     /// This function is a helper to add PackedFiles to the UI, keeping the UI updated.
-    pub fn add_packedfiles(&self, app_ui: &AppUI, paths: &[PathBuf], paths_packedfile: &[Vec<String>]) {
+    pub fn add_packedfiles(&self, app_ui: &AppUI, global_search_ui: &GlobalSearchUI, paths: &[PathBuf], paths_packedfile: &[Vec<String>]) {
         if check_if_path_is_closed(&app_ui, paths_packedfile) {
             unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
@@ -59,10 +62,10 @@ impl PackFileContentsUI {
             match CENTRAL_COMMAND.recv_message_qt() {
                 Response::Success => {
                     let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths));
+                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
                     // Update the global search stuff, if needed.
-                    //global_search_explicit_paths.borrow_mut().append(&mut paths_packedfile.to_vec());
+                    global_search_ui.search_on_path(paths.iter().map(|x| From::from(x)).collect());
                     //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
                     // For each file added, remove it from the data history if exists.

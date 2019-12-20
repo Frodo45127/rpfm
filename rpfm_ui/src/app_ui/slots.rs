@@ -191,7 +191,9 @@ impl AppUISlots {
         //-----------------------------------------------//
 
         // What happens when we trigger the "New PackFile" action.
-        let packfile_new_packfile = SlotBool::new(move |_| {
+        let packfile_new_packfile = SlotBool::new(clone!(
+            global_search_ui,
+            slot_holder => move |_| {
 
                 // Check first if there has been changes in the PackFile.
                 if app_ui.are_you_sure(false) {
@@ -203,14 +205,12 @@ impl AppUISlots {
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     // Close any open PackedFile and clear the global search pannel.
-                    // TODO: Clear the global search panel.
-                    //app_ui.purge_them_all();
-                    unsafe { global_search_ui.global_search_dock_widget.as_mut().unwrap().hide(); }
+                    app_ui.purge_them_all(global_search_ui, &slot_holder);
+                    global_search_ui.clear();
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                     // Show the "Tips".
                     //display_help_tips(&app_ui);
-
 
                     // New PackFiles are always of Mod type.
                     unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
@@ -231,16 +231,13 @@ impl AppUISlots {
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    //enable_packfile_actions(&app_ui, &mymod_stuff, true);
+                    app_ui.enable_packfile_actions(true);
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-                    //set_my_mod_mode(&mymod_stuff, &mode, None);
-
-                    // Clean the TableStateData.
-                    //*table_state_data.borrow_mut() = TableStateData::new();
+                    UI_STATE.set_operational_mode(&app_ui, None);
                 }
             }
-        );
+        ));
 
         let packfile_open_packfile = SlotBool::new(clone!(
             slot_holder => move |_| {
@@ -292,7 +289,9 @@ impl AppUISlots {
         let packfile_open_from = vec![];
 
         // What happens when we trigger the "Load All CA PackFiles" action.
-        let packfile_load_all_ca_packfiles = SlotBool::new(move |_| {
+        let packfile_load_all_ca_packfiles = SlotBool::new(clone!(
+            global_search_ui,
+            slot_holder => move |_| {
 
             // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
             // and open them all together, skipping mods.
@@ -342,18 +341,15 @@ impl AppUISlots {
 
                         UI_STATE.set_operational_mode(&app_ui, None);
 
-                        // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                        //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                        // Destroy whatever it's in the PackedFile's views and clear the global search UI.
+                        app_ui.purge_them_all(global_search_ui, &slot_holder);
+                        global_search_ui.clear();
 
                         // Close the Global Search stuff and reset the filter's history.
-                        //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
                         //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                         // Show the "Tips".
                         //display_help_tips(&app_ui);
-
-                        // Clean the TableStateData.
-                        //*table_state_data.borrow_mut() = TableStateData::new();
                     }
 
                     // If we got an error...
@@ -366,7 +362,7 @@ impl AppUISlots {
                     _ => panic!(THREADS_COMMUNICATION_ERROR),
                 }
             }
-        });
+        }));
 
         // What happens when we trigger the "Change PackFile Type" action.
         let packfile_change_packfile_type = SlotBool::new(move |_| {
@@ -461,7 +457,9 @@ impl AppUISlots {
 
 
         // This slot is used for the "New MyMod" action.
-        let mymod_new = SlotBool::new(move |_| {
+        let mymod_new = SlotBool::new(clone!(
+            global_search_ui,
+            slot_holder => move |_| {
 
                 // Trigger the `New MyMod` Dialog, and get the result.
                 match MyModUI::new(&app_ui) {
@@ -523,22 +521,17 @@ impl AppUISlots {
 
                                 UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
 
-                                // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                                //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                                // Destroy whatever it's in the PackedFile's views and clear the global search UI.
+                                app_ui.purge_them_all(global_search_ui, &slot_holder);
+                                global_search_ui.clear();
 
                                 // Close the Global Search stuff and reset the filter's history.
-                                //unsafe { close_global_search_action.as_mut().unwrap().trigger(); }
                                 //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                                 // Show the "Tips".
                                 //display_help_tips(&app_ui);
-
-
-
-                                // Clean the TableStateData.
-                                //*table_state_data.borrow_mut() = TableStateData::new();
-
                             }
+
                             Response::Error(error) => return show_dialog(app_ui.main_window as *mut Widget, error, false),
 
 
@@ -551,8 +544,7 @@ impl AppUISlots {
                     None => return,
                 }
             }
-        );
-
+        ));
 
         // This slot is used for the "Delete Selected MyMod" action.
         let mymod_delete_selected = SlotBool::new(clone!(
@@ -864,15 +856,14 @@ impl AppUISlots {
         );
 
         // What happens when we trigger the "Optimize PackFile" action.
-        let special_stuff_optimize_packfile = SlotBool::new(move |_| {
-
-                // This cannot be done if there is a PackedFile open. Well, can be done, but it's a pain in the ass to do it.
-                if !UI_STATE.get_open_packedfiles().is_empty() {
-                    return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::OperationNotAllowedWithPackedFileOpen, false);
-                }
+        let special_stuff_optimize_packfile = SlotBool::new(clone!(
+            global_search_ui,
+            slot_holder => move |_| {
 
                 // If there is no problem, ere we go.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                app_ui.purge_them_all(global_search_ui, &slot_holder);
+                global_search_ui.clear();
 
                 CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
                 match CENTRAL_COMMAND.recv_message_qt_try() {
@@ -881,9 +872,6 @@ impl AppUISlots {
 
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
                         show_dialog(app_ui.main_window as *mut Widget, "PackFile optimized.", true);
-
-                        // Update the global search stuff, if needed.
-                        //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
                     }
                     _ => panic!(THREADS_COMMUNICATION_ERROR),
                 }
@@ -891,13 +879,18 @@ impl AppUISlots {
                 // Re-enable the Main Window.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
             }
-        );
+        ));
 
         // What happens when we trigger the "Patch Siege AI" action.
-        let special_stuff_patch_siege_ai = SlotBool::new(move |_| {
+        let special_stuff_patch_siege_ai = SlotBool::new(clone!(
+            global_search_ui,
+            slot_holder => move |_| {
 
                 // Ask the background loop to patch the PackFile, and wait for a response.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                app_ui.purge_them_all(global_search_ui, &slot_holder);
+                global_search_ui.clear();
+
                 CENTRAL_COMMAND.send_message_qt(Command::PatchSiegeAI);
                 match CENTRAL_COMMAND.recv_message_qt_try() {
                     Response::StringVecVecString(response) => {
@@ -915,7 +908,7 @@ impl AppUISlots {
                 // Re-enable the Main Window.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
             }
-        );
+        ));
 
 		//-----------------------------------------------//
         // `About` menu logic.
