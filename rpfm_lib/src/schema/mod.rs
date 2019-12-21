@@ -61,7 +61,6 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::{fmt, fmt::Display};
 use std::io::{BufReader, BufWriter, Read, Write};
-use std::sync::{Arc, RwLock};
 
 use rpfm_error::{ErrorKind, Result};
 

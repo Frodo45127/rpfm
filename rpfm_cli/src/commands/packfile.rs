@@ -8,6 +8,8 @@
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
+//! This module contains the `PackFile` command's functions.
+
 use bytesize::ByteSize;
 use log::info;
 use prettytable::{Table, row, cell};
@@ -15,7 +17,7 @@ use prettytable::{Table, row, cell};
 use std::path::PathBuf;
 
 use rpfm_error::Result;
-use rpfm_lib::packedfile::get_packed_file_type;
+use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::{PackFile, PathType};
 
 use crate::config::Config;
@@ -24,100 +26,129 @@ use crate::config::Config;
 // 							PackFile Command Variants
 //---------------------------------------------------------------------------//
 
-/// This function adds a File/Folder to a PackFile, then saves it.
-pub fn add_file(
+/// This function adds one or more Files to a PackFile, then saves it.
+pub fn add_files(
 	config: &Config,
 	packfile: &str,
-	packed_file_path: &str,
-	destination_path: Option<&str>
+	packed_file_path: &[&str],
+	destination_path: &str
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Operation: Add File to PackFile.");
+		info!("Adding File/s to the PackFile: {}", packfile);
 	}
 
 	// Load the PackFile and the different PackedFiles to memory.
 	let packfile_path = PathBuf::from(packfile);
 	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	let packed_file_path = PathBuf::from(packed_file_path);
-	let destination_path = match destination_path {
-		Some(path) => path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>(),
-		None => vec![packed_file_path.file_name().unwrap().to_str().unwrap().to_owned()],
-	};
+	let destination_path = destination_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+    let packed_file_paths = packed_file_path.iter()
+        .map(|x| (PathBuf::from(x), destination_path.to_vec()))
+        .collect::<Vec<(PathBuf, Vec<String>)>>();
 
-	packfile.add_from_file(&packed_file_path, destination_path, true)?;
-	packfile.save(None)
+	packfile.add_from_files(&packed_file_paths, true)?;
+	let result = packfile.save(None);
+
+    if config.verbosity_level > 0 {
+        info!("File/s added successfully to the PackFile.");
+    }
+
+    result
 }
 
 /// This function adds a Folder to a `PackFile`, then saves it.
-pub fn add_folder(
+pub fn add_folders(
 	config: &Config,
 	packfile: &str,
-	packed_file_path: &str,
+	folder_paths: &[&str],
+    destination_path: &str
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Operation: Add Folder to PackFile.");
+		info!("Adding Folder/s to the PackFile: {}.", packfile);
 	}
 
 	// Load the PackFile and the different PackedFiles to memory.
 	let packfile_path = PathBuf::from(packfile);
 	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	let packed_file_path = PathBuf::from(packed_file_path);
-	packfile.add_from_folder(&packed_file_path, true)?;
-	packfile.save(None)
+	let destination_path = destination_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+    let folder_paths = folder_paths.iter()
+        .map(|x| (PathBuf::from(x), destination_path.to_vec()))
+        .collect::<Vec<(PathBuf, Vec<String>)>>();
+
+	packfile.add_from_folders(&folder_paths, true)?;
+	let result = packfile.save(None);
+
+    if config.verbosity_level > 0 {
+        info!("Folder/s added successfully to the PackFile.");
+    }
+
+    result
 }
 
-/// This function deletes all the provided paths from the PackFile, then saves it.
-pub fn delete_file(
+/// This function deletes all the PackedFiles with the provided paths from the PackFile, then saves it.
+pub fn delete_files(
 	config: &Config,
 	packfile: &str,
-	path: &str,
+	paths: &[&str],
 ) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Operation: Delete File from PackFile.");
+        paths.iter().for_each(|x| info!("Deleting the following file from a PackFile: {}", x));
 	}
 
 	// Load the PackFile and the different PackedFiles to memory.
 	let packfile_path = PathBuf::from(packfile);
 	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	let path = path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-	packfile.remove_packed_file_by_path(&path);
-	packfile.save(None)
+	paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
+        .for_each(|x| packfile.remove_packed_file_by_path(&x));
+    let result = packfile.save(None);
+
+    if config.verbosity_level > 0 {
+        info!("Files successfully deleted from the PackFile.");
+    }
+
+    result
 }
 
-pub fn delete_folder(
+/// This function deletes all the Folders with the provided paths from the PackFile, then saves it.
+pub fn delete_folders(
 	config: &Config,
 	packfile: &str,
-	path: &str,
+	paths: &[&str],
 ) -> Result<()> {
-	if config.verbosity_level > 0 {
-		info!("Operation: Delete Folder from PackFile.");
-	}
+    if config.verbosity_level > 0 {
+        paths.iter().for_each(|x| info!("Deleting the following folder from a PackFile: {}", x));
+    }
 
 	// Load the PackFile and the different PackedFiles to memory.
 	let packfile_path = PathBuf::from(packfile);
 	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	let path = path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
-	packfile.remove_packed_files_by_type(&[PathType::Folder(path)]);
-	packfile.save(None)
+    paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
+        .for_each(|x| { packfile.remove_packed_files_by_type(&[PathType::Folder(x)]); });
+    let result = packfile.save(None);
+
+    if config.verbosity_level > 0 {
+        info!("Folder successfully deleted from the PackFile.");
+    }
+
+    result
 }
 
 /// This function list the contents of the provided Packfile.
 pub fn list_packfile_contents(config: &Config, packfile: &str) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Operation: List PackFile Contents.");
+		info!("Listing PackFile Contents.");
 	}
 	let packfile_path = PathBuf::from(packfile);
 	let packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
 	let mut table = Table::new();
     table.add_row(row!["PackedFile Path", "Type", "Size"]);
-    for file in packfile.get_ref_all_packed_files() {
-    	let packedfile_type = get_packed_file_type(&file.get_path());
-    	let size = ByteSize::kib((file.get_size() / 1024).into());
+    for file in packfile.get_ref_packed_files_all() {
+    	let packedfile_type = PackedFileType::get_packed_file_type(&file.get_path());
+    	let size = ByteSize::kib((file.get_raw_data_size() / 1024).into());
     	table.add_row(row![file.get_path().join("/"), packedfile_type, size]);
     }
 

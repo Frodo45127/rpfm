@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -12,7 +12,7 @@ use log::info;
 use std::path::PathBuf;
 
 use rpfm_error::Result;
-use rpfm_lib::packedfile::{import_tsv_to_binary_file, export_tsv_from_binary_file};
+//use rpfm_lib::packedfile::{import_tsv_to_binary_file, export_tsv_from_binary_file};
 
 use crate::config::Config;
 
@@ -20,7 +20,7 @@ use crate::config::Config;
 // 							DB/Loc Command Variants
 //---------------------------------------------------------------------------//
 
-/// This function imports a TSV file into a binary DB/Loc file. 
+/// This function imports a TSV file into a binary DB/Loc file.
 ///
 /// If no destination path was provided, it leaves the DB/Loc File in the same place as the tsv file, with the same name.
 pub fn import_tsv(config: &Config, source_path: &str, destination_path: Option<&str>) -> Result<()> {
@@ -38,11 +38,11 @@ pub fn import_tsv(config: &Config, source_path: &str, destination_path: Option<&
 			path
 		}
 	};
-
-	import_tsv_to_binary_file(&config.schema, &source_path, &destination_path)
+Ok(())
+	//import_tsv_to_binary_file(&config.schema, &source_path, &destination_path)
 }
 
-/// This function imports a TSV file into a binary DB/Loc file. 
+/// This function imports a TSV file into a binary DB/Loc file.
 ///
 /// If no destination path was provided, it leaves the DB/Loc File in the same place as the tsv file, with the same name.
 pub fn export_tsv(config: &Config, source_path: &str, destination_path: Option<&str>) -> Result<()> {
@@ -60,6 +60,6 @@ pub fn export_tsv(config: &Config, source_path: &str, destination_path: Option<&
 			path
 		}
 	};
-
-	export_tsv_from_binary_file(&config.schema, &source_path, &destination_path)
+Ok(())
+	//export_tsv_from_binary_file(&config.schema, &source_path, &destination_path)
 }

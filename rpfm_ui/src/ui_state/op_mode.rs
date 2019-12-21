@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -39,7 +39,7 @@ pub enum OperationalMode {
 
 /// Implementation of `OperationalMode`.
 impl OperationalMode {
-    
+
     /// This function sets the current operational mode of the application, depending on the provided MyMod path.
     pub fn set_operational_mode(&mut self, app_ui: &AppUI, mymod_path: Option<&PathBuf>) {
         match mymod_path {
