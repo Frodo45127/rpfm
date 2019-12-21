@@ -11,8 +11,10 @@
 use log::info;
 use std::path::PathBuf;
 
-use rpfm_error::Result;
-//use rpfm_lib::packedfile::{import_tsv_to_binary_file, export_tsv_from_binary_file};
+use rpfm_error::{ErrorKind, Result};
+use rpfm_lib::packedfile::table::db::DB;
+use rpfm_lib::schema::Schema;
+use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::config::Config;
 
@@ -23,43 +25,46 @@ use crate::config::Config;
 /// This function imports a TSV file into a binary DB/Loc file.
 ///
 /// If no destination path was provided, it leaves the DB/Loc File in the same place as the tsv file, with the same name.
-pub fn import_tsv(config: &Config, source_path: &str, destination_path: Option<&str>) -> Result<()> {
+pub fn import_tsv(
+    config: &Config,
+    source_paths: &[&str],
+) -> Result<()> {
+
 	if config.verbosity_level > 0 {
-		info!("Operation: Import TSV File into Binary DB/Loc File.");
+		source_paths.iter().for_each(|x| info!("Import TSV File as Binary File: {}", x));
 	}
 
-	// Get the paths to pass to the import function.
-	let source_path = PathBuf::from(source_path);
-	let destination_path = match destination_path {
-		Some(path) => PathBuf::from(path),
-		None => {
-			let mut path = source_path.to_path_buf();
-			path.set_extension("");
-			path
-		}
-	};
-Ok(())
-	//import_tsv_to_binary_file(&config.schema, &source_path, &destination_path)
+    match &config.game_selected {
+        Some(game_selected) => {
+            let schema = Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?;
+        	let source_paths = source_paths.iter().map(|x| PathBuf::from(x)).collect::<Vec<PathBuf>>();
+        	let result = DB::import_tsv_to_binary_file(&schema, &source_paths);
+            info!("All binary files exported to TSV.");
+            result
+        },
+        None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()))?,
+    }
 }
 
 /// This function imports a TSV file into a binary DB/Loc file.
 ///
 /// If no destination path was provided, it leaves the DB/Loc File in the same place as the tsv file, with the same name.
-pub fn export_tsv(config: &Config, source_path: &str, destination_path: Option<&str>) -> Result<()> {
+pub fn export_tsv(
+    config: &Config,
+    source_paths: &[&str],
+) -> Result<()> {
 	if config.verbosity_level > 0 {
-		info!("Operation: Export Binary DB/Loc File into a TSV File.");
+		source_paths.iter().for_each(|x| info!("Export Binary File as TSV: {}", x));
 	}
 
-	// Get the paths to pass to the import function.
-	let source_path = PathBuf::from(source_path);
-	let destination_path = match destination_path {
-		Some(path) => PathBuf::from(path),
-		None => {
-			let mut path = source_path.to_path_buf();
-			path.set_extension("tsv");
-			path
-		}
-	};
-Ok(())
-	//export_tsv_from_binary_file(&config.schema, &source_path, &destination_path)
+    match &config.game_selected {
+        Some(game_selected) => {
+            let schema = Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?;
+            let source_paths = source_paths.iter().map(|x| PathBuf::from(x)).collect::<Vec<PathBuf>>();
+            let result = DB::export_tsv_from_binary_file(&schema, &source_paths);
+            info!("All binary files exported to TSV.");
+            result
+        },
+        None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()))?,
+    }
 }

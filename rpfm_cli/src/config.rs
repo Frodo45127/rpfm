@@ -14,10 +14,11 @@
 
 use rpfm_error::Result;
 use rpfm_lib::config::init_config_path;
+use rpfm_lib::games::get_supported_games_list;
 
 /// This struct serves to hold the configuration used during the execution of the program.
 pub struct Config {
-	pub game_selected: String,
+	pub game_selected: Option<String>,
 	pub verbosity_level: u8,
 }
 
@@ -28,7 +29,7 @@ impl Config {
 	pub fn new(game_selected: String, verbosity_level: u8) -> Result<Self> {
 		init_config_path()?;
 		Ok(Self {
-            game_selected,
+            game_selected: get_supported_games_list().keys().find(|x| x == &&&game_selected).map(|x| (**x).to_owned()),
 			verbosity_level,
 		})
 	}

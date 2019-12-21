@@ -503,6 +503,32 @@ impl DB {
     ) -> Result<()> {
         self.table.export_tsv(path, table_name, table_version)
     }
+
+    /// This function imports a TSV file into a binary file on disk.
+    pub fn import_tsv_to_binary_file(
+        schema: &Schema,
+        source_paths: &[PathBuf],
+    ) -> Result<()> {
+        let destination = PathBuf::from(".");
+        for path in source_paths {
+            Table::import_tsv_to_binary_file(&schema, &path, &destination)?;
+        }
+
+        Ok(())
+    }
+
+    /// This function exports to TSV a binary file on disk.
+    pub fn export_tsv_from_binary_file(
+        schema: &Schema,
+        source_paths: &[PathBuf],
+    ) -> Result<()> {
+        let destination = PathBuf::from(".");
+        for path in source_paths {
+            Table::export_tsv_from_binary_file(&schema, &path, &destination)?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Implementation to create a `DB` from a `Table`.

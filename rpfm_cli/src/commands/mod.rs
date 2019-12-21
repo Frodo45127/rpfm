@@ -81,17 +81,23 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 }
 
 /// This function triggers functions that require the `Table` command.
-pub fn command_table(config: &Config, matches: &ArgMatches) -> Result<()> {
+pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&str>) -> Result<()> {
     if matches.is_present("import") {
 		match matches.values_of("import") {
-			Some(mut values) => table::import_tsv(&config, values.nth(0).unwrap(), values.nth(0)),
+			Some(values) => {
+                let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
+                table::import_tsv(&config, &packed_file_paths)
+            },
 			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
 		}
     }
 
     else if matches.is_present("export") {
 		match matches.values_of("export") {
-			Some(mut values) => table::export_tsv(&config, values.nth(0).unwrap(), values.nth(0)),
+			Some(values) => {
+                let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
+                table::export_tsv(&config, &packed_file_paths)
+            },
 			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
 		}
     }

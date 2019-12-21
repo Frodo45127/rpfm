@@ -66,7 +66,7 @@ fn main() {
     // If we reached here, execute the commands.
     let result = match matches.subcommand() {
         ("packfile", Some(matches)) => commands::command_packfile(&config, matches, packfile),
-        ("table", Some(matches)) => commands::command_table(&config, matches),
+        ("table", Some(matches)) => commands::command_table(&config, matches, packfile),
         ("schema", Some(matches)) => commands::command_schema(&config, matches),
         _ => { Ok(()) }
     };
