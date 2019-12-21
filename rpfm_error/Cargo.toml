@@ -25,6 +25,7 @@ ron = "^0.5"
 fluent = "^0.7"
 fluent-bundle = "^0.7"
 fluent-syntax = "^0.9"
+log = "^0.4"
 
 [profile.release]
 lto = true

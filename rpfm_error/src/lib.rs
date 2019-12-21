@@ -20,6 +20,7 @@ If you need a custom `From` implementation for any error of any lib, add it here
 use failure::{Backtrace, Context, Fail};
 use fluent::{FluentError, FluentResource};
 use fluent_syntax::parser::errors::ParserError;
+use log::SetLoggerError;
 use serde_json::error::Category;
 
 use std::boxed::Box;
@@ -115,6 +116,10 @@ pub enum ErrorKind {
 
     // Generic error for when parsing a String as an I64 fails.
     //ParsingLongIntegerError,
+
+    /// Generic error form when the initialization of a logger has failed.
+    InitializingLoggerError,
+
     //-----------------------------------------------------//
     //                  Network Errors
     //-----------------------------------------------------//
@@ -528,6 +533,7 @@ impl Display for ErrorKind {
             ErrorKind::FluentResourceLoadingError => write!(f, "<p>Error while trying to load a fluent resource.</p>"),
             ErrorKind::ParsingFloatError => write!(f, "<p>Error while trying to parse a String as a Float.</p>"),
             ErrorKind::ParsingIntegerError => write!(f, "<p>Error while trying to parse a String as an Integer.</p>"),
+            ErrorKind::InitializingLoggerError => write!(f, "<p>Error while trying to initialize the logger.</p>"),
             //ErrorKind::ParsingLongIntegerError => write!(f, "<p>Error while trying to parse a String as a Long Integer.</p>"),
 
             //-----------------------------------------------------//
@@ -837,7 +843,7 @@ impl From<ron::de::Error> for Error {
 
 
 /// Implementation to create an `Error` from a `(FluentResource, Vec<ParserError>)`. Because for fluent, single errors are hard.
-impl From<((FluentResource, Vec<ParserError>))> for Error {
+impl From<(FluentResource, Vec<ParserError>)> for Error {
     fn from(_: (FluentResource, Vec<ParserError>)) -> Self {
         Self::from(ErrorKind::FluentParsingError)
     }
@@ -861,5 +867,13 @@ impl From<ParseFloatError> for Error {
 impl From<ParseIntError> for Error {
     fn from(_: ParseIntError) -> Self {
         Self::from(ErrorKind::ParsingIntegerError)
+    }
+}
+
+
+/// Implementation to create an `Error` from a `SetLoggerError`.
+impl From<SetLoggerError> for Error {
+    fn from(_: SetLoggerError) -> Self {
+        Self::from(ErrorKind::InitializingLoggerError)
     }
 }
