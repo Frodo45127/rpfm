@@ -308,6 +308,11 @@ impl PackedFile {
         self.raw.set_data(self.decoded.encode()?);
         Ok(&self.raw)
     }
+
+    /// This function returns the size in bytes of the `RawPackedFile` data, if its loaded. If it isn't, it returns 0.
+    pub fn get_raw_data_size(&self) -> u32 {
+        self.raw.get_size()
+    }
 }
 
 /// Implementation of `RawPackedFile`.
