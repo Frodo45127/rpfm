@@ -37,12 +37,12 @@ pub fn import_tsv(
     match &config.game_selected {
         Some(game_selected) => {
             let schema = Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?;
-        	let source_paths = source_paths.iter().map(|x| PathBuf::from(x)).collect::<Vec<PathBuf>>();
+        	let source_paths = source_paths.iter().map(PathBuf::from).collect::<Vec<PathBuf>>();
         	let result = DB::import_tsv_to_binary_file(&schema, &source_paths);
             info!("All binary files exported to TSV.");
             result
         },
-        None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()))?,
+        None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()).into()),
     }
 }
 
@@ -60,11 +60,11 @@ pub fn export_tsv(
     match &config.game_selected {
         Some(game_selected) => {
             let schema = Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?;
-            let source_paths = source_paths.iter().map(|x| PathBuf::from(x)).collect::<Vec<PathBuf>>();
+            let source_paths = source_paths.iter().map(PathBuf::from).collect::<Vec<PathBuf>>();
             let result = DB::export_tsv_from_binary_file(&schema, &source_paths);
             info!("All binary files exported to TSV.");
             result
         },
-        None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()))?,
+        None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()).into()),
     }
 }

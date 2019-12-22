@@ -38,7 +38,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                         let packed_file_paths = values.enumerate().filter(|(x, _)| x == &0).map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::add_files(&config, packfile_path, &packed_file_paths, destination_path)
                     },
-					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
 		    }
 
@@ -49,7 +49,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                         let folder_paths = values.enumerate().filter(|(x, _)| x == &0).map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::add_folders(&config, packfile_path, &folder_paths, destination_path)
                     },
-					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
 		    }
 
@@ -59,7 +59,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                         let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
                         packfile::delete_files(&config, packfile_path, &packed_file_paths)
                     },
-					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
 		    }
 
@@ -69,14 +69,14 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
                         let folder_paths = values.map(|y| y).collect::<Vec<&str>>();
                         packfile::delete_folders(&config, packfile_path, &folder_paths)
                     },
-					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 				}
 		    }
 
 			else if matches.is_present("list") { packfile::list_packfile_contents(&config, packfile_path) }
-			else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))? }
+			else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
         },
-        None => Err(ErrorKind::NoHTMLError("No PackFile provided.".to_owned()))?,
+        None => Err(ErrorKind::NoHTMLError("No PackFile provided.".to_owned()).into()),
     }
 }
 
@@ -88,7 +88,7 @@ pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&s
                 let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
                 table::import_tsv(&config, &packed_file_paths)
             },
-			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 		}
     }
 
@@ -98,12 +98,11 @@ pub fn command_table(config: &Config, matches: &ArgMatches, _packfile: Option<&s
                 let packed_file_paths = values.map(|y| y).collect::<Vec<&str>>();
                 table::export_tsv(&config, &packed_file_paths)
             },
-			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))?
+			None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
 		}
     }
 
-	//else if matches.is_present("export") { packfile::list_packfile_contents(config, packfile_path) }
-	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))? }
+	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
 }
 
 /// This function triggers functions that require the `Schema` command.
@@ -112,5 +111,5 @@ pub fn command_schema(config: &Config, matches: &ArgMatches) -> Result<()> {
 		schema::update(config)
     }
 
-	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()))? }
+	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
 }

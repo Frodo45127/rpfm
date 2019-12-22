@@ -458,12 +458,12 @@ impl PackFile {
 
     /// This function returns a list of reserved PackedFile names, used by RPFM for special porpouses.
     pub fn get_reserved_packed_file_names() -> Vec<Vec<String>> {
-        RESERVED_PACKED_FILE_NAMES.iter().map(|x| vec![x.to_string()]).collect()
+        RESERVED_PACKED_FILE_NAMES.iter().map(|x| vec![(*x).to_string()]).collect()
     }
 
     /// This function returns the path where maps end up after being processed by Terry and put in a `PackFile`.
     pub fn get_terry_map_path() -> Vec<String> {
-        TERRY_MAP_PATH.iter().map(|x| x.to_string()).collect()
+        TERRY_MAP_PATH.iter().map(|x| (*x).to_string()).collect()
     }
 
     /// This function returns the `PackFile List` of the provided `PackFile`.
@@ -1863,7 +1863,7 @@ impl PackFile {
 
                                 export_path.push(name.to_owned());
                                 match data.export_tsv(&export_path, &path[1], data.get_definition().version) {
-                                    Ok(_) => exported_files.push(name.to_owned()),
+                                    Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }
 
@@ -1883,7 +1883,7 @@ impl PackFile {
 
                                 export_path.push(name.to_owned());
                                 match data.export_tsv(&export_path, &TSV_NAME_LOC, data.get_definition().version) {
-                                    Ok(_) => exported_files.push(name.to_owned()),
+                                    Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }
 

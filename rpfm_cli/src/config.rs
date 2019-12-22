@@ -29,7 +29,7 @@ impl Config {
 	pub fn new(game_selected: String, verbosity_level: u8) -> Result<Self> {
 		init_config_path()?;
 		Ok(Self {
-            game_selected: get_supported_games_list().keys().find(|x| x == &&&game_selected).map(|x| (**x).to_owned()),
+            game_selected: get_supported_games_list().keys().find(|x| x == &&game_selected).map(|x| (**x).to_owned()),
 			verbosity_level,
 		})
 	}

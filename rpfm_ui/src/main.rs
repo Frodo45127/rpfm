@@ -14,7 +14,7 @@
 #![allow(
     clippy::cast_lossless,                  // Disabled due to useless warnings.
     clippy::cognitive_complexity,           // Disabled due to useless warnings.
-    clippy::cyclomatic_complexity,          // Disabled due to useless warnings.
+//    clippy::cyclomatic_complexity,          // Disabled due to useless warnings.
     clippy::doc_markdown,                   // Disabled due to false positives on things that shouldn't be formated in the docs as it says.
     clippy::if_same_then_else,              // Disabled because some of the solutions it provides are freaking hard to read.
     clippy::match_bool,                     // Disabled because the solutions it provides are harder to read than the current code.

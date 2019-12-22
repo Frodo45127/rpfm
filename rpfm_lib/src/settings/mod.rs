@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -12,7 +12,7 @@
 Module with all the code to deal with the settings used to configure this lib.
 
 This module contains all the code related with the settings used by the lib to work. These
-settings are saved in the config folder, in a file called `settings.ron`, in case you want 
+settings are saved in the config folder, in a file called `settings.ron`, in case you want
 to change them manually.
 !*/
 
@@ -51,9 +51,9 @@ impl Settings {
         let mut paths = BTreeMap::new();
         let mut settings_string = BTreeMap::new();
         let mut settings_bool = BTreeMap::new();
-        paths.insert("mymods_base_path".to_owned(), None);        
+        paths.insert("mymods_base_path".to_owned(), None);
         for (folder_name, _) in SUPPORTED_GAMES.iter() {
-            paths.insert(folder_name.to_string(), None);
+            paths.insert((*folder_name).to_string(), None);
         }
 
         // Default Game.
@@ -98,7 +98,7 @@ impl Settings {
 
         // Add/Remove settings missing/no-longer-needed for keeping it update friendly. First, remove the outdated ones, then add the new ones.
         let defaults = Self::new();
-        {          
+        {
             let mut keys_to_delete = vec![];
             for (key, _) in settings.paths.clone() { if defaults.paths.get(&*key).is_none() { keys_to_delete.push(key); } }
             for key in &keys_to_delete { settings.paths.remove(key); }
@@ -112,7 +112,7 @@ impl Settings {
             for key in &keys_to_delete { settings.settings_bool.remove(key); }
         }
 
-        {          
+        {
             for (key, value) in defaults.paths { if settings.paths.get(&*key).is_none() { settings.paths.insert(key, value);  } }
             for (key, value) in defaults.settings_string { if settings.settings_string.get(&*key).is_none() { settings.settings_string.insert(key, value);  } }
             for (key, value) in defaults.settings_bool { if settings.settings_bool.get(&*key).is_none() { settings.settings_bool.insert(key, value);  } }

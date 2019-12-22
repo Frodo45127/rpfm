@@ -34,7 +34,7 @@ pub fn initialize_logs() -> Result<()> {
         CrashReport::init()?;
         CombinedLogger::init(
             vec![
-                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed).ok_or(Error::from(ErrorKind::InitializingLoggerError))?,
+                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed).ok_or_else(|| Error::from(ErrorKind::InitializingLoggerError))?,
                 WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path()?.join("rpfm_cli.log"))?),
             ]
         )?;

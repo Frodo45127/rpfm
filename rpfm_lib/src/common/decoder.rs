@@ -194,7 +194,7 @@ impl Decoder for [u8] {
 
     fn decode_string_u8_iso_8859_1(&self, offset: usize, size: usize) -> Result<String> {
         if self.len() >= offset + size {
-            ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map(|x| x.to_string()).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 String.</p>".to_owned())))
+            ISO_8859_1.decode(&self[offset..offset + size], DecoderTrap::Replace).map_err(|_| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an UTF-8 String.</p>".to_owned())))
         }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an UTF-8 String:</p><ul><li>Required bytes: {}.</li><li>Provided bytes: {}.</li></ul>", size, self.len())).into()) }
     }

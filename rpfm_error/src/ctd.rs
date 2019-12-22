@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -34,7 +34,7 @@ pub struct CrashReport {
 
 	/// Name of the Program. To know what of the programs crashed.
     name: String,
-    
+
     /// Version of the Program/Lib.
     crate_version: String,
 
@@ -58,15 +58,15 @@ impl CrashReport {
 	pub fn init() -> Result<()> {
 
 		// Register the CTD logger if we're not in a debug build.
-		if !cfg!(debug_assertions) { 
+		if !cfg!(debug_assertions) {
 			let config_path = match ProjectDirs::from("", "", "rpfm") {
 				Some(proj_dirs) => proj_dirs.config_dir().to_path_buf(),
-				None => return Err(ErrorKind::IOFolderCannotBeOpened)?
+				None => return Err(ErrorKind::IOFolderCannotBeOpened.into())
 			};
 
-			panic::set_hook(Box::new(move |info: &panic::PanicInfo| { 
-				Self::new(info, VERSION).save(&config_path).unwrap(); 
-			})); 
+			panic::set_hook(Box::new(move |info: &panic::PanicInfo| {
+				Self::new(info, VERSION).save(&config_path).unwrap();
+			}));
 		}
 		Ok(())
 	}
@@ -83,7 +83,7 @@ impl CrashReport {
 		if let Some(payload) = panic_info.payload().downcast_ref::<&str>() {
 			explanation.push_str(&format!("Cause: {}\n", &payload));
 		}
-		
+
 		match panic_info.location() {
 			Some(location) => explanation.push_str(&format!("Panic occurred in file '{}' at line {}\n", location.file(), location.line())),
 			None => explanation.push_str("Panic location unknown.\n"),

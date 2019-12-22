@@ -10,6 +10,15 @@
 
 // This is the RPFM Lib, a lib to decode/encode any kind of PackFile CA has to offer, including his contents.
 
+// Disabled `Clippy` linters, with the reasons why they were disabled.
+#![allow(
+    clippy::cognitive_complexity,           // Disabled due to useless warnings.
+    //clippy::cyclomatic_complexity,          // Disabled due to useless warnings.
+    clippy::doc_markdown,                   // Disabled due to false positives on things that shouldn't be formated in the docs as it says.
+    clippy::too_many_arguments,             // Disabled because you never have enough arguments.
+    clippy::type_complexity,                // Disabled temporarily because there are other things to do before rewriting the types it warns about.
+)]
+
 use lazy_static::lazy_static;
 
 use std::sync::{Arc, Mutex, RwLock};

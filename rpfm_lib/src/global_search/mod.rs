@@ -275,11 +275,9 @@ impl GlobalSearch {
                                 }
                             }
 
-                            if changed_files.contains(&match_table.path) {
-                                if table.set_table_data(&data).is_err() {
-                                    changed_files.retain(|x| x != &match_table.path);
-                                    errors.push(match_table.path.to_vec());
-                                }
+                            if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                                changed_files.retain(|x| x != &match_table.path);
+                                errors.push(match_table.path.to_vec());
                             }
                         }
                     }
@@ -301,11 +299,9 @@ impl GlobalSearch {
                                 }
                             }
 
-                            if changed_files.contains(&match_table.path) {
-                                if table.set_table_data(&data).is_err() {
-                                    changed_files.retain(|x| x != &match_table.path);
-                                    errors.push(match_table.path.to_vec());
-                                }
+                            if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                                changed_files.retain(|x| x != &match_table.path);
+                                errors.push(match_table.path.to_vec());
                             }
                         }
                     }
@@ -355,7 +351,7 @@ impl GlobalSearch {
                     DecodedData::StringU16(ref mut field) |
                     DecodedData::OptionalStringU8(ref mut field) |
                     DecodedData::OptionalStringU16(ref mut field) => self.replace_match(field, matching_mode),
-                    DecodedData::Sequence(_) => return Err(ErrorKind::Generic)?,
+                    DecodedData::Sequence(_) => return Err(ErrorKind::Generic.into()),
                 }
 
                 if !changed_files.contains(&match_table.path) {
@@ -462,16 +458,11 @@ impl GlobalSearch {
                 let mut column = 0;
 
                 for (row, data) in data.get_ref_contents().lines().enumerate() {
-                    loop {
-                        match data.get(column..) {
-                            Some(text) => {
-                                match text.find(&self.pattern) {
-                                    Some(position) => {
-                                        matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
-                                        column += position + lenght;
-                                    }
-                                    None => break,
-                                }
+                    while let Some(text) = data.get(column..) {
+                        match text.find(&self.pattern) {
+                            Some(position) => {
+                                matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
+                                column += position + lenght;
                             }
                             None => break,
                         }
