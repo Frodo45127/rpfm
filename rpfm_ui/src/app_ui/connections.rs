@@ -112,6 +112,7 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     // `About` menu connections.
     //-----------------------------------------------//
     unsafe { app_ui.about_about_qt.as_ref().unwrap().signals().triggered().connect(&slots.about_about_qt); }
+    unsafe { app_ui.about_about_rpfm.as_ref().unwrap().signals().triggered().connect(&slots.about_about_rpfm); }
     unsafe { app_ui.about_open_manual.as_ref().unwrap().signals().triggered().connect(&slots.about_open_manual); }
     unsafe { app_ui.about_patreon_link.as_ref().unwrap().signals().triggered().connect(&slots.about_patreon_link); }
     unsafe { app_ui.about_check_updates.as_ref().unwrap().signals().triggered().connect(&slots.about_check_updates); }

@@ -230,7 +230,7 @@ impl Icons {
         let mut icon_text_txt_path = rpfm_path_string.to_owned();
         let mut icon_text_xml_path = rpfm_path_string.to_owned();
 
-        let mut icon_rigid_model_path = rpfm_path_string.to_owned();
+        let mut icon_rigid_model_path = rpfm_path_string;
 
         // Get the Icons for each type of Item.
         icon_packfile_editable_path.push_str("/img/packfile_editable.svg");

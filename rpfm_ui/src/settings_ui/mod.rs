@@ -199,9 +199,9 @@ impl SettingsUI {
             unsafe { paths_grid.add_widget((game_button.as_mut_ptr() as *mut Widget, (index + 1) as i32, 2, 1, 1)); }
 
             // Add the LineEdit and Button to the list.
-            paths_games_labels.insert(folder_name.to_string(), game_label.into_raw());
-            paths_games_line_edits.insert(folder_name.to_string(), game_line_edit.into_raw());
-            paths_games_buttons.insert(folder_name.to_string(), game_button.into_raw());
+            paths_games_labels.insert((*folder_name).to_string(), game_label.into_raw());
+            paths_games_line_edits.insert((*folder_name).to_string(), game_line_edit.into_raw());
+            paths_games_buttons.insert((*folder_name).to_string(), game_button.into_raw());
         }
 
         unsafe { paths_frame.set_layout(paths_grid.into_raw() as *mut Layout); }
@@ -375,9 +375,9 @@ impl SettingsUI {
             paths_mymod_label: paths_mymod_label.into_raw(),
             paths_mymod_line_edit: paths_mymod_line_edit.into_raw(),
             paths_mymod_button: paths_mymod_button.into_raw(),
-            paths_games_labels: paths_games_labels,
-            paths_games_line_edits: paths_games_line_edits,
-            paths_games_buttons: paths_games_buttons,
+            paths_games_labels,
+            paths_games_line_edits,
+            paths_games_buttons,
 
             //-------------------------------------------------------------------------------//
             // `UI` section of the `Settings` dialog.
@@ -428,10 +428,10 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             // `ButtonBox` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
-            button_box_restore_default_button: button_box_restore_default_button,
+            button_box_restore_default_button,
             button_box_shortcuts_button: button_box_shortcuts_button.into_raw(),
-            button_box_cancel_button: button_box_cancel_button,
-            button_box_accept_button: button_box_accept_button,
+            button_box_cancel_button,
+            button_box_accept_button,
         }
     }
 
@@ -439,11 +439,11 @@ impl SettingsUI {
     pub fn load(&mut self, settings: &Settings) {
 
         // Load the MyMod Path, if exists.
-        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(settings.paths["mymods_base_path"].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+        unsafe { self.paths_mymod_line_edit.as_mut().unwrap().set_text(&QString::from_std_str(settings.paths["mymods_base_path"].clone().unwrap_or_else(PathBuf::new).to_string_lossy())); }
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter_mut() {
-            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths[key].clone().unwrap_or_else(||PathBuf::new()).to_string_lossy())); }
+            unsafe { path.as_mut().unwrap().set_text(&QString::from_std_str(&settings.paths[key].clone().unwrap_or_else(PathBuf::new).to_string_lossy())); }
         }
 
         // Get the default game.
@@ -484,18 +484,12 @@ impl SettingsUI {
 
         // Only if we have a valid directory, we save it. Otherwise we wipe it out.
         let mymod_new_path = unsafe { PathBuf::from(self.paths_mymod_line_edit.as_mut().unwrap().text().to_std_string()) };
-        settings.paths.insert("mymods_base_path".to_owned(), match mymod_new_path.is_dir() {
-            true => Some(mymod_new_path),
-            false => None,
-        });
+        settings.paths.insert("mymods_base_path".to_owned(), if mymod_new_path.is_dir() { Some(mymod_new_path) } else { None });
 
         // For each entry, we check if it's a valid directory and save it into Settings.
         for (key, line_edit) in self.paths_games_line_edits.iter() {
             let new_path = unsafe { PathBuf::from(line_edit.as_mut().unwrap().text().to_std_string()) };
-            settings.paths.insert(key.to_owned(), match new_path.is_dir() {
-                true => Some(new_path),
-                false => None,
-            });
+            settings.paths.insert(key.to_owned(), if new_path.is_dir() { Some(new_path) } else { None });
         }
 
         // We get his game's folder, depending on the selected game.
@@ -544,7 +538,7 @@ impl SettingsUI {
         // We check if we have a game or not. If we have it, update the `LineEdit` for that game.
         // If we don't, update the `LineEdit` for `MyMod`s path.
         let line_edit = match game {
-            Some(game) => self.paths_games_line_edits.get(game).unwrap().clone(),
+            Some(game) => *self.paths_games_line_edits.get(game).unwrap(),
             None => self.paths_mymod_line_edit,
         };
 

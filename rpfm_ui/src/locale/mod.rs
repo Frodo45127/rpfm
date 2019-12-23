@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
 // Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -37,12 +37,12 @@ pub fn initialize(lang_id: &str) -> Result<Arc<RwLock<FluentBundle<FluentResourc
 
     // Get the list of available translations from the locale folder, and load the requested one, if found.
     let locales = get_available_locales();
-    let selected_locale = locales.iter().find(|x| x.get_language() == lang_id).ok_or_else(|| return Error::from(ErrorKind::FluentResourceLoadingError))?;
+    let selected_locale = locales.iter().find(|x| x.get_language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
     let locale = format!("{}/{}.ftl", LOCALE_FOLDER, lang_id);
 
     // If found, load the entire file to a string.
     let mut file = File::open(&locale)?;
-    let mut ftl_string = String::new(); 
+    let mut ftl_string = String::new();
     file.read_to_string(&mut ftl_string)?;
 
     // Then to a resource and a bundle.
@@ -58,7 +58,7 @@ pub fn initialize(lang_id: &str) -> Result<Arc<RwLock<FluentBundle<FluentResourc
 pub fn initialize_empty() -> Arc<RwLock<FluentBundle<FluentResource>>> {
 
     // Create an empty bundle, and return it.
-    let ftl_string = String::new(); 
+    let ftl_string = String::new();
     let resource = FluentResource::try_new(ftl_string).unwrap();
     let mut bundle = FluentBundle::new(&[langid!["en"]]);
     bundle.add_resource(resource).unwrap();

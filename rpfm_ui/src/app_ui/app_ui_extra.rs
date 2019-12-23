@@ -146,7 +146,7 @@ impl AppUI {
         // Black magic to remove widgets.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
         if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
-            if save_before_deleting && path != &["extra_packfile.rpfm_reserved".to_owned()] {
+            if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
                 packed_file_view.save(path, global_search_ui);
             }
             let widget: *mut Widget = packed_file_view.get_mut_widget();
@@ -159,7 +159,7 @@ impl AppUI {
 
         if !path.is_empty() {
             open_packedfiles.remove(path);
-            if path != &["extra_packfile.rpfm_reserved".to_owned()] {
+            if path != ["extra_packfile.rpfm_reserved".to_owned()] {
 
                 // We check if there are more tables open. This is because we cannot change the GameSelected
                 // when there is a PackedFile using his Schema.
@@ -358,7 +358,7 @@ impl AppUI {
         UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui));
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-        let path = if let Response::PathBuf(path) = CENTRAL_COMMAND.recv_message_qt() { path } else { panic!(THREADS_COMMUNICATION_ERROR) };
+        let mut path = if let Response::PathBuf(path) = CENTRAL_COMMAND.recv_message_qt() { path } else { panic!(THREADS_COMMUNICATION_ERROR) };
         if !path.is_file() || save_as {
 
             // Create the FileDialog to save the PackFile and configure it.
@@ -374,7 +374,6 @@ impl AppUI {
 
             // If we are saving an existing PackFile with another name, we start in his current path.
             if path.is_file() {
-                let mut path = path.to_path_buf();
                 path.pop();
                 file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned()));
             }
@@ -970,147 +969,137 @@ impl AppUI {
         if !UI_STATE.get_packfile_contents_read_only() {
             let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
-            match item_type {
+            if let TreePathType::File(path) = item_type {
 
-                // Only in case it's a file, we do something.
-                TreePathType::File(path) => {
-
-                    // Close all preview views except the file we're opening.
-                    for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
-                        let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(packed_file_view.get_mut_widget()) };
-                        if open_path != path && packed_file_view.get_is_preview() && index != -1 {
-                            unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
-                        }
-                    }
-
-                    // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
-                    // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
-                    if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(path) {
-                        let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(tab_widget.get_mut_widget()) };
-
-                        // If we're trying to open as preview something already open as full, we don't do anything.
-                        if !(index != -1 && is_preview && !tab_widget.get_is_preview()) {
-                            tab_widget.set_is_preview(is_preview);
-                        }
-
-                        if index == -1 {
-                            let icon_type = IconType::File(path.to_vec());
-                            let icon = icon_type.get_icon_from_path();
-                            unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget.get_mut_widget(), icon, &QString::from_std_str(""))); }
-                        }
-
-                        let name = if tab_widget.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
-                        let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(tab_widget.get_mut_widget()) };
-                        unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_tab_text(index, &QString::from_std_str(&name)); }
-                        unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget.get_mut_widget()); }
-                        return;
-                    }
-
-                    let mut tab = PackedFileView::default();
-                    let tab_widget = tab.get_mut_widget();
-                    tab.set_is_preview(is_preview);
-                    let name = if tab.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
-                    let icon_type = IconType::File(path.to_vec());
-                    let icon = icon_type.get_icon_from_path();
-
-                    // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
-                    let packed_file_type = PackedFileType::get_packed_file_type(&path);
-                    let path = Rc::new(RefCell::new(path.to_vec()));
-
-                    match packed_file_type {
-
-                        // If the file is a Loc PackedFile...
-                        PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
-                                Ok(slots) => {
-                                    slot_holder.borrow_mut().push(slots);
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
-                                },
-                                Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::LocDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        // If the file is a DB PackedFile...
-                        PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
-                                Ok(slots) => {
-                                    slot_holder.borrow_mut().push(slots);
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
-                                },
-                                Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::DBTableDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        // If the file is a Text PackedFile...
-                        PackedFileType::Text => {
-                            match PackedFileTextView::new_view(&path, &mut tab, global_search_ui) {
-                                Ok(slots) => {
-                                    slot_holder.borrow_mut().push(slots);
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
-                                },
-                                Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        // If the file is a RigidModel PackedFile...
-                        PackedFileType::RigidModel => {
-                            match PackedFileRigidModelView::new_view(&path, &mut tab, global_search_ui) {
-                                Ok(slots) => {
-                                    slot_holder.borrow_mut().push(slots);
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
-                                },
-                                Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        // If the file is a Image PackedFile...
-                        PackedFileType::Image => {
-                            match PackedFileImageView::new_view(&path, &mut tab) {
-                                Ok(slots) => {
-                                    slot_holder.borrow_mut().push(slots);
-
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
-                                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
-                                },
-                                Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::ImageDecode(format!("{}", error)), false),
-                            }
-                        }
-
-                        // For any other PackedFile, just restore the display tips.
-                        _ => {
-                            //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-                            //display_help_tips(&app_ui);
-                        }
+                // Close all preview views except the file we're opening.
+                for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+                    let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(packed_file_view.get_mut_widget()) };
+                    if open_path != path && packed_file_view.get_is_preview() && index != -1 {
+                        unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
                     }
                 }
 
-                // If it's anything else, then we just show the "Tips" list.
-                _ => {
-                    //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
-                    //display_help_tips(&app_ui);
+                // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
+                // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
+                if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(path) {
+                    let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(tab_widget.get_mut_widget()) };
+
+                    // If we're trying to open as preview something already open as full, we don't do anything.
+                    if !(index != -1 && is_preview && !tab_widget.get_is_preview()) {
+                        tab_widget.set_is_preview(is_preview);
+                    }
+
+                    if index == -1 {
+                        let icon_type = IconType::File(path.to_vec());
+                        let icon = icon_type.get_icon_from_path();
+                        unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget.get_mut_widget(), icon, &QString::from_std_str(""))); }
+                    }
+
+                    let name = if tab_widget.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
+                    let index = unsafe { self.tab_bar_packed_file.as_ref().unwrap().index_of(tab_widget.get_mut_widget()) };
+                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_tab_text(index, &QString::from_std_str(&name)); }
+                    unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget.get_mut_widget()); }
+                    return;
+                }
+
+                let mut tab = PackedFileView::default();
+                let tab_widget = tab.get_mut_widget();
+                tab.set_is_preview(is_preview);
+                let name = if tab.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
+                let icon_type = IconType::File(path.to_vec());
+                let icon = icon_type.get_icon_from_path();
+
+                // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
+                let packed_file_type = PackedFileType::get_packed_file_type(&path);
+                let path = Rc::new(RefCell::new(path.to_vec()));
+
+                match packed_file_type {
+
+                    // If the file is a Loc PackedFile...
+                    PackedFileType::Loc => {
+                        match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
+                            Ok(slots) => {
+                                slot_holder.borrow_mut().push(slots);
+
+                                // Add the file to the 'Currently open' list and make it visible.
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
+                                let mut open_list = UI_STATE.set_open_packedfiles();
+                                open_list.insert(path.borrow().to_vec(), tab);
+                            },
+                            Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::LocDecode(format!("{}", error)), false),
+                        }
+                    }
+
+                    // If the file is a DB PackedFile...
+                    PackedFileType::DB => {
+                        match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
+                            Ok(slots) => {
+                                slot_holder.borrow_mut().push(slots);
+
+                                // Add the file to the 'Currently open' list and make it visible.
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
+                                let mut open_list = UI_STATE.set_open_packedfiles();
+                                open_list.insert(path.borrow().to_vec(), tab);
+                            },
+                            Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::DBTableDecode(format!("{}", error)), false),
+                        }
+                    }
+
+                    // If the file is a Text PackedFile...
+                    PackedFileType::Text => {
+                        match PackedFileTextView::new_view(&path, &mut tab, global_search_ui) {
+                            Ok(slots) => {
+                                slot_holder.borrow_mut().push(slots);
+
+                                // Add the file to the 'Currently open' list and make it visible.
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
+                                let mut open_list = UI_STATE.set_open_packedfiles();
+                                open_list.insert(path.borrow().to_vec(), tab);
+                            },
+                            Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
+                        }
+                    }
+
+                    // If the file is a RigidModel PackedFile...
+                    PackedFileType::RigidModel => {
+                        match PackedFileRigidModelView::new_view(&path, &mut tab, global_search_ui) {
+                            Ok(slots) => {
+                                slot_holder.borrow_mut().push(slots);
+
+                                // Add the file to the 'Currently open' list and make it visible.
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
+                                let mut open_list = UI_STATE.set_open_packedfiles();
+                                open_list.insert(path.borrow().to_vec(), tab);
+                            },
+                            Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
+                        }
+                    }
+
+                    // If the file is a Image PackedFile...
+                    PackedFileType::Image => {
+                        match PackedFileImageView::new_view(&path, &mut tab) {
+                            Ok(slots) => {
+                                slot_holder.borrow_mut().push(slots);
+
+                                // Add the file to the 'Currently open' list and make it visible.
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
+                                unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
+                                let mut open_list = UI_STATE.set_open_packedfiles();
+                                open_list.insert(path.borrow().to_vec(), tab);
+                            },
+                            Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::ImageDecode(format!("{}", error)), false),
+                        }
+                    }
+
+                    // For any other PackedFile, just restore the display tips.
+                    _ => {
+                        //purge_them_all(&app_ui, &packedfiles_open_in_packedfile_view);
+                        //display_help_tips(&app_ui);
+                    }
                 }
             }
         }
@@ -1180,7 +1169,7 @@ impl AppUI {
                                 // We want to be able to write relative paths with this so, if a `/` is detected, split the name.
                                 if selected_paths.len() == 1 {
                                     let mut complete_path = selected_paths[0].to_vec();
-                                    complete_path.append(&mut (name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
+                                    complete_path.append(&mut (name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
                                     complete_path
                                 }
                                 else { vec![] }
@@ -1235,11 +1224,11 @@ impl AppUI {
         let selected_paths = <*mut TreeView as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
         if selected_paths.len() == 1 {
             let path = &selected_paths[0];
-            if let Some(mut name) = self.new_packed_file_name_dialog(path) {
+            if let Some(mut name) = self.new_packed_file_name_dialog() {
 
                 // DB Check.
                 let (new_path, new_packed_file) = if path.starts_with(&["db".to_owned()]) && path.len() == 2 || path.len() == 3 {
-                    let new_path = vec!["db".to_owned(), path[1].to_owned(), name.to_owned()];
+                    let new_path = vec!["db".to_owned(), path[1].to_owned(), name];
                     let table = &path[1];
 
                     CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
@@ -1254,10 +1243,10 @@ impl AppUI {
                 }
 
                 // Loc Check.
-                else if path.starts_with(&["text".to_owned()]) && path.len() >= 1 {
+                else if path.starts_with(&["text".to_owned()]) && !path.is_empty() {
                     if !name.ends_with(".loc") { name.push_str(".loc"); }
                     let mut new_path = path.to_vec();
-                    let mut name = name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
+                    let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
                     new_path.append(&mut name);
 
                     let new_packed_file = NewPackedFile::Loc(new_path.last().unwrap().to_owned());
@@ -1265,10 +1254,10 @@ impl AppUI {
                 }
 
                 // Lua Check.
-                else if path.starts_with(&["script".to_owned()]) && path.len() >= 1 {
+                else if path.starts_with(&["script".to_owned()]) && !path.is_empty() {
                     if !name.ends_with(".lua") { name.push_str(".lua"); }
                     let mut new_path = path.to_vec();
-                    let mut name = name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
+                    let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
                     new_path.append(&mut name);
 
                     let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned());
@@ -1406,7 +1395,7 @@ impl AppUI {
     /// This function creates the "New PackedFile's Name" dialog when creating a new QueeK PackedFile.
     ///
     /// It returns the new name of the PackedFile, or `None` if the dialog is canceled or closed.
-    fn new_packed_file_name_dialog(&self, paths: &[String]) -> Option<String> {
+    fn new_packed_file_name_dialog(&self) -> Option<String> {
 
         // Create and configure the dialog.
         let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };

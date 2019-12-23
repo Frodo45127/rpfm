@@ -34,8 +34,6 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use rpfm_lib::packfile::PathType;
-
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -65,7 +63,7 @@ impl PackFileContentsUI {
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
                     // Update the global search stuff, if needed.
-                    global_search_ui.search_on_path(paths.iter().map(|x| From::from(x)).collect());
+                    global_search_ui.search_on_path(paths.iter().map(From::from).collect());
                     //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
                     // For each file added, remove it from the data history if exists.

@@ -338,8 +338,7 @@ impl PackTree for *mut TreeView {
         let indexes_visual = unsafe { tree_view.selection_model().as_mut().unwrap().selection().indexes() };
         let indexes_visual = (0..indexes_visual.count(())).map(|x| indexes_visual.at(x)).collect::<Vec<&ModelIndex>>();
         let indexes_real = indexes_visual.iter().map(|x| filter.map_to_source(x)).collect::<Vec<ModelIndex>>();
-        let items = indexes_real.iter().map(|x| model.item_from_index(x)).collect();
-        items
+        indexes_real.iter().map(|x| model.item_from_index(x)).collect()
     }
 
     fn get_items_from_selection(&self, has_filter: bool) -> Vec<*mut StandardItem> {
@@ -356,14 +355,12 @@ impl PackTree for *mut TreeView {
             indexes_visual
         };
 
-        let items = indexes_real.iter().map(|x| model.item_from_index(x)).collect();
-        items
+        indexes_real.iter().map(|x| model.item_from_index(x)).collect()
     }
 
     fn get_item_types_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<TreePathType> {
         let items = Self::get_items_from_main_treeview_selection(pack_file_contents_ui);
-        let types = items.iter().map(|x| Self::get_type_from_item(*x, pack_file_contents_ui.packfile_contents_tree_model)).collect();
-        types
+        items.iter().map(|x| Self::get_type_from_item(*x, pack_file_contents_ui.packfile_contents_tree_model)).collect()
     }
 
     fn get_item_types_from_selection(&self, has_filter: bool) -> Vec<TreePathType> {
@@ -376,8 +373,7 @@ impl PackTree for *mut TreeView {
             unsafe { (self.as_ref().unwrap().model() as *mut StandardItemModel) }
         };
 
-        let types = items.iter().map(|x| Self::get_type_from_item(*x, model)).collect();
-        types
+        items.iter().map(|x| Self::get_type_from_item(*x, model)).collect()
     }
 
     fn get_item_types_from_selection_filtered(&self)-> Vec<TreePathType> {
@@ -399,7 +395,7 @@ impl PackTree for *mut TreeView {
             }
         }
 
-        return item_types;
+        item_types
     }
 
     fn get_item_from_type(item_type: &TreePathType, model: *mut StandardItemModel) -> &mut StandardItem {
@@ -1019,7 +1015,7 @@ impl PackTree for *mut TreeView {
                                 unsafe { parent = item.parent().as_mut().unwrap(); }
                                 parent.remove_row(item.row());
                                 parent.set_data((&Variant::new0(ITEM_STATUS_MODIFIED), ITEM_STATUS));
-                                if !parent.data(ITEM_IS_FOREVER_MODIFIED).to_bool() == false {
+                                if !parent.data(ITEM_IS_FOREVER_MODIFIED).to_bool() {
                                     parent.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
                                 }
 
@@ -1080,7 +1076,7 @@ impl PackTree for *mut TreeView {
                                 unsafe { parent = item.parent().as_mut().unwrap(); }
                                 parent.remove_row(item.row());
                                 parent.set_data((&Variant::new0(ITEM_STATUS_MODIFIED), ITEM_STATUS));
-                                if !parent.data(ITEM_IS_FOREVER_MODIFIED).to_bool() == false {
+                                if !parent.data(ITEM_IS_FOREVER_MODIFIED).to_bool() {
                                     parent.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
                                 }
 
@@ -1405,7 +1401,7 @@ pub fn check_if_path_is_closed(app_ui: &AppUI, paths: &[Vec<String>]) -> bool {
 
     // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
     let open_packedfiles = UI_STATE.get_open_packedfiles();
-    if paths.iter().all(|x| !open_packedfiles.keys().any(|y| &y == &x)) { true }
+    if paths.iter().all(|x| !open_packedfiles.keys().any(|y| y == x)) { true }
     else {
         let mut dialog = unsafe { MessageBox::new_unsafe((
             message_box::Icon::Information,
@@ -1460,7 +1456,7 @@ fn sort_item_in_tree_view(
     // Get the type of the previous item on the list.
     let item_type_prev: TreePathType = if item_index_prev.is_valid() {
         let item_sibling = unsafe { model.item_from_index(&item_index_prev).as_ref().unwrap() };
-        <(*mut TreeView)>::get_type_from_item_safe(item_sibling, model)
+        <*mut TreeView>::get_type_from_item_safe(item_sibling, model)
     }
 
     // Otherwise, return the type as `None`.
@@ -1471,7 +1467,7 @@ fn sort_item_in_tree_view(
 
         // Get the next item.
         let item_sibling = unsafe { model.item_from_index(&item_index_next).as_ref().unwrap() };
-        <(*mut TreeView)>::get_type_from_item_safe(item_sibling, model)
+        <*mut TreeView>::get_type_from_item_safe(item_sibling, model)
     }
 
     // Otherwise, return the type as `None`.
@@ -1489,7 +1485,7 @@ fn sort_item_in_tree_view(
 
     // If the top one is a folder, and the bottom one is a file, get the type of our iter.
     else if item_type_prev == TreePathType::Folder(vec![String::new()]) && item_type_next == TreePathType::File(vec![String::new()]) {
-        if *item_type == TreePathType::Folder(vec![String::new()]) { true } else { false }
+        *item_type == TreePathType::Folder(vec![String::new()])
     }
 
     // If the two around it are the same type, compare them and decide.
@@ -1502,13 +1498,13 @@ fn sort_item_in_tree_view(
 
         // If, after sorting, the previous hasn't changed position, it shouldn't go up.
         let name_list = vec![previous_name.to_owned(), current_name.to_owned()];
-        let mut name_list_sorted = vec![previous_name.to_owned(), current_name.to_owned()];
+        let mut name_list_sorted = vec![previous_name, current_name.to_owned()];
         name_list_sorted.sort();
         if name_list == name_list_sorted {
 
             // If, after sorting, the next hasn't changed position, it shouldn't go down.
             let name_list = vec![current_name.to_owned(), next_name.to_owned()];
-            let mut name_list_sorted = vec![current_name.to_owned(), next_name.to_owned()];
+            let mut name_list_sorted = vec![current_name, next_name];
             name_list_sorted.sort();
             if name_list == name_list_sorted {
 
@@ -1539,7 +1535,7 @@ fn sort_item_in_tree_view(
 
             // Get the Item sibling to our current Item.
             let item_sibling = unsafe { parent.child(item_sibling_index.row()).as_ref().unwrap() };
-            let item_sibling_type = <(*mut TreeView)>::get_type_from_item_safe(item_sibling, model);
+            let item_sibling_type = <*mut TreeView>::get_type_from_item_safe(item_sibling, model);
 
             // If both are of the same type...
             if *item_type == item_sibling_type {

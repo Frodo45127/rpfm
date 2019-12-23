@@ -52,6 +52,7 @@ use crate::settings_ui::SettingsUI;
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
 use crate::utils::show_dialog;
+use crate::VERSION;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -117,6 +118,7 @@ pub struct AppUISlots {
     // `About` menu slots.
     //-----------------------------------------------//
     pub about_about_qt: SlotBool<'static>,
+    pub about_about_rpfm: SlotBool<'static>,
     pub about_open_manual: SlotBool<'static>,
     pub about_patreon_link: SlotBool<'static>,
     pub about_check_updates: SlotBool<'static>,
@@ -462,86 +464,79 @@ impl AppUISlots {
             slot_holder => move |_| {
 
                 // Trigger the `New MyMod` Dialog, and get the result.
-                match MyModUI::new(&app_ui) {
+                if let Some((mod_name, mod_game)) = MyModUI::new(&app_ui) {
+                    let full_mod_name = format!("{}.pack", mod_name);
 
-                    // If we accepted, create the new `MyMod` with the name and game from the dialog.
-                    Some((mod_name, mod_game)) => {
-                        let full_mod_name = format!("{}.pack", mod_name);
-
-                        // Change the Game Selected to match the one we chose for the new "MyMod".
-                        // NOTE: Arena should not be on this list.
-                        match &*mod_game {
-                            "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
-                            "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
-                            "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
-                            "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
-                            "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
-                            "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
-                            "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
-                            "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
-                            "empire" | _ => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
-                        }
-
-                        // Get his new path from the base "MyMod" path + `mod_game`.
-                        let mut mymod_path = SETTINGS.lock().unwrap().paths["mymods_base_path"].clone().unwrap();
-                        mymod_path.push(&mod_game);
-
-                        // Just in case the folder doesn't exist, we try to create it.
-                        if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
-                            return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateAssetFolder, false);
-                        }
-
-                        // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
-                        let mut mymod_path_private = mymod_path.to_path_buf();
-                        mymod_path_private.push(&mod_name);
-                        if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
-                            return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateNestedAssetFolder, false);
-                        };
-
-                        // Complete the mymod PackFile path and create it.
-                        mymod_path.push(&full_mod_name);
-                        CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
-                        CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
-                        match CENTRAL_COMMAND.recv_message_qt_try() {
-                            Response::PackFileInfo(pack_file_info) => {
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
-                                let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
-                                packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                                packfile_item.set_text(&QString::from_std_str(&full_mod_name));
-
-                                // Set the UI to the state it should be in.
-                                unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
-                                unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
-                                unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
-                                unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
-                                unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
-                                unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
-
-                                app_ui.enable_packfile_actions(true);
-
-                                UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
-
-                                // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                                app_ui.purge_them_all(global_search_ui, &slot_holder);
-                                global_search_ui.clear();
-
-                                // Close the Global Search stuff and reset the filter's history.
-                                //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
-
-                                // Show the "Tips".
-                                //display_help_tips(&app_ui);
-                            }
-
-                            Response::Error(error) => return show_dialog(app_ui.main_window as *mut Widget, error, false),
-
-
-                            // In ANY other situation, it's a message problem.
-                            _ => panic!(THREADS_COMMUNICATION_ERROR),
-                        }
+                    // Change the Game Selected to match the one we chose for the new "MyMod".
+                    // NOTE: Arena should not be on this list.
+                    match &*mod_game {
+                        "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+                        "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+                        "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
+                        "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+                        "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
+                        "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
+                        "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+                        "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
+                        "empire" | _ => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
                     }
 
-                    // If we canceled the creation of a "MyMod", just return.
-                    None => return,
+                    // Get his new path from the base "MyMod" path + `mod_game`.
+                    let mut mymod_path = SETTINGS.lock().unwrap().paths["mymods_base_path"].clone().unwrap();
+                    mymod_path.push(&mod_game);
+
+                    // Just in case the folder doesn't exist, we try to create it.
+                    if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
+                        return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateAssetFolder, false);
+                    }
+
+                    // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
+                    let mut mymod_path_private = mymod_path.to_path_buf();
+                    mymod_path_private.push(&mod_name);
+                    if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
+                        return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOCreateNestedAssetFolder, false);
+                    };
+
+                    // Complete the mymod PackFile path and create it.
+                    mymod_path.push(&full_mod_name);
+                    CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
+                    CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
+                    match CENTRAL_COMMAND.recv_message_qt_try() {
+                        Response::PackFileInfo(pack_file_info) => {
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
+                            let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
+                            packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                            packfile_item.set_text(&QString::from_std_str(&full_mod_name));
+
+                            // Set the UI to the state it should be in.
+                            unsafe { app_ui.change_packfile_type_mod.as_mut().unwrap().set_checked(true); }
+                            unsafe { app_ui.change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_header_is_extended.as_mut().unwrap().set_checked(false); }
+                            unsafe { app_ui.change_packfile_type_data_is_compressed.as_mut().unwrap().set_checked(false); }
+
+                            app_ui.enable_packfile_actions(true);
+
+                            UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
+
+                            // Destroy whatever it's in the PackedFile's views and clear the global search UI.
+                            app_ui.purge_them_all(global_search_ui, &slot_holder);
+                            global_search_ui.clear();
+
+                            // Close the Global Search stuff and reset the filter's history.
+                            //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
+
+                            // Show the "Tips".
+                            //display_help_tips(&app_ui);
+                        }
+
+                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+
+
+                        // In ANY other situation, it's a message problem.
+                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    }
                 }
             }
         ));
@@ -654,7 +649,7 @@ impl AppUISlots {
                                     return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOGenericCopy(game_data_path), false);
                                 }
                             }
-                            else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false); }
+                            else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::GamePathNotConfigured, false) }
                         }
                         else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
                     }
@@ -679,7 +674,7 @@ impl AppUISlots {
                             game_data_path.push(&mod_name);
 
                             if !game_data_path.is_file() {
-                                return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModNotInstalled, false);
+                                show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModNotInstalled, false)
                             }
 
                             else if remove_file(game_data_path.to_path_buf()).is_err() {
@@ -917,6 +912,49 @@ impl AppUISlots {
         // What happens when we trigger the "About Qt" action.
         let about_about_qt = SlotBool::new(move |_| { unsafe { MessageBox::about_qt(app_ui.main_window as *mut Widget); }});
 
+        // What happens when we trigger the "About RPFM" action.
+        let about_about_rpfm = SlotBool::new(move |_| {
+            unsafe {
+                MessageBox::about(
+                    app_ui.main_window as *mut Widget,
+                    &QString::from_std_str("About RPFM"),
+                    &QString::from_std_str(format!(
+                        "<table>
+                            <tr>
+                                <td><h2><b>Rusted PackFile Manager</b></h2></td>
+                                <td>{}</td>
+                            </tr>
+                        </table>
+
+                        <p><b>Rusted PackFile Manager</b> (a.k.a. RPFM) is a modding tool for modern Total War Games, made by modders, for modders.</p>
+                        <p>This program is <b>open-source</b>, under MIT License. You can always get the last version (or collaborate) here:</p>
+                        <a href=\"https://github.com/Frodo45127/rpfm\">https://github.com/Frodo45127/rpfm</a>
+                        <p>This program is also <b>free</b> (if you paid for this, sorry, but you got scammed), but if you want to help with money, here is <b>RPFM's Patreon</b>:</p>
+                        <a href=\"https://www.patreon.com/RPFM\">https://www.patreon.com/RPFM</a>
+
+                        <h3>Credits</h3>
+                        <ul style=\"list-style-type: disc\">
+                            <li>Created and Programmed by: <b>Frodo45127</b>.</li>
+                            <li>Icon by: <b>Maruka</b>.</li>
+                            <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
+                            <li>LUA functions by: <b>Aexrael Dex</b>.</li>
+                            <li>LUA Types for Kailua: <b>DrunkFlamingo</b>.</li>
+                            <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
+                            <li>TreeView Icons made by <a href=\"https://www.flaticon.com/authors/smashicons\" title=\"Smashicons\">Smashicons</a> from <a href=\"https://www.flaticon.com/\" title=\"Flaticon\">www.flaticon.com</a>. Licensed under <a href=\"http://creativecommons.org/licenses/by/3.0/\" title=\"Creative Commons BY 3.0\" target=\"_blank\">CC 3.0 BY</a>
+                        </ul>
+
+                        <h3>Special thanks</h3>
+                        <ul style=\"list-style-type: disc\">
+                            <li><b>PFM team</b>, for providing the community with awesome modding tools.</li>
+                            <li><b>CA</b>, for being a mod-friendly company.</li>
+                            <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
+                        </ul>
+                        ", &VERSION))
+                    );
+                }
+            }
+        );
+
         // What happens when we trigger the "Open Manual" action.
         let about_open_manual = SlotBool::new(|_| { DesktopServices::open_url(&qt_core::url::Url::new(&QString::from_std_str(DOCS_BASE_URL))); });
 
@@ -1012,6 +1050,7 @@ impl AppUISlots {
 	        // `About` menu slots.
 	        //-----------------------------------------------//
     		about_about_qt,
+            about_about_rpfm,
             about_open_manual,
             about_patreon_link,
             about_check_updates,

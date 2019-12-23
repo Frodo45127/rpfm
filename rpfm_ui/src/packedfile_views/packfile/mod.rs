@@ -152,7 +152,7 @@ impl PackFileExtraView {
         // Build the slots and set up the shortcuts/connections/tip.
         let raw = PackFileExtraViewRaw{
             tree_view: tree_view.into_raw(),
-            tree_model_filter: tree_model_filter,
+            tree_model_filter,
             tree_model: tree_model.into_raw(),
 
             filter_line_edit: filter_line_edit.into_raw(),
@@ -261,7 +261,7 @@ impl PackFileExtraViewRaw {
 
     /// This function returns a pointer to the `SortFilterProxyModel` widget.
     pub fn get_tree_model_filter(&self) -> *mut SortFilterProxyModel {
-        unsafe { self.tree_model_filter }
+        self.tree_model_filter
     }
 
     /// This function returns a mutable reference to the `Expand All` Action.

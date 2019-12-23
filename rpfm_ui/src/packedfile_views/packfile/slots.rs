@@ -16,7 +16,6 @@ use qt_widgets::widget::Widget;
 
 use qt_core::slots::{SlotBool, SlotModelIndexRef, SlotNoArgs, SlotStringRef};
 
-use rpfm_error::ErrorKind;
 use rpfm_lib::packfile::PathType;
 
 use crate::AppUI;
@@ -60,7 +59,7 @@ impl PackFileExtraViewSlots {
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = unsafe { pack_file_view.tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
                 if selection_file_to_move.count(()) == 1 {
-                    let item_types = pack_file_view.tree_view.get_item_types_from_selection_filtered().iter().map(|x| From::from(x)).collect();
+                    let item_types = pack_file_view.tree_view.get_item_types_from_selection_filtered().iter().map(From::from).collect();
 
                     // Ask the Background Thread to move the files, and send him the path.
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -76,7 +75,7 @@ impl PackFileExtraViewSlots {
                             }
 
                             // Update the TreeView.
-                            let paths_ok = paths_ok.iter().map(|x| From::from(x)).collect::<Vec<TreePathType>>();
+                            let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
                             pack_file_contents_view.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok));
 
 /*

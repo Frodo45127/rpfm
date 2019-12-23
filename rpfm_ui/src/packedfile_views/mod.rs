@@ -18,7 +18,6 @@ use qt_widgets::widget::Widget;
 
 use core::sync::atomic::{AtomicPtr, Ordering};
 
-use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::PathType;

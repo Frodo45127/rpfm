@@ -783,7 +783,7 @@ impl GlobalSearchUI {
 
                     let name = if let Some(ref name) = match_schema.versioned_file_name {
                         format!("{}/{}", match_schema.versioned_file_type, name)
-                    } else { format!("{}", match_schema.versioned_file_type) };
+                    } else { match_schema.versioned_file_type.to_string() };
 
                     versioned_file.set_text(&QString::from_std_str(&name));
                     versioned_file.set_editable(false);

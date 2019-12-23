@@ -23,16 +23,10 @@ use regex::Regex;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use rpfm_lib::global_search::GlobalSearch;
-
 use crate::app_ui::AppUI;
-use crate::CENTRAL_COMMAND;
-use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::TheOneSlot;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::UI_STATE;
-
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs

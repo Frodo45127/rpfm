@@ -157,7 +157,7 @@ impl PackFileContentsSlots {
 
                         // These options are limited to only 1 file selected, and should not be usable if multiple files
                         // are selected.
-                        let enabled = if files == 1 { true } else { false };
+                        let enabled = files == 1;
                         unsafe {
                             pack_file_contents_ui.context_menu_open_with_external_program.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_open_decoder.as_mut().unwrap().set_enabled(enabled);
@@ -166,7 +166,7 @@ impl PackFileContentsSlots {
                         }
 
                         // Only if we have multiple files selected, we give the option to merge. Further checks are done when clicked.
-                        let enabled = if files > 1 { true } else { false };
+                        let enabled = files > 1;
                         unsafe { pack_file_contents_ui.context_menu_merge_tables.as_mut().unwrap().set_enabled(enabled); }
                     },
 
@@ -194,7 +194,7 @@ impl PackFileContentsSlots {
                         }
 
                         // These options are limited to only 1 folder selected.
-                        let enabled = if folders == 1 { true } else { false };
+                        let enabled = folders == 1;
                         unsafe {
                             pack_file_contents_ui.context_menu_add_file.as_mut().unwrap().set_enabled(enabled);
                             pack_file_contents_ui.context_menu_add_folder.as_mut().unwrap().set_enabled(enabled);
@@ -451,7 +451,7 @@ impl PackFileContentsSlots {
                         }
 
                         // If there is no "MyMod" path configured, report it.
-                        else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
+                        else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false) }
                     }
 
                     // If it's in "Normal" mode...
@@ -539,7 +539,7 @@ impl PackFileContentsSlots {
                         }
 
                         // If there is no "MyMod" path configured, report it.
-                        else { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false); }
+                        else { show_dialog(app_ui.main_window as *mut Widget, ErrorKind::MyModPathNotConfigured, false) }
                     }
 
                     // If it's in "Normal" mode, we just get the paths of the files inside them and add those files.
@@ -623,12 +623,12 @@ impl PackFileContentsSlots {
         let contextual_menu_delete = SlotBool::new(clone!(
             slot_holder => move |_| {
                 let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                let selected_items = selected_items.iter().map(|x| From::from(x)).collect::<Vec<PathType>>();
+                let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
 
                 CENTRAL_COMMAND.send_message_qt(Command::DeletePackedFiles(selected_items));
                 match CENTRAL_COMMAND.recv_message_qt() {
                     Response::VecPathType(deleted_items) => {
-                        let items = deleted_items.iter().map(|x| From::from(x)).collect::<Vec<TreePathType>>();
+                        let items = deleted_items.iter().map(From::from).collect::<Vec<TreePathType>>();
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()));
 
                         // Remove all the deleted PackedFiles from the cache.
@@ -666,7 +666,7 @@ impl PackFileContentsSlots {
 
                 // Get the currently selected paths (and visible) paths.
                 let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                let selected_items = selected_items.iter().map(|x| From::from(x)).collect::<Vec<PathType>>();
+                let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
                 let extraction_path = match UI_STATE.get_operational_mode() {
 
                     // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
@@ -835,7 +835,7 @@ impl PackFileContentsSlots {
 
                         // Add the folder's name to the list.
                         let mut complete_path = selected_paths[0].to_vec();
-                        complete_path.append(&mut (new_folder_name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
+                        complete_path.append(&mut (new_folder_name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
 
                         // Check if the folder exists.
                         CENTRAL_COMMAND.send_message_qt(Command::FolderExists(complete_path.to_vec()));
@@ -1081,7 +1081,7 @@ impl PackFileContentsSlots {
                     if export_path.is_dir() {
                         unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                        let selected_items = selected_items.iter().map(|x| From::from(x)).collect::<Vec<PathType>>();
+                        let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
                         CENTRAL_COMMAND.send_message_qt(Command::MassExportTSV(selected_items, export_path));
                         match CENTRAL_COMMAND.recv_message_qt() {
                             Response::String(response) => show_dialog(app_ui.main_window as *mut Widget, response, true),
