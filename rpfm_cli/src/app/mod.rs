@@ -75,20 +75,20 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(SubCommand::with_name("packfile")
             .about("Allows PackFile editing.")
 
-            // `Add File` option. Requires you provided a file.
+            // `Add Files` option. Requires you provided the destination folder in the PackFile and at least one file.
             .arg(Arg::with_name("add-files")
                 .short("a")
                 .long("add-files")
-                .value_name("FILE PATHS")
+                .value_name("DESTINATION FOLDER IN THE PACKFILE - FILE PATHS")
                 .help("Adds one or more files to the PackFile. If one of the files already exists, it'll replace it.")
                 .takes_value(true)
                 .min_values(2))
 
-            // `Add Folder` option. Requires you to provide the path for the folders folder.
+            // `Add Folders` option. Requires you provided the destination folder in the PackFile and at least one folder.
             .arg(Arg::with_name("add-folders")
                 .short("A")
                 .long("add-folders")
-                .value_name("FOLDER PATHS")
+                .value_name("DESTINATION FOLDER IN THE PACKFILE - FOLDER PATHS")
                 .help("Adds one or more files/folders to the PackFile. If one of the files already exists, it'll replace it.")
                 .takes_value(true)
                 .min_values(1))
@@ -110,6 +110,23 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
                 .help("Deletes one or more folders from the PackFile.")
                 .takes_value(true)
                 .min_values(1))
+            // `Extract Files` option. Requires you to provide the destination folder and the path of the files to extract.
+            .arg(Arg::with_name("extract-files")
+                .short("e")
+                .long("extract-files")
+                .value_name("DESTINATION FOLDER - FILE PATHS")
+                .help("extracts one or more files from the PackFile.")
+                .takes_value(true)
+                .min_values(2))
+
+            // `Extract Folders` option. Requires you to provide the destination folder and the path of the folders to delete.
+            .arg(Arg::with_name("extract-folders")
+                .short("E")
+                .long("extract-folders")
+                .value_name("DESTINATION FOLDER - FOLDER PATHS")
+                .help("Extracts one or more folders from the PackFile.")
+                .takes_value(true)
+                .min_values(2))
 
             // `List` option.
             .arg(Arg::with_name("list")

@@ -16,7 +16,7 @@ use prettytable::{Table, row, cell};
 
 use std::path::PathBuf;
 
-use rpfm_error::Result;
+use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::{PackFile, PathType};
 
@@ -88,19 +88,19 @@ pub fn add_folders(
 
 /// This function deletes all the PackedFiles with the provided paths from the PackFile, then saves it.
 pub fn delete_files(
-	config: &Config,
-	packfile: &str,
-	paths: &[&str],
+    config: &Config,
+    packfile: &str,
+    paths: &[&str],
 ) -> Result<()> {
-	if config.verbosity_level > 0 {
+    if config.verbosity_level > 0 {
         paths.iter().for_each(|x| info!("Deleting the following file from a PackFile: {}", x));
-	}
+    }
 
-	// Load the PackFile and the different PackedFiles to memory.
-	let packfile_path = PathBuf::from(packfile);
-	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
+    // Load the PackFile and the different PackedFiles to memory.
+    let packfile_path = PathBuf::from(packfile);
+    let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
+    paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
         .for_each(|x| packfile.remove_packed_file_by_path(&x));
     let result = packfile.save(None);
 
@@ -113,27 +113,86 @@ pub fn delete_files(
 
 /// This function deletes all the Folders with the provided paths from the PackFile, then saves it.
 pub fn delete_folders(
-	config: &Config,
-	packfile: &str,
-	paths: &[&str],
+    config: &Config,
+    packfile: &str,
+    paths: &[&str],
 ) -> Result<()> {
     if config.verbosity_level > 0 {
         paths.iter().for_each(|x| info!("Deleting the following folder from a PackFile: {}", x));
     }
 
-	// Load the PackFile and the different PackedFiles to memory.
-	let packfile_path = PathBuf::from(packfile);
-	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
+    // Load the PackFile and the different PackedFiles to memory.
+    let packfile_path = PathBuf::from(packfile);
+    let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
     paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
         .for_each(|x| { packfile.remove_packed_files_by_type(&[PathType::Folder(x)]); });
     let result = packfile.save(None);
 
     if config.verbosity_level > 0 {
-        info!("Folder successfully deleted from the PackFile.");
+        info!("Folders successfully deleted from the PackFile.");
     }
 
     result
+}
+/// This function extracts all the PackedFiles with the provided paths from the PackFile to the provided directory, if it's valid.
+pub fn extract_files(
+	config: &Config,
+	packfile: &str,
+	paths: &[&str],
+    destination_path: &str
+) -> Result<()> {
+	if config.verbosity_level > 0 {
+        paths.iter().for_each(|x| info!("Extracting the following file from a PackFile: {}", x));
+	}
+
+    let destination_path = PathBuf::from(destination_path);
+    if !destination_path.is_dir() {
+        return Err(ErrorKind::IOReadFolder(destination_path).into());
+    }
+
+	// Load the PackFile and the different PackedFiles to memory.
+	let packfile_path = PathBuf::from(packfile);
+	let packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
+
+	let result = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
+        .try_for_each(|x| packfile.extract_packed_file_by_path(&x, &destination_path));
+
+    if config.verbosity_level > 0 {
+        info!("Files successfully extracted from the PackFile.");
+    }
+
+    result
+}
+
+/// This function extracts all the folders with the provided paths from the PackFile to the provided directory, if it's valid.
+pub fn extract_folders(
+	config: &Config,
+	packfile: &str,
+	paths: &[&str],
+    destination_path: &str
+) -> Result<()> {
+    if config.verbosity_level > 0 {
+        paths.iter().for_each(|x| info!("Extracting the following folder from a PackFile: {}", x));
+    }
+
+    let destination_path = PathBuf::from(destination_path);
+    if !destination_path.is_dir() {
+        return Err(ErrorKind::IOReadFolder(destination_path).into());
+    }
+
+    // Load the PackFile and the different PackedFiles to memory.
+    let packfile_path = PathBuf::from(packfile);
+    let packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
+
+    let paths = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()).map(|x| PathType::Folder(x)).collect::<Vec<PathType>>();
+    packfile.extract_packed_files_by_type(&paths, &destination_path)?;
+
+    if config.verbosity_level > 0 {
+        info!("Folders successfully extracted from the PackFile.");
+    }
+
+    Ok(())
 }
 
 /// This function list the contents of the provided Packfile.
