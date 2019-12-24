@@ -182,6 +182,34 @@ pub enum APIResponseSchema {
     Error,
 }
 
+// Old formats, to ease updating schemas from 1.X to 2.X.
+// These all should remain private, as we only need them to be able to parse the old schemas and convert them into the new ones.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct LegacySchema {
+    pub tables_definitions: Vec<LegacyTableDefinitions>,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+struct LegacyTableDefinitions {
+    pub name: String,
+    pub versions: Vec<LegacyTableDefinition>,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+struct LegacyTableDefinition {
+    pub version: i32,
+    pub fields: Vec<LegacyField>,
+}
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+struct LegacyField {
+    pub field_name: String,
+    pub field_type: FieldType,
+    pub field_is_key: bool,
+    pub field_is_reference: Option<(String, String)>,
+    pub field_description: String,
+}
+
 //---------------------------------------------------------------------------//
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
@@ -497,6 +525,18 @@ impl Schema {
 
         // If everything worked, return success.
         Ok(())
+    }
+
+    pub fn update_schemas_from_legacy() {
+        let legacy_schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), From::from(LegacySchema::load(&y.schema).unwrap()))).collect::<BTreeMap<String, Schema>>();
+        let mut schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), Schema::load(&y.schema).unwrap())).collect::<BTreeMap<String, Schema>>();
+        legacy_schemas.iter().for_each(|(game, legacy_schema)| {
+            let schema = schemas.get_mut(game).unwrap();
+            legacy_schema.0.iter().for_each(|legacy_versioned_file| schema.add_versioned_file(legacy_versioned_file));
+            schema.save(&SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true).unwrap()).unwrap();
+        });
+
+
     }
 }
 
@@ -1054,5 +1094,54 @@ impl VersionsFile {
                 local.save()
             }
         }
+    }
+}
+
+impl LegacySchema {
+
+    /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
+    pub fn load(schema_file: &str) -> Result<Self> {
+        use std::path::PathBuf;
+        let mut file_path = PathBuf::from("./schemas/");
+        file_path.push(schema_file.replace(".ron", ".json"));
+
+        let file = BufReader::new(File::open(&file_path)?);
+        serde_json::from_reader(file).map_err(From::from)
+    }
+
+}
+
+/// Implementation of `From` from `LegacySchema` to `Schema`.
+impl From<LegacySchema> for Schema {
+    fn from(legacy_schema: LegacySchema) -> Self {
+        let mut schema = Schema::new();
+        legacy_schema.tables_definitions.iter().map(From::from).for_each(|x| schema.0.push(x));
+        schema
+    }
+}
+
+impl From<&LegacyTableDefinitions> for VersionedFile {
+    fn from(legacy_table_definitions: &LegacyTableDefinitions) -> Self {
+        VersionedFile::DB(legacy_table_definitions.name.to_owned(), legacy_table_definitions.versions.iter().map(From::from).collect())
+    }
+}
+
+impl From<&LegacyTableDefinition> for Definition {
+    fn from(legacy_table_definition: &LegacyTableDefinition) -> Self {
+        let mut definition = Definition::new(legacy_table_definition.version);
+        legacy_table_definition.fields.iter().map(From::from).for_each(|x| definition.fields.push(x));
+        definition
+    }
+}
+
+impl From<&LegacyField> for Field {
+    fn from(legacy_field: &LegacyField) -> Self {
+        let mut field = Field::default();
+        field.name = legacy_field.field_name.to_owned();
+        field.field_type = legacy_field.field_type.clone();
+        field.is_key = legacy_field.field_is_key;
+        field.is_reference = legacy_field.field_is_reference.clone();
+        field.description = legacy_field.field_description.to_owned();
+        field
     }
 }
