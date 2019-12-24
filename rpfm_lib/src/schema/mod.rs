@@ -57,6 +57,7 @@ use ron::de::{from_str, from_reader};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::{fmt, fmt::Display};
@@ -334,15 +335,43 @@ impl Schema {
     }
 
     /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
-    pub fn save(&self, schema_file: &str) -> Result<()> {
+    pub fn save(&mut self, schema_file: &str) -> Result<()> {
         let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
         file_path.push(schema_file);
 
         let mut file = File::create(&file_path)?;
-        let mut config = PrettyConfig::default();
-        config.enumerate_arrays = true;
+        let config = PrettyConfig::default();
+
+        self.sort();
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
+    }
+
+    /// This function sorts a `Schema` alphabetically, so the schema diffs are more or less clean.
+    pub fn sort(&mut self) {
+        self.0.sort_by(|a, b| {
+            match a {
+                VersionedFile::DB(table_name_a, _) => {
+                    match b {
+                        VersionedFile::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
+                        _ => Ordering::Less,
+                    }
+                }
+                VersionedFile::DepManager(_) => {
+                    match b {
+                        VersionedFile::DB(_,_) => Ordering::Greater,
+                        VersionedFile::DepManager(_) => Ordering::Equal,
+                        VersionedFile::Loc(_) => Ordering::Less,
+                    }
+                }
+                VersionedFile::Loc(_) => {
+                    match b {
+                        VersionedFile::Loc(_) => Ordering::Equal,
+                        _ => Ordering::Greater,
+                    }
+                }
+            }
+        });
     }
 
     /// This function exports all the schema files from the `schemas/` folder to `.json`.
@@ -1070,12 +1099,12 @@ impl VersionsFile {
                             // If it's an update over our own schema, we download it and overwrite the current schema.
                             // NOTE: Github's API has a limit of 1MB per file, so we take it directly from raw.githubusercontent.com instead.
                             if remote_version > local_version {
-                                let schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
+                                let mut schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
                                 schema.save(remote_file_name)?;
                             }
                         }
                         None => {
-                            let schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
+                            let mut schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
                             schema.save(remote_file_name)?;
                         }
                     }
@@ -1088,7 +1117,7 @@ impl VersionsFile {
             Err(_) => {
                 let local: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
                 for file_name in local.0.keys() {
-                    let schema: Schema = from_str(&reqwest::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
+                    let mut schema: Schema = from_str(&reqwest::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
                     schema.save(file_name)?;
                 }
                 local.save()

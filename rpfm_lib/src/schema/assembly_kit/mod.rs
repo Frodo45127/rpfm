@@ -366,7 +366,7 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                     }
                 }
 
-                Schema::save(&schema, &SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].schema)?;
+                Schema::save(&mut schema, &SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].schema)?;
 
                 Ok(())
             }
