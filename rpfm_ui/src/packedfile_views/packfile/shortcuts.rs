@@ -24,8 +24,10 @@ use crate::UI_STATE;
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
 pub fn set_shortcuts(ui: &PackFileExtraView) {
-    ui.get_ref_mut_expand_all().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["expand_all"])));
-    ui.get_ref_mut_collapse_all().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&UI_STATE.shortcuts.read().unwrap().tree_view["collapse_all"])));
+    let shortcuts = UI_STATE.get_shortcuts_no_lock();
+
+    ui.get_ref_mut_expand_all().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
+    ui.get_ref_mut_collapse_all().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
 
     ui.get_ref_mut_expand_all().set_shortcut_context(ShortcutContext::Widget);
     ui.get_ref_mut_collapse_all().set_shortcut_context(ShortcutContext::Widget);

@@ -87,7 +87,7 @@ mod locale;
 mod mymod_ui;
 mod pack_tree;
 mod packedfile_views;
-mod shortcuts;
+mod shortcuts_ui;
 mod settings_ui;
 mod ui;
 mod ui_state;

@@ -40,8 +40,8 @@ use rpfm_lib::settings::Settings;
 use crate::AppUI;
 use crate::QString;
 use crate::SETTINGS;
-use crate::settings_ui::slots::SettingsUISlots;
 use crate::utils::create_grid_layout_safe;
+use self::slots::SettingsUISlots;
 
 mod connections;
 mod slots;
@@ -124,16 +124,6 @@ pub struct SettingsUI {
     pub button_box_cancel_button: *mut PushButton,
     pub button_box_accept_button: *mut PushButton,
 }
-/*
-/// `MyModNewWindow`: This struct holds all the relevant stuff for "My Mod"'s New Mod Window.
-#[derive(Clone, Debug)]
-pub struct NewMyModDialog {
-    pub mymod_game_combobox: *mut ComboBox,
-    pub mymod_name_line_edit: *mut LineEdit,
-    pub cancel_button: *mut PushButton,
-    pub accept_button: *mut PushButton,
-}
-*/
 
 //-------------------------------------------------------------------------------//
 //                              Implementations
@@ -155,7 +145,7 @@ impl SettingsUI {
     }
 
     /// This function creates a new `SettingsUI` and links it to the provided parent.
-    fn new_with_parent(parent: *mut Widget) -> SettingsUI {
+    fn new_with_parent(parent: *mut Widget) -> Self {
 
         // Initialize and configure the settings window.
         let mut dialog = unsafe { Dialog::new_unsafe(parent) };

@@ -145,6 +145,14 @@ pub fn background_loop() {
                 }
             }
 
+            // In case we want to change the current shortcuts...
+            Command::SetShortcuts(shortcuts) => {
+                match shortcuts.save() {
+                    Ok(()) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // In case we want to get the data of a PackFile needed to form the TreeView...
             Command::GetPackFileDataForTreeView => {
 

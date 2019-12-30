@@ -32,6 +32,7 @@ use rpfm_lib::schema::APIResponseSchema;
 use rpfm_lib::settings::*;
 
 use crate::app_ui::NewPackedFile;
+use crate::ui_state::shortcuts::Shortcuts;
 use self::network::*;
 
 pub mod network;
@@ -77,6 +78,9 @@ pub enum Command {
 
     /// This command is used when we want to save our settings to disk. It requires the settings to save.
     SetSettings(Settings),
+
+    /// This command is used when we want to save our shortcuts to disk. It requires the shortcuts to save.
+    SetShortcuts(Shortcuts),
 
     /// This command is used when we want to get the data used to build the `TreeView`.
     GetPackFileDataForTreeView,

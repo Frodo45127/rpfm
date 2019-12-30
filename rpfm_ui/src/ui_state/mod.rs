@@ -23,10 +23,11 @@ use rpfm_lib::global_search::GlobalSearch;
 
 use crate::app_ui::AppUI;
 use crate::packedfile_views::PackedFileView;
-use crate::shortcuts::Shortcuts;
-use crate::ui_state::op_mode::OperationalMode;
+use self::op_mode::OperationalMode;
+use self::shortcuts::Shortcuts;
 
 pub mod op_mode;
+pub mod shortcuts;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -39,7 +40,7 @@ pub struct UIState {
     is_modified: AtomicBool,
 
     /// This stores the current shortcuts in memory, so they can be re-applied when needed.
-    pub shortcuts: Arc<RwLock<Shortcuts>>,
+    shortcuts: Arc<RwLock<Shortcuts>>,
 
     //s This stores if we have put the `PackFile Contents` view in read-only mode.
     packfile_contents_read_only: AtomicBool,
@@ -85,6 +86,21 @@ impl UIState {
     /// This function sets the flag that stores if the open PackFile has been modified or not.
     pub fn set_is_modified(&self, is_modified: bool) {
         self.is_modified.store(is_modified, Ordering::SeqCst);
+    }
+
+    /// This function returns the current Shortcuts.
+    pub fn get_shortcuts(&self) -> Shortcuts{
+        self.shortcuts.read().unwrap().clone()
+    }
+
+    /// This function returns a read-only non-locking guard to the Shortcuts.
+    pub fn get_shortcuts_no_lock(&self) -> RwLockReadGuard<Shortcuts> {
+        self.shortcuts.read().unwrap()
+    }
+
+    /// This function replaces the current Shortcuts with the provided one.
+    pub fn set_shortcuts(&self, shortcuts: &Shortcuts) {
+        *self.shortcuts.write().unwrap() = shortcuts.clone();
     }
 
     /// This function gets if the `PackFile Contents` TreeView is in read-only mode or not.

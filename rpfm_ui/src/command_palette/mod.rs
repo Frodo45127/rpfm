@@ -35,7 +35,8 @@ pub fn get_actions(
 ) -> Vec<(*mut Action, String)> {
 
 	let mut actions = vec![];
-	let shortcuts = UI_STATE.shortcuts.read().unwrap();
+    let shortcuts = UI_STATE.get_shortcuts_no_lock();
+
 	//-------------------------------------------------------------------------------//
     // `PackFile` menu.
     //-------------------------------------------------------------------------------//
@@ -102,25 +103,25 @@ pub fn get_actions(
 	//-------------------------------------------------------------------------------//
     // Contextual menu for the PackFile Contents TreeView.
     //-------------------------------------------------------------------------------//
-	actions.push((pack_file_contents_ui.context_menu_add_file, shortcuts.tree_view["add_file"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_add_folder, shortcuts.tree_view["add_folder"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_add_from_packfile, shortcuts.tree_view["add_from_packfile"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_new_folder, shortcuts.tree_view["create_folder"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_new_packed_file_db, shortcuts.tree_view["create_db"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_new_packed_file_loc, shortcuts.tree_view["create_loc"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_new_packed_file_text, shortcuts.tree_view["create_text"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_mass_import_tsv, shortcuts.tree_view["mass_import_tsv"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_mass_export_tsv, shortcuts.tree_view["mass_export_tsv"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_rename, shortcuts.tree_view["rename"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_delete, shortcuts.tree_view["delete"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_extract, shortcuts.tree_view["extract"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_open_decoder, shortcuts.tree_view["open_in_decoder"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_open_dependency_manager, shortcuts.tree_view["open_packfiles_list"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_open_containing_folder, shortcuts.tree_view["open_containing_folder"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_open_with_external_program, shortcuts.tree_view["open_with_external_program"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_open_notes, shortcuts.tree_view["open_notes"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_check_tables, shortcuts.tree_view["check_tables"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_merge_tables, shortcuts.tree_view["merge_tables"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_add_file, shortcuts.packfile_contents_tree_view["add_file"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_add_folder, shortcuts.packfile_contents_tree_view["add_folder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_add_from_packfile, shortcuts.packfile_contents_tree_view["add_from_packfile"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_new_folder, shortcuts.packfile_contents_tree_view["create_folder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_new_packed_file_db, shortcuts.packfile_contents_tree_view["create_db"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_new_packed_file_loc, shortcuts.packfile_contents_tree_view["create_loc"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_new_packed_file_text, shortcuts.packfile_contents_tree_view["create_text"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_mass_import_tsv, shortcuts.packfile_contents_tree_view["mass_import_tsv"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_mass_export_tsv, shortcuts.packfile_contents_tree_view["mass_export_tsv"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_rename, shortcuts.packfile_contents_tree_view["rename"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_delete, shortcuts.packfile_contents_tree_view["delete"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_extract, shortcuts.packfile_contents_tree_view["extract"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_decoder, shortcuts.packfile_contents_tree_view["open_in_decoder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_dependency_manager, shortcuts.packfile_contents_tree_view["open_packfiles_list"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_containing_folder, shortcuts.packfile_contents_tree_view["open_containing_folder"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_with_external_program, shortcuts.packfile_contents_tree_view["open_with_external_program"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_open_notes, shortcuts.packfile_contents_tree_view["open_notes"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_check_tables, shortcuts.packfile_contents_tree_view["check_tables"].to_owned()));
+	actions.push((pack_file_contents_ui.context_menu_merge_tables, shortcuts.packfile_contents_tree_view["merge_tables"].to_owned()));
 
 	actions
 }
