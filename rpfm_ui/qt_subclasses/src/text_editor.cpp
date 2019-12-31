@@ -29,7 +29,7 @@ extern "C" void set_text(QWidget* view, QString* text) {
 }
 
 // Function to trigger the config dialog of the text editor.
-extern "C" void config(QWidget* parent) {
+extern "C" void open_text_editor_config(QWidget* parent) {
 
     KTextEditor::Editor* editor = KTextEditor::Editor::instance();
     editor->configDialog(parent);

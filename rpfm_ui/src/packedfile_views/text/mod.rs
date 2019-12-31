@@ -23,7 +23,7 @@ use rpfm_error::Result;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::{config, new_text_editor, set_text};
+use crate::ffi::{new_text_editor, set_text};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
@@ -96,11 +96,5 @@ impl PackedFileTextView {
     /// This function returns a pointer to the editor widget.
     pub fn get_mut_editor(&self) -> *mut Widget {
         self.editor.load(Ordering::SeqCst)
-    }
-
-    /// This function triggers the config dialog for the editor.
-    pub fn show_config(packed_file_view: &PackedFileView) {
-        unsafe { config(packed_file_view.get_mut_widget()) };
-
     }
 }

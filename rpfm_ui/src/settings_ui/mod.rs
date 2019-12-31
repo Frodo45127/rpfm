@@ -120,6 +120,7 @@ pub struct SettingsUI {
     // `ButtonBox` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
     pub button_box_restore_default_button: *mut PushButton,
+    pub button_box_text_editor_settings_button: *mut PushButton,
     pub button_box_shortcuts_button: *mut PushButton,
     pub button_box_cancel_button: *mut PushButton,
     pub button_box_accept_button: *mut PushButton,
@@ -342,9 +343,11 @@ impl SettingsUI {
         //-----------------------------------------------//
         let mut button_box = DialogButtonBox::new(());
         let mut button_box_shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
+        let mut button_box_text_editor_settings_button = PushButton::new(&QString::from_std_str("Text Editor Preferences"));
 
         let button_box_restore_default_button = button_box.add_button(dialog_button_box::StandardButton::RestoreDefaults);
         unsafe { button_box.add_button_unsafe(button_box_shortcuts_button.static_cast_mut() as *mut AbstractButton, ButtonRole::ResetRole); }
+        unsafe { button_box.add_button_unsafe(button_box_text_editor_settings_button.static_cast_mut() as *mut AbstractButton, ButtonRole::ResetRole); }
         let button_box_cancel_button = button_box.add_button(dialog_button_box::StandardButton::Cancel);
         let button_box_accept_button = button_box.add_button(dialog_button_box::StandardButton::Save);
 
@@ -419,6 +422,7 @@ impl SettingsUI {
             // `ButtonBox` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
             button_box_restore_default_button,
+            button_box_text_editor_settings_button: button_box_text_editor_settings_button.into_raw(),
             button_box_shortcuts_button: button_box_shortcuts_button.into_raw(),
             button_box_cancel_button,
             button_box_accept_button,

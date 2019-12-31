@@ -39,7 +39,6 @@ use self::slots::ShortcutsUISlots;
 
 mod connections;
 mod slots;
-mod tips;
 
 const MENU_BAR_PACKFILE_SECTION: &str = "PackFile Menu";
 const MENU_BAR_MYMOD_SECTION: &str = "MyMod Menu";
@@ -79,7 +78,6 @@ impl ShortcutsUI {
         let mut ui = Self::new_with_parent(parent);
         let slots = ShortcutsUISlots::new(&ui);
         connections::set_connections(&ui, &slots);
-        tips::set_tips(&ui);
         ui.load(&UI_STATE.get_shortcuts());
 
         if unsafe { ui.dialog.as_mut().unwrap().exec() == 1 } { Some(ui.save()) }

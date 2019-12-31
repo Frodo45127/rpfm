@@ -58,4 +58,4 @@ extern "C" { pub fn get_text(document: *mut Widget) -> QString; }
 extern "C" { pub fn set_text(document: *mut Widget, string: *mut QString); }
 
 /// This function triggers the config dialog for the KTextEditor.
-extern "C" { pub fn config(parent: *mut Widget); }
+extern "C" { pub fn open_text_editor_config(parent: *mut Widget); }

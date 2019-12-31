@@ -12,6 +12,6 @@ extern "C" QString* get_text(QWidget* parent = nullptr);
 
 extern "C" void set_text(QWidget* view = nullptr, QString* text = nullptr);
 
-extern "C" void config(QWidget* parent);
+extern "C" void open_text_editor_config(QWidget* parent);
 
 #endif // TEXT_EDITOR_H
