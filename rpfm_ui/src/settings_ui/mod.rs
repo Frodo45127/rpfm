@@ -38,6 +38,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::Settings;
 
 use crate::AppUI;
+use crate::locale;
 use crate::QString;
 use crate::SETTINGS;
 use crate::utils::create_grid_layout_safe;
@@ -73,6 +74,7 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     // `UI` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
+    pub ui_language_label: *mut Label,
     pub ui_global_use_dark_theme_label: *mut Label,
     pub ui_table_adjust_columns_to_content_label: *mut Label,
     pub ui_table_disable_combos_label: *mut Label,
@@ -82,6 +84,7 @@ pub struct SettingsUI {
     pub ui_table_remember_table_state_permanently_label: *mut Label,
     pub ui_window_start_maximized_label: *mut Label,
 
+    pub ui_language_combobox: *mut ComboBox,
     pub ui_global_use_dark_theme_checkbox: *mut CheckBox,
     pub ui_table_adjust_columns_to_content_checkbox: *mut CheckBox,
     pub ui_table_disable_combos_checkbox: *mut CheckBox,
@@ -214,6 +217,7 @@ impl SettingsUI {
         ui_table_view_grid.set_spacing(4);
         ui_table_view_grid.set_row_stretch(99, 10);
 
+        let mut ui_language_label = Label::new(&QString::from_std_str("Language (Requires restart):"));
         let mut ui_global_use_dark_theme_label = Label::new(&QString::from_std_str("Use Dark Theme (Requires restart):"));
         let mut ui_table_adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
         let mut ui_table_disable_combos_label = Label::new(&QString::from_std_str("Disable ComboBoxes on Tables:"));
@@ -223,6 +227,7 @@ impl SettingsUI {
         let mut ui_table_remember_table_state_permanently_label = Label::new(&QString::from_std_str("Remember Table State Across PackFiles:"));
         let mut ui_window_start_maximized_label = Label::new(&QString::from_std_str("Start Maximized:"));
 
+        let mut ui_language_combobox = ComboBox::new();
         let mut ui_global_use_dark_theme_checkbox = CheckBox::new(());
         let mut ui_table_adjust_columns_to_content_checkbox = CheckBox::new(());
         let mut ui_table_disable_combos_checkbox = CheckBox::new(());
@@ -232,6 +237,12 @@ impl SettingsUI {
         let mut ui_table_remember_table_state_permanently_checkbox = CheckBox::new(());
         let mut ui_window_start_maximized_checkbox = CheckBox::new(());
 
+        let ui_language_model = StandardItemModel::new(());
+        unsafe { ui_language_combobox.set_model(ui_language_model.into_raw() as *mut AbstractItemModel); }
+        for language in locale::get_available_locales() {
+            ui_language_combobox.add_item(&QString::from_std_str(language.get_language()));
+        }
+
         // Add all Label/Checkboxes to the grid.
         if cfg!(not(target_os = "linux")) {
             unsafe { ui_grid.add_widget((ui_global_use_dark_theme_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
@@ -240,6 +251,9 @@ impl SettingsUI {
 
         unsafe { ui_grid.add_widget((ui_window_start_maximized_label.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
         unsafe { ui_grid.add_widget((ui_window_start_maximized_checkbox.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
+
+        unsafe { ui_grid.add_widget((ui_language_label.static_cast_mut() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { ui_grid.add_widget((ui_language_combobox.static_cast_mut() as *mut Widget, 2, 1, 1, 1)); }
 
         unsafe { ui_table_view_grid.add_widget((ui_table_adjust_columns_to_content_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { ui_table_view_grid.add_widget((ui_table_adjust_columns_to_content_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
@@ -375,6 +389,7 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             // `UI` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
+            ui_language_label: ui_language_label.into_raw(),
             ui_global_use_dark_theme_label: ui_global_use_dark_theme_label.into_raw(),
             ui_table_adjust_columns_to_content_label: ui_table_adjust_columns_to_content_label.into_raw(),
             ui_table_disable_combos_label: ui_table_disable_combos_label.into_raw(),
@@ -384,6 +399,7 @@ impl SettingsUI {
             ui_table_remember_table_state_permanently_label: ui_table_remember_table_state_permanently_label.into_raw(),
             ui_window_start_maximized_label: ui_window_start_maximized_label.into_raw(),
 
+            ui_language_combobox: ui_language_combobox.into_raw(),
             ui_global_use_dark_theme_checkbox: ui_global_use_dark_theme_checkbox.into_raw(),
             ui_table_adjust_columns_to_content_checkbox: ui_table_adjust_columns_to_content_checkbox.into_raw(),
             ui_table_disable_combos_checkbox: ui_table_disable_combos_checkbox.into_raw(),
