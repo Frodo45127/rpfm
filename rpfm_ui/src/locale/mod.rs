@@ -33,6 +33,9 @@ use crate::QString;
 /// Name of the folder containing all the schemas.
 const LOCALE_FOLDER: &str = "locale";
 
+/// Replace sequence used to insert data into the translations.
+const REPLACE_SEQUENCE: &str = "{}";
+
 /// This struct contains a localisation use in RPFM.
 #[derive(Clone)]
 pub struct Locale(Arc<RwLock<FluentBundle<FluentResource>>>);
@@ -123,9 +126,29 @@ pub fn tr(key: &str) -> String {
     Locale::tr(key)
 }
 
+/// This function returns the translation as a `String` for the key provided in the current language,
+/// replacing certain parts of the translation with the replacements provided.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn tre(key: &str, replacements: &[&str]) -> String {
+    let mut translation = Locale::tr(key);
+    replacements.iter().for_each(|x| translation = translation.replacen(REPLACE_SEQUENCE, x, 1));
+    translation
+}
+
 /// This function returns the translation as a `QString` for the key provided in the current language.
 ///
 /// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
 pub fn qtr(key: &str) -> QString {
     QString::from_std_str(Locale::tr(key))
+}
+
+/// This function returns the translation as a `QString` for the key provided in the current language,
+/// replacing certain parts of the translation with the replacements provided.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn qtre(key: &str, replacements: &[&str]) -> QString {
+    let mut translation = Locale::tr(key);
+    replacements.iter().for_each(|x| translation = translation.replacen(REPLACE_SEQUENCE, x, 1));
+    QString::from_std_str(translation)
 }
