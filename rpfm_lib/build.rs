@@ -39,6 +39,6 @@ fn common_config() {
     println!("cargo:rustc-link-search=native=./libs");
 
     // Force cargo to rerun this script if any of these files is changed.
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=libs/*");
+    println!("cargo:rerun-if-changed=./libs/*");
+    println!("cargo:rerun-if-changed=./rpfm_lib/build.rs");
 }

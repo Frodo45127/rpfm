@@ -99,8 +99,8 @@ fn main() {
         exit(98);
     }
 
-    if Command::new("gmake").output().is_err() {
-        stdout().write(b"ERROR: You either don't have gmake installed, or it's not in the path. Fix that before continuing.").unwrap();
+    if Command::new("make").output().is_err() {
+        stdout().write(b"ERROR: You either don't have make installed, or it's not in the path. Fix that before continuing.").unwrap();
         exit(99);
     }
 
@@ -113,7 +113,7 @@ fn main() {
         .output().unwrap();
 
     // This compiles the custom widgets lib.
-    Command::new("gmake")
+    Command::new("make")
         .current_dir("qt_subclasses/")
         .output().unwrap();
 }
@@ -122,12 +122,12 @@ fn main() {
 fn common_config() {
 
     // This is to make RPFM able to see the extra libs we need while building.
-    println!("cargo:rustc-link-search=native=../libs/*");
+    println!("cargo:rustc-link-search=native=./libs");
     println!("cargo:rustc-link-lib=dylib=qt_subclasses");
     println!("cargo:rustc-link-lib=dylib=ktexteditor");
 
     // Force cargo to rerun this script if any of these files is changed.
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=../libs/*");
-    println!("cargo:rerun-if-changed=qt_subclasses/*");
+    println!("cargo:rerun-if-changed=./libs/*");
+    println!("cargo:rerun-if-changed=./rpfm_ui/build.rs");
+    println!("cargo:rerun-if-changed=./rpfm_ui/qt_subclasses/*");
 }
