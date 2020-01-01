@@ -10,7 +10,7 @@ extern "C" QWidget* new_text_editor(QWidget* parent = nullptr);
 
 extern "C" QString* get_text(QWidget* parent = nullptr);
 
-extern "C" void set_text(QWidget* view = nullptr, QString* text = nullptr);
+extern "C" void set_text(QWidget* view = nullptr, QString* text = nullptr, QString* highlighting_mode = nullptr);
 
 extern "C" void open_text_editor_config(QWidget* parent);
 

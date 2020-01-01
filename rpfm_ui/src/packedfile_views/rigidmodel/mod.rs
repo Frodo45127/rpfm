@@ -25,6 +25,7 @@ use crate::communications::*;
 use crate::ffi::{new_text_editor};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::QString;
 use self::slots::PackedFileRigidModelViewSlots;
 
 pub mod slots;

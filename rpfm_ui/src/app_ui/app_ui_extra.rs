@@ -46,7 +46,7 @@ use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths};
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packedfile::{PackedFileType, text::TextType};
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
@@ -1048,8 +1048,8 @@ impl AppUI {
                     }
 
                     // If the file is a Text PackedFile...
-                    PackedFileType::Text => {
-                        match PackedFileTextView::new_view(&path, &mut tab, global_search_ui) {
+                    PackedFileType::Text(text_type) => {
+                        match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, text_type) {
                             Ok(slots) => {
                                 slot_holder.borrow_mut().push(slots);
 
@@ -1129,7 +1129,7 @@ impl AppUI {
                             if let PackedFileType::Loc = packed_file_type {
                                 if !name.ends_with(".loc") { name.push_str(".loc"); }
                             }
-                            if let PackedFileType::Text = packed_file_type {
+                            if let PackedFileType::Text(TextType::Plain) = packed_file_type {
                                 if !name.ends_with(".lua") &&
                                     !name.ends_with(".xml") &&
                                     !name.ends_with(".xml.shader") &&
@@ -1312,7 +1312,7 @@ impl AppUI {
         match packed_file_type {
             PackedFileType::DB => dialog.set_window_title(&QString::from_std_str("New DB Table")),
             PackedFileType::Loc => dialog.set_window_title(&QString::from_std_str("New Loc PackedFile")),
-            PackedFileType::Text => dialog.set_window_title(&QString::from_std_str("New Text PackedFile")),
+            PackedFileType::Text(_) => dialog.set_window_title(&QString::from_std_str("New Text PackedFile")),
             _ => unimplemented!(),
         }
         dialog.set_modal(true);
@@ -1383,7 +1383,7 @@ impl AppUI {
                     Some(Ok(NewPackedFile::DB(packed_file_name, table, version)))
                 },
                 PackedFileType::Loc => Some(Ok(NewPackedFile::Loc(packed_file_name))),
-                PackedFileType::Text => Some(Ok(NewPackedFile::Text(packed_file_name))),
+                PackedFileType::Text(_) => Some(Ok(NewPackedFile::Text(packed_file_name))),
                 _ => unimplemented!(),
             }
         }

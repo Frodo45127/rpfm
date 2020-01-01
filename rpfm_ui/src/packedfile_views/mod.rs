@@ -143,7 +143,7 @@ impl PackedFileView {
             PackedFileType::Loc => return,
             PackedFileType::RigidModel => return,
 
-            PackedFileType::Text => {
+            PackedFileType::Text(_) => {
                 if let View::Text(view) = self.get_view() {
                     let mut text = Text::default();
                     unsafe { text.set_contents(&get_text(view.get_mut_editor()).to_std_string()) };

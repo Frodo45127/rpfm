@@ -20,6 +20,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
+use rpfm_lib::packedfile::text::TextType;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -62,6 +63,7 @@ impl PackedFileTextView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
+        text_type: TextType,
     ) -> Result<TheOneSlot> {
 
         // Get the decoded Text.
@@ -72,11 +74,17 @@ impl PackedFileTextView {
             _ => panic!(THREADS_COMMUNICATION_ERROR),
         };
 
+        let mut highlighting_mode = match text_type {
+            TextType::Lua => QString::from_std_str("Lua"),
+            TextType::Xml => QString::from_std_str("XML"),
+            TextType::Plain => QString::from_std_str("Normal"),
+        };
+
         let editor = unsafe { new_text_editor(packed_file_view.get_mut_widget()) };
         let layout = unsafe { packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout };
         unsafe { layout.as_mut().unwrap().add_widget((editor, 0, 0, 1, 1)); }
 
-        unsafe { set_text(editor, &mut QString::from_std_str(text.get_ref_contents())) };
+        unsafe { set_text(editor, &mut QString::from_std_str(text.get_ref_contents()), &mut highlighting_mode) };
 
         let packed_file_text_view_raw = PackedFileTextViewRaw {editor};
         let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *global_search_ui, &packed_file_path);

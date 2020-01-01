@@ -48,6 +48,16 @@ pub enum SupportedEncodings {
     //Iso8859_15,
 }
 
+/// This enum contains the list of text types RPFM supports.
+///
+/// This is so you can do things depending on the language the text file is written.
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum TextType {
+    Xml,
+    Lua,
+    Plain,
+}
+
 //---------------------------------------------------------------------------//
 //                           Implementation of Text
 //---------------------------------------------------------------------------//

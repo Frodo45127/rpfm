@@ -30,6 +30,7 @@ use std::rc::Rc;
 use rpfm_error::ErrorKind;
 use rpfm_lib::common::get_files_from_subdir;
 use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -820,7 +821,7 @@ impl PackFileContentsSlots {
 
         // What happens when we trigger the "Create Text PackedFile" Action.
         let contextual_menu_new_packed_file_text = SlotBool::new(move |_| {
-            app_ui.new_packed_file(&pack_file_contents_ui, &PackedFileType::Text);
+            app_ui.new_packed_file(&pack_file_contents_ui, &PackedFileType::Text(TextType::Plain));
         });
 
         // What happens when we trigger the "New Folder" Action.

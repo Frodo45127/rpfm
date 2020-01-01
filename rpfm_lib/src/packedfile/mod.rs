@@ -27,7 +27,7 @@ use rpfm_error::{Error, ErrorKind, Result};
 use crate::DEPENDENCY_DATABASE;
 use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
-use crate::packedfile::text::Text;
+use crate::packedfile::text::{Text, TextType};
 use crate::packedfile::rigidmodel::RigidModel;
 use crate::packfile::packedfile::RawPackedFile;
 use crate::schema::Schema;
@@ -78,7 +78,9 @@ pub enum PackedFileType {
     MatchedCombat,
     RigidModel,
     StarPos,
-    Text,
+
+    /// This one is an exception, as it contains the MimeType of the Text PackedFile, so we can do things depending on the type..
+    Text(TextType),
     Unknown,
 }
 
@@ -123,7 +125,7 @@ impl DecodedPackedFile {
                 }
             }
 
-            PackedFileType::Text => {
+            PackedFileType::Text(_) => {
                 let data = data.get_data()?;
                 let packed_file = Text::read(&data)?;
                 Ok(DecodedPackedFile::Text(packed_file))
@@ -154,7 +156,7 @@ impl DecodedPackedFile {
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
 
-            PackedFileType::Text => {
+            PackedFileType::Text(_) => {
                 let data = data.get_data()?;
                 let packed_file = Text::read(&data)?;
                 Ok(DecodedPackedFile::Text(packed_file))
@@ -227,7 +229,7 @@ impl Display for PackedFileType {
             PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
             PackedFileType::RigidModel => write!(f, "RigidModel"),
             PackedFileType::StarPos => write!(f, "StartPos"),
-            PackedFileType::Text => write!(f, "Text"),
+            PackedFileType::Text(text_type) => write!(f, "Text, type: {:?}", text_type),
             PackedFileType::Unknown => write!(f, "Unknown"),
         }
     }
@@ -250,15 +252,16 @@ impl PackedFileType {
             else if packedfile_name.ends_with(".rigid_model_v2") { PackedFileType::RigidModel }
 
             // If it ends in any of these, it's a plain text PackedFile.
-            else if packedfile_name.ends_with(".lua") ||
-                    packedfile_name.ends_with(".xml") ||
+            else if packedfile_name.ends_with(".lua") { PackedFileType::Text(TextType::Lua) }
+            else if packedfile_name.ends_with(".xml") ||
                     packedfile_name.ends_with(".xml.shader") ||
                     packedfile_name.ends_with(".xml.material") ||
                     packedfile_name.ends_with(".variantmeshdefinition") ||
                     packedfile_name.ends_with(".environment") ||
                     packedfile_name.ends_with(".lighting") ||
-                    packedfile_name.ends_with(".wsmodel") ||
-                    packedfile_name.ends_with(".csv") ||
+                    packedfile_name.ends_with(".wsmodel") { PackedFileType::Text(TextType::Xml) }
+
+            else if packedfile_name.ends_with(".csv") ||
                     packedfile_name.ends_with(".tsv") ||
                     packedfile_name.ends_with(".inl") ||
                     packedfile_name.ends_with(".battle_speech_camera") ||
@@ -266,7 +269,7 @@ impl PackedFileType {
                     packedfile_name.ends_with(".cindyscene") ||
                     packedfile_name.ends_with(".cindyscenemanager") ||
                     //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                    packedfile_name.ends_with(".txt") { PackedFileType::Text }
+                    packedfile_name.ends_with(".txt") { PackedFileType::Text(TextType::Plain) }
 
             // If it ends in any of these, it's an image.
             else if packedfile_name.ends_with(".jpg") ||

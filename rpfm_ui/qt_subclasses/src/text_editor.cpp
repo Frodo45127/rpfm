@@ -20,12 +20,15 @@ extern "C" QString* get_text(QWidget* view) {
 }
 
 // Function to set the current text of the text editor.
-extern "C" void set_text(QWidget* view, QString* text) {
+extern "C" void set_text(QWidget* view, QString* text, QString* highlighting_mode) {
 
     KTextEditor::View* doc_view = dynamic_cast<KTextEditor::View*>(view);
     KTextEditor::Document* doc = doc_view->document();
     QString text_object = *text;
     doc->setText(text_object);
+
+    QString highlight_mode = *highlighting_mode;
+    doc->setHighlightingMode(highlight_mode);
 }
 
 // Function to trigger the config dialog of the text editor.

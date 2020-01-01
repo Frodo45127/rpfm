@@ -22,7 +22,7 @@ use rpfm_error::{ErrorKind, Result};
 use crate::packfile::{PackFile, PathType};
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::{DecodedData, db::DB, loc::Loc};
-use crate::packedfile::text::Text;
+use crate::packedfile::text::{Text, TextType};
 use crate::schema::{Definition, Schema, VersionedFile};
 use crate::SCHEMA;
 
@@ -158,7 +158,7 @@ impl GlobalSearch {
             }
 
             if self.search_on_texts {
-                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Text);
+                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Text(TextType::Plain));
                 self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                     let path = packed_file.get_path().to_vec();
                     if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
