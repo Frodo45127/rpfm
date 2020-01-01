@@ -299,12 +299,12 @@ impl Default for AppUI {
 
         // Create the `MenuBar` menus.
         let menu_bar_ref_mut = unsafe { menu_bar.as_mut().unwrap() };
-        let menu_bar_packfile = menu_bar_ref_mut.add_menu(&qtr("menu-bar-packfile"));
-        let menu_bar_mymod = menu_bar_ref_mut.add_menu(&qtr("menu-bar-mymod"));
-        let menu_bar_view = menu_bar_ref_mut.add_menu(&qtr("menu-bar-view"));
-        let menu_bar_game_seleted = menu_bar_ref_mut.add_menu(&qtr("menu-bar-game-selected"));
-        let menu_bar_special_stuff = menu_bar_ref_mut.add_menu(&qtr("menu-bar-special-stuff"));
-        let menu_bar_about = menu_bar_ref_mut.add_menu(&qtr("menu-bar-about"));
+        let menu_bar_packfile = menu_bar_ref_mut.add_menu(&qtr("menu_bar_packfile"));
+        let menu_bar_mymod = menu_bar_ref_mut.add_menu(&qtr("menu_bar_mymod"));
+        let menu_bar_view = menu_bar_ref_mut.add_menu(&qtr("menu_bar_view"));
+        let menu_bar_game_seleted = menu_bar_ref_mut.add_menu(&qtr("menu_bar_game_selected"));
+        let menu_bar_special_stuff = menu_bar_ref_mut.add_menu(&qtr("menu_bar_special_stuff"));
+        let menu_bar_about = menu_bar_ref_mut.add_menu(&qtr("menu_bar_about"));
 
         //-----------------------------------------------//
         // `PackFile` Menu.
@@ -312,16 +312,16 @@ impl Default for AppUI {
 
         // Populate the `PackFile` menu.
         let menu_bar_packfile_ref_mut = unsafe { menu_bar_packfile.as_mut().unwrap() };
-        let packfile_new_packfile = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&New PackFile"));
-        let packfile_open_packfile = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Open PackFile"));
-        let packfile_save_packfile = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Save PackFile"));
-        let packfile_save_packfile_as = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("Save PackFile &As..."));
-        let mut packfile_menu_open_from_content = Menu::new(&QString::from_std_str("Open From Content"));
-        let mut packfile_menu_open_from_data = Menu::new(&QString::from_std_str("Open From Data"));
-        let mut packfile_menu_change_packfile_type = Menu::new(&QString::from_std_str("&Change PackFile Type"));
-        let packfile_load_all_ca_packfiles = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Load All CA PackFiles"));
-        let packfile_preferences = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Preferences"));
-        let packfile_quit = menu_bar_packfile_ref_mut.add_action(&QString::from_std_str("&Quit"));
+        let packfile_new_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("new_packfile"));
+        let packfile_open_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("open_packfile"));
+        let packfile_save_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("save_packfile"));
+        let packfile_save_packfile_as = menu_bar_packfile_ref_mut.add_action(&qtr("save_packfile_as"));
+        let mut packfile_menu_open_from_content = Menu::new(&qtr("open_from_content"));
+        let mut packfile_menu_open_from_data = Menu::new(&qtr("open_from_data"));
+        let mut packfile_menu_change_packfile_type = Menu::new(&qtr("change_packfile_type"));
+        let packfile_load_all_ca_packfiles = menu_bar_packfile_ref_mut.add_action(&qtr("load_all_ca_packfiles"));
+        let packfile_preferences = menu_bar_packfile_ref_mut.add_action(&qtr("preferences"));
+        let packfile_quit = menu_bar_packfile_ref_mut.add_action(&qtr("quit"));
 
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
         unsafe { menu_bar_packfile_ref_mut.insert_menu(packfile_load_all_ca_packfiles, packfile_menu_open_from_content.as_mut_ptr()); }
