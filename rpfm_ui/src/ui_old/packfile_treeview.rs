@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -337,11 +337,11 @@ pub fn update_treeview(
                     // If it's a folder, we check first if it's already in the TreeView using the following
                     // logic:
                     // - If the current parent has a child, it should be a folder already in the TreeView,
-                    //   so we check all his children. 
-                    // - If any of them is equal to the current folder we are trying to add and it has at 
-                    //   least one child, it's a folder exactly like the one we are trying to add, so that 
-                    //   one becomes our new parent. 
-                    // - If there is no equal folder to the one we are trying to add, we add it, turn it 
+                    //   so we check all his children.
+                    // - If any of them is equal to the current folder we are trying to add and it has at
+                    //   least one child, it's a folder exactly like the one we are trying to add, so that
+                    //   one becomes our new parent.
+                    // - If there is no equal folder to the one we are trying to add, we add it, turn it
                     //   into the new parent, and repeat.
                     else {
 
@@ -395,7 +395,7 @@ pub fn update_treeview(
             // For each path in our list of paths to add...
             for item_type in &item_types {
 
-                // First, we get the item of our PackFile in the TreeView, 
+                // First, we get the item of our PackFile in the TreeView,
                 // and bit by bit, we build the path's items from it.
                 if let TreePathType::File(ref path) | TreePathType::Folder(ref path) = &item_type {
                     let mut parent = unsafe { model.as_ref().unwrap().item(0) };
@@ -411,7 +411,7 @@ pub fn update_treeview(
 
                     for (index, name) in path.iter().enumerate() {
 
-                        // If it's the last one of the path, it's a file or an empty folder. First, we check if it 
+                        // If it's the last one of the path, it's a file or an empty folder. First, we check if it
                         // already exists. If it does, then we update it and set it as new. If it doesn't, we create it.
                         if index >= (path.len() - 1) {
 
@@ -452,7 +452,7 @@ pub fn update_treeview(
                             // Otherwise, it's a new PackedFile, so do the usual stuff.
                             else {
 
-                                // Create the Item, configure it depending on if it's a file or a folder, 
+                                // Create the Item, configure it depending on if it's a file or a folder,
                                 // and add the file to the TreeView.
                                 let item = StandardItem::new(&QString::from_std_str(name)).into_raw();
                                 unsafe { item.as_mut().unwrap().set_editable(false); }
@@ -638,7 +638,7 @@ pub fn update_treeview(
                         let item_type = get_type_of_item(parent, model);
                         if let TreePathType::File(ref path) | TreePathType::Folder(ref path) = item_type {
                             for _ in 0..path.len() {
-                                parent = unsafe { parent.as_ref().unwrap().parent() }; 
+                                parent = unsafe { parent.as_ref().unwrap().parent() };
                                 unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21)); }
                                 unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
                             }
@@ -713,7 +713,7 @@ pub fn update_treeview(
                             for _ in 0..path.len() {
                                 unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21)); }
                                 unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(true), 22)); }
-                                parent = unsafe { parent.as_ref().unwrap().parent() }; 
+                                parent = unsafe { parent.as_ref().unwrap().parent() };
                             }
                         }
                     }
@@ -771,7 +771,7 @@ pub fn update_treeview(
 
                     TreePathType::PackFile => {
                         let item = unsafe { model.as_mut().unwrap().item(0) };
-                        let status = unsafe { item.as_ref().unwrap().data(21).to_int() }; 
+                        let status = unsafe { item.as_ref().unwrap().data(21).to_int() };
                         match status {
                             0 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
                             1 => unsafe { item.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
@@ -811,7 +811,7 @@ pub fn update_treeview(
                     for _ in 0..cycles {
 
                         // Get the status and mark them as needed.
-                        let status = unsafe { parent.as_ref().unwrap().data(21).to_int() }; 
+                        let status = unsafe { parent.as_ref().unwrap().data(21).to_int() };
                         match status {
                             0 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(2i32), 21))},
                             1 => unsafe { parent.as_mut().unwrap().set_data((&Variant::new0(3i32), 21))},
@@ -885,7 +885,7 @@ pub fn update_treeview(
                         let mut packfile_is_modified = false;
                         for row in 0..unsafe { item.as_ref().unwrap().row_count() } {
                             let child = unsafe { item.as_ref().unwrap().child(row) };
-                            if unsafe { child.as_ref().unwrap().data(21).to_int() != 0 } { 
+                            if unsafe { child.as_ref().unwrap().data(21).to_int() != 0 } {
                                 packfile_is_modified = true;
                                 break;
                             }
@@ -944,7 +944,7 @@ pub fn expand_treeview_to_item(
     // If it's valid (filter didn't hid it away)...
     if filtered_index.is_valid() {
         unsafe { tree_view.as_mut().unwrap().expand(&filtered_index); }
-        
+
         // Indexes to see how deep we must go.
         let mut index = 0;
         let path_deep = path.len();
@@ -962,7 +962,7 @@ pub fn expand_treeview_to_item(
                     // Check if it has children of his own.
                     let child = unsafe { item.as_ref().unwrap().child(row) };
                     let has_children = unsafe { child.as_ref().unwrap().has_children() };
-                    
+
                     // If it doesn't have children, continue with the next child.
                     if !has_children { continue; }
 
@@ -1012,15 +1012,15 @@ pub fn get_items_from_main_treeview_selection(app_ui: &AppUI) -> Vec<*mut Standa
 
 /// This function gives you the model's ModelIndexes from the ones from the view/filter.
 pub fn get_items_from_selection(
-    tree_view: *mut TreeView, 
-    filter: Option<*mut SortFilterProxyModel>, 
+    tree_view: *mut TreeView,
+    filter: Option<*mut SortFilterProxyModel>,
     model: *mut StandardItemModel
 ) -> Vec<*mut StandardItem> {
     let mut indexes_visual = unsafe { tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection().indexes() };
     let mut indexes_visual = (0..indexes_visual.count(())).rev().map(|x| indexes_visual.take_at(x)).collect::<Vec<ModelIndex>>();
     indexes_visual.reverse();
     let indexes_real = if let Some(filter) = filter {
-        unsafe { indexes_visual.iter().map(|x| filter.as_mut().unwrap().map_to_source(x)).collect::<Vec<ModelIndex>>() } 
+        unsafe { indexes_visual.iter().map(|x| filter.as_mut().unwrap().map_to_source(x)).collect::<Vec<ModelIndex>>() }
     } else {
         indexes_visual
     };
@@ -1031,8 +1031,8 @@ pub fn get_items_from_selection(
 
 /// This function is used to get the TreePathType corresponding to each of the selected items
 /// in the main TreeView.
-/// 
-/// This function is ONLY for the Main TreeView. 
+///
+/// This function is ONLY for the Main TreeView.
 pub fn get_item_types_from_main_treeview_selection(app_ui: &AppUI) -> Vec<TreePathType> {
     let items = get_items_from_main_treeview_selection(app_ui);
     let types = items.iter().map(|x| get_type_of_item(*x, app_ui.folder_tree_model)).collect();
@@ -1041,11 +1041,11 @@ pub fn get_item_types_from_main_treeview_selection(app_ui: &AppUI) -> Vec<TreePa
 
 /// This function is used to get the TreePathType corresponding to each of the selected items
 /// in the main TreeView.
-/// 
-/// This function is for any provided StandardItemModel. 
+///
+/// This function is for any provided StandardItemModel.
 pub fn get_item_types_from_selection(
-    tree_view: *mut TreeView, 
-    filter: Option<*mut SortFilterProxyModel>, 
+    tree_view: *mut TreeView,
+    filter: Option<*mut SortFilterProxyModel>,
     model: *mut StandardItemModel
 ) -> Vec<TreePathType> {
     let items = get_items_from_selection(tree_view, filter, model);
@@ -1055,7 +1055,7 @@ pub fn get_item_types_from_selection(
 
 /// This function is used to get the complete Path of one or more selected items in the TreeView.
 ///
-/// This function is tailored to work for the main TreeView. If you want to use your own model, 
+/// This function is tailored to work for the main TreeView. If you want to use your own model,
 /// treeview and selection, use "get_path_from_item_selection" instead.
 pub fn get_path_from_main_treeview_selection(app_ui: &AppUI) -> Vec<Vec<String>> {
 
@@ -1073,11 +1073,11 @@ pub fn get_path_from_main_treeview_selection(app_ui: &AppUI) -> Vec<Vec<String>>
         loop {
             let text = unsafe { app_ui.folder_tree_model.as_mut().unwrap().data(item).to_string().to_std_string() };
             parent = item.parent();
-            
+
             // If the parent is valid, it's the new item. Otherwise, we stop.
-            if parent.is_valid() { 
+            if parent.is_valid() {
                 path.push(text);
-                item = &parent; 
+                item = &parent;
             } else { break; }
         }
 
@@ -1098,14 +1098,14 @@ pub fn get_path_from_item(
     let mut path = vec![];
     let mut item = unsafe { item.as_mut().unwrap().index() };
     let mut parent;
-    
+
     // Loop until we reach the root index.
     loop {
         let text = unsafe { model.as_mut().unwrap().data(&item).to_string().to_std_string() };
         parent = item.parent();
 
         // If the parent is valid, it's the new item. Otherwise, we stop.
-        if parent.is_valid() { 
+        if parent.is_valid() {
             path.push(text);
             item = parent;
         } else { break; }
@@ -1176,7 +1176,7 @@ pub fn get_item_from_type(
     // Get it another time, this time to use it to hold the current item.
     let mut item = unsafe { model.as_ref().unwrap().item(0) };
     match item_type {
-        TreePathType::File(ref path) | TreePathType::Folder(ref path) => {  
+        TreePathType::File(ref path) | TreePathType::Folder(ref path) => {
             let mut index = 0;
             let path_deep = path.len();
             loop {
@@ -1186,7 +1186,7 @@ pub fn get_item_from_type(
                     let children_count = unsafe { item.as_ref().unwrap().row_count() };
                     for row in 0..children_count {
                         let child = unsafe { item.as_ref().unwrap().child(row) };
-    
+
                         // We ignore files or folders, depending on what we want to create.
                         if let TreePathType::File(_) = &item_type {
                             if unsafe { child.as_ref().unwrap().data(20).to_int() } == 2 { continue }
@@ -1249,7 +1249,7 @@ pub fn update_packfile_state(
 ) -> bool {
 
     // First check if we have a PackFile open. If not, just leave the default title.
-    let mut is_modified = false;  
+    let mut is_modified = false;
     if unsafe { app_ui.folder_tree_model.as_mut().unwrap().row_count(()) } == 0 {
         unsafe { app_ui.window.as_mut().unwrap().set_window_title(&QString::from_std_str("Rusted PackFile Manager")); }
     }
@@ -1414,11 +1414,11 @@ fn sort_item_in_tree_view(
     // Get the parent of the item.
     let parent = unsafe { item.as_mut().unwrap().parent() };
     let parent_index = unsafe { parent.as_mut().unwrap().index() };
-    
+
     // Get the previous and next item ModelIndex on the list.
     let item_index_prev = unsafe { model.as_mut().unwrap().index((item_index.row() - 1, item_index.column(), &parent_index)) };
     let item_index_next = unsafe { model.as_mut().unwrap().index((item_index.row() + 1, item_index.column(), &parent_index)) };
-    
+
     // Get the type of the previous item on the list.
     let item_type_prev: TreePathType = if item_index_prev.is_valid() {
         let item_sibling = unsafe { model.as_mut().unwrap().item_from_index(&item_index_prev) };

@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -59,7 +59,7 @@ It's easy, but you'll not understand it without an example, so here it's one:
  - Hit 'Accept'.
  - RPFM will turn that into '8' and put it in the cell.
 Easy, isn't?
-    "    
+    "
     ));
     unsafe { instructions_grid.as_mut().unwrap().add_widget((instructions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
 
@@ -73,9 +73,9 @@ Easy, isn't?
 
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
-    if dialog.exec() == 1 { 
+    if dialog.exec() == 1 {
         let operation = maths_line_edit.text().to_std_string();
-        if operation.is_empty() { None } else { Some(maths_line_edit.text().to_std_string()) } 
+        if operation.is_empty() { None } else { Some(maths_line_edit.text().to_std_string()) }
     } else { None }
 }
 
@@ -100,7 +100,7 @@ It's easy, but you'll not understand it without an example, so here it's one:
  - Hit 'Accept'.
  - RPFM will turn that into 'whatever you want' and put it in the cell.
 And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
-    "    
+    "
     ));
     unsafe { instructions_grid.as_mut().unwrap().add_widget((instructions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
 
@@ -114,9 +114,9 @@ And, in case you ask, works with numeric cells too, as long as the resulting tex
 
     unsafe { accept_button.as_mut().unwrap().signals().released().connect(&dialog.slots().accept()); }
 
-    if dialog.exec() == 1 { 
+    if dialog.exec() == 1 {
         let new_text = rewrite_sequence_line_edit.text().to_std_string();
-        if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) } 
+        if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
     } else { None }
 }
 
@@ -133,7 +133,7 @@ pub fn sort_indexes_visually(indexes_sorted: &mut Vec<&ModelIndex>, table_view: 
         if vertical_header.visual_index(a.row()) == vertical_header.visual_index(b.row()) {
             if horizontal_header.visual_index(a.column()) < horizontal_header.visual_index(b.column()) { Ordering::Less }
             else { Ordering::Greater }
-        } 
+        }
         else if vertical_header.visual_index(a.row()) < vertical_header.visual_index(b.row()) { Ordering::Less }
         else { Ordering::Greater }
     });
@@ -150,7 +150,7 @@ pub fn sort_indexes_by_model(indexes_sorted: &mut Vec<ModelIndex>) {
         if a.row() == b.row() {
             if a.column() < b.column() { Ordering::Less }
             else { Ordering::Greater }
-        } 
+        }
         else if a.row() < b.row() { Ordering::Less }
         else { Ordering::Greater }
     });

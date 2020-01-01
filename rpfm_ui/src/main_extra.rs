@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -37,7 +37,7 @@ pub fn open_packfile(
 
     // Check what response we got.
     match check_message_validity_tryrecv(&receiver_qt) {
-    
+
         // If it's success....
         Data::PackFileUIData(ui_data) => {
 
@@ -107,12 +107,12 @@ pub fn open_packfile(
                     PFHVersion::PFH5 => {
 
                         // If the PackFile has the mysterious byte enabled, it's from Arena.
-                        if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) { 
-                            unsafe { app_ui.arena.as_mut().unwrap().trigger(); } 
+                        if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
+                            unsafe { app_ui.arena.as_mut().unwrap().trigger(); }
                         }
 
                         // Otherwise, it's from Three Kingdoms or Warhammer 2.
-                        else { 
+                        else {
                             let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
                             match &*game_selected {
                                 "three_kingdoms" => unsafe { app_ui.three_kingdoms.as_mut().unwrap().trigger(); },
@@ -165,7 +165,7 @@ pub fn open_packfile(
             display_help_tips(&app_ui);
 
             // Clean the TableStateData.
-            *table_state_data.borrow_mut() = TableStateData::new(); 
+            *table_state_data.borrow_mut() = TableStateData::new();
         }
 
         // If we got an error...
@@ -293,7 +293,7 @@ pub fn open_packedfile(
 
                     // If the file is a Text PackedFile...
                     DecodeablePackedFileType::Text => {
-                        
+
                         // Try to get the view build, or return error.
                         match create_text_view(
                             &sender_qt,
@@ -516,7 +516,7 @@ pub fn save_packfile(
     unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
     // Clean all the modified items EXCEPT those open. That way we can still undo changes there.
-    if result.is_ok() { 
+    if result.is_ok() {
         let iter = table_state_data.borrow().iter().map(|x| x.0).cloned().collect::<Vec<Vec<String>>>();
         for path in &iter {
             if !packedfiles_open_in_packedfile_view.borrow().values().any(|x| *x.borrow() == *path) {
@@ -638,7 +638,7 @@ pub fn build_my_mod_menu(
 
                         // Check what response we got.
                         match check_message_validity_tryrecv(&receiver_qt) {
-                        
+
                             // If it's success....
                             Data::I64(_) => {
 
@@ -683,7 +683,7 @@ pub fn build_my_mod_menu(
                                 *needs_rebuild.borrow_mut() = true;
 
                                 // Clean the TableStateData.
-                                *table_state_data.borrow_mut() = TableStateData::new(); 
+                                *table_state_data.borrow_mut() = TableStateData::new();
                             },
 
                             // If we got an error...
@@ -1047,7 +1047,7 @@ pub fn build_my_mod_menu(
     }
 
     // Otherwise, disable by default the rest of the actions.
-    else {   
+    else {
         unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_enabled(false); }
         unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_enabled(false); }
@@ -1134,7 +1134,7 @@ pub fn build_open_from_submenus(
             open_from_slots.push(slot_open_mod);
 
             // Connect the action to the slot.
-            unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(open_from_slots.last().unwrap()); }  
+            unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(open_from_slots.last().unwrap()); }
         }
     }
 
@@ -1187,10 +1187,10 @@ pub fn build_open_from_submenus(
             open_from_slots.push(slot_open_mod);
 
             // Connect the action to the slot.
-            unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(open_from_slots.last().unwrap()); }  
+            unsafe { open_mod_action.as_ref().unwrap().signals().triggered().connect(open_from_slots.last().unwrap()); }
         }
     }
-    
+
     // Only if the submenu has items, we enable it.
     unsafe { submenu_open_from_content.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(!submenu_open_from_content.as_mut().unwrap().actions().is_empty()); }
     unsafe { submenu_open_from_data.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(!submenu_open_from_data.as_mut().unwrap().actions().is_empty()); }
@@ -1251,11 +1251,11 @@ pub fn create_packed_files(
                         let selected_paths = get_path_from_main_treeview_selection(&app_ui);
                         let complete_path = if let PackedFileType::DB(_, table,_) = &packed_file_type {
                             vec!["db".to_owned(), table.to_owned(), name.to_owned()]
-                        } 
+                        }
                         else {
 
                             // We want to be able to write relative paths with this so, if a `/` is detected, split the name.
-                            if selected_paths.len() == 1 { 
+                            if selected_paths.len() == 1 {
                                 let mut complete_path = selected_paths[0].to_vec();
                                 complete_path.append(&mut (name.split("/").map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>()));
                                 complete_path
@@ -1279,7 +1279,7 @@ pub fn create_packed_files(
                             // Get the response, just in case it failed.
                             match check_message_validity_recv2(&receiver_qt) {
                                 Data::Success => {
-                                    
+
                                     // Add the new Folder to the TreeView.
                                     update_treeview(
                                         &sender_qt,
@@ -1360,7 +1360,7 @@ pub fn enable_packfile_actions(
         else { unsafe { mymod_stuff.borrow().new_mymod.as_mut().unwrap().set_enabled(false); }}
     }
 
-    // These actions are common, no matter what game we have.    
+    // These actions are common, no matter what game we have.
     unsafe { app_ui.change_packfile_type_group.as_mut().unwrap().set_enabled(enable); }
     unsafe { app_ui.change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_enabled(enable); }
 
@@ -1459,7 +1459,7 @@ pub fn enable_packfile_actions(
         // Disable Napoleon actions...
         unsafe { app_ui.nap_optimize_packfile.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.nap_generate_pak_file.as_mut().unwrap().set_enabled(false); }
-        
+
         // Disable Empire actions...
         unsafe { app_ui.emp_optimize_packfile.as_mut().unwrap().set_enabled(false); }
         unsafe { app_ui.emp_generate_pak_file.as_mut().unwrap().set_enabled(false); }
@@ -1537,7 +1537,7 @@ pub fn filter_matches_result(
 
     // Set the pattern to search.
     let mut pattern = if let Some(pattern) = pattern { RegExp::new(&pattern) }
-    else { 
+    else {
         let pattern;
         unsafe { pattern = RegExp::new(&filter_line_edit.as_mut().unwrap().text()) }
         pattern
@@ -1548,13 +1548,13 @@ pub fn filter_matches_result(
     else { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column_selector.as_mut().unwrap().current_index()); }}
 
     // Check if the filter should be "Case Sensitive".
-    if let Some(case_sensitive) = case_sensitive { 
+    if let Some(case_sensitive) = case_sensitive {
         if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
         else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
     }
 
     else {
-        unsafe { 
+        unsafe {
             let case_sensitive = case_sensitive_button.as_mut().unwrap().is_checked();
             if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
             else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }

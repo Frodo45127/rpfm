@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -75,7 +75,7 @@ pub fn update_undo_model(model: *mut StandardItemModel, undo_model: *mut Standar
             for column in 0..model.as_mut().unwrap().column_count(()) {
                 let item = &*model.as_mut().unwrap().item((row, column));
                 undo_model.as_mut().unwrap().set_item((row, column, item.clone()));
-            }    
+            }
         }
     }
 }
@@ -89,7 +89,7 @@ pub fn load_colors_from_undo_model(model: *mut StandardItemModel, undo_model: *m
             for column in 0..undo_model.as_mut().unwrap().column_count(()) {
                 let color = &undo_model.as_mut().unwrap().item((row, column)).as_mut().unwrap().background();
                 model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_background(color);
-            }    
+            }
         }
     }
 }

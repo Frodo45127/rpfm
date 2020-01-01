@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -52,10 +52,10 @@ impl PackedFileRigidModelDataView {
         // Get the data of the PackedFile.
         sender_qt.send(Commands::DecodePackedFileRigidModel).unwrap();
         sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
-        let packed_file = match check_message_validity_recv2(&receiver_qt) { 
+        let packed_file = match check_message_validity_recv2(&receiver_qt) {
             Data::RigidModel(data) => data,
             Data::Error(error) => return Err(error),
-            _ => panic!(THREADS_MESSAGE_ERROR), 
+            _ => panic!(THREADS_MESSAGE_ERROR),
         };
 
         // Create the "Info" Frame.
@@ -326,7 +326,7 @@ impl PackedFileRigidModelDataView {
 
                     // Check what response we got.
                     match check_message_validity_tryrecv(&receiver_qt) {
-                    
+
                         // If it's success....
                         Data::RigidModel(response) => {
 

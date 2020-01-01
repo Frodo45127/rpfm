@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -81,7 +81,7 @@ pub fn display_help_tips(app_ui: &AppUI) {
 /// This is the safe version for `&mut Widget`. REMEMBER TO DO AN `into_raw` AFTER USING THIS!
 pub fn create_grid_layout_safe() -> CppBox<GridLayout> {
     let mut widget_layout = GridLayout::new();
-    
+
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
     if cfg!(target_os = "windows") {
         widget_layout.set_contents_margins((2, 2, 2, 2));
@@ -89,7 +89,7 @@ pub fn create_grid_layout_safe() -> CppBox<GridLayout> {
     }
     else {
         widget_layout.set_contents_margins((0, 0, 0, 0));
-        widget_layout.set_spacing(0);            
+        widget_layout.set_spacing(0);
     }
 
     widget_layout
@@ -101,7 +101,7 @@ pub fn create_grid_layout_safe() -> CppBox<GridLayout> {
 pub fn create_grid_layout_unsafe(widget: *mut Widget) -> *mut GridLayout {
     let mut widget_layout = GridLayout::new();
     unsafe { widget.as_mut().unwrap().set_layout(widget_layout.as_mut_ptr() as *mut Layout); }
-    
+
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
     if cfg!(target_os = "windows") {
         widget_layout.set_contents_margins((2, 2, 2, 2));
@@ -109,7 +109,7 @@ pub fn create_grid_layout_unsafe(widget: *mut Widget) -> *mut GridLayout {
     }
     else {
         widget_layout.set_contents_margins((0, 0, 0, 0));
-        widget_layout.set_spacing(0);           
+        widget_layout.set_spacing(0);
     }
 
     widget_layout.into_raw()
@@ -174,7 +174,7 @@ pub fn create_dark_theme_stylesheet() -> String {
 
         /* Tweaked TableView, so the Checkboxes are white and easy to see. */
 
-        /* Checkboxes */                    
+        /* Checkboxes */
         QTableView::indicator:unchecked {{
             border-style: solid;
             border-width: 1px;
@@ -239,7 +239,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-color: #{button_bd_off};
         }}
 
-        ", 
+        ",
         button_bd_hover = *ORANGE,
         button_bd_off = *SLIGHTLY_DARKER_GREY,
         button_bg_on = *SLIGHTLY_DARKER_GREY,

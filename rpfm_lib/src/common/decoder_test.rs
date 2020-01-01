@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -128,7 +128,7 @@ fn test_decode_string_u8_0padded() {
     assert_eq!(Decoder::decode_string_u8_0padded([87, 97, 104, 97, 104, 97, 104, 97, 104, 97].as_ref(), 0, 10).unwrap().1, 10);
 }
 
-/// Test to make sure the u8 0-terminated string decoder (`decode_string_u8_0terminated()`) 
+/// Test to make sure the u8 0-terminated string decoder (`decode_string_u8_0terminated()`)
 /// works and fails properly.
 #[test]
 fn test_decode_string_u8_0terminated() {
@@ -346,7 +346,7 @@ fn test_decode_packedfile_string_u8() {
     }
 }
 
-/// Test to make sure the u8 0-terminated string specific decoder (`decode_packedfile_string_u8_0terminated()`) 
+/// Test to make sure the u8 0-terminated string specific decoder (`decode_packedfile_string_u8_0terminated()`)
 /// works and fails properly.
 #[test]
 fn test_decode_packedfile_string_u8_0terminated() {

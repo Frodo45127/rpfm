@@ -1,15 +1,15 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
 
-// This file contains all the common stuff between DB, the DB Decoder and Locs, 
-// to reduce duplicated code. It also houses the DB Decoder, because thatś 
+// This file contains all the common stuff between DB, the DB Decoder and Locs,
+// to reduce duplicated code. It also houses the DB Decoder, because thatś
 // related with the tables.
 
 use qt_widgets::action::Action;
@@ -194,12 +194,12 @@ impl PackedFileTableView {
         // Get the entire dependency data for this table.
         sender_qt.send(Commands::DecodeDependencyDB).unwrap();
         sender_qt_data.send(Data::Definition((&**table_definition).clone())).unwrap();
-        let dependency_data: Rc<BTreeMap<i32, Vec<String>>> = Rc::new(match check_message_validity_recv2(&receiver_qt) { 
+        let dependency_data: Rc<BTreeMap<i32, Vec<String>>> = Rc::new(match check_message_validity_recv2(&receiver_qt) {
             Data::BTreeMapI32VecString(data) => data,
             Data::Error(_) => BTreeMap::new(),
-            _ => panic!(THREADS_MESSAGE_ERROR), 
+            _ => panic!(THREADS_MESSAGE_ERROR),
         });
-        
+
         // Create the "Undo" stuff needed for the Undo/Redo functions to work.
         let undo_lock = Rc::new(RefCell::new(false));
         let undo_redo_enabler = Action::new(()).into_raw();
@@ -214,13 +214,13 @@ impl PackedFileTableView {
         let filter_model = SortFilterProxyModel::new().into_raw();
         let model = StandardItemModel::new(()).into_raw();
         unsafe { filter_model.as_mut().unwrap().set_source_model(model as *mut AbstractItemModel); }
-        
+
         // Prepare the TableViews.
         let table_view_frozen = TableView::new().into_raw();
         let table_view = unsafe { new_tableview_frozen(filter_model as *mut AbstractItemModel, table_view_frozen) };
 
         // Make the last column fill all the available space, if the setting says so.
-        if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] { 
+        if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
         }
 
@@ -373,7 +373,7 @@ impl PackedFileTableView {
         let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
         let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
-        
+
         let mut context_menu_copy_submenu = Menu::new(&QString::from_std_str("&Copy..."));
         let context_menu_copy = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy"));
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy as &LUA Table"));
@@ -390,7 +390,7 @@ impl PackedFileTableView {
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 
         let context_menu_selection_invert = context_menu.add_action(&QString::from_std_str("Inver&t Selection"));
-        
+
         let context_menu_undo = context_menu.add_action(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action(&QString::from_std_str("&Redo"));
 
@@ -506,9 +506,9 @@ impl PackedFileTableView {
         unsafe { sidebar_grid.as_mut().unwrap().add_widget((header_hidden as *mut Widget, 0, 1, 1, 1)); }
         unsafe { sidebar_grid.as_mut().unwrap().add_widget((header_frozen as *mut Widget, 0, 2, 1, 1)); }
 
-        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_column as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
-        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_hidden as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
-        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_frozen as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
+        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_column as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); }
+        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_hidden as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); }
+        unsafe { sidebar_grid.as_mut().unwrap().set_alignment((header_frozen as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); }
         for (index, column) in table_definition.fields.iter().enumerate() {
 
             // Hide all columns in the frozen table by default.
@@ -590,10 +590,10 @@ impl PackedFileTableView {
             unsafe { freeze_unfreeze_checkbox.as_mut().unwrap().signals().state_changed().connect(&freeze_unfreeze_slot); }
             unsafe { sidebar_grid.as_mut().unwrap().add_widget((column_name.into_raw() as *mut Widget, (index + 1) as i32, 0, 1, 1)); }
             unsafe { sidebar_grid.as_mut().unwrap().add_widget((hide_show_checkbox as *mut Widget, (index + 1) as i32, 1, 1, 1)); }
-            unsafe { sidebar_grid.as_mut().unwrap().add_widget((freeze_unfreeze_checkbox as *mut Widget, (index + 1) as i32, 2, 1, 1)); } 
-            
-            unsafe { sidebar_grid.as_mut().unwrap().set_alignment((hide_show_checkbox as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
-            unsafe { sidebar_grid.as_mut().unwrap().set_alignment((freeze_unfreeze_checkbox as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); } 
+            unsafe { sidebar_grid.as_mut().unwrap().add_widget((freeze_unfreeze_checkbox as *mut Widget, (index + 1) as i32, 2, 1, 1)); }
+
+            unsafe { sidebar_grid.as_mut().unwrap().set_alignment((hide_show_checkbox as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); }
+            unsafe { sidebar_grid.as_mut().unwrap().set_alignment((freeze_unfreeze_checkbox as *mut Widget, Flags::from_enum(AlignmentFlag::HCenter))); }
 
             slots_hide_show_column.push(hide_show_slot);
             slots_freeze_unfreeze_column.push(freeze_unfreeze_slot);
@@ -617,10 +617,10 @@ impl PackedFileTableView {
                     if let Ok(mut state) = TABLE_STATES_UI.try_lock() {
                         if let Some(state) = state.get_mut(&*packed_file_path.borrow()) {
                             let mut needs_cleaning = false;
-                            
+
                             // We only change the order if it's less than 2. Otherwise, we reset it.
-                            let mut old_order = if state.columns_state.sorting_column.0 == column { 
-                                state.columns_state.sorting_column.1 
+                            let mut old_order = if state.columns_state.sorting_column.0 == column {
+                                state.columns_state.sorting_column.1
                             } else { 0 };
 
                             if old_order < 2 {
@@ -632,7 +632,7 @@ impl PackedFileTableView {
                             else {
                                 needs_cleaning = true;
                                 old_order = -1;
-                                state.columns_state.sorting_column = (-1, old_order);   
+                                state.columns_state.sorting_column = (-1, old_order);
                             }
 
                             if needs_cleaning {
@@ -729,7 +729,7 @@ impl PackedFileTableView {
                             enable_header_popups.clone()
                         );
 
-                        update_undo_model(model, table_state_data.undo_model); 
+                        update_undo_model(model, table_state_data.undo_model);
                     }
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
@@ -743,15 +743,15 @@ impl PackedFileTableView {
                 app_ui,
                 table_type,
                 table_state_data,
-                packed_file_path => move || { 
+                packed_file_path => move || {
                     let table_state_data = table_state_data.borrow_mut();
                     let table_state_data = table_state_data.get(&*packed_file_path.borrow()).unwrap();
                     unsafe {
-                        if table_state_data.undo_history.is_empty() { 
+                        if table_state_data.undo_history.is_empty() {
                             context_menu_undo.as_mut().unwrap().set_enabled(false);
                             let tree_path_type = match *table_type.borrow() {
                                 TableType::DependencyManager(_) => TreePathType::PackFile,
-                                TableType::DB(_) | TableType::LOC(_) => TreePathType::File(packed_file_path.borrow().to_vec()), 
+                                TableType::DB(_) | TableType::LOC(_) => TreePathType::File(packed_file_path.borrow().to_vec()),
                             };
                             update_treeview(
                                 &sender_qt,
@@ -765,7 +765,7 @@ impl PackedFileTableView {
                             );
                         }
                         else { context_menu_undo.as_mut().unwrap().set_enabled(true); }
-                        
+
                         if table_state_data.redo_history.is_empty() { context_menu_redo.as_mut().unwrap().set_enabled(false); }
                         else { context_menu_redo.as_mut().unwrap().set_enabled(true); }
                     }
@@ -787,8 +787,8 @@ impl PackedFileTableView {
                             context_menu_copy.as_mut().unwrap().set_enabled(true);
                             context_menu_delete.as_mut().unwrap().set_enabled(true);
                             context_menu_rewrite_selection.as_mut().unwrap().set_enabled(true);
-                        
-                            // The "Apply" actions have to be enabled only when all the indexes are valid for the operation. 
+
+                            // The "Apply" actions have to be enabled only when all the indexes are valid for the operation.
                             let mut columns = vec![];
                             for index in 0..indexes.count(()) {
                                 let model_index = indexes.at(index);
@@ -797,12 +797,12 @@ impl PackedFileTableView {
 
                             columns.sort();
                             columns.dedup();
-                            
+
                             let mut can_apply = true;
                             for column in &columns {
                                 let field_type = &table_definition.fields[*column as usize].field_type;
                                 if *field_type != FieldType::Boolean { continue }
-                                else { can_apply = false; break } 
+                                else { can_apply = false; break }
                             }
                             context_menu_apply_maths_to_selection.as_mut().unwrap().set_enabled(can_apply);
                         }
@@ -837,7 +837,7 @@ impl PackedFileTableView {
                     // 16 is a role we use as an special trigger for this.
                     if roles.contains(&0) || roles.contains(&2) || roles.contains(&10) || roles.contains(&16) {
 
-                        // For pasting, only save the last iteration of the paste.                        
+                        // For pasting, only save the last iteration of the paste.
                         if !*save_lock.borrow() {
 
                             // Thanks to validation, this should NEVER fail. If this fails, revise the validation stuff.
@@ -884,7 +884,7 @@ impl PackedFileTableView {
                             unsafe { item.as_mut().unwrap().set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow })); }
                             blocker.unblock();
 
-                            // For pasting, only update the undo_model the last iteration of the paste.                        
+                            // For pasting, only update the undo_model the last iteration of the paste.
                             if !*save_lock.borrow() {
                                 update_undo_model(model, table_state_data.undo_model);
                             }
@@ -918,7 +918,7 @@ impl PackedFileTableView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                    ); 
+                    );
                 }
             )),
             slot_row_filter_change_column: SlotCInt::new(clone!(
@@ -933,7 +933,7 @@ impl PackedFileTableView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                    ); 
+                    );
                 }
             )),
             slot_row_filter_change_case_sensitive: SlotBool::new(clone!(
@@ -948,7 +948,7 @@ impl PackedFileTableView {
                         row_filter_case_sensitive_button,
                         update_search_stuff,
                         &packed_file_path,
-                    ); 
+                    );
                 }
             )),
 
@@ -990,7 +990,7 @@ impl PackedFileTableView {
                         let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                         unsafe { table_state_data.undo_history.push(TableOperations::AddRows(vec![model.as_mut().unwrap().row_count(()) - 1; 1])); }
                         table_state_data.redo_history.clear();
-                        update_undo_model(model, table_state_data.undo_model); 
+                        update_undo_model(model, table_state_data.undo_model);
                     }
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                 }
@@ -1017,10 +1017,10 @@ impl PackedFileTableView {
                     // If nothing is selected, we just append the row at the end.
                     if indexes_sorted.is_empty() {
                         let rows = create_empty_rows(&table_definition, 1);
-                        unsafe { model.as_mut().unwrap().append_row(&rows[0]); } 
+                        unsafe { model.as_mut().unwrap().append_row(&rows[0]); }
                         row_numbers.push(unsafe { model.as_mut().unwrap().row_count(()) - 1 });
                     }
-                
+
                     for index in indexes_sorted.iter().rev() {
                         row_numbers.push(index.row());
                         let rows = create_empty_rows(&table_definition, 1);
@@ -1051,7 +1051,7 @@ impl PackedFileTableView {
                         let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                         table_state_data.undo_history.push(TableOperations::AddRows(row_numbers));
                         table_state_data.redo_history.clear();
-                        update_undo_model(model, table_state_data.undo_model); 
+                        update_undo_model(model, table_state_data.undo_model);
                     }
                     unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                 }
@@ -1086,21 +1086,21 @@ impl PackedFileTableView {
                     let mut current_row_index = -2;
                     for (index, row) in rows.iter().enumerate() {
 
-                        let mut items = vec![];                        
+                        let mut items = vec![];
                         for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
                             let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
                             items.push(item.clone());
                         }
 
-                        if (*row == current_row_index - 1) || index == 0 { 
-                            current_row_pack.push((*row, items)); 
+                        if (*row == current_row_index - 1) || index == 0 {
+                            current_row_pack.push((*row, items));
                             current_row_index = *row;
                         }
                         else {
                             current_row_pack.reverse();
                             rows_splitted.push(current_row_pack.to_vec());
                             current_row_pack.clear();
-                            current_row_pack.push((*row, items)); 
+                            current_row_pack.push((*row, items));
                             current_row_index = *row;
                         }
                     }
@@ -1110,7 +1110,7 @@ impl PackedFileTableView {
                     for row_pack in rows_splitted.iter() {
                         unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
                     }
-                    
+
                     // If we deleted something, try to save the PackedFile to the main PackFile.
                     if !rows.is_empty() {
                         Self::save_to_packed_file(
@@ -1135,7 +1135,7 @@ impl PackedFileTableView {
                             rows_splitted.reverse();
                             table_state_data.undo_history.push(TableOperations::RemoveRows(rows_splitted));
                             table_state_data.redo_history.clear();
-                            update_undo_model(model, table_state_data.undo_model); 
+                            update_undo_model(model, table_state_data.undo_model);
                         }
 
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1158,7 +1158,7 @@ impl PackedFileTableView {
                         let indexes_visual = (0..indexes_visual.count(())).map(|x| indexes_visual.at(x)).collect::<Vec<&ModelIndex>>();
                         let indexes_real = get_real_indexes(&indexes_visual, filter_model);
                         for index in indexes_real {
-                            if index.is_valid() { 
+                            if index.is_valid() {
 
                                 // First, we replace {x} with our current value. Then, we try to parse with meval.
                                 // And finally, we try to put the new value in the cell.
@@ -1168,22 +1168,22 @@ impl PackedFileTableView {
                                 // We only do this if the current value is a valid number.
                                 if let Ok(result) = meval::eval_str(&real_operation) {
                                     let mut is_valid = false;
-                                    
+
                                     // If we got a current value and it's different, it's a valid cell.
                                     if let Ok(current_value) = current_value.parse::<f64>() {
-                                        if (result - current_value).abs() >= std::f64::EPSILON { 
+                                        if (result - current_value).abs() >= std::f64::EPSILON {
                                             is_valid = true;
                                         }
                                     }
 
                                     // Otherwise, it's a change over a string. Allow it.
                                     else { is_valid = true; }
-                                    if is_valid {    
+                                    if is_valid {
                                         match table_definition.fields[index.column() as usize].field_type {
                                             FieldType::Float => unsafe { model.as_mut().unwrap().item_from_index(&index).as_mut().unwrap().set_data((&Variant::new2(result as f32), 2)) }
                                             FieldType::Integer => unsafe { model.as_mut().unwrap().item_from_index(&index).as_mut().unwrap().set_data((&Variant::new0(result as i32), 2)) },
                                             FieldType::LongInteger => unsafe { model.as_mut().unwrap().item_from_index(&index).as_mut().unwrap().set_data((&Variant::new2(result as i64), 2)) },
-                                            
+
                                             FieldType::StringU8 |
                                             FieldType::StringU16 |
                                             FieldType::OptionalStringU8 |
@@ -1206,7 +1206,7 @@ impl PackedFileTableView {
                                 // Keep in mind that `None` results should be ignored here.
                                 let len = table_state_data.undo_history.len();
                                 let mut edits_data = vec![];
-                                
+
                                 {
                                     let mut edits = table_state_data.undo_history.drain((len - results)..);
                                     for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
@@ -1214,7 +1214,7 @@ impl PackedFileTableView {
 
                                 table_state_data.undo_history.push(TableOperations::Editing(edits_data));
                                 table_state_data.redo_history.clear();
-                                update_undo_model(model, table_state_data.undo_model); 
+                                update_undo_model(model, table_state_data.undo_model);
                             }
 
                             unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1243,7 +1243,7 @@ impl PackedFileTableView {
                             let model_index = indexes.at(index);
 
                             // Always check this is valid. Otherwise this can and will crash if the filter goes the wrong way.
-                            if model_index.is_valid() { 
+                            if model_index.is_valid() {
                                 let item = unsafe { model.as_ref().unwrap().item_from_index(model_index).as_ref().unwrap() };
                                 let column = item.column();
                                 let column_type = table_definition.fields[column as usize].field_type;
@@ -1333,7 +1333,7 @@ impl PackedFileTableView {
                             // Keep in mind that `None` results should be ignored here.
                             let len = table_state_data.undo_history.len();
                             let mut edits_data = vec![];
-                            
+
                             {
                                 let mut edits = table_state_data.undo_history.drain((len - changed_cells)..);
                                 for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
@@ -1341,7 +1341,7 @@ impl PackedFileTableView {
 
                             table_state_data.undo_history.push(TableOperations::Editing(edits_data));
                             table_state_data.redo_history.clear();
-                            update_undo_model(model, table_state_data.undo_model); 
+                            update_undo_model(model, table_state_data.undo_model);
                         }
 
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1414,7 +1414,7 @@ impl PackedFileTableView {
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                             table_state_data.undo_history.push(TableOperations::AddRows(rows));
                             table_state_data.redo_history.clear();
-                            update_undo_model(model, table_state_data.undo_model); 
+                            update_undo_model(model, table_state_data.undo_model);
                         }
 
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1487,7 +1487,7 @@ impl PackedFileTableView {
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                             table_state_data.undo_history.push(TableOperations::AddRows(range));
                             table_state_data.redo_history.clear();
-                            update_undo_model(model, table_state_data.undo_model); 
+                            update_undo_model(model, table_state_data.undo_model);
                         }
 
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -1590,7 +1590,7 @@ impl PackedFileTableView {
                     let mut column_names = table_definition.fields.iter().map(|x| x.field_name.to_owned()).collect::<Vec<String>>();
 
                     // Try to get the Key column number if exists and it doesn't have duplicates.
-                    let key = 
+                    let key =
                         if let Some(column) = table_definition.fields.iter().position(|x| x.field_is_key) {
                             let key_column = entries.iter().map(|x| x[column].to_owned()).collect::<Vec<String>>();
                             let mut key_column_sorted = key_column.to_vec();
@@ -1660,7 +1660,7 @@ impl PackedFileTableView {
                             // Close the table.
                             lua_table.push_str("}");
                         }
-                        
+
                         None => {
                             for (index, row) in entries.iter().enumerate() {
                                 lua_table.push('{');
@@ -1735,7 +1735,7 @@ impl PackedFileTableView {
                                     FieldType::OptionalStringU16 => true,
                                 };
                                 if is_valid_data {
-        
+
                                     // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER) and try again.
                                     if real_row == -1 {
                                         let rows = create_empty_rows(&table_definition, 1);
@@ -1751,9 +1751,9 @@ impl PackedFileTableView {
                         visual_row += 1;
                     }
 
-                    // We need to update the undo model here, because otherwise it'll start triggering crashes 
+                    // We need to update the undo model here, because otherwise it'll start triggering crashes
                     // in case the first thing to paste is equal to the current value. In that case, the set_data
-                    // will not trigger, and the update_undo_model will not trigger either, causing a crash if 
+                    // will not trigger, and the update_undo_model will not trigger either, causing a crash if
                     // inmediatly after that we try to paste something in a new line (which will not exist in the undo model).
                     {
                         let mut table_state_data = table_state_data.borrow_mut();
@@ -1772,7 +1772,7 @@ impl PackedFileTableView {
                             FieldType::Boolean => {
                                 let current_value = unsafe { model.as_ref().unwrap().item_from_index(real_cell).as_ref().unwrap().check_state() };
                                 let new_value = if text.to_lowercase() == "true" || **text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                                if current_value != new_value { 
+                                if current_value != new_value {
                                     unsafe { model.as_mut().unwrap().item_from_index(real_cell).as_mut().unwrap().set_check_state(new_value); }
                                     changed_cells += 1;
                                 }
@@ -1845,9 +1845,9 @@ impl PackedFileTableView {
 
                             table_state_data.undo_history.push(TableOperations::Carolina(carolina));
                             table_state_data.redo_history.clear();
-                            update_undo_model(model, table_state_data.undo_model); 
+                            update_undo_model(model, table_state_data.undo_model);
                         }
-                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
+                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
@@ -1895,7 +1895,7 @@ impl PackedFileTableView {
                                     item.set_check_state(if cell.to_lowercase() == "true" || *cell == "1" { CheckState::Checked } else { CheckState::Unchecked });
                                     item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
                                 },
-                                
+
                                 FieldType::Float => {
                                     item.set_data((&Variant::new2(cell.parse::<f32>().unwrap()), 2));
                                     item.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green }));
@@ -1930,7 +1930,7 @@ impl PackedFileTableView {
                             if column as usize == &table_definition.fields.len() - 1 {
                                 qlist_unordered.sort_unstable_by_key(|x| x.0);
                                 for (_, item) in &qlist_unordered { unsafe { qlist.append_unsafe(&item.clone()); }}
-    
+
                                 unsafe { model.as_mut().unwrap().append_row(&qlist); }
                                 qlist = ListStandardItemMutPtr::new(());
                                 qlist_unordered.clear();
@@ -1974,7 +1974,7 @@ impl PackedFileTableView {
                                         item.set_data((&Variant::new0(0i32), 2));
                                         item
                                     },
-                                    
+
                                     FieldType::LongInteger => {
                                         let mut item = StandardItem::new(());
                                         item.set_data((&Variant::new2(0i64), 2));
@@ -2024,7 +2024,7 @@ impl PackedFileTableView {
                                 unsafe { (table_state_data.undo_model.as_mut().unwrap().row_count(())..model.as_mut().unwrap().row_count(())).rev().for_each(|x| rows.push(x)); }
                                 table_state_data.undo_history.push(TableOperations::AddRows(rows));
                                 table_state_data.redo_history.clear();
-                                update_undo_model(model, table_state_data.undo_model); 
+                                update_undo_model(model, table_state_data.undo_model);
                             }
 
                             unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -2060,7 +2060,7 @@ impl PackedFileTableView {
                                     FieldType::Boolean => {
                                         let current_value = unsafe { item.as_mut().unwrap().check_state() };
                                         let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                                        if current_value != new_value { 
+                                        if current_value != new_value {
                                             unsafe { item.as_mut().unwrap().set_check_state(new_value); }
                                             changed_cells += 1;
                                         }
@@ -2115,9 +2115,9 @@ impl PackedFileTableView {
 
                                 table_state_data.undo_history.push(TableOperations::Editing(edits_data));
                                 table_state_data.redo_history.clear();
-                                update_undo_model(model, table_state_data.undo_model); 
+                                update_undo_model(model, table_state_data.undo_model);
                             }
-                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                           
+                            unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                         }
                     }
                 }
@@ -2137,14 +2137,14 @@ impl PackedFileTableView {
 
             slot_context_menu_sidebar: SlotBool::new(move |_| {
                 unsafe {
-                    if sidebar_scroll_area.as_mut().unwrap().is_visible() { sidebar_scroll_area.as_mut().unwrap().hide(); } 
+                    if sidebar_scroll_area.as_mut().unwrap().is_visible() { sidebar_scroll_area.as_mut().unwrap().hide(); }
                     else { sidebar_scroll_area.as_mut().unwrap().show(); }
                 }
             }),
 
             slot_context_menu_search: SlotBool::new(move |_| {
                 unsafe {
-                    if search_widget.as_mut().unwrap().is_visible() { search_widget.as_mut().unwrap().hide(); } 
+                    if search_widget.as_mut().unwrap().is_visible() { search_widget.as_mut().unwrap().hide(); }
                     else { search_widget.as_mut().unwrap().show(); }
                 }
             }),
@@ -2162,7 +2162,7 @@ impl PackedFileTableView {
                 receiver_qt,
                 dependency_data,
                 receiver_qt => move |_| {
-                    
+
                     // Create the FileDialog to import the TSV file and configure it.
                     let mut file_dialog = unsafe { FileDialog::new_unsafe((
                         app_ui.window as *mut Widget,
@@ -2225,7 +2225,7 @@ impl PackedFileTableView {
                             let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                             table_state_data.undo_history.push(TableOperations::ImportTSV(old_data));
                             table_state_data.redo_history.clear();
-                            update_undo_model(model, table_state_data.undo_model); 
+                            update_undo_model(model, table_state_data.undo_model);
                         }
                         unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
@@ -2315,7 +2315,7 @@ impl PackedFileTableView {
                                 match table_definition.fields[*column as usize].field_type {
                                     FieldType::Boolean => {
                                         let current_value = unsafe { item.as_mut().unwrap().check_state() };
-                                        if current_value != CheckState::Unchecked { 
+                                        if current_value != CheckState::Unchecked {
                                             unsafe { edits.push(((*key, *column), (&*item).clone())); }
                                             unsafe { item.as_mut().unwrap().set_check_state(CheckState::Unchecked); }
                                         }
@@ -2363,25 +2363,25 @@ impl PackedFileTableView {
                     let mut current_row_index = -2;
                     for (index, (row, _)) in cells.iter().rev().filter(|x| x.1.len() == unsafe { model.as_ref().unwrap().column_count(()) as usize }).enumerate() {
 
-                        let mut items = vec![];                        
+                        let mut items = vec![];
                         for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
                             let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
                             items.push(item.clone());
                         }
 
-                        if (*row == current_row_index - 1) || index == 0 { 
-                            current_row_pack.push((*row, items)); 
+                        if (*row == current_row_index - 1) || index == 0 {
+                            current_row_pack.push((*row, items));
                             current_row_index = *row;
                         }
                         else {
                             current_row_pack.reverse();
                             removed_rows_splitted.push(current_row_pack.to_vec());
                             current_row_pack.clear();
-                            current_row_pack.push((*row, items)); 
+                            current_row_pack.push((*row, items));
                             current_row_index = *row;
                         }
                     }
-                    
+
                     current_row_pack.reverse();
                     removed_rows_splitted.push(current_row_pack);
                     if removed_rows_splitted[0].is_empty() { removed_rows_splitted.clear(); }
@@ -2417,10 +2417,10 @@ impl PackedFileTableView {
                             removed_rows_splitted.reverse();
                             table_state_data.undo_history.push(TableOperations::SmartDelete((edits, removed_rows_splitted)));
                             table_state_data.redo_history.clear();
-                            update_undo_model(model, table_state_data.undo_model); 
+                            update_undo_model(model, table_state_data.undo_model);
                         }
 
-                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }                        
+                        unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
                     }
                 }
             )),
@@ -2447,7 +2447,7 @@ impl PackedFileTableView {
 
                     // Reset the matches's list.
                     matches.borrow_mut().clear();
-                    
+
                     // Get the column selected, and act depending on it.
                     match column {
                         -1 => {
@@ -2504,7 +2504,7 @@ impl PackedFileTableView {
                             unsafe { replace_current_button.as_mut().unwrap().set_enabled(false); }
                             unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
                         }
-                        
+
                         // Otherwise, matches have been found both, in the model and in the filter.
                         else {
 
@@ -2515,7 +2515,7 @@ impl PackedFileTableView {
                                     // Get the list of all valid ModelIndex for the current filter.
                                     let matches = matches.borrow();
                                     let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
-                                    
+
                                     // If our position is still valid, use it. Otherwise, return a 0.
                                     if pos < matches_in_filter.len() { pos } else { 0 }
                                 }
@@ -2524,7 +2524,7 @@ impl PackedFileTableView {
 
                             *position.borrow_mut() = Some(new_position);
                             unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str(&format!("{} of {} with current filter ({} in total)", position.borrow().unwrap() + 1, matches_in_filter, matches.borrow().len()))); }
-                            
+
                             if position.borrow().unwrap() == 0 { unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }}
                             else { unsafe { prev_match_button.as_mut().unwrap().set_enabled(true); }}
 
@@ -2554,9 +2554,9 @@ impl PackedFileTableView {
                     matches.borrow_mut().clear();
                     *position.borrow_mut() = None;
                     let text = unsafe { search_line_edit.as_mut().unwrap().text() };
-                    
+
                     // If there is no text, return emptyhanded.
-                    if text.is_empty() { 
+                    if text.is_empty() {
                         *search_data.borrow_mut() = (String::new(), Flags::from_enum(MatchFlag::Contains), -1);
                         unsafe { matches_label.as_mut().unwrap().set_text(&QString::from_std_str("")); }
                         unsafe { prev_match_button.as_mut().unwrap().set_enabled(false); }
@@ -2573,13 +2573,13 @@ impl PackedFileTableView {
                     // Check if the filter should be "Case Sensitive".
                     let case_sensitive = unsafe { case_sensitive_button.as_mut().unwrap().is_checked() };
                     if case_sensitive { flags = flags | Flags::from_enum(MatchFlag::CaseSensitive); }
-                    
+
                     // Get the column selected, and act depending on it.
                     let column = unsafe { column_selector.as_mut().unwrap().current_text().to_std_string().replace(' ', "_").to_lowercase() };
                     match &*column {
                         "*_(all_columns)" => {
                             for index in 0..table_definition.fields.len() {
-                                
+
                                 // Get all the matches from all the columns. Once you got them, process them and get their ModelIndex.
                                 let matches_unprocessed = unsafe { model.as_mut().unwrap().find_items((&text, flags.clone(), index as i32)) };
                                 for index in 0..matches_unprocessed.count() {
@@ -2633,7 +2633,7 @@ impl PackedFileTableView {
                             unsafe { replace_current_button.as_mut().unwrap().set_enabled(false); }
                             unsafe { replace_all_button.as_mut().unwrap().set_enabled(false); }
                         }
-                        
+
                         // Otherwise, matches have been found both, in the model and in the filter.
                         else {
 
@@ -2670,8 +2670,8 @@ impl PackedFileTableView {
                     // Get the list of all valid ModelIndex for the current filter and the current position.
                     let matches = matches.borrow();
                     let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
-                    if let Some(ref mut pos) = *position.borrow_mut() { 
-                    
+                    if let Some(ref mut pos) = *position.borrow_mut() {
+
                         // If we are in an invalid result, return. If it's the first one, disable the button and return.
                         if *pos > 0 {
                             *pos -= 1;
@@ -2699,8 +2699,8 @@ impl PackedFileTableView {
                     // Get the list of all valid ModelIndex for the current filter and the current position.
                     let matches = matches.borrow();
                     let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
-                    if let Some(ref mut pos) = *position.borrow_mut() { 
-                    
+                    if let Some(ref mut pos) = *position.borrow_mut() {
+
                         // If we are in an invalid result, return. If it's the last one, disable the button and return.
                         if *pos >= matches_in_filter.len() - 1 { unsafe { next_match_button.as_mut().unwrap().set_enabled(false); }}
                         else {
@@ -2711,7 +2711,7 @@ impl PackedFileTableView {
                             else { unsafe { next_match_button.as_mut().unwrap().set_enabled(true); }}
 
                             // Select the new cell.
-                            let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };                            
+                            let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                             unsafe { selection_model.as_mut().unwrap().select((
                                 matches_in_filter[*pos],
                                 Flags::from_enum(SelectionFlag::ClearAndSelect)
@@ -2735,7 +2735,7 @@ impl PackedFileTableView {
                 app_ui,
                 matches,
                 position => move || {
-                    
+
                     // Get the text, and only proceed if the source is not empty.
                     let text_source = unsafe { search_line_edit.as_mut().unwrap().text().to_std_string() };
                     let text_replace = unsafe { replace_line_edit.as_mut().unwrap().text().to_std_string() };
@@ -2746,8 +2746,8 @@ impl PackedFileTableView {
                         let item;
                         let replaced_text;
 
-                        // And if we got a valid position. 
-                        if let Some(ref position) = *position.borrow() { 
+                        // And if we got a valid position.
+                        if let Some(ref position) = *position.borrow() {
 
                             // Get the list of all valid ModelIndex for the current filter and the current position.
                             let matches = matches.borrow();
@@ -2782,7 +2782,7 @@ impl PackedFileTableView {
                         if let Some(pos) = *position.borrow() {
                             let matches = matches.borrow();
                             let matches_in_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.1.as_ref().unwrap().get()).collect::<Vec<&ModelIndex>>();
-                           
+
                             let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                             unsafe { selection_model.as_mut().unwrap().select((
                                 matches_in_filter[pos],
@@ -2800,7 +2800,7 @@ impl PackedFileTableView {
                 table_state_data,
                 app_ui,
                 matches => move || {
-                    
+
                     // Get the texts and only proceed if the source is not empty.
                     let text_source = unsafe { search_line_edit.as_mut().unwrap().text().to_std_string() };
                     let text_replace = unsafe { replace_line_edit.as_mut().unwrap().text().to_std_string() };
@@ -2810,12 +2810,12 @@ impl PackedFileTableView {
                         // This is done like that because problems with borrowing matches and position. We cannot set the new text while
                         // matches is borrowed, so we have to catch that into his own scope.
                         let mut positions_and_texts: Vec<((i32, i32), String)> = vec![];
-                        { 
+                        {
                             // Get the list of all valid ModelIndex for the current filter and the current position.
                             let matches = matches.borrow();
                             let matches_original_from_filter = matches.iter().filter(|x| x.1.is_some()).map(|x| x.0.get()).collect::<Vec<&ModelIndex>>();
                             for model_index in &matches_original_from_filter {
-                             
+
                                 // If the position is still valid (not required, but just in case)...
                                 if model_index.is_valid() {
 
@@ -2833,7 +2833,7 @@ impl PackedFileTableView {
                             }
                             let regex = Regex::new(&format!("(?i){}", text_source)).unwrap();
                             for model_index in &matches_original_from_filter {
-                             
+
                                 // If the position is still valid (not required, but just in case)...
                                 if model_index.is_valid() {
                                     let item = unsafe { model.as_mut().unwrap().item_from_index(model_index) };
@@ -2862,7 +2862,7 @@ impl PackedFileTableView {
                                     let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
                                     let len = table_state_data.undo_history.len();
                                     let mut edits_data = vec![];
-                                    
+
                                     {
                                         let mut edits = table_state_data.undo_history.drain((len - positions_and_texts.len())..);
                                         for edit in &mut edits { if let TableOperations::Editing(mut edit) = edit { edits_data.append(&mut edit); }}
@@ -2870,7 +2870,7 @@ impl PackedFileTableView {
 
                                     table_state_data.undo_history.push(TableOperations::Editing(edits_data));
                                     table_state_data.redo_history.clear();
-                                    update_undo_model(model, table_state_data.undo_model); 
+                                    update_undo_model(model, table_state_data.undo_model);
                                 }
 
                                 unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
@@ -2989,10 +2989,10 @@ impl PackedFileTableView {
             // Same with the columns, if we opted to keep their state.
             let mut blocker1 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().static_cast_mut() as &mut Object) };
             let mut blocker2 = unsafe { SignalBlocker::new(table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().static_cast_mut() as &mut Object) };
-            
+
             // Depending on the current settings, load the current state of the table or not.
             if SETTINGS.lock().unwrap().settings_bool["remember_column_sorting"] {
-                let sort_order = match state_data.columns_state.sorting_column.1 { 
+                let sort_order = match state_data.columns_state.sorting_column.1 {
                     1 => (state_data.columns_state.sorting_column.0, SortOrder::Ascending),
                     2 => (state_data.columns_state.sorting_column.0, SortOrder::Descending),
                     _ => (-1, SortOrder::Ascending),
@@ -3022,7 +3022,7 @@ impl PackedFileTableView {
                     }
                 }
             }
-            
+
             blocker1.unblock();
             blocker2.unblock();
         }
@@ -3244,7 +3244,7 @@ impl PackedFileTableView {
 
         // Update the DB with the data in the table, or report error if it fails.
         Self::return_data_from_table_view(&mut table_type, definition, model);
-        
+
         // Depending on the table type, we save it one way or another.
         match table_type {
             TableType::DependencyManager(pack_file_list) => {
@@ -3266,7 +3266,7 @@ impl PackedFileTableView {
 
         let tree_path_type = match table_type {
             TableType::DependencyManager(_) => TreePathType::PackFile,
-            TableType::DB(_) | TableType::LOC(_) => TreePathType::File(packed_file_path.borrow().to_vec()), 
+            TableType::DB(_) | TableType::LOC(_) => TreePathType::File(packed_file_path.borrow().to_vec()),
         };
 
         update_treeview(
@@ -3300,7 +3300,7 @@ impl PackedFileTableView {
         table_view_frozen: *mut TableView,
         model: *mut StandardItemModel,
         filter_model: *mut SortFilterProxyModel,
-        history_source: &mut Vec<TableOperations>, 
+        history_source: &mut Vec<TableOperations>,
         history_opposite: &mut Vec<TableOperations>,
         global_search_explicit_paths: &Rc<RefCell<Vec<Vec<String>>>>,
         update_global_search_stuff: *mut Action,
@@ -3320,7 +3320,7 @@ impl PackedFileTableView {
                 let mut redo_editions = vec![];
                 unsafe { editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone()))); }
                 history_opposite.push(TableOperations::Editing(redo_editions));
-    
+
                 *undo_lock.borrow_mut() = true;
                 *save_lock.borrow_mut() = true;
                 for (index, edit) in editions.iter().enumerate() {
@@ -3328,16 +3328,16 @@ impl PackedFileTableView {
                     let column = (edit.0).1;
                     let item = edit.1;
                     unsafe { model.as_mut().unwrap().set_item((row, column, item.clone())); }
-                    
+
                     // If we are going to process the last one, unlock the save.
-                    if index == editions.len() - 1 { 
+                    if index == editions.len() - 1 {
                         unsafe { model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_data((&Variant::new0(1i32), 16)); }
                         *save_lock.borrow_mut() = false;
                         unsafe { model.as_mut().unwrap().item((row, column)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
                     }
                 }
                 *undo_lock.borrow_mut() = false;
-    
+
                 // Select all the edited items.
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().clear(); }
@@ -3363,21 +3363,21 @@ impl PackedFileTableView {
                 let mut current_row_index = -2;
                 for (index, row) in rows.iter().enumerate() {
 
-                    let mut items = vec![];                        
+                    let mut items = vec![];
                     for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
                         let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
                         items.push(item.clone());
                     }
 
-                    if (*row == current_row_index - 1) || index == 0 { 
-                        current_row_pack.push((*row, items)); 
+                    if (*row == current_row_index - 1) || index == 0 {
+                        current_row_pack.push((*row, items));
                         current_row_index = *row;
                     }
                     else {
                         current_row_pack.reverse();
                         rows_splitted.push(current_row_pack.to_vec());
                         current_row_pack.clear();
-                        current_row_pack.push((*row, items)); 
+                        current_row_pack.push((*row, items));
                         current_row_index = *row;
                     }
                 }
@@ -3422,7 +3422,7 @@ impl PackedFileTableView {
                 rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
                 rows_to_add.reverse();
                 history_opposite.push(TableOperations::AddRows(rows_to_add));
-                
+
                 // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets, the slower it gets. And it gets very slow.
                 let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
                 unsafe { selection_model.as_mut().unwrap().clear(); }
@@ -3492,7 +3492,7 @@ impl PackedFileTableView {
                 unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
                 *undo_lock.borrow_mut() = false;
             }
-                        
+
             // This action is special and we have to manually trigger a save for it.
             // "rows" has to come in the same format than in AddRows.
             TableOperations::RevertSmartDelete((edits, rows)) => {
@@ -3523,21 +3523,21 @@ impl PackedFileTableView {
                 let mut current_row_index = -2;
                 for (index, row) in rows.iter().enumerate() {
 
-                    let mut items = vec![];                        
+                    let mut items = vec![];
                     for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
                         let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
                         items.push(item.clone());
                     }
 
-                    if (*row == current_row_index - 1) || index == 0 { 
-                        current_row_pack.push((*row, items)); 
+                    if (*row == current_row_index - 1) || index == 0 {
+                        current_row_pack.push((*row, items));
                         current_row_index = *row;
                     }
                     else {
                         current_row_pack.reverse();
                         rows_splitted.push(current_row_pack.to_vec());
                         current_row_pack.clear();
-                        current_row_pack.push((*row, items)); 
+                        current_row_pack.push((*row, items));
                         current_row_index = *row;
                     }
                 }
@@ -3573,7 +3573,7 @@ impl PackedFileTableView {
 
                 // Prepare the redo operation.
                 {
-                    let table_type = &mut *table_type.borrow_mut(); 
+                    let table_type = &mut *table_type.borrow_mut();
                     match table_type {
                         TableType::DependencyManager(data) => {
                             history_opposite.push(TableOperations::ImportTSV(data.to_vec()));
@@ -3661,7 +3661,7 @@ impl PackedFileTableView {
             // We paint it depending on if it's a valid PackFile or not.
             if !packfile.is_empty() && packfile.ends_with(".pack") && !packfile.contains(' ') { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Black)); } }
             else { unsafe { item.as_mut().unwrap().set_foreground(&Brush::new(GlobalColor::Red)); } }
-        }  
+        }
     }
 
     /// This function "process" the column names of a table, so they look like they should.
@@ -3719,14 +3719,14 @@ impl PackedFileTableView {
             }
 
             // We only pass this for DB Tables. Loc files can skip this.
-            if let Some(ref table_name) = enable_header_popups {   
-        
+            if let Some(ref table_name) = enable_header_popups {
+
                 // Create the tooltip for the column. To get the reference data, we iterate through every table in the schema and check their references.
                 let mut tooltip_text = String::new();
                 if !field.field_description.is_empty() { tooltip_text.push_str(&format!("<p>{}</p>", field.field_description)); }
                 if let Some(ref reference) = field.field_is_reference {
                     tooltip_text.push_str(&format!("<p>This column is a reference to:</p><p><i>\"{}/{}\"</i></p>", reference.0, reference.1));
-                } else { 
+                } else {
                     let schema = SCHEMA.lock().unwrap().clone();
                     let mut referenced_columns = if let Some(schema) = schema {
                         let short_table_name = table_name.split_at(table_name.len() - 7).0;
@@ -3735,10 +3735,10 @@ impl PackedFileTableView {
                             let mut found = false;
                             for version in table.versions {
                                 for field_ref in version.fields {
-                                    if let Some(ref_data) = field_ref.field_is_reference { 
+                                    if let Some(ref_data) = field_ref.field_is_reference {
                                         if ref_data.0 == short_table_name && ref_data.1 == field.field_name {
                                             found = true;
-                                            columns.push((table.name.to_owned(), field_ref.field_name)); 
+                                            columns.push((table.name.to_owned(), field_ref.field_name));
                                         }
                                     }
                                 }
@@ -3749,13 +3749,13 @@ impl PackedFileTableView {
                     } else { vec![] };
 
                     referenced_columns.sort_unstable();
-                    if !referenced_columns.is_empty() { 
+                    if !referenced_columns.is_empty() {
                         tooltip_text.push_str("<p>Fields that reference this column:</p>");
                         for (index, reference) in referenced_columns.iter().enumerate() {
                             tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
 
                             // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
-                            if index == 50 { 
+                            if index == 50 {
                                 tooltip_text.push_str(&format!("<p>And many more. Exactly, {} more. Too many to show them here.</p>nnnn", referenced_columns.len() as isize - 50));
                                 break ;
                             }
@@ -3907,7 +3907,7 @@ impl PackedFileTableView {
         else { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column_selector.as_mut().unwrap().current_index()); }}
 
         // Check if the filter should be "Case Sensitive".
-        if let Some(case_sensitive) = case_sensitive { 
+        if let Some(case_sensitive) = case_sensitive {
             if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
             else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
         }

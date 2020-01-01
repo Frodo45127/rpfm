@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -38,10 +38,10 @@ pub fn create_image_view(
     // Get the path of the extracted Image.
     sender_qt.send(Commands::DecodePackedFileImage).unwrap();
     sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
-    let path = match check_message_validity_recv2(&receiver_qt) { 
+    let path = match check_message_validity_recv2(&receiver_qt) {
         Data::PathBuf(data) => data,
         Data::Error(error) => return Err(error),
-        _ => panic!(THREADS_MESSAGE_ERROR), 
+        _ => panic!(THREADS_MESSAGE_ERROR),
     };
 
     // Get the image's path.

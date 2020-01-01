@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -39,12 +39,12 @@ pub fn create_text_view(
     // Get the text of the PackedFile.
     sender_qt.send(Commands::DecodePackedFileText).unwrap();
     sender_qt_data.send(Data::VecString(packed_file_path.borrow().to_vec())).unwrap();
-    let text = match check_message_validity_recv2(&receiver_qt) { 
+    let text = match check_message_validity_recv2(&receiver_qt) {
         Data::String(data) => data,
         Data::Error(error) => return Err(error),
-        _ => panic!(THREADS_MESSAGE_ERROR), 
+        _ => panic!(THREADS_MESSAGE_ERROR),
     };
-    
+
     PackedFileTextView::create_text_view(
         sender_qt,
         sender_qt_data,

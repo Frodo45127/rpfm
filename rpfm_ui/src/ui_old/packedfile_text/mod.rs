@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -157,10 +157,10 @@ impl PackedFileTextView {
 
                     // Tell the background thread to check the PackedFile, and return the result.
                     sender_qt.send(Commands::CheckScriptWithKailua).unwrap();
-                    let result = match check_message_validity_recv2(&receiver_qt) { 
+                    let result = match check_message_validity_recv2(&receiver_qt) {
                         Data::VecString(data) => data,
                         Data::Error(error) => return show_dialog(app_ui.window, false, error),
-                        _ => panic!(THREADS_MESSAGE_ERROR), 
+                        _ => panic!(THREADS_MESSAGE_ERROR),
                     };
 
                     let mut clean_result = String::new();
@@ -193,7 +193,7 @@ impl PackedFileTextView {
             close_note: SlotNoArgs::new(clone!(
                 packedfiles_open_in_packedfile_view,
                 app_ui => move || {
-                    purge_that_one_specifically(&app_ui, 1, &packedfiles_open_in_packedfile_view); 
+                    purge_that_one_specifically(&app_ui, 1, &packedfiles_open_in_packedfile_view);
                     let widgets = unsafe { app_ui.packed_file_splitter.as_mut().unwrap().count() };
                     let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.as_mut().unwrap().widget(*x).as_mut().unwrap().is_visible() } ).count();
                     if visible_widgets == 0 { display_help_tips(&app_ui); }

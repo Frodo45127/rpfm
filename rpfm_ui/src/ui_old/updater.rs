@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------//
-// Copyright (c) 2017-2019 Ismael Gutiérrez González. All rights reserved.
-// 
+// Copyright (c) 2017-2020 Ismael Gutiérrez González. All rights reserved.
+//
 // This file is part of the Rusted PackFile Manager (RPFM) project,
 // which can be found here: https://github.com/Frodo45127/rpfm.
-// 
+//
 // This file is licensed under the MIT license, which can be found here:
 // https://github.com/Frodo45127/rpfm/blob/master/LICENSE.
 //---------------------------------------------------------------------------//
@@ -386,7 +386,7 @@ fn network_thread(
 
         // When we want to check if there is a schema's update available...
         "check_schema_updates" => {
-            let apiresponse = 
+            let apiresponse =
                 if let Ok(mut remote_versions) = reqwest::get("https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/versions.json") {
                     if let Ok(remote_versions) = remote_versions.json() {
 
