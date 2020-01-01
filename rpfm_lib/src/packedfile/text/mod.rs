@@ -22,7 +22,13 @@ use rpfm_error::{ErrorKind, Result};
 use crate::common::{decoder::Decoder, encoder::Encoder};
 
 /// UTF-8 BOM (Byte Order Mark).
-const BOM: [u8;3] = [0xEF,0xBB,0xBF];
+const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
+
+// UTF-16 BOM (Byte Order Mark), Big Endian.
+//const BOM_UTF_16_BE: [u8;2] = [0xFE,0xFF];
+
+/// UTF-16 BOM (Byte Order Mark), Little Endian.
+const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -43,7 +49,8 @@ pub struct Text {
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum SupportedEncodings {
     UTF8,
-    //UTF16,
+    //UTF16_BE,
+    UTF16_LE,
     Iso8859_1,
     //Iso8859_15,
 }
@@ -83,16 +90,30 @@ impl Text {
     /// This function creates a `Text` from a `Vec<u8>`.
     pub fn read(packed_file_data: &[u8]) -> Result<Self> {
 
-        // Check for BOM and remove it if it finds it. It's useless in UTF-8, after all.
-        let packed_file_data = if packed_file_data.len() > 2 && packed_file_data[0..3] == BOM { &packed_file_data[3..] } else { packed_file_data };
+        // First, check for BOMs. 2 bytes for UTF-16 BOMs, 3 for UTF-8. If no BOM is found, we assume UTF-8 or ISO5589-1.
+        let (packed_file_data, guessed_encoding) = if packed_file_data.is_empty() { (packed_file_data, SupportedEncodings::UTF8) }
+        else if packed_file_data.len() > 2 && packed_file_data[0..3] == BOM_UTF_8 { (&packed_file_data[3..], SupportedEncodings::UTF8) }
+        //else if packed_file_data.len() > 1 && packed_file_data[0..2] == BOM_UTF_16_BE { (&packed_file_data[2..], SupportedEncodings::UTF16_BE) }
+        else if packed_file_data.len() > 1 && packed_file_data[0..2] == BOM_UTF_16_LE { (&packed_file_data[2..], SupportedEncodings::UTF16_LE) }
+        else { (packed_file_data, SupportedEncodings::UTF8) };
 
-        // This is simple: we try to decode it as an UTF-8 text file. If that doesn't work, we try as 8859-1.
-        // If that fails too... fuck you and your abnormal encodings.
-        let (encoding, contents) = match packed_file_data.decode_string_u8(0, packed_file_data.len()) {
-            Ok(string) => (SupportedEncodings::UTF8, string),
-            Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
-                Ok(string) => (SupportedEncodings::Iso8859_1, string),
-                Err(_) => return Err(ErrorKind::TextDecodeWrongEncodingOrNotATextFile.into()),
+        // This is simple: we try to decode it depending on what the guesser gave us. If all fails, return error.
+        let (encoding, contents) = match guessed_encoding {
+            SupportedEncodings::UTF8 | SupportedEncodings::Iso8859_1 => {
+                match packed_file_data.decode_string_u8(0, packed_file_data.len()) {
+                    Ok(string) => (SupportedEncodings::UTF8, string),
+                    Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
+                        Ok(string) => (SupportedEncodings::Iso8859_1, string),
+                        Err(_) => return Err(ErrorKind::TextDecodeWrongEncodingOrNotATextFile.into()),
+                    }
+                }
+            }
+
+            SupportedEncodings::UTF16_LE => {
+                match packed_file_data.decode_string_u16(0, packed_file_data.len()) {
+                    Ok(string) => (SupportedEncodings::UTF16_LE, string),
+                    Err(_) => return Err(ErrorKind::TextDecodeWrongEncodingOrNotATextFile.into()),
+                }
             }
         };
 
@@ -109,6 +130,12 @@ impl Text {
         let mut data = vec![];
         match self.encoding {
             SupportedEncodings::UTF8 => data.encode_string_u8(&self.contents),
+
+            // For UTF-16 we always have to add the BOM. Otherwise we have no way to easely tell what this file is.
+            SupportedEncodings::UTF16_LE => {
+                data.append(&mut BOM_UTF_16_LE.to_vec());
+                data.encode_string_u16(&self.contents)
+            },
             _ => unimplemented!(),
         }
 
