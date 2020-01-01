@@ -52,6 +52,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
 use crate::communications::CentralCommand;
+use crate::locale::Locale;
 use crate::pack_tree::icons::Icons;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::UIState;
@@ -172,17 +173,17 @@ lazy_static! {
     static ref MEDIUM_GREY: &'static str = "555555";
 
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
-    static ref LOCALE_FALLBACK: Arc<RwLock<FluentBundle<FluentResource>>> = {
-        match locale::initialize("en") {
+    static ref LOCALE_FALLBACK: Locale = {
+        match Locale::initialize("en") {
             Ok(locale) => locale,
-            Err(_) => locale::initialize_empty(),
+            Err(_) => Locale::initialize_empty(),
         }
     };
 
     /// Variable to keep the locale data used by the UI loaded and available. If we fail to load the selected locale data, copy the english one instead.
-    static ref LOCALE: Arc<RwLock<FluentBundle<FluentResource>>> = {
+    static ref LOCALE: Locale = {
         match SETTINGS.lock().unwrap().settings_string.get("language") {
-            Some(language) => locale::initialize(language).unwrap_or_else(|_| LOCALE_FALLBACK.clone()),
+            Some(language) => Locale::initialize(language).unwrap_or_else(|_| LOCALE_FALLBACK.clone()),
             None => LOCALE_FALLBACK.clone(),
         }
     };

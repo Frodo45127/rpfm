@@ -38,7 +38,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::Settings;
 
 use crate::AppUI;
-use crate::locale;
+use crate::Locale;
 use crate::QString;
 use crate::SETTINGS;
 use crate::utils::create_grid_layout_safe;
@@ -239,7 +239,7 @@ impl SettingsUI {
 
         let ui_language_model = StandardItemModel::new(());
         unsafe { ui_language_combobox.set_model(ui_language_model.into_raw() as *mut AbstractItemModel); }
-        for language in locale::get_available_locales() {
+        for language in Locale::get_available_locales() {
             ui_language_combobox.add_item(&QString::from_std_str(language.get_language()));
         }
 

@@ -38,7 +38,7 @@ use qt_core::object::Object;
 use qt_core::qt::CaseSensitivity;
 
 use crate::ffi::new_tableview_command_palette;
-use crate::locale::tr;
+use crate::locale::qtr;
 use crate::QString;
 use crate::RPFM_PATH;
 use crate::utils::create_grid_layout_unsafe;
@@ -299,12 +299,12 @@ impl Default for AppUI {
 
         // Create the `MenuBar` menus.
         let menu_bar_ref_mut = unsafe { menu_bar.as_mut().unwrap() };
-        let menu_bar_packfile = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-packfile")));
-        let menu_bar_mymod = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-mymod")));
-        let menu_bar_view = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-view")));
-        let menu_bar_game_seleted = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-game-selected")));
-        let menu_bar_special_stuff = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-special-stuff")));
-        let menu_bar_about = menu_bar_ref_mut.add_menu(&QString::from_std_str(tr("menu-bar-about")));
+        let menu_bar_packfile = menu_bar_ref_mut.add_menu(&qtr("menu-bar-packfile"));
+        let menu_bar_mymod = menu_bar_ref_mut.add_menu(&qtr("menu-bar-mymod"));
+        let menu_bar_view = menu_bar_ref_mut.add_menu(&qtr("menu-bar-view"));
+        let menu_bar_game_seleted = menu_bar_ref_mut.add_menu(&qtr("menu-bar-game-selected"));
+        let menu_bar_special_stuff = menu_bar_ref_mut.add_menu(&qtr("menu-bar-special-stuff"));
+        let menu_bar_about = menu_bar_ref_mut.add_menu(&qtr("menu-bar-about"));
 
         //-----------------------------------------------//
         // `PackFile` Menu.

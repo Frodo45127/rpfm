@@ -21,86 +21,111 @@ use unic_langid::{langid, LanguageIdentifier};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_error::{Error, ErrorKind, Result};
 use rpfm_lib::common::get_files_from_subdir;
 
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
+use crate::QString;
 
 /// Name of the folder containing all the schemas.
 const LOCALE_FOLDER: &str = "locale";
 
-/// This function initializes all the translations we're going to use.
-pub fn initialize(lang_id: &str) -> Result<Arc<RwLock<FluentBundle<FluentResource>>>> {
+/// This struct contains a localisation use in RPFM.
+#[derive(Clone)]
+pub struct Locale(Arc<RwLock<FluentBundle<FluentResource>>>);
 
-    // Get the list of available translations from the locale folder, and load the requested one, if found.
-    let locales = get_available_locales();
-    let selected_locale = locales.iter().find(|x| x.get_language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
-    let locale = format!("{}/{}.ftl", LOCALE_FOLDER, lang_id);
+/// Implementation of `Locale`.
+impl Locale {
 
-    // If found, load the entire file to a string.
-    let mut file = File::open(&locale)?;
-    let mut ftl_string = String::new();
-    file.read_to_string(&mut ftl_string)?;
+    /// This function initializes the localisation for the provided language, if exists.
+    pub fn initialize(lang_id: &str) -> Result<Self> {
 
-    // Then to a resource and a bundle.
-    let resource = FluentResource::try_new(ftl_string)?;
-    let mut bundle = FluentBundle::new(&[selected_locale.clone()]);
-    bundle.add_resource(resource)?;
+        // Get the list of available translations from the locale folder, and load the requested one, if found.
+        let locales = Self::get_available_locales();
+        let selected_locale = locales.iter().find(|x| x.get_language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
+        let locale = format!("{}/{}.ftl", LOCALE_FOLDER, lang_id);
 
-    // If nothing failed, return the new translation.
-    Ok(Arc::new(RwLock::new(bundle)))
-}
+        // If found, load the entire file to a string.
+        let mut file = File::open(&locale)?;
+        let mut ftl_string = String::new();
+        file.read_to_string(&mut ftl_string)?;
 
-/// This function initializes an empty translation, just in case some idiot deletes the english translation and fails to load it.
-pub fn initialize_empty() -> Arc<RwLock<FluentBundle<FluentResource>>> {
+        // Then to a resource and a bundle.
+        let resource = FluentResource::try_new(ftl_string)?;
+        let mut bundle = FluentBundle::new(&[selected_locale.clone()]);
+        bundle.add_resource(resource)?;
 
-    // Create an empty bundle, and return it.
-    let ftl_string = String::new();
-    let resource = FluentResource::try_new(ftl_string).unwrap();
-    let mut bundle = FluentBundle::new(&[langid!["en"]]);
-    bundle.add_resource(resource).unwrap();
-    Arc::new(RwLock::new(bundle))
-}
+        // If nothing failed, return the new translation.
+        Ok(Self(Arc::new(RwLock::new(bundle))))
+    }
 
-/// This function returns a list of all the languages we have translation files for.
-pub fn get_available_locales() -> Vec<LanguageIdentifier> {
-    let mut languages = vec![];
-    for file in get_files_from_subdir(Path::new("locale")).unwrap() {
-        let language = file.file_stem().unwrap().to_string_lossy();
-        if let Ok(language_id) = LanguageIdentifier::from_parts(Some(language), None, None, None) {
-            languages.push(language_id);
+    /// This function initializes an empty localisation, just in case some idiot deletes the english translation and fails to load it.
+    pub fn initialize_empty() -> Self {
+
+        // Create an empty bundle, and return it.
+        let ftl_string = String::new();
+        let resource = FluentResource::try_new(ftl_string).unwrap();
+        let mut bundle = FluentBundle::new(&[langid!["en"]]);
+        bundle.add_resource(resource).unwrap();
+        Self(Arc::new(RwLock::new(bundle)))
+    }
+
+    /// This function returns a list of all the languages we have translation files for in key form ("en", "sp", etc...).
+    pub fn get_available_locales() -> Vec<LanguageIdentifier> {
+        let mut languages = vec![];
+        for file in get_files_from_subdir(Path::new("locale")).unwrap() {
+            let language = file.file_stem().unwrap().to_string_lossy();
+            if let Ok(language_id) = LanguageIdentifier::from_parts(Some(language), None, None, None) {
+                languages.push(language_id);
+            }
+        }
+        languages
+    }
+
+    /// This function returns the translation for the key provided in the current language.
+    ///
+    /// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+    fn tr(key: &str) -> String {
+        let mut _errors = vec![];
+        match LOCALE.get().get_message(key) {
+            Some(message) => match message.value {
+                Some(pattern) => LOCALE.get().format_pattern(&pattern, None, &mut _errors).to_string(),
+                None => Self::tr_fallback(key),
+            },
+            None => Self::tr_fallback(key),
         }
     }
-    languages
-}
 
-/// This function returns the translation for the key provided in the current language, or a... warning.
-///
-/// This is a mess, but it works.
-pub fn tr(key: &str) -> String {
-    let mut _errors = vec![];
-    match LOCALE.read().unwrap().get_message(key) {
-        Some(message) => match message.value {
-            Some(pattern) => LOCALE.read().unwrap().format_pattern(&pattern, None, &mut _errors).to_string(),
-            None => tr_fallback(key),
-        },
-        None => tr_fallback(key),
-    }
-}
-
-/// This function returns the translation for the key provided in the english language, or a... warning.
-///
-/// This is a fallback for the `tr` mess.
-pub fn tr_fallback(key: &str) -> String {
-    let mut _errors = vec![];
-    match LOCALE_FALLBACK.read().unwrap().get_message(key) {
-        Some(message) => match message.value {
-            Some(pattern) => LOCALE_FALLBACK.read().unwrap().format_pattern(&pattern, None, &mut _errors).to_string(),
+    /// This function returns the translation for the key provided in the english language, or a... warning.
+    fn tr_fallback(key: &str) -> String {
+        let mut _errors = vec![];
+        match LOCALE_FALLBACK.get().get_message(key) {
+            Some(message) => match message.value {
+                Some(pattern) => LOCALE_FALLBACK.get().format_pattern(&pattern, None, &mut _errors).to_string(),
+                None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),
+            },
             None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),
-        },
-        None => "AlL YoUrS TrAnSlAtIoNs ArE BeLoNg To mE.".to_owned(),
+        }
     }
+
+    pub fn get(&self) -> RwLockReadGuard<FluentBundle<FluentResource>> {
+        self.0.read().unwrap()
+    }
+}
+
+/// This function returns the translation as a `String` for the key provided in the current language.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn tr(key: &str) -> String {
+    Locale::tr(key)
+}
+
+/// This function returns the translation as a `QString` for the key provided in the current language.
+///
+/// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+pub fn qtr(key: &str) -> QString {
+    QString::from_std_str(Locale::tr(key))
 }
