@@ -5,6 +5,9 @@ extern "C" QWidget* new_text_editor(QWidget* parent) {
     KTextEditor::Editor *editor = KTextEditor::Editor::instance();
     KTextEditor::Document *doc = editor->createDocument(parent);
     KTextEditor::View *view = doc->createView(parent);
+
+    // Disable the status bar.
+    view->setStatusBarEnabled(false);
     return dynamic_cast<QWidget*>(view);
 }
 
