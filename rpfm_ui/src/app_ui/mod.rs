@@ -316,8 +316,8 @@ impl Default for AppUI {
         let packfile_open_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("open_packfile"));
         let packfile_save_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("save_packfile"));
         let packfile_save_packfile_as = menu_bar_packfile_ref_mut.add_action(&qtr("save_packfile_as"));
-        let mut packfile_menu_open_from_content = Menu::new(&qtr("open_from_content"));
-        let mut packfile_menu_open_from_data = Menu::new(&qtr("open_from_data"));
+        let packfile_menu_open_from_content = Menu::new(&qtr("open_from_content"));
+        let packfile_menu_open_from_data = Menu::new(&qtr("open_from_data"));
         let mut packfile_menu_change_packfile_type = Menu::new(&qtr("change_packfile_type"));
         let packfile_load_all_ca_packfiles = menu_bar_packfile_ref_mut.add_action(&qtr("load_all_ca_packfiles"));
         let packfile_preferences = menu_bar_packfile_ref_mut.add_action(&qtr("preferences"));
@@ -348,9 +348,6 @@ impl Default for AppUI {
         let mut change_packfile_type_group = unsafe { ActionGroup::new(packfile_menu_change_packfile_type.as_mut_ptr() as *mut Object) };
 
         // Configure the `PackFile` menu and his submenu.
-        packfile_menu_open_from_content.set_enabled(false);
-        packfile_menu_open_from_data.set_enabled(false);
-
         unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_boot); }
         unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_release); }
         unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_patch); }
