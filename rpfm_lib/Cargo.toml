@@ -32,7 +32,7 @@ uuid = { version = "^0.8", features = ["v4"] }
 chrono = "^0.4"
 
 # Update support.
-reqwest = "^0.9"
+reqwest = { version = "^0.10", features = ["blocking", "json"] }
 
 # Serialization support.
 serde = "^1.0"

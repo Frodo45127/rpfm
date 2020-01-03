@@ -18,7 +18,7 @@ uuid = { version = "^0.8", features = ["v4"] }
 # Dependencies with From<X> implementations for their errors in this module.
 bincode = "^1.1"
 csv = "^1.1"
-reqwest = "^0.9"
+reqwest = { version = "^0.10", features = ["blocking", "json"] }
 serde-xml-rs = "^0.3"
 serde_json = "^1.0"
 ron = "^0.5"

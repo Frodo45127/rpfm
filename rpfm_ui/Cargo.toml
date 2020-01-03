@@ -25,7 +25,7 @@ chrono = "^0.4"
 
 # Support for checking/downloading schemas.
 restson = "^0.5"
-reqwest = "^0.9"
+reqwest = { version = "^0.10", features = ["blocking", "json"] }
 
 # Support for Regex operations.
 regex = "^1"

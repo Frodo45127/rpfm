@@ -53,6 +53,7 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use reqwest::blocking;
 use ron::de::{from_str, from_reader};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
@@ -398,7 +399,7 @@ impl Schema {
 
         // To avoid doing a lot of useless checking, we only check for schemas with different version.
         let local_schema_versions: VersionsFile = from_reader(BufReader::new(File::open(get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE))?))?;
-        let current_schema_versions: VersionsFile = from_str(&reqwest::get(&format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.text()?)?;
+        let current_schema_versions: VersionsFile = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.text()?)?;
         let mut schemas_to_update = vec![];
 
         // If the game's schema is not in the repo (when adding a new game's support) skip it.
@@ -426,7 +427,7 @@ impl Schema {
             // Uncomment and tweak the commented schema_current to test against a local schema.
             let schema_local = Schema::load(schema_name).unwrap();
             //let schema_current = Schema::load("schema_att.json").unwrap();
-            let schema_current: Schema = reqwest::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, schema_name))?.json()?;
+            let schema_current: Schema = blocking::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, schema_name))?.json()?;
 
             // Lists to store the different types of differences.
             let mut diff = String::new();
@@ -1062,7 +1063,7 @@ impl VersionsFile {
         let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
         match Self::load() {
             Ok(local) => {
-                let remote: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
+                let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
                 if local == remote { return Ok(APIResponseSchema::SuccessNoUpdate); }
 
                 for (remote_file_name, remote_version) in &remote.0 {
@@ -1090,7 +1091,7 @@ impl VersionsFile {
         let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
         match Self::load() {
             Ok(local) => {
-                let remote: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
+                let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
                 for (remote_file_name, remote_version) in &remote.0 {
                     let schema_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, remote_file_name);
                     match local.0.get(remote_file_name) {
@@ -1099,12 +1100,12 @@ impl VersionsFile {
                             // If it's an update over our own schema, we download it and overwrite the current schema.
                             // NOTE: Github's API has a limit of 1MB per file, so we take it directly from raw.githubusercontent.com instead.
                             if remote_version > local_version {
-                                let mut schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
+                                let mut schema: Schema = from_str(&blocking::get(&schema_url)?.text()?)?;
                                 schema.save(remote_file_name)?;
                             }
                         }
                         None => {
-                            let mut schema: Schema = from_str(&reqwest::get(&schema_url)?.text()?)?;
+                            let mut schema: Schema = from_str(&blocking::get(&schema_url)?.text()?)?;
                             schema.save(remote_file_name)?;
                         }
                     }
@@ -1115,9 +1116,9 @@ impl VersionsFile {
 
             // If there is no local `VersionsFile`, download all the schemas, then save the new local `VersionsFile`.
             Err(_) => {
-                let local: Self = from_str(&reqwest::get(&versions_file_url)?.text()?)?;
+                let local: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
                 for file_name in local.0.keys() {
-                    let mut schema: Schema = from_str(&reqwest::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
+                    let mut schema: Schema = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
                     schema.save(file_name)?;
                 }
                 local.save()
