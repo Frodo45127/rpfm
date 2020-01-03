@@ -13,20 +13,16 @@ os_info = "^1.1"
 serde = "^1.0"
 serde_derive = "^1.0"
 toml = "^0.5"
-uuid = { version = "^0.7", features = ["v4"] }
+uuid = { version = "^0.8", features = ["v4"] }
 
 # Dependencies with From<X> implementations for their errors in this module.
 bincode = "^1.1"
-csv = "=1.0.5"
+csv = "^1.1"
 reqwest = "^0.9"
 serde-xml-rs = "^0.3"
 serde_json = "^1.0"
 ron = "^0.5"
-fluent = "^0.7"
-fluent-bundle = "^0.7"
+fluent = "^0.9"
+fluent-bundle = "^0.9"
 fluent-syntax = "^0.9"
 log = "^0.4"
-
-[profile.release]
-lto = true
-debug = true

@@ -6,3 +6,10 @@ members = [
     "rpfm_cli",
     "rpfm_ui",
 ]
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+lto = true
+debug = true

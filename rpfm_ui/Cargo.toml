@@ -43,21 +43,14 @@ qt_widgets = "^0.2"
 meval = "^0.2"
 
 # Translation support.
-fluent = "^0.7"
-fluent-bundle = "^0.7"
-unic-langid = "^0.4"
+fluent = "^0.9"
+fluent-bundle = "^0.9"
+unic-langid = { version = "^0.7", features = ["unic-langid-macros"] }
 
 # Improved multi-thread Support.
 crossbeam = "^0.7"
-rayon = "^1.2"
+rayon = "^1.3"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]
 winres = "^0.1"
-
-[profile.dev]
-incremental = true
-
-[profile.release]
-lto = true
-debug = true

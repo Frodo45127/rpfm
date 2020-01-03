@@ -80,8 +80,8 @@ impl Locale {
     pub fn get_available_locales() -> Vec<LanguageIdentifier> {
         let mut languages = vec![];
         for file in get_files_from_subdir(Path::new("locale")).unwrap() {
-            let language = file.file_stem().unwrap().to_string_lossy();
-            if let Ok(language_id) = LanguageIdentifier::from_parts(Some(language), None, None, None) {
+            let language = file.file_stem().unwrap().to_string_lossy().to_string();
+            if let Ok(language_id) = LanguageIdentifier::from_parts(Some(&language), None, None, &[]) {
                 languages.push(language_id);
             }
         }
