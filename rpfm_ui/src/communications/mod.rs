@@ -50,8 +50,12 @@ pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication sys
 pub struct CentralCommand {
     sender_qt: Sender<Command>,
     sender_rust: Sender<Response>,
+    sender_qt_to_network: Sender<Command>,
+    sender_network_to_qt: Sender<Response>,
     receiver_qt: Receiver<Response>,
     receiver_rust: Receiver<Command>,
+    receiver_qt_to_network: Receiver<Command>,
+    receiver_network_to_qt: Receiver<Response>,
 }
 
 /// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
@@ -436,11 +440,17 @@ impl Default for CentralCommand {
     fn default() -> Self {
         let command_channel = unbounded();
         let response_channel = unbounded();
+        let network_command_channel = unbounded();
+        let network_response_channel = unbounded();
         Self {
             sender_qt: command_channel.0,
             sender_rust: response_channel.0,
+            sender_qt_to_network: network_command_channel.0,
+            sender_network_to_qt: network_response_channel.0,
             receiver_qt: response_channel.1,
             receiver_rust: command_channel.1,
+            receiver_qt_to_network: network_command_channel.1,
+            receiver_network_to_qt: network_response_channel.1,
         }
     }
 }
@@ -464,10 +474,40 @@ impl CentralCommand {
         }
     }
 
+    /// This function serves to send message from the main thread to the network thread.
+    #[allow(dead_code)]
+    pub fn send_message_qt_to_network(&self, data: Command) {
+        if self.sender_qt_to_network.send(data).is_err() {
+            panic!(THREADS_COMMUNICATION_ERROR)
+        }
+    }
+
+    /// This function serves to send message from the main thread to the network thread.
+    #[allow(dead_code)]
+    pub fn send_message_network_to_qt(&self, data: Response) {
+        if self.sender_network_to_qt.send(data).is_err() {
+            panic!(THREADS_COMMUNICATION_ERROR)
+        }
+    }
+
     /// This functions serves to receive messages from the main thread into the background thread.
     #[allow(dead_code)]
     pub fn recv_message_rust(&self) -> Command {
         match self.receiver_rust.recv() {
+            Ok(data) => data,
+
+            // If we hit an error here, it means the main thread is dead. So... report it and exit.
+            Err(_) => {
+                println!("Main UI Thread dead. Exiting...");
+                exit(0);
+            }
+        }
+    }
+
+    /// This functions serves to receive messages from the main thread into the network thread.
+    #[allow(dead_code)]
+    pub fn recv_message_qt_to_network(&self) -> Command {
+        match self.receiver_qt_to_network.recv() {
             Ok(data) => data,
 
             // If we hit an error here, it means the main thread is dead. So... report it and exit.
@@ -489,6 +529,17 @@ impl CentralCommand {
         }
     }
 
+    /// This functions serves to receive messages from the network thread into the main thread.
+    ///
+    /// This function does only try once, and it locks the thread. Use it only in small stuff.
+    #[allow(dead_code)]
+    pub fn recv_message_network_to_qt(&self) -> Response {
+        match self.receiver_network_to_qt.recv() {
+            Ok(data) => data,
+            Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
+        }
+    }
+
     /// This functions serves to receive messages from the background thread into the main thread.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
@@ -499,6 +550,23 @@ impl CentralCommand {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
             match self.receiver_qt.try_recv() {
+                Ok(data) => return data,
+                Err(error) => if error.is_disconnected() { panic!(THREADS_COMMUNICATION_ERROR) }
+            }
+            event_loop.process_events(());
+        }
+    }
+
+    /// This functions serves to receive messages from the network thread into the main thread.
+    ///
+    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
+    #[allow(dead_code)]
+    pub fn recv_message_network_to_qt_try(&self) -> Response {
+        let mut event_loop = EventLoop::new();
+        loop {
+
+            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
+            match self.receiver_network_to_qt.try_recv() {
                 Ok(data) => return data,
                 Err(error) => if error.is_disconnected() { panic!(THREADS_COMMUNICATION_ERROR) }
             }

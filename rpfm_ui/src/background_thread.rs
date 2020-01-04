@@ -15,7 +15,6 @@ Basically, this does the heavy load of the program.
 !*/
 
 use rayon::prelude::*;
-use restson::RestClient;
 
 use std::env::temp_dir;
 use std::fs::File;
@@ -40,9 +39,8 @@ use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, network::LastestRelease, network::APIResponse};
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::RPFM_PATH;
-use crate::VERSION;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -289,85 +287,6 @@ pub fn background_loop() {
 
             // In case we want to check if there is a Schema loaded...
             Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
-
-            // When we want to check if there is an update available for RPFM...
-            Command::CheckUpdates => {
-
-                // Github requires headers. Otherwise, it'll throw our petition away.
-                let current_version = VERSION;
-                let mut client = RestClient::new("https://api.github.com").unwrap();
-                client.set_header("User-Agent", &format!("RPFM/{}", current_version)).unwrap();
-                match client.get(()) {
-
-                    // If we received a response from the server, check what it is, compared to our current version.
-                    Ok(last_release) => {
-
-                        // We get `last_release` into our `last_release`.
-                        // Redundant, but the compiler doesn't know his type otherwise.
-                        let last_release: LastestRelease = last_release;
-
-                        // Get the last version released. This depends on the fact that the releases are called "vX.X.Xwhatever".
-                        // We only compare the numbers here (X.X.X), so we have to remove everything else.
-                        let mut last_version = last_release.name.to_owned();
-                        last_version.remove(0);
-                        last_version.split_off(5);
-
-                        // Get the version numbers from our version and from the latest released version, so we can compare them.
-                        let first = (last_version.chars().nth(0).unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().nth(0).unwrap_or('0').to_digit(10).unwrap_or(0));
-                        let second = (last_version.chars().nth(2).unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().nth(2).unwrap_or('0').to_digit(10).unwrap_or(0));
-                        let third = (last_version.chars().nth(4).unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().nth(4).unwrap_or('0').to_digit(10).unwrap_or(0));
-
-                        // If this is triggered, there has been a problem parsing the current/remote version.
-                        let api_response = if first.0 == 0 && second.0 == 0 && third.0 == 0 || first.1 == 0 && second.1 == 0 && third.1 == 0 {
-                            APIResponse::SuccessUnknownVersion
-                        }
-
-                        // If the current version is different than the last released version...
-                        else if last_version != current_version {
-
-                            // If the latest released version is lesser than the current version...
-                            // No update. We are using a newer build than the last build released (dev?).
-                            if first.0 < first.1 { APIResponse::SuccessNoUpdate }
-
-                            // If the latest released version is greater than the current version...
-                            // New major update. No more checks needed.
-                            else if first.0 > first.1 { APIResponse::SuccessNewUpdate(last_release) }
-
-                            // If the latest released version the same than the current version, we check the second, then the third number.
-                            // No update. We are using a newer build than the last build released (dev?).
-                            else if second.0 < second.1 { APIResponse::SuccessNoUpdate }
-
-                            // New major update. No more checks needed.
-                            else if second.0 > second.1 { APIResponse::SuccessNewUpdate(last_release) }
-
-                            // We check the last number in the versions, and repeat. Scraping the barrel...
-                            // No update. We are using a newer build than the last build released (dev?).
-                            else if third.0 < third.1 { APIResponse::SuccessNoUpdate }
-
-                            // If the latest released version only has the last number higher, is a hotfix.
-                            else if third.0 > third.1 { APIResponse::SuccessNewUpdateHotfix(last_release) }
-
-                            // This means both are the same, and the checks will never reach this place thanks to the parent if.
-                            else { unreachable!() }
-                        }
-
-                        // If both versions are the same, there is no update. We have the latest update.
-                        else { APIResponse::SuccessNoUpdate };
-                        CENTRAL_COMMAND.send_message_rust(Response::APIResponse(api_response));
-                    }
-
-                    // If there has been no response from the server, or it has responded with an error...
-                    Err(_) => CENTRAL_COMMAND.send_message_rust(Response::APIResponse(APIResponse::Error)),
-                }
-            }
-
-            // When we want to check if there is a schema's update available...
-            Command::CheckSchemaUpdates => {
-                match VersionsFile::check_update() {
-                    Ok(response) => CENTRAL_COMMAND.send_message_rust(Response::APIResponseSchema(response)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
 
             // When we want to update our schemas...
             Command::UpdateSchemas => {
@@ -649,6 +568,9 @@ pub fn background_loop() {
                 let _ = global_search.replace_all(&mut pack_file_decoded);
                 CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
             }
+
+            // These two belong to the network thread, not to this one!!!!
+            Command::CheckUpdates | Command::CheckSchemaUpdates => panic!(THREADS_COMMUNICATION_ERROR),
         }
     }
 

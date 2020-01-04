@@ -86,6 +86,7 @@ mod background_thread;
 mod ffi;
 mod locale;
 mod mymod_ui;
+mod network_thread;
 mod pack_tree;
 mod packedfile_views;
 mod shortcuts_ui;
@@ -218,8 +219,9 @@ fn main() {
     // Preparing the Program...
     //---------------------------------------------------------------------------------------//
 
-    // Create the background thread, where all the magic will happen.
+    // Create the background and network threads, where all the magic will happen.
     thread::spawn(move || { background_thread::background_loop(); });
+    thread::spawn(move || { network_thread::network_loop(); });
 
     // Create the application and start the loop.
     Application::create_and_exit(|app| {

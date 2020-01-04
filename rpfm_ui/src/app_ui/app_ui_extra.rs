@@ -747,7 +747,7 @@ impl AppUI {
     ///
     /// If the `use_dialog` is false, we make the checks in the background, and pop up a dialog only in case there is an update available.
     pub fn check_updates(&self, use_dialog: bool) {
-        CENTRAL_COMMAND.send_message_qt(Command::CheckUpdates);
+        CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckUpdates);
 
         // If we want to use a Dialog to show the full searching process (clicking in the
         // menu button) we show the dialog, then change its text.
@@ -763,7 +763,7 @@ impl AppUI {
             dialog.set_modal(true);
             dialog.show();
 
-            let message = match CENTRAL_COMMAND.recv_message_qt_try() {
+            let message = match CENTRAL_COMMAND.recv_message_network_to_qt_try() {
                 Response::APIResponse(response) => {
                     match response {
                         APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
@@ -783,7 +783,7 @@ impl AppUI {
 
         // Otherwise, we just wait until we got a response, and only then (and only in case of new update)... we show a dialog.
         else {
-            let message = match CENTRAL_COMMAND.recv_message_qt_try() {
+            let message = match CENTRAL_COMMAND.recv_message_network_to_qt_try() {
                 Response::APIResponse(response) => {
                     match response {
                         APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
@@ -812,7 +812,7 @@ impl AppUI {
     ///
     /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
     pub fn check_schema_updates(&self, use_dialog: bool) {
-        CENTRAL_COMMAND.send_message_qt(Command::CheckSchemaUpdates);
+        CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckSchemaUpdates);
 
         // If we want to use a Dialog to show the full searching process.
         if use_dialog {
@@ -833,7 +833,7 @@ impl AppUI {
             dialog.show();
 
             // When we get a response, act depending on the kind of response we got.
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
             let message = match response {
                 Response::APIResponseSchema(ref response) => {
                     match response {
@@ -891,7 +891,7 @@ impl AppUI {
 
         // Otherwise, we just wait until we got a response, and only then (and only in case of new schema update) we show a dialog.
         else {
-            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
             let message = match response {
                 Response::APIResponseSchema(ref response) => {
                     match response {
