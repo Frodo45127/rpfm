@@ -235,6 +235,15 @@ impl AppUI {
                 // Update the TreeView.
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
 
+                // Re-enable the Main Window.
+                unsafe { (self.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+                self.purge_them_all(*global_search_ui, slot_holder);
+
+                // Close the Global Search stuff and reset the filter's history.
+                global_search_ui.clear();
+
                 // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
                 if !game_folder.is_empty() && pack_file_paths.len() == 1 {
 
@@ -305,19 +314,8 @@ impl AppUI {
                             }
                         },
                     }
-
-                    // Set the current "Operational Mode" to `Normal`.
-                    UI_STATE.set_operational_mode(self, None);
                 }
 
-                // Re-enable the Main Window.
-                unsafe { (self.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-
-                // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                self.purge_them_all(*global_search_ui, slot_holder);
-
-                // Close the Global Search stuff and reset the filter's history.
-                global_search_ui.clear();
                 //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                 // Show the "Tips".
@@ -595,17 +593,18 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        if let Some(ref mut paths) = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.lock().unwrap()) {
+        let mut content_paths = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.lock().unwrap());
+        if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
 
                 // That means our file is a valid PackFile and it needs to be added to the menu.
-                let path = path.clone();
                 let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                 let open_mod_action = packfile_open_from_content.add_action(&QString::from_std_str(mod_name));
 
                 // Create the slot for that action.
                 let slot_open_mod = SlotBool::new(clone!(
+                    path,
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
                         if let Err(error) = self.open_packfile(&pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", &slot_holder) {
@@ -621,17 +620,18 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        if let Some(ref mut paths) = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap()) {
+        let mut data_paths = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap());
+        if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
-            for path in paths.clone() {
+            for path in paths {
 
                 // That means our file is a valid PackFile and it needs to be added to the menu.
-                let path = path.clone();
                 let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                 let open_mod_action = packfile_open_from_data.add_action(&QString::from_std_str(mod_name));
 
                 // Create the slot for that action.
                 let slot_open_mod = SlotBool::new(clone!(
+                    path,
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
                         if let Err(error) = self.open_packfile(&pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "", &slot_holder) {
