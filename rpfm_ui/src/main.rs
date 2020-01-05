@@ -35,13 +35,11 @@ use qt_widgets::application::Application;
 use qt_gui::color::Color;
 use qt_gui::palette::{Palette, ColorGroup, ColorRole};
 
-use fluent_bundle::{FluentBundle, FluentResource};
 use lazy_static::lazy_static;
 
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
 use std::thread;
 
 use rpfm_error::ctd::CrashReport;

@@ -2115,25 +2115,11 @@ impl PackFile {
             movie_files.sort_by_key(|x| x.get_path().to_vec());
             movie_files.dedup_by_key(|x| x.get_path().to_vec());
 
-            for packed_file in &boot_files {
-                pack_file.add_packed_file(packed_file, true)?;
-            }
-
-            for packed_file in &release_files {
-                pack_file.add_packed_file(packed_file, true)?;
-            }
-
-            for packed_file in &patch_files {
-                pack_file.add_packed_file(packed_file, true)?;
-            }
-
-            for packed_file in &mod_files {
-                pack_file.add_packed_file(packed_file, true)?;
-            }
-
-            for packed_file in &movie_files {
-                pack_file.add_packed_file(packed_file, true)?;
-            }
+            pack_file.add_packed_files(&(boot_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(release_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(patch_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(mod_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
+            pack_file.add_packed_files(&(movie_files.iter().map(|x| x).collect::<Vec<&PackedFile>>()), true)?;
 
             // Set it as type "Other(200)", so we can easely identify it as fake in other places.
             // Used to lock the CA Files.
