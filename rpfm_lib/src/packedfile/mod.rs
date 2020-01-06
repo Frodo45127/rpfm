@@ -285,4 +285,26 @@ impl PackedFileType {
         // If we didn't got a name, it means something broke. Return none.
         else { PackedFileType::Unknown }
     }
+
+    /// This function is a less strict version of the one implemented with the `Eq` trait.
+    ///
+    /// It performs an equality check between both provided types, ignoring the subtypes. This means,
+    /// a Text PackedFile with subtype XML and one with subtype LUA will return true, because both are Text PackedFiles.
+    pub fn eq_non_strict(&self, other: &Self) -> bool {
+        match self {
+            Self::Anim |
+            Self::AnimFragment |
+            Self::AnimPack |
+            Self::AnimTable |
+            Self::CEO |
+            Self::DB |
+            Self::Image |
+            Self::Loc |
+            Self::MatchedCombat |
+            Self::RigidModel |
+            Self::StarPos |
+            Self::Unknown => self == other,
+            Self::Text(_) => if let Self::Text(_) = other { true } else { false },
+        }
+    }
 }
