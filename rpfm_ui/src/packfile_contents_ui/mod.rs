@@ -125,7 +125,7 @@ impl PackFileContentsUI {
         packfile_contents_tree_view.set_uniform_row_heights(true);
         packfile_contents_tree_view.set_selection_mode(SelectionMode::Extended);
         packfile_contents_tree_view.set_context_menu_policy(ContextMenuPolicy::Custom);
-        packfile_contents_tree_view.set_expands_on_double_click(false);
+        packfile_contents_tree_view.set_expands_on_double_click(true);
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let mut filter_line_edit = LineEdit::new(());
