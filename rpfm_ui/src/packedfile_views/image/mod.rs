@@ -57,10 +57,11 @@ impl PackedFileImageView {
 
         // Get the path of the extracted Image.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileImage(packed_file_path.borrow().to_vec()));
-        let path = match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let path = match response {
             Response::PathBuf(data) => data,
             Response::Error(error) => return Err(error),
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
         // Get the image's path.

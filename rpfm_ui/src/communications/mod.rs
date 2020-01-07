@@ -38,7 +38,8 @@ use self::network::*;
 pub mod network;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
-pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system.";
+pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
+pub const THREADS_SENDER_ERROR: &str = "Error in thread communication system. Sender failed to send message.";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -462,7 +463,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_qt(&self, data: Command) {
         if self.sender_qt.send(data).is_err() {
-            panic!(THREADS_COMMUNICATION_ERROR)
+            panic!(THREADS_SENDER_ERROR);
         }
     }
 
@@ -470,7 +471,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_rust(&self, data: Response) {
         if self.sender_rust.send(data).is_err() {
-            panic!(THREADS_COMMUNICATION_ERROR)
+            panic!(THREADS_SENDER_ERROR);
         }
     }
 
@@ -478,7 +479,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_qt_to_network(&self, data: Command) {
         if self.sender_qt_to_network.send(data).is_err() {
-            panic!(THREADS_COMMUNICATION_ERROR)
+            panic!(THREADS_SENDER_ERROR);
         }
     }
 
@@ -486,7 +487,7 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_network_to_qt(&self, data: Response) {
         if self.sender_network_to_qt.send(data).is_err() {
-            panic!(THREADS_COMMUNICATION_ERROR)
+            panic!(THREADS_SENDER_ERROR);
         }
     }
 
@@ -523,9 +524,10 @@ impl CentralCommand {
     /// This function does only try once, and it locks the thread. Use it only in small stuff.
     #[allow(dead_code)]
     pub fn recv_message_qt(&self) -> Response {
-        match self.receiver_qt.recv() {
+        let response = self.receiver_qt.recv() ;
+        match response {
             Ok(data) => data,
-            Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
+            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
         }
     }
 
@@ -534,9 +536,10 @@ impl CentralCommand {
     /// This function does only try once, and it locks the thread. Use it only in small stuff.
     #[allow(dead_code)]
     pub fn recv_message_network_to_qt(&self) -> Response {
-        match self.receiver_network_to_qt.recv() {
+        let response = self.receiver_network_to_qt.recv() ;
+        match response {
             Ok(data) => data,
-            Err(_) => panic!(THREADS_COMMUNICATION_ERROR)
+            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
         }
     }
 
@@ -549,9 +552,10 @@ impl CentralCommand {
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            match self.receiver_qt.try_recv() {
+            let response = self.receiver_qt.try_recv() ;
+            match response {
                 Ok(data) => return data,
-                Err(error) => if error.is_disconnected() { panic!(THREADS_COMMUNICATION_ERROR) }
+                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
             }
             event_loop.process_events(());
         }
@@ -566,9 +570,10 @@ impl CentralCommand {
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            match self.receiver_network_to_qt.try_recv() {
+            let response = self.receiver_network_to_qt.try_recv() ;
+            match response {
                 Ok(data) => return data,
-                Err(error) => if error.is_disconnected() { panic!(THREADS_COMMUNICATION_ERROR) }
+                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
             }
             event_loop.process_events(());
         }

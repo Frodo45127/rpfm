@@ -371,14 +371,16 @@ impl PackFileContentsSlots {
                 // Ask the other thread if there is a Dependency Database and a Schema loaded.
                 CENTRAL_COMMAND.send_message_qt(Command::IsThereADependencyDatabase);
                 CENTRAL_COMMAND.send_message_qt(Command::IsThereASchema);
-                let is_there_a_dependency_database = match CENTRAL_COMMAND.recv_message_qt() {
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let is_there_a_dependency_database = match response {
                     Response::Bool(it_is) => it_is,
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 };
 
-                let is_there_a_schema = match CENTRAL_COMMAND.recv_message_qt() {
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let is_there_a_schema = match response {
                     Response::Bool(it_is) => it_is,
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 };
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
@@ -627,7 +629,8 @@ impl PackFileContentsSlots {
                 let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
 
                 CENTRAL_COMMAND.send_message_qt(Command::DeletePackedFiles(selected_items));
-                match CENTRAL_COMMAND.recv_message_qt() {
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                match response {
                     Response::VecPathType(deleted_items) => {
                         let items = deleted_items.iter().map(From::from).collect::<Vec<TreePathType>>();
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()));
@@ -657,7 +660,7 @@ impl PackFileContentsSlots {
                             }
                         }
                     },
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 };
             }
         ));
@@ -710,10 +713,11 @@ impl PackFileContentsSlots {
 
                 CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-                match CENTRAL_COMMAND.recv_message_qt() {
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                match response {
                     Response::String(result) => show_dialog(app_ui.main_window as *mut Widget, result, true),
                     Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
             }
@@ -745,7 +749,8 @@ impl PackFileContentsSlots {
 
                     // Send the renaming data to the Background Thread, wait for a response.
                     CENTRAL_COMMAND.send_message_qt(Command::RenamePackedFiles(renaming_data_background));
-                    match CENTRAL_COMMAND.recv_message_qt() {
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
                         Response::VecPathTypeString(renamed_items) => {
                             let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, String)>>();
 
@@ -803,7 +808,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Rename(renamed_items));
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
             }
@@ -840,7 +845,8 @@ impl PackFileContentsSlots {
 
                         // Check if the folder exists.
                         CENTRAL_COMMAND.send_message_qt(Command::FolderExists(complete_path.to_vec()));
-                        let folder_exists = if let Response::Bool(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                        let response = CENTRAL_COMMAND.recv_message_qt();
+                        let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
                         // If the folder already exists, return an error.
                         if folder_exists { return show_dialog(app_ui.main_window as *mut Widget, ErrorKind::FolderAlreadyInPackFile, false)}
@@ -861,10 +867,11 @@ impl PackFileContentsSlots {
             // Disable the window and trigger the check for all tables in the PackFile.
             unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
             CENTRAL_COMMAND.send_message_qt(Command::DBCheckTableIntegrity);
-            match CENTRAL_COMMAND.recv_message_qt() {
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            match response {
                 Response::Success => show_dialog(app_ui.main_window as *mut Widget, "No errors detected.", true),
                 Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                _ => panic!(THREADS_COMMUNICATION_ERROR),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
             unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
         });
@@ -939,7 +946,8 @@ impl PackFileContentsSlots {
                     }
 
                     CENTRAL_COMMAND.send_message_qt(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
-                    match CENTRAL_COMMAND.recv_message_qt() {
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
                         Response::VecString(path_to_add) => {
 
                             // If we want to delete the sources, do it now.
@@ -971,7 +979,7 @@ impl PackFileContentsSlots {
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
             }
@@ -992,7 +1000,8 @@ impl PackFileContentsSlots {
 
                     let path_type: PathType = From::from(item_type);
                     CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type.clone()));
-                    match CENTRAL_COMMAND.recv_message_qt() {
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
                         Response::I32I32((old_version, new_version)) => {
                             let message = format!("Table updated from version '{}' to version '{}'.", old_version, new_version);
                             show_dialog(app_ui.main_window as *mut Widget, message, true);
@@ -1000,7 +1009,7 @@ impl PackFileContentsSlots {
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
                 _ => unimplemented!()
@@ -1028,7 +1037,8 @@ impl PackFileContentsSlots {
                     else {
                         unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                         CENTRAL_COMMAND.send_message_qt(Command::MassImportTSV(data.0, data.1));
-                        match CENTRAL_COMMAND.recv_message_qt() {
+                        let response = CENTRAL_COMMAND.recv_message_qt();
+                        match response {
 
                             // If it's success....
                             Response::VecVecStringVecVecString(paths) => {
@@ -1057,7 +1067,7 @@ impl PackFileContentsSlots {
                             }
 
                             Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
                         }
 
                         // Re-enable the Main Window.
@@ -1084,10 +1094,11 @@ impl PackFileContentsSlots {
                         let selected_items = <*mut TreeView as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                         let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
                         CENTRAL_COMMAND.send_message_qt(Command::MassExportTSV(selected_items, export_path));
-                        match CENTRAL_COMMAND.recv_message_qt() {
+                        let response = CENTRAL_COMMAND.recv_message_qt();
+                        match response {
                             Response::String(response) => show_dialog(app_ui.main_window as *mut Widget, response, true),
                             Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                         }
 
                         unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }

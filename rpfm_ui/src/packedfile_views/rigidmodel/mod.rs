@@ -64,10 +64,11 @@ impl PackedFileRigidModelView {
 
         // Get the decoded Text.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileRigidModel(packed_file_path.borrow().to_vec()));
-        let rigid_model = match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let rigid_model = match response {
             Response::RigidModel(rigid_model) => rigid_model,
             Response::Error(error) => return Err(error),
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
         let editor = unsafe { new_text_editor(packed_file_view.get_mut_widget()) };

@@ -57,7 +57,8 @@ impl PackFileContentsUI {
             unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
             CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec())));
-            match CENTRAL_COMMAND.recv_message_qt() {
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            match response {
                 Response::Success => {
                     let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
@@ -77,7 +78,7 @@ impl PackFileContentsUI {
                 }
 
                 Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                _ => panic!(THREADS_COMMUNICATION_ERROR),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
 
             // Re-enable the Main Window.

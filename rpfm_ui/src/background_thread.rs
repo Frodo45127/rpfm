@@ -64,7 +64,8 @@ pub fn background_loop() {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
-        match CENTRAL_COMMAND.recv_message_rust() {
+        let response = CENTRAL_COMMAND.recv_message_rust();
+        match response {
 
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
@@ -570,7 +571,7 @@ pub fn background_loop() {
             }
 
             // These two belong to the network thread, not to this one!!!!
-            Command::CheckUpdates | Command::CheckSchemaUpdates => panic!(THREADS_COMMUNICATION_ERROR),
+            Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }
 

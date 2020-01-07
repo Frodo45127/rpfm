@@ -68,10 +68,11 @@ impl PackedFileTextView {
 
         // Get the decoded Text.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileText(packed_file_path.borrow().to_vec()));
-        let text = match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let text = match response {
             Response::Text(text) => text,
             Response::Error(error) => return Err(error),
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
         let mut highlighting_mode = match text_type {

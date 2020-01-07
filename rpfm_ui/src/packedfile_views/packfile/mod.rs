@@ -108,10 +108,11 @@ impl PackFileExtraView {
         // Ignore the response, we don't need it yet.
         // TODO: Use this data to populate tooltips.
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackFileExtra(pack_file_path));
-        match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        match response {
             Response::PackFileInfo(_) => {},
             Response::Error(error) => return Err(error),
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
         // Create and configure the `TreeView` itself.

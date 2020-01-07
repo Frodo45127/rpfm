@@ -640,7 +640,8 @@ impl PackTree for *mut TreeView {
                 // Depending on the PackFile we want to build the TreeView with, we ask for his data.
                 if is_extra_packfile { CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView); }
                 else { CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView); }
-                let (pack_file_data, packed_files_data) = if let Response::PackFileInfoVecPackedFileInfo(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let (pack_file_data, packed_files_data) = if let Response::PackFileInfoVecPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                 let mut sorted_path_list = packed_files_data;
 
                 // First, we clean the TreeStore and whatever was created in the TreeView.
@@ -798,7 +799,8 @@ impl PackTree for *mut TreeView {
                 }
 
                 CENTRAL_COMMAND.send_message_qt(Command::GetPackedFilesInfo(item_paths));
-                let packed_files_info = if let Response::VecOptionPackedFileInfo(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let packed_files_info = if let Response::VecOptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                 for (item_type, packed_file_info) in item_types.iter().zip(packed_files_info.iter()) {
 
                     // We only use this to add files and empty folders. Ignore the rest.
@@ -1119,7 +1121,8 @@ impl PackTree for *mut TreeView {
                             // If its a file, we get his new info and put it in a tooltip.
                             if let TreePathType::File(_) = path_type {
                                 CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileInfo(path.to_vec()));
-                                let packed_file_info = if let Response::OptionPackedFileInfo(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                                let response = CENTRAL_COMMAND.recv_message_qt();
+                                let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                 if let Some(info) = packed_file_info {
                                     let tooltip = new_packed_file_tooltip(&info);
                                     item.set_tool_tip(&QString::from_std_str(tooltip));
@@ -1185,7 +1188,8 @@ impl PackTree for *mut TreeView {
                         // If its a file, we get his new info and put it in a tooltip.
                         if is_a_file {
                             CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileInfo(path.to_vec()));
-                            let packed_file_info = if let Response::OptionPackedFileInfo(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                            let response = CENTRAL_COMMAND.recv_message_qt();
+                            let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                             if let Some(info) = packed_file_info {
                                 let tooltip = new_packed_file_tooltip(&info);
                                 item.set_tool_tip(&QString::from_std_str(tooltip));
@@ -1251,7 +1255,8 @@ impl PackTree for *mut TreeView {
                                 // If its a file, we get his new info and put it in a tooltip.
                                 if let TreePathType::File(_) = item_type {
                                     CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileInfo(path.to_vec()));
-                                    let packed_file_info = if let Response::OptionPackedFileInfo(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                                    let response = CENTRAL_COMMAND.recv_message_qt();
+                                    let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                     if let Some(info) = packed_file_info {
                                         let tooltip = new_packed_file_tooltip(&info);
                                         item.set_tool_tip(&QString::from_std_str(tooltip));

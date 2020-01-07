@@ -35,7 +35,8 @@ pub fn network_loop() {
 
         // Wait until you get something through the channel. This hangs the thread until we got something,
         // so it doesn't use processing power until we send it a message.
-        match CENTRAL_COMMAND.recv_message_qt_to_network() {
+        let response = CENTRAL_COMMAND.recv_message_qt_to_network();
+        match response {
 
             // When we want to check if there is an update available for RPFM...
             Command::CheckUpdates => {
@@ -117,7 +118,7 @@ pub fn network_loop() {
             }
 
             // If you hit this, you fucked it up somewhere else.
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }
 }

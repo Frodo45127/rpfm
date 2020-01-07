@@ -302,7 +302,8 @@ impl AppUISlots {
                 // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                 CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
-                match CENTRAL_COMMAND.recv_message_qt() {
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                match response {
 
                     // If it's success....
                     Response::PackFileInfo(ui_data) => {
@@ -361,7 +362,7 @@ impl AppUISlots {
                     }
 
                     // In ANY other situation, it's a message problem.
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
         }));
@@ -411,7 +412,8 @@ impl AppUISlots {
 
                     // If we returned new settings, save them and wait for confirmation.
                     CENTRAL_COMMAND.send_message_qt(Command::SetSettings(settings.clone()));
-                    match CENTRAL_COMMAND.recv_message_qt() {
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
 
                         // If it worked, do some checks to ensure the UI keeps his consistency.
                         Response::Success => {
@@ -438,7 +440,7 @@ impl AppUISlots {
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
 
                         // In ANY other situation, it's a message problem.
-                        _ => panic!(THREADS_COMMUNICATION_ERROR)
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
                     }
                 }
             }
@@ -501,7 +503,8 @@ impl AppUISlots {
                     mymod_path.push(&full_mod_name);
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
                     CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
-                    match CENTRAL_COMMAND.recv_message_qt_try() {
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
                         Response::PackFileInfo(pack_file_info) => {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
                             let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
@@ -535,7 +538,7 @@ impl AppUISlots {
 
 
                         // In ANY other situation, it's a message problem.
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
             }
@@ -836,10 +839,11 @@ impl AppUISlots {
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     CENTRAL_COMMAND.send_message_qt(Command::GeneratePakFile(path, version));
-                    match CENTRAL_COMMAND.recv_message_qt_try() {
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
                         Response::Success => show_dialog(app_ui.main_window as *mut Widget, "PAK File succesfully created and reloaded.", true),
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
@@ -861,14 +865,15 @@ impl AppUISlots {
                 global_search_ui.clear();
 
                 CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
-                match CENTRAL_COMMAND.recv_message_qt_try() {
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
                     Response::VecVecString(response) => {
                         let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
 
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
                         show_dialog(app_ui.main_window as *mut Widget, "PackFile optimized.", true);
                     }
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
 
                 // Re-enable the Main Window.
@@ -887,7 +892,8 @@ impl AppUISlots {
                 global_search_ui.clear();
 
                 CENTRAL_COMMAND.send_message_qt(Command::PatchSiegeAI);
-                match CENTRAL_COMMAND.recv_message_qt_try() {
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
                     Response::StringVecVecString(response) => {
                         let message = response.0;
                         let paths = response.1.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
@@ -897,7 +903,7 @@ impl AppUISlots {
 
                     // If the PackFile is empty or is not patchable, report it. Otherwise, praise the nine divines.
                     Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                    _ => panic!(THREADS_COMMUNICATION_ERROR)
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
                 }
 
                 // Re-enable the Main Window.

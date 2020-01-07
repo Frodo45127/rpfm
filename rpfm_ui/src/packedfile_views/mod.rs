@@ -156,7 +156,8 @@ impl PackedFileView {
 
         // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
         CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(path.to_vec(), data));
-        match CENTRAL_COMMAND.recv_message_qt_try() {
+        let response = CENTRAL_COMMAND.recv_message_qt_try();
+        match response {
             Response::Success => {
 
                 // If we have a GlobalSearch on, update the results for this specific PackedFile.
@@ -169,7 +170,7 @@ impl PackedFileView {
             }
 
             // In ANY other situation, it's a message problem.
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }
     /*
@@ -214,7 +215,7 @@ impl PackedFileView {
             }
 
             // In ANY other situation, it's a message problem.
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
     }*/
 }

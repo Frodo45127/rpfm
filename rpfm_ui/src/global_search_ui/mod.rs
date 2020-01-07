@@ -426,7 +426,8 @@ impl GlobalSearchUI {
         model_text.clear();
         model_schema.clear();
 
-        match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        match response {
             Response::GlobalSearch(global_search) => {
 
                 println!("Time to search from click to search complete: {:?}", t.elapsed().unwrap());
@@ -441,7 +442,7 @@ impl GlobalSearchUI {
             }
 
             // In ANY other situation, it's a message problem.
-            _ => panic!(THREADS_COMMUNICATION_ERROR)
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
         }
     }
 
@@ -468,7 +469,8 @@ impl GlobalSearchUI {
         model_loc.clear();
         model_text.clear();
 
-        match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        match response {
             Response::GlobalSearch(global_search) => {
 
                 // Load the results to their respective models. Then, store the GlobalSearch for future checks.
@@ -478,7 +480,7 @@ impl GlobalSearchUI {
             }
 
             // In ANY other situation, it's a message problem.
-            _ => panic!(THREADS_COMMUNICATION_ERROR)
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
         }
     }
 

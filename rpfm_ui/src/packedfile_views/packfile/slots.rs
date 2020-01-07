@@ -64,7 +64,8 @@ impl PackFileExtraViewSlots {
                     // Ask the Background Thread to move the files, and send him the path.
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
                     CENTRAL_COMMAND.send_message_qt(Command::AddPackedFileFromPackFile(item_types));
-                    match CENTRAL_COMMAND.recv_message_qt() {
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
                         Response::VecPathType(paths_ok) => {
 
                             // If any of the PackedFiles was already open (and we overwote them) remove his view.
@@ -104,7 +105,7 @@ impl PackFileExtraViewSlots {
                             */
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     // Re-enable the Main Window.

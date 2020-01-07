@@ -84,10 +84,11 @@ impl SettingsUISlots {
             // Create the Shortcuts Dialog. If we got new shortcuts, try to save them and report any error.
             if let Some(shortcuts) = ShortcutsUI::new(ui.dialog as *mut Widget) {
                 CENTRAL_COMMAND.send_message_qt(Command::SetShortcuts(shortcuts.clone()));
-                match CENTRAL_COMMAND.recv_message_qt() {
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                match response {
                     Response::Success => UI_STATE.set_shortcuts(&shortcuts),
                     Response::Error(error) => show_dialog(ui.dialog as *mut Widget, error, false),
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
         }));

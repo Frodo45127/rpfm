@@ -101,11 +101,12 @@ impl PackedFileTableView {
 
         // Get the decoded Table.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileTable(packed_file_path.borrow().to_vec()));
-        let table_data = match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let table_data = match response {
             Response::DB(table) => TableType::DB(table),
             Response::Loc(table) => TableType::Loc(table),
             Response::Error(error) => return Err(error),
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
         let table_definition = match table_data {

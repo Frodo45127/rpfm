@@ -204,7 +204,8 @@ impl AppUI {
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
         // Check what response we got.
-        match CENTRAL_COMMAND.recv_message_qt() {
+        let response = CENTRAL_COMMAND.recv_message_qt_try();
+        match response {
 
             // If it's success....
             Response::PackFileInfo(ui_data) => {
@@ -329,7 +330,7 @@ impl AppUI {
             }
 
             // In ANY other situation, it's a message problem.
-            _ => panic!(THREADS_COMMUNICATION_ERROR),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
         // Return success.
@@ -356,7 +357,8 @@ impl AppUI {
         UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui));
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
-        let mut path = if let Response::PathBuf(path) = CENTRAL_COMMAND.recv_message_qt() { path } else { panic!(THREADS_COMMUNICATION_ERROR) };
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let mut path = if let Response::PathBuf(path) = response { path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
         if !path.is_file() || save_as {
 
             // Create the FileDialog to save the PackFile and configure it.
@@ -387,7 +389,8 @@ impl AppUI {
                 let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                 let file_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
                 CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(path));
-                match CENTRAL_COMMAND.recv_message_qt_try() {
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
                     Response::PackFileInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
                         let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
@@ -399,14 +402,15 @@ impl AppUI {
                     Response::Error(error) => result = Err(error),
 
                     // In ANY other situation, it's a message problem.
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
         }
 
         else {
             CENTRAL_COMMAND.send_message_qt(Command::SavePackFile);
-            match CENTRAL_COMMAND.recv_message_qt_try() {
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            match response {
                 Response::PackFileInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
                     let packfile_item = unsafe { pack_file_contents_ui.packfile_contents_tree_model.as_mut().unwrap().item(0).as_mut().unwrap() };
@@ -415,7 +419,7 @@ impl AppUI {
                 Response::Error(error) => result = Err(error),
 
                 // In ANY other situation, it's a message problem.
-                _ => panic!(THREADS_COMMUNICATION_ERROR),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
 
@@ -763,7 +767,8 @@ impl AppUI {
             dialog.set_modal(true);
             dialog.show();
 
-            let message = match CENTRAL_COMMAND.recv_message_network_to_qt_try() {
+            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+            let message = match response {
                 Response::APIResponse(response) => {
                     match response {
                         APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
@@ -774,7 +779,7 @@ impl AppUI {
                     }
                 }
 
-                _ => panic!(THREADS_COMMUNICATION_ERROR),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             };
 
             dialog.set_text(&QString::from_std_str(message));
@@ -783,7 +788,8 @@ impl AppUI {
 
         // Otherwise, we just wait until we got a response, and only then (and only in case of new update)... we show a dialog.
         else {
-            let message = match CENTRAL_COMMAND.recv_message_network_to_qt_try() {
+            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+            let message = match response {
                 Response::APIResponse(response) => {
                     match response {
                         APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
@@ -792,7 +798,7 @@ impl AppUI {
                     }
                 }
 
-                _ => panic!(THREADS_COMMUNICATION_ERROR),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             };
 
             let mut dialog = unsafe { MessageBox::new_unsafe((
@@ -833,8 +839,8 @@ impl AppUI {
             dialog.show();
 
             // When we get a response, act depending on the kind of response we got.
-            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
-            let message = match response {
+            let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+            let message = match response_thread {
                 Response::APIResponseSchema(ref response) => {
                     match response {
                         APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
@@ -864,13 +870,13 @@ impl AppUI {
                 }
 
                 Response::Error(error) => return show_dialog(self.main_window as *mut Widget, error, false),
-                _ => panic!(THREADS_COMMUNICATION_ERROR),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
             };
 
             // If we hit "Update", try to update the schemas.
             dialog.set_text(&QString::from_std_str(message));
             if dialog.exec() == 0 {
-                if let Response::APIResponseSchema(response) = response {
+                if let Response::APIResponseSchema(ref response) = response_thread {
                     if let APIResponseSchema::SuccessNewUpdate(_,_) = response {
 
                         CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
@@ -882,7 +888,7 @@ impl AppUI {
                         match CENTRAL_COMMAND.recv_message_qt_try() {
                             Response::Success => show_dialog(self.main_window as *mut Widget, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
                             Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
-                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
                         }
                     }
                 }
@@ -891,8 +897,8 @@ impl AppUI {
 
         // Otherwise, we just wait until we got a response, and only then (and only in case of new schema update) we show a dialog.
         else {
-            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
-            let message = match response {
+            let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+            let message = match response_thread {
                 Response::APIResponseSchema(ref response) => {
                     match response {
                         APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
@@ -935,7 +941,7 @@ impl AppUI {
 
             // If we hit "Update", try to update the schemas.
             if dialog.exec() == 0 {
-                if let Response::APIResponseSchema(response) = response {
+                if let Response::APIResponseSchema(response) = response_thread {
                     if let APIResponseSchema::SuccessNewUpdate(_,_) = response {
 
                         CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
@@ -947,7 +953,7 @@ impl AppUI {
                         match CENTRAL_COMMAND.recv_message_qt_try() {
                             Response::Success => show_dialog(self.main_window as *mut Widget, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
                             Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
-                            _ => panic!(THREADS_COMMUNICATION_ERROR),
+                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                         }
                     }
                 }
@@ -1180,12 +1186,14 @@ impl AppUI {
 
                                 // Check if the PackedFile already exists, and report it if so.
                                 CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(complete_path.to_vec()));
-                                let exists = if let Response::Bool(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                                let response = CENTRAL_COMMAND.recv_message_qt();
+                                let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                                 if exists { return show_dialog(self.main_window as *mut Widget, ErrorKind::FileAlreadyInPackFile, false)}
 
                                 // Get the response, just in case it failed.
                                 CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(complete_path.to_vec(), new_packed_file));
-                                match CENTRAL_COMMAND.recv_message_qt() {
+                                let response = CENTRAL_COMMAND.recv_message_qt();
+                                match response {
                                     Response::Success => {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path); 1]));
 
@@ -1202,7 +1210,7 @@ impl AppUI {
                                     }
 
                                     Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
-                                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                 }
                             }
                         }
@@ -1232,10 +1240,11 @@ impl AppUI {
                     let table = &path[1];
 
                     CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
-                    let version = match CENTRAL_COMMAND.recv_message_qt() {
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let version = match response {
                         Response::I32(data) => data,
                         Response::Error(error) => return show_dialog(self.main_window as *mut Widget, error, false),
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     };
 
                     let new_packed_file = NewPackedFile::DB(new_path.last().unwrap().to_owned(), table.to_owned(), version);
@@ -1266,15 +1275,17 @@ impl AppUI {
 
                 // Check if the PackedFile already exists, and report it if so.
                 CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(new_path.to_vec()));
-                let exists = if let Response::Bool(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
                 if exists { return show_dialog(self.main_window as *mut Widget, ErrorKind::FileAlreadyInPackFile, false)}
 
                 // Create the PackFile.
                 CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
-                match CENTRAL_COMMAND.recv_message_qt() {
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                match response {
                     Response::Success => pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path); 1])),
                     Response::Error(error) => show_dialog(self.main_window as *mut Widget, error, false),
-                    _ => panic!(THREADS_COMMUNICATION_ERROR),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
         }
@@ -1337,7 +1348,8 @@ impl AppUI {
         // If it's a DB Table, add its widgets, and populate the table list.
         if let PackedFileType::DB = packed_file_type {
             CENTRAL_COMMAND.send_message_qt(Command::GetTableListFromDependencyPackFile);
-            let tables = if let Response::VecString(data) = CENTRAL_COMMAND.recv_message_qt() { data } else { panic!(THREADS_COMMUNICATION_ERROR); };
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            let tables = if let Response::VecString(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
             match *SCHEMA.read().unwrap() {
                 Some(ref schema) => {
 
@@ -1375,10 +1387,11 @@ impl AppUI {
                 PackedFileType::DB => {
                     let table = table_dropdown.current_text().to_std_string();
                     CENTRAL_COMMAND.send_message_qt(Command::GetTableVersionFromDependencyPackFile(table.to_owned()));
-                    let version = match CENTRAL_COMMAND.recv_message_qt() {
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    let version = match response {
                         Response::I32(data) => data,
                         Response::Error(error) => return Some(Err(error)),
-                        _ => panic!(THREADS_COMMUNICATION_ERROR),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     };
                     Some(Ok(NewPackedFile::DB(packed_file_name, table, version)))
                 },
