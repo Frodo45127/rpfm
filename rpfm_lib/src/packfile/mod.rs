@@ -1316,7 +1316,8 @@ impl PackFile {
         // Next... just get all the PackedFiles to move, and move them one by one.
         let mut successes = vec![];
         for packed_file_current_path in self.get_ref_packed_files_by_path_start(source_path).iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>() {
-            let new_path = packed_file_current_path.to_vec().splice(..source_path.len(), destination_path.iter().cloned()).collect::<Vec<String>>();
+            let mut new_path = packed_file_current_path.to_vec();
+            new_path.splice(..source_path.len(), destination_path.iter().cloned());
             if let Ok(new_path) = self.move_packedfile(&packed_file_current_path, &new_path, overwrite) {
                 successes.push((packed_file_current_path, new_path))
             }
