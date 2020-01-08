@@ -86,6 +86,41 @@ impl PackFileContentsUI {
         }
     }
 
+    /// This function is a helper to add entire folders with subfolders to the UI, keeping the UI updated.
+    pub fn add_packed_files_from_folders(&self, app_ui: &AppUI, global_search_ui: &GlobalSearchUI, paths: &[PathBuf], paths_packedfile: &[Vec<String>]) {
+        if check_if_path_is_closed(&app_ui, paths_packedfile) {
+            unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+            let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
+            CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send));
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            match response {
+                Response::VecPathType(paths_packedfile) => {
+                    let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
+                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+
+                    // Update the global search stuff, if needed.
+                    global_search_ui.search_on_path(paths.iter().map(From::from).collect());
+                    //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+
+                    // For each file added, remove it from the data history if exists.
+                    //for path in &paths_packedfile {
+                        //if table_state_data.borrow().get(path).is_some() {
+                            //table_state_data.borrow_mut().remove(path);
+                        //}
+                        //let data = TableStateData::new_empty();
+                        //table_state_data.borrow_mut().insert(path.to_vec(), data);
+                    //}
+                }
+
+                Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+
+            // Re-enable the Main Window.
+            unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+        }
+    }
+
     /// Function to filter the PackFile Contents TreeView.
     pub fn filter_files(&self) {
 

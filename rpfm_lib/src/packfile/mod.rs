@@ -614,35 +614,6 @@ impl PackFile {
         self.add_packed_files(&ref_packed_files, overwrite)
     }
 
-    /// This function is used to add an entire folder from disk to a `PackFile`, turning his files into `PackedFiles`.
-    ///
-    /// In case of conflict, if overwrite is set to true, the current `PackedFile` in the conflicting path
-    /// will be overwritten with the new one. If set to false, the new `PackFile` will be called `xxxx_1.extension`.
-    pub fn add_from_folder(
-        &mut self,
-        path: &PathBuf,
-        overwrite: bool,
-    ) -> Result<Vec<Vec<String>>> {
-        match get_files_from_subdir(path) {
-            Ok(file_paths) => {
-                let mut added_paths = vec![];
-                for file_path in &file_paths {
-                    let new_path = file_path.to_string_lossy()
-                        .split('/')
-                        .collect::<Vec<&str>>()
-                        .drain(path.components().count()..)
-                        .map(|x| x.to_owned())
-                        .collect::<Vec<String>>();
-                    let raw_data = RawPackedFile::read_from_path(file_path, new_path)?;
-                    let packed_file = PackedFile::new_from_raw(&raw_data);
-                    added_paths.push(self.add_packed_file(&packed_file, overwrite)?)
-                }
-                Ok(added_paths)
-            }
-            Err(error) => Err(error)
-        }
-    }
-
     /// This function is used to add multiple folders from disk to a `PackFile`, turning their files into `PackedFiles`.
     ///
     /// In case of conflict, if overwrite is set to true, the current `PackedFile` in the conflicting path
@@ -652,11 +623,30 @@ impl PackFile {
         paths_as_folder_and_destination: &[(PathBuf, Vec<String>)],
         overwrite: bool,
     ) -> Result<Vec<Vec<String>>> {
-        let mut file_paths = vec![];
-        for (folder_path, destination_path) in paths_as_folder_and_destination {
-            file_paths.append(&mut get_files_from_subdir(folder_path)?.iter().map(|x| (x.clone(), destination_path.to_vec())).collect::<Vec<(PathBuf, Vec<String>)>>());
+
+        let mut packed_files_to_add = vec![];
+        for (path, base_path) in paths_as_folder_and_destination {
+            match get_files_from_subdir(path) {
+                Ok(file_paths) => {
+                    for file_path in &file_paths {
+                        let new_path_filtered = file_path.to_string_lossy()
+                            .split('/')
+                            .collect::<Vec<&str>>()
+                            .drain(path.components().count()..)
+                            .map(|x| x.to_owned())
+                            .collect::<Vec<String>>();
+                        let mut new_path = base_path.to_vec();
+                        new_path.extend_from_slice(&new_path_filtered);
+                        let raw_data = RawPackedFile::read_from_path(file_path, new_path)?;
+                        let packed_file = PackedFile::new_from_raw(&raw_data);
+                        packed_files_to_add.push(packed_file);
+                    }
+                }
+                Err(error) => return Err(error)
+            }
         }
-        self.add_from_files(&file_paths, overwrite)
+
+        self.add_packed_files(&packed_files_to_add.iter().map(|x|x).collect::<Vec<&PackedFile>>(), overwrite)
     }
 
     /// This function is used to add a `PackedFile` from one `PackFile` into another.

@@ -557,13 +557,8 @@ impl PackFileContentsSlots {
                             for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
 
                             // Get the Paths of the files inside the folders we want to add.
-                            let mut paths: Vec<PathBuf> = vec![];
-                            for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
-
-                            // Get their final paths in the PackFile and only proceed if all of them are closed.
-                            let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                            for path in &paths { paths_packedfile.append(&mut <*mut TreeView as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
-                            pack_file_contents_ui.add_packedfiles(&app_ui, &global_search_ui, &paths, &paths_packedfile);
+                            let ui_base_path: Vec<String> = <*mut TreeView as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
+                            pack_file_contents_ui.add_packed_files_from_folders(&app_ui, &global_search_ui, &folder_paths, &[ui_base_path]);
                         }
                     }
                 }

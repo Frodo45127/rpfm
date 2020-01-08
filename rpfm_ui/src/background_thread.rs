@@ -354,8 +354,17 @@ pub fn background_loop() {
                 }
             }
 
+            // In case we want to add one or more entire folders to our PackFile...
+            Command::AddPackedFilesFromFolder(paths) => {
+                match pack_file_decoded.add_from_folders(&paths, true) {
+                    Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+
+                }
+            }
+
             // In case we want to move stuff from one PackFile to another...
-            Command::AddPackedFileFromPackFile(paths) => {
+            Command::AddPackedFilesFromPackFile(paths) => {
 
                 // Try to add the PackedFile to the main PackFile.
                 match pack_file_decoded.add_from_packfile(&pack_file_decoded_extra, &paths, true) {

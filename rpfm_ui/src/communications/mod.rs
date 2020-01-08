@@ -180,7 +180,7 @@ pub enum Command {
     DecodePackedFileTable(Vec<String>),
 
     /// This command is used when we want to add a PackedFile from one PackFile into another.
-    AddPackedFileFromPackFile(Vec<PathType>),
+    AddPackedFilesFromPackFile(Vec<PathType>),
 
     /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
     DeletePackedFiles(Vec<PathType>),
@@ -222,7 +222,10 @@ pub enum Command {
     UpdateTable(PathType),
 
     /// This command is used when we want to replace all matches in a Global Search.
-    GlobalSearchReplaceAll(GlobalSearch)
+    GlobalSearchReplaceAll(GlobalSearch),
+
+    /// This command is used when we want to add entire folders to the PackFile. The tuples contains their path in disk and their starting path in the PackFile.
+    AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>),
     /*
     OpenPackFileExtra,
     SavePackFile,
