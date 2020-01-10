@@ -1328,7 +1328,10 @@ impl PackFile {
 
     /// This function is used to rename one or more `PackedFile`/Folder inside a `PackFile`.
     ///
-    /// This doesn't stop on failure. Instead, it continues. Then we return the list of paths that errored out.
+    /// It returns the list of "Original Path/New Path" of each renamed PackedFile.
+    ///
+    /// This doesn't stop on failure. Instead, if a rename fails, it skips that PackedFile from the rename process.
+    ///
     /// If `overwrite` is set to `true`, in case of destination `PackedFile` already existing, it'll be overwritten.
     /// If set to `false`, the file will be renamed to 'xxx_1', or the first number available. Extensions are taken
     /// into account when doing this, so 'x.loc' will become 'x_1.loc'.
@@ -1336,7 +1339,7 @@ impl PackFile {
         &mut self,
         renaming_data: &[(PathType, String)],
         overwrite: bool
-    ) -> Vec<(PathType, String)> {
+    ) -> Vec<(PathType, Vec<String>)> {
 
         let mut successes = vec![];
         for (item_type, new_name) in renaming_data {
@@ -1350,7 +1353,7 @@ impl PackFile {
                     let mut new_path = path.to_vec();
                     *new_path.last_mut().unwrap() = new_name.to_owned();
                     if let Ok(destination_path) = self.move_packedfile(path, &new_path, overwrite) {
-                        successes.push((item_type.clone(), destination_path.last().unwrap().to_owned()));
+                        successes.push((item_type.clone(), destination_path));
                     }
                 }
 
@@ -1358,7 +1361,7 @@ impl PackFile {
                     let mut new_path = path.to_vec();
                     *new_path.last_mut().unwrap() = new_name.to_owned();
                     if let Ok(result) = self.move_folder(path, &new_path, overwrite) {
-                        result.iter().map(|x| (PathType::File(x.0.to_vec()), new_path.last().unwrap().to_owned())).for_each(|x| successes.push(x));
+                        result.iter().map(|(x, y)| (PathType::File(x.to_vec()), y.to_vec())).for_each(|x| successes.push(x));
                     }
                 }
 

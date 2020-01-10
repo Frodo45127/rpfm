@@ -39,7 +39,7 @@ use rpfm_lib::packfile::PathType;
 /// - `Add`: Add one or more Files/Folders to the TreeView. Requires the TreePathType to add to the TreeView.
 /// - `Delete`: Remove the Files/Folders corresponding to the TreePathTypes we provide from the TreeView. It requires the TreePathTypes of whatever you want to delete.
 /// - `Modify`: Set the provided paths as modified. It requires the TreePathTypes of whatever you want to modify.
-/// - `Rename`: Change the name of a File/Folder from the TreeView. Requires the list of TreePathType you want to rename and their new name.
+/// - `Move`: Change the path of a File/Folder from the TreeView. Requires the list of TreePathType you want to move and their new path.
 /// - `MarkAlwaysModified`: Mark an item as "Always Modified" so it cannot be marked as unmodified by an undo operation.
 /// - `Undo`: Resets the state of a Packedfile to 0, or unmodified.
 /// - `Clean`: Remove all status and color from the entire TreeView.
@@ -50,7 +50,7 @@ pub enum TreeViewOperation {
     Add(Vec<TreePathType>),
     Delete(Vec<TreePathType>),
     Modify(Vec<TreePathType>),
-    Rename(Vec<(TreePathType, String)>),
+    Move(Vec<(TreePathType, String)>),
     MarkAlwaysModified(Vec<TreePathType>),
     Undo(Vec<TreePathType>),
     Clean,
@@ -787,8 +787,8 @@ pub fn update_treeview(
             }
         }
 
-        // If we want to rename something...
-        TreeViewOperation::Rename(mut path_types) => {
+        // If we want to move something between paths...
+        TreeViewOperation::Move(mut path_types) => {
             for (path_type, new_name) in &mut path_types {
                 let item = get_item_from_type(model, &path_type);
                 if let TreePathType::Folder(ref mut path) | TreePathType::File(ref mut path) = path_type {

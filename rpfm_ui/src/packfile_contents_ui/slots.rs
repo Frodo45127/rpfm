@@ -746,43 +746,23 @@ impl PackFileContentsSlots {
                     CENTRAL_COMMAND.send_message_qt(Command::RenamePackedFiles(renaming_data_background));
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
-                        Response::VecPathTypeString(renamed_items) => {
-                            let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, String)>>();
-
+                        Response::VecPathTypeVecString(renamed_items) => {
+                            let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, Vec<String>)>>();
                             let mut path_changes = vec![];
                             let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                             for (path, _) in open_packedfiles.iter_mut() {
                                 if !path.is_empty() {
-                                    for (item_type, new_name) in &renamed_items {
-                                        match item_type {
-                                            TreePathType::File(ref item_path) => {
-                                                if item_path == path {
+                                    for (item_type, new_path) in &renamed_items {
 
-                                                    // Get the new path.
-                                                    let mut new_path = item_path.to_vec();
-                                                    *new_path.last_mut().unwrap() = new_name.to_owned();
-                                                    path_changes.push((path.to_vec(), new_path.to_vec()));
+                                        // Due to how the backend is built (doing a Per-PackedFile movement) we will always receive here individual PackedFiles.
+                                        // So we don't need to check the rest. But the name change can be in any place of the path, so we have to take that into account.
+                                        if let TreePathType::File(ref current_path) = item_type {
+                                            if current_path == path {
+                                                path_changes.push((current_path.to_vec(), new_path.to_vec()));
 
-                                                    // Update the global search stuff, if needed.
-                                                    global_search_ui.search_on_path(vec![PathType::File(new_path); 1]);
-                                                }
+                                                // Update the global search stuff, if needed.
+                                                global_search_ui.search_on_path(vec![PathType::File(new_path.to_vec()); 1]);
                                             }
-
-                                            TreePathType::Folder(ref item_path) => {
-                                                if !item_path.is_empty() && path.starts_with(&item_path) {
-
-                                                    let mut new_folder_path = item_path.to_vec();
-                                                    *new_folder_path.last_mut().unwrap() = new_name.to_owned();
-
-                                                    let mut new_file_path = new_folder_path.to_vec();
-                                                    new_file_path.append(&mut (&path[item_path.len()..]).to_vec());
-                                                    path_changes.push((path.to_vec(), new_file_path.to_vec()));
-
-                                                    // Update the global search stuff, if needed.
-                                                    global_search_ui.search_on_path(vec![PathType::Folder(new_folder_path); 1]);
-                                                }
-                                            }
-                                            _ => unreachable!(),
                                         }
                                     }
                                 }
@@ -792,15 +772,15 @@ impl PackFileContentsSlots {
                                 let data = open_packedfiles.remove(path_before).unwrap();
                                 let widget = data.get_mut_widget();
                                 let index = unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
-                                let mut text = unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().tab_text(index) };
                                 let old_name = path_before.last().unwrap();
                                 let new_name = path_after.last().unwrap();
-                                text.replace((&QString::from_std_str(old_name), &QString::from_std_str(new_name), CaseSensitivity::Sensitive));
-                                unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().set_tab_text(index, &text); }
+                                if old_name != new_name {
+                                    unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().set_tab_text(index, &QString::from_std_str(new_name)); }
+                                }
                                 open_packedfiles.insert(path_after.to_vec(), data);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Rename(renamed_items));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items));
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

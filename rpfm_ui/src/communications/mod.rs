@@ -344,6 +344,9 @@ pub enum Response {
     /// Response to return (Vec<(PathType, String)>).
     VecPathTypeString(Vec<(PathType, String)>),
 
+    /// Response to return (Vec<(PathType, Vec<String>)>).
+    VecPathTypeVecString(Vec<(PathType, Vec<String>)>),
+
     /// Response to return (Vec<PathType>),
     VecPathTypeVecPathType((Vec<PathType>, Vec<PathType>)),
 

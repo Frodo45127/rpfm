@@ -90,10 +90,18 @@ const ITEM_STATUS_DELETED: i32 = 4;
 /// may not be suitable for all purposes.
 pub trait PackTree {
 
+    /// This function allows us to add the provided item into the path we want on the `TreeView`, taking care of adding missing parents.
+    ///
+    /// The way this function works is by replacing the destination path of the UI, if exists, so be careful with that..
+    fn add_item_to_path(item: *mut StandardItem, model: *mut StandardItemModel, path: &[String], packed_file_info: &Option<PackedFileInfo>);
+
     /// This function is used to expand the entire path from the PackFile to an specific item in the `TreeView`.
     ///
     /// It returns the `ModelIndex` of the final item of the path, or None if it wasn't found or it's hidden by the filter.
     fn expand_treeview_to_item(&self, path: &[String]) -> Option<ModelIndex>;
+
+    /// This function is used to expand an item and all it's children recursively.
+    fn expand_all_from_item(&self, item: &TreePathType);
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
     fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem>;
@@ -146,6 +154,9 @@ pub trait PackTree {
     /// This function changes the color of an specific item from the PackFile Content's TreeView according to his current state.
     fn paint_specific_item_treeview(item: *mut StandardItem);
 
+    /// This function removes the item under the provided path and returns it.
+    fn take_item_from_type(item_type: &TreePathType, model: *mut StandardItemModel) -> *mut StandardItem;
+
     /// This function takes care of EVERY operation that manipulates the provided TreeView.
     /// It does one thing or another, depending on the operation we provide it.
     ///
@@ -172,8 +183,8 @@ pub enum TreeViewOperation {
     /// Set the provided paths as *modified*. It requires the `Vec<TreePathType>` of whatever you want to mark as modified.
     Modify(Vec<TreePathType>),
 
-    /// Change the name of a file/folder from the `TreeView`. Requires the `TreePathType` of whatever you want to rename, and its new name.
-    Rename(Vec<(TreePathType, String)>),
+    /// Change the name of a file/folder from the `TreeView`. Requires the `TreePathType` of whatever you want to move, and its new name.
+    Move(Vec<(TreePathType, Vec<String>)>),
 
     /// Mark an item as ***Always Modified*** so it cannot be marked as unmodified by an undo operation.
     MarkAlwaysModified(Vec<TreePathType>),
@@ -257,6 +268,109 @@ impl From<&TreePathType> for PathType {
 
 /// Implementation of `PackTree`.
 impl PackTree for *mut TreeView {
+
+    fn add_item_to_path(item: *mut StandardItem, model: *mut StandardItemModel, path: &[String], packed_file_info: &Option<PackedFileInfo>) {
+        let model = unsafe { model.as_mut().unwrap() };
+        let item = unsafe { item.as_mut().unwrap() };
+        let mut parent = unsafe { model.item(0).as_mut().unwrap() };
+        let type_to_skip = if item.data(ITEM_TYPE).to_int() == ITEM_TYPE_FILE { ITEM_TYPE_FOLDER } else { ITEM_TYPE_FILE };
+
+        let mut index = 0;
+        let path_deep = path.len();
+        loop {
+
+            // If we reached the folder of the item, we add the item.
+            if index == (path_deep - 1) {
+                if let Some(info) = packed_file_info {
+                    let tooltip = new_packed_file_tooltip(&info);
+                    item.set_tool_tip(&QString::from_std_str(tooltip));
+                }
+
+                item.set_text(&QString::from_std_str(path.last().unwrap()));
+                item.set_data((&Variant::new0(ITEM_STATUS_MODIFIED), ITEM_STATUS));
+                item.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
+
+                // If there was an item with than name, remove it.
+                for row in 0..parent.row_count() {
+                    let child = unsafe { parent.child(row).as_ref().unwrap() };
+                    if child.data(ITEM_TYPE).to_int() == type_to_skip { continue }
+                    if child.text().to_std_string() == path[index] {
+                        parent.remove_row(row);
+                        break;
+                    }
+                }
+
+                let taken_item_pointer: *mut StandardItem = item;
+                unsafe { parent.append_row_unsafe(taken_item_pointer) };
+
+                // Sort the TreeView by its proper type.
+                if type_to_skip == ITEM_TYPE_FILE {
+                    sort_item_in_tree_view(
+                        model,
+                        item,
+                        &TreePathType::Folder(vec![String::new()])
+                    );
+                }
+
+                else {
+                    sort_item_in_tree_view(
+                        model,
+                        item,
+                        &TreePathType::File(vec![String::new()])
+                    );
+                }
+
+                break;
+            }
+
+            // If we are not still in the folder of the file...
+            else {
+
+                // Get the amount of children of the current item and go through them until we find our folder.
+                let mut not_found = true;
+                for row in 0..parent.row_count() {
+                    let child = unsafe { parent.child(row).as_mut().unwrap() };
+                    if child.data(ITEM_TYPE).to_int() == ITEM_TYPE_FILE { continue }
+
+                    let text = child.text().to_std_string();
+                    if text == path[index] {
+                        parent = child;
+                        index += 1;
+                        not_found = false;
+                        break;
+                    }
+                }
+
+                // If none has been found, it means we have to create that folder ourselfs.
+                if not_found {
+
+                    let mut folder = StandardItem::new(&QString::from_std_str(&path[index]));
+                    folder.set_editable(false);
+                    folder.set_data((&Variant::new0(ITEM_TYPE_FOLDER), ITEM_TYPE));
+                    folder.set_data((&Variant::new0(ITEM_STATUS_ADDED), ITEM_STATUS));
+                    folder.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
+
+                    IconType::set_icon_to_item_safe(&IconType::Folder, &mut folder);
+
+                    let folder = folder.into_raw();
+                    unsafe { parent.append_row_unsafe(folder) };
+                    let folder = unsafe { folder.as_mut().unwrap() };
+
+                    // This is our parent now.
+                    let child = parent.row_count() - 1;
+                    parent = unsafe { parent.child(child).as_mut().unwrap() };
+                    index += 1;
+
+                    // Sort the TreeView.
+                    sort_item_in_tree_view(
+                        model,
+                        folder,
+                        &TreePathType::Folder(vec![String::new()])
+                    );
+                }
+            }
+        }
+    }
 
     fn expand_treeview_to_item(&self, path: &[String]) -> Option<ModelIndex> {
 
@@ -624,6 +738,99 @@ impl PackTree for *mut TreeView {
             3 => item.set_background(&Brush::new(color_added_modified)),
             _=> unimplemented!(),
         };
+    }
+
+    fn take_item_from_type(item_type: &TreePathType, model: *mut StandardItemModel) -> *mut StandardItem {
+        let model = unsafe { model.as_mut().unwrap() };
+        match item_type {
+
+            // Different types require different methods...
+            TreePathType::File(path) | TreePathType::Folder(path) => {
+
+                // Get the PackFile's item and the one we're gonna swap around, and the info to see how deep must we go.
+                let packfile = unsafe { model.item(0).as_ref().unwrap() };
+                let mut item = unsafe { model.item(0).as_ref().unwrap() };
+                let mut index = 0;
+                let path_deep = path.len();
+
+                // First looping downwards.
+                loop {
+
+                    // If we reached the folder of the file, search through all his children for the file we want.
+                    if index == (path_deep - 1) {
+                        for row in 0..item.row_count() {
+                            let child = unsafe { item.child(row).as_ref().unwrap() };
+                            if child.data(ITEM_TYPE).to_int() == ITEM_TYPE_FOLDER { continue }
+
+                            // If we found it, we're done.
+                            if child.text().to_std_string() == path[index] {
+                                item = child;
+                                break;
+                            }
+                        }
+
+                        // End the first loop.
+                        break;
+                    }
+
+                    // If we are not still in the folder of the file, search the next folder of the path, and get it as new item.
+                    else {
+                        for row in 0..item.row_count() {
+                            let child = unsafe { item.child(row).as_ref().unwrap() };
+                            if child.data(ITEM_TYPE).to_int() == ITEM_TYPE_FILE { continue }
+
+                            // If we found one with children, check if it's the one we want. If it is, that's out new good boy.
+                            if child.text().to_std_string() == path[index] {
+                                item = child;
+                                index += 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Prepare the Parent...
+                let mut parent;
+                let mut taken_item = unsafe { model.item(0).as_mut().unwrap() };
+                let mut moved_item_is_taken = false;
+
+                // Begin the endless cycle of war and dead.
+                loop {
+
+                    // Get the parent of the item, and kill the item in a cruel way.
+                    unsafe { parent = item.parent().as_mut().unwrap(); }
+
+                    if moved_item_is_taken {
+                        parent.remove_row(item.row());
+                    }
+                    else {
+                        taken_item = unsafe { parent.take_row(item.row()).take_at(0).as_mut().unwrap() };
+                        moved_item_is_taken = true;
+                    }
+
+                    parent.set_data((&Variant::new0(ITEM_STATUS_MODIFIED), ITEM_STATUS));
+                    if !parent.data(ITEM_IS_FOREVER_MODIFIED).to_bool() {
+                        parent.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
+                    }
+
+                    // If the parent has more children, or we reached the PackFile, we're done. Otherwise, we update our item.
+                    if parent.has_children() || !packfile.has_children() { break; }
+                    else { item = parent }
+                }
+
+                // Third time's a charm.
+                if let TreePathType::Folder(ref path) = Self::get_type_from_item(parent, model) {
+                    for _ in 0..path.len() {
+                        parent.set_data((&Variant::new0(ITEM_STATUS_MODIFIED), ITEM_STATUS));
+                        parent.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
+                        parent = unsafe { parent.parent().as_mut().unwrap() };
+                    }
+                }
+                taken_item
+            }
+
+            _ => unimplemented!()
+        }
     }
 
     fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation) {
@@ -1164,68 +1371,20 @@ impl PackTree for *mut TreeView {
                 }
             }
 
-            // If we want to rename something...
-            TreeViewOperation::Rename(mut path_types) => {
-                for (path_type, new_name) in &mut path_types {
-                    let path_type_clone = path_type.clone();
-                    let item = Self::get_item_from_type(&path_type_clone, model);
-                    let is_a_file = if let TreePathType::File(_) = path_type { true } else { false };
+            // If we want to move something. The logic here is, first we remove the item from its current position,
+            // then we add it to the new one, keeping its attributes.
+            TreeViewOperation::Move(path_types) => {
 
-                    if let TreePathType::Folder(ref mut path) | TreePathType::File(ref mut path) = path_type {
-                        item.set_text(&QString::from_std_str(&new_name));
-                        if let Some(ref mut old_name) = path.last_mut() { *old_name = &mut new_name.to_owned(); }
+                // First, get the `PackedFileInfo` of each of the new paths (so we can later build their tooltip, if neccesary).
+                let new_paths = path_types.iter().map(|(_, y)| y.to_vec()).collect::<Vec<Vec<String>>>();
+                CENTRAL_COMMAND.send_message_qt(Command::GetPackedFilesInfo(new_paths));
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                let packed_files_info = if let Response::VecOptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
-                        match item.data(ITEM_STATUS).to_int() {
-                            ITEM_STATUS_PRISTINE => item.set_data((&Variant::new0(ITEM_STATUS_MODIFIED), ITEM_STATUS)),
-                            ITEM_STATUS_ADDED => item.set_data((&Variant::new0(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS)),
-                            ITEM_STATUS_MODIFIED | 3 => {},
-                            _ => unimplemented!(),
-                        };
-                        if !item.data(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                            item.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
-                        }
-
-                        // If its a file, we get his new info and put it in a tooltip.
-                        if is_a_file {
-                            CENTRAL_COMMAND.send_message_qt(Command::GetPackedFileInfo(path.to_vec()));
-                            let response = CENTRAL_COMMAND.recv_message_qt();
-                            let packed_file_info = if let Response::OptionPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                            if let Some(info) = packed_file_info {
-                                let tooltip = new_packed_file_tooltip(&info);
-                                item.set_tool_tip(&QString::from_std_str(tooltip));
-                            }
-                        }
-
-                        // Mark his entire path as "modified".
-                        let cycles = if !path.is_empty() { path.len() } else { 0 };
-                        let mut parent = unsafe { item.parent().as_mut().unwrap() };
-                        for index in 0..cycles {
-
-                            // Get the status and mark them as needed.
-                            match parent.data(ITEM_STATUS).to_int() {
-                                ITEM_STATUS_PRISTINE => item.set_data((&Variant::new0(ITEM_STATUS_MODIFIED), ITEM_STATUS)),
-                                ITEM_STATUS_ADDED => item.set_data((&Variant::new0(ITEM_STATUS_ADDED | ITEM_STATUS_MODIFIED), ITEM_STATUS)),
-                                ITEM_STATUS_MODIFIED | 3 => {},
-                                _ => unimplemented!(),
-                            };
-
-                            if !parent.data(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                                parent.set_data((&Variant::new0(true), ITEM_IS_FOREVER_MODIFIED));
-                            }
-
-                            // Set the new parent, if there are still parents to set.
-                            if index < cycles - 1 {
-                                unsafe { parent = parent.parent().as_mut().unwrap(); }
-                            }
-                        }
-
-                        // Sort it.
-                        sort_item_in_tree_view(
-                            model,
-                            item,
-                            path_type
-                        );
-                    }
+                for ((path_type, new_path), packed_file_info) in path_types.iter().zip(packed_files_info.iter())  {
+                    let taken_item = Self::take_item_from_type(path_type, model);
+                    Self::add_item_to_path(taken_item, model, new_path, packed_file_info);
+                    self.expand_treeview_to_item(&new_path);
                 }
             },
 

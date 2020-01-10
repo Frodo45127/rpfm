@@ -497,7 +497,7 @@ pub fn background_loop() {
 
             // In case we want to rename one or more PackedFiles...
             Command::RenamePackedFiles(renaming_data) => {
-                CENTRAL_COMMAND.send_message_rust(Response::VecPathTypeString(pack_file_decoded.rename_packedfiles(&renaming_data, false)));
+                CENTRAL_COMMAND.send_message_rust(Response::VecPathTypeVecString(pack_file_decoded.rename_packedfiles(&renaming_data, false)));
             }
 
             // In case we want to Mass-Import TSV Files...
