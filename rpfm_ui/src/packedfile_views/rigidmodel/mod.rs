@@ -19,13 +19,14 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
+use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_text_editor};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
-use crate::QString;
+
 use self::slots::PackedFileRigidModelViewSlots;
 
 pub mod slots;
@@ -60,13 +61,13 @@ impl PackedFileRigidModelView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
-    ) -> Result<TheOneSlot> {
+    ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Text.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileRigidModel(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let rigid_model = match response {
-            Response::RigidModel(rigid_model) => rigid_model,
+        let (rigid_model, packed_file_info) = match response {
+            Response::RigidModelPackedFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -80,7 +81,7 @@ impl PackedFileRigidModelView {
         packed_file_view.view = View::RigidModel(packed_file_rigid_model_view);
 
         // Return success.
-        Ok(TheOneSlot::RigidModel(packed_file_rigid_model_view_slots))
+        Ok((TheOneSlot::RigidModel(packed_file_rigid_model_view_slots), packed_file_info))
     }
 
     /// This function returns a mutable reference to the editor widget.

@@ -25,6 +25,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use rpfm_error::Result;
+use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -53,13 +54,13 @@ impl PackedFileImageView {
     pub fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
-    ) -> Result<TheOneSlot> {
+    ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the path of the extracted Image.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileImage(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let path = match response {
-            Response::PathBuf(data) => data,
+        let (path, packed_file_info) = match response {
+            Response::PathBufPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -86,6 +87,6 @@ impl PackedFileImageView {
         packed_file_view.view = View::Image(Self {});
 
         // Return success.
-        Ok(TheOneSlot::Image(PackedFileImageViewSlots {}))
+        Ok((TheOneSlot::Image(PackedFileImageViewSlots {}), packed_file_info))
     }
 }

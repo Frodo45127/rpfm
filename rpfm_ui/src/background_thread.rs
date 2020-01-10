@@ -379,7 +379,7 @@ pub fn background_loop() {
 
                 // Find the PackedFile we want and send back the response.
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
+                    Some(packed_file) => {
                         let name = &packed_file.get_path().last().unwrap().to_owned();
                         match packed_file.decode_return_ref() {
                             Ok(image) => {
@@ -397,7 +397,7 @@ pub fn background_loop() {
                                             }
 
                                             // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
-                                            else { CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path)); }
+                                            else { CENTRAL_COMMAND.send_message_rust(Response::PathBufPackedFileInfo((temporal_file_path, From::from(&*packed_file)))); }
                                         }
 
                                         // If there is an error when trying to create the file into the TEMP folder, report it.
@@ -422,7 +422,7 @@ pub fn background_loop() {
                         match packed_file.decode_return_ref() {
                             Ok(text) => {
                                 if let DecodedPackedFile::Text(text) = text {
-                                    CENTRAL_COMMAND.send_message_rust(Response::Text(text.clone()));
+                                    CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file))));
                                 }
                                 // TODO: Put an error here.
                             }
@@ -442,8 +442,8 @@ pub fn background_loop() {
                         match packed_file.decode_return_ref() {
                             Ok(table) => {
                                 match table {
-                                    DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DB(table.clone())),
-                                    DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::Loc(table.clone())),
+                                    DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
+                                    DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
                                     _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
                                 }
                             }
@@ -463,7 +463,7 @@ pub fn background_loop() {
                         match packed_file.decode_return_ref() {
                             Ok(rigid_model) => {
                                 if let DecodedPackedFile::RigidModel(rigid_model) = rigid_model {
-                                    CENTRAL_COMMAND.send_message_rust(Response::RigidModel(rigid_model.clone()));
+                                    CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file))));
                                 }
                                 // TODO: Put an error here.
                             }

@@ -101,7 +101,10 @@ pub trait PackTree {
     fn expand_treeview_to_item(&self, path: &[String]) -> Option<ModelIndex>;
 
     /// This function is used to expand an item and all it's children recursively.
-    fn expand_all_from_item(&self, item: &TreePathType);
+    fn expand_all_from_item(tree_view: &mut TreeView, item: &StandardItem, first_item: bool);
+
+    /// This function is used to expand an item and all it's children recursively.
+    fn expand_all_from_type(tree_view: &mut TreeView, item: &TreePathType, first_item: bool);
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
     fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem>;
@@ -197,6 +200,9 @@ pub enum TreeViewOperation {
 
     /// Remove all items from the `TreeView`.
     Clear,
+
+    /// Updates the tooltip of the PackedFiles with the provided info.
+    UpdateTooltip(Vec<PackedFileInfo>),
 }
 
 /// This enum represents the different basic types of an element in the TreeView.
@@ -443,6 +449,39 @@ impl PackTree for *mut TreeView {
         }
         None
     }
+
+    fn expand_all_from_type(tree_view: &mut TreeView, item: &TreePathType, first_item: bool) {
+        let filter = unsafe { (tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
+        let model = unsafe { (filter.source_model() as *mut StandardItemModel) };
+        let item = Self::get_item_from_type(item, model);
+        Self::expand_all_from_item(tree_view, item, true);
+    }
+
+    fn expand_all_from_item(tree_view: &mut TreeView, item: &StandardItem, first_item: bool) {
+        let filter = unsafe { (tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
+        let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_ref().unwrap() };
+
+        // First, expand our item, then expand its children.
+        let model_index = unsafe { model.index_from_item(item) };
+        if first_item {
+            let filtered_index = filter.map_from_source(&model_index);
+            if filtered_index.is_valid() {
+                tree_view.expand(&filtered_index);
+            }
+        }
+        for row in 0..item.row_count() {
+            let child = unsafe { item.child(row).as_ref().unwrap() };
+            if child.has_children() {
+                let model_index = unsafe { model.index_from_item(item) };
+                let filtered_index = filter.map_from_source(&model_index);
+                if filtered_index.is_valid() {
+                    tree_view.expand(&filtered_index);
+                    Self::expand_all_from_item(tree_view, child, false);
+                }
+            }
+        }
+    }
+
 
     fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem> {
         let tree_view = unsafe { pack_file_contents_ui.packfile_contents_tree_view.as_mut().unwrap() };
@@ -1467,6 +1506,16 @@ impl PackTree for *mut TreeView {
 
             // If we want to remove everything from the TreeView...
             TreeViewOperation::Clear => model.clear(),
+
+            // If we want to get the tooltips of the PackedFiles updated...
+            TreeViewOperation::UpdateTooltip(packed_files_info) => {
+                for packed_file_info in packed_files_info {
+                    let tooltip = QString::from_std_str(&new_packed_file_tooltip(&packed_file_info));
+                    let tree_path_type = TreePathType::File(packed_file_info.path.to_vec());
+                    let item = Self::get_item_from_type(&tree_path_type, model);
+                    item.set_tool_tip(&tooltip);
+                }
+            },
         }
         //*IS_MODIFIED.lock().unwrap() = update_packfile_state(None, &app_ui);
     }

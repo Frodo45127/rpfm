@@ -1024,7 +1024,7 @@ impl AppUI {
                     // If the file is a Loc PackedFile...
                     PackedFileType::Loc => {
                         match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
-                            Ok(slots) => {
+                            Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
                                 // Add the file to the 'Currently open' list and make it visible.
@@ -1032,6 +1032,7 @@ impl AppUI {
                                 unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.insert(path.borrow().to_vec(), tab);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                             },
                             Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::LocDecode(format!("{}", error)), false),
                         }
@@ -1040,7 +1041,7 @@ impl AppUI {
                     // If the file is a DB PackedFile...
                     PackedFileType::DB => {
                         match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
-                            Ok(slots) => {
+                            Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
                                 // Add the file to the 'Currently open' list and make it visible.
@@ -1048,6 +1049,7 @@ impl AppUI {
                                 unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.insert(path.borrow().to_vec(), tab);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                             },
                             Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::DBTableDecode(format!("{}", error)), false),
                         }
@@ -1056,7 +1058,7 @@ impl AppUI {
                     // If the file is a Text PackedFile...
                     PackedFileType::Text(text_type) => {
                         match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, text_type) {
-                            Ok(slots) => {
+                            Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
                                 // Add the file to the 'Currently open' list and make it visible.
@@ -1064,6 +1066,7 @@ impl AppUI {
                                 unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.insert(path.borrow().to_vec(), tab);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                             },
                             Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
                         }
@@ -1072,7 +1075,7 @@ impl AppUI {
                     // If the file is a RigidModel PackedFile...
                     PackedFileType::RigidModel => {
                         match PackedFileRigidModelView::new_view(&path, &mut tab, global_search_ui) {
-                            Ok(slots) => {
+                            Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
                                 // Add the file to the 'Currently open' list and make it visible.
@@ -1080,6 +1083,7 @@ impl AppUI {
                                 unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.insert(path.borrow().to_vec(), tab);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                             },
                             Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::TextDecode(format!("{}", error)), false),
                         }
@@ -1088,7 +1092,7 @@ impl AppUI {
                     // If the file is a Image PackedFile...
                     PackedFileType::Image => {
                         match PackedFileImageView::new_view(&path, &mut tab) {
-                            Ok(slots) => {
+                            Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
                                 // Add the file to the 'Currently open' list and make it visible.
@@ -1096,6 +1100,7 @@ impl AppUI {
                                 unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.insert(path.borrow().to_vec(), tab);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                             },
                             Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::ImageDecode(format!("{}", error)), false),
                         }

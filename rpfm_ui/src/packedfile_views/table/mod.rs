@@ -36,6 +36,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
 use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
+use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -97,14 +98,14 @@ impl PackedFileTableView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
-    ) -> Result<TheOneSlot> {
+    ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Table.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileTable(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let table_data = match response {
-            Response::DB(table) => TableType::DB(table),
-            Response::Loc(table) => TableType::Loc(table),
+        let (table_data, packed_file_info) = match response {
+            Response::DBPackedFileInfo((table, packed_file_info)) => (TableType::DB(table), packed_file_info),
+            Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), packed_file_info),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -195,7 +196,7 @@ impl PackedFileTableView {
         packed_file_view.view = View::Table(packed_file_table_view);
 
         // Return success.
-        Ok(TheOneSlot::Table(packed_file_table_view_slots))
+        Ok((TheOneSlot::Table(packed_file_table_view_slots), packed_file_info))
     }
 
 

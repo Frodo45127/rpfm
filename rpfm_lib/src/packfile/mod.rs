@@ -169,7 +169,6 @@ pub struct PackFileInfo {
     pub timestamp: i64,
 }
 
-
 /// This enum represents the **Version** of a PackFile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PFHVersion {

@@ -577,7 +577,8 @@ impl PartialEq for PackedFileData {
 impl From<&PackedFile> for PackedFileInfo {
     fn from(packedfile: &PackedFile) -> Self {
         let is_cached = if let DecodedPackedFile::Unknown = packedfile.get_ref_decoded() {false} else {true};
-        let cached_type = if let DecodedPackedFile::Unknown = packedfile.get_ref_decoded() { "Not Yet Cached".to_owned() } else { format!("{:?}", packedfile.get_ref_decoded()) };
+        let cached_type = if let DecodedPackedFile::Unknown = packedfile.get_ref_decoded() { "Not Yet Cached".to_owned() }
+        else { format!("{:?}", PackedFileType::from(packedfile.get_ref_decoded())) };
         Self {
             path: packedfile.get_path().to_vec(),
             packfile_name: packedfile.get_ref_raw().get_packfile_name().to_owned(),

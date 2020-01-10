@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
 use rpfm_lib::packedfile::text::TextType;
+use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -64,13 +65,13 @@ impl PackedFileTextView {
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
         text_type: TextType,
-    ) -> Result<TheOneSlot> {
+    ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Text.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileText(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let text = match response {
-            Response::Text(text) => text,
+        let (text, packed_file_info) = match response {
+            Response::TextPackedFileInfo((text, packed_file_info)) => (text, packed_file_info),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -94,7 +95,7 @@ impl PackedFileTextView {
         packed_file_view.view = View::Text(packed_file_text_view);
 
         // Return success.
-        Ok(TheOneSlot::Text(packed_file_text_view_slots))
+        Ok((TheOneSlot::Text(packed_file_text_view_slots), packed_file_info))
     }
 
     /// This function returns a mutable reference to the editor widget.

@@ -308,3 +308,24 @@ impl PackedFileType {
         }
     }
 }
+
+/// From implementation to get the type from a DecodedPackedFile.
+impl From<&DecodedPackedFile> for PackedFileType {
+    fn from(packed_file: &DecodedPackedFile) -> Self {
+        match packed_file {
+            DecodedPackedFile::Anim => PackedFileType::Anim,
+            DecodedPackedFile::AnimFragment => PackedFileType::AnimFragment,
+            DecodedPackedFile::AnimPack => PackedFileType::AnimPack,
+            DecodedPackedFile::AnimTable => PackedFileType::AnimTable,
+            DecodedPackedFile::CEO => PackedFileType::CEO,
+            DecodedPackedFile::DB(_) => PackedFileType::DB,
+            DecodedPackedFile::Image(_) => PackedFileType::Image,
+            DecodedPackedFile::Loc(_) => PackedFileType::Loc,
+            DecodedPackedFile::MatchedCombat => PackedFileType::MatchedCombat,
+            DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
+            DecodedPackedFile::StarPos => PackedFileType::StarPos,
+            DecodedPackedFile::Text(_) => PackedFileType::Text(TextType::Plain),
+            DecodedPackedFile::Unknown => PackedFileType::Unknown,
+        }
+    }
+}

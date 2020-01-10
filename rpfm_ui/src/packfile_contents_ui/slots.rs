@@ -19,7 +19,6 @@ use qt_widgets::widget::Widget;
 
 use qt_gui::cursor::Cursor;
 
-use qt_core::qt::CaseSensitivity;
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
 use std::cell::RefCell;

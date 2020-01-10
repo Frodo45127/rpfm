@@ -314,6 +314,9 @@ pub enum Response {
     /// Response to return (PathBuf).
     PathBuf(PathBuf),
 
+    /// Response to return (PathBuf, PackedFileInfo).
+    PathBufPackedFileInfo((PathBuf, PackedFileInfo)),
+
     /// Response to return (String)
     String(String),
 
@@ -359,17 +362,17 @@ pub enum Response {
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
 
-    /// Response to return `Text`.
-    Text(Text),
+    /// Response to return `(Text, PackedFileInfo)`.
+    TextPackedFileInfo((Text, PackedFileInfo)),
 
-    /// Response to return `DB`.
-    DB(DB),
+    /// Response to return `(DB, PackedFileInfo)`.
+    DBPackedFileInfo((DB, PackedFileInfo)),
 
-    /// Response to return `Loc`.
-    Loc(Loc),
+    /// Response to return `(Loc, PackedFileInfo)`.
+    LocPackedFileInfo((Loc, PackedFileInfo)),
 
-    /// Response to return `RigidModel`.
-    RigidModel(RigidModel),
+    /// Response to return `(RigidModel, PackedFileInfo)`.
+    RigidModelPackedFileInfo((RigidModel, PackedFileInfo)),
 
     /// Response to return `Unknown`.
     Unknown,
