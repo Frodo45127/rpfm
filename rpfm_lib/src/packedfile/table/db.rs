@@ -175,7 +175,7 @@ impl DB {
 
         // Napoleon and Empire do not have GUID, and adding it to their tables crash both games.
         // So for those two games, we ignore the GUID_MARKER and the GUID itself.
-        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
         if game_selected != "empire" && game_selected != "napoleon" {
             packed_file.extend_from_slice(GUID_MARKER);
             packed_file.encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
@@ -232,7 +232,7 @@ impl DB {
         let mut db_files = vec![];
 
         // Get all the paths we need.
-        if let Ok(pak_file) = get_game_selected_pak_file(&*GAME_SELECTED.lock().unwrap()) {
+        if let Ok(pak_file) = get_game_selected_pak_file(&*GAME_SELECTED.read().unwrap()) {
             if let Ok(pak_file) = File::open(pak_file) {
                 let mut pak_file = BufReader::new(pak_file);
                 let mut data = vec![];

@@ -75,7 +75,7 @@ pub fn background_loop() {
 
             // In case we want to create a "New PackFile"...
             Command::NewPackFile => {
-                let game_selected = GAME_SELECTED.lock().unwrap();
+                let game_selected = GAME_SELECTED.read().unwrap();
                 let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version[0];
                 pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
                 *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
@@ -105,7 +105,7 @@ pub fn background_loop() {
 
             // In case we want to "Load All CA PackFiles"...
             Command::LoadAllCAPackFiles => {
-                match get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap()) {
+                match get_game_selected_data_packfiles_paths(&*GAME_SELECTED.read().unwrap()) {
                     Some(paths) => {
                         match PackFile::open_packfiles(&paths, true, true, true) {
                             Ok(pack_file) => {
@@ -202,7 +202,7 @@ pub fn background_loop() {
 
             // In case we want to change the current `Game Selected`...
             Command::SetGameSelected(game_selected) => {
-                *GAME_SELECTED.lock().unwrap() = game_selected.to_owned();
+                *GAME_SELECTED.write().unwrap() = game_selected.to_owned();
 
                 // Try to load the Schema for this game.
                 *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
@@ -215,7 +215,7 @@ pub fn background_loop() {
 
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
-                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version[0]);
+                    pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pfh_version[0]);
                 }
 
                 // Test to see if every DB Table can be decoded. This is slow and only useful when

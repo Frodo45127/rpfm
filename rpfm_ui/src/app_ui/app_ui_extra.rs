@@ -282,7 +282,7 @@ impl AppUI {
 
                             // Otherwise, it's from Three Kingdoms or Warhammer 2.
                             else {
-                                let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                                let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                                 match &*game_selected {
                                     "three_kingdoms" => unsafe { self.game_selected_three_kingdoms.as_mut().unwrap().trigger(); },
                                     "warhammer_2" | _ => unsafe { self.game_selected_warhammer_2.as_mut().unwrap().trigger(); },
@@ -294,7 +294,7 @@ impl AppUI {
                         PFHVersion::PFH4 => {
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
-                            let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                            let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                             match &*game_selected {
                                 "warhammer" => unsafe { self.game_selected_warhammer.as_mut().unwrap().trigger(); },
                                 "thrones_of_britannia" => unsafe { self.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
@@ -308,7 +308,7 @@ impl AppUI {
 
                         // PFH0 is for Napoleon/Empire.
                         PFHVersion::PFH0 => {
-                            let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                            let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                             match &*game_selected {
                                 "napoleon" => unsafe { self.game_selected_napoleon.as_mut().unwrap().trigger(); },
                                 "empire" | _ => unsafe { self.game_selected_empire.as_mut().unwrap().trigger(); }
@@ -380,7 +380,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Some(ref path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+            else if let Some(ref path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
                 if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
             }
 
@@ -434,7 +434,7 @@ impl AppUI {
     pub fn enable_packfile_actions(&self, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-        if &**GAME_SELECTED.lock().unwrap() == "arena" {
+        if &**GAME_SELECTED.read().unwrap() == "arena" {
 
             // Disable the actions that allow to create and save PackFiles.
             unsafe { self.packfile_new_packfile.as_mut().unwrap().set_enabled(false); }
@@ -475,7 +475,7 @@ impl AppUI {
         if enable {
 
             // Check the Game Selected and enable the actions corresponding to out game.
-            match &**GAME_SELECTED.lock().unwrap() {
+            match &**GAME_SELECTED.read().unwrap() {
                 "three_kingdoms" => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_three_k_optimize_packfile.as_mut().unwrap().set_enabled(true); }
@@ -569,7 +569,7 @@ impl AppUI {
         }
 
         // The assembly kit thing should only be available for Rome 2 and later games.
-        match &**GAME_SELECTED.lock().unwrap() {
+        match &**GAME_SELECTED.read().unwrap() {
             "three_kingdoms" |
             "warhammer_2" |
             "warhammer" |
@@ -597,7 +597,7 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.lock().unwrap());
+        let mut content_paths = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.read().unwrap());
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -624,7 +624,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap());
+        let mut data_paths = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.read().unwrap());
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {

@@ -286,7 +286,7 @@ pub fn generate_pak_file(
 
     // Save our new PAK File where it should be.
     let mut pak_path = get_config_path()?;
-    let game_selected = GAME_SELECTED.lock().unwrap();
+    let game_selected = GAME_SELECTED.read().unwrap();
     let pak_name = SUPPORTED_GAMES.get(&**game_selected).unwrap().pak_file.clone().unwrap();
     pak_path.push("pak_files");
 
@@ -313,10 +313,10 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
     if let Some(mut schema) = SCHEMA.read().unwrap().clone() {
 
         // This has to do a different process depending on the `raw_db_version`.
-        let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].raw_db_version;
+        let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].raw_db_version;
         match raw_db_version {
             2 | 1 => {
-                let packfile_db_path = get_game_selected_db_pack_path(&**GAME_SELECTED.lock().unwrap()).ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
+                let packfile_db_path = get_game_selected_db_pack_path(&**GAME_SELECTED.read().unwrap()).ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
                 let packfile_db = PackFile::open_packfiles(&packfile_db_path, true, false, false)?;
 
                 let mut ass_kit_schemas_path =
@@ -324,7 +324,7 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                         if let Some(path) = ass_kit_path { path }
                         else { return Err(ErrorKind::SchemaNotFound.into()) }
                     }
-                    else if let Some(path) = get_game_selected_assembly_kit_path(&**GAME_SELECTED.lock().unwrap()) { path }
+                    else if let Some(path) = get_game_selected_assembly_kit_path(&**GAME_SELECTED.read().unwrap()) { path }
                     else { return Err(ErrorKind::SchemaNotFound.into()) };
 
                 ass_kit_schemas_path.push("raw_data");
@@ -366,7 +366,7 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                     }
                 }
 
-                Schema::save(&mut schema, &SUPPORTED_GAMES[&**GAME_SELECTED.lock().unwrap()].schema)?;
+                Schema::save(&mut schema, &SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].schema)?;
 
                 Ok(())
             }

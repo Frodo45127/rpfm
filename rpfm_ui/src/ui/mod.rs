@@ -120,7 +120,7 @@ impl UI {
         app_ui.update_window_title(&pack_file_contents_ui);
         UI_STATE.set_operational_mode(&app_ui, None);
 
-        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
         match &*game_selected {
             "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
             "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
@@ -236,7 +236,7 @@ impl GameSelectedIcons {
     /// This function sets the main window icon according to the currently selected game.
     pub fn set_game_selected_icon(main_window: *mut MainWindow) {
         let main_window = unsafe { main_window.as_mut().unwrap() };
-        let icon = match &**GAME_SELECTED.lock().unwrap() {
+        let icon = match &**GAME_SELECTED.read().unwrap() {
             "three_kingdoms" => &GAME_SELECTED_ICONS.three_kingdoms,
             "warhammer_2" => &GAME_SELECTED_ICONS.warhammer_2,
             "warhammer" => &GAME_SELECTED_ICONS.warhammer,

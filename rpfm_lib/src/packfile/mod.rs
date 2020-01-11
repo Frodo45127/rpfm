@@ -1921,8 +1921,8 @@ impl PackFile {
     fn load_vanilla_dependency_packfiles(packed_files: &mut Vec<PackedFile>) {
 
         // Get all the paths we need.
-        let main_db_pack_paths = get_game_selected_db_pack_path(&*GAME_SELECTED.lock().unwrap());
-        let main_loc_pack_paths = get_game_selected_loc_pack_path(&*GAME_SELECTED.lock().unwrap());
+        let main_db_pack_paths = get_game_selected_db_pack_path(&*GAME_SELECTED.read().unwrap());
+        let main_loc_pack_paths = get_game_selected_loc_pack_path(&*GAME_SELECTED.read().unwrap());
 
         // Get all the DB Tables from the main DB `PackFiles`, if it's configured.
         if let Some(paths) = main_db_pack_paths {
@@ -2030,8 +2030,8 @@ impl PackFile {
         pack_file_names: &[String],
     ) {
 
-        let data_packs_paths = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.lock().unwrap());
-        let content_packs_paths = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.lock().unwrap());
+        let data_packs_paths = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.read().unwrap());
+        let content_packs_paths = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.read().unwrap());
         let mut loaded_packfiles = vec![];
 
         pack_file_names.iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
@@ -2079,8 +2079,8 @@ impl PackFile {
             let mut packs_paths = packs_paths.iter().filter(|x| x.is_file()).collect::<Vec<&PathBuf>>();
             packs_paths.sort_by_key(|x| x.file_name().unwrap().to_string_lossy().to_string());
 
-            let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().pfh_version[0];
-            let pfh_name = if ignore_mods { GAME_SELECTED.lock().unwrap().to_owned() } else { String::from("merged_mod.pack")};
+            let pfh_version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pfh_version[0];
+            let pfh_name = if ignore_mods { GAME_SELECTED.read().unwrap().to_owned() } else { String::from("merged_mod.pack")};
             let mut pack_file = Self::new_with_name(&pfh_name, pfh_version);
 
             // Read all the `PackFiles`, one by one, and separate their files by `PFHFileType`.

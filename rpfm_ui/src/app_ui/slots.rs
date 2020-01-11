@@ -327,7 +327,7 @@ impl AppUISlots {
                         // Update the TreeView.
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
 
-                        let game_selected = GAME_SELECTED.lock().unwrap().to_owned();
+                        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                         match &*game_selected {
                             "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
                             "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
@@ -429,7 +429,7 @@ impl AppUISlots {
                             // re-select the current `GameSelected` to force it to reload the game's files.
                             let has_game_selected_path_changed = settings.paths.iter()
                                 .filter(|x| x.0 != "mymods_base_path" && &old_settings.paths[x.0] != x.1)
-                                .any(|x| x.0 == &*GAME_SELECTED.lock().unwrap());
+                                .any(|x| x.0 == &*GAME_SELECTED.read().unwrap());
 
                             if has_game_selected_path_changed {
                                 unsafe { Action::trigger(app_ui.game_selected_group.as_mut().unwrap().checked_action().as_mut().unwrap()); }
@@ -630,7 +630,7 @@ impl AppUISlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                         let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
                         if let Some(ref mymods_base_path) = mymods_base_path {
-                            if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+                            if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -673,7 +673,7 @@ impl AppUISlots {
                     // If we have a "MyMod" selected, and everything we need it's configured,
                     // try to delete the PackFile (if exists) from the data folder of the selected game.
                     OperationalMode::MyMod(_, ref mod_name) => {
-                        if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+                        if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
                             game_data_path.push(&mod_name);
 
                             if !game_data_path.is_file() {
@@ -716,7 +716,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotBool::new(move |_| {
-            if let Some(path) = get_game_selected_data_path(&*GAME_SELECTED.lock().unwrap()) {
+            if let Some(path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
                 if open::that(&path).is_err() {
                     show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false);
                 };
@@ -726,7 +726,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotBool::new(move |_| {
-            if let Some(path) = get_game_selected_assembly_kit_path(&*GAME_SELECTED.lock().unwrap()) {
+            if let Some(path) = get_game_selected_assembly_kit_path(&*GAME_SELECTED.read().unwrap()) {
                 if open::that(&path).is_err() {
                     show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false);
                 };
@@ -778,12 +778,12 @@ impl AppUISlots {
         let special_stuff_generate_pak_file = SlotBool::new(move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
-                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.lock().unwrap()).unwrap().raw_db_version;
+                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
                 let path = match version {
 
                     // Post-Shogun 2 games.
                     2 => {
-                        let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.lock().unwrap()].clone().unwrap();
+                        let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.read().unwrap()].clone().unwrap();
                         path.push("assembly_kit");
                         path.push("raw_data");
                         path.push("db");
