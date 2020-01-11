@@ -105,17 +105,12 @@ pub fn background_loop() {
 
             // In case we want to "Load All CA PackFiles"...
             Command::LoadAllCAPackFiles => {
-                match get_game_selected_data_packfiles_paths(&*GAME_SELECTED.read().unwrap()) {
-                    Some(paths) => {
-                        match PackFile::open_packfiles(&paths, true, true, true) {
-                            Ok(pack_file) => {
-                                pack_file_decoded = pack_file;
-                                CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
-                            }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        }
+                match PackFile::open_all_ca_packfiles() {
+                    Ok(pack_file) => {
+                        pack_file_decoded = pack_file;
+                        CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::GamePathNotConfigured))),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 
