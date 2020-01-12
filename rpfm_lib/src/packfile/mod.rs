@@ -20,7 +20,7 @@ so you don't have to worry about that.
 !*/
 
 use bitflags::bitflags;
-use csv::{QuoteStyle, ReaderBuilder};
+use csv::ReaderBuilder;
 use itertools::{Itertools, Either};
 use serde_derive::{Serialize, Deserialize};
 use rayon::prelude::*;
@@ -1943,8 +1943,8 @@ impl PackFile {
     fn load_vanilla_dependency_packfiles(packed_files: &mut Vec<PackedFile>) {
 
         // Get all the paths we need.
-        let main_db_pack_paths = get_game_selected_db_pack_path(&*GAME_SELECTED.read().unwrap());
-        let main_loc_pack_paths = get_game_selected_loc_pack_path(&*GAME_SELECTED.read().unwrap());
+        let main_db_pack_paths = get_game_selected_db_pack_path();
+        let main_loc_pack_paths = get_game_selected_loc_pack_path();
 
         // Get all the DB Tables from the main DB `PackFiles`, if it's configured.
         if let Some(paths) = main_db_pack_paths {
@@ -2052,8 +2052,8 @@ impl PackFile {
         pack_file_names: &[String],
     ) {
 
-        let data_packs_paths = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.read().unwrap());
-        let content_packs_paths = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.read().unwrap());
+        let data_packs_paths = get_game_selected_data_packfiles_paths();
+        let content_packs_paths = get_game_selected_content_packfiles_paths();
         let mut loaded_packfiles = vec![];
 
         pack_file_names.iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, &mut loaded_packfiles, &data_packs_paths, &content_packs_paths));
@@ -2079,7 +2079,7 @@ impl PackFile {
     /// This function tries to get the list of CA PackFile of the currently selected game from the manifest.txt on /data,
     /// then it tries to open them all as one. Simple and effective.
     pub fn open_all_ca_packfiles() -> Result<Self> {
-        let data_path = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()).ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
+        let data_path = get_game_selected_data_path().ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
         let manifest = Manifest::read_from_game_selected()?;
         let pack_file_names = manifest.0.iter().filter_map(|x| if x.relative_path.ends_with(".pack") { Some(x.relative_path.to_owned()) } else { None }).collect::<Vec<String>>();
         let pack_file_paths = pack_file_names.iter().map(|x| {
@@ -2552,7 +2552,7 @@ impl Manifest {
 
     /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parseable.
     pub fn read_from_game_selected() -> Result<Self> {
-        let mut manifest_path = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()).ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
+        let mut manifest_path = get_game_selected_data_path().ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
         manifest_path.push("manifest.txt");
 
         let mut reader = ReaderBuilder::new()

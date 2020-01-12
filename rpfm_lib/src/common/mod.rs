@@ -22,6 +22,7 @@ use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
 use crate::config::get_config_path;
+use crate::GAME_SELECTED;
 use crate::{SETTINGS, SUPPORTED_GAMES};
 
 pub mod decoder;
@@ -83,7 +84,8 @@ pub fn get_last_modified_time_from_file(file: &File) -> i64 {
 
 /// This function gets the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_data_path(game_selected: &str) -> Option<PathBuf> {
+pub fn get_game_selected_data_path() -> Option<PathBuf> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     if let Some(path) = SETTINGS.lock().unwrap().paths.get(game_selected) {
         if let Some(path) = path {
             Some(path.join(PathBuf::from("data")))
@@ -95,7 +97,8 @@ pub fn get_game_selected_data_path(game_selected: &str) -> Option<PathBuf> {
 
 /// This function gets the `/assembly_kit` path of the game selected, if supported and it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_assembly_kit_path(game_selected: &str) -> Option<PathBuf> {
+pub fn get_game_selected_assembly_kit_path() -> Option<PathBuf> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     if let Some(path) = SETTINGS.lock().unwrap().paths.get(game_selected) {
         if let Some(path) = path {
             Some(path.join(PathBuf::from("assembly_kit")))
@@ -106,8 +109,8 @@ pub fn get_game_selected_assembly_kit_path(game_selected: &str) -> Option<PathBu
 
 /// This function gets the `/data/xxx.pack` paths of the PackFile with db tables of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_db_pack_path(game_selected: &str) -> Option<Vec<PathBuf>> {
-
+pub fn get_game_selected_db_pack_path() -> Option<Vec<PathBuf>> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     let base_path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
     let db_packs = &SUPPORTED_GAMES.get(game_selected)?.db_packs;
     let mut db_paths = vec![];
@@ -122,8 +125,8 @@ pub fn get_game_selected_db_pack_path(game_selected: &str) -> Option<Vec<PathBuf
 
 /// This function gets the `/data/xxx.pack` paths of the PackFile with the loc files of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_loc_pack_path(game_selected: &str) -> Option<Vec<PathBuf>> {
-
+pub fn get_game_selected_loc_pack_path() -> Option<Vec<PathBuf>> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     let base_path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
     let loc_packs = &SUPPORTED_GAMES.get(game_selected)?.loc_packs;
     let mut loc_paths = vec![];
@@ -138,10 +141,9 @@ pub fn get_game_selected_loc_pack_path(game_selected: &str) -> Option<Vec<PathBu
 
 /// This function gets a list of all the PackFiles in the `/data` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_data_packfiles_paths(game_selected: &str) -> Option<Vec<PathBuf>> {
-
+pub fn get_game_selected_data_packfiles_paths() -> Option<Vec<PathBuf>> {
     let mut paths = vec![];
-    let data_path = get_game_selected_data_path(game_selected)?;
+    let data_path = get_game_selected_data_path()?;
 
     for path in get_files_from_subdir(&data_path).ok()?.iter() {
         match path.extension() {
@@ -156,8 +158,8 @@ pub fn get_game_selected_data_packfiles_paths(game_selected: &str) -> Option<Vec
 
 /// This function gets a list of all the PackFiles in the `content` folder of the game straighoutta settings, if it's configured.
 #[allow(dead_code)]
-pub fn get_game_selected_content_packfiles_paths(game_selected: &str) -> Option<Vec<PathBuf>> {
-
+pub fn get_game_selected_content_packfiles_paths() -> Option<Vec<PathBuf>> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     let mut path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
     let id = SUPPORTED_GAMES.get(game_selected)?.steam_id?.to_string();
 
@@ -182,8 +184,8 @@ pub fn get_game_selected_content_packfiles_paths(game_selected: &str) -> Option<
 
 /// This function gets the `/rpfm_path/pak_files/xxx.pak` path of the Game Selected, if it has one.
 #[allow(dead_code)]
-pub fn get_game_selected_pak_file(game_selected: &str) -> Result<PathBuf> {
-
+pub fn get_game_selected_pak_file() -> Result<PathBuf> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     if let Some(pak_file) = &SUPPORTED_GAMES.get(game_selected).ok_or_else(|| Error::from(ErrorKind::GameNotSupported) )?.pak_file {
         let mut base_path = get_config_path()?;
         base_path.push("pak_files");

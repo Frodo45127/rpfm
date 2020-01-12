@@ -380,7 +380,7 @@ impl AppUI {
 
             // In case we have a default path for the Game Selected and that path is valid,
             // we use his data folder as base path for saving our PackFile.
-            else if let Some(ref path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
+            else if let Some(ref path) = get_game_selected_data_path() {
                 if path.is_dir() { file_dialog.set_directory(&QString::from_std_str(path.to_string_lossy().as_ref().to_owned())); }
             }
 
@@ -597,7 +597,7 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
-        let mut content_paths = get_game_selected_content_packfiles_paths(&*GAME_SELECTED.read().unwrap());
+        let mut content_paths = get_game_selected_content_packfiles_paths();
         if let Some(ref mut paths) = content_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {
@@ -624,7 +624,7 @@ impl AppUI {
         }
 
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
-        let mut data_paths = get_game_selected_data_packfiles_paths(&*GAME_SELECTED.read().unwrap());
+        let mut data_paths = get_game_selected_data_packfiles_paths();
         if let Some(ref mut paths) = data_paths {
             paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
             for path in paths {

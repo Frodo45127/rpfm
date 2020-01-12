@@ -232,7 +232,7 @@ impl DB {
         let mut db_files = vec![];
 
         // Get all the paths we need.
-        if let Ok(pak_file) = get_game_selected_pak_file(&*GAME_SELECTED.read().unwrap()) {
+        if let Ok(pak_file) = get_game_selected_pak_file() {
             if let Ok(pak_file) = File::open(pak_file) {
                 let mut pak_file = BufReader::new(pak_file);
                 let mut data = vec![];

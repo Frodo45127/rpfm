@@ -630,7 +630,7 @@ impl AppUISlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                         let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
                         if let Some(ref mymods_base_path) = mymods_base_path {
-                            if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
+                            if let Some(mut game_data_path) = get_game_selected_data_path() {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -673,7 +673,7 @@ impl AppUISlots {
                     // If we have a "MyMod" selected, and everything we need it's configured,
                     // try to delete the PackFile (if exists) from the data folder of the selected game.
                     OperationalMode::MyMod(_, ref mod_name) => {
-                        if let Some(mut game_data_path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
+                        if let Some(mut game_data_path) = get_game_selected_data_path() {
                             game_data_path.push(&mod_name);
 
                             if !game_data_path.is_file() {
@@ -716,7 +716,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotBool::new(move |_| {
-            if let Some(path) = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()) {
+            if let Some(path) = get_game_selected_data_path() {
                 if open::that(&path).is_err() {
                     show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false);
                 };
@@ -726,7 +726,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
         let game_selected_open_game_assembly_kit_folder = SlotBool::new(move |_| {
-            if let Some(path) = get_game_selected_assembly_kit_path(&*GAME_SELECTED.read().unwrap()) {
+            if let Some(path) = get_game_selected_assembly_kit_path() {
                 if open::that(&path).is_err() {
                     show_dialog(app_ui.main_window as *mut Widget, ErrorKind::IOFolderCannotBeOpened, false);
                 };

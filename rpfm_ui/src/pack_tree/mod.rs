@@ -104,7 +104,7 @@ pub trait PackTree {
     fn expand_all_from_item(tree_view: &mut TreeView, item: &StandardItem, first_item: bool);
 
     /// This function is used to expand an item and all it's children recursively.
-    fn expand_all_from_type(tree_view: &mut TreeView, item: &TreePathType, first_item: bool);
+    fn expand_all_from_type(tree_view: &mut TreeView, item: &TreePathType);
 
     /// This function gives you the items selected in the PackFile Content's TreeView.
     fn get_items_from_main_treeview_selection(pack_file_contents_ui: &PackFileContentsUI) -> Vec<*mut StandardItem>;
@@ -450,9 +450,9 @@ impl PackTree for *mut TreeView {
         None
     }
 
-    fn expand_all_from_type(tree_view: &mut TreeView, item: &TreePathType, first_item: bool) {
+    fn expand_all_from_type(tree_view: &mut TreeView, item: &TreePathType) {
         let filter = unsafe { (tree_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
-        let model = unsafe { (filter.source_model() as *mut StandardItemModel) };
+        let model = filter.source_model() as *mut StandardItemModel;
         let item = Self::get_item_from_type(item, model);
         Self::expand_all_from_item(tree_view, item, true);
     }
