@@ -2,9 +2,16 @@
 #define TEXT_EDITOR_H
 
 #include "qt_subclasses_global.h"
+#ifdef _WIN32
+#include <KF5/KTextEditor/ktexteditor/Document>
+#include <KF5/KTextEditor/ktexteditor/Editor>
+#include <KF5/KTextEditor/ktexteditor/View>
+#else
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
 #include <KTextEditor/View>
+#endif
+#include <QWidget>
 
 extern "C" QWidget* new_text_editor(QWidget* parent = nullptr);
 

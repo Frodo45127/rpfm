@@ -60,17 +60,17 @@ debug:MOC_DIR = debug/.moc
 debug:RCC_DIR = debug/.rcc
 debug:UI_DIR = debug/.ui
 
-# Linux specific stuff.
 unix {
 
+    # For some reason, these flags fuck up compilation on windows, so we leave them linux only.
     QMAKE_CXXFLAGS = -Wl,-rpath='${ORIGIN}'
-
-    # This means we generate all the artifacts in target and drop the final lib in libs.
-    DESTDIR         = ../../libs
-    BASEDIR         = ../../target/qt_subclasses
-    MOC_DIR         = ../../target/qt_subclasses/moc
-    OBJECTS_DIR     = ../../target/qt_subclasses/obj
-
-    # Fix for make failing due to missing folders.
-    commands = ; $(MKDIR -p) BASEDIR; $(MKDIR -p) $MOC_DIR; $(MKDIR -p) $OBJECTS_DIR
 }
+
+# This means we generate all the artifacts in target and drop the final lib in libs.
+DESTDIR         = ../../libs
+BASEDIR         = ../../target/qt_subclasses
+MOC_DIR         = ../../target/qt_subclasses/moc
+OBJECTS_DIR     = ../../target/qt_subclasses/obj
+
+# Fix for make failing due to missing folders.
+commands = ; $(MKDIR -p) BASEDIR; $(MKDIR -p) $MOC_DIR; $(MKDIR -p) $OBJECTS_DIR
