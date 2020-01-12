@@ -2079,11 +2079,9 @@ impl PackFile {
     /// This function tries to get the list of CA PackFile of the currently selected game from the manifest.txt on /data,
     /// then it tries to open them all as one. Simple and effective.
     pub fn open_all_ca_packfiles() -> Result<Self> {
-        let data_path = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()).unwrap();
+        let data_path = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()).ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
         let manifest = Manifest::read_from_game_selected()?;
-        println!("{:?}", manifest);
         let pack_file_names = manifest.0.iter().filter_map(|x| if x.relative_path.ends_with(".pack") { Some(x.relative_path.to_owned()) } else { None }).collect::<Vec<String>>();
-        println!("{:?}", pack_file_names);
         let pack_file_paths = pack_file_names.iter().map(|x| {
             let mut pack_file_path = data_path.to_path_buf();
             pack_file_path.push(x);
@@ -2549,10 +2547,12 @@ impl From<&PackFile> for PackFileInfo {
     }
 }
 
-
+/// Implementation of `Manifest`.
 impl Manifest {
+
+    /// This function returns a parsed version of the `manifest.txt` of the Game Selected, if exists and is parseable.
     pub fn read_from_game_selected() -> Result<Self> {
-        let mut manifest_path = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()).unwrap();
+        let mut manifest_path = get_game_selected_data_path(&*GAME_SELECTED.read().unwrap()).ok_or_else(|| ErrorKind::GameSelectedPathNotCorrectlyConfigured)?;
         manifest_path.push("manifest.txt");
 
         let mut reader = ReaderBuilder::new()
@@ -2563,9 +2563,7 @@ impl Manifest {
 
         // If we succesfully load the TSV file into a reader, check the first two lines to ensure
         // it's a valid TSV for our specific table.
-        let entries = reader.deserialize().map(|x| x.unwrap()).collect::<Vec<ManifestEntry>>();
-        //let entries = reader.deserialize().filter(|x| x.is_ok()).map(|x| x.unwrap()).collect();
-        println!("{:?}",  entries);
+        let entries = reader.deserialize().filter_map(|x| x.ok()).collect::<Vec<ManifestEntry>>();
         let manifest = Self(entries);
         Ok(manifest)
     }

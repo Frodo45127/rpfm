@@ -451,8 +451,11 @@ pub enum ErrorKind {
     /// Error for when we're trying to decode more bytes than we have.
     NotEnoughBytesToDecode,
 
-    // Error for when we try to get the `GameInfo` from an unsupported Game.
+    /// Error for when we try to get the `GameInfo` from an unsupported Game.
     GameNotSupported,
+
+    /// Error for when we have to return an error in any path operation related with the Game Selected's Paths.
+    GameSelectedPathNotCorrectlyConfigured,
 }
 
 /// Implementation of `Error`.
@@ -715,7 +718,7 @@ impl Display for ErrorKind {
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
             ErrorKind::NotEnoughBytesToDecode => write!(f, "<p>There are not enough bytes to decode in the data you provided.</p>"),
             ErrorKind::GameNotSupported => write!(f, "<p>The game you tried to get the info is not supported.</p>"),
-
+            ErrorKind::GameSelectedPathNotCorrectlyConfigured => write!(f, "<p>The Game Selected's Path is not properly configured.</p>"),
         }
     }
 }
