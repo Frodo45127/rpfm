@@ -1165,6 +1165,7 @@ impl AppUI {
                                     !name.ends_with(".bob") &&
                                     !name.ends_with(".cindyscene") &&
                                     !name.ends_with(".cindyscenemanager") &&
+                                    !name.ends_with(".tai") &&
                                     !name.ends_with(".txt") {
                                     name.push_str(".txt");
                                 }

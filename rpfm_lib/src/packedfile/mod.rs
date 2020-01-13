@@ -268,6 +268,7 @@ impl PackedFileType {
                     packedfile_name.ends_with(".bob") ||
                     packedfile_name.ends_with(".cindyscene") ||
                     packedfile_name.ends_with(".cindyscenemanager") ||
+                    packedfile_name.ends_with(".tai") ||
                     //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
                     packedfile_name.ends_with(".txt") { PackedFileType::Text(TextType::Plain) }
 
