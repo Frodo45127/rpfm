@@ -207,7 +207,7 @@ impl AppUISlots {
                     unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
 
                     // Close any open PackedFile and clear the global search pannel.
-                    app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                    app_ui.purge_them_all(global_search_ui, &slot_holder);
                     global_search_ui.clear();
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
@@ -345,7 +345,7 @@ impl AppUISlots {
                         UI_STATE.set_operational_mode(&app_ui, None);
 
                         // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                        app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                        app_ui.purge_them_all(global_search_ui, &slot_holder);
                         global_search_ui.clear();
 
                         // Close the Global Search stuff and reset the filter's history.
@@ -524,7 +524,7 @@ impl AppUISlots {
                             UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
 
                             // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                            app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                            app_ui.purge_them_all(global_search_ui, &slot_holder);
                             global_search_ui.clear();
 
                             // Close the Global Search stuff and reset the filter's history.
@@ -861,7 +861,7 @@ impl AppUISlots {
 
                 // If there is no problem, ere we go.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-                app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                app_ui.purge_them_all(global_search_ui, &slot_holder);
                 global_search_ui.clear();
 
                 CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
@@ -888,7 +888,7 @@ impl AppUISlots {
 
                 // Ask the background loop to patch the PackFile, and wait for a response.
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-                app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                app_ui.purge_them_all(global_search_ui, &slot_holder);
                 global_search_ui.clear();
 
                 CENTRAL_COMMAND.send_message_qt(Command::PatchSiegeAI);
@@ -995,7 +995,7 @@ impl AppUISlots {
 
                 unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
             }
-            app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
+            app_ui.purge_that_one_specifically(global_search_ui, &purge_on_delete, false);
         });
 
         // And here... we return all the slots.

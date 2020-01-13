@@ -26,7 +26,6 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::get_text;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::create_grid_layout_unsafe;
 use crate::UI_STATE;
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
@@ -132,7 +131,7 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub fn save(&self, path: &[String], global_search_ui: GlobalSearchUI, pack_file_contents_ui: &PackFileContentsUI) {
+    pub fn save(&self, path: &[String], global_search_ui: GlobalSearchUI) {
 
         // This is a two-step process. First, we take the data from the view into a `DecodedPackedFile` format.
         // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
@@ -165,7 +164,7 @@ impl PackedFileView {
                 let global_search = UI_STATE.get_global_search();
                 if !global_search.pattern.is_empty() {
                     let path_types = vec![PathType::File(path.to_vec())];
-                    global_search_ui.search_on_path(&pack_file_contents_ui, path_types);
+                    global_search_ui.search_on_path(path_types);
                     UI_STATE.set_global_search(&global_search);
                 }
             }

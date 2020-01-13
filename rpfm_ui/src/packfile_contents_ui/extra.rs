@@ -64,7 +64,7 @@ impl PackFileContentsUI {
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
                     // Update the global search stuff, if needed.
-                    global_search_ui.search_on_path(&self, paths.iter().map(From::from).collect());
+                    global_search_ui.search_on_path(paths.iter().map(From::from).collect());
                     //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
                     // For each file added, remove it from the data history if exists.
@@ -99,7 +99,7 @@ impl PackFileContentsUI {
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
                     // Update the global search stuff, if needed.
-                    global_search_ui.search_on_path(&self, paths.iter().map(From::from).collect());
+                    global_search_ui.search_on_path(paths.iter().map(From::from).collect());
                     //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
                     // For each file added, remove it from the data history if exists.

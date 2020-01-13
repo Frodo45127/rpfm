@@ -29,6 +29,7 @@ use qt_core::reg_exp::RegExp;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::variant::Variant;
 
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -44,7 +45,6 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::new_tableview_frozen;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
 
@@ -98,7 +98,6 @@ impl PackedFileTableView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
-        pack_file_contents_ui: &PackFileContentsUI,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Table.
@@ -184,7 +183,7 @@ impl PackedFileTableView {
         };
 
 
-        let packed_file_table_view_slots = PackedFileTableViewSlots::new(packed_file_table_view_raw, *global_search_ui, *pack_file_contents_ui, &packed_file_path);
+        let packed_file_table_view_slots = PackedFileTableViewSlots::new(packed_file_table_view_raw, *global_search_ui, &packed_file_path);
 
 
         let packed_file_table_view = Self {

@@ -115,16 +115,12 @@ impl AppUI {
     }
 
     /// This function deletes all the widgets corresponding to opened PackedFiles.
-    pub fn purge_them_all(&self,
-        global_search_ui: GlobalSearchUI,
-        pack_file_contents_ui: PackFileContentsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
-    ) {
+    pub fn purge_them_all(&self, global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
 
         // Black magic.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
         for (path, packed_file_view) in open_packedfiles.iter_mut() {
-            packed_file_view.save(path, global_search_ui, &pack_file_contents_ui);
+            packed_file_view.save(path, global_search_ui);
             let widget: *mut Widget = packed_file_view.get_mut_widget();
             let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
             unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
@@ -145,18 +141,13 @@ impl AppUI {
     }
 
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
-    pub fn purge_that_one_specifically(&self,
-        global_search_ui: GlobalSearchUI,
-        pack_file_contents_ui: PackFileContentsUI,
-        path: &[String],
-        save_before_deleting: bool
-    ) {
+    pub fn purge_that_one_specifically(&self, global_search_ui: GlobalSearchUI, path: &[String], save_before_deleting: bool) {
 
         // Black magic to remove widgets.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
         if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
             if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
-                packed_file_view.save(path, global_search_ui, &pack_file_contents_ui);
+                packed_file_view.save(path, global_search_ui);
             }
             let widget: *mut Widget = packed_file_view.get_mut_widget();
             let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
@@ -249,7 +240,7 @@ impl AppUI {
                 unsafe { (self.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
 
                 // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder);
+                self.purge_them_all(*global_search_ui, slot_holder);
 
                 // Close the Global Search stuff and reset the filter's history.
                 global_search_ui.clear();
@@ -363,7 +354,7 @@ impl AppUI {
         main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend.
-        UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui, pack_file_contents_ui));
+        UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui));
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -1032,7 +1023,7 @@ impl AppUI {
 
                     // If the file is a Loc PackedFile...
                     PackedFileType::Loc => {
-                        match PackedFileTableView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                        match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
                             Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
@@ -1049,7 +1040,7 @@ impl AppUI {
 
                     // If the file is a DB PackedFile...
                     PackedFileType::DB => {
-                        match PackedFileTableView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                        match PackedFileTableView::new_view(&path, &mut tab, global_search_ui) {
                             Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
@@ -1066,7 +1057,7 @@ impl AppUI {
 
                     // If the file is a Text PackedFile...
                     PackedFileType::Text(text_type) => {
-                        match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui, text_type) {
+                        match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, text_type) {
                             Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 
@@ -1083,7 +1074,7 @@ impl AppUI {
 
                     // If the file is a RigidModel PackedFile...
                     PackedFileType::RigidModel => {
-                        match PackedFileRigidModelView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                        match PackedFileRigidModelView::new_view(&path, &mut tab, global_search_ui) {
                             Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 

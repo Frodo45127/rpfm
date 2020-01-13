@@ -22,6 +22,7 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use rpfm_error::{Error, ErrorKind};
+use rpfm_lib::common::get_game_selected_data_packfiles_paths;
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
@@ -77,6 +78,7 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version[0];
                 pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
+                *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&**game_selected).unwrap().schema).ok();
             }
 
             // In case we want to "Open one or more PackFiles"...
@@ -184,15 +186,13 @@ pub fn background_loop() {
             // In case we want to launch a global search on a `PackFile`...
             Command::GlobalSearch(mut global_search) => {
                 global_search.search(&mut pack_file_decoded);
-                let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
-                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
+                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
             }
 
             // In case we want to update the results of a global search on a `PackFile`...
             Command::GlobalSearchUpdate(mut global_search, path_types) => {
                 global_search.update(&mut pack_file_decoded, &path_types);
-                let packed_files_info = global_search.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
-                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
+                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
             }
 
             // In case we want to change the current `Game Selected`...
@@ -571,8 +571,7 @@ pub fn background_loop() {
             // In case we want to replace all matches in a Global Search...
             Command::GlobalSearchReplaceAll(mut global_search) => {
                 let _ = global_search.replace_all(&mut pack_file_decoded);
-                let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
-                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
+                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearch(global_search));
             }
 
             // These two belong to the network thread, not to this one!!!!

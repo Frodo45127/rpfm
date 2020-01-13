@@ -58,9 +58,9 @@ impl GlobalSearchSlots {
     ) -> Self {
 
         // What happens when we trigger the "Global Search" action.
-        let global_search_search = SlotNoArgs::new(clone!(pack_file_contents_ui => move || {
-            global_search_ui.search(&pack_file_contents_ui);
-        }));
+        let global_search_search = SlotNoArgs::new(move || {
+            global_search_ui.search();
+        });
 
         // What happens when we trigger the "Clear Search" action.
         let global_search_clear = SlotNoArgs::new(move || {
@@ -68,10 +68,8 @@ impl GlobalSearchSlots {
         });
 
         // What happens when we trigger the "Replace All" action.
-        let global_search_replace_all = SlotNoArgs::new(clone!(
-            pack_file_contents_ui,
-            slot_holder => move || {
-            global_search_ui.replace_all(&app_ui, &pack_file_contents_ui, &slot_holder);
+        let global_search_replace_all = SlotNoArgs::new(clone!(slot_holder => move || {
+            global_search_ui.replace_all(&app_ui, &slot_holder);
         }));
 
 

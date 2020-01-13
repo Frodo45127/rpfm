@@ -308,28 +308,6 @@ impl PackedFileType {
             Self::Text(_) => if let Self::Text(_) = other { true } else { false },
         }
     }
-
-    /// This function is a less strict version of the one implemented with the `Eq` trait, adapted to work with slices of types instead of singular types.
-    ///
-    /// It performs an equality check between both provided types, ignoring the subtypes. This means,
-    /// a Text PackedFile with subtype XML and one with subtype LUA will return true, because both are Text PackedFiles.
-    pub fn eq_non_strict_slice(&self, others: &[Self]) -> bool {
-        match self {
-            Self::Anim |
-            Self::AnimFragment |
-            Self::AnimPack |
-            Self::AnimTable |
-            Self::CEO |
-            Self::DB |
-            Self::Image |
-            Self::Loc |
-            Self::MatchedCombat |
-            Self::RigidModel |
-            Self::StarPos |
-            Self::Unknown => others.contains(&self),
-            Self::Text(_) => others.iter().any(|x| if let Self::Text(_) = x { true } else { false }),
-        }
-    }
 }
 
 /// From implementation to get the type from a DecodedPackedFile.
