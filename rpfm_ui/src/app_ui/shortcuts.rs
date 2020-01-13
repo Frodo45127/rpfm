@@ -70,8 +70,8 @@ pub fn set_shortcuts(app_ui: &AppUI) {
     // Shortcuts for the Command Palette...
     //---------------------------------------------------------------------------------------//
 
-    unsafe { app_ui.command_palette_show.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&qtr("shortcut_csp"))); }
-    unsafe { app_ui.command_palette_hide.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&qtr("shortcut_esc"))); }
+    unsafe { app_ui.command_palette_show.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("Ctrl+Shift+P"))); }
+    unsafe { app_ui.command_palette_hide.as_mut().unwrap().set_shortcut(&KeySequence::from_string(&QString::from_std_str("Esc"))); }
 
     unsafe { app_ui.command_palette_show.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }
     unsafe { app_ui.command_palette_hide.as_mut().unwrap().set_shortcut_context(ShortcutContext::Application); }

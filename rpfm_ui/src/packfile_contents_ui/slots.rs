@@ -399,7 +399,7 @@ impl PackFileContentsSlots {
                 // Create the FileDialog to get the file/s to add and configure it.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &qtr("context_menu_add_files"),
+                    &QString::from_std_str("Add File/s"),
                 )) };
                 file_dialog.set_file_mode(FileMode::ExistingFiles);
                 match UI_STATE.get_operational_mode() {
@@ -484,7 +484,7 @@ impl PackFileContentsSlots {
                 // Create the FileDialog to get the folder/s to add and configure it.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &qtr("context_menu_add_folders"),
+                    &QString::from_std_str("Add Folder/s"),
                 )) };
                 file_dialog.set_file_mode(FileMode::Directory);
                 match UI_STATE.get_operational_mode() {
@@ -571,7 +571,7 @@ impl PackFileContentsSlots {
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &qtr("context_menu_select_packfile"),
+                    &QString::from_std_str("Select PackFile"),
                 )) };
 
                 file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
@@ -601,7 +601,7 @@ impl PackFileContentsSlots {
                                     unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
                                 }
                             }
-                            app_ui.purge_that_one_specifically(global_search_ui, &["extra_packfile.rpfm_reserved".to_owned()], false);
+                            app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &["extra_packfile.rpfm_reserved".to_owned()], false);
 
                             unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().add_tab((tab_widget, icon, &QString::from_std_str(&name))); }
                             unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
@@ -632,7 +632,7 @@ impl PackFileContentsSlots {
                         // Remove all the deleted PackedFiles from the cache.
                         for item in &items {
                             match item {
-                                TreePathType::File(path) => app_ui.purge_that_one_specifically(global_search_ui, path, false),
+                                TreePathType::File(path) => app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false),
                                 TreePathType::Folder(path) => {
                                     let mut paths_to_remove = vec![];
                                     {
@@ -645,11 +645,11 @@ impl PackFileContentsSlots {
                                     }
 
                                     for path in paths_to_remove {
-                                        app_ui.purge_that_one_specifically(global_search_ui, &path, false);
+                                        app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
                                     }
 
                                 }
-                                TreePathType::PackFile => app_ui.purge_them_all(global_search_ui, &slot_holder),
+                                TreePathType::PackFile => app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder),
                                 TreePathType::None => unreachable!(),
                             }
                         }
@@ -693,7 +693,7 @@ impl PackFileContentsSlots {
                     OperationalMode::Normal => {
                         let extraction_path = unsafe { FileDialog::get_existing_directory_unsafe((
                             app_ui.main_window as *mut Widget,
-                            &qtr("context_menu_extract_packfile"),
+                            &QString::from_std_str("Extract PackFile"),
                         )) };
 
                         if !extraction_path.is_empty() { PathBuf::from(extraction_path.to_std_string()) }
@@ -703,7 +703,7 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, global_search_ui));
+                UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, global_search_ui, &pack_file_contents_ui));
 
                 CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
@@ -760,7 +760,7 @@ impl PackFileContentsSlots {
                                                 path_changes.push((current_path.to_vec(), new_path.to_vec()));
 
                                                 // Update the global search stuff, if needed.
-                                                global_search_ui.search_on_path(vec![PathType::File(new_path.to_vec()); 1]);
+                                                global_search_ui.search_on_path(&pack_file_contents_ui, vec![PathType::File(new_path.to_vec()); 1]);
                                             }
                                         }
                                     }
@@ -916,7 +916,7 @@ impl PackFileContentsSlots {
                     }
 
                     for path in paths_to_close {
-                        app_ui.purge_that_one_specifically(global_search_ui, &path, true);
+                        app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, true);
                     }
 
                     CENTRAL_COMMAND.send_message_qt(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
@@ -933,7 +933,7 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]));
 
                             // Update the global search stuff, if needed.
-                            global_search_ui.search_on_path(vec![PathType::File(path_to_add); 1]);
+                            global_search_ui.search_on_path(&pack_file_contents_ui, vec![PathType::File(path_to_add); 1]);
                             /*
 
                             // Remove the added file from the data history if exists.
@@ -970,7 +970,7 @@ impl PackFileContentsSlots {
                 TreePathType::File(_) => {
 
                     // First, if the PackedFile is open, save it.
-                    app_ui.purge_them_all(global_search_ui, &slot_holder);
+                    app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
 
                     let path_type: PathType = From::from(item_type);
                     CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type.clone()));
@@ -979,7 +979,7 @@ impl PackFileContentsSlots {
                         Response::I32I32((old_version, new_version)) => {
                             let message = format!("Table updated from version '{}' to version '{}'.", old_version, new_version);
                             show_dialog(app_ui.main_window as *mut Widget, message, true);
-                            global_search_ui.search_on_path(vec![path_type; 1]);
+                            global_search_ui.search_on_path(&pack_file_contents_ui, vec![path_type; 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
@@ -1026,7 +1026,7 @@ impl PackFileContentsSlots {
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2));
 
                                 // Update the global search stuff, if needed.
-                                global_search_ui.search_on_path(paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
+                                global_search_ui.search_on_path(&pack_file_contents_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
 
                                 // For each file added, remove it from the data history if exists.
                                 /*
@@ -1057,7 +1057,7 @@ impl PackFileContentsSlots {
                 // Get a "Folder-only" FileDialog.
                 let export_path = unsafe { FileDialog::get_existing_directory_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &qtr("context_menu_mass_export_tsv_folder")
+                    &QString::from_std_str("Select destination folder")
                 )) };
 
                 // If we got an export path and it's not empty, try to export all selected files there.

@@ -64,7 +64,7 @@ impl PackFileContentsUI {
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
                     // Update the global search stuff, if needed.
-                    global_search_ui.search_on_path(paths.iter().map(From::from).collect());
+                    global_search_ui.search_on_path(&self, paths.iter().map(From::from).collect());
                     //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
                     // For each file added, remove it from the data history if exists.
@@ -99,7 +99,7 @@ impl PackFileContentsUI {
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
                     // Update the global search stuff, if needed.
-                    global_search_ui.search_on_path(paths.iter().map(From::from).collect());
+                    global_search_ui.search_on_path(&self, paths.iter().map(From::from).collect());
                     //unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
 
                     // For each file added, remove it from the data history if exists.
@@ -148,25 +148,28 @@ impl PackFileContentsUI {
 
         // Create and configure the dialog.
         let mut dialog = unsafe { Dialog::new_unsafe(app_ui.main_window as *mut Widget) };
-        dialog.set_window_title(&qtr("rename_selection"));
+        dialog.set_window_title(&QString::from_std_str("Rename Selection"));
         dialog.set_modal(true);
         dialog.resize((400, 50));
         let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
 
         // Create a little frame with some instructions.
-        let instructions_frame = GroupBox::new(&qtr("rename_selection_instructions"));
+        let instructions_frame = GroupBox::new(&QString::from_std_str("Instructions"));
         let instructions_grid = create_grid_layout_unsafe(instructions_frame.as_mut_ptr() as *mut Widget);
-        let instructions_label = Label::new(&qtr("\
+        let instructions_label = Label::new(&QString::from_std_str(
+        "\
     It's easy, but you'll not understand it without an example, so here it's one:
      - Your files/folders says 'you' and 'I'.
      - Write 'whatever {x} want' in the box below.
      - Hit 'Accept'.
      - RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.
-    And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number."));
+    And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
+        "
+        ));
         unsafe { instructions_grid.as_mut().unwrap().add_widget((instructions_label.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
 
         let mut rewrite_sequence_line_edit = LineEdit::new(());
-        rewrite_sequence_line_edit.set_placeholder_text(&qtr("rename_selection_placeholder"));
+        rewrite_sequence_line_edit.set_placeholder_text(&QString::from_std_str("Write here whatever you want. {x} it's your current name."));
 
         // If we only have one selected item, put his name by default in the rename dialog.
         if selected_items.len() == 1 {
@@ -174,7 +177,7 @@ impl PackFileContentsUI {
                 rewrite_sequence_line_edit.set_text(&QString::from_std_str(path.last().unwrap()));
             }
         }
-        let accept_button = PushButton::new(&qtr("gen_loc_accept"));
+        let accept_button = PushButton::new(&QString::from_std_str("Accept"));
 
         unsafe { main_grid.as_mut().unwrap().add_widget((instructions_frame.into_raw() as *mut Widget, 0, 0, 1, 2)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((rewrite_sequence_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
@@ -195,21 +198,21 @@ impl PackFileContentsUI {
 
         // Create the "Mass-Import TSV" Dialog and configure it.
         let mut dialog = unsafe { Dialog::new_unsafe(app_ui.main_window as *mut Widget) };
-        dialog.set_window_title(&qtr("mass_import_tsv"));
+        dialog.set_window_title(&QString::from_std_str("Mass-Import TSV Files"));
         dialog.set_modal(true);
         dialog.resize((400, 100));
 
         // Create the main Grid and his stuff.
         let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
-        let mut files_to_import_label = Label::new(&qtr("mass_import_num_to_import"));
-        let select_files_button = PushButton::new(&qtr("..."));
+        let mut files_to_import_label = Label::new(&QString::from_std_str("Files to import: 0."));
+        let select_files_button = PushButton::new(&QString::from_std_str("..."));
         let mut imported_files_name_line_edit = LineEdit::new(());
-        let use_original_filenames_label = Label::new(&qtr("mass_import_use_original_filename"));
+        let use_original_filenames_label = Label::new(&QString::from_std_str("Use original filename:"));
         let use_original_filenames_checkbox = CheckBox::new(());
-        let import_button = PushButton::new(&qtr("mass_import_import"));
+        let import_button = PushButton::new(&QString::from_std_str("Import"));
 
         // Set a dummy name as default.
-        imported_files_name_line_edit.set_text(&qtr("mass_import_default_name"));
+        imported_files_name_line_edit.set_text(&QString::from_std_str("new_imported_file"));
 
         // Add all the widgets to the main grid, and the main grid to the dialog.
         unsafe { main_grid.as_mut().unwrap().add_widget((files_to_import_label.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
@@ -234,7 +237,7 @@ impl PackFileContentsUI {
                 // Create the FileDialog to get the TSV files, and add them to the list if we accept.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     dialog as *mut Widget,
-                    &qtr("mass_import_select"),
+                    &QString::from_std_str("Select TSV Files to Import..."),
                 )) };
 
                 file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
@@ -247,7 +250,7 @@ impl PackFileContentsUI {
                         files_to_import.borrow_mut().push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
                     }
 
-                    files_to_import_label.set_text(&qtre("files_to_import", vec![selected_files.count()]));
+                    files_to_import_label.set_text(&QString::from_std_str(&format!("Files to import: {}.", selected_files.count(()))));
                 }
             }
         ));

@@ -131,15 +131,15 @@ impl PackFileExtraView {
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let mut filter_line_edit = LineEdit::new(());
-        let mut filter_autoexpand_matches_button = PushButton::new(&qtr("treeview_autoexpand"));
-        let mut filter_case_sensitive_button = PushButton::new(&qtr("treeview_aai"));
-        filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        let mut filter_autoexpand_matches_button = PushButton::new(&QString::from_std_str("Auto-Expand Matches"));
+        let mut filter_case_sensitive_button = PushButton::new(&QString::from_std_str("AaI"));
+        filter_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the files in the PackFile. Works with Regex too!"));
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
 
         // Create the extra actions for the TreeView.
-        let expand_all = Action::new(&qtr("treeview_expand_all"));
-        let collapse_all = Action::new(&qtr("treeview_collapse_all"));
+        let expand_all = Action::new(&QString::from_std_str("&Expand All"));
+        let collapse_all = Action::new(&QString::from_std_str("&Collapse All"));
         unsafe { tree_view.add_action(expand_all.as_mut_ptr()); }
         unsafe { tree_view.add_action(collapse_all.as_mut_ptr()); }
 

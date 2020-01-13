@@ -153,7 +153,7 @@ impl SettingsUI {
 
         // Initialize and configure the settings window.
         let mut dialog = unsafe { Dialog::new_unsafe(parent) };
-        dialog.set_window_title(&qtr("settings_title"));
+        dialog.set_window_title(&QString::from_std_str("Preferences"));
         dialog.set_modal(true);
         dialog.resize((750, 0));
 
@@ -164,15 +164,15 @@ impl SettingsUI {
         //-----------------------------------------------//
         // `Paths` Frame.
         //-----------------------------------------------//
-        let mut paths_frame = GroupBox::new(&qtr("settings_paths_title"));
+        let mut paths_frame = GroupBox::new(&QString::from_std_str("Paths"));
         let mut paths_grid = create_grid_layout_safe();
         paths_grid.set_contents_margins((4, 0, 4, 0));
 
         // Create the MyMod's path stuff,
-        let paths_mymod_label = Label::new(&qtr("settings_paths_mymod"));
+        let paths_mymod_label = Label::new(&QString::from_std_str("MyMod's Folder:"));
         let mut paths_mymod_line_edit = LineEdit::new(());
-        let paths_mymod_button = PushButton::new(&qtr("..."));
-        paths_mymod_line_edit.set_placeholder_text(&qtr("settings_paths_mymod_ph"));
+        let paths_mymod_button = PushButton::new(&QString::from_std_str("..."));
+        paths_mymod_line_edit.set_placeholder_text(&QString::from_std_str("This is the folder where you want to store all \"MyMod\" related files."));
 
         unsafe { paths_grid.add_widget((paths_mymod_label.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { paths_grid.add_widget((paths_mymod_line_edit.as_mut_ptr() as *mut Widget, 0, 1, 1, 1)); }
@@ -183,10 +183,10 @@ impl SettingsUI {
         let mut paths_games_line_edits = BTreeMap::new();
         let mut paths_games_buttons = BTreeMap::new();
         for (index, (folder_name, game_supported)) in SUPPORTED_GAMES.iter().enumerate() {
-            let game_label = Label::new(&qtre("settings_game_label", vec![game_supported.display_name]));
+            let game_label = Label::new(&QString::from_std_str(&format!("TW: {} Folder", game_supported.display_name)));
             let mut game_line_edit = LineEdit::new(());
             let game_button = PushButton::new(&QString::from_std_str("..."));
-            game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", vec![game_supported.display_name]));
+            game_line_edit.set_placeholder_text(&QString::from_std_str(&*format!("This is the folder where you have {} installed.", game_supported.display_name)));
 
             unsafe { paths_grid.add_widget((game_label.as_mut_ptr() as *mut Widget, (index + 1) as i32, 0, 1, 1)); }
             unsafe { paths_grid.add_widget((game_line_edit.as_mut_ptr() as *mut Widget, (index + 1) as i32, 1, 1, 1)); }
@@ -204,28 +204,28 @@ impl SettingsUI {
         //-----------------------------------------------//
         // `UI` Frame.
         //-----------------------------------------------//
-        let mut ui_frame = GroupBox::new(&qtr("settings_ui_title"));
+        let mut ui_frame = GroupBox::new(&QString::from_std_str("UI Settings"));
         let mut ui_grid = create_grid_layout_safe();
         ui_grid.set_contents_margins((4, 0, 4, 0));
         ui_grid.set_spacing(4);
         ui_grid.set_row_stretch(99, 10);
 
         // Create the "UI - TableView" frame and grid.
-        let mut ui_table_view_frame = GroupBox::new(&qtr("settings_table_title"));
+        let mut ui_table_view_frame = GroupBox::new(&QString::from_std_str("Table Settings"));
         let mut ui_table_view_grid = create_grid_layout_safe();
         ui_table_view_grid.set_contents_margins((4, 0, 4, 0));
         ui_table_view_grid.set_spacing(4);
         ui_table_view_grid.set_row_stretch(99, 10);
 
-        let mut ui_language_label = Label::new(&qtr("settings_ui_language"));
-        let mut ui_global_use_dark_theme_label = Label::new(&qtr("settings_ui_dark_theme"));
-        let mut ui_table_adjust_columns_to_content_label = Label::new(&qtr("settings_ui_table_adjust_columns_to_content"));
-        let mut ui_table_disable_combos_label = Label::new(&qtr("settings_ui_table_disable_combos"));
-        let mut ui_table_extend_last_column_label = Label::new(&qtr("settings_ui_table_extend_last_column_label"));
-        let mut ui_table_remember_column_sorting_label = Label::new(&qtr("settings_ui_table_remember_column_sorting_label"));
-        let mut ui_table_remember_column_visual_order_label = Label::new(&qtr("settings_ui_table_remember_column_visual_order_label"));
-        let mut ui_table_remember_table_state_permanently_label = Label::new(&qtr("settings_ui_table_remember_table_state_permanently_label"));
-        let mut ui_window_start_maximized_label = Label::new(&qtr("settings_ui_window_start_maximized_label"));
+        let mut ui_language_label = Label::new(&QString::from_std_str("Language (Requires restart):"));
+        let mut ui_global_use_dark_theme_label = Label::new(&QString::from_std_str("Use Dark Theme (Requires restart):"));
+        let mut ui_table_adjust_columns_to_content_label = Label::new(&QString::from_std_str("Adjust Columns to Content:"));
+        let mut ui_table_disable_combos_label = Label::new(&QString::from_std_str("Disable ComboBoxes on Tables:"));
+        let mut ui_table_extend_last_column_label = Label::new(&QString::from_std_str("Extend Last Column on Tables:"));
+        let mut ui_table_remember_column_sorting_label = Label::new(&QString::from_std_str("Remember Column's Sorting State:"));
+        let mut ui_table_remember_column_visual_order_label = Label::new(&QString::from_std_str("Remember Column's Visual Order:"));
+        let mut ui_table_remember_table_state_permanently_label = Label::new(&QString::from_std_str("Remember Table State Across PackFiles:"));
+        let mut ui_window_start_maximized_label = Label::new(&QString::from_std_str("Start Maximized:"));
 
         let mut ui_language_combobox = ComboBox::new();
         let mut ui_global_use_dark_theme_checkbox = CheckBox::new(());
@@ -282,26 +282,26 @@ impl SettingsUI {
         //-----------------------------------------------//
         // `Extra` Frame.
         //-----------------------------------------------//
-        let mut extra_frame = GroupBox::new(&qtr("settings_extra_title"));
+        let mut extra_frame = GroupBox::new(&QString::from_std_str("Extra Settings"));
         let mut extra_grid = create_grid_layout_safe();
         extra_grid.set_contents_margins((4, 0, 4, 0));
         extra_grid.set_spacing(4);
         extra_grid.set_row_stretch(99, 10);
 
         // Create the "Default Game" Label and ComboBox.
-        let mut extra_global_default_game_label = Label::new(&qtr("settings_default_game"));
+        let mut extra_global_default_game_label = Label::new(&QString::from_std_str("Default Game:"));
         let mut extra_global_default_game_combobox = ComboBox::new();
         let extra_global_default_game_model = StandardItemModel::new(());
         unsafe { extra_global_default_game_combobox.set_model(extra_global_default_game_model.into_raw() as *mut AbstractItemModel); }
         for (_, game) in SUPPORTED_GAMES.iter() { extra_global_default_game_combobox.add_item(&QString::from_std_str(&game.display_name)); }
 
         // Create the aditional Labels/CheckBoxes.
-        let mut extra_network_check_updates_on_start_label = Label::new(&qtr("settings_check_updates_on_start"));
-        let mut extra_network_check_schema_updates_on_start_label = Label::new(&qtr("settings_check_schema_updates_on_start"));
-        let mut extra_packfile_allow_editing_of_ca_packfiles_label = Label::new(&qtr("settings_allow_editing_of_ca_packfiles"));
-        let mut extra_packfile_optimize_not_renamed_packedfiles_label = Label::new(&qtr("settings_optimize_not_renamed_packedfiles"));
-        let mut extra_packfile_use_dependency_checker_label = Label::new(&qtr("settings_use_dependency_checker"));
-        let mut extra_packfile_use_lazy_loading_label = Label::new(&qtr("settings_use_lazy_loading"));
+        let mut extra_network_check_updates_on_start_label = Label::new(&QString::from_std_str("Check Updates on Start:"));
+        let mut extra_network_check_schema_updates_on_start_label = Label::new(&QString::from_std_str("Check Schema Updates on Start:"));
+        let mut extra_packfile_allow_editing_of_ca_packfiles_label = Label::new(&QString::from_std_str("Allow Editing of CA PackFiles:"));
+        let mut extra_packfile_optimize_not_renamed_packedfiles_label = Label::new(&QString::from_std_str("Optimize Non-Renamed PackedFiles:"));
+        let mut extra_packfile_use_dependency_checker_label = Label::new(&QString::from_std_str("Enable Dependency Checker for DB Tables:"));
+        let mut extra_packfile_use_lazy_loading_label = Label::new(&QString::from_std_str("Use Lazy-Loading for PackFiles:"));
 
         let mut extra_network_check_updates_on_start_checkbox = CheckBox::new(());
         let mut extra_network_check_schema_updates_on_start_checkbox = CheckBox::new(());
@@ -337,13 +337,13 @@ impl SettingsUI {
         //-----------------------------------------------//
         // `Debug` Frame.
         //-----------------------------------------------//
-        let mut debug_frame = GroupBox::new(&qtr("settings_debug_title"));
+        let mut debug_frame = GroupBox::new(&QString::from_std_str("Debug Settings"));
         let mut debug_grid = create_grid_layout_safe();
         debug_grid.set_contents_margins((4, 0, 4, 0));
         debug_grid.set_spacing(4);
         debug_grid.set_row_stretch(99, 10);
 
-        let mut debug_check_for_missing_table_definitions_label = Label::new(&qtr("settings_debug_missing_table"));
+        let mut debug_check_for_missing_table_definitions_label = Label::new(&QString::from_std_str("Check for Missing Table Definitions"));
         let mut debug_check_for_missing_table_definitions_checkbox = CheckBox::new(());
 
         unsafe { debug_grid.add_widget((debug_check_for_missing_table_definitions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
@@ -356,8 +356,8 @@ impl SettingsUI {
         // `ButtonBox` Button Box.
         //-----------------------------------------------//
         let mut button_box = DialogButtonBox::new(());
-        let mut button_box_shortcuts_button = PushButton::new(&qtr("shortcut_title"));
-        let mut button_box_text_editor_settings_button = PushButton::new(&qtr("settings_text_title"));
+        let mut button_box_shortcuts_button = PushButton::new(&QString::from_std_str("Shortcuts"));
+        let mut button_box_text_editor_settings_button = PushButton::new(&QString::from_std_str("Text Editor Preferences"));
 
         let button_box_restore_default_button = button_box.add_button(dialog_button_box::StandardButton::RestoreDefaults);
         unsafe { button_box.add_button_unsafe(button_box_shortcuts_button.static_cast_mut() as *mut AbstractButton, ButtonRole::ResetRole); }
@@ -540,7 +540,7 @@ impl SettingsUI {
         // Create the `FileDialog` and configure it.
         let mut file_dialog = unsafe { FileDialog::new_unsafe((
             self.dialog as *mut Widget,
-            &qtr("settings_select_folder"),
+            &QString::from_std_str("Select Folder"),
         ))};
         file_dialog.set_file_mode(FileMode::Directory);
         file_dialog.set_option(ShowDirsOnly);

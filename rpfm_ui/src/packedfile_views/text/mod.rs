@@ -27,6 +27,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_text_editor, set_text};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
 use self::slots::PackedFileTextViewSlots;
@@ -64,6 +65,7 @@ impl PackedFileTextView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
+        pack_file_contents_ui: &PackFileContentsUI,
         text_type: TextType,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
@@ -77,9 +79,9 @@ impl PackedFileTextView {
         };
 
         let mut highlighting_mode = match text_type {
-            TextType::Lua => qtr("text_type_lua"),
-            TextType::Xml => qtr("text_type_xml"),
-            TextType::Plain => qtr("text_type_normal"),
+            TextType::Lua => QString::from_std_str("Lua"),
+            TextType::Xml => QString::from_std_str("XML"),
+            TextType::Plain => QString::from_std_str("Normal"),
         };
 
         let editor = unsafe { new_text_editor(packed_file_view.get_mut_widget()) };
@@ -89,7 +91,7 @@ impl PackedFileTextView {
         unsafe { set_text(editor, &mut QString::from_std_str(text.get_ref_contents()), &mut highlighting_mode) };
 
         let packed_file_text_view_raw = PackedFileTextViewRaw {editor};
-        let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *global_search_ui, &packed_file_path);
+        let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *pack_file_contents_ui, *global_search_ui, &packed_file_path);
         let packed_file_text_view = Self { editor: AtomicPtr::new(packed_file_text_view_raw.editor)};
 
         packed_file_view.view = View::Text(packed_file_text_view);

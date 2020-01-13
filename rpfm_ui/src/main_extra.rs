@@ -436,7 +436,7 @@ pub fn save_packfile(
                 // Create the FileDialog to save the PackFile and configure it.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.window as *mut Widget,
-                    &qtr("save_packfile"),
+                    &QString::from_std_str("Save PackFile"),
                 )) };
                 file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
                 file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
@@ -555,10 +555,10 @@ pub fn build_my_mod_menu(
 
     // Then, we create the actions again.
     let mymod_stuff = unsafe { MyModStuff {
-            new_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&qtr("mymod_New")),
-            delete_selected_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&qtr("mymod_delete_selected")),
-            install_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&qtr("mymod_install")),
-            uninstall_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&qtr("mymod_uninstall")),
+            new_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&New MyMod")),
+            delete_selected_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&Delete Selected MyMod")),
+            install_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&Install")),
+            uninstall_mymod: menu_bar_mymod.as_mut().unwrap().add_action(&QString::from_std_str("&Uninstall")),
         }
     };
 
@@ -915,10 +915,10 @@ pub fn build_my_mod_menu(
     unsafe { mymod_stuff.uninstall_mymod.as_ref().unwrap().signals().triggered().connect(&mymod_slots.uninstall_mymod); }
 
     // Status bar tips.
-    unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_status_tip(&qtr("tt_mymod_new")); }
-    unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_status_tip(&qtr("tt_mymod_delete_selected")); }
-    unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_status_tip(&qtr("tt_mymod_install")); }
-    unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_status_tip(&qtr("tt_mymod_uninstall")); }
+    unsafe { mymod_stuff.new_mymod.as_mut().unwrap().set_status_tip(&QString::from_std_str("Open the dialog to create a new MyMod.")); }
+    unsafe { mymod_stuff.delete_selected_mymod.as_mut().unwrap().set_status_tip(&QString::from_std_str("Delete the currently selected MyMod.")); }
+    unsafe { mymod_stuff.install_mymod.as_mut().unwrap().set_status_tip(&QString::from_std_str("Copy the currently selected MyMod into the data folder of the GameSelected.")); }
+    unsafe { mymod_stuff.uninstall_mymod.as_mut().unwrap().set_status_tip(&QString::from_std_str("Removes the currently selected MyMod from the data folder of the GameSelected.")); }
 
     //---------------------------------------------------------------------------------------//
     // Build the "Dynamic" part of the menu...

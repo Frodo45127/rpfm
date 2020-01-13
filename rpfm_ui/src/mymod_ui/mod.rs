@@ -65,14 +65,18 @@ impl MyModUI {
         // Create the "New MyMod" Dialog and configure it.
         let mut dialog = unsafe { Dialog::new_unsafe(app_ui.main_window as *mut Widget) };
         let main_grid = create_grid_layout_unsafe(dialog.static_cast_mut() as *mut Widget);
-        dialog.set_window_title(&qtr("mymod_new"));
+        dialog.set_window_title(&QString::from_std_str("New MyMod"));
         dialog.set_modal(true);
         dialog.resize((300, 0));
 
         // Create the Advices Frame and configure it.
         let advices_frame = Frame::new();
         let advices_grid = create_grid_layout_unsafe(advices_frame.as_mut_ptr() as *mut Widget);
-        let advices_label = Label::new(&qtr("mymod_advice"));
+        let advices_label = Label::new(&QString::from_std_str("Things to take into account before creating a new mod:
+    - Select the game you'll make the mod for.
+    - Pick an simple name (it shouldn't end in *.pack).
+    - If you want to use multiple words, use \"_\" instead of \" \".
+    - You can't create a mod for a game that has no path set in the settings."));
 
         unsafe {
             advices_grid.as_mut().unwrap().add_widget((advices_label.into_raw() as *mut Widget, 0, 0, 1, 1));
@@ -80,12 +84,12 @@ impl MyModUI {
         }
 
         // Create the "MyMod's Name" Label and LineEdit and configure them.
-        let mymod_name_label = Label::new(&qtr("mymod_name"));
+        let mymod_name_label = Label::new(&QString::from_std_str("Name of the Mod:"));
         let mut mymod_name_line_edit = LineEdit::new(());
-        mymod_name_line_edit.set_placeholder_text(&qtr("mymod_name_default"));
+        mymod_name_line_edit.set_placeholder_text(&QString::from_std_str("For example: one_ring_for_me"));
 
         // Create the "MyMod's Game" Label and ComboBox and configure them.
-        let mymod_game_label = Label::new(&qtr("mymod_game"));
+        let mymod_game_label = Label::new(&QString::from_std_str("Game of the Mod:"));
         let mut mymod_game_combobox = ComboBox::new();
         let mut mymod_game_model = StandardItemModel::new(());
         unsafe { mymod_game_combobox.set_model(mymod_game_model.static_cast_mut()); }

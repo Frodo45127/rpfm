@@ -21,11 +21,11 @@ pub fn set_tips(global_search_ui: &GlobalSearchUI) {
     //---------------------------------------------------//
     // Global Search panel tips.
     //---------------------------------------------------//
-    unsafe { global_search_ui.global_search_use_regex_checkbox.as_mut().unwrap().set_status_tip(&qtr("tt_global_search_use_regex_checkbox")); }
-    unsafe { global_search_ui.global_search_case_sensitive_checkbox.as_mut().unwrap().set_status_tip(&qtr("tt_global_search_case_sensitive_checkbox")); }
-    unsafe { global_search_ui.global_search_search_on_all_checkbox.as_mut().unwrap().set_status_tip(&qtr("tt_global_search_search_on_all_checkbox")); }
-    unsafe { global_search_ui.global_search_search_on_dbs_checkbox.as_mut().unwrap().set_status_tip(&qtr("tt_global_search_search_on_dbs_checkbox")); }
-    unsafe { global_search_ui.global_search_search_on_locs_checkbox.as_mut().unwrap().set_status_tip(&qtr("tt_global_search_search_on_locs_checkbox")); }
-    unsafe { global_search_ui.global_search_search_on_texts_checkbox.as_mut().unwrap().set_status_tip(&qtr("tt_global_search_search_on_texts_checkbox")); }
-    unsafe { global_search_ui.global_search_search_on_schemas_checkbox.as_mut().unwrap().set_status_tip(&qtr("tt_global_search_search_on_schemas_checkbox")); }
+    unsafe { global_search_ui.global_search_use_regex_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Enable search using Regex. Keep in mind that RPFM will fallback to a normal pattern search if the provided Regex is invalid.")); }
+    unsafe { global_search_ui.global_search_case_sensitive_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Enable case sensitive search. Pretty self-explanatory.")); }
+    unsafe { global_search_ui.global_search_search_on_all_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include all searchable PackedFiles/Schemas on the search.")); }
+    unsafe { global_search_ui.global_search_search_on_dbs_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include DB Tables on the search.")); }
+    unsafe { global_search_ui.global_search_search_on_locs_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include LOC Tables on the search.")); }
+    unsafe { global_search_ui.global_search_search_on_texts_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include any kind of Text PackedFile on the search.")); }
+    unsafe { global_search_ui.global_search_search_on_schemas_checkbox.as_mut().unwrap().set_status_tip(&QString::from_std_str("Include the currently loaded Schema on the search.")); }
 }
