@@ -25,7 +25,6 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_text_editor};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 
 use self::slots::PackedFileRigidModelViewSlots;
@@ -62,7 +61,6 @@ impl PackedFileRigidModelView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
-        pack_file_contents_ui: &PackFileContentsUI,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Text.
@@ -77,7 +75,7 @@ impl PackedFileRigidModelView {
         let editor = unsafe { new_text_editor(packed_file_view.get_mut_widget()) };
 
         let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor};
-        let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(packed_file_rigid_model_view_raw, *global_search_ui, *pack_file_contents_ui, &packed_file_path);
+        let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(packed_file_rigid_model_view_raw, *global_search_ui, &packed_file_path);
         let packed_file_rigid_model_view = Self { editor: AtomicPtr::new(packed_file_rigid_model_view_raw.editor)};
 
         packed_file_view.view = View::RigidModel(packed_file_rigid_model_view);

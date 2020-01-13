@@ -117,7 +117,6 @@ impl IconType {
                 else if packed_file_name.ends_with(".bob") { &TREEVIEW_ICONS.text_generic }
                 else if packed_file_name.ends_with(".cindyscene") { &TREEVIEW_ICONS.text_generic }
                 else if packed_file_name.ends_with(".cindyscenemanager") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".tai") { &TREEVIEW_ICONS.text_generic }
                 //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
                 else if packed_file_name.ends_with(".txt") { &TREEVIEW_ICONS.text_txt }
 
@@ -179,7 +178,6 @@ impl IconType {
                 else if packed_file_name.ends_with(".bob") { &TREEVIEW_ICONS.text_generic }
                 else if packed_file_name.ends_with(".cindyscene") { &TREEVIEW_ICONS.text_generic }
                 else if packed_file_name.ends_with(".cindyscenemanager") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".tai") { &TREEVIEW_ICONS.text_generic }
                 //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
                 else if packed_file_name.ends_with(".txt") { &TREEVIEW_ICONS.text_txt }
 

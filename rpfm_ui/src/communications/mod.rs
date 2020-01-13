@@ -335,8 +335,8 @@ pub enum Response {
     /// Response to return (Vec<Option<PackedFileInfo>>).
     VecOptionPackedFileInfo(Vec<Option<PackedFileInfo>>),
 
-    /// Response to return (GlobalSearch, Vec<PackedFileInfo>).
-    GlobalSearchVecPackedFileInfo((GlobalSearch, Vec<PackedFileInfo>)),
+    /// Response to return (GlobalSearch).
+    GlobalSearch(GlobalSearch),
 
     /// Response to return (Vec<Vec<String>>).
     VecVecString(Vec<Vec<String>>),
