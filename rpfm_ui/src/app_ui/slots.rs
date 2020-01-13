@@ -250,7 +250,7 @@ impl AppUISlots {
                     // Create the FileDialog to get the PackFile to open and configure it.
                     let mut file_dialog = unsafe { FileDialog::new_unsafe((
                         app_ui.main_window as *mut Widget,
-                        &QString::from_std_str("Open PackFiles"),
+                        &qtr("open_packfiles"),
                     )) };
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
                     file_dialog.set_file_mode(FileMode::ExistingFiles);
@@ -796,7 +796,7 @@ impl AppUISlots {
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let mut file_dialog = unsafe { FileDialog::new_unsafe((
                             app_ui.main_window as *mut Widget,
-                            &QString::from_std_str("Select Assembly Kit's Folder"),
+                            &qtr("special_stuff_select_ak_folder"),
                         )) };
 
                         // Set it to only search Folders.
@@ -817,7 +817,7 @@ impl AppUISlots {
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let mut file_dialog = unsafe { FileDialog::new_unsafe((
                             app_ui.main_window as *mut Widget,
-                            &QString::from_std_str("Select Raw DB Folder"),
+                            &qtr("special_stuff_select_raw_db_folder"),
                         )) };
 
                         // Set it to only search Folders.
@@ -923,7 +923,7 @@ impl AppUISlots {
             unsafe {
                 MessageBox::about(
                     app_ui.main_window as *mut Widget,
-                    &QString::from_std_str("About RPFM"),
+                    &qtr("about_about_rpfm"),
                     &QString::from_std_str(format!(
                         "<table>
                             <tr>
