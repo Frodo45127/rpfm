@@ -18,6 +18,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::global_search_ui::GlobalSearchUI;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::rigidmodel::PackedFileRigidModelViewRaw;
 use crate::UI_STATE;
 
@@ -38,12 +39,12 @@ pub struct PackedFileRigidModelViewSlots {
 impl PackedFileRigidModelViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub fn new(packed_file_view: PackedFileRigidModelViewRaw, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
+    pub fn new(packed_file_view: PackedFileRigidModelViewRaw, global_search_ui: GlobalSearchUI, pack_file_contents_ui: PackFileContentsUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
 
         // When we want to save the contents of the UI to the backend...
         let save = SlotNoArgs::new(clone!(packed_file_path => move || {
             if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                packed_file.save(&packed_file_path.borrow(), global_search_ui);
+                packed_file.save(&packed_file_path.borrow(), global_search_ui, &pack_file_contents_ui);
             }
         }));
 

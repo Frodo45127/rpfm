@@ -922,6 +922,42 @@ impl PackFile {
             }).collect()
     }
 
+    /// This function returns a copy of all the PackedFiles in the current PackFile of the provided types.
+    ///
+    /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
+    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
+    pub fn get_packed_files_by_types(&mut self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
+        self.packed_files.par_iter()
+            .filter(|x| {
+                let y = PackedFileType::get_packed_file_type(x.get_path());
+                if strict_match_mode { packed_file_types.contains(&y) } else { y.eq_non_strict_slice(packed_file_types) }
+            }).cloned().collect()
+    }
+
+    /// This function returns a reference of all the PackedFiles in the current PackFile of the provided types.
+    ///
+    /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
+    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
+    pub fn get_ref_packed_files_by_types(&mut self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&PackedFile> {
+        self.packed_files.par_iter()
+            .filter(|x| {
+                let y = PackedFileType::get_packed_file_type(x.get_path());
+                if strict_match_mode { packed_file_types.contains(&y) } else { y.eq_non_strict_slice(packed_file_types) }
+            }).collect()
+    }
+
+    /// This function returns a mutable reference of all the PackedFiles in the current PackFile of the provided types.
+    ///
+    /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
+    /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
+    pub fn get_ref_mut_packed_files_by_types(&mut self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&mut PackedFile> {
+        self.packed_files.par_iter_mut()
+            .filter(|x| {
+                let y = PackedFileType::get_packed_file_type(x.get_path());
+                if strict_match_mode { packed_file_types.contains(&y) } else { y.eq_non_strict_slice(packed_file_types) }
+            }).collect()
+    }
+
     /// This function returns a copy of all `PackedFiles` in the provided `PackFile`.
     pub fn get_packed_files_all(&self) -> Vec<PackedFile> {
         self.packed_files.clone()

@@ -20,6 +20,7 @@ use rayon::prelude::*;
 use rpfm_error::{ErrorKind, Result};
 
 use crate::packfile::{PackFile, PathType};
+use crate::packfile::packedfile::PackedFileInfo;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::{DecodedData, db::DB, loc::Loc};
 use crate::packedfile::text::{Text, TextType};
@@ -244,6 +245,23 @@ impl GlobalSearch {
     /// This function clears the Global Search resutl's data, and reset the UI for it.
     pub fn clear(&mut self) {
         *self = Self::default();
+    }
+
+    /// This function returns the PackedFileInfo for all the PackedFiles the current search has searched on.
+    pub fn get_results_packed_file_info(&self, pack_file: &mut PackFile) -> Vec<PackedFileInfo> {
+        let mut types = vec![];
+        if self.search_on_dbs { types.push(PackedFileType::DB); }
+        if self.search_on_locs { types.push(PackedFileType::Loc); }
+        if self.search_on_texts { types.push(PackedFileType::Text(TextType::Plain)); }
+        let packed_files = pack_file.get_ref_packed_files_by_types(&types, false);
+        packed_files.iter().map(|x| From::from(*x)).collect()
+    }
+
+    /// This function returns the PackedFileInfo for all the PackedFiles with the provided paths.
+    pub fn get_update_paths_packed_file_info(&self, pack_file: &mut PackFile, paths: &[PathType]) -> Vec<PackedFileInfo> {
+        let paths = paths.iter().filter_map(|x| if let PathType::File(path) = x { Some(&**path) } else { None }).collect();
+        let packed_files = pack_file.get_ref_packed_files_by_paths(paths);
+        packed_files.iter().map(|x| From::from(*x)).collect()
     }
 
     /// This function performs a replace operation over the entire match set, except schemas..

@@ -54,7 +54,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::new_treeview_filter;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{TheOneSlot, View};
-use crate::pack_tree::PackTree;
+use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::QString;
 use crate::utils::{create_grid_layout_unsafe, show_dialog};
 use crate::UI_STATE;
@@ -386,7 +386,7 @@ impl GlobalSearchUI {
     }
 
     /// This function is used to search the entire PackFile, using the data in Self for the search.
-    pub fn search(&self) {
+    pub fn search(&self, pack_file_contents_ui: &PackFileContentsUI) {
 
         // Create the global search and populate it with all the settings for the search.
         let mut global_search = GlobalSearch::default();
@@ -428,17 +428,15 @@ impl GlobalSearchUI {
 
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
-            Response::GlobalSearch(global_search) => {
-
-                println!("Time to search from click to search complete: {:?}", t.elapsed().unwrap());
+            Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
 
                 // Load the results to their respective models. Then, store the GlobalSearch for future checks.
                 Self::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
                 Self::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
                 Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
                 Self::load_schema_matches_to_ui(model_schema, tree_view_schema, &global_search.matches_schema);
-                //println!("{:?}", global_search);
                 UI_STATE.set_global_search(&global_search);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
             }
 
             // In ANY other situation, it's a message problem.
@@ -449,7 +447,7 @@ impl GlobalSearchUI {
     /// This function takes care of updating the results of a global search for the provided paths.
     ///
     /// NOTE: This only works in the `editable` search results, which are DB Tables, Locs and Text PackedFiles.
-    pub fn search_on_path(&self, paths: Vec<PathType>) {
+    pub fn search_on_path(&self, pack_file_contents_ui: &PackFileContentsUI, paths: Vec<PathType>) {
 
         // Create the global search and populate it with all the settings for the search.
         let global_search = UI_STATE.get_global_search();
@@ -471,12 +469,13 @@ impl GlobalSearchUI {
 
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
-            Response::GlobalSearch(global_search) => {
+            Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
 
                 // Load the results to their respective models. Then, store the GlobalSearch for future checks.
                 Self::load_table_matches_to_ui(model_db, tree_view_db, &global_search.matches_db);
                 Self::load_table_matches_to_ui(model_loc, tree_view_loc, &global_search.matches_loc);
                 Self::load_text_matches_to_ui(model_text, tree_view_text, &global_search.matches_text);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
             }
 
             // In ANY other situation, it's a message problem.
@@ -505,11 +504,11 @@ impl GlobalSearchUI {
     }
 
     /// This function replace all the matches in the current search with the provided text.
-    pub fn replace_all(&self, app_ui: &AppUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
+    pub fn replace_all(&self, app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
 
         // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
-        app_ui.purge_them_all(*self, slot_holder);
-        self.search();
+        app_ui.purge_them_all(*self, *pack_file_contents_ui, slot_holder);
+        self.search(pack_file_contents_ui);
 
         let mut global_search = UI_STATE.get_global_search();
         global_search.pattern = unsafe { self.global_search_search_line_edit.as_ref().unwrap().text().to_std_string() };
@@ -542,9 +541,10 @@ impl GlobalSearchUI {
         model_text.clear();
 
         match CENTRAL_COMMAND.recv_message_qt() {
-            Response::GlobalSearch(global_search) => {
+            Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
                 UI_STATE.set_global_search(&global_search);
-                self.search();
+                self.search(pack_file_contents_ui);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
             },
             _ => unimplemented!()
         }
