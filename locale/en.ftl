@@ -85,12 +85,6 @@ mymod_delete_selected = &Delete Selected MyMod
 mymod_install = &Install
 mymod_uninstall = &Uninstall
 
-mymod_advice = Things to take into account before creating a new mod:
-    - Select the game you'll make the mod for.
-    - Pick an simple name (it shouldn't end in *.pack).
-    - If you want to use multiple words, use \"_\" instead of \" \".
-    - You can't create a mod for a game that has no path set in the settings.
-
 mymod_name = Name of the Mod:
 mymod_name_default = For example: one_ring_for_me
 mymod_game = Game of the Mod:

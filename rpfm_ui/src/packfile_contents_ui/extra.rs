@@ -156,7 +156,8 @@ impl PackFileContentsUI {
         // Create a little frame with some instructions.
         let instructions_frame = GroupBox::new(&qtr("rename_selection_instructions"));
         let instructions_grid = create_grid_layout_unsafe(instructions_frame.as_mut_ptr() as *mut Widget);
-        let instructions_label = Label::new(&qtr("\
+        let instructions_label = Label::new(&QString::from_std_str(
+            "\
     It's easy, but you'll not understand it without an example, so here it's one:
      - Your files/folders says 'you' and 'I'.
      - Write 'whatever {x} want' in the box below.
@@ -202,7 +203,7 @@ impl PackFileContentsUI {
         // Create the main Grid and his stuff.
         let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
         let mut files_to_import_label = Label::new(&qtr("mass_import_num_to_import"));
-        let select_files_button = PushButton::new(&qtr("..."));
+        let select_files_button = PushButton::new(&QString::from_std_str("..."));
         let mut imported_files_name_line_edit = LineEdit::new(());
         let use_original_filenames_label = Label::new(&qtr("mass_import_use_original_filename"));
         let use_original_filenames_checkbox = CheckBox::new(());

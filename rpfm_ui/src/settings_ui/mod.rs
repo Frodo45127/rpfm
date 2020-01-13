@@ -171,7 +171,7 @@ impl SettingsUI {
         // Create the MyMod's path stuff,
         let paths_mymod_label = Label::new(&qtr("settings_paths_mymod"));
         let mut paths_mymod_line_edit = LineEdit::new(());
-        let paths_mymod_button = PushButton::new(&qtr("..."));
+        let paths_mymod_button = PushButton::new(&QString::from_std_str("..."));
         paths_mymod_line_edit.set_placeholder_text(&qtr("settings_paths_mymod_ph"));
 
         unsafe { paths_grid.add_widget((paths_mymod_label.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
