@@ -18,6 +18,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::global_search_ui::GlobalSearchUI;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
 use crate::QString;
 use crate::UI_STATE;
@@ -40,7 +41,7 @@ pub struct PackedFileTableViewSlots {
 impl PackedFileTableViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub fn new(packed_file_view: PackedFileTableViewRaw, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
+    pub fn new(packed_file_view: PackedFileTableViewRaw, global_search_ui: GlobalSearchUI, pack_file_contents_ui: PackFileContentsUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
 
         // When we want to filter when changing the pattern to filter with...
         let filter_line_edit = SlotStringRef::new(move |string| {
@@ -53,7 +54,7 @@ impl PackedFileTableViewSlots {
         let save = SlotNoArgs::new(clone!(packed_file_path => move || {
             if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                    packed_file.save(&packed_file_path.borrow(), global_search_ui);
+                    packed_file.save(&packed_file_path.borrow(), global_search_ui, &pack_file_contents_ui);
                 }
             }
         }));

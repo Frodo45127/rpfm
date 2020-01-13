@@ -51,7 +51,7 @@ pub struct PackFileExtraViewSlots {
 impl PackFileExtraViewSlots {
 
     /// This function builds the entire slot set for the provided PackFileExtraView.
-    pub fn new(app_ui: AppUI, pack_file_contents_view: PackFileContentsUI, global_search_ui: GlobalSearchUI, pack_file_view: PackFileExtraViewRaw) -> Self {
+    pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, pack_file_view: PackFileExtraViewRaw) -> Self {
 
         // When we want to import the selected PackedFile...
         let import = SlotModelIndexRef::new(move |_| {
@@ -71,13 +71,13 @@ impl PackFileExtraViewSlots {
                             // If any of the PackedFiles was already open (and we overwote them) remove his view.
                             for path in &paths_ok {
                                 if let PathType::File(path) = path {
-                                    app_ui.purge_that_one_specifically(global_search_ui, &path, false);
+                                    app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
                                 }
                             }
 
                             // Update the TreeView.
                             let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
-                            pack_file_contents_view.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok));
 
 /*
                             // Update the global search stuff, if needed.
