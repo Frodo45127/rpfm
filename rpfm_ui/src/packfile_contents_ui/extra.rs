@@ -39,6 +39,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter;
 use crate::global_search_ui::GlobalSearchUI;
+use crate::locale::{qtr, qtre};
 use crate::pack_tree::{check_if_path_is_closed, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
@@ -248,7 +249,7 @@ impl PackFileContentsUI {
                         files_to_import.borrow_mut().push(PathBuf::from(file_dialog.selected_files().at(index).to_std_string()));
                     }
 
-                    files_to_import_label.set_text(&qtre("files_to_import", vec![selected_files.count()]));
+                    files_to_import_label.set_text(&qtre("files_to_import", &[&selected_files.count(()).to_string()]));
                 }
             }
         ));

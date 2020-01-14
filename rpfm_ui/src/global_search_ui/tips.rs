@@ -12,7 +12,7 @@
 Module with all the code to setup the tips (in the `StatusBar`) for the actions in `GlobalSearchUI`.
 !*/
 
-use crate::QString;
+use crate::locale::qtr;
 use super::GlobalSearchUI;
 
 /// This function sets the status bar tip for all the actions in the provided `GlobalSearchUI`.

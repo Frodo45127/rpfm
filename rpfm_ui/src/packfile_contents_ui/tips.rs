@@ -12,7 +12,7 @@
 Module with all the code to setup the tips (in the `StatusBar`) for the actions in `PackFileContentsUI`.
 !*/
 
-use crate::QString;
+use crate::locale::qtr;
 use super::PackFileContentsUI;
 
 /// This function sets the status bar tip for all the actions in the provided `PackFileContentsUI`.

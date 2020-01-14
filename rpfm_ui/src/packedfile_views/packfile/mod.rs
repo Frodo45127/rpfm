@@ -41,10 +41,10 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_treeview_filter, trigger_treeview_filter};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
-use crate::QString;
 
 use self::slots::PackFileExtraViewSlots;
 

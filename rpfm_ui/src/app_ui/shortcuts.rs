@@ -17,6 +17,7 @@ use qt_gui::key_sequence::KeySequence;
 use qt_core::qt::ShortcutContext;
 
 use super::AppUI;
+use crate::locale::qtr;
 use crate::QString;
 use crate::UI_STATE;
 

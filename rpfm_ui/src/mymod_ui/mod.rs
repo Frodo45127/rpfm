@@ -29,6 +29,7 @@ use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::AppUI;
+use crate::locale::qtr;
 use crate::QString;
 use crate::utils::create_grid_layout_unsafe;
 use self::slots::MyModUISlots;
@@ -73,9 +74,9 @@ impl MyModUI {
         let advices_frame = Frame::new();
         let advices_grid = create_grid_layout_unsafe(advices_frame.as_mut_ptr() as *mut Widget);
         let advices_label = Label::new(&QString::from_std_str("Things to take into account before creating a new mod:
-    - Select the game you'll make the mod for.	
-    - Pick an simple name (it shouldn't end in *.pack).	
-    - If you want to use multiple words, use \"_\" instead of \" \".	
+    - Select the game you'll make the mod for.
+    - Pick an simple name (it shouldn't end in *.pack).
+    - If you want to use multiple words, use \"_\" instead of \" \".
     - You can't create a mod for a game that has no path set in the settings."));
 
         unsafe {

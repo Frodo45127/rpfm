@@ -38,7 +38,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::Settings;
 
 use crate::AppUI;
-use crate::Locale;
+use crate::{Locale, locale::{qtr, qtre}};
 use crate::QString;
 use crate::SETTINGS;
 use crate::utils::create_grid_layout_safe;
@@ -183,10 +183,10 @@ impl SettingsUI {
         let mut paths_games_line_edits = BTreeMap::new();
         let mut paths_games_buttons = BTreeMap::new();
         for (index, (folder_name, game_supported)) in SUPPORTED_GAMES.iter().enumerate() {
-            let game_label = Label::new(&qtre("settings_game_label", vec![game_supported.display_name]));
+            let game_label = Label::new(&qtre("settings_game_label", &[&game_supported.display_name]));
             let mut game_line_edit = LineEdit::new(());
             let game_button = PushButton::new(&QString::from_std_str("..."));
-            game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", vec![game_supported.display_name]));
+            game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", &[&game_supported.display_name]));
 
             unsafe { paths_grid.add_widget((game_label.as_mut_ptr() as *mut Widget, (index + 1) as i32, 0, 1, 1)); }
             unsafe { paths_grid.add_widget((game_line_edit.as_mut_ptr() as *mut Widget, (index + 1) as i32, 1, 1, 1)); }

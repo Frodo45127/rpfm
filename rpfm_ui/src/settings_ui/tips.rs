@@ -12,7 +12,7 @@
 Module with all the code to setup the tips (as tooltips) for the actions in `SettingsUI`.
 !*/
 
-use crate::QString;
+use crate::locale::qtr;
 use crate::settings_ui::SettingsUI;
 
 /// This function sets the status bar tip for all the actions in the provided `SettingsUI`.

@@ -12,6 +12,7 @@
 Module with all the code to setup the tips (in the `StatusBar`) for the actions in `AppUI`.
 !*/
 
+use crate::locale::qtr;
 use crate::QString;
 use crate::app_ui::AppUI;
 
@@ -47,7 +48,7 @@ pub fn set_tips(app_ui: &AppUI) {
     //-----------------------------------------------//
     unsafe { app_ui.game_selected_open_game_data_folder.as_mut().unwrap().set_status_tip(&qtr("tt_game_selected_open_game_data_folder")); }
     unsafe { app_ui.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_status_tip(&qtr("tt_game_selected_open_game_assembly_kit_folder")); }
-    
+
     unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().set_status_tip(&qtr("tt_game_selected_three_kingdoms")); }
     unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().set_status_tip(&qtr("tt_game_selected_warhammer_2")); }
     unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().set_status_tip(&qtr("tt_game_selected_warhammer")); }

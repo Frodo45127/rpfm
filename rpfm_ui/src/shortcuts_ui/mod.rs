@@ -32,6 +32,7 @@ use qt_core::variant::Variant;
 
 use crate::QString;
 use crate::ffi::new_treeview_filter;
+use crate::locale::qtr;
 use crate::ui_state::shortcuts::Shortcuts;
 use crate::utils::create_grid_layout_unsafe;
 use crate::UI_STATE;

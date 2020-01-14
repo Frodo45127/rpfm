@@ -44,6 +44,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::new_tableview_frozen;
 use crate::global_search_ui::GlobalSearchUI;
+use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;

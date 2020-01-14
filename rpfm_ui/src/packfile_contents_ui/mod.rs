@@ -30,7 +30,7 @@ use qt_core::qt::{ContextMenuPolicy, DockWidgetArea};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 
 use crate::ffi::new_treeview_filter;
-use crate::QString;
+use crate::locale::qtr;
 use crate::utils::create_grid_layout_unsafe;
 
 pub mod connections;

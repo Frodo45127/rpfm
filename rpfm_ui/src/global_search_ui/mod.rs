@@ -52,6 +52,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::new_treeview_filter;
+use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{TheOneSlot, View};
 use crate::pack_tree::{PackTree, TreeViewOperation};
