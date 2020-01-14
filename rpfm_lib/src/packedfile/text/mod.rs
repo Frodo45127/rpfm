@@ -30,6 +30,28 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 /// UTF-16 BOM (Byte Order Mark), Little Endian.
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
+/// List of extensions for files this lib can decode as Text PackedFiles, with their respective type.
+pub const EXTENSIONS: [(&str, TextType); 18] = [
+    (".inl", TextType::Cpp),
+    (".lua", TextType::Lua),
+    (".xml", TextType::Xml),
+    (".xml.shader", TextType::Xml),
+    (".xml.material", TextType::Xml),
+    (".variantmeshdefinition", TextType::Xml),
+    (".environment", TextType::Xml),
+    (".lighting", TextType::Xml),
+    (".wsmodel", TextType::Xml),
+    (".benchmark", TextType::Xml),
+    (".cindyscene", TextType::Xml),
+    (".cindyscenemanager", TextType::Xml),
+    (".csv", TextType::Plain),
+    (".tsv", TextType::Plain),
+    (".tai", TextType::Plain),
+    (".battle_speech_camera", TextType::Plain),
+    (".bob", TextType::Plain),
+    (".txt", TextType::Plain),
+];
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -40,6 +62,9 @@ pub struct Text {
 
     /// The encoding used by the text of the PackedFile.
     encoding: SupportedEncodings,
+
+    /// Type of text this PackedFile has.
+    text_type: TextType,
 
     /// The text inside the PackedFile.
     contents: String
@@ -62,6 +87,7 @@ pub enum SupportedEncodings {
 pub enum TextType {
     Xml,
     Lua,
+    Cpp,
     Plain,
 }
 
@@ -74,6 +100,7 @@ impl Default for Text {
     fn default() -> Self {
         Self {
             encoding: SupportedEncodings::UTF8,
+            text_type: TextType::Plain,
             contents: String::new(),
         }
     }
@@ -117,8 +144,12 @@ impl Text {
             }
         };
 
+        // Without the path we can't know the text type, so we left it as plain, and overwrite it later.
+        let text_type = TextType::Plain;
+
         Ok(Self {
             encoding,
+            text_type,
             contents,
         })
     }
@@ -160,5 +191,15 @@ impl Text {
     /// This function sets the encoding used to save the text file.
     pub fn set_encoding(&mut self, encoding: SupportedEncodings) {
         self.encoding = encoding;
+    }
+
+    /// This function returns a reference to the contents of the text file.
+    pub fn get_text_type(&self) -> TextType {
+        self.text_type
+    }
+
+    /// This function sets the encoding used to save the text file.
+    pub fn set_text_type(&mut self, text_type: TextType) {
+        self.text_type = text_type;
     }
 }

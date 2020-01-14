@@ -34,6 +34,9 @@ const PACKED_FILE_TYPE: &str = "LOC";
 /// This is the name used in TSV-exported Loc files to identify them as Loc Files.
 pub const TSV_NAME_LOC: &str = "Loc PackedFile";
 
+/// Extension used by Loc PackedFiles.
+pub const EXTENSION: &str = ".loc";
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//

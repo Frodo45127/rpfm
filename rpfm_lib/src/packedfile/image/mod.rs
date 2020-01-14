@@ -18,6 +18,15 @@ use serde_derive::{Serialize, Deserialize};
 
 use rpfm_error::Result;
 
+/// Extensions used by Image PackedFiles.
+pub const EXTENSIONS: [&str; 5] = [
+    ".jpg",
+    ".jpeg",
+    ".tga",
+    ".dds",
+    ".png",
+];
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//

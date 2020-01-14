@@ -92,14 +92,14 @@ pub enum PackedFileType {
 impl DecodedPackedFile {
 
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
-    pub fn decode(data: &RawPackedFile) -> Result<Self> {
-        match PackedFileType::get_packed_file_type(data.get_path()) {
+    pub fn decode(raw_packed_file: &RawPackedFile) -> Result<Self> {
+        match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
             PackedFileType::DB => {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
-                        let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                        let data = data.get_data()?;
+                        let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
+                        let data = raw_packed_file.get_data()?;
                         let packed_file = DB::read(&data, name, &schema)?;
                         Ok(DecodedPackedFile::DB(packed_file))
                     }
@@ -108,7 +108,7 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::Image => {
-                let data = data.get_data()?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = Image::read(&data)?;
                 Ok(DecodedPackedFile::Image(packed_file))
             }
@@ -117,7 +117,7 @@ impl DecodedPackedFile {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
-                        let data = data.get_data()?;
+                        let data = raw_packed_file.get_data()?;
                         let packed_file = Loc::read(&data, &schema)?;
                         Ok(DecodedPackedFile::Loc(packed_file))
                     }
@@ -126,8 +126,12 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::Text(_) => {
-                let data = data.get_data()?;
-                let packed_file = Text::read(&data)?;
+                let data = raw_packed_file.get_data()?;
+                let mut packed_file = Text::read(&data)?;
+                let packed_file_type = PackedFileType::get_packed_file_type(raw_packed_file.get_path());
+                if let PackedFileType::Text(text_type) = packed_file_type {
+                    packed_file.set_text_type(text_type);
+                }
                 Ok(DecodedPackedFile::Text(packed_file))
             }
             _=> Ok(DecodedPackedFile::Unknown)
@@ -135,30 +139,34 @@ impl DecodedPackedFile {
     }
 
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
-    pub fn decode_no_locks(data: &RawPackedFile, schema: &Schema) -> Result<Self> {
-        match PackedFileType::get_packed_file_type(data.get_path()) {
+    pub fn decode_no_locks(raw_packed_file: &RawPackedFile, schema: &Schema) -> Result<Self> {
+        match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
             PackedFileType::DB => {
-                let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                let data = data.get_data()?;
+                let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = DB::read(&data, name, &schema)?;
                 Ok(DecodedPackedFile::DB(packed_file))
             }
 
             PackedFileType::Image => {
-                let data = data.get_data()?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = Text::read(&data)?;
                 Ok(DecodedPackedFile::Text(packed_file))
             }
 
             PackedFileType::Loc => {
-                let data = data.get_data()?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = Loc::read(&data, &schema)?;
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
 
             PackedFileType::Text(_) => {
-                let data = data.get_data()?;
-                let packed_file = Text::read(&data)?;
+                let data = raw_packed_file.get_data()?;
+                let mut packed_file = Text::read(&data)?;
+                let packed_file_type = PackedFileType::get_packed_file_type(raw_packed_file.get_path());
+                if let PackedFileType::Text(text_type) = packed_file_type {
+                    packed_file.set_text_type(text_type);
+                }
                 Ok(DecodedPackedFile::Text(packed_file))
             }
             _=> Ok(DecodedPackedFile::Unknown)
@@ -241,43 +249,18 @@ impl PackedFileType {
     /// This function returns the type of the `PackedFile` at the provided path.
     pub fn get_packed_file_type(path: &[String]) -> Self {
         if let Some(packedfile_name) = path.last() {
+            if packedfile_name.ends_with(table::loc::EXTENSION) { PackedFileType::Loc }
+            else if packedfile_name.ends_with(rigidmodel::EXTENSION) { PackedFileType::RigidModel }
+            else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
+                PackedFileType::Text(*text_type)
+            }
+
+            else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
+                PackedFileType::Image
+            }
 
             // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-            if path[0] == "db" { PackedFileType::DB }
-
-            // If it ends in ".loc", it's a localisation PackedFile.
-            else if packedfile_name.ends_with(".loc") { PackedFileType::Loc }
-
-            // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-            else if packedfile_name.ends_with(".rigid_model_v2") { PackedFileType::RigidModel }
-
-            // If it ends in any of these, it's a plain text PackedFile.
-            else if packedfile_name.ends_with(".lua") { PackedFileType::Text(TextType::Lua) }
-            else if packedfile_name.ends_with(".xml") ||
-                    packedfile_name.ends_with(".xml.shader") ||
-                    packedfile_name.ends_with(".xml.material") ||
-                    packedfile_name.ends_with(".variantmeshdefinition") ||
-                    packedfile_name.ends_with(".environment") ||
-                    packedfile_name.ends_with(".lighting") ||
-                    packedfile_name.ends_with(".wsmodel") { PackedFileType::Text(TextType::Xml) }
-
-            else if packedfile_name.ends_with(".csv") ||
-                    packedfile_name.ends_with(".tsv") ||
-                    packedfile_name.ends_with(".inl") ||
-                    packedfile_name.ends_with(".battle_speech_camera") ||
-                    packedfile_name.ends_with(".bob") ||
-                    packedfile_name.ends_with(".cindyscene") ||
-                    packedfile_name.ends_with(".cindyscenemanager") ||
-                    packedfile_name.ends_with(".tai") ||
-                    //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                    packedfile_name.ends_with(".txt") { PackedFileType::Text(TextType::Plain) }
-
-            // If it ends in any of these, it's an image.
-            else if packedfile_name.ends_with(".jpg") ||
-                    packedfile_name.ends_with(".jpeg") ||
-                    packedfile_name.ends_with(".tga") ||
-                    packedfile_name.ends_with(".dds") ||
-                    packedfile_name.ends_with(".png") { PackedFileType::Image }
+            else if path[0].to_lowercase() == "db" { PackedFileType::DB }
 
             // Otherwise, we don't have a decoder for that PackedFile... yet.
             else { PackedFileType::Unknown }
@@ -347,7 +330,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::MatchedCombat => PackedFileType::MatchedCombat,
             DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
             DecodedPackedFile::StarPos => PackedFileType::StarPos,
-            DecodedPackedFile::Text(_) => PackedFileType::Text(TextType::Plain),
+            DecodedPackedFile::Text(text) => PackedFileType::Text(text.get_text_type()),
             DecodedPackedFile::Unknown => PackedFileType::Unknown,
         }
     }

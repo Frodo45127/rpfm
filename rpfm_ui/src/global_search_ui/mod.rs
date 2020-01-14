@@ -407,7 +407,6 @@ impl GlobalSearchUI {
             global_search.search_on_schema = unsafe { self.global_search_search_on_schemas_checkbox.as_ref().unwrap().is_checked() };
         }
 
-        let t = std::time::SystemTime::now();
         CENTRAL_COMMAND.send_message_qt(Command::GlobalSearch(global_search));
 
         // While we wait for an answer, we need to clear the current results panels.
