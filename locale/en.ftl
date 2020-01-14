@@ -131,7 +131,7 @@ about_check_schema_updates = Check Schema &Updates
 update_checker = Update Checker
 update_schema_checker = Update Schema Checker
 update_searching = Searching for updates...
-update_button = &Update 
+update_button = &Update
 update_in_prog = <p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>
 
 ## Folder Dialogues
@@ -157,7 +157,7 @@ merge_tables_delete_option = Delete original tables
 
 open_packfiles = Open PackFiles
 
-#### tips.rs
+### tips.rs
 
 ## PackFile menu tips
 
@@ -215,7 +215,7 @@ tt_about_check_schema_updates = Checks if there is any update available for the 
 
 
 
-#### global_search_ui/mod.rs
+### global_search_ui/mod.rs
 
 global_search = Global Search
 global_search_info = Search Info
@@ -260,20 +260,20 @@ tt_global_search_search_on_schemas_checkbox = Include the currently loaded Schem
 
 
 
-#### Open PackedFile Dialog
+### Open PackedFile Dialog
 
 open_packedfile_dialog_1 = One or more of the PackedFiles you want to replace/delete is open.
 open_packedfile_dialog_2 = Are you sure you want to do it? Hitting yes will close it.
 
 
-#### TreeView Text/Filter
+### TreeView Text/Filter
 
 treeview_aai = AaI
 treeview_autoexpand = Auto-Expand Matches
 treeview_expand_all = &Expand All
 treeview_collapse_all = &Collapse All
 
-#### TreeView Tips
+### TreeView Tips
 
 tt_context_menu_add_file = Add one or more files to the currently open PackFile. Existing files are not overwriten!
 tt_context_menu_add_folder = Add a folder to the currently open PackFile. Existing files are not overwriten!
@@ -309,11 +309,11 @@ text_type_xml = XML
 text_type_normal = Normal
 
 
-#### Rename Dialogues
+### Rename Dialogues
 
 rename_selection = Rename Selection
 rename_selection_instructions = Instructions
-rename_selection_placeholder = Write here whatever you want. {x} it's your current name.
+rename_selection_placeholder = Write here whatever you want. {"{"}x{"}"} it's your current name.
 
 ### Mass-Import
 
@@ -325,7 +325,7 @@ mass_import_default_name = new_imported_file
 
 mass_import_select = Select TSV Files to Import...
 
-files_to_import = Files to import: {}.
+files_to_import = Files to import: {"{"}{"}"}.
 
 
 ### Contextual Menu for TreeView
@@ -384,8 +384,8 @@ settings_paths_title = Paths
 settings_paths_mymod = MyMod's Folder
 settings_paths_mymod_ph = This is the folder where you want to store all \"MyMod\" related files.
 
-settings_game_label = TW: {} Folder
-settings_game_line_ph = This is the folder where you have {} installed.
+settings_game_label = TW: {"{"}{"}"} Folder
+settings_game_line_ph = This is the folder where you have {"{"}{"}"} installed.
 
 settings_ui_title = UI Settings
 settings_table_title = Table Settings
