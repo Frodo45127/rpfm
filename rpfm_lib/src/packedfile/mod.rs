@@ -241,43 +241,18 @@ impl PackedFileType {
     /// This function returns the type of the `PackedFile` at the provided path.
     pub fn get_packed_file_type(path: &[String]) -> Self {
         if let Some(packedfile_name) = path.last() {
+            if packedfile_name.ends_with(table::loc::EXTENSION) { PackedFileType::Loc }
+            else if packedfile_name.ends_with(rigidmodel::EXTENSION) { PackedFileType::RigidModel }
+            else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
+                PackedFileType::Text(*text_type)
+            }
+
+            else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
+                PackedFileType::Image
+            }
 
             // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-            if path[0] == "db" { PackedFileType::DB }
-
-            // If it ends in ".loc", it's a localisation PackedFile.
-            else if packedfile_name.ends_with(".loc") { PackedFileType::Loc }
-
-            // If it ends in ".rigid_model_v2", it's a RigidModel PackedFile.
-            else if packedfile_name.ends_with(".rigid_model_v2") { PackedFileType::RigidModel }
-
-            // If it ends in any of these, it's a plain text PackedFile.
-            else if packedfile_name.ends_with(".lua") { PackedFileType::Text(TextType::Lua) }
-            else if packedfile_name.ends_with(".xml") ||
-                    packedfile_name.ends_with(".xml.shader") ||
-                    packedfile_name.ends_with(".xml.material") ||
-                    packedfile_name.ends_with(".variantmeshdefinition") ||
-                    packedfile_name.ends_with(".environment") ||
-                    packedfile_name.ends_with(".lighting") ||
-                    packedfile_name.ends_with(".wsmodel") { PackedFileType::Text(TextType::Xml) }
-
-            else if packedfile_name.ends_with(".csv") ||
-                    packedfile_name.ends_with(".tsv") ||
-                    packedfile_name.ends_with(".inl") ||
-                    packedfile_name.ends_with(".battle_speech_camera") ||
-                    packedfile_name.ends_with(".bob") ||
-                    packedfile_name.ends_with(".cindyscene") ||
-                    packedfile_name.ends_with(".cindyscenemanager") ||
-                    packedfile_name.ends_with(".tai") ||
-                    //packedfile_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                    packedfile_name.ends_with(".txt") { PackedFileType::Text(TextType::Plain) }
-
-            // If it ends in any of these, it's an image.
-            else if packedfile_name.ends_with(".jpg") ||
-                    packedfile_name.ends_with(".jpeg") ||
-                    packedfile_name.ends_with(".tga") ||
-                    packedfile_name.ends_with(".dds") ||
-                    packedfile_name.ends_with(".png") { PackedFileType::Image }
+            else if path[0].to_lowercase() == "db" { PackedFileType::DB }
 
             // Otherwise, we don't have a decoder for that PackedFile... yet.
             else { PackedFileType::Unknown }

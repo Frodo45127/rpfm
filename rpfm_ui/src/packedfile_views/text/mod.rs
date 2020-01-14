@@ -79,6 +79,7 @@ impl PackedFileTextView {
         };
 
         let mut highlighting_mode = match text_type {
+            TextType::Cpp => QString::from_std_str("C++"),
             TextType::Lua => QString::from_std_str("Lua"),
             TextType::Xml => QString::from_std_str("XML"),
             TextType::Plain => QString::from_std_str("Normal"),

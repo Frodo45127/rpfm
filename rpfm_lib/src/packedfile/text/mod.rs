@@ -30,6 +30,28 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 /// UTF-16 BOM (Byte Order Mark), Little Endian.
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
+/// List of extensions for files this lib can decode as Text PackedFiles, with their respective type.
+pub const EXTENSIONS: [(&str, TextType); 18] = [
+    (".inl", TextType::Cpp),
+    (".lua", TextType::Lua),
+    (".xml", TextType::Xml),
+    (".xml.shader", TextType::Xml),
+    (".xml.material", TextType::Xml),
+    (".variantmeshdefinition", TextType::Xml),
+    (".environment", TextType::Xml),
+    (".lighting", TextType::Xml),
+    (".wsmodel", TextType::Xml),
+    (".benchmark", TextType::Xml),
+    (".cindyscene", TextType::Xml),
+    (".cindyscenemanager", TextType::Xml),
+    (".csv", TextType::Plain),
+    (".tsv", TextType::Plain),
+    (".tai", TextType::Plain),
+    (".battle_speech_camera", TextType::Plain),
+    (".bob", TextType::Plain),
+    (".txt", TextType::Plain),
+];
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -62,6 +84,7 @@ pub enum SupportedEncodings {
 pub enum TextType {
     Xml,
     Lua,
+    Cpp,
     Plain,
 }
 

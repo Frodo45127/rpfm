@@ -46,7 +46,7 @@ use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths};
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
-use rpfm_lib::packedfile::{PackedFileType, text::TextType};
+use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
@@ -1147,26 +1147,10 @@ impl AppUI {
 
                             // Fix their name termination if needed.
                             if let PackedFileType::Loc = packed_file_type {
-                                if !name.ends_with(".loc") { name.push_str(".loc"); }
+                                if !name.ends_with(loc::EXTENSION) { name.push_str(loc::EXTENSION); }
                             }
                             if let PackedFileType::Text(TextType::Plain) = packed_file_type {
-                                if !name.ends_with(".lua") &&
-                                    !name.ends_with(".xml") &&
-                                    !name.ends_with(".xml.shader") &&
-                                    !name.ends_with(".xml.material") &&
-                                    !name.ends_with(".variantmeshdefinition") &&
-                                    !name.ends_with(".environment") &&
-                                    !name.ends_with(".lighting") &&
-                                    !name.ends_with(".wsmodel") &&
-                                    !name.ends_with(".csv") &&
-                                    !name.ends_with(".tsv") &&
-                                    !name.ends_with(".inl") &&
-                                    !name.ends_with(".battle_speech_camera") &&
-                                    !name.ends_with(".bob") &&
-                                    !name.ends_with(".cindyscene") &&
-                                    !name.ends_with(".cindyscenemanager") &&
-                                    !name.ends_with(".tai") &&
-                                    !name.ends_with(".txt") {
+                                if !text::EXTENSIONS.iter().any(|(x, _)| name.ends_with(x)) {
                                     name.push_str(".txt");
                                 }
                             }

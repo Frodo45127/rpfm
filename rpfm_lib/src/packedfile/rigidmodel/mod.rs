@@ -26,6 +26,9 @@ use crate::common::{decoder::Decoder, encoder::Encoder};
 /// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
 const PACKED_FILE_TYPE: &str = "RMV2";
 
+/// Extension used by RigidModel PackedFiles.
+pub const EXTENSION: &str = ".rigid_model_v2";
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
