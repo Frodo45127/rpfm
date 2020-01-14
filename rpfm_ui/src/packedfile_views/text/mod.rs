@@ -66,7 +66,6 @@ impl PackedFileTextView {
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
-        text_type: TextType,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Text.
@@ -78,7 +77,7 @@ impl PackedFileTextView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let mut highlighting_mode = match text_type {
+        let mut highlighting_mode = match text.get_text_type() {
             TextType::Cpp => QString::from_std_str("C++"),
             TextType::Lua => QString::from_std_str("Lua"),
             TextType::Xml => QString::from_std_str("XML"),

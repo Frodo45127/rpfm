@@ -63,6 +63,9 @@ pub struct Text {
     /// The encoding used by the text of the PackedFile.
     encoding: SupportedEncodings,
 
+    /// Type of text this PackedFile has.
+    text_type: TextType,
+
     /// The text inside the PackedFile.
     contents: String
 }
@@ -97,6 +100,7 @@ impl Default for Text {
     fn default() -> Self {
         Self {
             encoding: SupportedEncodings::UTF8,
+            text_type: TextType::Plain,
             contents: String::new(),
         }
     }
@@ -140,8 +144,12 @@ impl Text {
             }
         };
 
+        // Without the path we can't know the text type, so we left it as plain, and overwrite it later.
+        let text_type = TextType::Plain;
+
         Ok(Self {
             encoding,
+            text_type,
             contents,
         })
     }
@@ -183,5 +191,15 @@ impl Text {
     /// This function sets the encoding used to save the text file.
     pub fn set_encoding(&mut self, encoding: SupportedEncodings) {
         self.encoding = encoding;
+    }
+
+    /// This function returns a reference to the contents of the text file.
+    pub fn get_text_type(&self) -> TextType {
+        self.text_type
+    }
+
+    /// This function sets the encoding used to save the text file.
+    pub fn set_text_type(&mut self, text_type: TextType) {
+        self.text_type = text_type;
     }
 }

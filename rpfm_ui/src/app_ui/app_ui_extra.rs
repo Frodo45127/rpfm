@@ -1065,8 +1065,8 @@ impl AppUI {
                     }
 
                     // If the file is a Text PackedFile...
-                    PackedFileType::Text(text_type) => {
-                        match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui, text_type) {
+                    PackedFileType::Text(_) => {
+                        match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
                             Ok((slots, packed_file_info)) => {
                                 slot_holder.borrow_mut().push(slots);
 

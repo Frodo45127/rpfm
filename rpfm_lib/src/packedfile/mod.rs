@@ -92,14 +92,14 @@ pub enum PackedFileType {
 impl DecodedPackedFile {
 
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
-    pub fn decode(data: &RawPackedFile) -> Result<Self> {
-        match PackedFileType::get_packed_file_type(data.get_path()) {
+    pub fn decode(raw_packed_file: &RawPackedFile) -> Result<Self> {
+        match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
             PackedFileType::DB => {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
-                        let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                        let data = data.get_data()?;
+                        let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
+                        let data = raw_packed_file.get_data()?;
                         let packed_file = DB::read(&data, name, &schema)?;
                         Ok(DecodedPackedFile::DB(packed_file))
                     }
@@ -108,7 +108,7 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::Image => {
-                let data = data.get_data()?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = Image::read(&data)?;
                 Ok(DecodedPackedFile::Image(packed_file))
             }
@@ -117,7 +117,7 @@ impl DecodedPackedFile {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
-                        let data = data.get_data()?;
+                        let data = raw_packed_file.get_data()?;
                         let packed_file = Loc::read(&data, &schema)?;
                         Ok(DecodedPackedFile::Loc(packed_file))
                     }
@@ -126,8 +126,12 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::Text(_) => {
-                let data = data.get_data()?;
-                let packed_file = Text::read(&data)?;
+                let data = raw_packed_file.get_data()?;
+                let mut packed_file = Text::read(&data)?;
+                let packed_file_type = PackedFileType::get_packed_file_type(raw_packed_file.get_path());
+                if let PackedFileType::Text(text_type) = packed_file_type {
+                    packed_file.set_text_type(text_type);
+                }
                 Ok(DecodedPackedFile::Text(packed_file))
             }
             _=> Ok(DecodedPackedFile::Unknown)
@@ -135,30 +139,34 @@ impl DecodedPackedFile {
     }
 
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
-    pub fn decode_no_locks(data: &RawPackedFile, schema: &Schema) -> Result<Self> {
-        match PackedFileType::get_packed_file_type(data.get_path()) {
+    pub fn decode_no_locks(raw_packed_file: &RawPackedFile, schema: &Schema) -> Result<Self> {
+        match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
             PackedFileType::DB => {
-                let name = data.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                let data = data.get_data()?;
+                let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = DB::read(&data, name, &schema)?;
                 Ok(DecodedPackedFile::DB(packed_file))
             }
 
             PackedFileType::Image => {
-                let data = data.get_data()?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = Text::read(&data)?;
                 Ok(DecodedPackedFile::Text(packed_file))
             }
 
             PackedFileType::Loc => {
-                let data = data.get_data()?;
+                let data = raw_packed_file.get_data()?;
                 let packed_file = Loc::read(&data, &schema)?;
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
 
             PackedFileType::Text(_) => {
-                let data = data.get_data()?;
-                let packed_file = Text::read(&data)?;
+                let data = raw_packed_file.get_data()?;
+                let mut packed_file = Text::read(&data)?;
+                let packed_file_type = PackedFileType::get_packed_file_type(raw_packed_file.get_path());
+                if let PackedFileType::Text(text_type) = packed_file_type {
+                    packed_file.set_text_type(text_type);
+                }
                 Ok(DecodedPackedFile::Text(packed_file))
             }
             _=> Ok(DecodedPackedFile::Unknown)
@@ -322,7 +330,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::MatchedCombat => PackedFileType::MatchedCombat,
             DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
             DecodedPackedFile::StarPos => PackedFileType::StarPos,
-            DecodedPackedFile::Text(_) => PackedFileType::Text(TextType::Plain),
+            DecodedPackedFile::Text(text) => PackedFileType::Text(text.get_text_type()),
             DecodedPackedFile::Unknown => PackedFileType::Unknown,
         }
     }
