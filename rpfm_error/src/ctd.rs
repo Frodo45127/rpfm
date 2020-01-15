@@ -15,8 +15,8 @@ This module is a custom CTD logging module, heavely inspired in the `human-panic
 But otherwise, feel free to check it out if you need an easy-to-use simple error logger.
 !*/
 
+use backtrace::Backtrace;
 use directories::ProjectDirs;
-use failure::Backtrace;
 use serde_derive::Serialize;
 use uuid::Uuid;
 

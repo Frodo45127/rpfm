@@ -17,7 +17,6 @@ for `rpfm-ui` and `rpfm-cli`. As such, **this lib is not intended to be standalo
 If you need a custom `From` implementation for any error of any lib, add it here.
 !*/
 
-use failure::{Backtrace, Context, Fail};
 use fluent::{FluentError, FluentResource};
 use fluent_syntax::parser::errors::ParserError;
 use log::SetLoggerError;
@@ -49,14 +48,14 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Most of the messages contain HTML tags for formatting. If you don't want the HTML tags, use the `Error::to_terminal()` function to remove them.
 #[derive(Debug)]
 pub struct Error {
-    context: Context<ErrorKind>,
+    kind: ErrorKind,
 }
 
 /// Custom `ErrorKind` Type. To be able to return different errors using the same `Error` type.
 ///
 /// This type implements the `Display` trait to return a meaningful, user-readable error message.
 /// Most of the messages contain HTML tags for formatting. If you don't want the HTML tags, use the `Error::to_terminal()` function to remove them.
-#[derive(Clone, Eq, PartialEq, Debug, Fail)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum ErrorKind {
 
     //-----------------------------------------------------//
@@ -465,8 +464,8 @@ pub enum ErrorKind {
 impl Error {
 
     /// This function returns the `ErrorKind` of the provided `Error`.
-    pub fn kind(&self) -> ErrorKind {
-        self.context.get_context().clone()
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
     }
 
     /// This function removes the HTML tags from the error messages, to make them *"Terminal Friendly"*.
@@ -483,24 +482,6 @@ impl Error {
     }
 }
 
-//---------------------------------------------------------------------------//
-//                      Implementations of Fail Trait
-//---------------------------------------------------------------------------//
-
-/// Implementation of the `Fail` Trait for our `Error`.
-impl Fail for Error {
-
-    /// Implementation of `cause()` for our `Error`.
-    fn cause(&self) -> Option<&dyn Fail> {
-        self.context.cause()
-    }
-
-    /// Implementation of `backtrace()` for our `Error`.
-    fn backtrace(&self) -> Option<&Backtrace> {
-        self.context.backtrace()
-    }
-}
-
 //------------------------------------------------------------//
 //            Extra Implementations for Traits
 //------------------------------------------------------------//
@@ -510,7 +491,7 @@ impl Fail for Error {
 /// This allow us to directly show the error message corresponding to the underlying `ErrorKind`, instead of returning `ErrorKind` to show the message.
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Display::fmt(&self.context, f)
+        Display::fmt(&self.kind, f)
     }
 }
 
@@ -734,21 +715,14 @@ impl Display for ErrorKind {
 /// Implementation to create an `Error` from a `String`.
 impl From<String> for Error {
     fn from(error: String) -> Self {
-        Self { context: Context::new(ErrorKind::NoHTMLError(error)) }
+        Self { kind: ErrorKind::NoHTMLError(error) }
     }
 }
 
 /// Implementation to create an `Error` from an `ErrorKind`.
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Self {
-        Self { context: Context::new(kind) }
-    }
-}
-
-/// Implementation to create a `Error` from a `Context`.
-impl From<Context<ErrorKind>> for Error {
-    fn from(context: Context<ErrorKind>) -> Self {
-        Self { context }
+        Self { kind }
     }
 }
 
