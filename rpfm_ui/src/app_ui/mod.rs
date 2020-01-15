@@ -386,8 +386,8 @@ impl Default for AppUI {
         let menu_bar_mymod_ref_mut = unsafe { menu_bar_mymod.as_mut().unwrap() };
         let mymod_new = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_new"));
         let mymod_delete_selected = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_delete_selected"));
-        let mymod_install = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_delete_selected"));
-        let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_delete_selected"));
+        let mymod_install = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_install"));
+        let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_uninstall"));
 
         menu_bar_mymod_ref_mut.add_separator();
 
