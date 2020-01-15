@@ -32,6 +32,7 @@ use rpfm_error::ErrorKind;
 use rpfm_lib::common::*;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::games::*;
 use rpfm_lib::packfile::{PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
@@ -330,16 +331,16 @@ impl AppUISlots {
 
                         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                         match &*game_selected {
-                            "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
-                            "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
-                            "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
-                            "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
-                            "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
-                            "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
-                            "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
-                            "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
-                            "empire" => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
-                            "arena" => unsafe { app_ui.game_selected_arena.as_mut().unwrap().trigger(); }
+                            KEY_THREE_KINGDOMS => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+                            KEY_WARHAMMER_2 => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+                            KEY_WARHAMMER => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
+                            KEY_THRONES_OF_BRITANNIA => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+                            KEY_ATTILA => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
+                            KEY_ROME_2 => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
+                            KEY_SHOGUN_2 => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+                            KEY_NAPOLEON => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
+                            KEY_EMPIRE => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
+                            KEY_ARENA => unsafe { app_ui.game_selected_arena.as_mut().unwrap().trigger(); }
                             _ => unreachable!(),
                         }
 
@@ -473,15 +474,15 @@ impl AppUISlots {
                     // Change the Game Selected to match the one we chose for the new "MyMod".
                     // NOTE: Arena should not be on this list.
                     match &*mod_game {
-                        "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
-                        "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
-                        "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
-                        "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
-                        "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
-                        "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
-                        "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
-                        "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
-                        "empire" | _ => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
+                        KEY_THREE_KINGDOMS => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+                        KEY_WARHAMMER_2 => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+                        KEY_WARHAMMER => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
+                        KEY_THRONES_OF_BRITANNIA => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+                        KEY_ATTILA => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
+                        KEY_ROME_2 => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
+                        KEY_SHOGUN_2 => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+                        KEY_NAPOLEON => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
+                        KEY_EMPIRE | _ => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
                     }
 
                     // Get his new path from the base "MyMod" path + `mod_game`.

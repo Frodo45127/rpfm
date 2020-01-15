@@ -27,6 +27,7 @@ use std::io::{BufReader, BufWriter, Write};
 
 use rpfm_error::Result;
 
+use crate::games::*;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
 
@@ -57,7 +58,7 @@ impl Settings {
         }
 
         // Default Game.
-        settings_string.insert("default_game".to_owned(), "three_kingdoms".to_owned());
+        settings_string.insert("default_game".to_owned(), KEY_THREE_KINGDOMS.to_owned());
         settings_string.insert("language".to_owned(), "en".to_owned());
 
         // UI Settings.

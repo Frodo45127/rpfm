@@ -2,30 +2,6 @@
 
 ## General Localization
 
-total_war_three_kingdoms = Three Kingdoms
-total_war_warhammer_2 = Warhammer 2
-total_war_warhammer = Warhammer
-total_war_thrones_of_britannia = Thrones of Britannia
-total_war_attila = Attila
-total_war_rome_2 = Rome 2
-total_war_shogun_2 = Shogun 2
-total_war_napoleon = Napoleon
-total_war_empire = Empire
-total_war_arena = Arena
-
-## Mnemonic-enabled
-
-m_total_war_three_kingdoms = Three &Kingdoms
-m_total_war_warhammer_2 = &Warhammer 2
-m_total_war_warhammer = War&hammer
-m_total_war_thrones_of_britannia = &Thrones of Britannia
-m_total_war_attila = &Attila
-m_total_war_rome_2 = R&ome 2
-m_total_war_shogun_2 = &Shogun 2
-m_total_war_napoleon = &Napoleon
-m_total_war_empire = &Empire
-m_total_war_arena = A&rena
-
 gen_loc_accept = Accept
 gen_loc_create = Create
 gen_loc_packedfile = PackedFile
@@ -94,8 +70,6 @@ tt_mymod_delete_selected = Delete the currently selected MyMod.
 tt_mymod_install = Copy the currently selected MyMod into the data folder of the GameSelected.
 tt_mymod_uninstall = Removes the currently selected MyMod from the data folder of the GameSelected.
 
-
-
 ## View Menu
 
 view_toggle_packfile_contents = Toggle &PackFile Contents
@@ -105,7 +79,6 @@ view_toggle_global_search_panel = Toggle Global Search Window
 
 game_selected_open_game_data_folder = Open Game's Data Folder
 game_selected_open_game_assembly_kit_folder = Open Game's Assembly Kit Folder
-
 
 ## Special Stuff
 
@@ -213,8 +186,6 @@ tt_about_patreon_link = Open RPFM's Patreon page. Even if you are not interested
 tt_about_check_updates = Checks if there is any update available for RPFM.
 tt_about_check_schema_updates = Checks if there is any update available for the schemas. This is what you have to use after a game's patch.
 
-
-
 ### global_search_ui/mod.rs
 
 global_search = Global Search
@@ -247,7 +218,6 @@ global_search_versioned_file = VersionFiled (Type, Name)/Column Name
 global_search_definition_version = Definition Version
 global_search_column_index = Column Index
 
-
 ## tips
 
 tt_global_search_use_regex_checkbox = Enable search using Regex. Keep in mind that RPFM will fallback to a normal pattern search if the provided Regex is invalid.
@@ -258,13 +228,10 @@ tt_global_search_search_on_locs_checkbox = Include LOC Tables on the search.
 tt_global_search_search_on_texts_checkbox = Include any kind of Text PackedFile on the search.
 tt_global_search_search_on_schemas_checkbox = Include the currently loaded Schema on the search.
 
-
-
 ### Open PackedFile Dialog
 
 open_packedfile_dialog_1 = One or more of the PackedFiles you want to replace/delete is open.
 open_packedfile_dialog_2 = Are you sure you want to do it? Hitting yes will close it.
-
 
 ### TreeView Text/Filter
 
@@ -298,16 +265,7 @@ tt_context_menu_open_notes = Open the PackFile's Notes in a secondary view, with
 tt_filter_autoexpand_matches_button = Auto-Expand matches. NOTE: Filtering with all matches expanded in a big PackFile (+10k files, like data.pack) can hang the program for a while. You have been warned.
 tt_filter_case_sensitive_button = Enable/Disable case sensitive filtering for the TreeView.
 
-
-
-
 packedfile_noneditable_sequence = Non-editable Sequence
-
-
-text_type_lua = Lua
-text_type_xml = XML
-text_type_normal = Normal
-
 
 ### Rename Dialogues
 
@@ -326,7 +284,6 @@ mass_import_default_name = new_imported_file
 mass_import_select = Select TSV Files to Import...
 
 files_to_import = Files to import: {"{"}{"}"}.
-
 
 ### Contextual Menu for TreeView
 
@@ -365,7 +322,6 @@ context_menu_check_tables = &Check Tables
 context_menu_merge_tables = &Merge Tables
 context_menu_update_table = &Update Table
 
-
 ### Shortcuts
 
 shortcut_esc = Esc
@@ -374,7 +330,6 @@ shortcut_csp = Ctrl+Shift+P
 shortcut_title = Shortcuts
 shortcut_text = Shortcut
 shortcut_section_action = Section/Action
-
 
 ### Settings
 

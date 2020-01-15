@@ -18,6 +18,30 @@ You should have no business here, except for supporting a new game.
 use std::collections::BTreeMap;
 use crate::packfile::PFHVersion;
 
+// Display Name for all the Supported Games.
+pub const DISPLAY_NAME_THREE_KINGDOMS: &str = "Three Kingdoms";
+pub const DISPLAY_NAME_WARHAMMER_2: &str = "Warhammer 2";
+pub const DISPLAY_NAME_WARHAMMER: &str = "Warhammer";
+pub const DISPLAY_NAME_THRONES_OF_BRITANNIA: &str = "Thrones of Britannia";
+pub const DISPLAY_NAME_ATTILA: &str = "Attila";
+pub const DISPLAY_NAME_ROME_2: &str = "Rome 2";
+pub const DISPLAY_NAME_SHOGUN_2: &str = "Shogun 2";
+pub const DISPLAY_NAME_NAPOLEON: &str = "Napoleon";
+pub const DISPLAY_NAME_EMPIRE: &str = "Empire";
+pub const DISPLAY_NAME_ARENA: &str = "Arena";
+
+// Key for all the supported games.
+pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";
+pub const KEY_WARHAMMER_2: &str = "warhammer_2";
+pub const KEY_WARHAMMER: &str = "warhammer";
+pub const KEY_THRONES_OF_BRITANNIA: &str = "thrones_of_britannia";
+pub const KEY_ATTILA: &str = "attila";
+pub const KEY_ROME_2: &str = "rome_2";
+pub const KEY_SHOGUN_2: &str = "shogun_2";
+pub const KEY_NAPOLEON: &str = "napoleon";
+pub const KEY_EMPIRE: &str = "empire";
+pub const KEY_ARENA: &str = "arena";
+
 /// This struct represents the list of games supported by this lib.
 pub type SupportedGames = BTreeMap<&'static str, GameInfo>;
 
@@ -26,7 +50,7 @@ pub type SupportedGames = BTreeMap<&'static str, GameInfo>;
 pub struct GameInfo {
 
     /// This is the name it'll show up for the user. The *pretty name*. For example, in a dropdown (Warhammer 2).
-    pub display_name: String,
+    pub display_name: &'static str,
 
     /// This is the PFHVersion used at the start of every PackFile for that game.
     pub pfh_version: Vec<PFHVersion>,
@@ -64,8 +88,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     let mut list = SupportedGames::new();
 
     // Three Kingdoms
-    list.insert("three_kingdoms", GameInfo {
-        display_name: "Three Kingdoms".to_owned(),
+    list.insert(KEY_THREE_KINGDOMS, GameInfo {
+        display_name: DISPLAY_NAME_THREE_KINGDOMS,
         pfh_version: vec![PFHVersion::PFH5],
         schema: "schema_3k.ron".to_owned(),
         db_packs: vec!["database.pack".to_owned()],
@@ -93,8 +117,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Warhammer 2
-    list.insert("warhammer_2", GameInfo {
-        display_name: "Warhammer 2".to_owned(),
+    list.insert(KEY_WARHAMMER_2, GameInfo {
+        display_name: DISPLAY_NAME_WARHAMMER_2,
         pfh_version: vec![PFHVersion::PFH5],
         schema: "schema_wh2.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
@@ -122,8 +146,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Warhammer
-    list.insert("warhammer", GameInfo {
-        display_name: "Warhammer".to_owned(),
+    list.insert(KEY_WARHAMMER, GameInfo {
+        display_name: DISPLAY_NAME_WARHAMMER,
         pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_wh.ron".to_owned(),
         db_packs: vec![
@@ -155,8 +179,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Thrones of Britannia
-    list.insert("thrones_of_britannia", GameInfo {
-        display_name: "Thrones of Britannia".to_owned(),
+    list.insert(KEY_THRONES_OF_BRITANNIA, GameInfo {
+        display_name: DISPLAY_NAME_THRONES_OF_BRITANNIA,
         pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_tob.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
@@ -184,8 +208,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Attila
-    list.insert("attila", GameInfo {
-        display_name: "Attila".to_owned(),
+    list.insert(KEY_ATTILA, GameInfo {
+        display_name: DISPLAY_NAME_ATTILA,
         pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_att.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
@@ -213,8 +237,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Rome 2
-    list.insert("rome_2", GameInfo {
-        display_name: "Rome 2".to_owned(),
+    list.insert(KEY_ROME_2, GameInfo {
+        display_name: DISPLAY_NAME_ROME_2,
         pfh_version: vec![PFHVersion::PFH4],
         schema: "schema_rom2.ron".to_owned(),
         db_packs: vec!["data_rome2.pack".to_owned()],
@@ -242,8 +266,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Shogun 2
-    list.insert("shogun_2", GameInfo {
-        display_name: "Shogun 2".to_owned(),
+    list.insert(KEY_SHOGUN_2, GameInfo {
+        display_name: DISPLAY_NAME_SHOGUN_2,
         pfh_version: vec![PFHVersion::PFH3, PFHVersion::PFH2],
         schema: "schema_sho2.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
@@ -271,8 +295,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Napoleon
-    list.insert("napoleon", GameInfo {
-        display_name: "Napoleon".to_owned(),
+    list.insert(KEY_NAPOLEON, GameInfo {
+        display_name: DISPLAY_NAME_NAPOLEON,
         pfh_version: vec![PFHVersion::PFH0],
         schema: "schema_nap.ron".to_owned(),
         db_packs: vec![                     // NOTE: Patches 5 and 7 has no table changes, so they should not be here.
@@ -320,8 +344,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     });
 
     // Empire
-    list.insert("empire", GameInfo {
-        display_name: "Empire".to_owned(),
+    list.insert(KEY_EMPIRE, GameInfo {
+        display_name: DISPLAY_NAME_EMPIRE,
         pfh_version: vec![PFHVersion::PFH0],
         schema: "schema_emp.ron".to_owned(),
         db_packs: vec![
@@ -372,8 +396,8 @@ pub fn get_supported_games_list() -> SupportedGames {
     // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
     // Otherwise, stuff that uses this list will probably break.
     // Arena
-    list.insert("arena", GameInfo {
-        display_name: "Arena".to_owned(),
+    list.insert(KEY_ARENA, GameInfo {
+        display_name: DISPLAY_NAME_ARENA,
         pfh_version: vec![PFHVersion::PFH5, PFHVersion::PFH4],
         schema: "schema_are.ron".to_owned(),
         db_packs: vec!["wad.pack".to_owned()],

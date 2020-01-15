@@ -34,6 +34,11 @@ use self::slots::PackedFileTextViewSlots;
 
 pub mod slots;
 
+const CPP: &str = "C++";
+const LUA: &str = "Lua";
+const XML: &str = "XML";
+const PLAIN: &str = "Normal";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -51,7 +56,6 @@ pub struct PackedFileTextView {
 pub struct PackedFileTextViewRaw {
     pub editor: *mut Widget,
 }
-
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -78,10 +82,10 @@ impl PackedFileTextView {
         };
 
         let mut highlighting_mode = match text.get_text_type() {
-            TextType::Cpp => QString::from_std_str("C++"),
-            TextType::Lua => QString::from_std_str("Lua"),
-            TextType::Xml => QString::from_std_str("XML"),
-            TextType::Plain => QString::from_std_str("Normal"),
+            TextType::Cpp => QString::from_std_str(CPP),
+            TextType::Lua => QString::from_std_str(LUA),
+            TextType::Xml => QString::from_std_str(XML),
+            TextType::Plain => QString::from_std_str(PLAIN),
         };
 
         let editor = unsafe { new_text_editor(packed_file_view.get_mut_widget()) };

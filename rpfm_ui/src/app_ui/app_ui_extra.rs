@@ -46,6 +46,7 @@ use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths};
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::games::*;
 use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
@@ -261,15 +262,15 @@ impl AppUI {
                     // NOTE: Arena should never be here.
                     // Change the Game Selected in the UI.
                     match game_folder {
-                        "three_kingdoms" => unsafe { self.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
-                        "warhammer_2" => unsafe { self.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
-                        "warhammer" => unsafe { self.game_selected_warhammer.as_mut().unwrap().trigger(); }
-                        "thrones_of_britannia" => unsafe { self.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
-                        "attila" => unsafe { self.game_selected_attila.as_mut().unwrap().trigger(); }
-                        "rome_2" => unsafe { self.game_selected_rome_2.as_mut().unwrap().trigger(); }
-                        "shogun_2" => unsafe { self.game_selected_shogun_2.as_mut().unwrap().trigger(); }
-                        "napoleon" => unsafe { self.game_selected_napoleon.as_mut().unwrap().trigger(); }
-                        "empire" | _ => unsafe { self.game_selected_empire.as_mut().unwrap().trigger(); }
+                        KEY_THREE_KINGDOMS => unsafe { self.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+                        KEY_WARHAMMER_2 => unsafe { self.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+                        KEY_WARHAMMER => unsafe { self.game_selected_warhammer.as_mut().unwrap().trigger(); }
+                        KEY_THRONES_OF_BRITANNIA => unsafe { self.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+                        KEY_ATTILA => unsafe { self.game_selected_attila.as_mut().unwrap().trigger(); }
+                        KEY_ROME_2 => unsafe { self.game_selected_rome_2.as_mut().unwrap().trigger(); }
+                        KEY_SHOGUN_2 => unsafe { self.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+                        KEY_NAPOLEON => unsafe { self.game_selected_napoleon.as_mut().unwrap().trigger(); }
+                        KEY_EMPIRE | _ => unsafe { self.game_selected_empire.as_mut().unwrap().trigger(); }
                     }
 
                     // Set the current "Operational Mode" to `MyMod`.
@@ -294,8 +295,8 @@ impl AppUI {
                             else {
                                 let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                                 match &*game_selected {
-                                    "three_kingdoms" => unsafe { self.game_selected_three_kingdoms.as_mut().unwrap().trigger(); },
-                                    "warhammer_2" | _ => unsafe { self.game_selected_warhammer_2.as_mut().unwrap().trigger(); },
+                                    KEY_THREE_KINGDOMS => unsafe { self.game_selected_three_kingdoms.as_mut().unwrap().trigger(); },
+                                    KEY_WARHAMMER_2 | _ => unsafe { self.game_selected_warhammer_2.as_mut().unwrap().trigger(); },
                                 }
                             }
                         },
@@ -306,10 +307,10 @@ impl AppUI {
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
                             let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                             match &*game_selected {
-                                "warhammer" => unsafe { self.game_selected_warhammer.as_mut().unwrap().trigger(); },
-                                "thrones_of_britannia" => unsafe { self.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
-                                "attila" => unsafe { self.game_selected_attila.as_mut().unwrap().trigger(); }
-                                "rome_2" | _ => unsafe { self.game_selected_rome_2.as_mut().unwrap().trigger(); }
+                                KEY_WARHAMMER => unsafe { self.game_selected_warhammer.as_mut().unwrap().trigger(); },
+                                KEY_THRONES_OF_BRITANNIA => unsafe { self.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+                                KEY_ATTILA => unsafe { self.game_selected_attila.as_mut().unwrap().trigger(); }
+                                KEY_ROME_2 | _ => unsafe { self.game_selected_rome_2.as_mut().unwrap().trigger(); }
                             }
                         },
 
@@ -320,8 +321,8 @@ impl AppUI {
                         PFHVersion::PFH0 => {
                             let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                             match &*game_selected {
-                                "napoleon" => unsafe { self.game_selected_napoleon.as_mut().unwrap().trigger(); },
-                                "empire" | _ => unsafe { self.game_selected_empire.as_mut().unwrap().trigger(); }
+                                KEY_NAPOLEON => unsafe { self.game_selected_napoleon.as_mut().unwrap().trigger(); },
+                                KEY_EMPIRE | _ => unsafe { self.game_selected_empire.as_mut().unwrap().trigger(); }
                             }
                         },
                     }
@@ -444,7 +445,7 @@ impl AppUI {
     pub fn enable_packfile_actions(&self, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
-        if &**GAME_SELECTED.read().unwrap() == "arena" {
+        if &**GAME_SELECTED.read().unwrap() == KEY_ARENA {
 
             // Disable the actions that allow to create and save PackFiles.
             unsafe { self.packfile_new_packfile.as_mut().unwrap().set_enabled(false); }
@@ -486,48 +487,48 @@ impl AppUI {
 
             // Check the Game Selected and enable the actions corresponding to out game.
             match &**GAME_SELECTED.read().unwrap() {
-                "three_kingdoms" => {
+                KEY_THREE_KINGDOMS => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_three_k_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_three_k_generate_pak_file.as_mut().unwrap().set_enabled(true); }
                 },
-                "warhammer_2" => {
+                KEY_WARHAMMER_2 => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_wh2_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_wh2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_wh2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
                 },
-                "warhammer" => {
+                KEY_WARHAMMER => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                     unsafe { self.special_stuff_wh_patch_siege_ai.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_wh_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_wh_generate_pak_file.as_mut().unwrap().set_enabled(true); }
                 },
-                "thrones_of_britannia" => {
+                KEY_THRONES_OF_BRITANNIA => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                     unsafe { self.special_stuff_tob_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_tob_generate_pak_file.as_mut().unwrap().set_enabled(true); }
                 },
-                "attila" => {
+                KEY_ATTILA => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                     unsafe { self.special_stuff_att_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_att_generate_pak_file.as_mut().unwrap().set_enabled(true); }
                 },
-                "rome_2" => {
+                KEY_ROME_2 => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                     unsafe { self.special_stuff_rom2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_rom2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
                 },
-                "shogun_2" => {
+                KEY_SHOGUN_2 => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                     unsafe { self.special_stuff_sho2_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                     unsafe { self.special_stuff_sho2_generate_pak_file.as_mut().unwrap().set_enabled(true); }
                 },
-                "napoleon" => {
+                KEY_NAPOLEON => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                     unsafe { self.special_stuff_nap_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 },
-                "empire" => {
+                KEY_EMPIRE => {
                     unsafe { self.change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
                     unsafe { self.special_stuff_emp_optimize_packfile.as_mut().unwrap().set_enabled(true); }
                 },
@@ -580,12 +581,12 @@ impl AppUI {
 
         // The assembly kit thing should only be available for Rome 2 and later games.
         match &**GAME_SELECTED.read().unwrap() {
-            "three_kingdoms" |
-            "warhammer_2" |
-            "warhammer" |
-            "thrones_of_britannia" |
-            "attila" |
-            "rome_2" => unsafe { self.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(true); }
+            KEY_THREE_KINGDOMS |
+            KEY_WARHAMMER_2 |
+            KEY_WARHAMMER |
+            KEY_THRONES_OF_BRITANNIA |
+            KEY_ATTILA |
+            KEY_ROME_2 => unsafe { self.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(true); }
             _ => unsafe { self.game_selected_open_game_assembly_kit_folder.as_mut().unwrap().set_enabled(false); }
         }
     }
@@ -706,15 +707,15 @@ impl AppUI {
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
                         if game_folder.path().is_dir() && supported_folders.contains(&&*game_folder_name) {
                             let game_submenu = match &*game_folder_name {
-                                "three_kingdoms" => unsafe { self.mymod_open_three_kingdoms.as_mut().unwrap() },
-                                "warhammer_2" => unsafe { self.mymod_open_warhammer_2.as_mut().unwrap() },
-                                "warhammer" => unsafe { self.mymod_open_warhammer.as_mut().unwrap() },
-                                "thrones_of_britannia" => unsafe { self.mymod_open_thrones_of_britannia.as_mut().unwrap() },
-                                "attila" => unsafe { self.mymod_open_attila.as_mut().unwrap() },
-                                "rome_2" => unsafe { self.mymod_open_rome_2.as_mut().unwrap() },
-                                "shogun_2" => unsafe { self.mymod_open_shogun_2.as_mut().unwrap() },
-                                "napoleon" => unsafe { self.mymod_open_napoleon.as_mut().unwrap() },
-                                "empire" | _ => unsafe { self.mymod_open_empire.as_mut().unwrap() },
+                                KEY_THREE_KINGDOMS => unsafe { self.mymod_open_three_kingdoms.as_mut().unwrap() },
+                                KEY_WARHAMMER_2 => unsafe { self.mymod_open_warhammer_2.as_mut().unwrap() },
+                                KEY_WARHAMMER => unsafe { self.mymod_open_warhammer.as_mut().unwrap() },
+                                KEY_THRONES_OF_BRITANNIA => unsafe { self.mymod_open_thrones_of_britannia.as_mut().unwrap() },
+                                KEY_ATTILA => unsafe { self.mymod_open_attila.as_mut().unwrap() },
+                                KEY_ROME_2 => unsafe { self.mymod_open_rome_2.as_mut().unwrap() },
+                                KEY_SHOGUN_2 => unsafe { self.mymod_open_shogun_2.as_mut().unwrap() },
+                                KEY_NAPOLEON => unsafe { self.mymod_open_napoleon.as_mut().unwrap() },
+                                KEY_EMPIRE | _ => unsafe { self.mymod_open_empire.as_mut().unwrap() },
                             };
 
                             if let Ok(game_folder_files) = game_folder.path().read_dir() {

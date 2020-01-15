@@ -30,6 +30,7 @@ use super::DecodedData;
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::common::get_game_selected_pak_file;
 use crate::GAME_SELECTED;
+use crate::games::*;
 use crate::packedfile::DecodedPackedFile;
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
@@ -176,7 +177,7 @@ impl DB {
         // Napoleon and Empire do not have GUID, and adding it to their tables crash both games.
         // So for those two games, we ignore the GUID_MARKER and the GUID itself.
         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
-        if game_selected != "empire" && game_selected != "napoleon" {
+        if game_selected != KEY_EMPIRE && game_selected != KEY_NAPOLEON {
             packed_file.extend_from_slice(GUID_MARKER);
             packed_file.encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
         }

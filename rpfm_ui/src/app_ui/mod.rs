@@ -49,6 +49,18 @@ pub mod shortcuts;
 pub mod slots;
 pub mod tips;
 
+// Display name, adapted to support Pnemonics.
+const GAME_SELECTED_THREE_KINGDOMS: &str = "Three &Kingdoms";
+const GAME_SELECTED_WARHAMMER_2: &str = "&Warhammer 2";
+const GAME_SELECTED_WARHAMMER: &str = "War&hammer";
+const GAME_SELECTED_THRONES_OF_BRITANNIA: &str = "&Thrones of Britannia";
+const GAME_SELECTED_ATTILA: &str = "&Attila";
+const GAME_SELECTED_ROME_2: &str = "R&ome 2";
+const GAME_SELECTED_SHOGUN_2: &str = "&Shogun 2";
+const GAME_SELECTED_NAPOLEON: &str = "&Napoleon";
+const GAME_SELECTED_EMPIRE: &str = "&Empire";
+const GAME_SELECTED_ARENA: &str = "A&rena";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -391,15 +403,15 @@ impl Default for AppUI {
 
         menu_bar_mymod_ref_mut.add_separator();
 
-        let mymod_open_three_kingdoms = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_three_kingdoms"));
-        let mymod_open_warhammer_2 = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_warhammer_2"));
-        let mymod_open_warhammer = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_warhammer"));
-        let mymod_open_thrones_of_britannia = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_thrones_of_britannia"));
-        let mymod_open_attila = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_attila"));
-        let mymod_open_rome_2 = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_rome_2"));
-        let mymod_open_shogun_2 = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_shogun_2"));
-        let mymod_open_napoleon = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_napoleon"));
-        let mymod_open_empire = menu_bar_mymod_ref_mut.add_menu(&qtr("total_war_empire"));
+        let mymod_open_three_kingdoms = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
+        let mymod_open_warhammer_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
+        let mymod_open_warhammer = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
+        let mymod_open_thrones_of_britannia = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
+        let mymod_open_attila = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ATTILA));
+        let mymod_open_rome_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ROME_2));
+        let mymod_open_shogun_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
+        let mymod_open_napoleon = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
+        let mymod_open_empire = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
         unsafe { menu_bar_mymod_ref_mut.insert_separator(mymod_install); }
 
@@ -437,16 +449,16 @@ impl Default for AppUI {
         let game_selected_open_game_data_folder = menu_bar_game_seleted_ref_mut.add_action(&qtr("game_selected_open_game_data_folder"));
         let game_selected_open_game_assembly_kit_folder = menu_bar_game_seleted_ref_mut.add_action(&qtr("game_selected_open_game_assembly_kit_folder"));
 
-        let game_selected_three_kingdoms = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_three_kingdoms"));
-        let game_selected_warhammer_2 = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_warhammer_2"));
-        let game_selected_warhammer = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_warhammer"));
-        let game_selected_thrones_of_britannia = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_thrones_of_britannia"));
-        let game_selected_attila = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_attila"));
-        let game_selected_rome_2 = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_rome_2"));
-        let game_selected_shogun_2 = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_shogun_2"));
-        let game_selected_napoleon = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_napoleon"));
-        let game_selected_empire = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_empire"));
-        let game_selected_arena = menu_bar_game_seleted_ref_mut.add_action(&qtr("m_total_war_arena"));
+        let game_selected_three_kingdoms = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
+        let game_selected_warhammer_2 = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
+        let game_selected_warhammer = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
+        let game_selected_thrones_of_britannia = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
+        let game_selected_attila = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_ATTILA));
+        let game_selected_rome_2 = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_ROME_2));
+        let game_selected_shogun_2 = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
+        let game_selected_napoleon = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
+        let game_selected_empire = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let game_selected_arena = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_ARENA));
 
         let mut game_selected_group = unsafe { ActionGroup::new(menu_bar_game_seleted as *mut Object) };
 
@@ -480,15 +492,15 @@ impl Default for AppUI {
 
         // Populate the `Special Stuff` menu with submenus.
         let menu_bar_special_stuff_ref_mut = unsafe { menu_bar_special_stuff.as_mut().unwrap() };
-        let menu_three_kingdoms = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_three_kingdoms"));
-        let menu_warhammer_2 = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_warhammer_2"));
-        let menu_warhammer = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_warhammer"));
-        let menu_thrones_of_britannia = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_thrones_of_britannia"));
-        let menu_attila = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_attila"));
-        let menu_rome_2 = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_rome_2"));
-        let menu_shogun_2 = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_shogun_2"));
-        let menu_napoleon = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_napoleon"));
-        let menu_empire = menu_bar_special_stuff_ref_mut.add_menu(&qtr("total_war_empire"));
+        let menu_three_kingdoms = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
+        let menu_warhammer_2 = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
+        let menu_warhammer = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
+        let menu_thrones_of_britannia = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
+        let menu_attila = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ATTILA));
+        let menu_rome_2 = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ROME_2));
+        let menu_shogun_2 = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
+        let menu_napoleon = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
+        let menu_empire = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
         // Populate the `Special Stuff` submenus.
         let menu_three_kingdoms_ref_mut = unsafe { menu_three_kingdoms.as_mut().unwrap() };

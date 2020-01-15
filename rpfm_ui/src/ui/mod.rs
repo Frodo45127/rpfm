@@ -29,6 +29,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::games::*;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
@@ -122,16 +123,16 @@ impl UI {
 
         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
         match &*game_selected {
-            "three_kingdoms" => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
-            "warhammer_2" => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
-            "warhammer" => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
-            "thrones_of_britannia" => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
-            "attila" => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
-            "rome_2" => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
-            "shogun_2" => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
-            "napoleon" => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
-            "empire" => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
-            "arena" | _ => unsafe { app_ui.game_selected_arena.as_mut().unwrap().trigger(); }
+            KEY_THREE_KINGDOMS => unsafe { app_ui.game_selected_three_kingdoms.as_mut().unwrap().trigger(); }
+            KEY_WARHAMMER_2 => unsafe { app_ui.game_selected_warhammer_2.as_mut().unwrap().trigger(); }
+            KEY_WARHAMMER => unsafe { app_ui.game_selected_warhammer.as_mut().unwrap().trigger(); }
+            KEY_THRONES_OF_BRITANNIA => unsafe { app_ui.game_selected_thrones_of_britannia.as_mut().unwrap().trigger(); }
+            KEY_ATTILA => unsafe { app_ui.game_selected_attila.as_mut().unwrap().trigger(); }
+            KEY_ROME_2 => unsafe { app_ui.game_selected_rome_2.as_mut().unwrap().trigger(); }
+            KEY_SHOGUN_2 => unsafe { app_ui.game_selected_shogun_2.as_mut().unwrap().trigger(); }
+            KEY_NAPOLEON => unsafe { app_ui.game_selected_napoleon.as_mut().unwrap().trigger(); }
+            KEY_EMPIRE => unsafe { app_ui.game_selected_empire.as_mut().unwrap().trigger(); }
+            KEY_ARENA | _ => unsafe { app_ui.game_selected_arena.as_mut().unwrap().trigger(); }
         }
 
 
@@ -220,16 +221,16 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub fn new() -> Self {
         Self {
-            three_kingdoms: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("three_kingdoms").unwrap().game_selected_icon))),
-            warhammer_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("warhammer_2").unwrap().game_selected_icon))),
-            warhammer: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("warhammer").unwrap().game_selected_icon))),
-            thrones_of_britannia: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("thrones_of_britannia").unwrap().game_selected_icon))),
-            attila: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("attila").unwrap().game_selected_icon))),
-            rome_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("rome_2").unwrap().game_selected_icon))),
-            shogun_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("shogun_2").unwrap().game_selected_icon))),
-            napoleon: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("napoleon").unwrap().game_selected_icon))),
-            empire: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("empire").unwrap().game_selected_icon))),
-            arena: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get("arena").unwrap().game_selected_icon))),
+            three_kingdoms: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_icon))),
+            warhammer_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_icon))),
+            warhammer: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_icon))),
+            thrones_of_britannia: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THRONES_OF_BRITANNIA).unwrap().game_selected_icon))),
+            attila: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ATTILA).unwrap().game_selected_icon))),
+            rome_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ROME_2).unwrap().game_selected_icon))),
+            shogun_2: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_SHOGUN_2).unwrap().game_selected_icon))),
+            napoleon: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_NAPOLEON).unwrap().game_selected_icon))),
+            empire: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_EMPIRE).unwrap().game_selected_icon))),
+            arena: Icon::new(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ARENA).unwrap().game_selected_icon))),
         }
     }
 
@@ -237,16 +238,16 @@ impl GameSelectedIcons {
     pub fn set_game_selected_icon(main_window: *mut MainWindow) {
         let main_window = unsafe { main_window.as_mut().unwrap() };
         let icon = match &**GAME_SELECTED.read().unwrap() {
-            "three_kingdoms" => &GAME_SELECTED_ICONS.three_kingdoms,
-            "warhammer_2" => &GAME_SELECTED_ICONS.warhammer_2,
-            "warhammer" => &GAME_SELECTED_ICONS.warhammer,
-            "thrones_of_britannia" => &GAME_SELECTED_ICONS.thrones_of_britannia,
-            "attila" => &GAME_SELECTED_ICONS.attila,
-            "rome_2" => &GAME_SELECTED_ICONS.rome_2,
-            "shogun_2" => &GAME_SELECTED_ICONS.shogun_2,
-            "napoleon" => &GAME_SELECTED_ICONS.napoleon,
-            "empire" => &GAME_SELECTED_ICONS.empire,
-            "arena" => &GAME_SELECTED_ICONS.arena,
+            KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
+            KEY_WARHAMMER_2 => &GAME_SELECTED_ICONS.warhammer_2,
+            KEY_WARHAMMER => &GAME_SELECTED_ICONS.warhammer,
+            KEY_THRONES_OF_BRITANNIA => &GAME_SELECTED_ICONS.thrones_of_britannia,
+            KEY_ATTILA => &GAME_SELECTED_ICONS.attila,
+            KEY_ROME_2 => &GAME_SELECTED_ICONS.rome_2,
+            KEY_SHOGUN_2 => &GAME_SELECTED_ICONS.shogun_2,
+            KEY_NAPOLEON => &GAME_SELECTED_ICONS.napoleon,
+            KEY_EMPIRE => &GAME_SELECTED_ICONS.empire,
+            KEY_ARENA => &GAME_SELECTED_ICONS.arena,
             _ => unimplemented!(),
         };
         main_window.set_window_icon(icon);

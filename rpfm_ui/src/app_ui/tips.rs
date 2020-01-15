@@ -13,7 +13,6 @@ Module with all the code to setup the tips (in the `StatusBar`) for the actions 
 !*/
 
 use crate::locale::qtr;
-use crate::QString;
 use crate::app_ui::AppUI;
 
 /// This function sets the status bar tip for all the actions in the provided `AppUI`.
