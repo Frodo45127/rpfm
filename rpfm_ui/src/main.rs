@@ -173,7 +173,7 @@ lazy_static! {
 
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Locale = {
-        match Locale::initialize("en") {
+        match Locale::initialize_fallback() {
             Ok(locale) => locale,
             Err(_) => Locale::initialize_empty(),
         }

@@ -456,6 +456,9 @@ pub enum ErrorKind {
 
     /// Error for when we have to return an error in any path operation related with the Game Selected's Paths.
     GameSelectedPathNotCorrectlyConfigured,
+
+    /// Error for when we try to load a localisation file with an invalid name.
+    InvalidLocalisationFileName(String),
 }
 
 /// Implementation of `Error`.
@@ -719,6 +722,7 @@ impl Display for ErrorKind {
             ErrorKind::NotEnoughBytesToDecode => write!(f, "<p>There are not enough bytes to decode in the data you provided.</p>"),
             ErrorKind::GameNotSupported => write!(f, "<p>The game you tried to get the info is not supported.</p>"),
             ErrorKind::GameSelectedPathNotCorrectlyConfigured => write!(f, "<p>The Game Selected's Path is not properly configured.</p>"),
+            ErrorKind::InvalidLocalisationFileName(name) => write!(f, "<p>The name '{}' is not a valid localisation file name. It has to have one and only one '_' somewhere and an identifier (en, fr,...) after that.</p>", name),
         }
     }
 }

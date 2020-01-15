@@ -36,6 +36,9 @@ const LOCALE_FOLDER: &str = "locale";
 /// Replace sequence used to insert data into the translations.
 const REPLACE_SEQUENCE: &str = "{}";
 
+/// Include by default the english localisation, to avoid problems with idiots deleting files.
+const FALLBACK_LOCALE: &str = include_str!("../../../locale/English_en.ftl");
+
 /// This struct contains a localisation use in RPFM.
 #[derive(Clone)]
 pub struct Locale(Arc<RwLock<FluentBundle<FluentResource>>>);
@@ -44,48 +47,65 @@ pub struct Locale(Arc<RwLock<FluentBundle<FluentResource>>>);
 impl Locale {
 
     /// This function initializes the localisation for the provided language, if exists.
-    pub fn initialize(lang_id: &str) -> Result<Self> {
+    pub fn initialize(file_name: &str) -> Result<Self> {
 
         // Get the list of available translations from the locale folder, and load the requested one, if found.
-        let locales = Self::get_available_locales();
-        let selected_locale = locales.iter().find(|x| x.get_language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
-        let locale = format!("{}/{}.ftl", LOCALE_FOLDER, lang_id);
+        let lang_info = file_name.split('_').collect::<Vec<&str>>();
+        if lang_info.len() == 2 {
+            let lang_id = lang_info[1];
+            let locales = Self::get_available_locales()?;
+            let selected_locale = locales.iter().map(|x| x.1.clone()).find(|x| x.get_language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
+            let locale = format!("{}/{}.ftl", LOCALE_FOLDER, file_name);
 
-        // If found, load the entire file to a string.
-        let mut file = File::open(&locale)?;
-        let mut ftl_string = String::new();
-        file.read_to_string(&mut ftl_string)?;
+            // If found, load the entire file to a string.
+            let mut file = File::open(&locale)?;
+            let mut ftl_string = String::new();
+            file.read_to_string(&mut ftl_string)?;
 
-        // Then to a resource and a bundle.
-        let resource = FluentResource::try_new(ftl_string)?;
-        let mut bundle = FluentBundle::new(&[selected_locale.clone()]);
+            // Then to a resource and a bundle.
+            let resource = FluentResource::try_new(ftl_string)?;
+            let mut bundle = FluentBundle::new(&[selected_locale.clone()]);
+            bundle.add_resource(resource)?;
+
+            // If nothing failed, return the new translation.
+            Ok(Self(Arc::new(RwLock::new(bundle))))
+        }
+
+        else {
+            Err(ErrorKind::InvalidLocalisationFileName(file_name.to_string()).into())
+        }
+    }
+
+   /// This function initializes the fallback localisation included in the binary.
+    pub fn initialize_fallback() -> Result<Self> {
+        let resource = FluentResource::try_new(FALLBACK_LOCALE.to_owned())?;
+        let mut bundle = FluentBundle::new(&[langid!["en"]]);
         bundle.add_resource(resource)?;
-
-        // If nothing failed, return the new translation.
         Ok(Self(Arc::new(RwLock::new(bundle))))
     }
 
     /// This function initializes an empty localisation, just in case some idiot deletes the english translation and fails to load it.
     pub fn initialize_empty() -> Self {
-
-        // Create an empty bundle, and return it.
-        let ftl_string = String::new();
-        let resource = FluentResource::try_new(ftl_string).unwrap();
+        let resource = FluentResource::try_new(String::new()).unwrap();
         let mut bundle = FluentBundle::new(&[langid!["en"]]);
         bundle.add_resource(resource).unwrap();
         Self(Arc::new(RwLock::new(bundle)))
     }
 
-    /// This function returns a list of all the languages we have translation files for in key form ("en", "sp", etc...).
-    pub fn get_available_locales() -> Vec<LanguageIdentifier> {
+    /// This function returns a list of all the languages we have translation files for in the `("English", "en")` form.
+    pub fn get_available_locales() -> Result<Vec<(String, LanguageIdentifier)>> {
         let mut languages = vec![];
-        for file in get_files_from_subdir(Path::new("locale")).unwrap() {
+        for file in get_files_from_subdir(Path::new("locale"))? {
             let language = file.file_stem().unwrap().to_string_lossy().to_string();
-            if let Ok(language_id) = LanguageIdentifier::from_parts(Some(&language), None, None, &[]) {
-                languages.push(language_id);
+            let lang_info = language.split('_').collect::<Vec<&str>>();
+            if lang_info.len() == 2 {
+                let lang_id = lang_info[1];
+                if let Ok(language_id) = LanguageIdentifier::from_parts(Some(lang_id), None, None, &[]) {
+                    languages.push((lang_info[0].to_owned(), language_id));
+                }
             }
         }
-        languages
+        Ok(languages)
     }
 
     /// This function returns the translation for the key provided in the current language.

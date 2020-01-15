@@ -239,8 +239,10 @@ impl SettingsUI {
 
         let ui_language_model = StandardItemModel::new(());
         unsafe { ui_language_combobox.set_model(ui_language_model.into_raw() as *mut AbstractItemModel); }
-        for language in Locale::get_available_locales() {
-            ui_language_combobox.add_item(&QString::from_std_str(language.get_language()));
+        if let Ok(locales) = Locale::get_available_locales() {
+            for (language, _) in locales {
+                ui_language_combobox.add_item(&QString::from_std_str(&language));
+            }
         }
 
         // Add all Label/Checkboxes to the grid.
