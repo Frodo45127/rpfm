@@ -52,6 +52,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::new_treeview_filter;
+use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{TheOneSlot, View};
 use crate::pack_tree::{PackTree, TreeViewOperation};
@@ -138,31 +139,31 @@ impl GlobalSearchUI {
         let global_search_dock_layout = create_grid_layout_unsafe(global_search_dock_inner_widget.as_mut_ptr() as *mut Widget);
         unsafe { global_search_dock_widget.set_widget(global_search_dock_inner_widget.into_raw()); }
         unsafe { main_window.as_mut().unwrap().add_dock_widget((DockWidgetArea::RightDockWidgetArea, global_search_dock_widget.as_mut_ptr())); }
-        global_search_dock_widget.set_window_title(&QString::from_std_str("Global Search"));
+        global_search_dock_widget.set_window_title(&qtr("global_search"));
 
         // Create the search & replace section.
-        let global_search_search_frame = GroupBox::new(&QString::from_std_str("Search Info"));
+        let global_search_search_frame = GroupBox::new(&qtr("global_search_info"));
         let global_search_search_grid = create_grid_layout_unsafe(global_search_search_frame.as_mut_ptr() as *mut Widget);
 
         let global_search_search_line_edit = LineEdit::new(());
-        let global_search_search_button = PushButton::new(&QString::from_std_str("Search"));
+        let global_search_search_button = PushButton::new(&qtr("global_search_search"));
 
         let global_search_replace_line_edit = LineEdit::new(());
-        let global_search_replace_button = PushButton::new(&QString::from_std_str("Replace"));
-        let global_search_replace_all_button = PushButton::new(&QString::from_std_str("Replace All"));
+        let global_search_replace_button = PushButton::new(&qtr("global_search_replace"));
+        let global_search_replace_all_button = PushButton::new(&qtr("global_search_replace_all"));
 
-        let global_search_clear_button = PushButton::new(&QString::from_std_str("Clear"));
-        let global_search_case_sensitive_checkbox = CheckBox::new(&QString::from_std_str("Case Sensitive"));
-        let global_search_use_regex_checkbox = CheckBox::new(&QString::from_std_str("Use Regex"));
+        let global_search_clear_button = PushButton::new(&qtr("global_search_clear"));
+        let global_search_case_sensitive_checkbox = CheckBox::new(&qtr("global_search_case_sensitive"));
+        let global_search_use_regex_checkbox = CheckBox::new(&qtr("global_search_use_regex"));
 
-        let global_search_search_on_group_box = GroupBox::new(&QString::from_std_str("Search On"));
+        let global_search_search_on_group_box = GroupBox::new(&qtr("global_search_search_on"));
         let global_search_search_on_grid = create_grid_layout_unsafe(global_search_search_on_group_box.as_mut_ptr() as *mut Widget);
 
-        let global_search_search_on_all_checkbox = CheckBox::new(&QString::from_std_str("All"));
-        let global_search_search_on_dbs_checkbox = CheckBox::new(&QString::from_std_str("DB"));
-        let global_search_search_on_locs_checkbox = CheckBox::new(&QString::from_std_str("LOC"));
-        let global_search_search_on_texts_checkbox = CheckBox::new(&QString::from_std_str("Text"));
-        let global_search_search_on_schemas_checkbox = CheckBox::new(&QString::from_std_str("Schemas"));
+        let global_search_search_on_all_checkbox = CheckBox::new(&qtr("global_search_all"));
+        let global_search_search_on_dbs_checkbox = CheckBox::new(&qtr("global_search_db"));
+        let global_search_search_on_locs_checkbox = CheckBox::new(&qtr("global_search_loc"));
+        let global_search_search_on_texts_checkbox = CheckBox::new(&qtr("global_search_txt"));
+        let global_search_search_on_schemas_checkbox = CheckBox::new(&qtr("global_search_schemas"));
 
         unsafe { global_search_search_grid.as_mut().unwrap().set_column_stretch(0, 10); }
 
@@ -249,53 +250,53 @@ impl GlobalSearchUI {
         let mut filter_matches_db_line_edit = LineEdit::new(());
         let mut filter_matches_db_column_selector = ComboBox::new();
         let filter_matches_db_column_list = StandardItemModel::new(());
-        let mut filter_matches_db_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
+        let mut filter_matches_db_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive"));
 
-        filter_matches_db_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!"));
+        filter_matches_db_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         unsafe { filter_matches_db_column_selector.set_model(filter_matches_db_column_list.into_raw() as *mut AbstractItemModel); }
-        filter_matches_db_column_selector.add_item(&QString::from_std_str("PackedFile"));
-        filter_matches_db_column_selector.add_item(&QString::from_std_str("Column"));
-        filter_matches_db_column_selector.add_item(&QString::from_std_str("Row"));
-        filter_matches_db_column_selector.add_item(&QString::from_std_str("Match"));
+        filter_matches_db_column_selector.add_item(&qtr("gen_loc_packedfile"));
+        filter_matches_db_column_selector.add_item(&qtr("gen_loc_column"));
+        filter_matches_db_column_selector.add_item(&qtr("gen_loc_row"));
+        filter_matches_db_column_selector.add_item(&qtr("gen_loc_match"));
         filter_matches_db_case_sensitive_button.set_checkable(true);
 
         let mut filter_matches_loc_line_edit = LineEdit::new(());
         let mut filter_matches_loc_column_selector = ComboBox::new();
         let filter_matches_loc_column_list = StandardItemModel::new(());
-        let mut filter_matches_loc_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
+        let mut filter_matches_loc_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive"));
 
-        filter_matches_loc_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!"));
+        filter_matches_loc_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         unsafe { filter_matches_loc_column_selector.set_model(filter_matches_loc_column_list.into_raw() as *mut AbstractItemModel); }
-        filter_matches_loc_column_selector.add_item(&QString::from_std_str("PackedFile"));
-        filter_matches_loc_column_selector.add_item(&QString::from_std_str("Column"));
-        filter_matches_loc_column_selector.add_item(&QString::from_std_str("Row"));
-        filter_matches_loc_column_selector.add_item(&QString::from_std_str("Match"));
+        filter_matches_loc_column_selector.add_item(&qtr("gen_loc_packedfile"));
+        filter_matches_loc_column_selector.add_item(&qtr("gen_loc_column"));
+        filter_matches_loc_column_selector.add_item(&qtr("gen_loc_row"));
+        filter_matches_loc_column_selector.add_item(&qtr("gen_loc_match"));
         filter_matches_loc_case_sensitive_button.set_checkable(true);
 
         let mut filter_matches_text_line_edit = LineEdit::new(());
         let mut filter_matches_text_column_selector = ComboBox::new();
         let filter_matches_text_column_list = StandardItemModel::new(());
-        let mut filter_matches_text_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
+        let mut filter_matches_text_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive"));
 
-        filter_matches_text_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!"));
+        filter_matches_text_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         unsafe { filter_matches_text_column_selector.set_model(filter_matches_text_column_list.into_raw() as *mut AbstractItemModel); }
-        filter_matches_text_column_selector.add_item(&QString::from_std_str("PackedFile"));
-        filter_matches_text_column_selector.add_item(&QString::from_std_str("Column"));
-        filter_matches_text_column_selector.add_item(&QString::from_std_str("Row"));
-        filter_matches_text_column_selector.add_item(&QString::from_std_str("Match"));
+        filter_matches_text_column_selector.add_item(&qtr("gen_loc_packedfile"));
+        filter_matches_text_column_selector.add_item(&qtr("gen_loc_column"));
+        filter_matches_text_column_selector.add_item(&qtr("gen_loc_row"));
+        filter_matches_text_column_selector.add_item(&qtr("gen_loc_match"));
         filter_matches_text_case_sensitive_button.set_checkable(true);
 
         let mut filter_matches_schema_line_edit = LineEdit::new(());
         let mut filter_matches_schema_column_selector = ComboBox::new();
         let filter_matches_schema_column_list = StandardItemModel::new(());
-        let mut filter_matches_schema_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive"));
+        let mut filter_matches_schema_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive"));
 
-        filter_matches_schema_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!"));
+        filter_matches_schema_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         unsafe { filter_matches_schema_column_selector.set_model(filter_matches_schema_column_list.into_raw() as *mut AbstractItemModel); }
-        filter_matches_schema_column_selector.add_item(&QString::from_std_str("PackedFile"));
-        filter_matches_schema_column_selector.add_item(&QString::from_std_str("Column"));
-        filter_matches_schema_column_selector.add_item(&QString::from_std_str("Row"));
-        filter_matches_schema_column_selector.add_item(&QString::from_std_str("Match"));
+        filter_matches_schema_column_selector.add_item(&qtr("gen_loc_packedfile"));
+        filter_matches_schema_column_selector.add_item(&qtr("gen_loc_column"));
+        filter_matches_schema_column_selector.add_item(&qtr("gen_loc_row"));
+        filter_matches_schema_column_selector.add_item(&qtr("gen_loc_match"));
         filter_matches_schema_case_sensitive_button.set_checkable(true);
 
         // Add everything to the Matches's Dock Layout.
@@ -320,10 +321,10 @@ impl GlobalSearchUI {
         unsafe { schema_matches_grid.as_mut().unwrap().add_widget((filter_matches_schema_case_sensitive_button.as_mut_ptr() as *mut Widget, 1, 1, 1, 1)); }
         unsafe { schema_matches_grid.as_mut().unwrap().add_widget((filter_matches_schema_column_selector.as_mut_ptr() as *mut Widget, 1, 2, 1, 1)); }
 
-        unsafe { global_search_matches_tab_widget.add_tab((db_matches_widget.into_raw(), &QString::from_std_str("DB Matches"))); }
-        unsafe { global_search_matches_tab_widget.add_tab((loc_matches_widget.into_raw(), &QString::from_std_str("Loc Matches"))); }
-        unsafe { global_search_matches_tab_widget.add_tab((text_matches_widget.into_raw(), &QString::from_std_str("Text Matches"))); }
-        unsafe { global_search_matches_tab_widget.add_tab((schema_matches_widget.into_raw(), &QString::from_std_str("Schema Matches"))); }
+        unsafe { global_search_matches_tab_widget.add_tab((db_matches_widget.into_raw(), &qtr("global_search_db_matches"))); }
+        unsafe { global_search_matches_tab_widget.add_tab((loc_matches_widget.into_raw(), &qtr("global_search_loc_matches"))); }
+        unsafe { global_search_matches_tab_widget.add_tab((text_matches_widget.into_raw(), &qtr("global_search_txt_matches"))); }
+        unsafe { global_search_matches_tab_widget.add_tab((schema_matches_widget.into_raw(), &qtr("global_search_schema_matches"))); }
 
         unsafe { global_search_dock_layout.as_mut().unwrap().add_widget((global_search_search_frame.into_raw() as *mut Widget, 0, 0, 1, 3)); }
         unsafe { global_search_dock_layout.as_mut().unwrap().add_widget((global_search_matches_tab_widget.as_mut_ptr() as *mut Widget, 1, 0, 1, 3)); }
@@ -690,9 +691,9 @@ impl GlobalSearchUI {
                 }
             }
 
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Column"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Match"))));
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&qtr("global_search_match_packedfile_column"))));
+            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&qtr("gen_loc_row"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&qtr("gen_loc_match"))));
 
             // Hide the column number column for tables.
             tree_view.hide_column(3);
@@ -757,10 +758,10 @@ impl GlobalSearchUI {
                 }
             }
 
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("PackedFile/Text"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Row"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column"))));
-            model.set_header_data((3, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Length"))));
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&qtr("global_search_match_packedfile_text"))));
+            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&qtr("gen_loc_row"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&qtr("gen_loc_column"))));
+            model.set_header_data((3, Orientation::Horizontal, &Variant::new0(&qtr("gen_loc_length"))));
 
             // Hide the column and lenght numbers on the TreeView.
             tree_view.hide_column(2);
@@ -824,9 +825,9 @@ impl GlobalSearchUI {
                 }
             }
 
-            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("VersionedFile (Type, Name)/Column Name"))));
-            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Definition Version"))));
-            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Column Index"))));
+            model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&qtr("global_search_versioned_file"))));
+            model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&qtr("global_search_definition_version"))));
+            model.set_header_data((2, Orientation::Horizontal, &Variant::new0(&qtr("global_search_column_index"))));
 
             // Hide the column number column for tables.
             tree_view.hide_column(2);

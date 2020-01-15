@@ -32,6 +32,7 @@ use qt_core::variant::Variant;
 
 use crate::QString;
 use crate::ffi::new_treeview_filter;
+use crate::locale::qtr;
 use crate::ui_state::shortcuts::Shortcuts;
 use crate::utils::create_grid_layout_unsafe;
 use crate::UI_STATE;
@@ -89,7 +90,7 @@ impl ShortcutsUI {
 
         // Create the Shortcuts Dialog and configure it.
         let mut dialog = unsafe { Dialog::new_unsafe(parent) };
-        dialog.set_window_title(&QString::from_std_str("Shortcuts"));
+        dialog.set_window_title(&qtr("shortcut_title"));
         dialog.set_modal(true);
         dialog.resize((1100, 700));
 
@@ -274,8 +275,8 @@ impl ShortcutsUI {
         }
 
         // Rename the columns and expand all.
-        shortcuts_model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Section/Action"))));
-        shortcuts_model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&QString::from_std_str("Shortcut"))));
+        shortcuts_model.set_header_data((0, Orientation::Horizontal, &Variant::new0(&qtr("shortcut_section_action"))));
+        shortcuts_model.set_header_data((1, Orientation::Horizontal, &Variant::new0(&qtr("shortcut_text"))));
         shortcuts_table.expand_all();
         unsafe { shortcuts_table.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
     }

@@ -37,6 +37,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::locale::qtr;
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
@@ -399,7 +400,7 @@ impl PackFileContentsSlots {
                 // Create the FileDialog to get the file/s to add and configure it.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &QString::from_std_str("Add File/s"),
+                    &qtr("context_menu_add_files"),
                 )) };
                 file_dialog.set_file_mode(FileMode::ExistingFiles);
                 match UI_STATE.get_operational_mode() {
@@ -484,7 +485,7 @@ impl PackFileContentsSlots {
                 // Create the FileDialog to get the folder/s to add and configure it.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &QString::from_std_str("Add Folder/s"),
+                    &qtr("context_menu_add_folders"),
                 )) };
                 file_dialog.set_file_mode(FileMode::Directory);
                 match UI_STATE.get_operational_mode() {
@@ -571,7 +572,7 @@ impl PackFileContentsSlots {
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
                 let mut file_dialog = unsafe { FileDialog::new_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &QString::from_std_str("Select PackFile"),
+                    &qtr("context_menu_select_packfile"),
                 )) };
 
                 file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
@@ -693,7 +694,7 @@ impl PackFileContentsSlots {
                     OperationalMode::Normal => {
                         let extraction_path = unsafe { FileDialog::get_existing_directory_unsafe((
                             app_ui.main_window as *mut Widget,
-                            &QString::from_std_str("Extract PackFile"),
+                            &qtr("context_menu_extract_packfile"),
                         )) };
 
                         if !extraction_path.is_empty() { PathBuf::from(extraction_path.to_std_string()) }
@@ -1057,7 +1058,7 @@ impl PackFileContentsSlots {
                 // Get a "Folder-only" FileDialog.
                 let export_path = unsafe { FileDialog::get_existing_directory_unsafe((
                     app_ui.main_window as *mut Widget,
-                    &QString::from_std_str("Select destination folder")
+                    &qtr("context_menu_mass_export_tsv_folder")
                 )) };
 
                 // If we got an export path and it's not empty, try to export all selected files there.

@@ -58,6 +58,7 @@ use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
 use crate::global_search_ui::GlobalSearchUI;
+use crate::locale::qtr;
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -373,7 +374,7 @@ impl AppUI {
             // Create the FileDialog to save the PackFile and configure it.
             let mut file_dialog = unsafe { FileDialog::new_unsafe((
                 self.main_window as *mut Widget,
-                &QString::from_std_str("Save PackFile"),
+                &qtr("save_packfile"),
             )) };
             file_dialog.set_accept_mode(qt_widgets::file_dialog::AcceptMode::Save);
             file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
@@ -767,8 +768,8 @@ impl AppUI {
         if use_dialog {
             let mut dialog = unsafe { MessageBox::new_unsafe((
                 message_box::Icon::Information,
-                &QString::from_std_str("Update Checker"),
-                &QString::from_std_str("Searching for updates..."),
+                &qtr("update_checker"),
+                &qtr("update_searching"),
                 Flags::from_int(2_097_152), // Close button.
                 self.main_window as *mut Widget,
             )) };
@@ -812,7 +813,7 @@ impl AppUI {
 
             let mut dialog = unsafe { MessageBox::new_unsafe((
                 message_box::Icon::Information,
-                &QString::from_std_str("Update Checker"),
+                &qtr("update_checker"),
                 &QString::from_std_str(message),
                 Flags::from_int(2_097_152), // Close button.
                 self.main_window as *mut Widget,
@@ -835,13 +836,13 @@ impl AppUI {
             // Create the dialog to show the response and configure it.
             let mut dialog = unsafe { MessageBox::new_unsafe((
                 message_box::Icon::Information,
-                &QString::from_std_str("Update Schema Checker"),
-                &QString::from_std_str("Searching for updates..."),
+                &qtr("update_schema_checker"),
+                &qtr("update_searching"),
                 Flags::from_int(2_097_152), // Close button.
                 self.main_window as *mut Widget,
             )) };
 
-            let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
+            let update_button = dialog.add_button((&qtr("update_button"), message_box::ButtonRole::AcceptRole));
             unsafe { update_button.as_mut().unwrap().set_enabled(false); }
 
             dialog.set_modal(true);
@@ -891,7 +892,7 @@ impl AppUI {
                         CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
 
                         dialog.show();
-                        dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
+                        dialog.set_text(&qtr("update_in_prog"));
                         unsafe { update_button.as_mut().unwrap().set_enabled(false); }
 
                         match CENTRAL_COMMAND.recv_message_qt_try() {
@@ -939,13 +940,13 @@ impl AppUI {
             // Create the dialog to show the response.
             let mut dialog = unsafe { MessageBox::new_unsafe((
                 message_box::Icon::Information,
-                &QString::from_std_str("Update Schema Checker"),
+                &qtr("update_schema_checker"),
                 &QString::from_std_str(message),
                 Flags::from_int(2_097_152), // Close button.
                 self.main_window as *mut Widget,
             )) };
 
-            let update_button = dialog.add_button((&QString::from_std_str("&Update"), message_box::ButtonRole::AcceptRole));
+            let update_button = dialog.add_button((&qtr("update_button"), message_box::ButtonRole::AcceptRole));
             dialog.set_modal(true);
 
             // If we hit "Update", try to update the schemas.
@@ -956,7 +957,7 @@ impl AppUI {
                         CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
 
                         dialog.show();
-                        dialog.set_text(&QString::from_std_str("<p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>"));
+                        dialog.set_text(&qtr("update_in_prog"));
                         unsafe { update_button.as_mut().unwrap().set_enabled(false); }
 
                         match CENTRAL_COMMAND.recv_message_qt_try() {
@@ -1295,14 +1296,14 @@ impl AppUI {
     /// It returns the new name of the Folder, or None if the dialog is canceled or closed.
     pub fn new_folder_dialog(&self) -> Option<String> {
         let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
-        dialog.set_window_title(&QString::from_std_str("New Folder"));
+        dialog.set_window_title(&qtr("new_folder"));
         dialog.set_modal(true);
 
         let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
 
         let mut new_folder_line_edit = LineEdit::new(());
-        new_folder_line_edit.set_text(&QString::from_std_str("new_folder"));
-        let new_folder_button = PushButton::new(&QString::from_std_str("New Folder")).into_raw();
+        new_folder_line_edit.set_text(&qtr("new_folder_default"));
+        let new_folder_button = PushButton::new(&qtr("new_folder")).into_raw();
 
         unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_line_edit.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((new_folder_button as *mut Widget, 0, 1, 1, 1)); }
@@ -1320,9 +1321,9 @@ impl AppUI {
         // Create and configure the "New PackedFile" Dialog.
         let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
         match packed_file_type {
-            PackedFileType::DB => dialog.set_window_title(&QString::from_std_str("New DB Table")),
-            PackedFileType::Loc => dialog.set_window_title(&QString::from_std_str("New Loc PackedFile")),
-            PackedFileType::Text(_) => dialog.set_window_title(&QString::from_std_str("New Text PackedFile")),
+            PackedFileType::DB => dialog.set_window_title(&qtr("new_db_file")),
+            PackedFileType::Loc => dialog.set_window_title(&qtr("new_loc_file")),
+            PackedFileType::Text(_) => dialog.set_window_title(&qtr("new_txt_file")),
             _ => unimplemented!(),
         }
         dialog.set_modal(true);
@@ -1331,14 +1332,14 @@ impl AppUI {
         let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
         let mut name_line_edit = LineEdit::new(());
         let table_filter_line_edit = LineEdit::new(()).into_raw();
-        let create_button = PushButton::new(&QString::from_std_str("Create"));
+        let create_button = PushButton::new(&qtr("gen_loc_create"));
         let mut table_dropdown = ComboBox::new();
         let table_filter = SortFilterProxyModel::new().into_raw();
         let table_model = StandardItemModel::new(());
 
-        name_line_edit.set_text(&QString::from_std_str("new_file"));
+        name_line_edit.set_text(&qtr("new_file_default"));
         unsafe { table_dropdown.set_model(table_model.as_mut_ptr() as *mut AbstractItemModel); }
-        unsafe { table_filter_line_edit.as_mut().unwrap().set_placeholder_text(&QString::from_std_str("Type here to filter the tables of the list. Works with Regex too!")); }
+        unsafe { table_filter_line_edit.as_mut().unwrap().set_placeholder_text(&qtr("packedfile_filter")); }
 
         // Add all the widgets to the main grid, except those specific for a PackedFileType.
         unsafe { main_grid.as_mut().unwrap().add_widget((name_line_edit.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
@@ -1411,15 +1412,15 @@ impl AppUI {
 
         // Create and configure the dialog.
         let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
-        dialog.set_window_title(&QString::from_std_str("New PackedFile's Name"));
+        dialog.set_window_title(&qtr("new_packedfile_name"));
         dialog.set_modal(true);
         dialog.resize((400, 50));
 
         let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
         let mut name_line_edit = LineEdit::new(());
-        let accept_button = PushButton::new(&QString::from_std_str("Accept"));
+        let accept_button = PushButton::new(&qtr("gen_loc_accept"));
 
-        name_line_edit.set_text(&QString::from_std_str("queek_headtaker_yes_yes"));
+        name_line_edit.set_text(&qtr("trololol"));
 
         unsafe { main_grid.as_mut().unwrap().add_widget((name_line_edit.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((accept_button.as_mut_ptr() as *mut Widget, 1, 1, 1, 1)); }
@@ -1436,17 +1437,17 @@ impl AppUI {
     pub fn merge_tables_dialog(&self) -> Option<(String, bool)> {
 
         let mut dialog = unsafe { Dialog::new_unsafe(self.main_window as *mut Widget) };
-        dialog.set_window_title(&QString::from_std_str("Merge Tables"));
+        dialog.set_window_title(&qtr("packedfile_merge_tables"));
         dialog.set_modal(true);
 
         // Create the main Grid.
         let main_grid = create_grid_layout_unsafe(dialog.as_mut_ptr() as *mut Widget);
         let mut name = LineEdit::new(());
-        name.set_placeholder_text(&QString::from_std_str("Write the name of the new file here."));
+        name.set_placeholder_text(&qtr("merge_tables_new_name"));
 
-        let delete_source_tables = CheckBox::new(&QString::from_std_str("Delete original tables"));
+        let delete_source_tables = CheckBox::new(&qtr("merge_tables_delete_option"));
 
-        let accept_button = PushButton::new(&QString::from_std_str("Accept"));
+        let accept_button = PushButton::new(&qtr("gen_loc_accept"));
         unsafe { main_grid.as_mut().unwrap().add_widget((name.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((delete_source_tables.as_mut_ptr() as *mut Widget, 1, 0, 1, 1)); }
         unsafe { main_grid.as_mut().unwrap().add_widget((accept_button.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }

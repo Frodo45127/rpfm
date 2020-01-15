@@ -44,6 +44,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::new_tableview_frozen;
 use crate::global_search_ui::GlobalSearchUI;
+use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::QString;
@@ -146,7 +147,7 @@ impl PackedFileTableView {
 
         // Create the filter's LineEdit.
         let mut row_filter_line_edit = LineEdit::new(());
-        row_filter_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the rows in the table. Works with Regex too!"));
+        row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
 
         // Create the filter's column selector.
         // TODO: Make this follow the visual order of the columns, NOT THE LOGICAL ONE.
@@ -159,7 +160,7 @@ impl PackedFileTableView {
         }
 
         // Create the filter's "Case Sensitive" button.
-        let row_filter_case_sensitive_button = PushButton::new(&QString::from_std_str("Case Sensitive")).into_raw();
+        let row_filter_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive")).into_raw();
         unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
@@ -270,7 +271,7 @@ impl PackedFileTableView {
                     DecodedData::StringU16(ref data) |
                     DecodedData::OptionalStringU8(ref data) |
                     DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
-                    DecodedData::Sequence(_) => StandardItem::new(&QString::from_std_str("Non Editable Sequence")),
+                    DecodedData::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
                 };
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
@@ -314,7 +315,7 @@ impl PackedFileTableView {
                     FieldType::StringU16 |
                     FieldType::OptionalStringU8 |
                     FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
-                    FieldType::Sequence(_) => StandardItem::new(&QString::from_std_str("Non Editable Sequence")),
+                    FieldType::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
                 };
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
             }

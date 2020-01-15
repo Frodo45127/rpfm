@@ -42,6 +42,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
@@ -1618,8 +1619,8 @@ pub fn check_if_path_is_closed(app_ui: &AppUI, paths: &[Vec<String>]) -> bool {
     else {
         let mut dialog = unsafe { MessageBox::new_unsafe((
             message_box::Icon::Information,
-            &QString::from_std_str("One or more of the PackedFiles you want to replace/delete is open."),
-            &QString::from_std_str("Are you sure you want to do it? Hitting yes will close it."),
+            &qtr("open_packedfile_dialog_1"),
+            &qtr("open_packedfile_dialog_2"),
             Flags::from_int(16384) | Flags::from_int(65536),
             app_ui.main_window as *mut Widget,
         )) };

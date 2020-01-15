@@ -30,7 +30,7 @@ use qt_core::qt::{ContextMenuPolicy, DockWidgetArea};
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 
 use crate::ffi::new_treeview_filter;
-use crate::QString;
+use crate::locale::qtr;
 use crate::utils::create_grid_layout_unsafe;
 
 pub mod connections;
@@ -112,7 +112,7 @@ impl PackFileContentsUI {
         let packfile_contents_dock_layout = create_grid_layout_unsafe(packfile_contents_dock_inner_widget.as_mut_ptr() as *mut Widget);
         unsafe { packfile_contents_dock_widget.set_widget(packfile_contents_dock_inner_widget.into_raw()); }
         unsafe { main_window.as_mut().unwrap().add_dock_widget((DockWidgetArea::LeftDockWidgetArea, packfile_contents_dock_widget.as_mut_ptr())); }
-        packfile_contents_dock_widget.set_window_title(&QString::from_std_str("PackFile Contents"));
+        packfile_contents_dock_widget.set_window_title(&qtr("gen_loc_packfile_contents"));
 
         // Create and configure the `TreeView` itself.
         let mut packfile_contents_tree_view = TreeView::new();
@@ -129,9 +129,9 @@ impl PackFileContentsUI {
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let mut filter_line_edit = LineEdit::new(());
-        let mut filter_autoexpand_matches_button = PushButton::new(&QString::from_std_str("Auto-Expand Matches"));
-        let mut filter_case_sensitive_button = PushButton::new(&QString::from_std_str("AaI"));
-        filter_line_edit.set_placeholder_text(&QString::from_std_str("Type here to filter the files in the PackFile. Works with Regex too!"));
+        let mut filter_autoexpand_matches_button = PushButton::new(&qtr("treeview_autoexpand"));
+        let mut filter_case_sensitive_button = PushButton::new(&qtr("treeview_aai"));
+        filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
 
@@ -147,36 +147,36 @@ impl PackFileContentsUI {
 
         // Populate the `Contextual Menu` for the `PackFile` TreeView.
         let mut packfile_contents_tree_view_context_menu = Menu::new(());
-        let menu_add = packfile_contents_tree_view_context_menu.add_menu(&QString::from_std_str("&Add..."));
-        let menu_create = packfile_contents_tree_view_context_menu.add_menu(&QString::from_std_str("&Create..."));
-        let menu_open = packfile_contents_tree_view_context_menu.add_menu(&QString::from_std_str("&Open..."));
+        let menu_add = packfile_contents_tree_view_context_menu.add_menu(&qtr("context_menu_add"));
+        let menu_create = packfile_contents_tree_view_context_menu.add_menu(&qtr("context_menu_create"));
+        let menu_open = packfile_contents_tree_view_context_menu.add_menu(&qtr("context_menu_open"));
 
         let menu_add_ref_mut = unsafe { menu_add.as_mut().unwrap() };
         let menu_create_ref_mut = unsafe { menu_create.as_mut().unwrap() };
         let menu_open_ref_mut = unsafe { menu_open.as_mut().unwrap() };
-        let context_menu_add_file = menu_add_ref_mut.add_action(&QString::from_std_str("&Add File"));
-        let context_menu_add_folder = menu_add_ref_mut.add_action(&QString::from_std_str("Add &Folder"));
-        let context_menu_add_from_packfile = menu_add_ref_mut.add_action(&QString::from_std_str("Add from &PackFile"));
-        let context_menu_new_folder = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Folder"));
-        let context_menu_new_packed_file_db = menu_create_ref_mut.add_action(&QString::from_std_str("Create &DB"));
-        let context_menu_new_packed_file_loc = menu_create_ref_mut.add_action(&QString::from_std_str("&Create Loc"));
-        let context_menu_new_packed_file_text = menu_create_ref_mut.add_action(&QString::from_std_str("Create &Text"));
-        let context_menu_new_queek_packed_file = menu_create_ref_mut.add_action(&QString::from_std_str("New Queek File"));
-        let context_menu_mass_import_tsv = menu_create_ref_mut.add_action(&QString::from_std_str("Mass-Import TSV"));
-        let context_menu_mass_export_tsv = menu_create_ref_mut.add_action(&QString::from_std_str("Mass-Export TSV"));
-        let context_menu_rename = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Rename"));
-        let context_menu_delete = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Delete"));
-        let context_menu_extract = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Extract"));
-        let context_menu_open_decoder = menu_open_ref_mut.add_action(&QString::from_std_str("&Open with Decoder"));
-        let context_menu_open_dependency_manager = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Dependency Manager"));
-        let context_menu_open_containing_folder = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Containing Folder"));
-        let context_menu_open_with_external_program = menu_open_ref_mut.add_action(&QString::from_std_str("Open with &External Program"));
-        let context_menu_open_notes = menu_open_ref_mut.add_action(&QString::from_std_str("Open &Notes"));
-        let context_menu_check_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Check Tables"));
-        let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Merge Tables"));
-        let context_menu_update_table = packfile_contents_tree_view_context_menu.add_action(&QString::from_std_str("&Update Table"));
-        let packfile_contents_tree_view_expand_all = Action::new(&QString::from_std_str("&Expand All"));
-        let packfile_contents_tree_view_collapse_all = Action::new(&QString::from_std_str("&Collapse All"));
+        let context_menu_add_file = menu_add_ref_mut.add_action(&qtr("context_menu_add_file"));
+        let context_menu_add_folder = menu_add_ref_mut.add_action(&qtr("context_menu_add_folder"));
+        let context_menu_add_from_packfile = menu_add_ref_mut.add_action(&qtr("context_menu_add_from_packfile"));
+        let context_menu_new_folder = menu_create_ref_mut.add_action(&qtr("context_menu_new_folder"));
+        let context_menu_new_packed_file_db = menu_create_ref_mut.add_action(&qtr("context_menu_new_packed_file_db"));
+        let context_menu_new_packed_file_loc = menu_create_ref_mut.add_action(&qtr("context_menu_new_packed_file_loc"));
+        let context_menu_new_packed_file_text = menu_create_ref_mut.add_action(&qtr("context_menu_new_packed_file_text"));
+        let context_menu_new_queek_packed_file = menu_create_ref_mut.add_action(&qtr("context_menu_new_queek_packed_file"));
+        let context_menu_mass_import_tsv = menu_create_ref_mut.add_action(&qtr("context_menu_mass_import_tsv"));
+        let context_menu_mass_export_tsv = menu_create_ref_mut.add_action(&qtr("context_menu_mass_export_tsv"));
+        let context_menu_rename = packfile_contents_tree_view_context_menu.add_action(&qtr("context_menu_rename"));
+        let context_menu_delete = packfile_contents_tree_view_context_menu.add_action(&qtr("context_menu_delete"));
+        let context_menu_extract = packfile_contents_tree_view_context_menu.add_action(&qtr("context_menu_extract"));
+        let context_menu_open_decoder = menu_open_ref_mut.add_action(&qtr("context_menu_open_decoder"));
+        let context_menu_open_dependency_manager = menu_open_ref_mut.add_action(&qtr("context_menu_open_dependency_manager"));
+        let context_menu_open_containing_folder = menu_open_ref_mut.add_action(&qtr("context_menu_open_containing_folder"));
+        let context_menu_open_with_external_program = menu_open_ref_mut.add_action(&qtr("context_menu_open_with_external_program"));
+        let context_menu_open_notes = menu_open_ref_mut.add_action(&qtr("context_menu_open_notes"));
+        let context_menu_check_tables = packfile_contents_tree_view_context_menu.add_action(&qtr("context_menu_check_tables"));
+        let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action(&qtr("context_menu_merge_tables"));
+        let context_menu_update_table = packfile_contents_tree_view_context_menu.add_action(&qtr("context_menu_update_table"));
+        let packfile_contents_tree_view_expand_all = Action::new(&qtr("treeview_expand_all"));
+        let packfile_contents_tree_view_collapse_all = Action::new(&qtr("treeview_collapse_all"));
 
         // Configure the `Contextual Menu` for the `PackFile` TreeView.
         unsafe { menu_create_ref_mut.insert_separator(context_menu_mass_import_tsv); }
