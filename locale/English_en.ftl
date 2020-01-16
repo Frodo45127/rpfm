@@ -324,6 +324,14 @@ context_menu_update_table = &Update Table
 
 ### Shortcuts
 
+menu_bar_packfile_section = PackFile Menu
+menu_bar_mymod_section = MyMod Menu
+menu_bar_game_selected_section = Game Selected Menu
+menu_bar_about_section = About Menu
+packfile_contents_tree_view_section = PackFile Contents Contextual Menu
+packed_file_table_section = Table PackedFile Contextual Menu
+packed_file_decoder_section = PackedFile Decoder
+
 shortcut_esc = Esc
 shortcut_csp = Ctrl+Shift+P
 

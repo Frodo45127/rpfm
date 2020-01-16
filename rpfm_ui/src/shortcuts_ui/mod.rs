@@ -32,7 +32,7 @@ use qt_core::variant::Variant;
 
 use crate::QString;
 use crate::ffi::new_treeview_filter;
-use crate::locale::qtr;
+use crate::locale::{qtr, tr};
 use crate::ui_state::shortcuts::Shortcuts;
 use crate::utils::create_grid_layout_unsafe;
 use crate::UI_STATE;
@@ -40,14 +40,6 @@ use self::slots::ShortcutsUISlots;
 
 mod connections;
 mod slots;
-
-const MENU_BAR_PACKFILE_SECTION: &str = "PackFile Menu";
-const MENU_BAR_MYMOD_SECTION: &str = "MyMod Menu";
-const MENU_BAR_GAME_SELECTED_SECTION: &str = "Game Selected Menu";
-const MENU_BAR_ABOUT_SECTION: &str = "About Menu";
-const PACKFILE_CONTENTS_TREE_VIEW_SECTION: &str = "PackFile Contents Contextual Menu";
-const PACKED_FILE_TABLE_SECTION: &str = "Table PackedFile Contextual Menu";
-const PACKED_FILE_DECODER_SECTION: &str = "PackedFile Decoder";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -138,7 +130,7 @@ impl ShortcutsUI {
             let mut menu_bar_packfile_parent = ListStandardItemMutPtr::new(());
             let mut section = StandardItem::new(());
             let mut fill1 = StandardItem::new(());
-            section.set_text(&QString::from_std_str(MENU_BAR_PACKFILE_SECTION));
+            section.set_text(&qtr("menu_bar_packfile_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_packfile.iter() {
@@ -158,7 +150,7 @@ impl ShortcutsUI {
             let mut menu_bar_packfile_parent = ListStandardItemMutPtr::new(());
             let mut section = StandardItem::new(());
             let mut fill1 = StandardItem::new(());
-            section.set_text(&QString::from_std_str(MENU_BAR_MYMOD_SECTION));
+            section.set_text(&qtr("menu_bar_mymod_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_mymod.iter() {
@@ -178,7 +170,7 @@ impl ShortcutsUI {
             let mut menu_bar_packfile_parent = ListStandardItemMutPtr::new(());
             let mut section = StandardItem::new(());
             let mut fill1 = StandardItem::new(());
-            section.set_text(&QString::from_std_str(MENU_BAR_GAME_SELECTED_SECTION));
+            section.set_text(&qtr("menu_bar_game_selected_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_game_selected.iter() {
@@ -198,7 +190,7 @@ impl ShortcutsUI {
             let mut menu_bar_packfile_parent = ListStandardItemMutPtr::new(());
             let mut section = StandardItem::new(());
             let mut fill1 = StandardItem::new(());
-            section.set_text(&QString::from_std_str(MENU_BAR_ABOUT_SECTION));
+            section.set_text(&qtr("menu_bar_about_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_about.iter() {
@@ -218,7 +210,7 @@ impl ShortcutsUI {
             let mut menu_bar_packfile_parent = ListStandardItemMutPtr::new(());
             let mut section = StandardItem::new(());
             let mut fill1 = StandardItem::new(());
-            section.set_text(&QString::from_std_str(PACKFILE_CONTENTS_TREE_VIEW_SECTION));
+            section.set_text(&qtr("packfile_contents_tree_view_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.packfile_contents_tree_view.iter() {
@@ -238,7 +230,7 @@ impl ShortcutsUI {
             let mut menu_bar_packfile_parent = ListStandardItemMutPtr::new(());
             let mut section = StandardItem::new(());
             let mut fill1 = StandardItem::new(());
-            section.set_text(&QString::from_std_str(PACKED_FILE_TABLE_SECTION));
+            section.set_text(&qtr("packed_file_table_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.packed_file_table.iter() {
@@ -258,7 +250,7 @@ impl ShortcutsUI {
             let mut menu_bar_packfile_parent = ListStandardItemMutPtr::new(());
             let mut section = StandardItem::new(());
             let mut fill1 = StandardItem::new(());
-            section.set_text(&QString::from_std_str(PACKED_FILE_DECODER_SECTION));
+            section.set_text(&qtr("packed_file_decoder_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.packed_file_decoder.iter() {
@@ -289,18 +281,25 @@ impl ShortcutsUI {
         let shortcuts_model = unsafe { self.shortcuts_model.as_ref().unwrap() };
         let root = unsafe { shortcuts_model.invisible_root_item().as_ref().unwrap() };
 
+        let menu_bar_packfile_section_title = tr("menu_bar_packfile_section");
+        let menu_bar_mymod_section_title = tr("menu_bar_mymod_section");
+        let menu_bar_game_selected_section_title = tr("menu_bar_game_selected_section");
+        let menu_bar_about_section_title = tr("menu_bar_about_section");
+        let packfile_contents_tree_view_section_title = tr("packfile_contents_tree_view_section");
+        let packed_file_table_section_title = tr("packed_file_table_section");
+        let packed_file_decoder_section_title = tr("packed_file_decoder_section");
+
         for index in 0..root.row_count() {
             let section = unsafe { root.child(index).as_ref().unwrap() };
-            let map = match &*section.text().to_std_string() {
-                MENU_BAR_PACKFILE_SECTION => &mut shortcuts.menu_bar_packfile,
-                MENU_BAR_MYMOD_SECTION => &mut shortcuts.menu_bar_mymod,
-                MENU_BAR_GAME_SELECTED_SECTION => &mut shortcuts.menu_bar_game_selected,
-                MENU_BAR_ABOUT_SECTION => &mut shortcuts.menu_bar_about,
-                PACKFILE_CONTENTS_TREE_VIEW_SECTION => &mut shortcuts.packfile_contents_tree_view,
-                PACKED_FILE_TABLE_SECTION => &mut shortcuts.packed_file_table,
-                PACKED_FILE_DECODER_SECTION => &mut shortcuts.packed_file_decoder,
-                _ => panic!("WTF?!! YOU ARE NOT SUPPOSED TO MANUALLY DO WEIRD STUFF WITH THE RON FILE!!!"),
-            };
+            let section_text = section.text().to_std_string();
+            let map = if section_text == menu_bar_packfile_section_title { &mut shortcuts.menu_bar_packfile }
+                else if section_text == menu_bar_mymod_section_title { &mut shortcuts.menu_bar_mymod }
+                else if section_text == menu_bar_game_selected_section_title { &mut shortcuts.menu_bar_game_selected }
+                else if section_text == menu_bar_about_section_title { &mut shortcuts.menu_bar_about }
+                else if section_text == packfile_contents_tree_view_section_title { &mut shortcuts.packfile_contents_tree_view }
+                else if section_text == packed_file_table_section_title { &mut shortcuts.packed_file_table }
+                else if section_text == packed_file_decoder_section_title { &mut shortcuts.packed_file_decoder }
+                else { panic!("WTF?!! YOU ARE NOT SUPPOSED TO MANUALLY DO WEIRD STUFF WITH THE RON FILE!!!") };
 
             for index in 0..section.row_count() {
                 let key = unsafe { section.child((index, 0)).as_ref().unwrap().text().to_std_string() };
