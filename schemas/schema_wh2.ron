@@ -85021,7 +85021,7 @@
                     description: "",
                 ),
                 (
-                    name: "surname",
+                    name: "forename",
                     field_type: StringU8,
                     is_key: false,
                     default_value: None,
@@ -85033,7 +85033,7 @@
                     description: "",
                 ),
                 (
-                    name: "forename",
+                    name: "surname",
                     field_type: StringU8,
                     is_key: false,
                     default_value: None,

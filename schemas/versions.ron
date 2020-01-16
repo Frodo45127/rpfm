@@ -1,5 +1,5 @@
 ({
-    "schema_3k.ron": 3,
+    "schema_3k.ron": 4,
     "schema_are.ron": 6,
     "schema_att.ron": 10,
     "schema_emp.ron": 0,
@@ -8,5 +8,5 @@
     "schema_sho2.ron": 6,
     "schema_tob.ron": 9,
     "schema_wh.ron": 17,
-    "schema_wh2.ron": 21,
+    "schema_wh2.ron": 22,
 })
