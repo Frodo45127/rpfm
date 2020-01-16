@@ -40,6 +40,10 @@ pub struct GlobalSearchSlots {
     pub global_search_check_regex: SlotStringRef<'static>,
     pub global_search_open_match: SlotModelIndexRef<'static>,
     pub global_search_toggle_all: SlotBool<'static>,
+    pub global_search_filter_dbs: SlotNoArgs<'static>,
+    pub global_search_filter_locs: SlotNoArgs<'static>,
+    pub global_search_filter_texts: SlotNoArgs<'static>,
+    pub global_search_filter_schemas: SlotNoArgs<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -106,6 +110,43 @@ impl GlobalSearchSlots {
             unsafe { global_search_ui.global_search_search_on_schemas_checkbox.as_mut().unwrap().set_enabled(!state) };
         });
 
+        // What happens when we filter the different result TreeViews
+        let global_search_filter_dbs = SlotNoArgs::new(move || {
+            GlobalSearchUI::filter_results(
+                global_search_ui.global_search_matches_db_tree_view,
+                global_search_ui.global_search_matches_filter_db_line_edit,
+                global_search_ui.global_search_matches_column_selector_db_combobox,
+                global_search_ui.global_search_matches_case_sensitive_db_button,
+            );
+        });
+
+        let global_search_filter_locs = SlotNoArgs::new(move || {
+            GlobalSearchUI::filter_results(
+                global_search_ui.global_search_matches_loc_tree_view,
+                global_search_ui.global_search_matches_filter_loc_line_edit,
+                global_search_ui.global_search_matches_column_selector_loc_combobox,
+                global_search_ui.global_search_matches_case_sensitive_loc_button,
+            );
+        });
+
+        let global_search_filter_texts = SlotNoArgs::new(move || {
+            GlobalSearchUI::filter_results(
+                global_search_ui.global_search_matches_text_tree_view,
+                global_search_ui.global_search_matches_filter_text_line_edit,
+                global_search_ui.global_search_matches_column_selector_text_combobox,
+                global_search_ui.global_search_matches_case_sensitive_text_button,
+            );
+        });
+
+        let global_search_filter_schemas = SlotNoArgs::new(move || {
+            GlobalSearchUI::filter_results(
+                global_search_ui.global_search_matches_schema_tree_view,
+                global_search_ui.global_search_matches_filter_schema_line_edit,
+                global_search_ui.global_search_matches_column_selector_schema_combobox,
+                global_search_ui.global_search_matches_case_sensitive_schema_button,
+            );
+        });
+
         // And here... we return all the slots.
 		Self {
             global_search_search,
@@ -114,6 +155,10 @@ impl GlobalSearchSlots {
             global_search_check_regex,
             global_search_open_match,
             global_search_toggle_all,
+            global_search_filter_dbs,
+            global_search_filter_locs,
+            global_search_filter_texts,
+            global_search_filter_schemas,
 		}
 	}
 }

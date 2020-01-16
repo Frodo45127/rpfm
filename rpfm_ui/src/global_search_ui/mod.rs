@@ -36,7 +36,8 @@ use qt_core::item_selection_model::SelectionFlag;
 use qt_core::flags::Flags;
 use qt_core::model_index::ModelIndex;
 use qt_core::object::Object;
-use qt_core::qt::{DockWidgetArea, Orientation, SortOrder};
+use qt_core::qt::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder};
+use qt_core::reg_exp::RegExp;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::variant::Variant;
 
@@ -51,7 +52,7 @@ use rpfm_lib::global_search::{GlobalSearch, schema::SchemaMatches, table::TableM
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::ffi::new_treeview_filter;
+use crate::ffi::{new_treeview_filter, trigger_treeview_filter};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{TheOneSlot, View};
@@ -835,5 +836,24 @@ impl GlobalSearchUI {
 
             unsafe { tree_view.header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
         }
+    }
+
+    /// Function to filter the PackFile Contents TreeView.
+    pub fn filter_results(
+        view: *mut TreeView,
+        line_edit: *mut LineEdit,
+        column_combobox: *mut ComboBox,
+        case_sensitive_button: *mut PushButton,
+    ) {
+
+        let mut pattern = unsafe { RegExp::new(&line_edit.as_ref().unwrap().text()) };
+
+        let case_sensitive = unsafe { case_sensitive_button.as_mut().unwrap().is_checked() };
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+
+        let model_filter = unsafe { view.as_ref().unwrap().model() as *mut SortFilterProxyModel};
+        unsafe { model_filter.as_mut().unwrap().set_filter_key_column(column_combobox.as_mut().unwrap().current_index()); }
+        unsafe { trigger_treeview_filter(model_filter, &mut pattern); }
     }
 }
