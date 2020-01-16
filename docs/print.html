@@ -1151,12 +1151,1077 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="changelogs_tables/three_kingdoms/changelog.html#004">004</a></li>
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#003">003</a></li>
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#002">002</a></li>
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#001">001</a></li>
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#000">000</a></li>
 </ul>
 <hr />
+<h1><a class="header" href="#004" id="004">004</a></h1>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>audio_campaign_environment_reverb_junctions_tables</em>.</li>
+<li><em>audio_campaign_environment_reverb_types_tables</em>.</li>
+<li><em>audio_campaign_environment_reverbs_tables</em>.</li>
+<li><em>audio_campaign_environments_tables</em>.</li>
+<li><em>deployables_ability_to_invalid_usage_flags_tables</em>.</li>
+<li><em>deployables_to_disallowed_battle_types_tables</em>.</li>
+<li><em>frontend_characters_tables</em>.</li>
+<li><em>frontend_faction_to_frontend_faction_leaders_tables</em>.</li>
+<li><em>government_transition_mappings_tables</em>.</li>
+<li><em>ministerial_positions_to_government_types_tables</em>.</li>
+<li><em>pooled_resource_ui_colours_tables</em>.</li>
+<li><em>technology_category_ui_colours_tables</em>.</li>
+<li><em>ui_new_content_factions_tables</em>.</li>
+<li><em>ui_primary_faction_pooled_resources_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><em><strong>advisors_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>optional_character_template</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>character_generation_templates</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>advisor_icon_path</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>agent_weighted_selection_to_subtype_sets_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>spawn_reason</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>agent_spawn_reason_enums</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>is_born</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_campaign_buildings_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>reverb</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>obstruction</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_campaign_environment_looping_sounds_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>reverb</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>obstruction</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_campaign_stances_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>reverb</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>obstruction</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_entity_types_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>charging_random_vocalisation</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_entity_random_vocalisations</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>mounted_idle_random_sound</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_entity_random_vocalisations</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>mounted_moving_random_sound</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_entity_random_vocalisations</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>mounted_moving_fast_random_sound</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_entity_random_vocalisations</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>mounted_stopping_random_sound</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_entity_random_vocalisations</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>max_camera_distance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>min_camera_distance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>consider_moving</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>record_id</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Long Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>min_unit_focus_velocity</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>focus_pool</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_entity_focus_pools</em>/<em>pool_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>should_use_unique_entity_switches</em>.</li>
+<li><em>max_unique_entity_switches</em>.</li>
+<li><em>max_camera_distance_for_focus</em>.</li>
+<li><em>min_camera_distance_for_focus</em>.</li>
+<li><em>unique_entity_switch</em>.</li>
+<li><em>ignore_moving_outside_combat</em>.</li>
+<li><em>ignore_moving</em>.</li>
+<li><em>group_idle_shoot</em>.</li>
+<li><em>group_idle_combat_ready</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_markers_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>reverb</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>obstruction</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_ui_categories_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>double_left_click</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_vo_actors_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>fallback_actor</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_vo_actors</em>/<em>key</em>.</li>
+<li><strong>Description</strong>: <em>If we don't have a dialogue event for this actor, use the fallback actor instead</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>battle_animations_table_allowed_combinations_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>secondary_weapon_animation</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>battle_animations_table</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>additional_animation</strong>:
+<ul>
+<li><em><strong>Type</strong></em>: <em>StringU8</em> =&gt; <em>OptionalStringU8</em>.</li>
+<li><em><strong>Is Key</strong></em>: <em>true</em> =&gt; <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>cai_diplomacy_deal_generation_condition_set_junctions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>param_faction_key</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>factions</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>cai_personality_strategic_components_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>strategic_context_enemy_strength_ratio_lower_bound</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>strategic_context_enemy_strength_ratio_upper_bound</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>cai_variables_overides_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>round</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_diplomacy_treaty_component_income_transfer_effects_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>regular_income_factor_percentage</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>varying_regular_income_factor_percentage</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>instant_income_factor_percentage</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>maximum_regular_income_transferred</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>maximum_varying_regular_income_transferred</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>maximum_instant_income_transferred</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>income_divided_by_num_of_subjects</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_group_post_battle_casualty_resources_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>resource_transaction_scope</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>pooled_resource_scopes</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_group_post_battle_result_resources_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>resource_transaction_scope</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>pooled_resource_scopes</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_public_order_populace_effects_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>group</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_groups</em>/<em>id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>culture</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_ui_diplomatic_cco_states_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>icon_path</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_ui_diplomatic_states_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>faction_fill_state</em>.</li>
+<li><em>faction_list_pip_state</em>.</li>
+<li><em>flag_style</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaigns_campaign_variables_junctions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>round</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ceos_to_equipment_variants_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>secondary_weapon_animation</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>battle_animations_table</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>character_generation_template_game_mode_details_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>is_deployable</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>character_generation_templates_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>voiceover_actor_generals_speech</em>.</li>
+<li><em>voiceover_actor_diplomacy</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>deployables_abilities_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>ai_usage</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>battle_ai_abilities_usage_template_names</em>/<em>ai_ability_usage_template_key</em>.</li>
+</ul>
+</li>
+<li><em><strong>wind_up_stance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>special_ability_stances</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>deployables_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>ground_type_replacement</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>ground_types</em>/<em>type</em>.</li>
+<li><strong>Description</strong>: <em>Set the ground type to replace under this deployable</em>.</li>
+</ul>
+</li>
+<li><em><strong>battlefield_building</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>battlefield_buildings</em>/<em>key</em>.</li>
+<li><strong>Description</strong>: <em>Allow the placement of actual buildings. Note: experimental. Things with hard collision won't work. Platforms are untested</em>.</li>
+</ul>
+</li>
+<li><em><strong>capture_radius</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>If there is a building specified then we can add a capture point to it by specifying a radius. If -1 or no battlefield building, then none will be added.</em>.</li>
+</ul>
+</li>
+<li><em><strong>fire_update_frequency</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>minimum_placement_distance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>The minimum distance this deployable must be from another to be deployed</em>.</li>
+</ul>
+</li>
+<li><em><strong>ground_type_replacement_radius_mod</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>This modifier will be multiplied by the radius of the deployable soft collision to come up with an area with which we do the intersection test for the ground type replacement. Should be &gt; 1 if you want to apply stat effects in proximity of the deployable</em>.</li>
+</ul>
+</li>
+<li><em><strong>hiding_scalar</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>This value will be used to modify the distance required to spot this deployable. &lt; 1.0 and you will need to get closer &gt; 1.0 and you can spot from further away</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>custom_battle_enabled</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>dynamic_loading_screen_starting_faction_events_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign_key</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaigns</em>/<em>campaign_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>faction_groups_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>character_selection_background</em>.</li>
+<li><em>campaign_selection_background</em>.</li>
+<li><em>campaign_selection_midground</em>.</li>
+<li><em>campaign_selection_foreground</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>frontend_campaign_selection_map_pins_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>frontend_character</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>frontend_characters</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>allied_map_image</em>.</li>
+<li><em>enemy_map_image</em>.</li>
+<li><em>owned_map_image</em>.</li>
+<li><em>character_generation_template</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>frontend_faction_leader_playstyles_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>frontend_faction_leader_key</em>.</li>
+<li><em>localised_title</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>frontend_faction_leader_unique_characters_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>frontend_character</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>frontend_characters</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>portrait_path</em>.</li>
+<li><em>character_generation_template</em>.</li>
+<li><em>faction_record</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>frontend_faction_leaders_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>frontend_character</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>frontend_characters</em>/<em>key</em>.</li>
+</ul>
+</li>
+<li><em><strong>starting_progression_level</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaign_progression_level_details</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>prelude_battle</strong>:
+<ul>
+<li><em><strong>Description</strong></em>: <em>Specify if this character has a optional prelude battle can play before campaign</em> =&gt; <em>The path to the defeat screen image</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>uniform</em>.</li>
+<li><em>x_offset</em>.</li>
+<li><em>y_offset</em>.</li>
+<li><em>chinese_icon_path</em>.</li>
+<li><em>character_generation_template</em>.</li>
+<li><em>specialisation_effect_bundle</em>.</li>
+<li><em>map_path</em>.</li>
+<li><em>faction_leader_general_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>frontend_faction_leaders_to_frontend_campaign_selection_map_pins_junctions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign_key</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaigns</em>/<em>campaign_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>junction_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>frontend_faction_map_relationships_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign_key</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaigns</em>/<em>campaign_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>campaign_map_playable_area</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>frontend_factions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>active_years_start</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>active_years_end</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>playstyle</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>frontend_faction_leader_playstyles</em>/<em>frontend_faction_leader_playstyles</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>sort_order</strong>:
+<ul>
+<li><em><strong>Description</strong></em>: ** =&gt; <em>the sort order of this faction per group on the frontend</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>video</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>loyalty_factors_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>data_driven_factor_requires_ceo_equipped_in_set</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>ceo_sets</em>/<em>key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>main_units_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>adc_plays_as_conversation</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>voiceover_actor_group_battle_conversation</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ministerial_positions_culture_details_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>allow_character_to_factionwide_ministerial_alternative_effects</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ministerial_positions_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>requires_world_leader</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>models_deployables_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>collision_file</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>new_content_alerts_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>release_order</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Id for when released. Only most recent is shown to player, but can have multiple with same field in which case show order field determines order shown in</em>.</li>
+</ul>
+</li>
+<li><em><strong>optional_dlc_link</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>pdlc</em>/<em>id</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>show_order</strong>:
+<ul>
+<li><em><strong>Description</strong></em>: ** =&gt; <em>When have multiple entries with same release order determines which shown first</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>header</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>pdlc_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>optional_dlc_icon</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>pooled_resources_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>shared</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>faction_specific</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>projectiles_explosions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>ground_spread</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>projectiles_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>spawn_deployable_on_impact</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>deployables</em>/<em>key</em>.</li>
+<li><strong>Description</strong>: <em>Specify a deployable to spawn when this projectile collides with the ground</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>retinue_slot_initial_units_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>campaigns</em>/<em>campaign_name</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>technology_node_sets_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>colour_r</em>.</li>
+<li><em>colour_g</em>.</li>
+<li><em>colour_b</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ui_ministerial_positions_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>input_type</em>.</li>
+<li><em>set_record</em>.</li>
+<li><em>set_order</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ui_resource_transaction_pooled_resource_junctions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>hide_in_ui</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>unit_special_abilities_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>hp_cost_is_percentage</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>This will delay adding the vortex until a number of seconds after the ability is activated.</em>.</li>
+</ul>
+</li>
+<li><em><strong>hp_cost</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Absolute/Percentage hp the caster will lose if this ability is triggered, scales with unit_size if absolute. Check the hp_cost_is_percentage field is updated when setting this. Will be capped at 99 if percentage based</em>.</li>
+</ul>
+</li>
+<li><em><strong>vortex_spawn_delay</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>This will delay adding the vortex until a number of seconds after the ability is activated.</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <h1><a class="header" href="#003" id="003">003</a></h1>
 <p>It contains the following changes:</p>
 <ul>
