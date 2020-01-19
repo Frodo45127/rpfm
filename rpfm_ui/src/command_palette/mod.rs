@@ -18,7 +18,6 @@ use qt_gui::list::ListStandardItemMutPtr;
 use qt_gui::standard_item::StandardItem;
 
 use qt_core::flags::Flags;
-use qt_core::qt::CaseSensitivity;
 
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;

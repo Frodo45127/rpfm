@@ -15,39 +15,44 @@ This module contains all the code related with the schemas used by this lib to d
 
 The basic structure of an `Schema` is:
 ```rust
-([
-    DB("_kv_battle_ai_ability_usage_variables_tables", [
-        (
-            version: 0,
-            fields: [
-                (
-                    name: "key",
-                    field_type: StringU8,
-                    is_key: true,
-                    default_value: None,
-                    max_length: 0,
-                    is_filename: false,
-                    filename_relative_path: None,
-                    is_reference: None,
-                    lookup: None,
-                    description: "",
-                ),// [0]
-                (
-                    name: "value",
-                    field_type: Float,
-                    is_key: false,
-                    default_value: None,
-                    max_length: 0,
-                    is_filename: false,
-                    filename_relative_path: None,
-                    is_reference: None,
-                    lookup: None,
-                    description: "",
-                ),// [1]
-            ],
-        ),// [0]
-    ]),// [2]
-])
+(
+    version: 2,
+    versioned_files: [
+        DB("_kv_battle_ai_ability_usage_variables_tables", [
+            (
+                version: 0,
+                fields: [
+                    (
+                        name: "key",
+                        field_type: StringU8,
+                        is_key: true,
+                        default_value: None,
+                        max_length: 0,
+                        is_filename: false,
+                        filename_relative_path: None,
+                        is_reference: None,
+                        lookup: None,
+                        description: "",
+                        ca_order: -1,
+                    ),
+                    (
+                        name: "value",
+                        field_type: Float,
+                        is_key: false,
+                        default_value: None,
+                        max_length: 0,
+                        is_filename: false,
+                        filename_relative_path: None,
+                        is_reference: None,
+                        lookup: None,
+                        description: "",
+                        ca_order: -1,
+                    ),
+                ],
+            ),
+        ]),
+    ],
+)
 ```
 
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
@@ -73,6 +78,10 @@ use crate::packedfile::table::db::DB;
 
 pub mod assembly_kit;
 
+// Legacy Schemas, to keep backwards compatibility during updates.
+pub(crate) mod v1;
+pub(crate) mod v0;
+
 /// Name of the schema versions file.
 const SCHEMA_VERSIONS_FILE: &str = "versions.ron";
 
@@ -85,6 +94,9 @@ const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo4
 /// URL of the remote repository's schema folder. Develop branch.
 const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/";
 
+/// Current structural version of the Schema, for compatibility purpouses.
+const CURRENT_STRUCTURAL_VERSION: u16 = 2;
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -94,8 +106,15 @@ const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo
 pub struct VersionsFile(BTreeMap<String, u32>);
 
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
-#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
-pub struct Schema(Vec<VersionedFile>);
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct Schema {
+
+    /// It stores the structural version of the Schema.
+    pub version: u16,
+
+    /// It stores the versioned files inside the Schema.
+    pub versioned_files: Vec<VersionedFile>
+}
 
 /// This enum defines all types of versioned files that the schema system supports.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
@@ -123,6 +142,9 @@ pub struct Definition {
 
     /// This is a collection of all `Field`s the PackedFile uses, in the order it uses them.
     pub fields: Vec<Field>,
+
+    /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
+    pub localised_fields: Vec<Field>,
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
@@ -158,6 +180,9 @@ pub struct Field {
 
     /// Aclarative description of what the field is for.
     pub description: String,
+
+    /// Visual position in CA's Table. `-1` means we don't know its position.
+    pub ca_order: i16,
 }
 
 /// This enum defines every type of field the lib can encode/decode.
@@ -184,34 +209,6 @@ pub enum APIResponseSchema {
     Error,
 }
 
-// Old formats, to ease updating schemas from 1.X to 2.X.
-// These all should remain private, as we only need them to be able to parse the old schemas and convert them into the new ones.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct LegacySchema {
-    pub tables_definitions: Vec<LegacyTableDefinitions>,
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-struct LegacyTableDefinitions {
-    pub name: String,
-    pub versions: Vec<LegacyTableDefinition>,
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-struct LegacyTableDefinition {
-    pub version: i32,
-    pub fields: Vec<LegacyField>,
-}
-
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
-struct LegacyField {
-    pub field_name: String,
-    pub field_type: FieldType,
-    pub field_is_key: bool,
-    pub field_is_reference: Option<(String, String)>,
-    pub field_description: String,
-}
-
 //---------------------------------------------------------------------------//
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
@@ -219,23 +216,18 @@ struct LegacyField {
 /// Implementation of `Schema`.
 impl Schema {
 
-    /// This function creates a new empty schema. Similar to `Schema::default()`.
-    pub fn new() -> Self {
-        Self(vec![])
-    }
-
     /// This function adds a new `VersionedFile` to the schema. This checks if the provided `VersionedFile`
     /// already exists, and replace it if neccesary.
     pub fn add_versioned_file(&mut self, versioned_file: &VersionedFile) {
-        match self.0.iter().position(|x| x.conflict(versioned_file)) {
-            Some(position) => { self.0.splice(position..=position, [versioned_file.clone()].iter().cloned()); },
-            None => self.0.push(versioned_file.clone()),
+        match self.versioned_files.iter().position(|x| x.conflict(versioned_file)) {
+            Some(position) => { self.versioned_files.splice(position..=position, [versioned_file.clone()].iter().cloned()); },
+            None => self.versioned_files.push(versioned_file.clone()),
         }
     }
 
     /// This function returns a reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
     pub fn get_versioned_file_db(&self, table_name: &str) -> Result<&VersionedFile> {
-        self.0.iter().filter(|x| x.is_db())
+        self.versioned_files.iter().filter(|x| x.is_db())
             .find(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
         ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
@@ -283,7 +275,7 @@ impl Schema {
 
     /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
     pub fn get_mut_versioned_file_db(&mut self, table_name: &str) -> Result<&mut VersionedFile> {
-        self.0.iter_mut().filter(|x| x.is_db())
+        self.versioned_files.iter_mut().filter(|x| x.is_db())
             .find(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
         ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
@@ -292,38 +284,38 @@ impl Schema {
     ///
     /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_versioned_file_dep_manager(&self) -> Result<&VersionedFile> {
-        self.0.iter().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.versioned_files.iter().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a mutable reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_mut_versioned_file_dep_manager(&mut self) -> Result<&mut VersionedFile> {
-        self.0.iter_mut().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.versioned_files.iter_mut().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_versioned_file_loc(&self) -> Result<&VersionedFile> {
-        self.0.iter().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.versioned_files.iter().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a mutable reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
     pub fn get_mut_versioned_file_loc(&mut self) -> Result<&mut VersionedFile> {
-        self.0.iter_mut().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+        self.versioned_files.iter_mut().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a reference to all the `VersionedFile` in the provided `Schema`.
     pub fn get_ref_versioned_file_all(&self) -> Vec<&VersionedFile> {
-        self.0.iter().collect()
+        self.versioned_files.iter().collect()
     }
 
     /// This function returns a reference to all the `VersionedFile` in the provided `Schema` of type `DB`.
     pub fn get_ref_versioned_file_db_all(&self) -> Vec<&VersionedFile> {
-        self.0.iter().filter(|x| x.is_db()).collect()
+        self.versioned_files.iter().filter(|x| x.is_db()).collect()
     }
 
     /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
@@ -350,7 +342,7 @@ impl Schema {
 
     /// This function sorts a `Schema` alphabetically, so the schema diffs are more or less clean.
     pub fn sort(&mut self) {
-        self.0.sort_by(|a, b| {
+        self.versioned_files.sort_by(|a, b| {
             match a {
                 VersionedFile::DB(table_name_a, _) => {
                     match b {
@@ -436,7 +428,7 @@ impl Schema {
             let mut new_corrections: Vec<String> = vec![];
 
             // For each table, we need to check EVERY possible difference.
-            for table_local in schema_local.0.iter().filter(|x| x.is_db()) {
+            for table_local in schema_local.versioned_files.iter().filter(|x| x.is_db()) {
                 if let VersionedFile::DB(name_local, versions_local) = table_local {
                     match schema_current.get_versioned_file_db(name_local) {
 
@@ -557,16 +549,12 @@ impl Schema {
         Ok(())
     }
 
-    pub fn update_schemas_from_legacy() {
-        let legacy_schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), From::from(LegacySchema::load(&y.schema).unwrap()))).collect::<BTreeMap<String, Schema>>();
-        let mut schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), Schema::load(&y.schema).unwrap())).collect::<BTreeMap<String, Schema>>();
-        legacy_schemas.iter().for_each(|(game, legacy_schema)| {
-            let schema = schemas.get_mut(game).unwrap();
-            legacy_schema.0.iter().for_each(|legacy_versioned_file| schema.add_versioned_file(legacy_versioned_file));
-            schema.save(&SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true).unwrap()).unwrap();
-        });
-
-
+    /// This function allow us to update all Schemas from any legacy version into the current one.
+    ///
+    /// NOTE FOR DEV: If you make a new Schema Version, add its update function here.
+    pub fn update() {
+        v0::SchemaV0::update();
+        v1::SchemaV1::update();
     }
 }
 
@@ -665,6 +653,7 @@ impl Definition {
     pub fn new(version: i32) -> Definition {
         Definition {
             version,
+            localised_fields: vec![],
             fields: vec![],
         }
     }
@@ -675,7 +664,7 @@ impl Definition {
     /// import the version (this... I think I can do some trick for it).
     pub fn new_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> Self {
         let mut fields = vec![];
-        for field in &imported_table_definition.field {
+        for (position, field) in imported_table_definition.field.iter().enumerate() {
 
             // First, we need to disable a number of known fields that are not in the final tables. We
             // check if the current field is one of them, and ignore it if it's.
@@ -768,13 +757,15 @@ impl Definition {
                 None,
                 field_is_reference,
                 None,
-                field_description
+                field_description,
+                position as i16
             );
             fields.push(new_field);
         }
 
         Self {
             version,
+            localised_fields: vec![],
             fields,
         }
     }
@@ -784,7 +775,7 @@ impl Definition {
     /// For use with the raw table processing.
     pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, table_name: &str) -> Definition {
         let mut fields = vec![];
-        for field in &imported_table_definition.field {
+        for (position, field) in imported_table_definition.field.iter().enumerate() {
 
             let field_name = field.name.to_owned();
             let field_is_key = field.primary_key == "1";
@@ -855,13 +846,15 @@ impl Definition {
                 None,
                 field_is_reference,
                 None,
-                field_description
+                field_description,
+                position as i16
             );
             fields.push(new_field);
         }
 
         Definition {
             version: -1,
+            localised_fields: vec![],
             fields,
         }
     }
@@ -978,7 +971,8 @@ impl Field {
         filename_relative_path: Option<String>,
         is_reference: Option<(String, String)>,
         lookup: Option<Vec<String>>,
-        description: String
+        description: String,
+        ca_order: i16,
     ) -> Self {
         Self {
             name,
@@ -990,7 +984,18 @@ impl Field {
             filename_relative_path,
             is_reference,
             lookup,
-            description
+            description,
+            ca_order
+        }
+    }
+}
+
+/// Default implementation of `Schema`.
+impl Default for Schema {
+    fn default() -> Self {
+        Self {
+            version: CURRENT_STRUCTURAL_VERSION,
+            versioned_files: vec![]
         }
     }
 }
@@ -1009,6 +1014,7 @@ impl Default for Field {
             is_reference: None,
             lookup: None,
             description: String::from(""),
+            ca_order: -1
         }
     }
 }
@@ -1124,54 +1130,5 @@ impl VersionsFile {
                 local.save()
             }
         }
-    }
-}
-
-impl LegacySchema {
-
-    /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
-    pub fn load(schema_file: &str) -> Result<Self> {
-        use std::path::PathBuf;
-        let mut file_path = PathBuf::from("./schemas/");
-        file_path.push(schema_file.replace(".ron", ".json"));
-
-        let file = BufReader::new(File::open(&file_path)?);
-        serde_json::from_reader(file).map_err(From::from)
-    }
-
-}
-
-/// Implementation of `From` from `LegacySchema` to `Schema`.
-impl From<LegacySchema> for Schema {
-    fn from(legacy_schema: LegacySchema) -> Self {
-        let mut schema = Schema::new();
-        legacy_schema.tables_definitions.iter().map(From::from).for_each(|x| schema.0.push(x));
-        schema
-    }
-}
-
-impl From<&LegacyTableDefinitions> for VersionedFile {
-    fn from(legacy_table_definitions: &LegacyTableDefinitions) -> Self {
-        VersionedFile::DB(legacy_table_definitions.name.to_owned(), legacy_table_definitions.versions.iter().map(From::from).collect())
-    }
-}
-
-impl From<&LegacyTableDefinition> for Definition {
-    fn from(legacy_table_definition: &LegacyTableDefinition) -> Self {
-        let mut definition = Definition::new(legacy_table_definition.version);
-        legacy_table_definition.fields.iter().map(From::from).for_each(|x| definition.fields.push(x));
-        definition
-    }
-}
-
-impl From<&LegacyField> for Field {
-    fn from(legacy_field: &LegacyField) -> Self {
-        let mut field = Field::default();
-        field.name = legacy_field.field_name.to_owned();
-        field.field_type = legacy_field.field_type.clone();
-        field.is_key = legacy_field.field_is_key;
-        field.is_reference = legacy_field.field_is_reference.clone();
-        field.description = legacy_field.field_description.to_owned();
-        field
     }
 }
