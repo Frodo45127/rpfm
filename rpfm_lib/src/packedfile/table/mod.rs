@@ -448,8 +448,8 @@ impl Table {
         }
 
         // Get his definition depending on his first line's contents.
-        let definition = if table_type == loc::TSV_NAME_LOC { schema.get_versioned_file_loc()?.get_version(table_version)?.clone() }
-        else { schema.get_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
+        let definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(table_version)?.clone() }
+        else { schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?.clone() };
 
         // Try to import the entries of the file.
         let mut entries = vec![];
@@ -572,8 +572,8 @@ impl Table {
             else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) }
         };
 
-        let definition = if table_type == loc::TSV_NAME_LOC { schema.get_versioned_file_loc()?.get_version(version)?.clone() }
-        else { schema.get_versioned_file_db(&table_type)?.get_version(version)?.clone() };
+        let definition = if table_type == loc::TSV_NAME_LOC { schema.get_ref_versioned_file_loc()?.get_version(version)?.clone() }
+        else { schema.get_ref_versioned_file_db(&table_type)?.get_version(version)?.clone() };
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((&table_type, version))?;

@@ -29,6 +29,7 @@ use crate::packfile::packedfile::PackedFile;
 use crate::schema::Schema;
 use crate::settings::Settings;
 
+pub mod assembly_kit;
 pub mod common;
 pub mod config;
 pub mod games;

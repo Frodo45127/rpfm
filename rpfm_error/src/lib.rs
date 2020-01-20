@@ -429,6 +429,13 @@ pub enum ErrorKind {
     NoQueekPackedFileHere,
 
     //-----------------------------------------------------//
+    //                Assembly Kit Errors
+    //-----------------------------------------------------//
+
+    /// Error for when we fail at finding the `Localisable Fields` file.
+    AssemblyKitLocalisableFieldsNotFound,
+
+    //-----------------------------------------------------//
     //                  Common Errors
     //-----------------------------------------------------//
 
@@ -691,6 +698,11 @@ impl Display for ErrorKind {
             ErrorKind::FileAlreadyInPackFile => write!(f, "<p>The provided file/s already exists in the current path.</p>"),
             ErrorKind::FolderAlreadyInPackFile => write!(f, "<p>That folder already exists in the current path.</p>"),
             ErrorKind::NoQueekPackedFileHere => write!(f, "<p>I don't know what type of file goes in that folder, boi.</p>"),
+
+            //-----------------------------------------------------//
+            //                Assembly Kit Errors
+            //-----------------------------------------------------//
+            ErrorKind::AssemblyKitLocalisableFieldsNotFound => write!(f, "<p>The `Localisable Fields` file hasn't been found.</p>"),
 
             //-----------------------------------------------------//
             //                  Common Errors

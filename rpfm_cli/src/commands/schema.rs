@@ -11,7 +11,7 @@
 use log::info;
 
 use rpfm_error::Result;
-use rpfm_lib::schema::VersionsFile;
+use rpfm_lib::schema::versions::VersionsFile;
 
 use crate::config::Config;
 

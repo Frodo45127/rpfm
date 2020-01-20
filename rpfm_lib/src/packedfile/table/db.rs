@@ -150,7 +150,7 @@ impl DB {
         { return Err(ErrorKind::DBTableContainsListField.into()) }
 
         // Try to get the table_definition for this table, if exists.
-        let versioned_file = schema.get_versioned_file_db(&name);
+        let versioned_file = schema.get_ref_versioned_file_db(&name);
         if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
         let definition = versioned_file?.get_version(version);
         if definition.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }

@@ -49,7 +49,7 @@ use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
 use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
-use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
+use rpfm_lib::schema::{versions::APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;

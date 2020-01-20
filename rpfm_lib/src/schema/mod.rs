@@ -49,6 +49,7 @@ The basic structure of an `Schema` is:
                         ca_order: -1,
                     ),
                 ],
+                localised_fields: [],
             ),
         ]),
     ],
@@ -58,16 +59,16 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use rayon::prelude::*;
 use reqwest::blocking;
 use ron::de::{from_str, from_reader};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::{fmt, fmt::Display};
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::io::{BufReader, Read, Write};
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -75,12 +76,12 @@ use crate::DEPENDENCY_DATABASE;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
 use crate::packedfile::table::db::DB;
-
-pub mod assembly_kit;
+use self::versions::VersionsFile;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v1;
 pub(crate) mod v0;
+pub mod versions;
 
 /// Name of the schema versions file.
 const SCHEMA_VERSIONS_FILE: &str = "versions.ron";
@@ -101,19 +102,15 @@ const CURRENT_STRUCTURAL_VERSION: u16 = 2;
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct represents a Versions File in memory, keeping track of the local version of each schema.
-#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
-pub struct VersionsFile(BTreeMap<String, u32>);
-
 /// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Schema {
 
     /// It stores the structural version of the Schema.
-    pub version: u16,
+    version: u16,
 
     /// It stores the versioned files inside the Schema.
-    pub versioned_files: Vec<VersionedFile>
+    versioned_files: Vec<VersionedFile>
 }
 
 /// This enum defines all types of versioned files that the schema system supports.
@@ -199,16 +196,6 @@ pub enum FieldType {
     Sequence(Definition)
 }
 
-/// This enum controls the possible responses from the server when asking if there is a new Schema update.
-///
-/// The (Versions, Versions) is local, current.
-#[derive(Debug, Serialize, Deserialize)]
-pub enum APIResponseSchema {
-    SuccessNewUpdate(VersionsFile, VersionsFile),
-    SuccessNoUpdate,
-    Error,
-}
-
 //---------------------------------------------------------------------------//
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
@@ -219,24 +206,116 @@ impl Schema {
     /// This function adds a new `VersionedFile` to the schema. This checks if the provided `VersionedFile`
     /// already exists, and replace it if neccesary.
     pub fn add_versioned_file(&mut self, versioned_file: &VersionedFile) {
-        match self.versioned_files.iter().position(|x| x.conflict(versioned_file)) {
+        match self.versioned_files.par_iter().position_any(|x| x.conflict(versioned_file)) {
             Some(position) => { self.versioned_files.splice(position..=position, [versioned_file.clone()].iter().cloned()); },
             None => self.versioned_files.push(versioned_file.clone()),
         }
     }
 
-    /// This function returns a reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
-    pub fn get_versioned_file_db(&self, table_name: &str) -> Result<&VersionedFile> {
-        self.versioned_files.iter().filter(|x| x.is_db())
-            .find(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
+    /// This function returns the structural version of the provided Schema.
+    pub fn get_version(&self) -> u16 {
+        self.version
+    }
+
+    /// This function returns a copy of a specific `VersionedFile` of DB Type from the provided `Schema`.
+    pub fn get_versioned_file_db(&self, table_name: &str) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().filter(|x| x.is_db())
+            .cloned()
+            .find_any(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
         ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
+    pub fn get_ref_versioned_file_db(&self, table_name: &str) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().filter(|x| x.is_db())
+            .find_any(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
+        ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
+    pub fn get_ref_mut_versioned_file_db(&mut self, table_name: &str) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().filter(|x| x.is_db())
+            .find_any(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
+        ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a copy of a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_dep_manager(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().cloned().find_any(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_dep_manager(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_dep_manager(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a copy of a specific `VersionedFile` of Loc Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_loc(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_loc()).cloned().ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_loc(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_loc(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a copy of all the `VersionedFile` in the provided `Schema`.
+    pub fn get_versioned_file_all(&self) -> Vec<VersionedFile> {
+        self.versioned_files.to_vec()
+    }
+
+    /// This function returns a reference to all the `VersionedFile` in the provided `Schema`.
+    pub fn get_ref_versioned_file_all(&self) -> Vec<&VersionedFile> {
+        self.versioned_files.par_iter().collect()
+    }
+
+    /// This function returns a mutable reference to all the `VersionedFile` in the provided `Schema`.
+    pub fn get_ref_mut_versioned_file_all(&mut self) -> Vec<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().collect()
+    }
+
+    /// This function returns a copy of all the `VersionedFile` in the provided `Schema` of type `DB`.
+    pub fn get_versioned_file_db_all(&self) -> Vec<VersionedFile> {
+        self.versioned_files.par_iter().filter(|x| x.is_db()).cloned().collect()
+    }
+
+    /// This function returns a reference to all the `VersionedFile` in the provided `Schema` of type `DB`.
+    pub fn get_ref_versioned_file_db_all(&self) -> Vec<&VersionedFile> {
+        self.versioned_files.par_iter().filter(|x| x.is_db()).collect()
+    }
+
+    /// This function returns a mutable reference to all the `VersionedFile` in the provided `Schema` of type `DB`.
+    pub fn get_ref_mut_versioned_file_db_all(&mut self) -> Vec<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().filter(|x| x.is_db()).collect()
     }
 
     /// This function returns the last compatible definition of a DB Table.
     ///
     /// As we may have versions from other games, we first need to check for the last definition in the dependency database.
     /// If that fails, we try to get it from the schema.
-    pub fn get_last_definition_db(&self, table_name: &str) -> Result<&Definition> {
+    pub fn get_ref_last_definition_db(&self, table_name: &str) -> Result<&Definition> {
 
         // Version is... complicated. We don't really want the last one, but the last one compatible with our game.
         // So we have to try to get it first from the Dependency Database first. If that fails, we fall back to the schema.
@@ -244,7 +323,7 @@ impl Schema {
             .filter(|x| x.get_path().len() == 3)
             .find(|x| x.get_path()[0] == "db" && x.get_path()[1] == *table_name) {
             match DB::get_header(&vanilla_table.get_ref_mut_raw().get_data_and_keep_it().unwrap()) {
-                Ok(data) => self.get_versioned_file_db(table_name)?.get_version(data.0),
+                Ok(data) => self.get_ref_versioned_file_db(table_name)?.get_version(data.0),
                 Err(error) => Err(error),
             }
         }
@@ -252,7 +331,7 @@ impl Schema {
         // If there was no coincidence in the dependency database... we risk ourselfs getting the last definition we have for
         // that db from the schema.
         else{
-            let versioned_file = self.get_versioned_file_db(table_name)?;
+            let versioned_file = self.get_ref_versioned_file_db(table_name)?;
             if let VersionedFile::DB(_,definitions) = versioned_file {
                 if let Some(definition) = definitions.get(0) {
                     Ok(definition)
@@ -263,59 +342,14 @@ impl Schema {
     }
 
     /// This function returns the last compatible definition of a Loc Table.
-    pub fn get_last_definition_loc(&self) -> Result<&Definition> {
-        let versioned_file = self.get_versioned_file_loc()?;
+    pub fn get_ref_last_definition_loc(&self) -> Result<&Definition> {
+        let versioned_file = self.get_ref_versioned_file_loc()?;
         if let VersionedFile::Loc(definitions) = versioned_file {
             if let Some(definition) = definitions.get(0) {
                 Ok(definition)
             }
             else { Err(ErrorKind::SchemaDefinitionNotFound.into()) }
         } else { Err(ErrorKind::SchemaVersionedFileNotFound.into()) }
-    }
-
-    /// This function returns a mutable reference to a specific `VersionedFile` of DB Type from the provided `Schema`.
-    pub fn get_mut_versioned_file_db(&mut self, table_name: &str) -> Result<&mut VersionedFile> {
-        self.versioned_files.iter_mut().filter(|x| x.is_db())
-            .find(|x| if let VersionedFile::DB(name,_) = x { name == table_name } else { false }
-        ).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
-    }
-
-    /// This function returns a reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
-    ///
-    /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
-    pub fn get_versioned_file_dep_manager(&self) -> Result<&VersionedFile> {
-        self.versioned_files.iter().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
-    }
-
-    /// This function returns a mutable reference to a specific `VersionedFile` of Dependency Manager Type from the provided `Schema`.
-    ///
-    /// By default, we assume there is only one Dependency Manager `VersionedFile` in the `Schema`, so we return that one if we find it.
-    pub fn get_mut_versioned_file_dep_manager(&mut self) -> Result<&mut VersionedFile> {
-        self.versioned_files.iter_mut().find(|x| x.is_dep_manager()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
-    }
-
-    /// This function returns a reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
-    ///
-    /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
-    pub fn get_versioned_file_loc(&self) -> Result<&VersionedFile> {
-        self.versioned_files.iter().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
-    }
-
-    /// This function returns a mutable reference to a specific `VersionedFile` of Loc Type from the provided `Schema`.
-    ///
-    /// By default, we assume there is only one Loc `VersionedFile` in the `Schema`, so we return that one if we find it.
-    pub fn get_mut_versioned_file_loc(&mut self) -> Result<&mut VersionedFile> {
-        self.versioned_files.iter_mut().find(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
-    }
-
-    /// This function returns a reference to all the `VersionedFile` in the provided `Schema`.
-    pub fn get_ref_versioned_file_all(&self) -> Vec<&VersionedFile> {
-        self.versioned_files.iter().collect()
-    }
-
-    /// This function returns a reference to all the `VersionedFile` in the provided `Schema` of type `DB`.
-    pub fn get_ref_versioned_file_db_all(&self) -> Vec<&VersionedFile> {
-        self.versioned_files.iter().filter(|x| x.is_db()).collect()
     }
 
     /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
@@ -395,8 +429,8 @@ impl Schema {
         let mut schemas_to_update = vec![];
 
         // If the game's schema is not in the repo (when adding a new game's support) skip it.
-        for (game, version_local) in &local_schema_versions.0 {
-            let version_current = if let Some(version_current) = current_schema_versions.0.get(game) { version_current } else { continue };
+        for (game, version_local) in local_schema_versions.get() {
+            let version_current = if let Some(version_current) = current_schema_versions.get().get(game) { version_current } else { continue };
             if version_local != version_current { schemas_to_update.push((game.to_owned(), version_local)); }
         }
 
@@ -430,7 +464,7 @@ impl Schema {
             // For each table, we need to check EVERY possible difference.
             for table_local in schema_local.versioned_files.iter().filter(|x| x.is_db()) {
                 if let VersionedFile::DB(name_local, versions_local) = table_local {
-                    match schema_current.get_versioned_file_db(name_local) {
+                    match schema_current.get_ref_versioned_file_db(name_local) {
 
                         // If we find it, we have to check if it has changes. If it has them, then we analize them.
                         Ok(table_current) => {
@@ -657,14 +691,14 @@ impl Definition {
             fields: vec![],
         }
     }
-
+/*
     /// This function creates a new `Definition` from an imported definition from the Assembly Kit.
     ///
     /// Note that this imports the loc fields (they need to be removed manually later) and it doesn't
     /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: &assembly_kit::root, version: i32, table_name: &str) -> Self {
+    pub fn new_from_assembly_kit(imported_table_definition: &RawDefinition, version: i32, table_name: &str) -> Self {
         let mut fields = vec![];
-        for (position, field) in imported_table_definition.field.iter().enumerate() {
+        for (position, field) in imported_table_definition.fields.iter().enumerate() {
 
             // First, we need to disable a number of known fields that are not in the final tables. We
             // check if the current field is one of them, and ignore it if it's.
@@ -773,9 +807,9 @@ impl Definition {
     /// This function creates a new fake `Definition` from an imported definition from the Assembly Kit.
     ///
     /// For use with the raw table processing.
-    pub fn new_fake_from_assembly_kit(imported_table_definition: &assembly_kit::root, table_name: &str) -> Definition {
+    pub fn new_fake_from_assembly_kit(imported_table_definition: &RawDefinition, table_name: &str) -> Definition {
         let mut fields = vec![];
-        for (position, field) in imported_table_definition.field.iter().enumerate() {
+        for (position, field) in imported_table_definition.fields.iter().enumerate() {
 
             let field_name = field.name.to_owned();
             let field_is_key = field.primary_key == "1";
@@ -858,7 +892,7 @@ impl Definition {
             fields,
         }
     }
-
+*/
     /// This function generates a MarkDown-encoded diff of two versions of an specific table and adds it to the provided changes list.
     pub fn get_pretty_diff(
         &self,
@@ -1032,103 +1066,6 @@ impl Display for FieldType {
             FieldType::OptionalStringU8 => write!(f, "OptionalStringU8"),
             FieldType::OptionalStringU16 => write!(f, "OptionalStringU16"),
             FieldType::Sequence(sequence) => write!(f, "Sequence of: {:#?}", sequence),
-        }
-    }
-}
-
-/// Implementation of `VersionsFile`.
-impl VersionsFile {
-
-    /// This function returns a reference to the internal `BTreeMap` of the provided `VersionsFile`.
-    pub fn get(&self) -> &BTreeMap<String, u32> {
-        &self.0
-    }
-
-    /// This function loads the local `VersionsFile` to memory.
-    pub fn load() -> Result<Self> {
-        let file_path = get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE);
-        let file = BufReader::new(File::open(&file_path)?);
-        from_reader(file).map_err(From::from)
-    }
-
-    /// This function saves the provided `VersionsFile` to disk.
-    fn save(&self) -> Result<()> {
-        let file_path = get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE);
-        let mut file = BufWriter::new(File::create(file_path)?);
-        let config = PrettyConfig::default();
-        file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
-        Ok(())
-    }
-
-    /// This function match your local schemas against the remote ones, and downloads any updated ones.
-    ///
-    /// If no local `VersionsFile` is found, it downloads it from the repo, along with all the schema files.
-    pub fn check_update() -> Result<APIResponseSchema> {
-
-        // If there is a local schema, match it against the remote one, to check if there is an update or not.
-        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
-        match Self::load() {
-            Ok(local) => {
-                let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
-                if local == remote { return Ok(APIResponseSchema::SuccessNoUpdate); }
-
-                for (remote_file_name, remote_version) in &remote.0 {
-                    if let Some(local_version) = local.0.get(remote_file_name) {
-                        if remote_version > local_version { return Ok(APIResponseSchema::SuccessNewUpdate(local, remote)); }
-                    }
-                }
-            },
-
-            // If there is no local `VersionsFile`, return an error.
-            Err(_) => return Ok(APIResponseSchema::Error),
-        }
-
-        // If we reached this place, return a "no update found" response.
-        Ok(APIResponseSchema::SuccessNoUpdate)
-    }
-
-    /// This function match your local schemas against the remote ones, and downloads any updated ones.
-    ///
-    /// If no local `VersionsFile` is found, it downloads it from the repo, along with all the schema files.
-    pub fn update() -> Result<()> {
-
-        // If there is a local schema, match it against the remote one, download the different schemas,
-        // then update our local schema with the remote one's data.
-        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
-        match Self::load() {
-            Ok(local) => {
-                let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
-                for (remote_file_name, remote_version) in &remote.0 {
-                    let schema_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, remote_file_name);
-                    match local.0.get(remote_file_name) {
-                        Some(local_version) => {
-
-                            // If it's an update over our own schema, we download it and overwrite the current schema.
-                            // NOTE: Github's API has a limit of 1MB per file, so we take it directly from raw.githubusercontent.com instead.
-                            if remote_version > local_version {
-                                let mut schema: Schema = from_str(&blocking::get(&schema_url)?.text()?)?;
-                                schema.save(remote_file_name)?;
-                            }
-                        }
-                        None => {
-                            let mut schema: Schema = from_str(&blocking::get(&schema_url)?.text()?)?;
-                            schema.save(remote_file_name)?;
-                        }
-                    }
-                }
-
-                local.save()
-            },
-
-            // If there is no local `VersionsFile`, download all the schemas, then save the new local `VersionsFile`.
-            Err(_) => {
-                let local: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
-                for file_name in local.0.keys() {
-                    let mut schema: Schema = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
-                    schema.save(file_name)?;
-                }
-                local.save()
-            }
         }
     }
 }

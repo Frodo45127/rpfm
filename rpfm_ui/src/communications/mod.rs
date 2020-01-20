@@ -28,7 +28,7 @@ use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
-use rpfm_lib::schema::APIResponseSchema;
+use rpfm_lib::schema::versions::APIResponseSchema;
 use rpfm_lib::settings::*;
 
 use crate::app_ui::NewPackedFile;

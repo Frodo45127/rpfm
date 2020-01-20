@@ -1796,7 +1796,7 @@ impl PackFile {
                         // If the name is not specific for a type of file, we trat it as a DB Table.
                         match table_type {
                             TSV_NAME_LOC => {
-                                let definition = schema.get_versioned_file_loc()?.get_version(table_version)?;
+                                let definition = schema.get_ref_versioned_file_loc()?.get_version(table_version)?;
                                 if let Ok(table) = Loc::import_tsv(&definition, &path, &table_type, table_version) {
 
                                     // Depending on the name received, call it one thing or another.
@@ -1827,7 +1827,7 @@ impl PackFile {
                                 else { error_files.push(path.to_string_lossy().to_string()); }
                             }
                             _ => {
-                                let definition = schema.get_versioned_file_db(&table_type)?.get_version(table_version)?;
+                                let definition = schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?;
                                 if let Ok(table) = DB::import_tsv(&definition, &path, &table_type, table_version) {
 
                                     // Depending on the name received, call it one thing or another.

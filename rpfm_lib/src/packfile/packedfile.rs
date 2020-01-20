@@ -164,7 +164,7 @@ impl PackedFile {
             // For locs, we just create them with their last definition.
             PackedFileType::Loc => {
                 let definition = match *schema {
-                    Some(ref schema) => schema.get_last_definition_loc()?,
+                    Some(ref schema) => schema.get_ref_last_definition_loc()?,
                     None => return Err(ErrorKind::SchemaNotFound.into())
                 };
                 DecodedPackedFile::Loc(Loc::new(&definition))
@@ -174,7 +174,7 @@ impl PackedFile {
             PackedFileType::DB => {
                 let table_name = path.get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
                 let table_definition = match *schema {
-                    Some(ref schema) => schema.get_last_definition_db(table_name)?,
+                    Some(ref schema) => schema.get_ref_last_definition_db(table_name)?,
                     None => return Err(ErrorKind::SchemaNotFound.into())
                 };
                 DecodedPackedFile::DB(DB::new(&table_name, &table_definition))

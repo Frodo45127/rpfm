@@ -115,7 +115,7 @@ impl PackedFileTableView {
         let table_definition = match table_data {
             TableType::DependencyManager(_) => {
                 let schema = SCHEMA.read().unwrap();
-                schema.as_ref().unwrap().get_versioned_file_dep_manager().unwrap().get_version_list()[0].clone()
+                schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone()
             },
             TableType::DB(ref table) => table.get_definition(),
             TableType::Loc(ref table) => table.get_definition(),
