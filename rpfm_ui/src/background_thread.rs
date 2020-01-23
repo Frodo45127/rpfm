@@ -22,6 +22,7 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
 use rpfm_error::{Error, ErrorKind};
+use rpfm_lib::assembly_kit::*;
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
@@ -31,7 +32,6 @@ use rpfm_lib::packedfile::table::loc::Loc;
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags};
 use rpfm_lib::schema::{*, versions::*};
-//use rpfm_lib::schema::assembly_kit::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
@@ -243,7 +243,6 @@ pub fn background_loop() {
             }
             // In case we want to generate a new Pak File for our Game Selected...
             Command::GeneratePakFile(path, version) => {
-/*
                 match generate_pak_file(&path, version) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
@@ -251,7 +250,6 @@ pub fn background_loop() {
 
                 // Reload the `fake dependency_database` for that game.
                 *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = DB::read_pak_file();
-*/
             }
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {

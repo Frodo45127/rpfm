@@ -24,6 +24,8 @@ use std::path::PathBuf;
 
 use rpfm_error::{Error, ErrorKind, Result};
 
+use crate::assembly_kit::table_data::RawTable;
+use crate::assembly_kit::table_definition::RawDefinition;
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::schema::*;
 
@@ -582,5 +584,52 @@ impl Table {
         // Then we serialize each entry in the DB Table.
         for entry in entries { writer.serialize(&entry)?; }
         writer.flush().map_err(From::from)
+    }
+}
+
+/// Implementation of `From<&RawTable>` for `Table`.
+impl From<&RawTable> for Table {
+    fn from(raw_table: &RawTable) -> Self {
+        if let Some(ref raw_definition) = raw_table.definition {
+            let mut table = Self::new(&From::from(raw_definition));
+            for row in &raw_table.rows {
+                let mut entry = vec![];
+
+                // Some games (Thrones, Attila, Rome 2 and Shogun 2) may have missing fields when said field is empty.
+                // To compensate it, if we don't find a field from the definition in the table, we add it empty.
+                for field_def in &table.definition.fields {
+                    let mut exists = false;
+                    for field in &row.fields {
+                        if field_def.name == field.field_name {
+                            exists = true;
+                            entry.push(match field_def.field_type {
+                                FieldType::Boolean => DecodedData::Boolean(field.field_data == "true" || field.field_data == "1"),
+                                FieldType::Float => DecodedData::Float(if let Ok(data) = field.field_data.parse::<f32>() { data } else { 0.0 }),
+                                FieldType::Integer => DecodedData::Integer(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
+                                FieldType::LongInteger => DecodedData::LongInteger(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
+                                FieldType::StringU8 => DecodedData::StringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+                                FieldType::StringU16 => DecodedData::StringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+                                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+                                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
+
+                                // This type is not used in the raw tables so, if we find it, we skip it.
+                                FieldType::Sequence(_) => continue,
+                            });
+                            break;
+                        }
+                    }
+
+                    // If the field doesn't exist, we create it empty.
+                    if !exists {
+                        entry.push(DecodedData::OptionalStringU8(String::new()));
+                    }
+                }
+                table.entries.push(entry);
+            }
+            table
+        }
+        else {
+            Self::new(&Definition::new(-1))
+        }
     }
 }

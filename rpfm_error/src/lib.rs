@@ -435,6 +435,12 @@ pub enum ErrorKind {
     /// Error for when we fail at finding the `Localisable Fields` file.
     AssemblyKitLocalisableFieldsNotFound,
 
+    /// Error for when we try to do an operation over an assembly kit which version we do not yet support.
+    AssemblyKitUnsupportedVersion(i16),
+
+    /// Error for when we try to parse a blacklisted table.
+    AssemblyKitTableTableIgnored,
+
     //-----------------------------------------------------//
     //                  Common Errors
     //-----------------------------------------------------//
@@ -703,6 +709,8 @@ impl Display for ErrorKind {
             //                Assembly Kit Errors
             //-----------------------------------------------------//
             ErrorKind::AssemblyKitLocalisableFieldsNotFound => write!(f, "<p>The `Localisable Fields` file hasn't been found.</p>"),
+            ErrorKind::AssemblyKitUnsupportedVersion(version) => write!(f, "<p>Operations over the Assembly Kit of version {} are not currently supported.</p>", version),
+            ErrorKind::AssemblyKitTableTableIgnored => write!(f, "<p>One of the Assembly Kit Tables you tried to decode has been blacklisted due to issues.</p>"),
 
             //-----------------------------------------------------//
             //                  Common Errors

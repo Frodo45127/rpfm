@@ -30,16 +30,20 @@ use std::path::{Path, PathBuf};
 
 use rpfm_error::{Result, Error, ErrorKind};
 
+use crate::assembly_kit::table_definition::RawDefinition;
+use crate::assembly_kit::table_data::RawTable;
+use crate::assembly_kit::localisable_fields::RawLocalisableFields;
 use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
+use crate::config::get_config_path;
 use crate::packfile::PackFile;
 use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
 use crate::schema::*;
 
-mod localised_fields;
-mod table_data;
-mod table_definition;
+pub mod localisable_fields;
+pub mod table_data;
+pub mod table_definition;
 
 const LOCALISABLE_FILES_FILE_NAME_V2: &str = "TExc_LocalisableFields";
 
@@ -58,11 +62,12 @@ const RAW_DATA_EXTENSION_V2: &str = RAW_DEFINITION_EXTENSION_V2;
 const RAW_DEFINITION_EXTENSION_V0: &str = ".xsd";
 const RAW_DATA_EXTENSION_V0: &str = RAW_DATA_EXTENSION_V2;
 
+const BLACKLISTED_TABLES: [&str; 1] = ["translated_texts.xml"];
 
 //---------------------------------------------------------------------------//
 // Functions to process the Raw DB Tables from the Assembly Kit.
 //---------------------------------------------------------------------------//
-/*
+
 /// This function generates a PAK (Processed Assembly Kit) file from the raw tables found in the provided path.
 ///
 /// This works by processing all the tables from the game's raw table folder and turning them into a single processed file,
@@ -73,146 +78,8 @@ pub fn generate_pak_file(
     raw_db_path: &PathBuf,
     version: i16,
 ) -> Result<()> {
-
-    // We get all the files to load.
-    let definitions = get_raw_definitions(raw_db_path, version)?;
-    let data = get_raw_data(raw_db_path, version)?;
-    let mut processed_db_files = vec![];
-    let dep_db = DEPENDENCY_DATABASE.lock().unwrap();
-
-    // For each file, create a DB file from it.
-    for definition in &definitions {
-
-        // If we have a debug version, print each table we process so, if it fails, we know where.
-        if cfg!(debug_assertions) { println!("{:?}", definition); }
-
-        // Depending on the version, we have to use one logic or another.
-        match version {
-
-            // Version 2 is Rome 2+. Version 1 is Shogun 2. Almost the same format, but we have to
-            // provide a different path for Shogun 2, so it has his own version.
-            2 | 1 => {
-
-                // We read both files (TWad and Table) and get them to memory.
-                let file_name = definition.file_name().unwrap().to_str().unwrap().split_at(5).1;
-                let file_name_no_xml = file_name.split_at(file_name.len() - 4).0;
-                let table_name = format!("{}_tables", file_name_no_xml);
-
-                // This file is present in Rome 2, Attila and Thrones. It's almost 400mb. And we don't need it.
-                if file_name == "translated_texts.xml" { continue; }
-
-                let definition_file = File::open(&definition).unwrap();
-                let mut data_file = {
-                    let mut result = Err(Error::from(ErrorKind::IOFileNotFound));
-                    for file in &data {
-                        if file.file_name().unwrap().to_str().unwrap() == file_name {
-                            result = File::open(&file).map_err(From::from);
-                            break;
-                        }
-                    }
-
-                    // In case it fails at finding the data file, ignore that schema.
-                    if result.is_err() { continue; } else { result }
-                }?;
-
-                // If the table already exist in the data.pack, skip it.
-                let mut exist = false;
-                for table in &*dep_db {
-                    if table.get_path()[1] == table_name {
-                        exist = true;
-                        break;
-                    }
-                }
-
-                if exist { continue; }
-
-                // Then deserialize the definition of the table into something we can use.
-                let imported_definition: RawDefinition = from_reader(definition_file)?;
-                let imported_table_definition = Definition::new_fake_from_assembly_kit(&imported_definition, &table_name);
-
-                // Before deserializing the data, due to limitations of serde_xml_rs, we have to rename all rows, beacuse unique names for
-                // rows in each file is not supported for deserializing. Same for the fields, we have to change them to something more generic.
-                let mut buffer = String::new();
-                data_file.read_to_string(&mut buffer)?;
-                buffer = buffer.replace(&format!("<{} record_uuid", file_name_no_xml), "<rows record_uuid");
-                buffer = buffer.replace(&format!("<{}>", file_name_no_xml), "<rows>");
-                buffer = buffer.replace(&format!("</{}>", file_name_no_xml), "</rows>");
-                for field in &imported_table_definition.fields {
-                    let field_name_regex = Regex::new(&format!("\n<{}>", field.name)).unwrap();
-                    let field_name_regex2 = Regex::new(&format!("\n<{} .+?\">", field.name)).unwrap();
-                    buffer = field_name_regex.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.name)).to_string();
-                    buffer = field_name_regex2.replace_all(&buffer, &*format!("\n<datafield field_name=\"{}\">", field.name)).to_string();
-                    buffer = buffer.replace(&format!("</{}>", field.name), "</datafield>");
-                }
-
-                // Serde shits itself if it sees an empty field, so we have to work around that.
-                let field_data_regex1 = Regex::new("\"></datafield>").unwrap();
-                let field_data_regex2 = Regex::new("\"> </datafield>").unwrap();
-                let field_data_regex3 = Regex::new("\">  </datafield>").unwrap();
-                buffer = field_data_regex1.replace_all(&buffer, "\">Frodo Best Waifu</datafield>").to_string();
-                buffer = field_data_regex2.replace_all(&buffer, "\"> Frodo Best Waifu</datafield>").to_string();
-                buffer = field_data_regex3.replace_all(&buffer, "\">  Frodo Best Waifu</datafield>").to_string();
-
-                // Only if the table has data we deserialize it.
-                if buffer.contains("</rows>\r\n</dataroot>") {
-                    //if cfg!(debug_assertions) { println!("{}", buffer); }
-                    let imported_data: RawTable = from_reader(buffer.as_bytes())?;
-
-                    // Now we get that mess we've created and make readable data from it.
-                    let mut entries = vec![];
-                    for row in &imported_data.rows {
-                        let mut entry = vec![];
-
-                        // Some games (Thrones, Attila, Rome 2 and Shogun 2) may have missing fields when said field is empty.
-                        // To compensate it, if we don't find a field from the definition in the table, we add it empty.
-                        for field_def in &imported_table_definition.fields {
-                            let mut exists = false;
-                            for field in &row.fields {
-                                if field_def.name == field.field_name {
-                                    exists = true;
-                                    entry.push(match field_def.field_type {
-                                        FieldType::Boolean => DecodedData::Boolean(field.field_data == "true" || field.field_data == "1"),
-                                        FieldType::Float => DecodedData::Float(if let Ok(data) = field.field_data.parse::<f32>() { data } else { 0.0 }),
-                                        FieldType::Integer => DecodedData::Integer(if let Ok(data) = field.field_data.parse::<i32>() { data } else { 0 }),
-                                        FieldType::LongInteger => DecodedData::LongInteger(if let Ok(data) = field.field_data.parse::<i64>() { data } else { 0 }),
-                                        FieldType::StringU8 => DecodedData::StringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
-                                        FieldType::StringU16 => DecodedData::StringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
-                                        FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
-                                        FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(if field.field_data == "Frodo Best Waifu" { String::new() } else { field.field_data.to_string() }),
-
-                                        // This type is not used in the raw tables so, if we find it, we skip it.
-                                        FieldType::Sequence(_) => continue,
-                                    });
-                                    break;
-                                }
-                            }
-
-                            // If the field doesn't exist, we create it empty.
-                            if !exists {
-                                entry.push(DecodedData::OptionalStringU8(String::new()));
-                            }
-                        }
-                        entries.push(entry);
-                    }
-
-                    // Then create the DB object, and add it to the list.
-                    let mut processed_db_file = DB::new(&table_name, &imported_table_definition);
-                    processed_db_file.set_table_data(&entries)?;
-                    processed_db_files.push(processed_db_file);
-                }
-
-                // Otherwise skip it.
-                else { continue; }
-            },
-
-            // Version 0 is Napoleon and Empire. These two don't have an assembly kit, but CA released years ago their table files.
-            // So... these are kinda unique. The schemas are xsd files, and the data format is kinda different.
-            0 => continue,
-
-            // Any other version is unsupported or a game without Assembly Kit.
-            _ => {}
-        }
-    }
+    let (raw_tables, errors) = RawTable::read_all(raw_db_path, version, true)?;
+    let tables: Vec<DB> = raw_tables.par_iter().map(From::from).collect();
 
     // Save our new PAK File where it should be.
     let mut pak_path = get_config_path()?;
@@ -224,12 +91,13 @@ pub fn generate_pak_file(
     pak_path.push(pak_name);
 
     let mut file = File::create(pak_path)?;
-    file.write_all(&bincode::serialize(&processed_db_files)?)?;
+    let serialized_data = bincode::serialize(&tables)?;
+    file.write_all(&serialized_data)?;
 
     // If we reach this point, return success.
     Ok(())
 }
-
+/*
 /// This function updates the current Schema with the information of the provided Assembly Kit.
 ///
 /// Some notes:
@@ -411,6 +279,8 @@ pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
 //---------------------------------------------------------------------------//
 
 /// This function returns all the raw Assembly Kit Table Definition files from the provided folder.
+///
+/// Yoy must provide it the folder with the definitions inside, and the version of the game to process.
 pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
 
     let mut file_list: Vec<PathBuf> = vec![];
@@ -450,6 +320,8 @@ pub fn get_raw_definition_paths(current_path: &Path, version: i16) -> Result<Vec
 
 
 /// This function returns all the raw Assembly Kit Table Data files from the provided folder.
+///
+/// Yoy must provide it the folder with the tables inside, and the version of the game to process.
 pub fn get_raw_data_paths(current_path: &Path, version: i16) -> Result<Vec<PathBuf>> {
 
     let mut file_list: Vec<PathBuf> = vec![];
@@ -486,6 +358,7 @@ pub fn get_raw_data_paths(current_path: &Path, version: i16) -> Result<Vec<PathB
 
 /// This function returns the path of the raw Assembly Kit `Localisable Fields` table from the provided folder.
 ///
+/// Yoy must provide it the folder with the table inside, and the version of the game to process.
 /// NOTE: Version 0 is not yet supported.
 pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Result<PathBuf> {
     match read_dir(current_path) {

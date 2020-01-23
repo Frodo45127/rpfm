@@ -72,6 +72,7 @@ use std::io::{BufReader, Read, Write};
 
 use rpfm_error::{ErrorKind, Result};
 
+use crate::assembly_kit::table_definition::{RawDefinition, RawField};
 use crate::DEPENDENCY_DATABASE;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
@@ -1067,5 +1068,58 @@ impl Display for FieldType {
             FieldType::OptionalStringU16 => write!(f, "OptionalStringU16"),
             FieldType::Sequence(sequence) => write!(f, "Sequence of: {:#?}", sequence),
         }
+    }
+}
+
+/// Implementation of `From<&RawDefinition>` for `Definition.
+impl From<&RawDefinition> for Definition {
+    fn from(raw_definition: &RawDefinition) -> Self {
+        let mut definition = Self::new(-1);
+        definition.fields = raw_definition.fields.iter().map(From::from).collect();
+        definition
+    }
+}
+
+
+/// Implementation of `From<&RawField>` for `Field.
+impl From<&RawField> for Field {
+    fn from(raw_field: &RawField) -> Self {
+        let field_type = match &*raw_field.field_type {
+            "Boolean" => FieldType::Boolean,
+            "Float" => FieldType::Float,
+            "Integer" => FieldType::Integer,
+            "LongInteger" => FieldType::LongInteger,
+            "StringU8" => FieldType::StringU8,
+            "StringU16" => FieldType::StringU16,
+            "OptionalStringU8" => FieldType::OptionalStringU8,
+            "OptionalStringU16" => FieldType::OptionalStringU16,
+            _ => FieldType::StringU8,
+        };
+
+        let max_length = if let Some(x) = &raw_field.max_length {
+            if let Ok(y) = x.parse::<i32>() { y }
+            else { 0 }
+        } else { 0 };
+
+        let (is_reference, lookup) = if let Some(x) = &raw_field.column_source_table {
+            if let Some(y) = &raw_field.column_source_column {
+                if y.len() > 1 { (Some((x.to_owned(), y[0].to_owned())), Some(y[1..].to_vec()))}
+                else { (Some((x.to_owned(), y[0].to_owned())), None) }
+            } else { (None, None) }
+        }
+        else { (None, None) };
+
+        let mut field = Self::default();
+        field.name = raw_field.name.to_owned();
+        field.field_type = field_type;
+        field.is_key = raw_field.primary_key == "1";
+        field.default_value = raw_field.default_value.clone();
+        field.max_length = max_length;
+        field.is_filename = raw_field.is_filename.is_some();
+        field.filename_relative_path = raw_field.filename_relative_path.clone();
+        field.is_reference = is_reference;
+        field.lookup = lookup;
+        field.description = if let Some(x) = &raw_field.field_description { x.to_owned() } else { String::new() };
+        field
     }
 }

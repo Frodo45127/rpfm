@@ -23,26 +23,19 @@ For more information about PAK files, check the `generate_pak_file()` function. 
 Currently, due to the complexity of parsing the table type `0`, we don't have support for PAK files in Empire and Napoleon.
 !*/
 
+use rayon::iter::Either;
 use rayon::prelude::*;
-use regex::Regex;
 use serde_derive::Deserialize;
 use serde_xml_rs::from_reader;
 
-use std::borrow::BorrowMut;
-use std::fs::{File, DirBuilder, read_dir};
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::BufReader;
+use std::path::PathBuf;
 
 use rpfm_error::{Result, Error, ErrorKind};
 
-use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
-use crate::common::*;
-use crate::packfile::PackFile;
-use crate::packedfile::table::DecodedData;
-use crate::packedfile::table::db::DB;
-use crate::schema::*;
-
-const LOCALISABLE_FILES_FILE_NAME_V2: &str = "TExc_LocalisableFields";
+use crate::assembly_kit::get_raw_definition_paths;
+use super::*;
 
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit Schema Files into.
@@ -51,16 +44,17 @@ const LOCALISABLE_FILES_FILE_NAME_V2: &str = "TExc_LocalisableFields";
 /// This is the raw equivalent to a `Definition` struct. In files, this is the equivalent to a `TWaD_` file.
 ///
 /// It contains a vector with all the fields that forms it.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "root")]
 pub struct RawDefinition {
+    pub name: Option<String>,
 
     #[serde(rename = "field")]
     pub fields: Vec<RawField>,
 }
 
 /// This is the raw equivalent to a `Field` struct.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename = "field")]
 pub struct RawField {
 
@@ -102,4 +96,52 @@ pub struct RawField {
 
     /// If it has to be exported for the encyclopaedia? No idea really. `1` for `true`, `0` for false.
     pub encyclopaedia_export: Option<String>
+}
+
+//---------------------------------------------------------------------------//
+// Implementations
+//---------------------------------------------------------------------------//
+
+/// Implementation of `RawDefinition`.
+impl RawDefinition {
+
+    /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Definitions inside it.
+    ///
+    /// This function returns two vectors: one with the read files, and another with the errors during parsing.
+    pub fn read_all(raw_definitions_folder: &PathBuf, version: i16, skip_ingame_tables: bool) -> Result<(Vec<Self>, Vec<Error>)> {
+        let definitions = get_raw_definition_paths(raw_definitions_folder, version)?;
+        match version {
+            2 | 1 => {
+                let dependency_db = DEPENDENCY_DATABASE.lock().unwrap();
+                Ok(definitions.par_iter()
+                    .filter(|x| !BLACKLISTED_TABLES.contains(&x.file_name().unwrap().to_str().unwrap()))
+                    .filter(|x| if skip_ingame_tables {
+                            let base_name = x.file_stem().unwrap().to_str().unwrap().split_at(5).1;
+                            let name_table = format!("{}_tables", base_name);
+                            dependency_db.iter().all(|x| x.get_path()[1] != name_table)
+                        } else { true }
+                    )
+                    .partition_map(|x|
+                    match Self::read(x, version) {
+                        Ok(y) => Either::Left(y),
+                        Err(y) => Either::Right(y)
+                    }
+                ))
+            }
+            0 | _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+        }
+    }
+
+    /// This function tries to parse a Raw Assembly Kit Definition to memory.
+    pub fn read(raw_definition_path: &PathBuf, version: i16) -> Result<Self> {
+        match version {
+            2 | 1 => {
+                let definition_file = BufReader::new(File::open(&raw_definition_path)?);
+                let mut definition: Self = from_reader(definition_file).map_err(|x| Error::from(x))?;
+                definition.name = Some(raw_definition_path.file_name().unwrap().to_str().unwrap().split_at(5).1.to_string());
+                Ok(definition)
+            }
+            0 | _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+        }
+    }
 }

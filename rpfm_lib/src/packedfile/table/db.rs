@@ -26,7 +26,7 @@ use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 
-use super::DecodedData;
+use crate::assembly_kit::table_data::RawTable;
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::common::get_game_selected_pak_file;
 use crate::GAME_SELECTED;
@@ -35,6 +35,7 @@ use crate::packedfile::DecodedPackedFile;
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::*;
+use super::DecodedData;
 use super::Table;
 
 /// If this sequence is found, the DB Table has a GUID after it.
@@ -539,6 +540,24 @@ impl From<Table> for DB {
             name: String::new(),
             mysterious_byte: false,
             table,
+        }
+    }
+}
+
+/// Implementation to create a `DB` from a `RawTable`.
+impl From<&RawTable> for DB {
+    fn from(raw_table: &RawTable) -> Self {
+        let name_table = if let Some(ref x) = raw_table.definition {
+            if let Some(ref y) = x.name {
+                format!("{}_tables", y)
+            }
+            else { String::new() }
+        } else { String::new() };
+
+        Self {
+            name: name_table,
+            mysterious_byte: false,
+            table: From::from(raw_table),
         }
     }
 }
