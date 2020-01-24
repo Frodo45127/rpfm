@@ -75,7 +75,7 @@ impl RawTable {
     pub fn read_all(raw_tables_folder: &PathBuf, version: i16, skip_ingame_tables: bool) -> Result<(Vec<Self>, Vec<Error>)> {
 
         // First, we try to read all `RawDefinitions` from the same folder.
-        let (definitions, errors) = RawDefinition::read_all(raw_tables_folder, version, skip_ingame_tables)?;
+        let (definitions, _) = RawDefinition::read_all(raw_tables_folder, version, skip_ingame_tables)?;
 
         // Then, depending on the version, we have to use one logic or another.
         match version {

@@ -44,11 +44,7 @@ pub struct RawLocalisableFields {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename = "datafield")]
 pub struct RawLocalisableField {
-
-    #[serde(rename = "$value")]
     pub table_name: String,
-
-    #[serde(rename = "$value")]
     pub field: String,
 }
 

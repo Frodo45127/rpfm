@@ -72,6 +72,7 @@ use std::io::{BufReader, Read, Write};
 
 use rpfm_error::{ErrorKind, Result};
 
+use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
 use crate::DEPENDENCY_DATABASE;
 use crate::SUPPORTED_GAMES;
@@ -690,6 +691,80 @@ impl Definition {
             version,
             localised_fields: vec![],
             fields: vec![],
+        }
+    }
+
+    /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
+    ///
+    /// Not all data is updated though, only:
+    /// - Is Key.
+    /// - Max Lenght.
+    /// - Default Value.
+    /// - Filename Relative Path.
+    /// - Is Filename.
+    /// - Is Reference.
+    /// - Lookup.
+    /// - CA Order.
+    pub fn update_from_raw_definition(&mut self, raw_definition: &RawDefinition) {
+        for (index, raw_field) in raw_definition.fields.iter().enumerate() {
+            for field in &mut self.fields {
+                if field.name == raw_field.name {
+                    if (raw_field.primary_key == "1" && !field.is_key) || (raw_field.primary_key == "0" && field.is_key) {
+                        field.is_key = raw_field.primary_key == "1";
+                    }
+
+                    if let Some(ref lenght) = raw_field.max_length {
+                        if let Ok(lenght) = lenght.parse::<i32>() {
+                            field.max_length = lenght;
+                        }
+                    }
+
+                    if raw_field.default_value.is_some() {
+                        field.default_value = raw_field.default_value.clone();
+                    }
+
+                    if raw_field.filename_relative_path.is_some() {
+                        field.filename_relative_path = raw_field.filename_relative_path.clone();
+                    }
+
+                    if let Some(ref description) = raw_field.field_description {
+                        field.description = description.to_owned();
+                    }
+
+                    if let Some(ref table) = raw_field.column_source_table {
+                        if let Some(ref columns) = raw_field.column_source_column {
+                            if !columns.is_empty() {
+                                field.is_reference = Some((table.to_owned(), columns[0].to_owned()));
+                                if columns.len() > 1 {
+                                    field.lookup = Some(columns[1..].to_vec());
+                                }
+                            }
+                        }
+                    }
+
+                    field.is_filename = raw_field.is_filename.is_some();
+                    field.ca_order = index as i16;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// This function populates the `localised_fields` of a definition with data from the assembly kit.
+    pub fn update_from_raw_localisable_fields(&mut self, raw_definition: &RawDefinition, raw_localisable_fields: &[RawLocalisableField]) {
+        let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
+        let localisable_fields_names = raw_localisable_fields.iter()
+            .filter(|x| &x.table_name == raw_table_name)
+            .map(|x| &*x.field)
+            .collect::<Vec<&str>>();
+
+        if !localisable_fields_names.is_empty() {
+            let localisable_fields = raw_definition.fields.iter()
+                .filter(|x| localisable_fields_names.contains(&&*x.name))
+                .collect::<Vec<&RawField>>();
+
+            let fields = localisable_fields.iter().map(|x| From::from(*x)).collect();
+            self.localised_fields = fields;
         }
     }
 /*

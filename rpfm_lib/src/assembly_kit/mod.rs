@@ -19,13 +19,11 @@ To differentiate between the different types of Assembly Kit, there are multiple
 !*/
 
 use rayon::prelude::*;
-use regex::Regex;
-use serde_derive::Deserialize;
 use serde_xml_rs::from_reader;
 
 use std::borrow::BorrowMut;
 use std::fs::{File, DirBuilder, read_dir};
-use std::io::{Read, Write};
+use std::io::{BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 
 use rpfm_error::{Result, Error, ErrorKind};
@@ -37,6 +35,7 @@ use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
 use crate::config::get_config_path;
 use crate::packfile::PackFile;
+use crate::packedfile::DecodedPackedFile;
 use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
 use crate::schema::*;
@@ -78,7 +77,7 @@ pub fn generate_pak_file(
     raw_db_path: &PathBuf,
     version: i16,
 ) -> Result<()> {
-    let (raw_tables, errors) = RawTable::read_all(raw_db_path, version, true)?;
+    let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true)?;
     let tables: Vec<DB> = raw_tables.par_iter().map(From::from).collect();
 
     // Save our new PAK File where it should be.
@@ -97,7 +96,7 @@ pub fn generate_pak_file(
     // If we reach this point, return success.
     Ok(())
 }
-/*
+
 /// This function updates the current Schema with the information of the provided Assembly Kit.
 ///
 /// Some notes:
@@ -127,75 +126,49 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                     ass_kit_schemas_path.push("raw_data");
                     ass_kit_schemas_path.push("db");
 
+                    // This one is notably missing in Warhammer 2, so it's optional.
                     let raw_localisable_fields: Option<RawLocalisableFields> =
-                        if let Ok(file_path) = get_raw_localisable_fields(&ass_kit_schemas_path, raw_db_version) {
+                        if let Ok(file_path) = get_raw_localisable_fields_path(&ass_kit_schemas_path, raw_db_version) {
                             let file = BufReader::new(File::open(&file_path)?);
-                            from_reader(file).unwrap()
+                            from_reader(file).ok()
                         } else { None };
 
-                    let raw_definitions = get_raw_definitions(&ass_kit_schemas_path, raw_db_version)?;
-                    schema.get_ref_mut_versioned_file_db_all().par_iter_mut().try_for_each(|versioned_file| {
-
-                        let definition =
-
-
-                        // Always print his path. If it breaks, we want to know where.
-                        println!("{:?}", path);
-
-                        // We read the file and deserialize it as a `root`.
-                        let file = BufReader::new(match File::open(&path) {
-                            Ok(file) => file,
-                            Err(error) => return Err(Error::from(error)),
-                        });
-                        let imported_table_definition: RawDefinition = from_reader(file).unwrap();
-
-                        // Get his name and version. We only add it if his table actually exists.
-                        let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-                        let table_name = format!("{}_tables", file_name.split_off(5));
-
-                        // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
-                        let packed_files = packfile_db.get_ref_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
-                        if !packed_files.is_empty() {
-                            let packed_file = packed_files[0];
-                            let data = match packed_file.get_ref_raw().get_data() {
-                                Ok(data) => data,
-                                Err(error) => return Err(error),
-                            };
-                            let version = DB::get_header(&data).unwrap().0;
-
-                            if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
-                                if versioned_file.get_version(version).is_err() {
-                                    let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                                    versioned_file.add_version(&table_definition);
+                    let (raw_definitions, _) = RawDefinition::read_all(&ass_kit_schemas_path, raw_db_version, false)?;
+                    schema.get_ref_mut_versioned_file_db_all().par_iter_mut().for_each(|versioned_file| {
+                        if let VersionedFile::DB(table_name, definitions) = versioned_file {
+                            let name = &table_name[0..table_name.len() - 7];
+                            if let Some(raw_definition) = raw_definitions.iter().filter(|x| x.name.is_some()).find(|x| &(x.name.as_ref().unwrap())[0..x.name.as_ref().unwrap().len() - 4] == name) {
+                                let mut vanilla_tables = packfile_db.get_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
+                                if !vanilla_tables.is_empty() {
+                                    let vanilla_table = &mut vanilla_tables[0];
+                                    if let Ok(vanilla_table_data) = vanilla_table.get_raw_data() {
+                                        if let Ok((version, _, _, _)) = DB::get_header(&vanilla_table_data) {
+                                            if let Some(ref mut definition) = definitions.iter_mut().find(|x| x.version == version) {
+                                                definition.update_from_raw_definition(&raw_definition);
+                                                if let Some(ref raw_localisable_fields) = raw_localisable_fields {
+                                                    definition.update_from_raw_localisable_fields(&raw_definition, &raw_localisable_fields.fields)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-
-                                // Otherwise, do nothing and skip this PackedFile.
-                                else { }
-                            }
-
-                            else {
-                                let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                                let versioned_file = VersionedFile::DB(table_name, vec![table_definition]);
-                                schema.add_versioned_file(&versioned_file);
                             }
                         }
-                        Ok(())
-                    })?;
-
+                    });
                     schema.save(&SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].schema)?;
 
                     Ok(())
                 }
-                else { Err(ErrorKind::SchemaNotFound.into()) }
+                else { Err(ErrorKind::GamePathNotConfigured.into()) }
             }
-            0 => { Err(ErrorKind::SchemaNotFound.into()) }
-            _ => { Err(ErrorKind::SchemaNotFound.into()) }
+            0 | _ => { Err(ErrorKind::AssemblyKitUnsupportedVersion(raw_db_version).into()) }
         }
     }
 
     else { Err(ErrorKind::SchemaNotFound.into()) }
 }
 
+/*
 /// This function uses the provided Assembly Kit path to *complete* our schema's missing data.
 ///
 /// It takes the Assembly Kit's DB Files and matches them against our own schema files, filling missing info,

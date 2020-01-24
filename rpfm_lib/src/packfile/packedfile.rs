@@ -313,6 +313,11 @@ impl PackedFile {
     pub fn get_raw_data_size(&self) -> u32 {
         self.raw.get_size()
     }
+
+    /// This function returns the data of a PackedFile.
+    pub fn get_raw_data(&self) -> Result<Vec<u8>> {
+        self.raw.get_data()
+    }
 }
 
 /// Implementation of `RawPackedFile`.
