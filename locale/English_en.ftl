@@ -25,6 +25,7 @@ menu_bar_mymod = &MyMod
 menu_bar_game_selected = &Game Selected
 menu_bar_special_stuff = &Special Stuff
 menu_bar_about = &About
+menu_bar_debug = &Debug
 
 ## PackFile Menu
 
@@ -96,6 +97,10 @@ about_open_manual = &Open Manual
 about_patreon_link = &Support me on Patreon
 about_check_updates = &Check Updates
 about_check_schema_updates = Check Schema &Updates
+
+## Debug Menu
+
+update_current_schema_from_asskit = Update currently loaded Schema with Assembly Kit
 
 ### app_ui_extra.rs localisation
 
@@ -376,6 +381,7 @@ settings_use_lazy_loading = Use Lazy-Loading for PackFiles:
 
 settings_debug_title = Debug Settings
 settings_debug_missing_table = Check for Missing Table Definitions
+settings_debug_enable_debug_menu = Enable Debug Menu
 
 settings_text_title = Text Editor Preferences
 

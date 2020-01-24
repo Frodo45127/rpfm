@@ -37,6 +37,8 @@ use qt_core::flags::Flags;
 use qt_core::object::Object;
 use qt_core::qt::CaseSensitivity;
 
+use rpfm_lib::SETTINGS;
+
 use crate::ffi::new_tableview_command_palette;
 use crate::locale::qtr;
 use crate::QString;
@@ -100,6 +102,7 @@ pub struct AppUI {
     pub menu_bar_game_seleted: *mut Menu,
     pub menu_bar_special_stuff: *mut Menu,
     pub menu_bar_about: *mut Menu,
+    pub menu_bar_debug: *mut Menu,
 
     //-------------------------------------------------------------------------------//
     // `PackFile` menu.
@@ -226,6 +229,11 @@ pub struct AppUI {
     pub about_patreon_link: *mut Action,
     pub about_check_updates: *mut Action,
     pub about_check_schema_updates: *mut Action,
+
+    //-------------------------------------------------------------------------------//
+    // "Debug" menu.
+    //-------------------------------------------------------------------------------//
+    pub debug_update_current_schema_from_asskit: *mut Action,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -317,6 +325,12 @@ impl Default for AppUI {
         let menu_bar_game_seleted = menu_bar_ref_mut.add_menu(&qtr("menu_bar_game_selected"));
         let menu_bar_special_stuff = menu_bar_ref_mut.add_menu(&qtr("menu_bar_special_stuff"));
         let menu_bar_about = menu_bar_ref_mut.add_menu(&qtr("menu_bar_about"));
+
+        // This menu is hidden unless you enable it.
+        let menu_bar_debug = menu_bar_ref_mut.add_menu(&qtr("menu_bar_debug"));
+        if !SETTINGS.lock().unwrap().settings_bool["enable_debug_menu"] {
+            unsafe { menu_bar_debug.as_mut().unwrap().set_visible(false); }
+        }
 
         //-----------------------------------------------//
         // `PackFile` Menu.
@@ -545,6 +559,14 @@ impl Default for AppUI {
         let about_check_updates = menu_bar_about_ref_mut.add_action(&qtr("about_check_updates"));
         let about_check_schema_updates = menu_bar_about_ref_mut.add_action(&qtr("about_check_schema_updates"));
 
+        //-----------------------------------------------//
+        // `Debug` Menu.
+        //-----------------------------------------------//
+
+        // Populate the `Debug` menu.
+        let menu_bar_debug_ref_mut = unsafe { menu_bar_debug.as_mut().unwrap() };
+        let debug_update_current_schema_from_asskit = menu_bar_debug_ref_mut.add_action(&qtr("update_current_schema_from_asskit"));
+
         command_palette_widget.hide();
 
         // Create ***Da monsta***.
@@ -579,6 +601,7 @@ impl Default for AppUI {
             menu_bar_game_seleted,
             menu_bar_special_stuff,
             menu_bar_about,
+            menu_bar_debug,
 
             //-------------------------------------------------------------------------------//
             // "PackFile" menu.
@@ -707,6 +730,11 @@ impl Default for AppUI {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
+
+            //-------------------------------------------------------------------------------//
+            // "Debug" menu.
+            //-------------------------------------------------------------------------------//
+            debug_update_current_schema_from_asskit,
         }
     }
 }

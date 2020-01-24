@@ -241,6 +241,7 @@ pub fn background_loop() {
                     file.write_all(table_list.as_bytes()).unwrap();
                 }
             }
+
             // In case we want to generate a new Pak File for our Game Selected...
             Command::GeneratePakFile(path, version) => {
                 match generate_pak_file(&path, version) {
@@ -251,6 +252,15 @@ pub fn background_loop() {
                 // Reload the `fake dependency_database` for that game.
                 *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = DB::read_pak_file();
             }
+
+            // In case we want to update the Schema for our Game Selected...
+            Command::UpdateCurrentSchemaFromAssKit(path) => {
+                match update_schema_from_raw_files(path) {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
                 CENTRAL_COMMAND.send_message_rust(Response::VecVecString(pack_file_decoded.optimize()));

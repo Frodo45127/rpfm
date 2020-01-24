@@ -127,6 +127,11 @@ pub struct AppUISlots {
     pub about_check_schema_updates: SlotBool<'static>,
 
     //-----------------------------------------------//
+    // `Debug` menu slots.
+    //-----------------------------------------------//
+    pub debug_update_current_schema_from_asskit: SlotBool<'static>,
+
+    //-----------------------------------------------//
     // `PackedFileView` slots.
     //-----------------------------------------------//
     pub packed_file_hide: SlotCInt<'static>,
@@ -975,6 +980,46 @@ impl AppUISlots {
         // What happens when we trigger the "Check Schema Update" action.
         let about_check_schema_updates = SlotBool::new(move |_| { app_ui.check_schema_updates(true); });
 
+        // What happens when we trigger the "Update from AssKit" action.
+        let debug_update_current_schema_from_asskit = SlotBool::new(move |_| {
+
+                // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
+                let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
+                let path = match version {
+                    1| 0 => {
+
+                        // Create the FileDialog to get the path of the Assembly Kit.
+                        let mut file_dialog = unsafe { FileDialog::new_unsafe((
+                            app_ui.main_window as *mut Widget,
+                            &qtr("special_stuff_select_raw_db_folder"),
+                        )) };
+
+                        // Set it to only search Folders.
+                        file_dialog.set_file_mode(FileMode::Directory);
+                        file_dialog.set_option(ShowDirsOnly);
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        if file_dialog.exec() == 1 { Some(PathBuf::from(file_dialog.selected_files().at(0).to_std_string()))
+                        } else { None }
+                    }
+                    _ => None,
+                };
+
+                // If there is no problem, ere we go.
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+
+                CENTRAL_COMMAND.send_message_qt(Command::UpdateCurrentSchemaFromAssKit(path));
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
+                    Response::Success => show_dialog(app_ui.main_window as *mut Widget, "Currently loaded schema updated.", true),
+                    Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+
+                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        );
+
         //-----------------------------------------------//
         // `PackedFileView` logic.
         //-----------------------------------------------//
@@ -1063,6 +1108,11 @@ impl AppUISlots {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
+
+            //-----------------------------------------------//
+            // `Debug` menu slots.
+            //-----------------------------------------------//
+            debug_update_current_schema_from_asskit,
 
             //-----------------------------------------------//
             // `PackedFileView` slots.

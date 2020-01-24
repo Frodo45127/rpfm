@@ -79,6 +79,7 @@ impl Settings {
 
         // Debug Settings.
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
+        settings_bool.insert("enable_debug_menu".to_owned(), false);
 
         // TableView Specific Settings.
         settings_bool.insert("remember_column_sorting".to_owned(), true);

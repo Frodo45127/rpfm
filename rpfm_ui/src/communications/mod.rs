@@ -121,6 +121,10 @@ pub enum Command {
     /// source files and the `Raw DB Version` of the currently selected game.
     GeneratePakFile(PathBuf, i16),
 
+    /// This command is used when we want to update the currently loaded Schema with data from the game selected's Assembly Kit.
+    /// It contains the path of the source files, if needed.
+    UpdateCurrentSchemaFromAssKit(Option<PathBuf>),
+
     /// This command is used when we want to trigger an optimization pass over the currently open `PackFile`.
     OptimizePackFile,
 

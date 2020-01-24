@@ -118,6 +118,8 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     pub debug_check_for_missing_table_definitions_label: *mut Label,
     pub debug_check_for_missing_table_definitions_checkbox: *mut CheckBox,
+    pub debug_enable_debug_menu_label: *mut Label,
+    pub debug_enable_debug_menu_checkbox: *mut CheckBox,
 
     //-------------------------------------------------------------------------------//
     // `ButtonBox` section of the `Settings` dialog.
@@ -346,10 +348,16 @@ impl SettingsUI {
         debug_grid.set_row_stretch(99, 10);
 
         let mut debug_check_for_missing_table_definitions_label = Label::new(&qtr("settings_debug_missing_table"));
+        let mut debug_enable_debug_menu_label = Label::new(&qtr("settings_debug_enable_debug_menu"));
+
         let mut debug_check_for_missing_table_definitions_checkbox = CheckBox::new(());
+        let mut debug_enable_debug_menu_checkbox = CheckBox::new(());
 
         unsafe { debug_grid.add_widget((debug_check_for_missing_table_definitions_label.static_cast_mut() as *mut Widget, 0, 0, 1, 1)); }
         unsafe { debug_grid.add_widget((debug_check_for_missing_table_definitions_checkbox.static_cast_mut() as *mut Widget, 0, 1, 1, 1)); }
+
+        unsafe { debug_grid.add_widget((debug_enable_debug_menu_label.static_cast_mut() as *mut Widget, 1, 0, 1, 1)); }
+        unsafe { debug_grid.add_widget((debug_enable_debug_menu_checkbox.static_cast_mut() as *mut Widget, 1, 1, 1, 1)); }
 
         unsafe { debug_frame.set_layout(debug_grid.into_raw() as *mut Layout); }
         unsafe { main_grid.add_widget((debug_frame.into_raw() as *mut Widget, 2, 1, 1, 1)); }
@@ -435,7 +443,8 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             debug_check_for_missing_table_definitions_label: debug_check_for_missing_table_definitions_label.into_raw(),
             debug_check_for_missing_table_definitions_checkbox: debug_check_for_missing_table_definitions_checkbox.into_raw(),
-
+            debug_enable_debug_menu_label: debug_enable_debug_menu_label.into_raw(),
+            debug_enable_debug_menu_checkbox: debug_enable_debug_menu_checkbox.into_raw(),
             //-------------------------------------------------------------------------------//
             // `ButtonBox` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
@@ -486,6 +495,7 @@ impl SettingsUI {
 
         // Load the Debug Stuff.
         unsafe { self.debug_check_for_missing_table_definitions_checkbox.as_mut().unwrap().set_checked(settings.settings_bool["check_for_missing_table_definitions"]); }
+        unsafe { self.debug_enable_debug_menu_checkbox.as_mut().unwrap().set_checked(settings.settings_bool["enable_debug_menu"]); }
     }
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.
@@ -530,6 +540,7 @@ impl SettingsUI {
 
         // Get the Debug Settings.
         unsafe { settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.as_mut().unwrap().is_checked()); }
+        unsafe { settings.settings_bool.insert("enable_debug_menu".to_owned(), self.debug_enable_debug_menu_checkbox.as_mut().unwrap().is_checked()); }
 
         // Return the new Settings.
         settings

@@ -16,6 +16,7 @@ This module is, and should stay, private, as it's only glue between the `AppUI` 
 
 use qt_core::connection::Signal;
 
+use rpfm_lib::SETTINGS;
 use super::{AppUI, slots::AppUISlots};
 
 /// This function connects all the actions from the provided `AppUI` with their slots in `AppUISlots`.
@@ -117,6 +118,11 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     unsafe { app_ui.about_patreon_link.as_ref().unwrap().signals().triggered().connect(&slots.about_patreon_link); }
     unsafe { app_ui.about_check_updates.as_ref().unwrap().signals().triggered().connect(&slots.about_check_updates); }
     unsafe { app_ui.about_check_schema_updates.as_ref().unwrap().signals().triggered().connect(&slots.about_check_schema_updates); }
+
+    //-----------------------------------------------//
+    // `Debug` menu connections.
+    //-----------------------------------------------//
+    unsafe { app_ui.debug_update_current_schema_from_asskit.as_ref().unwrap().signals().triggered().connect(&slots.debug_update_current_schema_from_asskit); }
 
     //-----------------------------------------------//
     // `PackedFileView` connections.
