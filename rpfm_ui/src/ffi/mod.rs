@@ -32,6 +32,9 @@ extern "C" { pub fn new_spinbox_item_delegate(table_view: *mut Object, column: i
 /// This function changes the default editor widget for F32 cells on tables with a numeric one.
 extern "C" { pub fn new_doublespinbox_item_delegate(table_view: *mut Object, column: i32); }
 
+/// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema..
+extern "C" { pub fn new_qstring_item_delegate(table_view: *mut Object, column: i32, max_lenght: i32); }
+
 /// This function setup the special filter used for the PackFile Contents `TreeView`.
 extern "C" { pub fn new_treeview_filter(parent: *mut Object) -> *mut SortFilterProxyModel; }
 

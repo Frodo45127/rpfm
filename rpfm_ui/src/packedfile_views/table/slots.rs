@@ -44,8 +44,8 @@ impl PackedFileTableViewSlots {
     pub fn new(packed_file_view: PackedFileTableViewRaw, global_search_ui: GlobalSearchUI, pack_file_contents_ui: PackFileContentsUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
 
         // When we want to filter when changing the pattern to filter with...
-        let filter_line_edit = SlotStringRef::new(move |string| {
-            packed_file_view.filter_table(Some(QString::from_std_str(string.to_std_string())));
+        let filter_line_edit = SlotStringRef::new(move |_| {
+            packed_file_view.filter_table();
         });
 
         // When we want to save the contents of the UI to the backend...

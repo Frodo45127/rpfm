@@ -24,10 +24,13 @@ use qt_gui::standard_item::StandardItem;
 use qt_gui::standard_item_model::StandardItemModel;
 
 use qt_core::abstract_item_model::AbstractItemModel;
-use qt_core::qt::CheckState;
+use qt_core::object::Object;
+use qt_core::qt::{CaseSensitivity, CheckState};
 use qt_core::reg_exp::RegExp;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
 use qt_core::variant::Variant;
+
+use cpp_utils::CppBox;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -42,7 +45,7 @@ use rpfm_lib::SETTINGS;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::new_tableview_frozen;
+use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -70,7 +73,10 @@ pub enum TableType {
 pub struct PackedFileTableView {
     table_view_primary: AtomicPtr<TableView>,
     table_view_frozen: AtomicPtr<TableView>,
-
+    table_filter: AtomicPtr<SortFilterProxyModel>,
+    table_model: AtomicPtr<StandardItemModel>,
+    filter_case_sensitive_button: AtomicPtr<PushButton>,
+    filter_column_selector: AtomicPtr<ComboBox>,
     filter_line_edit: AtomicPtr<LineEdit>,
 }
 
@@ -82,10 +88,12 @@ pub struct PackedFileTableView {
 pub struct PackedFileTableViewRaw {
     pub table_view_primary: *mut TableView,
     pub table_view_frozen: *mut TableView,
-
+    pub table_filter: *mut SortFilterProxyModel,
+    pub table_model: *mut StandardItemModel,
     pub filter_line_edit: *mut LineEdit,
+    pub filter_case_sensitive_button: *mut PushButton,
+    pub filter_column_selector: *mut ComboBox,
 }
-
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -131,37 +139,43 @@ impl PackedFileTableView {
         // Create the "Paste Lock", so we don't save in every freaking edit.
         //let save_lock = Rc::new(RefCell::new(false));
 
-        // Prepare the model and the filter..
+        // Prepare the Table and its model.
+        let mut table_view_frozen = TableView::new();
         let mut filter_model = SortFilterProxyModel::new();
         let model = StandardItemModel::new(());
-        unsafe { filter_model.set_source_model(model.into_raw() as *mut AbstractItemModel); }
-
-        // Prepare the TableViews.
-        let mut table_view_frozen = TableView::new();
-        let table_view = unsafe { new_tableview_frozen(filter_model.into_raw() as *mut AbstractItemModel, table_view_frozen.as_mut_ptr()) };
+        unsafe { filter_model.set_source_model(model.as_mut_ptr() as *mut AbstractItemModel); }
+        let table_view = unsafe { new_tableview_frozen(filter_model.as_mut_ptr() as *mut AbstractItemModel, table_view_frozen.as_mut_ptr()) };
         table_view_frozen.hide();
+
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] {
             unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
         }
 
-        // Create the filter's LineEdit.
+        // Create the filter's widgets.
         let mut row_filter_line_edit = LineEdit::new(());
-        row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-
-        // Create the filter's column selector.
-        // TODO: Make this follow the visual order of the columns, NOT THE LOGICAL ONE.
         let mut row_filter_column_selector = ComboBox::new();
+        let mut row_filter_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive"));
         let row_filter_column_list = StandardItemModel::new(());
-        unsafe { row_filter_column_selector.set_model(row_filter_column_list.as_mut_ptr() as *mut AbstractItemModel) };
-        for column in &table_definition.fields {
-            let name = Self::clean_column_names(&column.name);
+
+        unsafe { row_filter_column_selector.set_model(row_filter_column_list.into_raw() as *mut AbstractItemModel) };
+
+        let mut fields = table_definition.fields.to_vec();
+        fields.sort_by(|a, b| a.ca_order.cmp(&b.ca_order));
+        for field in &fields {
+            let name = Self::clean_column_names(&field.name);
             row_filter_column_selector.add_item(&QString::from_std_str(&name));
         }
 
-        // Create the filter's "Case Sensitive" button.
-        let row_filter_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive")).into_raw();
-        unsafe { row_filter_case_sensitive_button.as_mut().unwrap().set_checkable(true); }
+        row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        row_filter_case_sensitive_button.set_checkable(true);
+
+        // Add everything to the grid.
+        let layout = unsafe { packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout };
+        unsafe { layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
+        unsafe { layout.as_mut().unwrap().add_widget((row_filter_line_edit.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
+        unsafe { layout.as_mut().unwrap().add_widget((row_filter_column_selector.as_mut_ptr() as *mut Widget, 2, 2, 1, 1)); }
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
@@ -171,30 +185,36 @@ impl PackedFileTableView {
         let packed_file_name = if packed_file_path.borrow().len() == 3 && packed_file_path.borrow()[1] == "db" { packed_file_path.borrow()[2].to_owned() } else { "".to_owned() };
         Self::build_columns(table_view, table_view_frozen.as_mut_ptr(), &table_definition, &packed_file_name);
 
-        // Add Table to the Grid.
-        let layout = unsafe { packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout };
-        unsafe { layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
-        unsafe { layout.as_mut().unwrap().add_widget((row_filter_line_edit.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
-        unsafe { layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button as *mut Widget, 2, 1, 1, 1)); }
-        unsafe { layout.as_mut().unwrap().add_widget((row_filter_column_selector.into_raw() as *mut Widget, 2, 2, 1, 1)); }
-
+        // Create the raw Struct and begin
         let packed_file_table_view_raw = PackedFileTableViewRaw {
             table_view_primary: table_view,
             table_view_frozen: table_view_frozen.into_raw(),
+            table_filter: filter_model.into_raw(),
+            table_model: model.into_raw(),
             filter_line_edit: row_filter_line_edit.into_raw(),
+            filter_case_sensitive_button: row_filter_case_sensitive_button.into_raw(),
+            filter_column_selector: row_filter_column_selector.into_raw(),
         };
 
-
-        let packed_file_table_view_slots = PackedFileTableViewSlots::new(packed_file_table_view_raw, *global_search_ui, *pack_file_contents_ui, &packed_file_path);
-
+        let packed_file_table_view_slots = PackedFileTableViewSlots::new(
+            packed_file_table_view_raw,
+            *global_search_ui,
+            *pack_file_contents_ui,
+            &packed_file_path
+        );
 
         let packed_file_table_view = Self {
             table_view_primary: AtomicPtr::new(packed_file_table_view_raw.table_view_primary),
             table_view_frozen: AtomicPtr::new(packed_file_table_view_raw.table_view_frozen),
+            table_filter: AtomicPtr::new(packed_file_table_view_raw.table_filter),
+            table_model: AtomicPtr::new(packed_file_table_view_raw.table_model),
             filter_line_edit: AtomicPtr::new(packed_file_table_view_raw.filter_line_edit),
+            filter_case_sensitive_button: AtomicPtr::new(packed_file_table_view_raw.filter_case_sensitive_button),
+            filter_column_selector: AtomicPtr::new(packed_file_table_view_raw.filter_column_selector),
         };
-        connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
 
+        // Set the connections and return success.
+        connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
         packed_file_view.view = View::Table(packed_file_table_view);
 
         // Return success.
@@ -223,56 +243,11 @@ impl PackedFileTableView {
             TableType::Loc(data) => data.get_ref_table_data(),
         };
 
+        // Load the data, row by row.
         for entry in data {
             let mut qlist = ListStandardItemMutPtr::new(());
             for (index, field) in entry.iter().enumerate() {
-
-                // Create a new Item.
-                let item = match *field {
-
-                    // This one needs a couple of changes before turning it into an item in the table.
-                    DecodedData::Boolean(ref data) => {
-                        let mut item = StandardItem::new(());
-                        item.set_editable(false);
-                        item.set_checkable(true);
-                        item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
-                        item
-                    }
-
-                    // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
-                    // Also, they should be limited to 3 decimals.
-                    DecodedData::Float(ref data) => {
-                        let data = {
-                            let data_str = format!("{}", data);
-                            if let Some(position) = data_str.find('.') {
-                                let decimals = &data_str[position..].len();
-                                if *decimals > 3 { format!("{:.3}", data).parse::<f32>().unwrap() }
-                                else { *data }
-                            }
-                            else { *data }
-                        };
-
-                        let mut item = StandardItem::new(());
-                        item.set_data((&Variant::new2(data), 2));
-                        item
-                    },
-                    DecodedData::Integer(ref data) => {
-                        let mut item = StandardItem::new(());
-                        item.set_data((&Variant::new0(*data), 2));
-                        item
-                    },
-                    DecodedData::LongInteger(ref data) => {
-                        let mut item = StandardItem::new(());
-                        item.set_data((&Variant::new2(*data), 2));
-                        item
-                    },
-                    // All these are Strings, so it can be together,
-                    DecodedData::StringU8(ref data) |
-                    DecodedData::StringU16(ref data) |
-                    DecodedData::OptionalStringU8(ref data) |
-                    DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
-                    DecodedData::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
-                };
+                let item = Self::get_item_from_decoded_data(field);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && table_definition.fields[index].is_reference.is_some() {
@@ -288,35 +263,7 @@ impl PackedFileTableView {
         if data.is_empty() {
             let mut qlist = ListStandardItemMutPtr::new(());
             for field in &table_definition.fields {
-                let item = match field.field_type {
-                    FieldType::Boolean => {
-                        let mut item = StandardItem::new(());
-                        item.set_editable(false);
-                        item.set_checkable(true);
-                        item.set_check_state(CheckState::Checked);
-                        item
-                    }
-                    FieldType::Float => {
-                        let mut item = StandardItem::new(());
-                        item.set_data((&Variant::new2(0.0f32), 2));
-                        item
-                    },
-                    FieldType::Integer => {
-                        let mut item = StandardItem::new(());
-                        item.set_data((&Variant::new0(0i32), 2));
-                        item
-                    },
-                    FieldType::LongInteger => {
-                        let mut item = StandardItem::new(());
-                        item.set_data((&Variant::new2(0i64), 2));
-                        item
-                    },
-                    FieldType::StringU8 |
-                    FieldType::StringU16 |
-                    FieldType::OptionalStringU8 |
-                    FieldType::OptionalStringU16 => StandardItem::new(&QString::from_std_str("")),
-                    FieldType::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
-                };
+                let item = Self::get_default_item_from_field(field);
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
             }
             model.append_row(&qlist);
@@ -325,21 +272,20 @@ impl PackedFileTableView {
 
         // Here we assing the ItemDelegates, so each type has his own widget with validation included.
         // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-        // The rest don't need any kind of validation. For now.
-        /*
         for (column, field) in table_definition.fields.iter().enumerate() {
             match field.field_type {
                 FieldType::Boolean => {},
-                FieldType::Float => unsafe { qt_custom_stuff::new_doublespinbox_item_delegate(table_view as *mut Object, column as i32) },
-                FieldType::Integer => unsafe { qt_custom_stuff::new_spinbox_item_delegate(table_view as *mut Object, column as i32, 32) },
-                FieldType::LongInteger => unsafe { qt_custom_stuff::new_spinbox_item_delegate(table_view as *mut Object, column as i32, 64) },
-                FieldType::StringU8 => {},
-                FieldType::StringU16 => {},
-                FieldType::OptionalStringU8 => {},
-                FieldType::OptionalStringU16 => {},
+                FieldType::Float => unsafe { new_doublespinbox_item_delegate(view as *mut Object, column as i32) },
+                FieldType::Integer => unsafe { new_spinbox_item_delegate(view as *mut Object, column as i32, 32) },
+                FieldType::LongInteger => unsafe { new_spinbox_item_delegate(view as *mut Object, column as i32, 64) },
+                FieldType::StringU8 |
+                FieldType::StringU16 |
+                FieldType::OptionalStringU8 |
+                FieldType::OptionalStringU16 => unsafe { new_qstring_item_delegate(view as *mut Object, column as i32, field.max_length) },
+                FieldType::Sequence(_) => {}
             }
         }
-
+        /*
         // We build the combos lists here, so it get's rebuilt if we import a TSV and clear the table.
         if !SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
             for (column, data) in dependency_data {
@@ -397,8 +343,7 @@ impl PackedFileTableView {
         let filter = unsafe { (table_view_primary.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
         let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_mut().unwrap() };
         let schema = SCHEMA.read().unwrap();
-
-        // Create a list of "Key" columns.
+        let mut do_we_have_ca_order = false;
         let mut keys = vec![];
 
         // For each column, clean their name and set their width and tooltip.
@@ -421,21 +366,161 @@ impl PackedFileTableView {
                 FieldType::Sequence(_) => table_view_primary.set_column_width(index as i32, 350),
             }
 
-            Self::set_tooltip(&schema, &field, table_name, item);
+            //Self::set_tooltip(&schema, &field, table_name, item);
 
             // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
             if field.is_key { keys.push(index); }
+            if field.ca_order != -1 { do_we_have_ca_order |= true; }
         }
 
-        // If we have any "Key" field, move it to the beginning.
-        if !keys.is_empty() {
+        // Now the order. If we have a sort order from the schema, we use that one.
+        if do_we_have_ca_order {
+            let mut fields = definition.fields.iter().enumerate().map(|(x, y)| (x, y.clone())).collect::<Vec<(usize, Field)>>();
+            fields.sort_by(|a, b| a.1.ca_order.cmp(&b.1.ca_order));
+
+            let header_primary = unsafe { table_view_primary.horizontal_header().as_mut().unwrap() };
+            let header_frozen = unsafe { table_view_frozen.horizontal_header().as_mut().unwrap() };
+            for (logical_index, field) in &fields {
+                if field.ca_order != -1 {
+                    let visual_index = header_primary.visual_index(*logical_index as i32);
+                    header_primary.move_section(visual_index as i32, field.ca_order as i32);
+                    header_frozen.move_section(visual_index as i32, field.ca_order as i32);
+                }
+            }
+        }
+
+        // Otherwise, if we have any "Key" field, move it to the beginning.
+        else if !keys.is_empty() {
+            let header_primary = unsafe { table_view_primary.horizontal_header().as_mut().unwrap() };
+            let header_frozen = unsafe { table_view_frozen.horizontal_header().as_mut().unwrap() };
             for (position, column) in keys.iter().enumerate() {
-                unsafe { table_view_primary.horizontal_header().as_mut().unwrap().move_section(*column as i32, position as i32); }
-                unsafe { table_view_frozen.horizontal_header().as_mut().unwrap().move_section(*column as i32, position as i32); }
+                header_primary.move_section(*column as i32, position as i32);
+                header_frozen.move_section(*column as i32, position as i32);
             }
         }
     }
 
+    /// This function generates a *Default* StandardItem for the provided field.
+    fn get_default_item_from_field(field: &Field) -> CppBox<StandardItem> {
+        match field.field_type {
+            FieldType::Boolean => {
+                let mut item = StandardItem::new(());
+                item.set_editable(false);
+                item.set_checkable(true);
+                if let Some(default_value) = &field.default_value {
+                    if default_value.to_lowercase() == "true" {
+                        item.set_check_state(CheckState::Checked);
+                    } else {
+                        item.set_check_state(CheckState::Unchecked);
+                    }
+                } else {
+                    item.set_check_state(CheckState::Unchecked);
+                }
+                item
+            }
+            FieldType::Float => {
+                let mut item = StandardItem::new(());
+                if let Some(default_value) = &field.default_value {
+                    if let Ok(default_value) = default_value.parse::<f32>() {
+                        item.set_data((&Variant::new2(default_value), 2));
+                    } else {
+                        item.set_data((&Variant::new2(0.0f32), 2));
+                    }
+                } else {
+                    item.set_data((&Variant::new2(0.0f32), 2));
+                }
+                item
+            },
+            FieldType::Integer => {
+                let mut item = StandardItem::new(());
+                if let Some(default_value) = &field.default_value {
+                    if let Ok(default_value) = default_value.parse::<i32>() {
+                        item.set_data((&Variant::new0(default_value), 2));
+                    } else {
+                        item.set_data((&Variant::new0(0i32), 2));
+                    }
+                } else {
+                    item.set_data((&Variant::new0(0i32), 2));
+                }
+                item
+            },
+            FieldType::LongInteger => {
+                let mut item = StandardItem::new(());
+                if let Some(default_value) = &field.default_value {
+                    if let Ok(default_value) = default_value.parse::<i64>() {
+                        item.set_data((&Variant::new2(default_value), 2));
+                    } else {
+                        item.set_data((&Variant::new2(0i64), 2));
+                    }
+                } else {
+                    item.set_data((&Variant::new2(0i64), 2));
+                }
+                item
+            },
+            FieldType::StringU8 |
+            FieldType::StringU16 |
+            FieldType::OptionalStringU8 |
+            FieldType::OptionalStringU16 => {
+                if let Some(default_value) = &field.default_value {
+                    StandardItem::new(&QString::from_std_str(default_value))
+                } else {
+                    StandardItem::new(&QString::new(()))
+                }
+            },
+            FieldType::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
+        }
+    }
+
+    /// This function generates a StandardItem for the provided DecodedData.
+    fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<StandardItem> {
+        match *data {
+
+            // This one needs a couple of changes before turning it into an item in the table.
+            DecodedData::Boolean(ref data) => {
+                let mut item = StandardItem::new(());
+                item.set_editable(false);
+                item.set_checkable(true);
+                item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
+                item
+            }
+
+            // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+            // Also, they should be limited to 3 decimals.
+            DecodedData::Float(ref data) => {
+                let data = {
+                    let data_str = format!("{}", data);
+                    if let Some(position) = data_str.find('.') {
+                        let decimals = &data_str[position..].len();
+                        if *decimals > 3 { format!("{:.3}", data).parse::<f32>().unwrap() }
+                        else { *data }
+                    }
+                    else { *data }
+                };
+
+                let mut item = StandardItem::new(());
+                item.set_data((&Variant::new2(data), 2));
+                item
+            },
+            DecodedData::Integer(ref data) => {
+                let mut item = StandardItem::new(());
+                item.set_data((&Variant::new0(*data), 2));
+                item
+            },
+            DecodedData::LongInteger(ref data) => {
+                let mut item = StandardItem::new(());
+                item.set_data((&Variant::new2(*data), 2));
+                item
+            },
+            // All these are Strings, so it can be together,
+            DecodedData::StringU8(ref data) |
+            DecodedData::StringU16(ref data) |
+            DecodedData::OptionalStringU8(ref data) |
+            DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
+            DecodedData::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
+        }
+    }
+
+/*
     /// This function sets the tooltip for the provided column header, if the column should have one.
     fn set_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: *mut StandardItem) {
 
@@ -506,89 +591,25 @@ impl PackedFileTableView {
                 unsafe { item.as_mut().unwrap().set_tool_tip(&QString::from_std_str(&tooltip_text)); }
             }
         }
-    }
-
-    /// Function to filter the table. If a value is not provided by a slot, we get it from the widget itself.
-    fn filter_table(
-        &self,
-        pattern: Option<QString>,
-    ) {
-println!("1");
-        // Set the pattern to search.
-        let mut pattern = if let Some(pattern) = pattern { RegExp::new(&pattern) }
-        else { unsafe { RegExp::new(&self.get_filter_line_edit().text()) }};
-println!("2");
-
-        // Set the column selected.
-        //if let Some(column) = column { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column); }}
-        //else { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column_selector.as_mut().unwrap().current_index()); }}
-
-        // Check if the filter should be "Case Sensitive".
-        /*
-        if let Some(case_sensitive) = case_sensitive {
-            if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
-            else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
-        }
-
-        else {
-            let case_sensitive = unsafe { case_sensitive_button.as_mut().unwrap().is_checked() };
-            if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
-            else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
-        }*/
-
-        // Filter whatever it's in that column by the text we got.
-        let filter_model = self.get_table().model() as *mut SortFilterProxyModel;
-        unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&pattern); }
-/*
-        // Update the search stuff, if needed.
-        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
-
-        // Add the new filter data to the state history.
-        if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
-            unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
-        }*/
-    }
+    }*/
 }
 
+/// Implementation of `PackedFileTableViewRaw`.
 impl PackedFileTableViewRaw {
 
     /// Function to filter the table. If a value is not provided by a slot, we get it from the widget itself.
-    fn filter_table(
-        &self,
-        pattern: Option<QString>,
-    ) {
+    fn filter_table(&self) {
 
-        // Set the pattern to search.
-        let mut pattern = if let Some(pattern) = pattern { RegExp::new(&pattern) }
-        else { unsafe { RegExp::new(&self.filter_line_edit.as_mut().unwrap().text()) }};
-
-        // Set the column selected.
-        //if let Some(column) = column { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column); }}
-        //else { unsafe { filter_model.as_mut().unwrap().set_filter_key_column(column_selector.as_mut().unwrap().current_index()); }}
+        let mut pattern = unsafe { RegExp::new(&self.filter_line_edit.as_mut().unwrap().text()) };
+        unsafe { self.table_filter.as_mut().unwrap().set_filter_key_column(self.filter_column_selector.as_mut().unwrap().current_index()); }
 
         // Check if the filter should be "Case Sensitive".
-        /*
-        if let Some(case_sensitive) = case_sensitive {
-            if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
-            else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
-        }
-
-        else {
-            let case_sensitive = unsafe { case_sensitive_button.as_mut().unwrap().is_checked() };
-            if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
-            else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
-        }*/
+        let case_sensitive = unsafe { self.filter_case_sensitive_button.as_mut().unwrap().is_checked() };
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
 
         // Filter whatever it's in that column by the text we got.
-        let filter_model = unsafe { self.table_view_primary.as_mut().unwrap().model() as *mut SortFilterProxyModel };
-        unsafe { filter_model.as_mut().unwrap().set_filter_reg_exp(&pattern); }
-/*
-        // Update the search stuff, if needed.
-        unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
-
-        // Add the new filter data to the state history.
-        if let Some(state) = TABLE_STATES_UI.lock().unwrap().get_mut(&*packed_file_path.borrow()) {
-            unsafe { state.filter_state = FilterState::new(filter_line_edit.as_mut().unwrap().text().to_std_string(), column_selector.as_mut().unwrap().current_index(), case_sensitive_button.as_mut().unwrap().is_checked()); }
-        }*/
+        let filter_model = unsafe { self.table_filter.as_mut().unwrap() };
+        filter_model.set_filter_reg_exp(&pattern);
     }
 }
