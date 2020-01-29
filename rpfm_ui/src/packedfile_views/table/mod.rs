@@ -60,6 +60,11 @@ use self::slots::PackedFileTableViewSlots;
 mod connections;
 pub mod slots;
 
+// Column default sizes.
+static COLUMN_SIZE_BOOLEAN: i32 = 100;
+static COLUMN_SIZE_NUMBER: i32 = 140;
+static COLUMN_SIZE_STRING: i32 = 350;
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -171,7 +176,7 @@ impl PackedFileTableView {
         // Create the filter's widgets.
         let mut row_filter_line_edit = LineEdit::new(());
         let mut row_filter_column_selector = ComboBox::new();
-        let mut row_filter_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive"));
+        let mut row_filter_case_sensitive_button = PushButton::new(&qtr("table_filter_case_sensitive"));
         let row_filter_column_list = StandardItemModel::new(());
         let mut table_enable_lookups_button = PushButton::new(&qtr("table_enable_lookups"));
 
@@ -450,15 +455,15 @@ impl PackedFileTableView {
 
             // Depending on his type, set one width or another.
             match field.field_type {
-                FieldType::Boolean => table_view_primary.set_column_width(index as i32, 100),
-                FieldType::Float => table_view_primary.set_column_width(index as i32, 140),
-                FieldType::Integer => table_view_primary.set_column_width(index as i32, 140),
-                FieldType::LongInteger => table_view_primary.set_column_width(index as i32, 140),
-                FieldType::StringU8 => table_view_primary.set_column_width(index as i32, 350),
-                FieldType::StringU16 => table_view_primary.set_column_width(index as i32, 350),
-                FieldType::OptionalStringU8 => table_view_primary.set_column_width(index as i32, 350),
-                FieldType::OptionalStringU16 => table_view_primary.set_column_width(index as i32, 350),
-                FieldType::Sequence(_) => table_view_primary.set_column_width(index as i32, 350),
+                FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
+                FieldType::Float => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::Integer => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::LongInteger => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::StringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::StringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::OptionalStringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::OptionalStringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::Sequence(_) => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
             }
 
 

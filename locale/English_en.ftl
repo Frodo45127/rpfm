@@ -290,6 +290,11 @@ mass_import_select = Select TSV Files to Import...
 
 files_to_import = Files to import: {"{"}{"}"}.
 
+### Table
+
+table_filter_case_sensitive = Case Sensitive
+table_enable_lookups = Use Lookups
+
 ### Contextual Menu for TreeView
 
 context_menu_add = &Add...
