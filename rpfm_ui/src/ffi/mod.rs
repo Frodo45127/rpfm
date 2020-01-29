@@ -24,7 +24,7 @@ use qt_core::string_list::StringList;
 use crate::QString;
 
 /// This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
-extern "C" { pub fn new_combobox_item_delegate(table_view: *mut Object, column: i32, list: *const StringList, is_editable: bool); }
+extern "C" { pub fn new_combobox_item_delegate(table_view: *mut Object, column: i32, list: *const StringList, is_editable: bool, max_lenght: i32); }
 
 /// This function changes the default editor widget for I32/64 cells on tables with a numeric one.
 extern "C" { pub fn new_spinbox_item_delegate(table_view: *mut Object, column: i32, integer_type: i32); }

@@ -593,7 +593,7 @@ impl GlobalSearchUI {
 
                             // In case of tables, we have to get the logical row/column of the match and select it.
                             View::Table(view) => {
-                                let table_view = view.get_table();
+                                let table_view = view.get_ref_mut_table_view_primary();
                                 let table_filter = unsafe { (table_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
                                 let table_model = unsafe { (table_filter.source_model() as *mut StandardItemModel).as_ref().unwrap() };
                                 let table_selection_model = unsafe { table_view.selection_model().as_mut().unwrap() };

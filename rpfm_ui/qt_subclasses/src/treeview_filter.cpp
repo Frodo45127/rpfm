@@ -23,7 +23,7 @@ QTreeViewSortFilterProxyModel::QTreeViewSortFilterProxyModel(QObject *parent): Q
 // Function called when the filter changes.
 bool QTreeViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
 
-    // Check the current item.
+    // Check the current item. If it's a file, we just call the parent's filter.
     bool result = QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);
     QModelIndex currntIndex = sourceModel()->index(source_row, 0, source_parent);
 
@@ -36,9 +36,16 @@ bool QTreeViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMode
         }
     }
 
-    // If it's a file, we just call the parent's filter.
+    // If it's a file, and it's not visible, there is a special behavior:
+    // if the parent matches the filter, we assume all it's children do it too.
+    // This is to avoid the "Show table folder, no table file" problem.
     else {
         result = QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);
+        if (!result) {
+            QModelIndex granpa = source_parent.parent();
+            int granpa_row = source_parent.row();
+            result = QSortFilterProxyModel::filterAcceptsRow(granpa_row, granpa);
+        }
     }
 
     return result;

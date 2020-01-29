@@ -16,6 +16,7 @@ Basically, this does the heavy load of the program.
 
 use rayon::prelude::*;
 
+use std::collections::BTreeMap;
 use std::env::temp_dir;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -581,6 +582,26 @@ pub fn background_loop() {
                 let _ = global_search.replace_all(&mut pack_file_decoded);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
                 CENTRAL_COMMAND.send_message_rust(Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
+            }
+
+            // In case we want to get the reference data for a definition...
+            Command::GetReferenceDataFromDefinition(definition) => {
+                let dependency_data = match &*SCHEMA.read().unwrap() {
+                    Some(ref schema) => {
+                        let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
+                        let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
+
+                        DB::get_dependency_data(
+                            &mut pack_file_decoded,
+                            schema,
+                            &definition,
+                            &mut dep_db,
+                            &fake_dep_db
+                        )
+                    }
+                    None => BTreeMap::new(),
+                };
+                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32VecStringString(dependency_data));
             }
 
             // These two belong to the network thread, not to this one!!!!

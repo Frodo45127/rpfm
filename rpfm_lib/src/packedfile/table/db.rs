@@ -451,6 +451,9 @@ impl DB {
     }
 
     /// This function returns the dependency/lookup data of each column of a DB Table.
+    ///
+    /// The returned references are in the following format:
+    /// ```BTreeMap<column_index, Vec<(referenced_value, lookup_value)>```.
     pub fn get_dependency_data(
         pack_file: &mut PackFile,
         schema: &Schema,

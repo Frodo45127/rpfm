@@ -12,15 +12,18 @@
 Module with the slots for Table Views.
 !*/
 
-use qt_core::slots::{SlotNoArgs, SlotStringRef};
+use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
+
+use rpfm_lib::schema::Definition;
 
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
-use crate::QString;
+
 use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
@@ -30,6 +33,7 @@ use crate::UI_STATE;
 /// This struct contains the slots of the view of an Table PackedFile.
 pub struct PackedFileTableViewSlots {
     pub filter_line_edit: SlotStringRef<'static>,
+    pub toggle_lookups: SlotBool<'static>,
     pub save: SlotNoArgs<'static>,
 }
 
@@ -41,12 +45,26 @@ pub struct PackedFileTableViewSlots {
 impl PackedFileTableViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub fn new(packed_file_view: PackedFileTableViewRaw, global_search_ui: GlobalSearchUI, pack_file_contents_ui: PackFileContentsUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
+    pub fn new(
+        packed_file_view: PackedFileTableViewRaw,
+        global_search_ui: GlobalSearchUI,
+        pack_file_contents_ui: PackFileContentsUI,
+        packed_file_path: &Rc<RefCell<Vec<String>>>,
+        table_definition: &Definition,
+        dependency_data: &BTreeMap<i32, Vec<(String, String)>>
+    ) -> Self {
 
         // When we want to filter when changing the pattern to filter with...
         let filter_line_edit = SlotStringRef::new(move |_| {
             packed_file_view.filter_table();
         });
+
+        // When we want to toggle the lookups on and off.
+        let toggle_lookups = SlotBool::new(clone!(
+            table_definition,
+            dependency_data => move |_| {
+            packed_file_view.toggle_lookups(&table_definition, &dependency_data);
+        }));
 
         // When we want to save the contents of the UI to the backend...
         //
@@ -62,6 +80,7 @@ impl PackedFileTableViewSlots {
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             filter_line_edit,
+            toggle_lookups,
             save,
         }
     }

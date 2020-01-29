@@ -28,12 +28,15 @@ use qt_core::object::Object;
 use qt_core::qt::{CaseSensitivity, CheckState};
 use qt_core::reg_exp::RegExp;
 use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
+use qt_core::string_list::StringList;
 use qt_core::variant::Variant;
 
 use cpp_utils::CppBox;
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
@@ -75,9 +78,12 @@ pub struct PackedFileTableView {
     table_view_frozen: AtomicPtr<TableView>,
     table_filter: AtomicPtr<SortFilterProxyModel>,
     table_model: AtomicPtr<StandardItemModel>,
+    table_enable_lookups_button: AtomicPtr<PushButton>,
     filter_case_sensitive_button: AtomicPtr<PushButton>,
     filter_column_selector: AtomicPtr<ComboBox>,
     filter_line_edit: AtomicPtr<LineEdit>,
+
+    dependency_data: Arc<BTreeMap<i32, Vec<(String, String)>>>
 }
 
 /// This struct contains the raw version of each pointer in `PackedFileTableView`, to be used when building the slots.
@@ -90,9 +96,10 @@ pub struct PackedFileTableViewRaw {
     pub table_view_frozen: *mut TableView,
     pub table_filter: *mut SortFilterProxyModel,
     pub table_model: *mut StandardItemModel,
-    pub filter_line_edit: *mut LineEdit,
+    pub table_enable_lookups_button: *mut PushButton,
     pub filter_case_sensitive_button: *mut PushButton,
     pub filter_column_selector: *mut ComboBox,
+    pub filter_line_edit: *mut LineEdit,
 }
 
 //-------------------------------------------------------------------------------//
@@ -129,6 +136,15 @@ impl PackedFileTableView {
             TableType::Loc(ref table) => table.get_definition(),
         };
 
+        // Get the dependency data of this Table.
+        CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(table_definition.clone()));
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        let dependency_data = match response {
+            Response::BTreeMapI32VecStringString(dependency_data) => dependency_data,
+            Response::Error(error) => return Err(error),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        };
+
         // Create the "Undo" stuff needed for the Undo/Redo functions to work.
         //let undo_lock = Rc::new(RefCell::new(false));
         //let undo_redo_enabler = Action::new(()).into_raw();
@@ -157,6 +173,7 @@ impl PackedFileTableView {
         let mut row_filter_column_selector = ComboBox::new();
         let mut row_filter_case_sensitive_button = PushButton::new(&qtr("global_search_case_sensitive"));
         let row_filter_column_list = StandardItemModel::new(());
+        let mut table_enable_lookups_button = PushButton::new(&qtr("table_enable_lookups"));
 
         unsafe { row_filter_column_selector.set_model(row_filter_column_list.into_raw() as *mut AbstractItemModel) };
 
@@ -169,21 +186,15 @@ impl PackedFileTableView {
 
         row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         row_filter_case_sensitive_button.set_checkable(true);
+        table_enable_lookups_button.set_checkable(true);
 
         // Add everything to the grid.
         let layout = unsafe { packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout };
-        unsafe { layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 3)); }
+        unsafe { layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 4)); }
         unsafe { layout.as_mut().unwrap().add_widget((row_filter_line_edit.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
         unsafe { layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
         unsafe { layout.as_mut().unwrap().add_widget((row_filter_column_selector.as_mut_ptr() as *mut Widget, 2, 2, 1, 1)); }
-
-        // Load the data to the Table. For some reason, if we do this after setting the titles of
-        // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
-        Self::load_data(table_view, &table_data, &table_definition);
-
-        // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        let packed_file_name = if packed_file_path.borrow().len() == 3 && packed_file_path.borrow()[1] == "db" { packed_file_path.borrow()[2].to_owned() } else { "".to_owned() };
-        Self::build_columns(table_view, table_view_frozen.as_mut_ptr(), &table_definition, &packed_file_name);
+        unsafe { layout.as_mut().unwrap().add_widget((table_enable_lookups_button.as_mut_ptr() as *mut Widget, 2, 3, 1, 1)); }
 
         // Create the raw Struct and begin
         let packed_file_table_view_raw = PackedFileTableViewRaw {
@@ -191,8 +202,9 @@ impl PackedFileTableView {
             table_view_frozen: table_view_frozen.into_raw(),
             table_filter: filter_model.into_raw(),
             table_model: model.into_raw(),
+            table_enable_lookups_button: row_filter_case_sensitive_button.into_raw(),
             filter_line_edit: row_filter_line_edit.into_raw(),
-            filter_case_sensitive_button: row_filter_case_sensitive_button.into_raw(),
+            filter_case_sensitive_button: table_enable_lookups_button.into_raw(),
             filter_column_selector: row_filter_column_selector.into_raw(),
         };
 
@@ -200,18 +212,35 @@ impl PackedFileTableView {
             packed_file_table_view_raw,
             *global_search_ui,
             *pack_file_contents_ui,
-            &packed_file_path
+            &packed_file_path,
+            &table_definition,
+            &dependency_data
         );
 
-        let packed_file_table_view = Self {
+        let mut packed_file_table_view = Self {
             table_view_primary: AtomicPtr::new(packed_file_table_view_raw.table_view_primary),
             table_view_frozen: AtomicPtr::new(packed_file_table_view_raw.table_view_frozen),
             table_filter: AtomicPtr::new(packed_file_table_view_raw.table_filter),
             table_model: AtomicPtr::new(packed_file_table_view_raw.table_model),
+            table_enable_lookups_button: AtomicPtr::new(packed_file_table_view_raw.table_enable_lookups_button),
             filter_line_edit: AtomicPtr::new(packed_file_table_view_raw.filter_line_edit),
             filter_case_sensitive_button: AtomicPtr::new(packed_file_table_view_raw.filter_case_sensitive_button),
             filter_column_selector: AtomicPtr::new(packed_file_table_view_raw.filter_column_selector),
+
+            dependency_data: Arc::new(dependency_data)
         };
+
+        // Load the data to the Table. For some reason, if we do this after setting the titles of
+        // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
+        packed_file_table_view.load_data(&table_data, &table_definition);
+
+        // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
+        let packed_file_name = if packed_file_path.borrow().len() == 3 &&
+            packed_file_path.borrow()[0].to_lowercase() == "db" {
+            packed_file_path.borrow()[1].to_owned()
+        } else { "".to_owned() };
+
+        packed_file_table_view.build_columns(&table_definition, &packed_file_name);
 
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
@@ -221,19 +250,15 @@ impl PackedFileTableView {
         Ok((TheOneSlot::Table(packed_file_table_view_slots), packed_file_info))
     }
 
-
     /// This function loads the data from a compatible `PackedFile` into a TableView.
     pub fn load_data(
-        view: *mut TableView,
+        &mut self,
         data: &TableType,
         table_definition: &Definition,
-        //dependency_data: &BTreeMap<i32, Vec<String>>,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
         // This wipes out header information, so remember to run "build_columns" after this.
-        let table_view = unsafe { view.as_ref().unwrap() };
-        let filter = unsafe { (table_view.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
-        let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_mut().unwrap() };
+        let model = unsafe { self.table_model.get_mut().as_mut().unwrap() };
         model.clear();
 
         // Set the right data, depending on the table type you get.
@@ -272,34 +297,104 @@ impl PackedFileTableView {
 
         // Here we assing the ItemDelegates, so each type has his own widget with validation included.
         // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+        let enable_lookups = self.get_ref_mut_enable_lookups_button().is_checked();
         for (column, field) in table_definition.fields.iter().enumerate() {
-            match field.field_type {
-                FieldType::Boolean => {},
-                FieldType::Float => unsafe { new_doublespinbox_item_delegate(view as *mut Object, column as i32) },
-                FieldType::Integer => unsafe { new_spinbox_item_delegate(view as *mut Object, column as i32, 32) },
-                FieldType::LongInteger => unsafe { new_spinbox_item_delegate(view as *mut Object, column as i32, 64) },
-                FieldType::StringU8 |
-                FieldType::StringU16 |
-                FieldType::OptionalStringU8 |
-                FieldType::OptionalStringU16 => unsafe { new_qstring_item_delegate(view as *mut Object, column as i32, field.max_length) },
-                FieldType::Sequence(_) => {}
+
+            // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
+            if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
+                match field.field_type {
+                    FieldType::Boolean => {},
+                    FieldType::Float => {
+                        unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32) }
+                        unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32) }
+                    },
+                    FieldType::Integer => {
+                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 32) }
+                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 32) }
+                    },
+                    FieldType::LongInteger => {
+                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 64) }
+                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 64) }
+                    },
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => {
+                        unsafe { new_qstring_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, field.max_length) }
+                        unsafe { new_qstring_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, field.max_length) }
+                    },
+                    FieldType::Sequence(_) => {}
+                }
             }
+
+            // Otherwise, we have to check first if the column has references. If it does, replace the delegate with a combo.
+            else {
+
+                if let Some(data) = self.dependency_data.get(&(column as i32)) {
+                    let mut list = StringList::new(());
+                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append(&QString::from_std_str(x)));
+                    let list: *mut StringList = &mut list;
+                    unsafe { new_combobox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
+                    unsafe { new_combobox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
+                }
+                else {
+                    match field.field_type {
+                        FieldType::Boolean => {},
+                        FieldType::Float => {
+                            unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32) }
+                            unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32) }
+                        },
+                        FieldType::Integer => {
+                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 32) }
+                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 32) }
+                        },
+                        FieldType::LongInteger => {
+                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 64) }
+                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 64) }
+                        },
+                        FieldType::StringU8 |
+                        FieldType::StringU16 |
+                        FieldType::OptionalStringU8 |
+                        FieldType::OptionalStringU16 => {
+                            unsafe { new_qstring_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, field.max_length) }
+                            unsafe { new_qstring_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, field.max_length) }
+                        },
+                        FieldType::Sequence(_) => {}
+                    }
+                }
+            }
+
         }
-        /*
-        // We build the combos lists here, so it get's rebuilt if we import a TSV and clear the table.
-        if !SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
-            for (column, data) in dependency_data {
-                let mut list = StringList::new(());
-                data.iter().for_each(|x| list.append(&QString::from_std_str(x)));
-                let list: *mut StringList = &mut list;
-                unsafe { qt_custom_stuff::new_combobox_item_delegate(table_view as *mut Object, *column, list as *const StringList, true)};
-            }
-        }*/
     }
 
-    /// This function returns a pointer to the TableView widget.
-    pub fn get_table(&self) -> &mut TableView {
+    /// This function returns a mutable reference to the Primary TableView widget.
+    pub fn get_ref_mut_table_view_primary(&self) -> &mut TableView {
         unsafe { self.table_view_primary.load(Ordering::SeqCst).as_mut().unwrap() }
+    }
+
+    /// This function returns a mutable reference to the Frozen TableView widget.
+    pub fn get_ref_mut_table_view_frozen(&self) -> &mut TableView {
+        unsafe { self.table_view_frozen.load(Ordering::SeqCst).as_mut().unwrap() }
+    }
+
+    /// This function returns a mutable reference to the StandardItemModel widget.
+    pub fn get_ref_mut_table_model(&self) -> &mut StandardItemModel {
+        unsafe { self.table_model.load(Ordering::SeqCst).as_mut().unwrap() }
+    }
+
+    /// This function returns a mutable reference to the `Enable Lookups` Pushbutton.
+    pub fn get_ref_mut_enable_lookups_button(&self) -> &mut PushButton {
+        unsafe { self.table_enable_lookups_button.load(Ordering::SeqCst).as_mut().unwrap() }
+    }
+
+    /// This function returns a pointer to the Primary TableView widget.
+    pub fn get_raw_table_view_primary(&self) -> *mut TableView {
+        self.table_view_primary.load(Ordering::SeqCst)
+    }
+
+    /// This function returns a pointer to the Frozen TableView widget.
+    pub fn get_raw_table_view_frozen(&self) -> *mut TableView {
+        self.table_view_frozen.load(Ordering::SeqCst)
     }
 
     pub fn get_filter_line_edit(&self) -> &mut LineEdit {
@@ -333,13 +428,12 @@ impl PackedFileTableView {
     /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
     /// His intended use is for just after we load/reload the data to the table.
     fn build_columns(
-        table_view_primary: *mut TableView,
-        table_view_frozen: *mut TableView,
+        &mut self,
         definition: &Definition,
         table_name: &str,
     ) {
-        let table_view_primary = unsafe { table_view_primary.as_mut().unwrap() };
-        let table_view_frozen = unsafe { table_view_frozen.as_ref().unwrap() };
+        let table_view_primary = self.get_ref_mut_table_view_primary();
+        let table_view_frozen = self.get_ref_mut_table_view_frozen();
         let filter = unsafe { (table_view_primary.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
         let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_mut().unwrap() };
         let schema = SCHEMA.read().unwrap();
@@ -351,6 +445,7 @@ impl PackedFileTableView {
 
             let name = Self::clean_column_names(&field.name);
             let item = StandardItem::new(&QString::from_std_str(&name)).into_raw();
+            Self::set_tooltip(&schema, &field, table_name, item);
             unsafe { model.set_horizontal_header_item(index as i32, item); }
 
             // Depending on his type, set one width or another.
@@ -366,7 +461,6 @@ impl PackedFileTableView {
                 FieldType::Sequence(_) => table_view_primary.set_column_width(index as i32, 350),
             }
 
-            //Self::set_tooltip(&schema, &field, table_name, item);
 
             // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
             if field.is_key { keys.push(index); }
@@ -520,7 +614,6 @@ impl PackedFileTableView {
         }
     }
 
-/*
     /// This function sets the tooltip for the provided column header, if the column should have one.
     fn set_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: *mut StandardItem) {
 
@@ -530,8 +623,6 @@ impl PackedFileTableView {
         // - If the column is referenced by another column, we add it to the tooltip.
         if !table_name.is_empty() {
             let mut tooltip_text = String::new();
-
-
             if !field.description.is_empty() {
                 tooltip_text.push_str(&format!("<p>{}</p>", field.description));
             }
@@ -591,7 +682,7 @@ impl PackedFileTableView {
                 unsafe { item.as_mut().unwrap().set_tool_tip(&QString::from_std_str(&tooltip_text)); }
             }
         }
-    }*/
+    }
 }
 
 /// Implementation of `PackedFileTableViewRaw`.
@@ -611,5 +702,21 @@ impl PackedFileTableViewRaw {
         // Filter whatever it's in that column by the text we got.
         let filter_model = unsafe { self.table_filter.as_mut().unwrap() };
         filter_model.set_filter_reg_exp(&pattern);
+    }
+
+    /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
+    fn toggle_lookups(&self, table_definition: &Definition, dependency_data: &BTreeMap<i32, Vec<(String, String)>>) {
+        if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
+            let enable_lookups = unsafe { self.table_enable_lookups_button.as_ref().unwrap().is_checked() };
+            for (column, field) in table_definition.fields.iter().enumerate() {
+                if let Some(data) = dependency_data.get(&(column as i32)) {
+                    let mut list = StringList::new(());
+                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append(&QString::from_std_str(x)));
+                    let list: *mut StringList = &mut list;
+                    unsafe { new_combobox_item_delegate(self.table_view_primary as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
+                    unsafe { new_combobox_item_delegate(self.table_view_frozen as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
+                }
+            }
+        }
     }
 }

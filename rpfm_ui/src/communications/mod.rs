@@ -16,6 +16,7 @@ use qt_core::event_loop::EventLoop;
 
 use crossbeam::{Receiver, Sender, unbounded};
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -29,6 +30,7 @@ use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::schema::versions::APIResponseSchema;
+use rpfm_lib::schema::Definition;
 use rpfm_lib::settings::*;
 
 use crate::app_ui::NewPackedFile;
@@ -230,6 +232,9 @@ pub enum Command {
 
     /// This command is used when we want to add entire folders to the PackFile. The tuples contains their path in disk and their starting path in the PackFile.
     AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>),
+
+    /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
+    GetReferenceDataFromDefinition(Definition)
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -391,7 +396,10 @@ pub enum Response {
     VecStringVecPathType((Vec<String>, Vec<PathType>)),
 
     /// Response to return `(i32, i32)`.
-    I32I32((i32, i32))
+    I32I32((i32, i32)),
+
+    /// Response to return `BTreeMap<i32, Vec<(String, String)>>`.
+    BTreeMapI32VecStringString(BTreeMap<i32, Vec<(String, String)>>),
 /*
     Bool(bool),
     I32(i32),
