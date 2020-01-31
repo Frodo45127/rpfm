@@ -25,7 +25,6 @@ use std::path::PathBuf;
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::assembly_kit::table_data::RawTable;
-use crate::assembly_kit::table_definition::RawDefinition;
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::schema::*;
 

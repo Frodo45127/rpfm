@@ -754,7 +754,7 @@ impl Definition {
     pub fn update_from_raw_localisable_fields(&mut self, raw_definition: &RawDefinition, raw_localisable_fields: &[RawLocalisableField]) {
         let raw_table_name = &raw_definition.name.as_ref().unwrap()[..raw_definition.name.as_ref().unwrap().len() - 4];
         let localisable_fields_names = raw_localisable_fields.iter()
-            .filter(|x| &x.table_name == raw_table_name)
+            .filter(|x| x.table_name == raw_table_name)
             .map(|x| &*x.field)
             .collect::<Vec<&str>>();
 

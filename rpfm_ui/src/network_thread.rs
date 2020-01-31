@@ -16,7 +16,7 @@ Basically, this does the network checks of the program.
 
 use restson::RestClient;
 
-use rpfm_lib::schema::{*, versions::*};
+use rpfm_lib::schema::versions::*;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, network::LastestRelease, network::APIResponse, THREADS_COMMUNICATION_ERROR};

@@ -131,7 +131,7 @@ impl RawTable {
 
                 // Only if the table has data we deserialize it. If not, we just create an empty one.
                 let mut raw_table = if buffer.contains("</rows>\r\n</dataroot>") {
-                    from_reader(buffer.as_bytes()).map_err(|x| Error::from(x))?
+                    from_reader(buffer.as_bytes()).map_err(Error::from)?
                 } else {
                     Self::default()
                 };

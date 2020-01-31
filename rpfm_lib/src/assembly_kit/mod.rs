@@ -23,10 +23,10 @@ use serde_xml_rs::from_reader;
 
 use std::borrow::BorrowMut;
 use std::fs::{File, DirBuilder, read_dir};
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Write};
 use std::path::{Path, PathBuf};
 
-use rpfm_error::{Result, Error, ErrorKind};
+use rpfm_error::{Result, ErrorKind};
 
 use crate::assembly_kit::table_definition::RawDefinition;
 use crate::assembly_kit::table_data::RawTable;
@@ -35,8 +35,6 @@ use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
 use crate::config::get_config_path;
 use crate::packfile::PackFile;
-use crate::packedfile::DecodedPackedFile;
-use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
 use crate::schema::*;
 
@@ -168,85 +166,6 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
     else { Err(ErrorKind::SchemaNotFound.into()) }
 }
 
-/*
-/// This function uses the provided Assembly Kit path to *complete* our schema's missing data.
-///
-/// It takes the Assembly Kit's DB Files and matches them against our own schema files, filling missing info,
-/// or even generating new definitions if there are none for the tables.
-///
-/// It requires:
-/// - schema: The schema where all the definitions will be put. None to put all the definitions into a new schema.
-/// - assembly_kit_schemas_path: this is the path with the TWaD_*****.xml syntax. They are usually in GameFolder/assembly_kit/raw_data/db/.
-/// - db_binary_path: this is a path containing all the tables extracted from the game we want the schemas. It should have xxx_table/table inside.
-pub fn import_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()> {
-    if let Some(mut schema) = SCHEMA.read().unwrap().clone() {
-
-        // This has to do a different process depending on the `raw_db_version`.
-        let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].raw_db_version;
-        match raw_db_version {
-            2 | 1 => {
-                let packfile_db_path = get_game_selected_db_pack_path().ok_or_else(|| Error::from(ErrorKind::SchemaNotFound))?;
-                let packfile_db = PackFile::open_packfiles(&packfile_db_path, true, false, false)?;
-
-                let mut ass_kit_schemas_path =
-                    if raw_db_version == 1 {
-                        if let Some(path) = ass_kit_path { path }
-                        else { return Err(ErrorKind::SchemaNotFound.into()) }
-                    }
-                    else if let Some(path) = get_game_selected_assembly_kit_path() { path }
-                    else { return Err(ErrorKind::SchemaNotFound.into()) };
-
-                ass_kit_schemas_path.push("raw_data");
-                ass_kit_schemas_path.push("db");
-
-                for path in &get_raw_definitions(&ass_kit_schemas_path, raw_db_version)? {
-
-                    // Always print his path. If it breaks, we want to know where.
-                    println!("{:?}", path);
-
-                    // We read the file and deserialize it as a `root`.
-                    let file = BufReader::new(File::open(&path)?);
-                    let imported_table_definition: RawDefinition = from_reader(file).unwrap();
-
-                    // Get his name and version. We only add it if his table actually exists.
-                    let mut file_name = path.file_stem().unwrap().to_str().unwrap().to_string();
-                    let table_name = format!("{}_tables", file_name.split_off(5));
-
-                    // Get his version and, if there is not a table with that version in the current schema, add it. Otherwise, ignore it.
-                    let packed_files = packfile_db.get_ref_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
-                    if !packed_files.is_empty() {
-                        let packed_file = packed_files[0];
-                        let version = DB::get_header(&packed_file.get_ref_raw().get_data()?).unwrap().0;
-
-                        if let Ok(ref mut versioned_file) = schema.get_mut_versioned_file_db(&table_name) {
-                            if versioned_file.get_version(version).is_err() {
-                                let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                                versioned_file.add_version(&table_definition);
-                            } else {
-                                continue;
-                            }
-                        }
-
-                        else {
-                            let table_definition = Definition::new_from_assembly_kit(&imported_table_definition, version, &table_name);
-                            let versioned_file = VersionedFile::DB(table_name, vec![table_definition]);
-                            schema.add_versioned_file(&versioned_file);
-                        }
-                    }
-                }
-
-                Schema::save(&mut schema, &SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].schema)?;
-
-                Ok(())
-            }
-            0 => { Err(ErrorKind::SchemaNotFound.into()) }
-            _ => { Err(ErrorKind::SchemaNotFound.into()) }
-        }
-    }
-
-    else { Err(ErrorKind::SchemaNotFound.into()) }
-}
-*/
 //---------------------------------------------------------------------------//
 // Utility functions to process raw files from the Assembly Kit.
 //---------------------------------------------------------------------------//
@@ -341,10 +260,8 @@ pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Res
                     Ok(file) => {
                         let file_path = file.path();
                         let file_name = file_path.file_stem().unwrap().to_str().unwrap();
-                        if version == 1 || version == 2 {
-                            if file_path.is_file() && file_name == LOCALISABLE_FILES_FILE_NAME_V2 {
-                                return Ok(file_path)
-                            }
+                        if (version == 1 || version == 2) && file_path.is_file() && file_name == LOCALISABLE_FILES_FILE_NAME_V2 {
+                            return Ok(file_path)
                         }
                     }
                     Err(_) => return Err(ErrorKind::IOReadFile(current_path.to_path_buf()).into()),
@@ -355,5 +272,5 @@ pub fn get_raw_localisable_fields_path(current_path: &Path, version: i16) -> Res
     }
 
     // If we didn't find the file, return an error.
-    Err(ErrorKind::AssemblyKitLocalisableFieldsNotFound)?
+    Err(ErrorKind::AssemblyKitLocalisableFieldsNotFound.into())
 }
