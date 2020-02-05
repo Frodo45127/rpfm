@@ -40,6 +40,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use rpfm_error::Result;
+use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
@@ -88,7 +89,9 @@ pub struct PackedFileTableView {
     filter_column_selector: AtomicPtr<ComboBox>,
     filter_line_edit: AtomicPtr<LineEdit>,
 
-    dependency_data: Arc<BTreeMap<i32, Vec<(String, String)>>>
+    dependency_data: Arc<BTreeMap<i32, Vec<(String, String)>>>,
+    table_name: String,
+    table_definition: Definition,
 }
 
 /// This struct contains the raw version of each pointer in `PackedFileTableView`, to be used when building the slots.
@@ -132,13 +135,13 @@ impl PackedFileTableView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let table_definition = match table_data {
+        let (table_definition, table_name, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
                 let schema = SCHEMA.read().unwrap();
-                schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone()
+                (schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone(), String::new(), PackedFileType::Unknown)
             },
-            TableType::DB(ref table) => table.get_definition(),
-            TableType::Loc(ref table) => table.get_definition(),
+            TableType::DB(ref table) => (table.get_definition(), table.get_table_name(), PackedFileType::DB),
+            TableType::Loc(ref table) => (table.get_definition(), String::new(), PackedFileType::Loc),
         };
 
         // Get the dependency data of this Table.
@@ -232,12 +235,14 @@ impl PackedFileTableView {
             filter_case_sensitive_button: AtomicPtr::new(packed_file_table_view_raw.filter_case_sensitive_button),
             filter_column_selector: AtomicPtr::new(packed_file_table_view_raw.filter_column_selector),
 
-            dependency_data: Arc::new(dependency_data)
+            dependency_data: Arc::new(dependency_data),
+            table_definition,
+            table_name
         };
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
-        packed_file_table_view.load_data(&table_data, &table_definition);
+        packed_file_table_view.load_data(&table_data);
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
         let packed_file_name = if packed_file_path.borrow().len() == 3 &&
@@ -245,11 +250,12 @@ impl PackedFileTableView {
             packed_file_path.borrow()[1].to_owned()
         } else { "".to_owned() };
 
-        packed_file_table_view.build_columns(&table_definition, &packed_file_name);
+        packed_file_table_view.build_columns(&packed_file_name);
 
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
         packed_file_view.view = View::Table(packed_file_table_view);
+        packed_file_view.packed_file_type = packed_file_type;
 
         // Return success.
         Ok((TheOneSlot::Table(packed_file_table_view_slots), packed_file_info))
@@ -259,7 +265,6 @@ impl PackedFileTableView {
     pub fn load_data(
         &mut self,
         data: &TableType,
-        table_definition: &Definition,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
         // This wipes out header information, so remember to run "build_columns" after this.
@@ -280,7 +285,7 @@ impl PackedFileTableView {
                 let item = Self::get_item_from_decoded_data(field);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && table_definition.fields[index].is_reference.is_some() {
+                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && self.table_definition.fields[index].is_reference.is_some() {
                     //Self::check_references(dependency_data, index as i32, item.as_mut_ptr());
                 }
 
@@ -292,7 +297,7 @@ impl PackedFileTableView {
         // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
         if data.is_empty() {
             let mut qlist = ListStandardItemMutPtr::new(());
-            for field in &table_definition.fields {
+            for field in &self.table_definition.fields {
                 let item = Self::get_default_item_from_field(field);
                 unsafe { qlist.append_unsafe(&item.into_raw()); }
             }
@@ -303,7 +308,7 @@ impl PackedFileTableView {
         // Here we assing the ItemDelegates, so each type has his own widget with validation included.
         // LongInteger uses normal string controls due to QSpinBox being limited to i32.
         let enable_lookups = self.get_ref_mut_enable_lookups_button().is_checked();
-        for (column, field) in table_definition.fields.iter().enumerate() {
+        for (column, field) in self.table_definition.fields.iter().enumerate() {
 
             // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
             if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
@@ -382,6 +387,11 @@ impl PackedFileTableView {
         unsafe { self.table_view_frozen.load(Ordering::SeqCst).as_mut().unwrap() }
     }
 
+    /// This function returns a reference to the StandardItemModel widget.
+    pub fn get_ref_table_model(&self) -> &StandardItemModel {
+        unsafe { self.table_model.load(Ordering::SeqCst).as_ref().unwrap() }
+    }
+
     /// This function returns a mutable reference to the StandardItemModel widget.
     pub fn get_ref_mut_table_model(&self) -> &mut StandardItemModel {
         unsafe { self.table_model.load(Ordering::SeqCst).as_mut().unwrap() }
@@ -404,6 +414,16 @@ impl PackedFileTableView {
 
     pub fn get_filter_line_edit(&self) -> &mut LineEdit {
         unsafe { self.filter_line_edit.load(Ordering::SeqCst).as_mut().unwrap() }
+    }
+
+    /// This function returns a reference to this table's name.
+    pub fn get_ref_table_name(&self) -> &str {
+        &self.table_name
+    }
+
+    /// This function returns a reference to the definition of this table.
+    pub fn get_ref_table_definition(&self) -> &Definition {
+        &self.table_definition
     }
 
     /// This function "process" the column names of a table, so they look like they should.
@@ -434,7 +454,6 @@ impl PackedFileTableView {
     /// His intended use is for just after we load/reload the data to the table.
     fn build_columns(
         &mut self,
-        definition: &Definition,
         table_name: &str,
     ) {
         let table_view_primary = self.get_ref_mut_table_view_primary();
@@ -446,7 +465,7 @@ impl PackedFileTableView {
         let mut keys = vec![];
 
         // For each column, clean their name and set their width and tooltip.
-        for (index, field) in definition.fields.iter().enumerate() {
+        for (index, field) in self.table_definition.fields.iter().enumerate() {
 
             let name = Self::clean_column_names(&field.name);
             let item = StandardItem::new(&QString::from_std_str(&name)).into_raw();
@@ -474,7 +493,7 @@ impl PackedFileTableView {
 
         // Now the order. If we have a sort order from the schema, we use that one.
         if do_we_have_ca_order {
-            let mut fields = definition.fields.iter().enumerate().map(|(x, y)| (x, y.clone())).collect::<Vec<(usize, Field)>>();
+            let mut fields = self.table_definition.fields.iter().enumerate().map(|(x, y)| (x, y.clone())).collect::<Vec<(usize, Field)>>();
             fields.sort_by(|a, b| a.1.ca_order.cmp(&b.1.ca_order));
 
             let header_primary = unsafe { table_view_primary.horizontal_header().as_mut().unwrap() };

@@ -704,7 +704,7 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, global_search_ui, &pack_file_contents_ui));
+                UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, global_search_ui, &pack_file_contents_ui));
 
                 CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
                 unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }

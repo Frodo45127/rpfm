@@ -81,6 +81,16 @@ impl DB {
         }
     }
 
+    /// This function returns a copy of the name of this DB Table.
+    pub fn get_table_name(&self) -> String {
+        self.name.to_owned()
+    }
+
+    /// This function returns a reference of the name of this DB Table.
+    pub fn get_ref_table_name(&self) -> &str {
+        &self.name
+    }
+
     /// This function returns a copy of the definition of this DB Table.
     pub fn get_definition(&self) -> Definition {
         self.table.get_definition()

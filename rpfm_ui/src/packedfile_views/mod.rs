@@ -15,17 +15,23 @@ This module contains the code to manage the views and actions of each decodeable
 !*/
 
 use qt_widgets::widget::Widget;
+use qt_core::qt::CheckState;
 
-use core::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering};
+
+use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
+use rpfm_lib::packedfile::table::{db::DB, loc::Loc, DecodedData};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::PathType;
+use rpfm_lib::schema::FieldType;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::get_text;
 use crate::global_search_ui::GlobalSearchUI;
+use crate::QString;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::create_grid_layout_unsafe;
 use crate::UI_STATE;
@@ -132,24 +138,71 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub fn save(&self, path: &[String], global_search_ui: GlobalSearchUI, pack_file_contents_ui: &PackFileContentsUI) {
+    pub fn save(&self, path: &[String], global_search_ui: GlobalSearchUI, pack_file_contents_ui: &PackFileContentsUI) -> Result<()> {
 
         // This is a two-step process. First, we take the data from the view into a `DecodedPackedFile` format.
         // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
         let data = match self.packed_file_type {
-            PackedFileType::DB => return,
+            PackedFileType::DB | PackedFileType::Loc => if let View::Table(view) = self.get_view() {
+
+                let mut entries = vec![];
+                let model = view.get_ref_table_model();
+                for row in 0..model.row_count(()) {
+                    let mut new_row: Vec<DecodedData> = vec![];
+                    for (column, field) in view.get_ref_table_definition().fields.iter().enumerate() {
+
+                        // Create a new Item.
+                        let item = unsafe {
+                            match field.field_type {
+
+                                // This one needs a couple of changes before turning it into an item in the table.
+                                FieldType::Boolean => DecodedData::Boolean(if model.item((row as i32, column as i32)).as_mut().unwrap().check_state() == CheckState::Checked { true } else { false }),
+
+                                // Numbers need parsing, and this can fail.
+                                FieldType::Float => DecodedData::Float(model.item((row as i32, column as i32)).as_mut().unwrap().data(2).to_float()),
+                                FieldType::Integer => DecodedData::Integer(model.item((row as i32, column as i32)).as_mut().unwrap().data(2).to_int()),
+                                FieldType::LongInteger => DecodedData::LongInteger(model.item((row as i32, column as i32)).as_mut().unwrap().data(2).to_long_long()),
+
+                                // All these are just normal Strings.
+                                FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
+                                FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
+                                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
+                                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
+
+                                // Sequences in the UI are not yet supported.
+                                FieldType::Sequence(_) => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
+                            }
+                        };
+                        new_row.push(item);
+                    }
+                    entries.push(new_row);
+                }
+
+                match self.packed_file_type {
+                    PackedFileType::DB => {
+                        let mut table = DB::new(view.get_ref_table_name(), view.get_ref_table_definition());
+                        table.set_table_data(&entries)?;
+                        DecodedPackedFile::DB(table)
+                    }
+                    PackedFileType::Loc => {
+                        let mut table = Loc::new(view.get_ref_table_definition());
+                        table.set_table_data(&entries)?;
+                        DecodedPackedFile::Loc(table)
+                    }
+                    _ => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into())
+                }
+            } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) },
 
             // Images are read-only.
             PackedFileType::Image => DecodedPackedFile::Unknown,
-            PackedFileType::Loc => return,
-            PackedFileType::RigidModel => return,
+            PackedFileType::RigidModel => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
 
             PackedFileType::Text(_) => {
                 if let View::Text(view) = self.get_view() {
                     let mut text = Text::default();
                     unsafe { text.set_contents(&get_text(view.get_mut_editor()).to_std_string()) };
                     DecodedPackedFile::Text(text)
-                } else { return }
+                } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) }
             },
             PackedFileType::Unknown => DecodedPackedFile::Unknown,
             _ => unimplemented!(),
@@ -168,6 +221,8 @@ impl PackedFileView {
                     global_search_ui.search_on_path(&pack_file_contents_ui, path_types);
                     UI_STATE.set_global_search(&global_search);
                 }
+
+                Ok(())
             }
 
             // In ANY other situation, it's a message problem.

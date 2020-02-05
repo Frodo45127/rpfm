@@ -365,7 +365,7 @@ impl AppUI {
         main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend.
-        UI_STATE.get_open_packedfiles().iter().for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui, pack_file_contents_ui));
+        UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui, pack_file_contents_ui))?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();

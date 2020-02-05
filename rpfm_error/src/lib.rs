@@ -234,6 +234,9 @@ pub enum ErrorKind {
     /// Error for when we try to import a PackedFile from another PackFile and it fails miserably. It contains the paths that failed.
     PackedFileCouldNotBeImported(Vec<String>),
 
+    /// Error for when we fail saving a PackedFile.
+    PackedFileSaveError(Vec<String>),
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -602,6 +605,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileDataIsNotInMemory => write!(f, "<p>This PackedFile's data is not in memory. If you see this, report it, as it's a bug.</p>"),
             ErrorKind::PackedFileNotInFilter => write!(f, "<p>This PackedFile is not in the current TreeView filter. If you want to open it, remove the filter.</p>"),
             ErrorKind::PackedFileCouldNotBeImported(paths) => write!(f, "<p>The following failed to be imported:<ul>{}</ul></p>", paths.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
+            ErrorKind::PackedFileSaveError(path) => write!(f, "<p>The following PackedFile failed to be saved: {}</p>", path.join("/")),
 
             //--------------------------------//
             // Table Errors
