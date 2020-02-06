@@ -392,11 +392,6 @@ impl PackedFileTableView {
         unsafe { self.table_model.load(Ordering::SeqCst).as_ref().unwrap() }
     }
 
-    /// This function returns a mutable reference to the StandardItemModel widget.
-    pub fn get_ref_mut_table_model(&self) -> &mut StandardItemModel {
-        unsafe { self.table_model.load(Ordering::SeqCst).as_mut().unwrap() }
-    }
-
     /// This function returns a mutable reference to the `Enable Lookups` Pushbutton.
     pub fn get_ref_mut_enable_lookups_button(&self) -> &mut PushButton {
         unsafe { self.table_enable_lookups_button.load(Ordering::SeqCst).as_mut().unwrap() }
@@ -742,5 +737,10 @@ impl PackedFileTableViewRaw {
                 }
             }
         }
+    }
+
+    /// This function returns a pointer to the Primary TableView widget.
+    pub fn get_table_view_primary(&self) -> *mut TableView {
+        self.table_view_primary
     }
 }

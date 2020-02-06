@@ -704,17 +704,21 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, global_search_ui, &pack_file_contents_ui));
-
-                CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
-                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-                let response = CENTRAL_COMMAND.recv_message_qt();
-                match response {
-                    Response::String(result) => show_dialog(app_ui.main_window as *mut Widget, result, true),
-                    Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, global_search_ui, &pack_file_contents_ui)) {
+                    show_dialog(app_ui.main_window as *mut Widget, error, false);
                 }
-                unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+
+                else {
+                    CENTRAL_COMMAND.send_message_qt(Command::ExtractPackedFiles(selected_items, extraction_path));
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
+                        Response::String(result) => show_dialog(app_ui.main_window as *mut Widget, result, true),
+                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+                }
             }
         );
 

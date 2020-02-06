@@ -73,9 +73,9 @@ pub struct Text {
 /// This enum contains the list of encoding RPFM supports.
 #[derive(PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum SupportedEncodings {
-    UTF8,
-    //UTF16_BE,
-    UTF16_LE,
+    Utf8,
+    //Utf16Be,
+    Utf16Le,
     Iso8859_1,
     //Iso8859_15,
 }
@@ -99,7 +99,7 @@ pub enum TextType {
 impl Default for Text {
     fn default() -> Self {
         Self {
-            encoding: SupportedEncodings::UTF8,
+            encoding: SupportedEncodings::Utf8,
             text_type: TextType::Plain,
             contents: String::new(),
         }
@@ -118,17 +118,17 @@ impl Text {
     pub fn read(packed_file_data: &[u8]) -> Result<Self> {
 
         // First, check for BOMs. 2 bytes for UTF-16 BOMs, 3 for UTF-8. If no BOM is found, we assume UTF-8 or ISO5589-1.
-        let (packed_file_data, guessed_encoding) = if packed_file_data.is_empty() { (packed_file_data, SupportedEncodings::UTF8) }
-        else if packed_file_data.len() > 2 && packed_file_data[0..3] == BOM_UTF_8 { (&packed_file_data[3..], SupportedEncodings::UTF8) }
+        let (packed_file_data, guessed_encoding) = if packed_file_data.is_empty() { (packed_file_data, SupportedEncodings::Utf8) }
+        else if packed_file_data.len() > 2 && packed_file_data[0..3] == BOM_UTF_8 { (&packed_file_data[3..], SupportedEncodings::Utf8) }
         //else if packed_file_data.len() > 1 && packed_file_data[0..2] == BOM_UTF_16_BE { (&packed_file_data[2..], SupportedEncodings::UTF16_BE) }
-        else if packed_file_data.len() > 1 && packed_file_data[0..2] == BOM_UTF_16_LE { (&packed_file_data[2..], SupportedEncodings::UTF16_LE) }
-        else { (packed_file_data, SupportedEncodings::UTF8) };
+        else if packed_file_data.len() > 1 && packed_file_data[0..2] == BOM_UTF_16_LE { (&packed_file_data[2..], SupportedEncodings::Utf16Le) }
+        else { (packed_file_data, SupportedEncodings::Utf8) };
 
         // This is simple: we try to decode it depending on what the guesser gave us. If all fails, return error.
         let (encoding, contents) = match guessed_encoding {
-            SupportedEncodings::UTF8 | SupportedEncodings::Iso8859_1 => {
+            SupportedEncodings::Utf8 | SupportedEncodings::Iso8859_1 => {
                 match packed_file_data.decode_string_u8(0, packed_file_data.len()) {
-                    Ok(string) => (SupportedEncodings::UTF8, string),
+                    Ok(string) => (SupportedEncodings::Utf8, string),
                     Err(_) => match packed_file_data.decode_string_u8_iso_8859_1(0, packed_file_data.len()) {
                         Ok(string) => (SupportedEncodings::Iso8859_1, string),
                         Err(_) => return Err(ErrorKind::TextDecodeWrongEncodingOrNotATextFile.into()),
@@ -136,9 +136,9 @@ impl Text {
                 }
             }
 
-            SupportedEncodings::UTF16_LE => {
+            SupportedEncodings::Utf16Le => {
                 match packed_file_data.decode_string_u16(0, packed_file_data.len()) {
-                    Ok(string) => (SupportedEncodings::UTF16_LE, string),
+                    Ok(string) => (SupportedEncodings::Utf16Le, string),
                     Err(_) => return Err(ErrorKind::TextDecodeWrongEncodingOrNotATextFile.into()),
                 }
             }
@@ -160,10 +160,10 @@ impl Text {
     pub fn save(&self) -> Result<Vec<u8>> {
         let mut data = vec![];
         match self.encoding {
-            SupportedEncodings::UTF8 => data.encode_string_u8(&self.contents),
+            SupportedEncodings::Utf8 => data.encode_string_u8(&self.contents),
 
             // For UTF-16 we always have to add the BOM. Otherwise we have no way to easely tell what this file is.
-            SupportedEncodings::UTF16_LE => {
+            SupportedEncodings::Utf16Le => {
                 data.append(&mut BOM_UTF_16_LE.to_vec());
                 data.encode_string_u16(&self.contents)
             },

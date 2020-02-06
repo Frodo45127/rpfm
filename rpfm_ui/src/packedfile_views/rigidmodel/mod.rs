@@ -68,7 +68,7 @@ impl PackedFileRigidModelView {
         // Get the decoded Text.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileRigidModel(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let (rigid_model, packed_file_info) = match response {
+        let (_rigid_model, packed_file_info) = match response {
             Response::RigidModelPackedFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -84,10 +84,5 @@ impl PackedFileRigidModelView {
 
         // Return success.
         Ok((TheOneSlot::RigidModel(packed_file_rigid_model_view_slots), packed_file_info))
-    }
-
-    /// This function returns a mutable reference to the editor widget.
-    pub fn get_ref_mut_view(&self) -> &mut Widget {
-        unsafe { self.editor.load(Ordering::SeqCst).as_mut().unwrap() }
     }
 }

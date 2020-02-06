@@ -44,7 +44,7 @@ impl PackedFileRigidModelViewSlots {
         // When we want to save the contents of the UI to the backend...
         let save = SlotNoArgs::new(clone!(packed_file_path => move || {
             if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                packed_file.save(&packed_file_path.borrow(), global_search_ui, &pack_file_contents_ui);
+                //packed_file.save(&packed_file_path.borrow(), global_search_ui, &pack_file_contents_ui);
             }
         }));
 

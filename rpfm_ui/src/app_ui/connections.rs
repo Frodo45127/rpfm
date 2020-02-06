@@ -16,7 +16,6 @@ This module is, and should stay, private, as it's only glue between the `AppUI` 
 
 use qt_core::connection::Signal;
 
-use rpfm_lib::SETTINGS;
 use super::{AppUI, slots::AppUISlots};
 
 /// This function connects all the actions from the provided `AppUI` with their slots in `AppUISlots`.

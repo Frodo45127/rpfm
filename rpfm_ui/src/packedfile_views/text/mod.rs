@@ -104,13 +104,17 @@ impl PackedFileTextView {
         Ok((TheOneSlot::Text(packed_file_text_view_slots), packed_file_info))
     }
 
-    /// This function returns a mutable reference to the editor widget.
-    pub fn get_ref_mut_editor(&self) -> &mut Widget {
-        unsafe { self.editor.load(Ordering::SeqCst).as_mut().unwrap() }
-    }
-
     /// This function returns a pointer to the editor widget.
     pub fn get_mut_editor(&self) -> *mut Widget {
         self.editor.load(Ordering::SeqCst)
+    }
+}
+
+/// Implementation of `PackedFileTextViewRaw`.
+impl PackedFileTextViewRaw {
+
+    /// This function returns a pointer to the editor widget.
+    pub fn get_mut_editor(&self) -> *mut Widget {
+        self.editor
     }
 }

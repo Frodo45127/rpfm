@@ -12,6 +12,8 @@
 Module with the slots for Table Views.
 !*/
 
+use qt_widgets::widget::Widget;
+
 use qt_core::slots::{SlotBool, SlotNoArgs, SlotStringRef};
 
 use std::cell::RefCell;
@@ -23,6 +25,7 @@ use rpfm_lib::schema::Definition;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
+use crate::utils::show_dialog;
 
 use crate::UI_STATE;
 
@@ -72,7 +75,9 @@ impl PackedFileTableViewSlots {
         let save = SlotNoArgs::new(clone!(packed_file_path => move || {
             if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                    packed_file.save(&packed_file_path.borrow(), global_search_ui, &pack_file_contents_ui);
+                    if let Err(error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &pack_file_contents_ui) {
+                        show_dialog(packed_file_view.get_table_view_primary() as *mut Widget, error, false);
+                    }
                 }
             }
         }));

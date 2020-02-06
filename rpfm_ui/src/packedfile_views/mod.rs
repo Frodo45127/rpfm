@@ -112,11 +112,6 @@ impl PackedFileView {
         self.widget.load(Ordering::SeqCst)
     }
 
-    /// This function replaces the widget of the `PackedFileView` with the provided one.
-    pub fn set_widget(&self, widget: *mut Widget) {
-        self.widget.store(widget, Ordering::SeqCst)
-    }
-
     /// This function returns if the `PackedFileView` is a preview or not.
     pub fn get_is_preview(&self) -> bool {
         self.is_preview
@@ -130,11 +125,6 @@ impl PackedFileView {
     /// This function returns the view of the specific `PackedFile`.
     pub fn get_view(&self) -> &View {
         &self.view
-    }
-
-    /// This function allows you to set an specific View for the `PackedFile`.
-    pub fn set_view(&mut self, view: View) {
-        self.view = view;
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.

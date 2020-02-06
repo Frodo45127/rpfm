@@ -126,7 +126,9 @@ impl AppUI {
         // Black magic.
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
         for (path, packed_file_view) in open_packedfiles.iter_mut() {
-            packed_file_view.save(path, global_search_ui, &pack_file_contents_ui);
+
+            // TODO: This should report an error.
+            let _ = packed_file_view.save(path, global_search_ui, &pack_file_contents_ui);
             let widget: *mut Widget = packed_file_view.get_mut_widget();
             let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
             unsafe { self.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
@@ -158,7 +160,9 @@ impl AppUI {
         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
         if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
             if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
-                packed_file_view.save(path, global_search_ui, &pack_file_contents_ui);
+
+                // TODO: This should report an error.
+                let _ = packed_file_view.save(path, global_search_ui, &pack_file_contents_ui);
             }
             let widget: *mut Widget = packed_file_view.get_mut_widget();
             let index = unsafe { self.tab_bar_packed_file.as_mut().unwrap().index_of(widget) };
