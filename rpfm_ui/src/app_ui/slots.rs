@@ -1042,7 +1042,10 @@ impl AppUISlots {
 
                 unsafe { app_ui.tab_bar_packed_file.as_mut().unwrap().remove_tab(index); }
             }
-            app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
+
+            if !purge_on_delete.is_empty() {
+                app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
+            }
         });
 
         // And here... we return all the slots.

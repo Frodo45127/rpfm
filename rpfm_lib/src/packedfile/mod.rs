@@ -79,8 +79,11 @@ pub enum PackedFileType {
     RigidModel,
     StarPos,
 
-    /// This one is an exception, as it contains the MimeType of the Text PackedFile, so we can do things depending on the type..
+    /// This one is an exception, as it contains the MimeType of the Text PackedFile, so we can do things depending on the type.
     Text(TextType),
+
+    /// This one is special. It's used just in case we want to open the Dependency PackFile List as a PackedFile.
+    DependencyPackFilesList,
     Unknown,
 }
 
@@ -232,6 +235,7 @@ impl Display for PackedFileType {
             PackedFileType::AnimTable => write!(f, "AnimTable"),
             PackedFileType::CEO => write!(f, "CEO"),
             PackedFileType::DB => write!(f, "DB Table"),
+            PackedFileType::DependencyPackFilesList => write!(f, "Dependency PackFile List"),
             PackedFileType::Image => write!(f, "Image"),
             PackedFileType::Loc => write!(f, "Loc Table"),
             PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
@@ -282,6 +286,7 @@ impl PackedFileType {
             Self::AnimTable |
             Self::CEO |
             Self::DB |
+            Self::DependencyPackFilesList |
             Self::Image |
             Self::Loc |
             Self::MatchedCombat |
@@ -304,6 +309,7 @@ impl PackedFileType {
             Self::AnimTable |
             Self::CEO |
             Self::DB |
+            Self::DependencyPackFilesList |
             Self::Image |
             Self::Loc |
             Self::MatchedCombat |

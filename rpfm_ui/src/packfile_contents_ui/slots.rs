@@ -74,8 +74,10 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_new_packed_file_loc: SlotBool<'static>,
     pub contextual_menu_new_packed_file_text: SlotBool<'static>,
     pub contextual_menu_new_folder: SlotBool<'static>,
-
     pub contextual_menu_new_queek_packed_file: SlotBool<'static>,
+
+    pub contextual_menu_open_dependency_manager: SlotBool<'static>,
+
     pub contextual_menu_tables_check_integrity: SlotBool<'static>,
     pub contextual_menu_tables_merge_tables: SlotBool<'static>,
     pub contextual_menu_tables_update_table: SlotBool<'static>,
@@ -840,6 +842,11 @@ impl PackFileContentsSlots {
             app_ui.new_queek_packed_file(&pack_file_contents_ui);
         });
 
+        // What happens when we trigger the "Open Dependency Table" Action.
+        let contextual_menu_open_dependency_manager = SlotBool::new(clone!(slot_holder => move |_| {
+            app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+        }));
+
         // What happens when we trigger the "Check Tables" action in the Contextual Menu.
         let contextual_menu_tables_check_integrity = SlotBool::new(move |_| {
 
@@ -1112,8 +1119,10 @@ impl PackFileContentsSlots {
             contextual_menu_new_packed_file_loc,
             contextual_menu_new_packed_file_text,
             contextual_menu_new_folder,
-
             contextual_menu_new_queek_packed_file,
+
+            contextual_menu_open_dependency_manager,
+
             contextual_menu_tables_check_integrity,
             contextual_menu_tables_merge_tables,
             contextual_menu_tables_update_table,

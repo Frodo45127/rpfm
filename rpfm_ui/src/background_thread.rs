@@ -287,6 +287,12 @@ pub fn background_loop() {
             // In case we want to get the path of the currently open `PackFile`.
             Command::GetPackFilePath => CENTRAL_COMMAND.send_message_rust(Response::PathBuf(pack_file_decoded.get_file_path().to_path_buf())),
 
+            // In case we want to get the Dependency PackFiles of our PackFile...
+            Command::GetDependencyPackFilesList => CENTRAL_COMMAND.send_message_rust(Response::VecString(pack_file_decoded.get_packfiles_list().to_vec())),
+
+            // In case we want to set the Dependency PackFiles of our PackFile...
+            Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
+
             // In case we want to check if there is a Dependency Database loaded...
             Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!DEPENDENCY_DATABASE.lock().unwrap().is_empty())),
 

@@ -1047,7 +1047,9 @@ impl AppUI {
                                 unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.insert(path.borrow().to_vec(), tab);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                if let Some(packed_file_info) = packed_file_info {
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                }
                             },
                             Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::LocDecode(format!("{}", error)), false),
                         }
@@ -1064,7 +1066,9 @@ impl AppUI {
                                 unsafe { self.tab_bar_packed_file.as_mut().unwrap().set_current_widget(tab_widget); }
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.insert(path.borrow().to_vec(), tab);
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                if let Some(packed_file_info) = packed_file_info {
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                }
                             },
                             Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::DBTableDecode(format!("{}", error)), false),
                         }
@@ -1127,6 +1131,64 @@ impl AppUI {
                         //display_help_tips(&app_ui);
                     }
                 }
+            }
+        }
+    }
+
+    /// This function is used to open the dependency manager.
+    pub fn open_dependency_manager(
+        &self,
+        pack_file_contents_ui: &PackFileContentsUI,
+        global_search_ui: &GlobalSearchUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+    ) {
+
+        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
+        if !UI_STATE.get_packfile_contents_read_only() {
+
+            // Close all preview views except the file we're opening. The path used for the manager is empty.
+            let path = vec![];
+            let name = qtr("table_dependency_manager_title");
+            let tab_bar_packed_file = unsafe { self.tab_bar_packed_file.as_mut().unwrap() };
+            for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+                let index = unsafe { tab_bar_packed_file.index_of(packed_file_view.get_mut_widget()) };
+                if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
+                    tab_bar_packed_file.remove_tab(index);
+                }
+            }
+
+            // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
+            if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(&path) {
+                let index = unsafe { tab_bar_packed_file.index_of(tab_widget.get_mut_widget()) };
+
+                if index == -1 {
+                    let icon_type = IconType::PackFile(true);
+                    let icon = icon_type.get_icon_from_path();
+                    unsafe { tab_bar_packed_file.add_tab((tab_widget.get_mut_widget(), icon, &name)); }
+                }
+
+                unsafe { tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget()); }
+                return;
+            }
+
+            // If it's not already open/hidden, we create it and add it as a new tab.
+            let mut tab = PackedFileView::default();
+            tab.set_is_preview(false);
+            let icon_type = IconType::PackFile(true);
+            let icon = icon_type.get_icon_from_path();
+
+            let path = Rc::new(RefCell::new(path.to_vec()));
+            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                Ok((slots, _)) => {
+                    slot_holder.borrow_mut().push(slots);
+
+                    // Add the manager to the 'Currently open' list and make it visible.
+                    unsafe { tab_bar_packed_file.add_tab((tab.get_mut_widget(), icon, &name)); }
+                    unsafe { tab_bar_packed_file.set_current_widget(tab.get_mut_widget()); }
+                    let mut open_list = UI_STATE.set_open_packedfiles();
+                    open_list.insert(path.borrow().to_vec(), tab);
+                },
+                Err(error) => return show_dialog(self.main_window as *mut Widget, ErrorKind::DependencyManagerDecode(format!("{}", error)), false),
             }
         }
     }

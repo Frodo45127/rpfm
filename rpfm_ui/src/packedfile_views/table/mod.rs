@@ -118,19 +118,24 @@ pub struct PackedFileTableViewRaw {
 impl PackedFileTableView {
 
     /// This function creates a new Table View, and sets up his slots and connections.
+    ///
+    /// NOTE: To open the dependency list, pass it an empty path.
     pub fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
-    ) -> Result<(TheOneSlot, PackedFileInfo)> {
+    ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
 
         // Get the decoded Table.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileTable(packed_file_path.borrow().to_vec()));
+        if packed_file_path.borrow().is_empty() { CENTRAL_COMMAND.send_message_qt(Command::GetDependencyPackFilesList); }
+        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileTable(packed_file_path.borrow().to_vec())); }
+
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (table_data, packed_file_info) = match response {
-            Response::DBPackedFileInfo((table, packed_file_info)) => (TableType::DB(table), packed_file_info),
-            Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), packed_file_info),
+            Response::DBPackedFileInfo((table, packed_file_info)) => (TableType::DB(table), Some(packed_file_info)),
+            Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), Some(packed_file_info)),
+            Response::VecString(table) => (TableType::DependencyManager(table.iter().map(|x| vec![DecodedData::StringU8(x.to_owned()); 1]).collect::<Vec<Vec<DecodedData>>>()), None),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -138,7 +143,7 @@ impl PackedFileTableView {
         let (table_definition, table_name, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
                 let schema = SCHEMA.read().unwrap();
-                (schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone(), String::new(), PackedFileType::Unknown)
+                (schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone(), String::new(), PackedFileType::DependencyPackFilesList)
             },
             TableType::DB(ref table) => (table.get_definition(), table.get_table_name(), PackedFileType::DB),
             TableType::Loc(ref table) => (table.get_definition(), String::new(), PackedFileType::Loc),
@@ -273,7 +278,7 @@ impl PackedFileTableView {
 
         // Set the right data, depending on the table type you get.
         let data = match data {
-            TableType::DependencyManager(data) => &*data,
+            TableType::DependencyManager(data) => &data,
             TableType::DB(data) => &*data.get_ref_table_data(),
             TableType::Loc(data) => data.get_ref_table_data(),
         };

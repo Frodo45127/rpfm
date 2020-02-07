@@ -292,6 +292,7 @@ files_to_import = Files to import: {"{"}{"}"}.
 
 ### Table
 
+table_dependency_manager_title = Dependency Manager
 table_filter_case_sensitive = Case Sensitive
 table_enable_lookups = Use Lookups
 

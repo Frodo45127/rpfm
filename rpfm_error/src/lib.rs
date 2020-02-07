@@ -474,6 +474,9 @@ pub enum ErrorKind {
 
     /// Error for when we try to load a localisation file with an invalid name.
     InvalidLocalisationFileName(String),
+
+    /// Error for when we try to decode the dependency PackFile List and fail.
+    DependencyManagerDecode(String),
 }
 
 /// Implementation of `Error`.
@@ -728,6 +731,7 @@ impl Display for ErrorKind {
             ErrorKind::GameNotSupported => write!(f, "<p>The game you tried to get the info is not supported.</p>"),
             ErrorKind::GameSelectedPathNotCorrectlyConfigured => write!(f, "<p>The Game Selected's Path is not properly configured.</p>"),
             ErrorKind::InvalidLocalisationFileName(name) => write!(f, "<p>The name '{}' is not a valid localisation file name. It has to have one and only one '_' somewhere and an identifier (en, fr,...) after that.</p>", name),
+            ErrorKind::DependencyManagerDecode(cause) => write!(f, "<p>Error while trying to decode the Dependency PackFile List:</p><p>{}</p>", cause),
         }
     }
 }

@@ -194,6 +194,21 @@ impl PackedFileView {
                     DecodedPackedFile::Text(text)
                 } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) }
             },
+
+            // These ones are like very reduced tables.
+            PackedFileType::DependencyPackFilesList => if let View::Table(view) = self.get_view() {
+                let mut entries = vec![];
+                let model = view.get_ref_table_model();
+                for row in 0..model.row_count(()) {
+                    let item = unsafe { model.item(row as i32).as_mut().unwrap().text().to_std_string() };
+                    entries.push(item);
+                }
+
+                // Save the new list and return Ok.
+                CENTRAL_COMMAND.send_message_qt(Command::SetDependencyPackFilesList(entries));
+                return Ok(())
+            } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) },
+
             PackedFileType::Unknown => DecodedPackedFile::Unknown,
             _ => unimplemented!(),
         };
