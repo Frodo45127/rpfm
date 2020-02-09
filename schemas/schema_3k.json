@@ -32167,18 +32167,18 @@
           "version": 0,
           "fields": [
             {
-              "field_name": "bias_kill",
-              "field_type": "Float",
-              "field_is_key": false,
-              "field_is_reference": null,
-              "field_description": "Bias for killing captives/character captives."
-            },
-            {
               "field_name": "bias_enslave",
               "field_type": "Float",
               "field_is_key": false,
               "field_is_reference": null,
               "field_description": "Bias for killing captives."
+            },
+            {
+              "field_name": "bias_kill",
+              "field_type": "Float",
+              "field_is_key": false,
+              "field_is_reference": null,
+              "field_description": "Bias for killing captives/character captives."
             },
             {
               "field_name": "bias_release",
