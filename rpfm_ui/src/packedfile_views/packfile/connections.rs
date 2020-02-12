@@ -11,14 +11,14 @@
 /*!
 Module with all the code to connect `PackFileExtraView` signals with their corresponding slots.
 
-This module is, and should stay, private, as it's only glue between the `PackFileExtraView` and `PackFileExtraView` structs.
+This module is, and should stay, private, as it's only glue between the `PackFileExtraView` and `PackFileExtraViewSlots` structs.
 !*/
 
 use qt_core::connection::Signal;
 
 use super::{PackFileExtraView, slots::PackFileExtraViewSlots};
 
-/// This function connects all the actions from the provided `PackFileExtraView` with their slots in `PackFileExtraView`.
+/// This function connects all the actions from the provided `PackFileExtraView` with their slots in `PackFileExtraViewSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.

@@ -76,6 +76,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_new_folder: SlotBool<'static>,
     pub contextual_menu_new_queek_packed_file: SlotBool<'static>,
 
+    pub contextual_menu_open_decoder: SlotBool<'static>,
     pub contextual_menu_open_dependency_manager: SlotBool<'static>,
 
     pub contextual_menu_tables_check_integrity: SlotBool<'static>,
@@ -842,6 +843,11 @@ impl PackFileContentsSlots {
             app_ui.new_queek_packed_file(&pack_file_contents_ui);
         });
 
+        // What happens when we trigger the "Open Decoder" Action.
+        let contextual_menu_open_decoder = SlotBool::new(clone!(slot_holder => move |_| {
+            app_ui.open_decoder(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+        }));
+
         // What happens when we trigger the "Open Dependency Table" Action.
         let contextual_menu_open_dependency_manager = SlotBool::new(clone!(slot_holder => move |_| {
             app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &slot_holder);
@@ -1121,6 +1127,7 @@ impl PackFileContentsSlots {
             contextual_menu_new_folder,
             contextual_menu_new_queek_packed_file,
 
+            contextual_menu_open_decoder,
             contextual_menu_open_dependency_manager,
 
             contextual_menu_tables_check_integrity,

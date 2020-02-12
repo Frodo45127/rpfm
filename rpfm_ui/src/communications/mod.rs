@@ -28,7 +28,7 @@ use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
-use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::versions::APIResponseSchema;
 use rpfm_lib::schema::Definition;
 use rpfm_lib::settings::*;
@@ -241,6 +241,9 @@ pub enum Command {
 
     /// This command is used to set the list of PackFiles that are marked as dependency of our PackFile.
     SetDependencyPackFilesList(Vec<String>),
+
+    /// This command is used to get a full PackedFile to the UI. Requires the path of the PackedFile.
+    GetPackedFile(Vec<String>),
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -406,6 +409,9 @@ pub enum Response {
 
     /// Response to return `BTreeMap<i32, Vec<(String, String)>>`.
     BTreeMapI32VecStringString(BTreeMap<i32, Vec<(String, String)>>),
+
+    /// Response to return `Option<PackedFile>`.
+    OptionPackedFile(Option<PackedFile>),
 /*
     Bool(bool),
     I32(i32),

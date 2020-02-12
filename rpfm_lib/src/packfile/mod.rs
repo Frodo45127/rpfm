@@ -806,6 +806,11 @@ impl PackFile {
         }
     }
 
+    /// This function returns a copy to the `PackedFile` with the provided path, if exists.
+    pub fn get_packed_file_by_path(&self, path: &[String]) -> Option<PackedFile> {
+        self.packed_files.par_iter().filter(|x| x.get_path() == path).cloned().find_any(|x| x.get_path() == path)
+    }
+
     /// This function returns a reference to the `PackedFile` with the provided path, if exists.
     pub fn get_ref_packed_file_by_path(&self, path: &[String]) -> Option<&PackedFile> {
         self.packed_files.par_iter().find_any(|x| x.get_path() == path)

@@ -33,6 +33,7 @@
 use qt_widgets::application::Application;
 
 use qt_gui::color::Color;
+use qt_gui::font::{Font, StyleHint};
 use qt_gui::palette::{Palette, ColorGroup, ColorRole};
 
 use lazy_static::lazy_static;
@@ -192,6 +193,13 @@ lazy_static! {
 
     /// Global variable to hold certain info about the current state of the UI.
     static ref UI_STATE: UIState = UIState::default();
+
+    /// Monospace font, just in case we need it.
+    static ref FONT_MONOSPACE: Font = {
+        let mut font = Font::new(&QString::from_std_str("Monospace"));
+        font.set_style_hint(StyleHint::Monospace);
+        font
+    };
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it

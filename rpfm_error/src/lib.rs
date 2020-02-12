@@ -477,6 +477,9 @@ pub enum ErrorKind {
 
     /// Error for when we try to decode the dependency PackFile List and fail.
     DependencyManagerDecode(String),
+
+    /// Error for when we try to read a PackedFile for the Decoder.
+    DecoderDecode(String),
 }
 
 /// Implementation of `Error`.
@@ -732,6 +735,7 @@ impl Display for ErrorKind {
             ErrorKind::GameSelectedPathNotCorrectlyConfigured => write!(f, "<p>The Game Selected's Path is not properly configured.</p>"),
             ErrorKind::InvalidLocalisationFileName(name) => write!(f, "<p>The name '{}' is not a valid localisation file name. It has to have one and only one '_' somewhere and an identifier (en, fr,...) after that.</p>", name),
             ErrorKind::DependencyManagerDecode(cause) => write!(f, "<p>Error while trying to decode the Dependency PackFile List:</p><p>{}</p>", cause),
+            ErrorKind::DecoderDecode(cause) => write!(f, "<p>Error while trying to load the following PackedFile to the decoder:</p><p>{}</p>", cause),
         }
     }
 }

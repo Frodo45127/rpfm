@@ -610,6 +610,9 @@ pub fn background_loop() {
                 CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32VecStringString(dependency_data));
             }
 
+            // In case we want to return an entire PackedFile to the UI.
+            Command::GetPackedFile(path) => CENTRAL_COMMAND.send_message_rust(Response::OptionPackedFile(pack_file_decoded.get_packed_file_by_path(&path))),
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }

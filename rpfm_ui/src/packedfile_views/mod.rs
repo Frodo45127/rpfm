@@ -35,12 +35,14 @@ use crate::QString;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::create_grid_layout_unsafe;
 use crate::UI_STATE;
+use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
 use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
 
+pub mod decoder;
 pub mod image;
 pub mod packfile;
 pub mod rigidmodel;
@@ -59,8 +61,9 @@ pub struct PackedFileView {
     packed_file_type: PackedFileType,
 }
 
+/// This enum is used to hold in a common way all the view types we have.
 pub enum View {
-    //Decoder(PackedFileDBDecoder),
+    Decoder(PackedFileDecoderView),
     Image(PackedFileImageView),
     PackFile(PackFileExtraView),
     RigidModel(PackedFileRigidModelView),
@@ -74,7 +77,7 @@ pub enum View {
 /// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
-    //Decoder(PackedFileDBDecoder),
+    Decoder(PackedFileDecoderViewSlots),
     Image(PackedFileImageViewSlots),
     PackFile(PackFileExtraViewSlots),
     RigidModel(PackedFileRigidModelViewSlots),
@@ -184,7 +187,7 @@ impl PackedFileView {
             } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) },
 
             // Images are read-only.
-            PackedFileType::Image => DecodedPackedFile::Unknown,
+            PackedFileType::Image => return Ok(()),
             PackedFileType::RigidModel => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
 
             PackedFileType::Text(_) => {
@@ -209,7 +212,7 @@ impl PackedFileView {
                 return Ok(())
             } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) },
 
-            PackedFileType::Unknown => DecodedPackedFile::Unknown,
+            PackedFileType::Unknown => return Ok(()),
             _ => unimplemented!(),
         };
 
