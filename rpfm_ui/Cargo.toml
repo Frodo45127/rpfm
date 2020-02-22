@@ -34,10 +34,10 @@ regex = "^1"
 open = "^1.2"
 
 # Qt dependencies.
-cpp_utils = "^0.2"
-qt_core = "^0.2"
-qt_gui = "^0.2"
-qt_widgets = "^0.2"
+cpp_core = "^0.5"
+qt_core = "^0.4"
+qt_gui = "^0.4"
+qt_widgets = "^0.4"
 
 # Support for formatting math operations.
 meval = "^0.2"

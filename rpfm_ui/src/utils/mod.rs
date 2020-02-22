@@ -12,16 +12,21 @@
 Module with all the utility functions, to make our programming lives easier.
 !*/
 
-use qt_widgets::grid_layout::GridLayout;
-use qt_widgets::layout::Layout;
-use qt_widgets::message_box::{MessageBox, Icon};
-use qt_widgets::widget::Widget;
+use qt_widgets::QGridLayout;
+use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
+use qt_widgets::QWidget;
 
-use qt_core::flags::Flags;
+use qt_core::QFlags;
+use qt_core::QString;
 
-use cpp_utils::CppBox;
+use cpp_core::CastInto;
+use cpp_core::CppBox;
+use cpp_core::CppDeletable;
+use cpp_core::MutPtr;
+use cpp_core::Ref;
 
 use std::fmt::Display;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::ORANGE;
 use crate::SLIGHTLY_DARKER_GREY;
@@ -29,11 +34,31 @@ use crate::MEDIUM_DARKER_GREY;
 use crate::DARK_GREY;
 use crate::KINDA_WHITY_GREY;
 use crate::EVEN_MORE_WHITY_GREY;
-use crate::QString;
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
 //----------------------------------------------------------------------------//
+
+pub(crate) fn atomic_from_cpp_box<T: CppDeletable>(cpp_box: CppBox<T>) -> AtomicPtr<T> {
+    AtomicPtr::new(cpp_box.into_raw_ptr())
+}
+
+pub(crate) fn atomic_from_mut_ptr<T: Sized>(ptr: MutPtr<T>) -> AtomicPtr<T> {
+    AtomicPtr::new(ptr.as_mut_raw_ptr())
+}
+
+pub(crate) fn mut_ptr_from_atomic<T: Sized>(ptr: &AtomicPtr<T>) -> MutPtr<T> {
+    unsafe { MutPtr::from_raw(ptr.load(Ordering::SeqCst)) }
+}
+
+pub(crate) fn ref_from_atomic<T: Sized>(ptr: &AtomicPtr<T>) -> Ref<T> {
+    unsafe { Ref::from_raw(ptr.load(Ordering::SeqCst)).unwrap() }
+}
+
+pub(crate) fn ref_from_atomic_ref<T: Sized>(ptr: &AtomicPtr<T>) -> Ref<T> {
+    unsafe { Ref::from_raw(ptr.load(Ordering::SeqCst)).unwrap() }
+}
+
 
 /// This function creates a modal dialog, for showing successes or errors.
 ///
@@ -41,20 +66,20 @@ use crate::QString;
 /// - parent: a pointer to the widget that'll be the parent of the dialog.
 /// - text: something that implements the trait `Display`, to put in the dialog window.
 /// - is_success: true for `Success` Dialog, false for `Error` Dialog.
-pub fn show_dialog<T: Display>(parent: *mut Widget, text: T, is_success: bool) {
+pub unsafe fn show_dialog<T: Display>(parent: impl CastInto<MutPtr<QWidget>>, text: T, is_success: bool) {
 
     // Depending on the type of the dialog, set everything specific here.
     let title = if is_success { "Success!" } else { "Error!" };
     let icon = if is_success { Icon::Information } else { Icon::Critical };
 
     // Create and run the dialog.
-    unsafe { MessageBox::new_unsafe((
+    QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
         icon,
         &QString::from_std_str(title),
         &QString::from_std_str(&text.to_string()),
-        Flags::from_int(1024), // Ok button.
+        QFlags::from(StandardButton::Ok),
         parent,
-    )) }.exec();
+    ).exec();
 }
 
 
@@ -77,42 +102,21 @@ pub fn display_help_tips(app_ui: &AppUI) {
 */
 
 /// This function creates a `GridLayout` for the provided widget with the settings we want.
-///
-/// This is the safe version for `&mut Widget`. REMEMBER TO DO AN `into_raw` AFTER USING THIS!
-pub fn create_grid_layout_safe() -> CppBox<GridLayout> {
-    let mut widget_layout = GridLayout::new();
+pub unsafe fn create_grid_layout(mut widget: MutPtr<QWidget>) -> MutPtr<QGridLayout> {
+    let mut widget_layout = QGridLayout::new_0a();
+    widget.set_layout(&mut widget_layout);
 
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
     if cfg!(target_os = "windows") {
-        widget_layout.set_contents_margins((2, 2, 2, 2));
+        widget_layout.set_contents_margins_4a(2, 2, 2, 2);
         widget_layout.set_spacing(1);
     }
     else {
-        widget_layout.set_contents_margins((0, 0, 0, 0));
+        widget_layout.set_contents_margins_4a(0, 0, 0, 0);
         widget_layout.set_spacing(0);
     }
 
-    widget_layout
-}
-
-/// This function creates a `GridLayout` for the provided widget with the settings we want.
-///
-/// This is the unsafe version for `*mut Widget`.
-pub fn create_grid_layout_unsafe(widget: *mut Widget) -> *mut GridLayout {
-    let mut widget_layout = GridLayout::new();
-    unsafe { widget.as_mut().unwrap().set_layout(widget_layout.as_mut_ptr() as *mut Layout); }
-
-    // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
-    if cfg!(target_os = "windows") {
-        widget_layout.set_contents_margins((2, 2, 2, 2));
-        widget_layout.set_spacing(1);
-    }
-    else {
-        widget_layout.set_contents_margins((0, 0, 0, 0));
-        widget_layout.set_spacing(0);
-    }
-
-    widget_layout.into_raw()
+    widget_layout.into_ptr()
 }
 
 /// This function creates the stylesheet used for the dark theme in windows.

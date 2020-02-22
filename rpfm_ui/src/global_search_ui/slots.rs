@@ -12,11 +12,12 @@
 Module with all the code related to the main `GlobalSearchSlots`.
 !*/
 
-use qt_gui::color::Color;
-use qt_gui::palette::{ColorRole, Palette};
+use qt_gui::QColor;
+use qt_gui::q_palette::ColorRole;
+use qt_gui::QPalette;
 
-use qt_core::qt::GlobalColor;
-use qt_core::slots::{SlotBool, SlotModelIndexRef, SlotNoArgs, SlotStringRef};
+use qt_core::GlobalColor;
+use qt_core::{SlotOfBool, SlotOfQModelIndex, Slot, SlotOfQString};
 
 use regex::Regex;
 
@@ -34,16 +35,16 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 
 /// This struct contains all the slots we need to respond to signals of the Global Search panel.
 pub struct GlobalSearchSlots {
-    pub global_search_search: SlotNoArgs<'static>,
-    pub global_search_clear: SlotNoArgs<'static>,
-    pub global_search_replace_all: SlotNoArgs<'static>,
-    pub global_search_check_regex: SlotStringRef<'static>,
-    pub global_search_open_match: SlotModelIndexRef<'static>,
-    pub global_search_toggle_all: SlotBool<'static>,
-    pub global_search_filter_dbs: SlotNoArgs<'static>,
-    pub global_search_filter_locs: SlotNoArgs<'static>,
-    pub global_search_filter_texts: SlotNoArgs<'static>,
-    pub global_search_filter_schemas: SlotNoArgs<'static>,
+    pub global_search_search: Slot<'static>,
+    pub global_search_clear: Slot<'static>,
+    pub global_search_replace_all: Slot<'static>,
+    pub global_search_check_regex: SlotOfQString<'static>,
+    pub global_search_open_match: SlotOfQModelIndex<'static>,
+    pub global_search_toggle_all: SlotOfBool<'static>,
+    pub global_search_filter_dbs: Slot<'static>,
+    pub global_search_filter_locs: Slot<'static>,
+    pub global_search_filter_texts: Slot<'static>,
+    pub global_search_filter_schemas: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -54,64 +55,64 @@ pub struct GlobalSearchSlots {
 impl GlobalSearchSlots {
 
 	/// This function creates an entire `GlobalSearchSlots` struct.
-	pub fn new(
-        app_ui: AppUI,
-        global_search_ui: GlobalSearchUI,
+	pub unsafe fn new(
+        mut app_ui: AppUI,
+        mut global_search_ui: GlobalSearchUI,
         pack_file_contents_ui: PackFileContentsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Self {
 
         // What happens when we trigger the "Global Search" action.
-        let global_search_search = SlotNoArgs::new(clone!(pack_file_contents_ui => move || {
-            global_search_ui.search(&pack_file_contents_ui);
+        let global_search_search = Slot::new(clone!(mut pack_file_contents_ui => move || {
+            global_search_ui.search(&mut pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Clear Search" action.
-        let global_search_clear = SlotNoArgs::new(move || {
+        let global_search_clear = Slot::new(move || {
             global_search_ui.clear();
         });
 
         // What happens when we trigger the "Replace All" action.
-        let global_search_replace_all = SlotNoArgs::new(clone!(
-            pack_file_contents_ui,
-            slot_holder => move || {
-            global_search_ui.replace_all(&app_ui, &pack_file_contents_ui, &slot_holder);
+        let global_search_replace_all = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut slot_holder => move || {
+            global_search_ui.replace_all(&mut app_ui, &mut pack_file_contents_ui, &slot_holder);
         }));
 
 
         // What happens when we trigger the "Check Regex" action.
-        let global_search_check_regex = SlotStringRef::new(move |string| {
-            let mut palette = Palette::new(());
-            if unsafe { global_search_ui.global_search_use_regex_checkbox.as_ref().unwrap().is_checked() } {
+        let global_search_check_regex = SlotOfQString::new(move |string| {
+            let mut palette = QPalette::new();
+            if global_search_ui.global_search_use_regex_checkbox.is_checked() {
                 if Regex::new(&string.to_std_string()).is_ok() {
-                    palette.set_color((ColorRole::Base, &Color::new(GlobalColor::DarkGreen)));
+                    palette.set_color_2a(ColorRole::Base, &QColor::from_global_color(GlobalColor::DarkGreen));
                 } else {
-                    palette.set_color((ColorRole::Base, &Color::new(GlobalColor::DarkRed)));
+                    palette.set_color_2a(ColorRole::Base, &QColor::from_global_color(GlobalColor::DarkRed));
                 }
             }
             else {
 
                 // Not really right but... it does the job for now.
-                palette.set_color((ColorRole::Base, &Color::new(GlobalColor::Transparent)));
+                palette.set_color_2a(ColorRole::Base, &QColor::from_global_color(GlobalColor::Transparent));
             }
-            unsafe { global_search_ui.global_search_search_line_edit.as_mut().unwrap().set_palette(&palette); }
+            global_search_ui.global_search_search_line_edit.set_palette(&palette);
         });
 
         // What happens when we try to open the file corresponding to one of the matches.
-        let global_search_open_match = SlotModelIndexRef::new(clone!(slot_holder => move |model_index_filter| {
-            GlobalSearchUI::open_match(app_ui, pack_file_contents_ui, global_search_ui, &slot_holder, model_index_filter);
+        let global_search_open_match = SlotOfQModelIndex::new(clone!(slot_holder => move |model_index_filter| {
+            GlobalSearchUI::open_match(app_ui, pack_file_contents_ui, global_search_ui, &slot_holder, model_index_filter.as_ptr());
         }));
 
         // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes..
-        let global_search_toggle_all = SlotBool::new(move |state| {
-            unsafe { global_search_ui.global_search_search_on_dbs_checkbox.as_mut().unwrap().set_enabled(!state) };
-            unsafe { global_search_ui.global_search_search_on_locs_checkbox.as_mut().unwrap().set_enabled(!state) };
-            unsafe { global_search_ui.global_search_search_on_texts_checkbox.as_mut().unwrap().set_enabled(!state) };
-            unsafe { global_search_ui.global_search_search_on_schemas_checkbox.as_mut().unwrap().set_enabled(!state) };
+        let global_search_toggle_all = SlotOfBool::new(move |state| {
+            global_search_ui.global_search_search_on_dbs_checkbox.set_enabled(!state);
+            global_search_ui.global_search_search_on_locs_checkbox.set_enabled(!state);
+            global_search_ui.global_search_search_on_texts_checkbox.set_enabled(!state);
+            global_search_ui.global_search_search_on_schemas_checkbox.set_enabled(!state);
         });
 
         // What happens when we filter the different result TreeViews
-        let global_search_filter_dbs = SlotNoArgs::new(move || {
+        let global_search_filter_dbs = Slot::new(move || {
             GlobalSearchUI::filter_results(
                 global_search_ui.global_search_matches_db_tree_view,
                 global_search_ui.global_search_matches_filter_db_line_edit,
@@ -120,7 +121,7 @@ impl GlobalSearchSlots {
             );
         });
 
-        let global_search_filter_locs = SlotNoArgs::new(move || {
+        let global_search_filter_locs = Slot::new(move || {
             GlobalSearchUI::filter_results(
                 global_search_ui.global_search_matches_loc_tree_view,
                 global_search_ui.global_search_matches_filter_loc_line_edit,
@@ -129,7 +130,7 @@ impl GlobalSearchSlots {
             );
         });
 
-        let global_search_filter_texts = SlotNoArgs::new(move || {
+        let global_search_filter_texts = Slot::new(move || {
             GlobalSearchUI::filter_results(
                 global_search_ui.global_search_matches_text_tree_view,
                 global_search_ui.global_search_matches_filter_text_line_edit,
@@ -138,7 +139,7 @@ impl GlobalSearchSlots {
             );
         });
 
-        let global_search_filter_schemas = SlotNoArgs::new(move || {
+        let global_search_filter_schemas = Slot::new(move || {
             GlobalSearchUI::filter_results(
                 global_search_ui.global_search_matches_schema_tree_view,
                 global_search_ui.global_search_matches_filter_schema_line_edit,

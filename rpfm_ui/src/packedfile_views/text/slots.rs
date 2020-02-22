@@ -12,9 +12,7 @@
 Module with the slots for Text Views.
 !*/
 
-use qt_widgets::widget::Widget;
-
-use qt_core::slots::SlotNoArgs;
+use qt_core::Slot;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -31,7 +29,7 @@ use crate::utils::show_dialog;
 
 /// This struct contains the slots of the view of an Text PackedFile.
 pub struct PackedFileTextViewSlots {
-    pub save: SlotNoArgs<'static>,
+    pub save: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -42,16 +40,16 @@ pub struct PackedFileTextViewSlots {
 impl PackedFileTextViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub fn new(packed_file_view: PackedFileTextViewRaw, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
+    pub unsafe fn new(packed_file_view: PackedFileTextViewRaw, mut pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
 
         // When we want to save the contents of the UI to the backend...
         //
         // NOTE: in-edition saves to backend are only triggered when the GlobalSearch has search data, to keep it updated.
-        let save = SlotNoArgs::new(clone!(packed_file_path => move || {
+        let save = Slot::new(clone!(packed_file_path => move || {
             if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                    if let Err(error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &pack_file_contents_ui) {
-                        show_dialog(packed_file_view.get_mut_editor() as *mut Widget, error, false);
+                    if let Err(error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui) {
+                        show_dialog(packed_file_view.get_mut_editor(), error, false);
                     }
                 }
             }

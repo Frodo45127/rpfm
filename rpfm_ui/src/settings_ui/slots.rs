@@ -12,9 +12,7 @@
 Module with all the code related to `SettingsUISlots`.
 !*/
 
-use qt_widgets::widget::Widget;
-
-use qt_core::slots::SlotNoArgs;
+use qt_core::Slot;
 
 use std::collections::BTreeMap;
 
@@ -36,11 +34,11 @@ use crate::utils::show_dialog;
 ///
 /// This means everything you can do with the stuff you have in the `SettingsUI` goes here.
 pub struct SettingsUISlots {
-    pub restore_default: SlotNoArgs<'static>,
-    pub select_mymod_path: SlotNoArgs<'static>,
-    pub select_game_paths: BTreeMap<String, SlotNoArgs<'static>>,
-    pub shortcuts: SlotNoArgs<'static>,
-    pub text_editor: SlotNoArgs<'static>,
+    pub restore_default: Slot<'static>,
+    pub select_mymod_path: Slot<'static>,
+    pub select_game_paths: BTreeMap<String, Slot<'static>>,
+    pub shortcuts: Slot<'static>,
+    pub text_editor: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -51,16 +49,15 @@ pub struct SettingsUISlots {
 impl SettingsUISlots {
 
     /// This function creates a new `SettingsUISlots`.
-    pub fn new(ui: &SettingsUI) -> Self {
+    pub unsafe fn new(ui: &mut SettingsUI) -> Self {
 
         // What happens when we hit thr "Restore Default" button.
-        let mut ui_default = ui.clone();
-        let restore_default = SlotNoArgs::new(move || {
-            ui_default.load(&Settings::new())
-        });
+        let restore_default = Slot::new(clone!(mut ui => move || {
+            ui.load(&Settings::new())
+        }));
 
         // What happens when we hit the "..." button for MyMods.
-        let select_mymod_path = SlotNoArgs::new(clone!(
+        let select_mymod_path = Slot::new(clone!(
             ui => move || {
             ui.update_entry_path(None);
         }));
@@ -70,7 +67,7 @@ impl SettingsUISlots {
         for key in ui.paths_games_line_edits.keys() {
             select_game_paths.insert(
                 key.to_owned(),
-                SlotNoArgs::new(clone!(
+                Slot::new(clone!(
                     key,
                     ui => move || {
                     ui.update_entry_path(Some(&key));
@@ -79,23 +76,23 @@ impl SettingsUISlots {
         }
 
         // What happens when we hit the "Shortcuts" button.
-        let shortcuts = SlotNoArgs::new(clone!(ui => move || {
+        let shortcuts = Slot::new(clone!(ui => move || {
 
             // Create the Shortcuts Dialog. If we got new shortcuts, try to save them and report any error.
-            if let Some(shortcuts) = ShortcutsUI::new(ui.dialog as *mut Widget) {
+            if let Some(shortcuts) = ShortcutsUI::new(ui.dialog) {
                 CENTRAL_COMMAND.send_message_qt(Command::SetShortcuts(shortcuts.clone()));
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 match response {
                     Response::Success => UI_STATE.set_shortcuts(&shortcuts),
-                    Response::Error(error) => show_dialog(ui.dialog as *mut Widget, error, false),
+                    Response::Error(error) => show_dialog(ui.dialog, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
         }));
 
         // What happens when we hit the "Text Editor Preferences" button.
-        let text_editor = SlotNoArgs::new(clone!(ui => move || {
-            unsafe { ffi::open_text_editor_config(ui.dialog as *mut Widget); }
+        let text_editor = Slot::new(clone!(mut ui => move || {
+            ffi::open_text_editor_config_safe(&mut ui.dialog);
         }));
 
         // And here... we return all the slots.

@@ -12,12 +12,16 @@
 Module with all the code related to the command palette.
 !*/
 
-use qt_widgets::action::Action;
+use qt_widgets::QAction;
 
-use qt_gui::list::ListStandardItemMutPtr;
-use qt_gui::standard_item::StandardItem;
+use qt_gui::QListOfQStandardItem;
+use qt_gui::QStandardItem;
 
-use qt_core::flags::Flags;
+use qt_core::QFlags;
+use qt_core::AlignmentFlag;
+
+use cpp_core::MutPtr;
+use cpp_core::Ref;
 
 use crate::app_ui::AppUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -28,10 +32,10 @@ use crate::UI_STATE;
 const THE_UNHOLY_ONE: &str = "&";
 
 /// This function returns the complete list of actions available for the Command Palette.
-pub fn get_actions(
+pub unsafe fn get_actions(
 	app_ui: &AppUI,
 	pack_file_contents_ui: &PackFileContentsUI
-) -> Vec<(*mut Action, String)> {
+) -> Vec<(MutPtr<QAction>, String)> {
 
 	let mut actions = vec![];
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
@@ -126,39 +130,39 @@ pub fn get_actions(
 }
 
 /// This function loads the entire set of available and enabled actions to the Command Palette.
-pub fn load_actions(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI) {
-	unsafe { app_ui.command_palette_completer_model.as_mut().unwrap().clear(); }
+pub unsafe fn load_actions(app_ui: &mut AppUI, pack_file_contents_ui: &PackFileContentsUI) {
+	app_ui.command_palette_completer_model.clear();
 	let and = QString::from_std_str(THE_UNHOLY_ONE);
 
 	for (mut action_name, action_shortcut) in get_actions(app_ui, pack_file_contents_ui).iter_mut()
-		.filter(|x| unsafe { x.0.as_mut().unwrap().is_enabled() })
-		.map(|x| (unsafe { x.0.as_mut().unwrap().text() }, x.1.to_owned())) {
+		.filter(|x| x.0.is_enabled())
+		.map(|x| (x.0.text(), x.1.to_owned())) {
 
-		let mut action_data = ListStandardItemMutPtr::new(());
-		action_name.remove(&and);
+		let action_data = QListOfQStandardItem::new();
+		action_name.remove_q_string(&and);
 
-		let mut action_name = StandardItem::new(&action_name);
-		action_name.set_text_alignment(Flags::from_int(128));
+		let mut action_name = QStandardItem::from_q_string(&action_name);
+		action_name.set_text_alignment(QFlags::from(AlignmentFlag::AlignVCenter));
 
-		let mut action_shortcut = StandardItem::new(&QString::from_std_str(&action_shortcut));
-		action_shortcut.set_text_alignment(Flags::from_int(130));
+		let mut action_shortcut = QStandardItem::from_q_string(&QString::from_std_str(&action_shortcut));
+		action_shortcut.set_text_alignment(QFlags::from(AlignmentFlag::AlignVCenter | AlignmentFlag::AlignRight));
 
-		unsafe { action_data.append_unsafe(&action_name.into_raw()) };
-		unsafe { action_data.append_unsafe(&action_shortcut.into_raw()) };
-		unsafe { app_ui.command_palette_completer_model.as_mut().unwrap().append_row(&action_data); }
+		//action_data.append(action_name);
+		//action_data.append(action_shortcut);
+		app_ui.command_palette_completer_model.append_row_q_list_of_q_standard_item(&action_data);
 	}
 
-	unsafe { app_ui.command_palette_completer_view.as_mut().unwrap().set_column_width(0, 360); }
+	app_ui.command_palette_completer_view.set_column_width(0, 360);
 }
 
 /// This function executes the action provided (if exists).
-pub fn exec_action(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, action_name: &QString) {
+pub unsafe fn exec_action(app_ui: &AppUI, pack_file_contents_ui: &PackFileContentsUI, action_name: Ref<QString>) {
 	let and = QString::from_std_str(THE_UNHOLY_ONE);
-	for (action, _) in get_actions(app_ui, pack_file_contents_ui) {
-		let mut name = unsafe { action.as_ref().unwrap().text() };
-		name.remove(&and);
-		if QString::compare(&name, action_name) == 0 {
-			unsafe { action.as_mut().unwrap().trigger(); }
+	for (mut action, _) in get_actions(app_ui, pack_file_contents_ui) {
+		let mut name = action.text();
+		name.remove_q_string(&and);
+		if QString::compare_2_q_string(name.as_ref(), action_name) == 0 {
+			action.trigger();
 		}
 	}
 }

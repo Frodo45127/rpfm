@@ -15,6 +15,10 @@ This module contains all the code needed to initialize/localize the entire UI, o
 on this program (the ones from the rpfm_lib/error are another story.
 !*/
 
+use qt_core::QString;
+
+use cpp_core::CppBox;
+
 use fluent_bundle::{FluentBundle, FluentResource};
 use unic_langid::{langid, LanguageIdentifier};
 
@@ -28,7 +32,6 @@ use rpfm_lib::common::get_files_from_subdir;
 
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
-use crate::QString;
 
 /// Name of the folder containing all the schemas.
 const LOCALE_FOLDER: &str = "locale";
@@ -160,7 +163,7 @@ pub fn tre(key: &str, replacements: &[&str]) -> String {
 /// This function returns the translation as a `QString` for the key provided in the current language.
 ///
 /// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
-pub fn qtr(key: &str) -> QString {
+pub fn qtr(key: &str) -> CppBox<QString> {
     QString::from_std_str(Locale::tr(key))
 }
 
@@ -168,7 +171,7 @@ pub fn qtr(key: &str) -> QString {
 /// replacing certain parts of the translation with the replacements provided.
 ///
 /// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
-pub fn qtre(key: &str, replacements: &[&str]) -> QString {
+pub fn qtre(key: &str, replacements: &[&str]) -> CppBox<QString> {
     let mut translation = Locale::tr(key);
     replacements.iter().for_each(|x| translation = translation.replacen(REPLACE_SEQUENCE, x, 1));
     QString::from_std_str(translation)

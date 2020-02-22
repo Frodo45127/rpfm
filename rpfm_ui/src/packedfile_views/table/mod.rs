@@ -12,32 +12,31 @@
 Module with all the code for managing the view for Table PackedFiles.
 !*/
 
-use qt_widgets::combo_box::ComboBox;
-use qt_widgets::grid_layout::GridLayout;
-use qt_widgets::line_edit::LineEdit;
-use qt_widgets::push_button::PushButton;
-use qt_widgets::table_view::TableView;
-use qt_widgets::widget::Widget;
+use qt_widgets::QComboBox;
+use qt_widgets::QGridLayout;
+use qt_widgets::QLineEdit;
+use qt_widgets::QPushButton;
+use qt_widgets::QTableView;
 
-use qt_gui::list::ListStandardItemMutPtr;
-use qt_gui::standard_item::StandardItem;
-use qt_gui::standard_item_model::StandardItemModel;
+use qt_gui::QListOfQStandardItem;
+use qt_gui::QStandardItem;
+use qt_gui::QStandardItemModel;
 
-use qt_core::abstract_item_model::AbstractItemModel;
-use qt_core::object::Object;
-use qt_core::qt::{CaseSensitivity, CheckState};
-use qt_core::reg_exp::RegExp;
-use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
-use qt_core::string_list::StringList;
-use qt_core::variant::Variant;
+use qt_core::{CaseSensitivity, CheckState};
+use qt_core::QRegExp;
+use qt_core::QSortFilterProxyModel;
+use qt_core::QStringList;
+use qt_core::QVariant;
+use qt_core::QString;
 
-use cpp_utils::CppBox;
+use cpp_core::CppBox;
+use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::Result;
 use rpfm_lib::packedfile::PackedFileType;
@@ -54,7 +53,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
-use crate::QString;
+use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
 
 use self::slots::PackedFileTableViewSlots;
 
@@ -80,14 +79,14 @@ pub enum TableType {
 
 /// This struct contains pointers to all the widgets in a Table View.
 pub struct PackedFileTableView {
-    table_view_primary: AtomicPtr<TableView>,
-    table_view_frozen: AtomicPtr<TableView>,
-    table_filter: AtomicPtr<SortFilterProxyModel>,
-    table_model: AtomicPtr<StandardItemModel>,
-    table_enable_lookups_button: AtomicPtr<PushButton>,
-    filter_case_sensitive_button: AtomicPtr<PushButton>,
-    filter_column_selector: AtomicPtr<ComboBox>,
-    filter_line_edit: AtomicPtr<LineEdit>,
+    table_view_primary: AtomicPtr<QTableView>,
+    table_view_frozen: AtomicPtr<QTableView>,
+    table_filter: AtomicPtr<QSortFilterProxyModel>,
+    table_model: AtomicPtr<QStandardItemModel>,
+    table_enable_lookups_button: AtomicPtr<QPushButton>,
+    filter_case_sensitive_button: AtomicPtr<QPushButton>,
+    filter_column_selector: AtomicPtr<QComboBox>,
+    filter_line_edit: AtomicPtr<QLineEdit>,
 
     dependency_data: Arc<BTreeMap<i32, Vec<(String, String)>>>,
     table_name: String,
@@ -100,14 +99,14 @@ pub struct PackedFileTableView {
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileTableView`.
 #[derive(Clone, Copy)]
 pub struct PackedFileTableViewRaw {
-    pub table_view_primary: *mut TableView,
-    pub table_view_frozen: *mut TableView,
-    pub table_filter: *mut SortFilterProxyModel,
-    pub table_model: *mut StandardItemModel,
-    pub table_enable_lookups_button: *mut PushButton,
-    pub filter_case_sensitive_button: *mut PushButton,
-    pub filter_column_selector: *mut ComboBox,
-    pub filter_line_edit: *mut LineEdit,
+    pub table_view_primary: MutPtr<QTableView>,
+    pub table_view_frozen: MutPtr<QTableView>,
+    pub table_filter: MutPtr<QSortFilterProxyModel>,
+    pub table_model: MutPtr<QStandardItemModel>,
+    pub table_enable_lookups_button: MutPtr<QPushButton>,
+    pub filter_case_sensitive_button: MutPtr<QPushButton>,
+    pub filter_column_selector: MutPtr<QComboBox>,
+    pub filter_line_edit: MutPtr<QLineEdit>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -120,7 +119,7 @@ impl PackedFileTableView {
     /// This function creates a new Table View, and sets up his slots and connections.
     ///
     /// NOTE: To open the dependency list, pass it an empty path.
-    pub fn new_view(
+    pub unsafe fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
@@ -169,32 +168,32 @@ impl PackedFileTableView {
         //let save_lock = Rc::new(RefCell::new(false));
 
         // Prepare the Table and its model.
-        let mut table_view_frozen = TableView::new();
-        let mut filter_model = SortFilterProxyModel::new();
-        let model = StandardItemModel::new(());
-        unsafe { filter_model.set_source_model(model.as_mut_ptr() as *mut AbstractItemModel); }
-        let table_view = unsafe { new_tableview_frozen(filter_model.as_mut_ptr() as *mut AbstractItemModel, table_view_frozen.as_mut_ptr()) };
+        let mut table_view_frozen = QTableView::new_0a();
+        let mut filter_model = QSortFilterProxyModel::new_0a();
+        let mut model = QStandardItemModel::new_0a();
+        filter_model.set_source_model(&mut model);
+        let table_view = new_tableview_frozen_safe(&mut filter_model, &mut table_view_frozen);
         table_view_frozen.hide();
 
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] {
-            unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().set_stretch_last_section(true); }
+            table_view.horizontal_header().set_stretch_last_section(true);
         }
 
         // Create the filter's widgets.
-        let mut row_filter_line_edit = LineEdit::new(());
-        let mut row_filter_column_selector = ComboBox::new();
-        let mut row_filter_case_sensitive_button = PushButton::new(&qtr("table_filter_case_sensitive"));
-        let row_filter_column_list = StandardItemModel::new(());
-        let mut table_enable_lookups_button = PushButton::new(&qtr("table_enable_lookups"));
+        let mut row_filter_line_edit = QLineEdit::new();
+        let mut row_filter_column_selector = QComboBox::new_0a();
+        let mut row_filter_case_sensitive_button = QPushButton::from_q_string(&qtr("table_filter_case_sensitive"));
+        let mut row_filter_column_list = QStandardItemModel::new_0a();
+        let mut table_enable_lookups_button = QPushButton::from_q_string(&qtr("table_enable_lookups"));
 
-        unsafe { row_filter_column_selector.set_model(row_filter_column_list.into_raw() as *mut AbstractItemModel) };
+        row_filter_column_selector.set_model(&mut row_filter_column_list);
 
         let mut fields = table_definition.fields.to_vec();
         fields.sort_by(|a, b| a.ca_order.cmp(&b.ca_order));
         for field in &fields {
             let name = Self::clean_column_names(&field.name);
-            row_filter_column_selector.add_item(&QString::from_std_str(&name));
+            row_filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
         }
 
         row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
@@ -202,23 +201,23 @@ impl PackedFileTableView {
         table_enable_lookups_button.set_checkable(true);
 
         // Add everything to the grid.
-        let layout = unsafe { packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout };
-        unsafe { layout.as_mut().unwrap().add_widget((table_view as *mut Widget, 0, 0, 1, 4)); }
-        unsafe { layout.as_mut().unwrap().add_widget((row_filter_line_edit.as_mut_ptr() as *mut Widget, 2, 0, 1, 1)); }
-        unsafe { layout.as_mut().unwrap().add_widget((row_filter_case_sensitive_button.as_mut_ptr() as *mut Widget, 2, 1, 1, 1)); }
-        unsafe { layout.as_mut().unwrap().add_widget((row_filter_column_selector.as_mut_ptr() as *mut Widget, 2, 2, 1, 1)); }
-        unsafe { layout.as_mut().unwrap().add_widget((table_enable_lookups_button.as_mut_ptr() as *mut Widget, 2, 3, 1, 1)); }
+        let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
+        layout.add_widget_5a(table_view, 0, 0, 1, 4);
+        layout.add_widget_5a(&mut row_filter_line_edit, 2, 0, 1, 1);
+        layout.add_widget_5a(&mut row_filter_case_sensitive_button, 2, 1, 1, 1);
+        layout.add_widget_5a(&mut row_filter_column_selector, 2, 2, 1, 1);
+        layout.add_widget_5a(&mut table_enable_lookups_button, 2, 3, 1, 1);
 
         // Create the raw Struct and begin
         let packed_file_table_view_raw = PackedFileTableViewRaw {
             table_view_primary: table_view,
-            table_view_frozen: table_view_frozen.into_raw(),
-            table_filter: filter_model.into_raw(),
-            table_model: model.into_raw(),
-            table_enable_lookups_button: row_filter_case_sensitive_button.into_raw(),
-            filter_line_edit: row_filter_line_edit.into_raw(),
-            filter_case_sensitive_button: table_enable_lookups_button.into_raw(),
-            filter_column_selector: row_filter_column_selector.into_raw(),
+            table_view_frozen: table_view_frozen.into_ptr(),
+            table_filter: filter_model.into_ptr(),
+            table_model: model.into_ptr(),
+            table_enable_lookups_button: row_filter_case_sensitive_button.into_ptr(),
+            filter_line_edit: row_filter_line_edit.into_ptr(),
+            filter_case_sensitive_button: table_enable_lookups_button.into_ptr(),
+            filter_column_selector: row_filter_column_selector.into_ptr(),
         };
 
         let packed_file_table_view_slots = PackedFileTableViewSlots::new(
@@ -231,14 +230,14 @@ impl PackedFileTableView {
         );
 
         let mut packed_file_table_view = Self {
-            table_view_primary: AtomicPtr::new(packed_file_table_view_raw.table_view_primary),
-            table_view_frozen: AtomicPtr::new(packed_file_table_view_raw.table_view_frozen),
-            table_filter: AtomicPtr::new(packed_file_table_view_raw.table_filter),
-            table_model: AtomicPtr::new(packed_file_table_view_raw.table_model),
-            table_enable_lookups_button: AtomicPtr::new(packed_file_table_view_raw.table_enable_lookups_button),
-            filter_line_edit: AtomicPtr::new(packed_file_table_view_raw.filter_line_edit),
-            filter_case_sensitive_button: AtomicPtr::new(packed_file_table_view_raw.filter_case_sensitive_button),
-            filter_column_selector: AtomicPtr::new(packed_file_table_view_raw.filter_column_selector),
+            table_view_primary: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_primary),
+            table_view_frozen: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_frozen),
+            table_filter: atomic_from_mut_ptr(packed_file_table_view_raw.table_filter),
+            table_model: atomic_from_mut_ptr(packed_file_table_view_raw.table_model),
+            table_enable_lookups_button: atomic_from_mut_ptr(packed_file_table_view_raw.table_enable_lookups_button),
+            filter_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.filter_line_edit),
+            filter_case_sensitive_button: atomic_from_mut_ptr(packed_file_table_view_raw.filter_case_sensitive_button),
+            filter_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.filter_column_selector),
 
             dependency_data: Arc::new(dependency_data),
             table_definition,
@@ -258,7 +257,7 @@ impl PackedFileTableView {
         packed_file_table_view.build_columns(&packed_file_name);
 
         // Set the connections and return success.
-        connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
+        //connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
         packed_file_view.view = View::Table(packed_file_table_view);
         packed_file_view.packed_file_type = packed_file_type;
 
@@ -267,14 +266,14 @@ impl PackedFileTableView {
     }
 
     /// This function loads the data from a compatible `PackedFile` into a TableView.
-    pub fn load_data(
+    pub unsafe fn load_data(
         &mut self,
         data: &TableType,
     ) {
         // First, we delete all the data from the `ListStore`. Just in case there is something there.
         // This wipes out header information, so remember to run "build_columns" after this.
-        let model = unsafe { self.table_model.get_mut().as_mut().unwrap() };
-        model.clear();
+        let mut table_model = mut_ptr_from_atomic(&self.table_model);
+        table_model.clear();
 
         // Set the right data, depending on the table type you get.
         let data = match data {
@@ -285,34 +284,34 @@ impl PackedFileTableView {
 
         // Load the data, row by row.
         for entry in data {
-            let mut qlist = ListStandardItemMutPtr::new(());
+            let mut qlist = QListOfQStandardItem::new();
             for (index, field) in entry.iter().enumerate() {
                 let item = Self::get_item_from_decoded_data(field);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && self.table_definition.fields[index].is_reference.is_some() {
-                    //Self::check_references(dependency_data, index as i32, item.as_mut_ptr());
+                    //Self::check_references(dependency_data, index as i32, item.into_ptr());
                 }
 
-                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                //unsafe { qlist.append_unsafe(&item); }
             }
-            model.append_row(&qlist);
+            table_model.append_row_q_list_of_q_standard_item(&qlist);
         }
 
         // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
         if data.is_empty() {
-            let mut qlist = ListStandardItemMutPtr::new(());
+            let mut qlist = QListOfQStandardItem::new();
             for field in &self.table_definition.fields {
                 let item = Self::get_default_item_from_field(field);
-                unsafe { qlist.append_unsafe(&item.into_raw()); }
+                //unsafe { qlist.append_unsafe(&item); }
             }
-            model.append_row(&qlist);
-            model.remove_rows((0, 1));
+            table_model.append_row_q_list_of_q_standard_item(&qlist);
+            table_model.remove_rows_2a(0, 1);
         }
 
         // Here we assing the ItemDelegates, so each type has his own widget with validation included.
         // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-        let enable_lookups = self.get_ref_mut_enable_lookups_button().is_checked();
+        let enable_lookups = self.get_mut_ptr_enable_lookups_button().is_checked();
         for (column, field) in self.table_definition.fields.iter().enumerate() {
 
             // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
@@ -320,23 +319,23 @@ impl PackedFileTableView {
                 match field.field_type {
                     FieldType::Boolean => {},
                     FieldType::Float => {
-                        unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32) }
-                        unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32) }
+                        new_doublespinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32);
+                        new_doublespinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32);
                     },
                     FieldType::Integer => {
-                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 32) }
-                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 32) }
+                        new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32, 32);
+                        new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32, 32);
                     },
                     FieldType::LongInteger => {
-                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 64) }
-                        unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 64) }
+                        new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32, 64);
+                        new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32, 64);
                     },
                     FieldType::StringU8 |
                     FieldType::StringU16 |
                     FieldType::OptionalStringU8 |
                     FieldType::OptionalStringU16 => {
-                        unsafe { new_qstring_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, field.max_length) }
-                        unsafe { new_qstring_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, field.max_length) }
+                        new_qstring_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32, field.max_length);
+                        new_qstring_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32, field.max_length);
                     },
                     FieldType::Sequence(_) => {}
                 }
@@ -346,33 +345,32 @@ impl PackedFileTableView {
             else {
 
                 if let Some(data) = self.dependency_data.get(&(column as i32)) {
-                    let mut list = StringList::new(());
-                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append(&QString::from_std_str(x)));
-                    let list: *mut StringList = &mut list;
-                    unsafe { new_combobox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
-                    unsafe { new_combobox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
+                    let mut list = QStringList::new();
+                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                    new_combobox_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32, list.as_ptr(), true, field.max_length);
+                    new_combobox_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32, list.as_ptr(), true, field.max_length);
                 }
                 else {
                     match field.field_type {
                         FieldType::Boolean => {},
                         FieldType::Float => {
-                            unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32) }
-                            unsafe { new_doublespinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32) }
+                            new_doublespinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32);
+                            new_doublespinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32);
                         },
                         FieldType::Integer => {
-                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 32) }
-                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 32) }
+                            new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32, 32);
+                            new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32, 32);
                         },
                         FieldType::LongInteger => {
-                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, 64) }
-                            unsafe { new_spinbox_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, 64) }
+                            new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32, 64);
+                            new_spinbox_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32, 64);
                         },
                         FieldType::StringU8 |
                         FieldType::StringU16 |
                         FieldType::OptionalStringU8 |
                         FieldType::OptionalStringU16 => {
-                            unsafe { new_qstring_item_delegate(self.get_raw_table_view_primary() as *mut Object, column as i32, field.max_length) }
-                            unsafe { new_qstring_item_delegate(self.get_raw_table_view_frozen() as *mut Object, column as i32, field.max_length) }
+                            new_qstring_item_delegate_safe(&mut self.get_mut_ptr_table_view_primary(), column as i32, field.max_length);
+                            new_qstring_item_delegate_safe(&mut self.get_mut_ptr_table_view_frozen(), column as i32, field.max_length);
                         },
                         FieldType::Sequence(_) => {}
                     }
@@ -382,38 +380,28 @@ impl PackedFileTableView {
         }
     }
 
-    /// This function returns a mutable reference to the Primary TableView widget.
-    pub fn get_ref_mut_table_view_primary(&self) -> &mut TableView {
-        unsafe { self.table_view_primary.load(Ordering::SeqCst).as_mut().unwrap() }
-    }
-
-    /// This function returns a mutable reference to the Frozen TableView widget.
-    pub fn get_ref_mut_table_view_frozen(&self) -> &mut TableView {
-        unsafe { self.table_view_frozen.load(Ordering::SeqCst).as_mut().unwrap() }
-    }
-
     /// This function returns a reference to the StandardItemModel widget.
-    pub fn get_ref_table_model(&self) -> &StandardItemModel {
-        unsafe { self.table_model.load(Ordering::SeqCst).as_ref().unwrap() }
+    pub fn get_mut_ptr_table_model(&self) -> MutPtr<QStandardItemModel> {
+        mut_ptr_from_atomic(&self.table_model)
     }
 
     /// This function returns a mutable reference to the `Enable Lookups` Pushbutton.
-    pub fn get_ref_mut_enable_lookups_button(&self) -> &mut PushButton {
-        unsafe { self.table_enable_lookups_button.load(Ordering::SeqCst).as_mut().unwrap() }
+    pub fn get_mut_ptr_enable_lookups_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.table_enable_lookups_button)
     }
 
     /// This function returns a pointer to the Primary TableView widget.
-    pub fn get_raw_table_view_primary(&self) -> *mut TableView {
-        self.table_view_primary.load(Ordering::SeqCst)
+    pub fn get_mut_ptr_table_view_primary(&self) -> MutPtr<QTableView> {
+        mut_ptr_from_atomic(&self.table_view_primary)
     }
 
     /// This function returns a pointer to the Frozen TableView widget.
-    pub fn get_raw_table_view_frozen(&self) -> *mut TableView {
-        self.table_view_frozen.load(Ordering::SeqCst)
+    pub fn get_mut_ptr_table_view_frozen(&self) -> MutPtr<QTableView> {
+        mut_ptr_from_atomic(&self.table_view_frozen)
     }
 
-    pub fn get_filter_line_edit(&self) -> &mut LineEdit {
-        unsafe { self.filter_line_edit.load(Ordering::SeqCst).as_mut().unwrap() }
+    pub fn get_mut_ptr_filter_line_edit(&self) -> MutPtr<QLineEdit> {
+        mut_ptr_from_atomic(&self.filter_line_edit)
     }
 
     /// This function returns a reference to this table's name.
@@ -452,14 +440,14 @@ impl PackedFileTableView {
 
     /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
     /// His intended use is for just after we load/reload the data to the table.
-    fn build_columns(
+    unsafe fn build_columns(
         &mut self,
         table_name: &str,
     ) {
-        let table_view_primary = self.get_ref_mut_table_view_primary();
-        let table_view_frozen = self.get_ref_mut_table_view_frozen();
-        let filter = unsafe { (table_view_primary.model() as *mut SortFilterProxyModel).as_ref().unwrap() };
-        let model = unsafe { (filter.source_model() as *mut StandardItemModel).as_mut().unwrap() };
+        let mut table_view_primary = self.get_mut_ptr_table_view_primary();
+        let table_view_frozen = self.get_mut_ptr_table_view_frozen();
+        let filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
+        let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
         let schema = SCHEMA.read().unwrap();
         let mut do_we_have_ca_order = false;
         let mut keys = vec![];
@@ -468,9 +456,9 @@ impl PackedFileTableView {
         for (index, field) in self.table_definition.fields.iter().enumerate() {
 
             let name = Self::clean_column_names(&field.name);
-            let item = StandardItem::new(&QString::from_std_str(&name)).into_raw();
-            Self::set_tooltip(&schema, &field, table_name, item);
-            unsafe { model.set_horizontal_header_item(index as i32, item); }
+            let mut item = QStandardItem::from_q_string(&QString::from_std_str(&name));
+            Self::set_tooltip(&schema, &field, table_name, &mut item);
+            model.set_horizontal_header_item(index as i32, item.into_ptr());
 
             // Depending on his type, set one width or another.
             match field.field_type {
@@ -496,8 +484,8 @@ impl PackedFileTableView {
             let mut fields = self.table_definition.fields.iter().enumerate().map(|(x, y)| (x, y.clone())).collect::<Vec<(usize, Field)>>();
             fields.sort_by(|a, b| a.1.ca_order.cmp(&b.1.ca_order));
 
-            let header_primary = unsafe { table_view_primary.horizontal_header().as_mut().unwrap() };
-            let header_frozen = unsafe { table_view_frozen.horizontal_header().as_mut().unwrap() };
+            let mut header_primary = table_view_primary.horizontal_header();
+            let mut header_frozen = table_view_frozen.horizontal_header();
             for (logical_index, field) in &fields {
                 if field.ca_order != -1 {
                     let visual_index = header_primary.visual_index(*logical_index as i32);
@@ -509,8 +497,8 @@ impl PackedFileTableView {
 
         // Otherwise, if we have any "Key" field, move it to the beginning.
         else if !keys.is_empty() {
-            let header_primary = unsafe { table_view_primary.horizontal_header().as_mut().unwrap() };
-            let header_frozen = unsafe { table_view_frozen.horizontal_header().as_mut().unwrap() };
+            let mut header_primary = table_view_primary.horizontal_header();
+            let mut header_frozen = table_view_frozen.horizontal_header();
             for (position, column) in keys.iter().enumerate() {
                 header_primary.move_section(*column as i32, position as i32);
                 header_frozen.move_section(*column as i32, position as i32);
@@ -519,10 +507,10 @@ impl PackedFileTableView {
     }
 
     /// This function generates a *Default* StandardItem for the provided field.
-    fn get_default_item_from_field(field: &Field) -> CppBox<StandardItem> {
+    unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
         match field.field_type {
             FieldType::Boolean => {
-                let mut item = StandardItem::new(());
+                let mut item = QStandardItem::new();
                 item.set_editable(false);
                 item.set_checkable(true);
                 if let Some(default_value) = &field.default_value {
@@ -537,41 +525,41 @@ impl PackedFileTableView {
                 item
             }
             FieldType::Float => {
-                let mut item = StandardItem::new(());
+                let mut item = QStandardItem::new();
                 if let Some(default_value) = &field.default_value {
                     if let Ok(default_value) = default_value.parse::<f32>() {
-                        item.set_data((&Variant::new2(default_value), 2));
+                        item.set_data_2a(&QVariant::from_float(default_value), 2);
                     } else {
-                        item.set_data((&Variant::new2(0.0f32), 2));
+                        item.set_data_2a(&QVariant::from_float(0.0f32), 2);
                     }
                 } else {
-                    item.set_data((&Variant::new2(0.0f32), 2));
+                    item.set_data_2a(&QVariant::from_float(0.0f32), 2);
                 }
                 item
             },
             FieldType::Integer => {
-                let mut item = StandardItem::new(());
+                let mut item = QStandardItem::new();
                 if let Some(default_value) = &field.default_value {
                     if let Ok(default_value) = default_value.parse::<i32>() {
-                        item.set_data((&Variant::new0(default_value), 2));
+                        item.set_data_2a(&QVariant::from_int(default_value), 2);
                     } else {
-                        item.set_data((&Variant::new0(0i32), 2));
+                        item.set_data_2a(&QVariant::from_int(0i32), 2);
                     }
                 } else {
-                    item.set_data((&Variant::new0(0i32), 2));
+                    item.set_data_2a(&QVariant::from_int(0i32), 2);
                 }
                 item
             },
             FieldType::LongInteger => {
-                let mut item = StandardItem::new(());
+                let mut item = QStandardItem::new();
                 if let Some(default_value) = &field.default_value {
                     if let Ok(default_value) = default_value.parse::<i64>() {
-                        item.set_data((&Variant::new2(default_value), 2));
+                        item.set_data_2a(&QVariant::from_i64(default_value), 2);
                     } else {
-                        item.set_data((&Variant::new2(0i64), 2));
+                        item.set_data_2a(&QVariant::from_i64(0i64), 2);
                     }
                 } else {
-                    item.set_data((&Variant::new2(0i64), 2));
+                    item.set_data_2a(&QVariant::from_i64(0i64), 2);
                 }
                 item
             },
@@ -580,22 +568,22 @@ impl PackedFileTableView {
             FieldType::OptionalStringU8 |
             FieldType::OptionalStringU16 => {
                 if let Some(default_value) = &field.default_value {
-                    StandardItem::new(&QString::from_std_str(default_value))
+                    QStandardItem::from_q_string(&QString::from_std_str(default_value))
                 } else {
-                    StandardItem::new(&QString::new(()))
+                    QStandardItem::from_q_string(&QString::new())
                 }
             },
-            FieldType::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
+            FieldType::Sequence(_) => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
         }
     }
 
     /// This function generates a StandardItem for the provided DecodedData.
-    fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<StandardItem> {
+    unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem> {
         match *data {
 
             // This one needs a couple of changes before turning it into an item in the table.
             DecodedData::Boolean(ref data) => {
-                let mut item = StandardItem::new(());
+                let mut item = QStandardItem::new();
                 item.set_editable(false);
                 item.set_checkable(true);
                 item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
@@ -615,31 +603,31 @@ impl PackedFileTableView {
                     else { *data }
                 };
 
-                let mut item = StandardItem::new(());
-                item.set_data((&Variant::new2(data), 2));
+                let mut item = QStandardItem::new();
+                item.set_data_2a(&QVariant::from_float(data), 2);
                 item
             },
             DecodedData::Integer(ref data) => {
-                let mut item = StandardItem::new(());
-                item.set_data((&Variant::new0(*data), 2));
+                let mut item = QStandardItem::new();
+                item.set_data_2a(&QVariant::from_int(*data), 2);
                 item
             },
             DecodedData::LongInteger(ref data) => {
-                let mut item = StandardItem::new(());
-                item.set_data((&Variant::new2(*data), 2));
+                let mut item = QStandardItem::new();
+                item.set_data_2a(&QVariant::from_i64(*data), 2);
                 item
             },
             // All these are Strings, so it can be together,
             DecodedData::StringU8(ref data) |
             DecodedData::StringU16(ref data) |
             DecodedData::OptionalStringU8(ref data) |
-            DecodedData::OptionalStringU16(ref data) => StandardItem::new(&QString::from_std_str(data)),
-            DecodedData::Sequence(_) => StandardItem::new(&qtr("packedfile_noneditable_sequence")),
+            DecodedData::OptionalStringU16(ref data) => QStandardItem::from_q_string(&QString::from_std_str(data)),
+            DecodedData::Sequence(_) => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
         }
     }
 
     /// This function sets the tooltip for the provided column header, if the column should have one.
-    fn set_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: *mut StandardItem) {
+    unsafe fn set_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: &mut QStandardItem) {
 
         // If we passed it a table name, build the tooltip based on it. The logic is simple:
         // - If we have a description, we add it to the tooltip.
@@ -703,7 +691,7 @@ impl PackedFileTableView {
 
             // We only add the tooltip if we got something to put into it.
             if !tooltip_text.is_empty() {
-                unsafe { item.as_mut().unwrap().set_tool_tip(&QString::from_std_str(&tooltip_text)); }
+                item.set_tool_tip(&QString::from_std_str(&tooltip_text));
             }
         }
     }
@@ -713,39 +701,39 @@ impl PackedFileTableView {
 impl PackedFileTableViewRaw {
 
     /// Function to filter the table. If a value is not provided by a slot, we get it from the widget itself.
-    fn filter_table(&self) {
+    unsafe fn filter_table(&mut self) {
 
-        let mut pattern = unsafe { RegExp::new(&self.filter_line_edit.as_mut().unwrap().text()) };
-        unsafe { self.table_filter.as_mut().unwrap().set_filter_key_column(self.filter_column_selector.as_mut().unwrap().current_index()); }
+        let mut pattern = QRegExp::new_1a(&self.filter_line_edit.text());
+        self.table_filter.set_filter_key_column(self.filter_column_selector.current_index());
 
         // Check if the filter should be "Case Sensitive".
-        let case_sensitive = unsafe { self.filter_case_sensitive_button.as_mut().unwrap().is_checked() };
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::Sensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::Insensitive); }
+        let case_sensitive = self.filter_case_sensitive_button.is_checked();
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
 
         // Filter whatever it's in that column by the text we got.
-        let filter_model = unsafe { self.table_filter.as_mut().unwrap() };
-        filter_model.set_filter_reg_exp(&pattern);
+        self.table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
-    fn toggle_lookups(&self, table_definition: &Definition, dependency_data: &BTreeMap<i32, Vec<(String, String)>>) {
+    unsafe fn toggle_lookups(&self, table_definition: &Definition, dependency_data: &BTreeMap<i32, Vec<(String, String)>>) {
+        /*
         if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
-            let enable_lookups = unsafe { self.table_enable_lookups_button.as_ref().unwrap().is_checked() };
+            let enable_lookups = unsafe { self.table_enable_lookups_button.is_checked() };
             for (column, field) in table_definition.fields.iter().enumerate() {
                 if let Some(data) = dependency_data.get(&(column as i32)) {
-                    let mut list = StringList::new(());
+                    let mut list = QStringList::new(());
                     data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append(&QString::from_std_str(x)));
-                    let list: *mut StringList = &mut list;
-                    unsafe { new_combobox_item_delegate(self.table_view_primary as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
-                    unsafe { new_combobox_item_delegate(self.table_view_frozen as *mut Object, column as i32, list as *const StringList, true, field.max_length)};
+                    let list: *mut QStringList = &mut list;
+                    unsafe { new_combobox_item_delegate_safe(self.table_view_primary as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
+                    unsafe { new_combobox_item_delegate_safe(self.table_view_frozen as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
                 }
             }
-        }
+        }*/
     }
 
     /// This function returns a pointer to the Primary TableView widget.
-    pub fn get_table_view_primary(&self) -> *mut TableView {
+    pub fn get_table_view_primary(&self) -> MutPtr<QTableView> {
         self.table_view_primary
     }
 }

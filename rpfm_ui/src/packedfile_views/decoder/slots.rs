@@ -12,7 +12,7 @@
 Module with the slots for Text Views.
 !*/
 
-use qt_core::slots::{SlotCInt, SlotNoArgs};
+use qt_core::{SlotOfInt, Slot};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -28,9 +28,9 @@ use super::PackedFileDecoderViewRaw;
 
 /// This struct contains the slots of the view of an Text PackedFile.
 pub struct PackedFileDecoderViewSlots {
-    pub hex_view_scroll_sync: SlotCInt<'static>,
-    pub hex_view_selection_raw_sync: SlotNoArgs<'static>,
-    pub hex_view_selection_decoded_sync: SlotNoArgs<'static>,
+    pub hex_view_scroll_sync: SlotOfInt<'static>,
+    pub hex_view_selection_raw_sync: Slot<'static>,
+    pub hex_view_selection_decoded_sync: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -41,22 +41,22 @@ pub struct PackedFileDecoderViewSlots {
 impl PackedFileDecoderViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub fn new(view: PackedFileDecoderViewRaw, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
+    pub unsafe fn new(mut view: PackedFileDecoderViewRaw, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
 
         // Slot to keep scroll in views in sync.
-        let hex_view_scroll_sync = SlotCInt::new(move |value| {
-            unsafe { view.hex_view_index.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().set_value(value); }
-            unsafe { view.hex_view_raw.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().set_value(value); }
-            unsafe { view.hex_view_decoded.as_mut().unwrap().vertical_scroll_bar().as_mut().unwrap().set_value(value); }
+        let hex_view_scroll_sync = SlotOfInt::new(move |value| {
+            view.hex_view_index.vertical_scroll_bar().set_value(value);
+            view.hex_view_raw.vertical_scroll_bar().set_value(value);
+            view.hex_view_decoded.vertical_scroll_bar().set_value(value);
         });
 
         // Slot to keep selection in views in sync.
-        let hex_view_selection_raw_sync = SlotNoArgs::new(move || {
+        let hex_view_selection_raw_sync = Slot::new(move || {
             view.hex_selection_sync(true);
         });
 
         // Slot to keep selection in views in sync.
-        let hex_view_selection_decoded_sync = SlotNoArgs::new(move || {
+        let hex_view_selection_decoded_sync = Slot::new(move || {
             view.hex_selection_sync(false);
         });
 

@@ -12,28 +12,23 @@
 Module with all the code for managing the PackedFile decoder.
 !*/
 
-use qt_widgets::grid_layout::GridLayout;
-use qt_widgets::group_box::GroupBox;
-use qt_widgets::text_edit::TextEdit;
-use qt_widgets::widget::Widget;
+use qt_widgets::QGridLayout;
+use qt_widgets::QGroupBox;
+use qt_widgets::QTextEdit;
 
-use qt_gui::font_metrics::FontMetrics;
-use qt_gui::text_char_format::TextCharFormat;
-use qt_gui::text_cursor::{MoveOperation, MoveMode};
+use qt_gui::QFontMetrics;
+use qt_gui::q_text_cursor::{MoveOperation, MoveMode};
 
-use qt_core::flags::Flags;
-use qt_core::object::Object;
-use qt_core::qt::{AlignmentFlag, GlobalColor};
-use qt_core::signal_blocker::SignalBlocker;
+use qt_core::QSignalBlocker;
+use qt_core::QString;
 
-use cpp_utils::StaticCast;
+use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, atomic::{AtomicPtr, Ordering}};
+use std::sync::{Arc, atomic::AtomicPtr};
 
 use rpfm_error::{ErrorKind, Result};
-use rpfm_lib::SETTINGS;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -41,8 +36,10 @@ use crate::FONT_MONOSPACE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
-use crate::QString;
-use crate::utils::create_grid_layout_unsafe;
+use crate::utils::atomic_from_mut_ptr;
+use crate::utils::create_grid_layout;
+use crate::utils::ref_from_atomic;
+use crate::utils::mut_ptr_from_atomic;
 use self::slots::PackedFileDecoderViewSlots;
 
 pub mod connections;
@@ -54,9 +51,9 @@ pub mod slots;
 
 /// This struct contains the view of the PackedFile Decoder.
 pub struct PackedFileDecoderView {
-    hex_view_index: AtomicPtr<TextEdit>,
-    hex_view_raw: AtomicPtr<TextEdit>,
-    hex_view_decoded: AtomicPtr<TextEdit>,
+    hex_view_index: AtomicPtr<QTextEdit>,
+    hex_view_raw: AtomicPtr<QTextEdit>,
+    hex_view_decoded: AtomicPtr<QTextEdit>,
     //table_view: AtomicPtr<TableView>,
     //table_model: AtomicPtr<StandardItemModel>,
     packed_file_data: Arc<Vec<u8>>,
@@ -68,9 +65,9 @@ pub struct PackedFileDecoderView {
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileDecoderView`.
 #[derive(Clone, Copy)]
 pub struct PackedFileDecoderViewRaw {
-    pub hex_view_index: *mut TextEdit,
-    pub hex_view_raw: *mut TextEdit,
-    pub hex_view_decoded: *mut TextEdit,
+    pub hex_view_index: MutPtr<QTextEdit>,
+    pub hex_view_raw: MutPtr<QTextEdit>,
+    pub hex_view_decoded: MutPtr<QTextEdit>,
     //pub table_view: *mut TableView,
     //pub table_model: *mut StandardItemModel,
 }
@@ -83,7 +80,7 @@ pub struct PackedFileDecoderViewRaw {
 impl PackedFileDecoderView {
 
     /// This function creates a new Decoder View, and sets up his slots and connections.
-    pub fn new_view(
+    pub unsafe fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
@@ -103,28 +100,28 @@ impl PackedFileDecoderView {
         };
 
         // Create the hex view on the left side.
-        let layout = unsafe { (packed_file_view.get_mut_widget().as_mut().unwrap().layout() as *mut GridLayout).as_mut().unwrap() };
+        let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
 
-        let hex_view_group = GroupBox::new(&QString::from_std_str("PackedFile's Data"));
-        let mut hex_view_index = TextEdit::new(());
-        let mut hex_view_raw = TextEdit::new(());
-        let mut hex_view_decoded = TextEdit::new(());
-        let hex_view_layout = unsafe { create_grid_layout_unsafe(hex_view_group.as_mut_ptr() as *mut Widget).as_mut().unwrap() };
+        let hex_view_group = QGroupBox::from_q_string(&QString::from_std_str("PackedFile's Data")).into_ptr();
+        let mut hex_view_index = QTextEdit::new();
+        let mut hex_view_raw = QTextEdit::new();
+        let mut hex_view_decoded = QTextEdit::new();
+        let mut hex_view_layout = create_grid_layout(hex_view_group.static_upcast_mut());
 
-        hex_view_index.set_font(&FONT_MONOSPACE);
-        hex_view_raw.set_font(&FONT_MONOSPACE);
-        hex_view_decoded.set_font(&FONT_MONOSPACE);
+        hex_view_index.set_font(ref_from_atomic(&*FONT_MONOSPACE));
+        hex_view_raw.set_font(ref_from_atomic(&*FONT_MONOSPACE));
+        hex_view_decoded.set_font(ref_from_atomic(&*FONT_MONOSPACE));
 
-        unsafe { hex_view_layout.add_widget((hex_view_index.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
-        unsafe { hex_view_layout.add_widget((hex_view_raw.as_mut_ptr() as *mut Widget, 0, 1, 1, 1)); }
-        unsafe { hex_view_layout.add_widget((hex_view_decoded.as_mut_ptr() as *mut Widget, 0, 2, 1, 1)); }
+        hex_view_layout.add_widget_5a(&mut hex_view_index, 0, 0, 1, 1);
+        hex_view_layout.add_widget_5a(&mut hex_view_raw, 0, 1, 1, 1);
+        hex_view_layout.add_widget_5a(&mut hex_view_decoded, 0, 2, 1, 1);
 
-        unsafe { layout.add_widget((hex_view_group.into_raw() as *mut Widget, 0, 2, 1, 1)); }
+        layout.add_widget_5a(hex_view_group, 0, 2, 1, 1);
 
         let packed_file_decoder_view_raw = PackedFileDecoderViewRaw {
-            hex_view_index: hex_view_index.into_raw(),
-            hex_view_raw: hex_view_raw.into_raw(),
-            hex_view_decoded: hex_view_decoded.into_raw()
+            hex_view_index: hex_view_index.into_ptr(),
+            hex_view_raw: hex_view_raw.into_ptr(),
+            hex_view_decoded: hex_view_decoded.into_ptr(),
         };
 
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
@@ -135,9 +132,9 @@ impl PackedFileDecoderView {
         );
 
         let packed_file_decoder_view = Self {
-            hex_view_index: AtomicPtr::new(packed_file_decoder_view_raw.hex_view_index),
-            hex_view_raw: AtomicPtr::new(packed_file_decoder_view_raw.hex_view_raw),
-            hex_view_decoded: AtomicPtr::new(packed_file_decoder_view_raw.hex_view_decoded),
+            hex_view_index: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_index),
+            hex_view_raw: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_raw),
+            hex_view_decoded: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_decoded),
             packed_file_data: Arc::new(packed_file.get_raw_data()?)
         };
 
@@ -150,11 +147,11 @@ impl PackedFileDecoderView {
     }
 
     /// This function loads the raw data of a PackedFile into the UI and prepare it to be updated later on.
-    pub fn load_raw_data(&self) {
+    pub unsafe fn load_raw_data(&self) {
 
         // We need to set up the fonts in a specific way, so the scroll/sizes are kept correct.
-        let font = unsafe { self.get_ref_hex_view_index().document().as_mut().unwrap().default_font() };
-        let font_metrics = FontMetrics::new(&font);
+        let font = self.get_mut_ptr_hex_view_index().document().default_font();
+        let font_metrics = QFontMetrics::new_1a(&font);
 
         //---------------------------------------------//
         // Index section.
@@ -170,9 +167,9 @@ impl PackedFileDecoderView {
         (0..hex_lines).for_each(|x| hex_index.push_str(&format!("{:>0count$X}\n", x * 16, count = 4)));
 
         let qhex_index = QString::from_std_str(&hex_index);
-        let text_size = font_metrics.size((0, &qhex_index));
-        self.get_ref_mut_hex_view_index().set_text(&qhex_index);
-        self.get_ref_mut_hex_view_index().set_fixed_width(text_size.width() + 34);
+        let text_size = font_metrics.size_2a(0, &qhex_index);
+        self.get_mut_ptr_hex_view_index().set_text(&qhex_index);
+        self.get_mut_ptr_hex_view_index().set_fixed_width(text_size.width() + 34);
 
         //---------------------------------------------//
         // Raw data section.
@@ -194,9 +191,9 @@ impl PackedFileDecoderView {
         }
 
         let qhex_raw_data = QString::from_std_str(&hex_raw_data);
-        let text_size = font_metrics.size((0, &qhex_raw_data));
-        self.get_ref_mut_hex_view_raw().set_text(&qhex_raw_data);
-        self.get_ref_mut_hex_view_raw().set_fixed_width(text_size.width() + 34);
+        let text_size = font_metrics.size_2a(0, &qhex_raw_data);
+        self.get_mut_ptr_hex_view_raw().set_text(&qhex_raw_data);
+        self.get_mut_ptr_hex_view_raw().set_fixed_width(text_size.width() + 34);
 
         //---------------------------------------------//
         // Decoded data section.
@@ -215,9 +212,9 @@ impl PackedFileDecoderView {
 
         // Add all the "Decoded" lines to the TextEdit.
         let qhex_decoded_data = QString::from_std_str(&hex_decoded_data);
-        let text_size = font_metrics.size((0, &qhex_decoded_data));
-        self.get_ref_mut_hex_view_decoded().set_text(&qhex_decoded_data);
-        self.get_ref_mut_hex_view_decoded().set_fixed_width(text_size.width() + 34);
+        let text_size = font_metrics.size_2a(0, &qhex_decoded_data);
+        self.get_mut_ptr_hex_view_decoded().set_text(&qhex_decoded_data);
+        self.get_mut_ptr_hex_view_decoded().set_fixed_width(text_size.width() + 34);
 
 /*
             // Prepare the format for the header.
@@ -273,33 +270,21 @@ impl PackedFileDecoderView {
             blocker.unblock();*/
 
         // Load the "Info" data to the view.
-        //unsafe { self.table_info_type_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(&stuff_non_ui.packed_file_path[1])); }
-        //unsafe { self.table_info_version_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", stuff_non_ui.version))); }
-        //unsafe { self.table_info_entry_count_decoded_label.as_mut().unwrap().set_text(&QString::from_std_str(format!("{}", stuff_non_ui.entry_count))); }
+        //unsafe { self.table_info_type_decoded_label.set_text(&QString::from_std_str(&stuff_non_ui.packed_file_path[1])); }
+        //unsafe { self.table_info_version_decoded_label.set_text(&QString::from_std_str(format!("{}", stuff_non_ui.version))); }
+        //unsafe { self.table_info_entry_count_decoded_label.set_text(&QString::from_std_str(format!("{}", stuff_non_ui.entry_count))); }
     }
 
-    fn get_ref_hex_view_index(&self) -> &TextEdit {
-        unsafe { self.hex_view_index.load(Ordering::SeqCst).as_ref().unwrap() }
+    fn get_mut_ptr_hex_view_index(&self) -> MutPtr<QTextEdit> {
+        mut_ptr_from_atomic(&self.hex_view_index)
     }
 
-    fn get_ref_mut_hex_view_index(&self) -> &mut TextEdit {
-        unsafe { self.hex_view_index.load(Ordering::SeqCst).as_mut().unwrap() }
+    fn get_mut_ptr_hex_view_raw(&self) -> MutPtr<QTextEdit> {
+        mut_ptr_from_atomic(&self.hex_view_raw)
     }
 
-    fn get_ref_hex_view_raw(&self) -> &TextEdit {
-        unsafe { self.hex_view_raw.load(Ordering::SeqCst).as_ref().unwrap() }
-    }
-
-    fn get_ref_mut_hex_view_raw(&self) -> &mut TextEdit {
-        unsafe { self.hex_view_raw.load(Ordering::SeqCst).as_mut().unwrap() }
-    }
-
-    fn get_ref_hex_view_decoded(&self) -> &TextEdit {
-        unsafe { self.hex_view_decoded.load(Ordering::SeqCst).as_ref().unwrap() }
-    }
-
-    fn get_ref_mut_hex_view_decoded(&self) -> &mut TextEdit {
-        unsafe { self.hex_view_decoded.load(Ordering::SeqCst).as_mut().unwrap() }
+    fn get_mut_ptr_hex_view_decoded(&self) -> MutPtr<QTextEdit> {
+        mut_ptr_from_atomic(&self.hex_view_decoded)
     }
 }
 
@@ -308,13 +293,10 @@ impl PackedFileDecoderViewRaw {
 
     /// This function syncronize the selection between the Hex View and the Decoded View of the PackedFile Data.
     /// Pass `hex = true` if the selected view is the Hex View. Otherwise, pass false.
-    pub fn hex_selection_sync(&self, hex: bool) {
+    pub unsafe fn hex_selection_sync(&mut self, hex: bool) {
 
-        let hex_view_raw = unsafe { self.hex_view_raw.as_mut().unwrap() };
-        let hex_view_decoded = unsafe { self.hex_view_decoded.as_mut().unwrap() };
-
-        let cursor =  if hex { hex_view_raw.text_cursor() } else { hex_view_decoded.text_cursor() };
-        let mut cursor_dest =  if !hex { hex_view_raw.text_cursor() } else { hex_view_decoded.text_cursor() };
+        let cursor = if hex { self.hex_view_raw.text_cursor() } else { self.hex_view_decoded.text_cursor() };
+        let mut cursor_dest = if !hex { self.hex_view_raw.text_cursor() } else { self.hex_view_decoded.text_cursor() };
 
         let mut selection_start = cursor.selection_start();
         let mut selection_end = cursor.selection_end();
@@ -335,19 +317,19 @@ impl PackedFileDecoderViewRaw {
             selection_end += 1;
         }
 
-        cursor_dest.move_position(MoveOperation::Start);
-        cursor_dest.move_position((MoveOperation::NextCharacter, MoveMode::Move, selection_start as i32));
-        cursor_dest.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (selection_end - selection_start) as i32));
+        cursor_dest.move_position_1a(MoveOperation::Start);
+        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, selection_start as i32);
+        cursor_dest.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (selection_end - selection_start) as i32);
 
         // Block the signals during this, so we don't trigger an infinite loop.
         if hex {
-            let mut blocker = SignalBlocker::new(hex_view_decoded.static_cast_mut() as &mut Object);
-            hex_view_decoded.set_text_cursor(&cursor_dest);
+            let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded);
+            self.hex_view_decoded.set_text_cursor(&cursor_dest);
             blocker.unblock();
         }
         else {
-            let mut blocker = SignalBlocker::new(hex_view_raw.static_cast_mut() as &mut Object);
-            hex_view_raw.set_text_cursor(&cursor_dest);
+            let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw);
+            self.hex_view_raw.set_text_cursor(&cursor_dest);
             blocker.unblock();
         }
     }

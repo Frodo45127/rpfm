@@ -17,6 +17,6 @@ use super::GlobalSearchUI;
 /// This function setup all the shortcuts used by the actions in the provided `GlobalSearchUI` .
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
-pub fn set_shortcuts(global_search_ui: &GlobalSearchUI) {
+pub fn set_shortcuts(global_search_ui: &mut GlobalSearchUI) {
 
 }

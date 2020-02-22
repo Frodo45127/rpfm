@@ -12,12 +12,19 @@
 This module contains the code to load the icons used in the `TreeView`.
 !*/
 
-use qt_gui::standard_item::StandardItem;
-use qt_gui::icon::Icon;
+use qt_gui::QStandardItem;
+use qt_gui::QIcon;
 
-use crate::QString;
+use qt_core::QString;
+
+use cpp_core::Ref;
+
+use std::sync::atomic::AtomicPtr;
+
 use crate::RPFM_PATH;
 use crate::TREEVIEW_ICONS;
+use crate::utils::atomic_from_cpp_box;
+use crate::utils::ref_from_atomic_ref;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -38,30 +45,30 @@ pub enum IconType {
 
 /// This struct is used to hold all the QIcons used by the `TreeView`s.
 pub struct Icons {
-    pub packfile_editable: Icon,
-    pub packfile_locked: Icon,
-    pub folder: Icon,
+    pub packfile_editable: AtomicPtr<QIcon>,
+    pub packfile_locked: AtomicPtr<QIcon>,
+    pub folder: AtomicPtr<QIcon>,
 
     // For generic files.
-    pub file: Icon,
+    pub file: AtomicPtr<QIcon>,
 
     // For tables and loc files.
-    pub table: Icon,
+    pub table: AtomicPtr<QIcon>,
 
     // For images.
-    pub image_generic: Icon,
-    pub image_png: Icon,
-    pub image_jpg: Icon,
+    pub image_generic: AtomicPtr<QIcon>,
+    pub image_png: AtomicPtr<QIcon>,
+    pub image_jpg: AtomicPtr<QIcon>,
 
     // For text files.
-    pub text_generic: Icon,
-    pub text_csv: Icon,
-    pub text_html: Icon,
-    pub text_txt: Icon,
-    pub text_xml: Icon,
+    pub text_generic: AtomicPtr<QIcon>,
+    pub text_csv: AtomicPtr<QIcon>,
+    pub text_html: AtomicPtr<QIcon>,
+    pub text_txt: AtomicPtr<QIcon>,
+    pub text_xml: AtomicPtr<QIcon>,
 
     // For rigidmodels.
-    pub rigid_model: Icon,
+    pub rigid_model: AtomicPtr<QIcon>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -74,8 +81,8 @@ impl IconType {
     /// This function is used to set the icon of an Item in the `TreeView` depending on his type.
     ///
     /// TODO: Find a way to abstract this into the PackedFileType thing.
-    pub fn set_icon_to_item_safe(&self, item: &mut StandardItem) {
-        let icon = match self {
+    pub fn set_icon_to_item_safe(&self, item: &mut QStandardItem) {
+        let icon = ref_from_atomic_ref(match self {
 
             // For PackFiles.
             IconType::PackFile(editable) => {
@@ -131,13 +138,13 @@ impl IconType {
                 // Otherwise, it's a generic file.
                 else { &TREEVIEW_ICONS.file }
             }
-        };
-        item.set_icon(icon);
+        });
+        unsafe { item.set_icon(icon) };
     }
 
     /// This function is used to get the icon corresponding to an IconType.
-    pub fn get_icon_from_path(&self) -> &Icon {
-        match self {
+    pub fn get_icon_from_path(&self) -> Ref<QIcon> {
+        ref_from_atomic_ref(match self {
 
             // For PackFiles.
             IconType::PackFile(editable) => {
@@ -193,15 +200,7 @@ impl IconType {
                 // Otherwise, it's a generic file.
                 else { &TREEVIEW_ICONS.file }
             }
-        }
-    }
-
-    /// This function is used to set the icon of an Item in the `TreeView` depending on his type.
-    ///
-    /// TODO: Find a way to abstract this into the PackedFileType thing.
-    pub fn set_icon_to_item_unsafe(&self, item: *mut StandardItem) {
-    	let item = unsafe { item.as_mut().unwrap() };
-        self.set_icon_to_item_safe(item);
+        })
     }
 }
 
@@ -209,7 +208,7 @@ impl IconType {
 impl Icons {
 
     /// This function creates a list of icons from certain paths in disk.
-    pub fn new() -> Self {
+    pub unsafe fn new() -> Self {
 
         // Get the Path as a String, so Qt can understand it.
         let rpfm_path_string = RPFM_PATH.to_string_lossy().as_ref().to_string();
@@ -256,24 +255,20 @@ impl Icons {
 
         // Get the Icons in QIcon format.
         Self {
-            packfile_editable: Icon::new(&QString::from_std_str(icon_packfile_editable_path)),
-            packfile_locked: Icon::new(&QString::from_std_str(icon_packfile_locked_path)),
-            folder: Icon::new(&QString::from_std_str(icon_folder_path)),
-            file: Icon::new(&QString::from_std_str(icon_file_path)),
-
-            table: Icon::new(&QString::from_std_str(icon_table_path)),
-
-            image_generic: Icon::new(&QString::from_std_str(icon_image_generic_path)),
-            image_png: Icon::new(&QString::from_std_str(icon_image_png_path)),
-            image_jpg: Icon::new(&QString::from_std_str(icon_image_jpg_path)),
-
-            text_generic: Icon::new(&QString::from_std_str(icon_text_generic_path)),
-            text_csv: Icon::new(&QString::from_std_str(icon_text_csv_path)),
-            text_html: Icon::new(&QString::from_std_str(icon_text_html_path)),
-            text_txt: Icon::new(&QString::from_std_str(icon_text_txt_path)),
-            text_xml: Icon::new(&QString::from_std_str(icon_text_xml_path)),
-
-            rigid_model: Icon::new(&QString::from_std_str(icon_rigid_model_path)),
+            packfile_editable: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_packfile_editable_path))),
+            packfile_locked: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_packfile_locked_path))),
+            folder: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_folder_path))),
+            file: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_file_path))),
+            table: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_table_path))),
+            image_generic: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_image_generic_path))),
+            image_png: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_image_png_path))),
+            image_jpg: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_image_jpg_path))),
+            text_generic: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_text_generic_path))),
+            text_csv: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_text_csv_path))),
+            text_html: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_text_html_path))),
+            text_txt: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_text_txt_path))),
+            text_xml: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_text_xml_path))),
+            rigid_model: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(icon_rigid_model_path))),
         }
     }
 }

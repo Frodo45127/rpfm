@@ -12,21 +12,24 @@
 Module with all the code for managing the view for RigidModel PackedFiles.
 !*/
 
-use qt_widgets::widget::Widget;
+use qt_widgets::QWidget;
+
+use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::Result;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::{new_text_editor};
+use crate::ffi::{new_text_editor_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::utils::atomic_from_mut_ptr;
 
 use self::slots::PackedFileRigidModelViewSlots;
 
@@ -38,7 +41,7 @@ pub mod slots;
 
 /// This struct contains the view of a RigidModel PackedFile.
 pub struct PackedFileRigidModelView {
-    editor: AtomicPtr<Widget>,
+    editor: AtomicPtr<QWidget>,
 }
 
 /// This struct contains the raw version of each pointer in `PackedFileRigidViewRaw`, to be used when building the slots.
@@ -47,7 +50,7 @@ pub struct PackedFileRigidModelView {
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileRigidModelView`.
 #[derive(Clone, Copy)]
 pub struct PackedFileRigidModelViewRaw {
-    pub editor: *mut Widget,
+    pub editor: MutPtr<QWidget>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -58,7 +61,7 @@ pub struct PackedFileRigidModelViewRaw {
 impl PackedFileRigidModelView {
 
     /// This function creates a new Text View, and sets up his slots and connections.
-    pub fn new_view(
+    pub unsafe fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
@@ -74,11 +77,11 @@ impl PackedFileRigidModelView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let editor = unsafe { new_text_editor(packed_file_view.get_mut_widget()) };
+        let editor = new_text_editor_safe(&mut packed_file_view.get_mut_widget());
 
         let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor};
         let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(packed_file_rigid_model_view_raw, *global_search_ui, *pack_file_contents_ui, &packed_file_path);
-        let packed_file_rigid_model_view = Self { editor: AtomicPtr::new(packed_file_rigid_model_view_raw.editor)};
+        let packed_file_rigid_model_view = Self { editor: atomic_from_mut_ptr(packed_file_rigid_model_view_raw.editor) };
 
         packed_file_view.view = View::RigidModel(packed_file_rigid_model_view);
 

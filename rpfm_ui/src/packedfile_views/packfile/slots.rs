@@ -12,9 +12,7 @@
 Module with the slots for PackFile Views.
 !*/
 
-use qt_widgets::widget::Widget;
-
-use qt_core::slots::{SlotBool, SlotModelIndexRef, SlotNoArgs, SlotStringRef};
+use qt_core::{SlotOfBool, SlotOfQModelIndex, Slot, SlotOfQString};
 
 use rpfm_lib::packfile::PathType;
 
@@ -33,14 +31,14 @@ use super::{PackFileExtraView, PackFileExtraViewRaw};
 
 /// This struct contains the slots of the view of the extra PackFile.
 pub struct PackFileExtraViewSlots {
-    pub import: SlotModelIndexRef<'static>,
+    pub import: SlotOfQModelIndex<'static>,
 
-    pub filter_change_text: SlotStringRef<'static>,
-    pub filter_change_autoexpand_matches: SlotBool<'static>,
-    pub filter_change_case_sensitive: SlotBool<'static>,
+    pub filter_change_text: SlotOfQString<'static>,
+    pub filter_change_autoexpand_matches: SlotOfBool<'static>,
+    pub filter_change_case_sensitive: SlotOfBool<'static>,
 
-    pub expand_all: SlotNoArgs<'static>,
-    pub collapse_all: SlotNoArgs<'static>,
+    pub expand_all: Slot<'static>,
+    pub collapse_all: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -51,18 +49,18 @@ pub struct PackFileExtraViewSlots {
 impl PackFileExtraViewSlots {
 
     /// This function builds the entire slot set for the provided PackFileExtraView.
-    pub fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, pack_file_view: PackFileExtraViewRaw) -> Self {
+    pub unsafe fn new(mut app_ui: AppUI, mut pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, mut pack_file_view: PackFileExtraViewRaw) -> Self {
 
         // When we want to import the selected PackedFile...
-        let import = SlotModelIndexRef::new(move |_| {
+        let import = SlotOfQModelIndex::new(move |_| {
 
                 // Get the file to get from the TreeView.
-                let selection_file_to_move = unsafe { pack_file_view.tree_view.as_mut().unwrap().selection_model().as_mut().unwrap().selection() };
-                if selection_file_to_move.count(()) == 1 {
+                let selection_file_to_move = pack_file_view.tree_view.selection_model().selection();
+                if selection_file_to_move.count_0a() == 1 {
                     let item_types = pack_file_view.tree_view.get_item_types_from_selection_filtered().iter().map(From::from).collect();
 
                     // Ask the Background Thread to move the files, and send him the path.
-                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                    app_ui.main_window.set_enabled(false);
                     CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromPackFile(item_types));
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
@@ -90,7 +88,7 @@ impl PackFileExtraViewSlots {
                                 }
                             ).collect::<Vec<Vec<String>>>();
                             global_search_explicit_paths.borrow_mut().append(&mut paths.to_vec());
-                            unsafe { update_global_search_stuff.as_mut().unwrap().trigger(); }
+                            unsafe { update_global_search_stuff.trigger(); }
 
                             // For each file added, remove it from the data history if exists.
                             for path in &paths {
@@ -104,31 +102,31 @@ impl PackFileExtraViewSlots {
                             }
                             */
                         },
-                        Response::Error(error) => show_dialog(app_ui.main_window as *mut Widget, error, false),
+                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     // Re-enable the Main Window.
-                    unsafe { (app_ui.main_window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-                    unsafe { pack_file_view.tree_view.as_mut().unwrap().set_focus(()); }
+                    app_ui.main_window.set_enabled(true);
+                    pack_file_view.tree_view.set_focus_0a();
                 }
             }
         );
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
-        let filter_change_text = SlotStringRef::new(move |_| {
+        let filter_change_text = SlotOfQString::new(move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
         });
-        let filter_change_autoexpand_matches = SlotBool::new(move |_| {
+        let filter_change_autoexpand_matches = SlotOfBool::new(move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
         });
-        let filter_change_case_sensitive = SlotBool::new(move |_| {
+        let filter_change_case_sensitive = SlotOfBool::new(move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
         });
 
         // Actions without buttons for the TreeView.
-        let expand_all = SlotNoArgs::new(move || { unsafe { pack_file_view.tree_view.as_mut().unwrap().expand_all(); }});
-        let collapse_all = SlotNoArgs::new(move || { unsafe { pack_file_view.tree_view.as_mut().unwrap().collapse_all(); }});
+        let expand_all = Slot::new(move || { pack_file_view.tree_view.expand_all(); });
+        let collapse_all = Slot::new(move || { pack_file_view.tree_view.collapse_all(); });
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {

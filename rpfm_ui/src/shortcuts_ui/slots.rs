@@ -12,7 +12,7 @@
 Module with all the code related to `ShortcutsUISlots`.
 !*/
 
-use qt_core::slots::SlotNoArgs;
+use qt_core::Slot;
 
 use crate::shortcuts_ui::ShortcutsUI;
 use crate::ui_state::shortcuts::Shortcuts;
@@ -25,7 +25,7 @@ use crate::ui_state::shortcuts::Shortcuts;
 ///
 /// This means everything you can do with the stuff you have in the `ShortcutsUI` goes here.
 pub struct ShortcutsUISlots {
-    pub restore_default: SlotNoArgs<'static>,
+    pub restore_default: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -36,11 +36,11 @@ pub struct ShortcutsUISlots {
 impl ShortcutsUISlots {
 
     /// This function creates a new `ShortcutsUISlots`.
-    pub fn new(ui: &ShortcutsUI) -> Self {
+    pub unsafe fn new(ui: &ShortcutsUI) -> Self {
 
         // What happens when we hit the "Restore Default" action.
         let mut ui = ui.clone();
-        let restore_default = SlotNoArgs::new(move || {
+        let restore_default = Slot::new(move || {
             ui.load(&Shortcuts::new())
         });
 

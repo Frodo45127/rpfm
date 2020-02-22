@@ -14,36 +14,39 @@ Module with all the code related to the main `AppUI`.
 This module contains all the code needed to initialize the main Window and its menus.
 !*/
 
-use qt_widgets::abstract_item_view::{AbstractItemView, SelectionBehavior};
-use qt_widgets::action::Action;
-use qt_widgets::action_group::ActionGroup;
-use qt_widgets::application::Application;
-use qt_widgets::completer::Completer;
-use qt_widgets::dock_widget::DockWidget;
-use qt_widgets::line_edit::LineEdit;
-use qt_widgets::main_window::MainWindow;
-use qt_widgets::menu::Menu;
-use qt_widgets::menu_bar::MenuBar;
-use qt_widgets::status_bar::StatusBar;
-use qt_widgets::tab_widget::TabWidget;
-use qt_widgets::table_view::TableView;
-use qt_widgets::widget::Widget;
+use qt_widgets::q_abstract_item_view::SelectionBehavior;
+use qt_widgets::QAction;
+use qt_widgets::QActionGroup;
+use qt_widgets::QApplication;
+use qt_widgets::QCompleter;
+use qt_widgets::QDockWidget;
+use qt_widgets::QLineEdit;
+use qt_widgets::QMainWindow;
+use qt_widgets::QMenu;
+use qt_widgets::QMenuBar;
+use qt_widgets::QStatusBar;
+use qt_widgets::QTabWidget;
+use qt_widgets::QTableView;
+use qt_widgets::QWidget;
+use qt_widgets::q_dock_widget::DockWidgetFeature;
 
-use qt_gui::icon::Icon;
-use qt_gui::standard_item_model::StandardItemModel;
+use qt_gui::QIcon;
+use qt_gui::QStandardItemModel;
 
-use qt_core::abstract_item_model::AbstractItemModel;
-use qt_core::flags::Flags;
-use qt_core::object::Object;
-use qt_core::qt::CaseSensitivity;
+use qt_core::QFlags;
+use qt_core::CaseSensitivity;
+use qt_core::QString;
+use qt_core::WindowType;
+use qt_core::MatchFlag;
+
+use cpp_core::MutPtr;
 
 use rpfm_lib::SETTINGS;
 
-use crate::ffi::new_tableview_command_palette;
+use crate::ffi::new_tableview_command_palette_safe;
 use crate::locale::qtr;
-use crate::QString;
 use crate::RPFM_PATH;
-use crate::utils::create_grid_layout_unsafe;
+use crate::utils::create_grid_layout;
 
 mod app_ui_extra;
 pub mod connections;
@@ -70,170 +73,170 @@ const GAME_SELECTED_ARENA: &str = "A&rena";
 /// This struct contains all the pointers we need to access to all the static widgets/actions created at the start of the program.
 ///
 /// This means every widget/action that's static and created on start (menus, window,...) should be here.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct AppUI {
 
     //-------------------------------------------------------------------------------//
     // `Command Palette` DockWidget.
     //-------------------------------------------------------------------------------//
-    pub command_palette: *mut DockWidget,
-    pub command_palette_line_edit: *mut LineEdit,
-    pub command_palette_completer: *mut Completer,
-    pub command_palette_completer_view: *mut TableView,
-    pub command_palette_completer_model: *mut StandardItemModel,
+    pub command_palette: MutPtr<QDockWidget>,
+    pub command_palette_line_edit: MutPtr<QLineEdit>,
+    pub command_palette_completer: MutPtr<QCompleter>,
+    pub command_palette_completer_view: MutPtr<QTableView>,
+    pub command_palette_completer_model: MutPtr<QStandardItemModel>,
 
-    pub command_palette_show: *mut Action,
-    pub command_palette_hide: *mut Action,
+    pub command_palette_show: MutPtr<QAction>,
+    pub command_palette_hide: MutPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // Main Window.
     //-------------------------------------------------------------------------------//
-    pub main_window: *mut MainWindow,
-    pub tab_bar_packed_file: *mut TabWidget,
-    pub menu_bar: *mut MenuBar,
-    pub status_bar: *mut StatusBar,
+    pub main_window: MutPtr<QMainWindow>,
+    pub tab_bar_packed_file: MutPtr<QTabWidget>,
+    pub menu_bar: MutPtr<QMenuBar>,
+    pub status_bar: MutPtr<QStatusBar>,
 
     //-------------------------------------------------------------------------------//
     // `MenuBar` menus.
     //-------------------------------------------------------------------------------//
-    pub menu_bar_packfile: *mut Menu,
-    pub menu_bar_mymod: *mut Menu,
-    pub menu_bar_view: *mut Menu,
-    pub menu_bar_game_seleted: *mut Menu,
-    pub menu_bar_special_stuff: *mut Menu,
-    pub menu_bar_about: *mut Menu,
-    pub menu_bar_debug: *mut Menu,
+    pub menu_bar_packfile: MutPtr<QMenu>,
+    pub menu_bar_mymod: MutPtr<QMenu>,
+    pub menu_bar_view: MutPtr<QMenu>,
+    pub menu_bar_game_selected: MutPtr<QMenu>,
+    pub menu_bar_special_stuff: MutPtr<QMenu>,
+    pub menu_bar_about: MutPtr<QMenu>,
+    pub menu_bar_debug: MutPtr<QMenu>,
 
     //-------------------------------------------------------------------------------//
     // `PackFile` menu.
     //-------------------------------------------------------------------------------//
-    pub packfile_new_packfile: *mut Action,
-    pub packfile_open_packfile: *mut Action,
-    pub packfile_save_packfile: *mut Action,
-    pub packfile_save_packfile_as: *mut Action,
-    pub packfile_open_from_content: *mut Menu,
-    pub packfile_open_from_data: *mut Menu,
-    pub packfile_change_packfile_type: *mut Menu,
-    pub packfile_load_all_ca_packfiles: *mut Action,
-    pub packfile_preferences: *mut Action,
-    pub packfile_quit: *mut Action,
+    pub packfile_new_packfile: MutPtr<QAction>,
+    pub packfile_open_packfile: MutPtr<QAction>,
+    pub packfile_save_packfile: MutPtr<QAction>,
+    pub packfile_save_packfile_as: MutPtr<QAction>,
+    pub packfile_open_from_content: MutPtr<QMenu>,
+    pub packfile_open_from_data: MutPtr<QMenu>,
+    pub packfile_change_packfile_type: MutPtr<QMenu>,
+    pub packfile_load_all_ca_packfiles: MutPtr<QAction>,
+    pub packfile_preferences: MutPtr<QAction>,
+    pub packfile_quit: MutPtr<QAction>,
 
     // "Change PackFile Type" submenu.
-    pub change_packfile_type_boot: *mut Action,
-    pub change_packfile_type_release: *mut Action,
-    pub change_packfile_type_patch: *mut Action,
-    pub change_packfile_type_mod: *mut Action,
-    pub change_packfile_type_movie: *mut Action,
-    pub change_packfile_type_other: *mut Action,
+    pub change_packfile_type_boot: MutPtr<QAction>,
+    pub change_packfile_type_release: MutPtr<QAction>,
+    pub change_packfile_type_patch: MutPtr<QAction>,
+    pub change_packfile_type_mod: MutPtr<QAction>,
+    pub change_packfile_type_movie: MutPtr<QAction>,
+    pub change_packfile_type_other: MutPtr<QAction>,
 
-    pub change_packfile_type_header_is_extended: *mut Action,
-    pub change_packfile_type_index_includes_timestamp: *mut Action,
-    pub change_packfile_type_index_is_encrypted: *mut Action,
-    pub change_packfile_type_data_is_encrypted: *mut Action,
+    pub change_packfile_type_header_is_extended: MutPtr<QAction>,
+    pub change_packfile_type_index_includes_timestamp: MutPtr<QAction>,
+    pub change_packfile_type_index_is_encrypted: MutPtr<QAction>,
+    pub change_packfile_type_data_is_encrypted: MutPtr<QAction>,
 
     // Action to enable/disable compression on PackFiles. Only for PFH5+ PackFiles.
-    pub change_packfile_type_data_is_compressed: *mut Action,
+    pub change_packfile_type_data_is_compressed: MutPtr<QAction>,
 
     // Action Group for the submenu.
-    pub change_packfile_type_group: *mut ActionGroup,
+    pub change_packfile_type_group: MutPtr<QActionGroup>,
 
     //-------------------------------------------------------------------------------//
     // `MyMod` menu.
     //-------------------------------------------------------------------------------//
-    pub mymod_new: *mut Action,
-    pub mymod_delete_selected: *mut Action,
-    pub mymod_install: *mut Action,
-    pub mymod_uninstall: *mut Action,
+    pub mymod_new: MutPtr<QAction>,
+    pub mymod_delete_selected: MutPtr<QAction>,
+    pub mymod_install: MutPtr<QAction>,
+    pub mymod_uninstall: MutPtr<QAction>,
 
-    pub mymod_open_three_kingdoms: *mut Menu,
-    pub mymod_open_warhammer_2: *mut Menu,
-    pub mymod_open_warhammer: *mut Menu,
-    pub mymod_open_thrones_of_britannia: *mut Menu,
-    pub mymod_open_attila: *mut Menu,
-    pub mymod_open_rome_2: *mut Menu,
-    pub mymod_open_shogun_2: *mut Menu,
-    pub mymod_open_napoleon: *mut Menu,
-    pub mymod_open_empire: *mut Menu,
+    pub mymod_open_three_kingdoms: MutPtr<QMenu>,
+    pub mymod_open_warhammer_2: MutPtr<QMenu>,
+    pub mymod_open_warhammer: MutPtr<QMenu>,
+    pub mymod_open_thrones_of_britannia: MutPtr<QMenu>,
+    pub mymod_open_attila: MutPtr<QMenu>,
+    pub mymod_open_rome_2: MutPtr<QMenu>,
+    pub mymod_open_shogun_2: MutPtr<QMenu>,
+    pub mymod_open_napoleon: MutPtr<QMenu>,
+    pub mymod_open_empire: MutPtr<QMenu>,
 
     //-------------------------------------------------------------------------------//
     // `View` menu.
     //-------------------------------------------------------------------------------//
-    pub view_toggle_packfile_contents: *mut Action,
-    pub view_toggle_global_search_panel: *mut Action,
+    pub view_toggle_packfile_contents: MutPtr<QAction>,
+    pub view_toggle_global_search_panel: MutPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
     //-------------------------------------------------------------------------------//
-    pub game_selected_open_game_data_folder: *mut Action,
-    pub game_selected_open_game_assembly_kit_folder: *mut Action,
+    pub game_selected_open_game_data_folder: MutPtr<QAction>,
+    pub game_selected_open_game_assembly_kit_folder: MutPtr<QAction>,
 
-    pub game_selected_three_kingdoms: *mut Action,
-    pub game_selected_warhammer_2: *mut Action,
-    pub game_selected_warhammer: *mut Action,
-    pub game_selected_thrones_of_britannia: *mut Action,
-    pub game_selected_attila: *mut Action,
-    pub game_selected_rome_2: *mut Action,
-    pub game_selected_shogun_2: *mut Action,
-    pub game_selected_napoleon: *mut Action,
-    pub game_selected_empire: *mut Action,
-    pub game_selected_arena: *mut Action,
+    pub game_selected_three_kingdoms: MutPtr<QAction>,
+    pub game_selected_warhammer_2: MutPtr<QAction>,
+    pub game_selected_warhammer: MutPtr<QAction>,
+    pub game_selected_thrones_of_britannia: MutPtr<QAction>,
+    pub game_selected_attila: MutPtr<QAction>,
+    pub game_selected_rome_2: MutPtr<QAction>,
+    pub game_selected_shogun_2: MutPtr<QAction>,
+    pub game_selected_napoleon: MutPtr<QAction>,
+    pub game_selected_empire: MutPtr<QAction>,
+    pub game_selected_arena: MutPtr<QAction>,
 
-    pub game_selected_group: *mut ActionGroup,
+    pub game_selected_group: MutPtr<QActionGroup>,
 
     //-------------------------------------------------------------------------------//
     // `Special Stuff` menu.
     //-------------------------------------------------------------------------------//
 
     // Three Kingdoms actions.
-    pub special_stuff_three_k_generate_pak_file: *mut Action,
-    pub special_stuff_three_k_optimize_packfile: *mut Action,
+    pub special_stuff_three_k_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_three_k_optimize_packfile: MutPtr<QAction>,
 
     // Warhammer 2's actions.
-    pub special_stuff_wh2_generate_pak_file: *mut Action,
-    pub special_stuff_wh2_optimize_packfile: *mut Action,
-    pub special_stuff_wh2_patch_siege_ai: *mut Action,
+    pub special_stuff_wh2_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_wh2_optimize_packfile: MutPtr<QAction>,
+    pub special_stuff_wh2_patch_siege_ai: MutPtr<QAction>,
 
     // Warhammer's actions.
-    pub special_stuff_wh_generate_pak_file: *mut Action,
-    pub special_stuff_wh_optimize_packfile: *mut Action,
-    pub special_stuff_wh_patch_siege_ai: *mut Action,
+    pub special_stuff_wh_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_wh_optimize_packfile: MutPtr<QAction>,
+    pub special_stuff_wh_patch_siege_ai: MutPtr<QAction>,
 
     // Thrones of Britannia's actions.
-    pub special_stuff_tob_generate_pak_file: *mut Action,
-    pub special_stuff_tob_optimize_packfile: *mut Action,
+    pub special_stuff_tob_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_tob_optimize_packfile: MutPtr<QAction>,
 
     // Attila's actions.
-    pub special_stuff_att_generate_pak_file: *mut Action,
-    pub special_stuff_att_optimize_packfile: *mut Action,
+    pub special_stuff_att_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_att_optimize_packfile: MutPtr<QAction>,
 
     // Rome 2's actions.
-    pub special_stuff_rom2_generate_pak_file: *mut Action,
-    pub special_stuff_rom2_optimize_packfile: *mut Action,
+    pub special_stuff_rom2_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_rom2_optimize_packfile: MutPtr<QAction>,
 
     // Shogun 2's actions.
-    pub special_stuff_sho2_generate_pak_file: *mut Action,
-    pub special_stuff_sho2_optimize_packfile: *mut Action,
+    pub special_stuff_sho2_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_sho2_optimize_packfile: MutPtr<QAction>,
 
     // Napoleon's actions.
-    pub special_stuff_nap_optimize_packfile: *mut Action,
+    pub special_stuff_nap_optimize_packfile: MutPtr<QAction>,
 
     // Empire's actions.
-    pub special_stuff_emp_optimize_packfile: *mut Action,
+    pub special_stuff_emp_optimize_packfile: MutPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `About` menu.
     //-------------------------------------------------------------------------------//
-    pub about_about_qt: *mut Action,
-    pub about_about_rpfm: *mut Action,
-    pub about_open_manual: *mut Action,
-    pub about_patreon_link: *mut Action,
-    pub about_check_updates: *mut Action,
-    pub about_check_schema_updates: *mut Action,
+    pub about_about_qt: MutPtr<QAction>,
+    pub about_about_rpfm: MutPtr<QAction>,
+    pub about_open_manual: MutPtr<QAction>,
+    pub about_patreon_link: MutPtr<QAction>,
+    pub about_check_updates: MutPtr<QAction>,
+    pub about_check_schema_updates: MutPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
     //-------------------------------------------------------------------------------//
-    pub debug_update_current_schema_from_asskit: *mut Action,
+    pub debug_update_current_schema_from_asskit: MutPtr<QAction>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -254,82 +257,81 @@ pub enum NewPackedFile {
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation of `Default` for `AppUI`.
-impl Default for AppUI {
+/// Implementation of `AppUI`.
+impl AppUI {
 
     /// This function creates an entire `AppUI` struct. Used to create the entire UI at start.
-    fn default() -> Self {
+    pub unsafe fn new() -> Self {
 
         // Initialize and configure the main window.
-        let mut main_window = MainWindow::new();
-        let widget = Widget::new();
-        let layout = create_grid_layout_unsafe(widget.as_mut_ptr());
-        unsafe { main_window.set_central_widget(widget.into_raw()); }
-        main_window.resize((1100, 400));
-        Application::set_window_icon(&Icon::new(&QString::from_std_str(format!("{}/img/rpfm.png", RPFM_PATH.to_string_lossy()))));
+        let mut main_window = QMainWindow::new_0a().into_ptr();
+        let widget = QWidget::new_0a().into_ptr();
+        let mut layout = create_grid_layout(widget);
+        main_window.set_central_widget(widget);
+        main_window.resize_2a(1100, 400);
+        QApplication::set_window_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/img/rpfm.png", RPFM_PATH.to_string_lossy()))));
 
         // Get the menu and status bars.
-        let menu_bar = main_window.menu_bar();
+        let mut menu_bar = main_window.menu_bar();
         let status_bar = main_window.status_bar();
-        let mut tab_bar_packed_file = TabWidget::new();
+        let mut tab_bar_packed_file = QTabWidget::new_0a();
         tab_bar_packed_file.set_tabs_closable(true);
         tab_bar_packed_file.set_movable(true);
-        unsafe { layout.as_mut().unwrap().add_widget((tab_bar_packed_file.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+        layout.add_widget_5a(&mut tab_bar_packed_file, 0, 0, 1, 1);
 
         //-----------------------------------------------//
         // `Command Palette` DockWidget.
         //-----------------------------------------------//
 
         // Create and configure the 'Command Palette` Dock Widget and all his contents.
-        let command_palette_window_flags = Flags::from_int(8);
-        let mut command_palette_widget = unsafe { DockWidget::new_unsafe((main_window.as_mut_ptr() as *mut Widget, command_palette_window_flags)) };
-        let command_palette_inner_widget = Widget::new();
-        let command_palette_layout = create_grid_layout_unsafe(command_palette_inner_widget.as_mut_ptr() as *mut Widget);
-        unsafe { command_palette_widget.set_widget(command_palette_inner_widget.into_raw()); }
-        command_palette_widget.set_features(Flags::from_int(0));
+        let command_palette_window_flags = QFlags::from(WindowType::Drawer | WindowType::Window);
+        let mut command_palette_widget = QDockWidget::from_q_widget_q_flags_window_type(main_window, command_palette_window_flags);
+        let command_palette_inner_widget = QWidget::new_0a().into_ptr();
+        let mut command_palette_layout = create_grid_layout(command_palette_inner_widget);
+        command_palette_widget.set_widget(command_palette_inner_widget);
+        command_palette_widget.set_features(QFlags::from(DockWidgetFeature::NoDockWidgetFeatures));
         command_palette_widget.set_minimum_width(500);
 
         // Create and configure the `Command Palette` itself.
-        let command_palette_line_edit = LineEdit::new(());
-        let mut command_palette_completer = Completer::new(());
-        let command_palette_completer_view = unsafe { new_tableview_command_palette() };
-        let command_palette_completer_model = StandardItemModel::new(());
+        let mut command_palette_line_edit = QLineEdit::new();
+        let mut command_palette_completer = QCompleter::new();
+        let mut command_palette_completer_view = new_tableview_command_palette_safe();
+        let mut command_palette_completer_model = QStandardItemModel::new_0a();
 
         // This means our completer search with case-insensitive and contains filters.
-        command_palette_completer.set_filter_mode(Flags::from_int(1));
-        command_palette_completer.set_case_sensitivity(CaseSensitivity::Insensitive);
+        command_palette_completer.set_filter_mode(QFlags::from(MatchFlag::MatchContains));
+        command_palette_completer.set_case_sensitivity(CaseSensitivity::CaseInsensitive);
         command_palette_completer.set_max_visible_items(8);
 
-        unsafe { command_palette_completer_view.as_mut().unwrap().set_show_grid(false); }
-        unsafe { command_palette_completer_view.as_mut().unwrap().set_selection_behavior(SelectionBehavior::Rows); }
-        unsafe { command_palette_completer_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().hide(); }
-        unsafe { command_palette_completer_view.as_mut().unwrap().vertical_header().as_mut().unwrap().hide(); }
+        command_palette_completer_view.set_show_grid(false);
+        command_palette_completer_view.set_selection_behavior(SelectionBehavior::SelectRows);
+        command_palette_completer_view.horizontal_header().hide();
+        command_palette_completer_view.vertical_header().hide();
 
-        unsafe { command_palette_completer.set_popup(command_palette_completer_view as *mut AbstractItemView); }
-        unsafe { command_palette_completer.set_model(command_palette_completer_model.as_mut_ptr() as *mut AbstractItemModel); }
-        unsafe { command_palette_layout.as_mut().unwrap().add_widget((command_palette_line_edit.as_mut_ptr() as *mut Widget, 0, 0, 1, 1)); }
+        command_palette_completer.set_popup(command_palette_completer_view);
+        command_palette_completer.set_model(&mut command_palette_completer_model);
+        command_palette_layout.add_widget_5a(&mut command_palette_line_edit, 0, 0, 1, 1);
 
         // Create the actions needed to show/hide the `Command Palette`.
-        let command_palette_show = Action::new(());
-        let command_palette_hide = Action::new(());
+        let command_palette_show = QAction::new();
+        let command_palette_hide = QAction::new();
 
         //-----------------------------------------------//
         // Menu bar.
         //-----------------------------------------------//
 
         // Create the `MenuBar` menus.
-        let menu_bar_ref_mut = unsafe { menu_bar.as_mut().unwrap() };
-        let menu_bar_packfile = menu_bar_ref_mut.add_menu(&qtr("menu_bar_packfile"));
-        let menu_bar_mymod = menu_bar_ref_mut.add_menu(&qtr("menu_bar_mymod"));
-        let menu_bar_view = menu_bar_ref_mut.add_menu(&qtr("menu_bar_view"));
-        let menu_bar_game_seleted = menu_bar_ref_mut.add_menu(&qtr("menu_bar_game_selected"));
-        let menu_bar_special_stuff = menu_bar_ref_mut.add_menu(&qtr("menu_bar_special_stuff"));
-        let menu_bar_about = menu_bar_ref_mut.add_menu(&qtr("menu_bar_about"));
+        let mut menu_bar_packfile = menu_bar.add_menu_q_string(&qtr("menu_bar_packfile"));
+        let mut menu_bar_mymod = menu_bar.add_menu_q_string(&qtr("menu_bar_mymod"));
+        let mut menu_bar_view = menu_bar.add_menu_q_string(&qtr("menu_bar_view"));
+        let mut menu_bar_game_selected = menu_bar.add_menu_q_string(&qtr("menu_bar_game_selected"));
+        let mut menu_bar_special_stuff = menu_bar.add_menu_q_string(&qtr("menu_bar_special_stuff"));
+        let mut menu_bar_about = menu_bar.add_menu_q_string(&qtr("menu_bar_about"));
 
         // This menu is hidden unless you enable it.
-        let menu_bar_debug = menu_bar_ref_mut.add_menu(&qtr("menu_bar_debug"));
+        let mut menu_bar_debug = menu_bar.add_menu_q_string(&qtr("menu_bar_debug"));
         if !SETTINGS.lock().unwrap().settings_bool["enable_debug_menu"] {
-            unsafe { menu_bar_debug.as_mut().unwrap().set_visible(false); }
+            menu_bar_debug.set_visible(false);
         }
 
         //-----------------------------------------------//
@@ -337,235 +339,218 @@ impl Default for AppUI {
         //-----------------------------------------------//
 
         // Populate the `PackFile` menu.
-        let menu_bar_packfile_ref_mut = unsafe { menu_bar_packfile.as_mut().unwrap() };
-        let packfile_new_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("new_packfile"));
-        let packfile_open_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("open_packfile"));
-        let packfile_save_packfile = menu_bar_packfile_ref_mut.add_action(&qtr("save_packfile"));
-        let packfile_save_packfile_as = menu_bar_packfile_ref_mut.add_action(&qtr("save_packfile_as"));
-        let packfile_menu_open_from_content = Menu::new(&qtr("open_from_content"));
-        let packfile_menu_open_from_data = Menu::new(&qtr("open_from_data"));
-        let mut packfile_menu_change_packfile_type = Menu::new(&qtr("change_packfile_type"));
-        let packfile_load_all_ca_packfiles = menu_bar_packfile_ref_mut.add_action(&qtr("load_all_ca_packfiles"));
-        let packfile_preferences = menu_bar_packfile_ref_mut.add_action(&qtr("preferences"));
-        let packfile_quit = menu_bar_packfile_ref_mut.add_action(&qtr("quit"));
+        let packfile_new_packfile = menu_bar_packfile.add_action_q_string(&qtr("new_packfile"));
+        let packfile_open_packfile = menu_bar_packfile.add_action_q_string(&qtr("open_packfile"));
+        let packfile_save_packfile = menu_bar_packfile.add_action_q_string(&qtr("save_packfile"));
+        let packfile_save_packfile_as = menu_bar_packfile.add_action_q_string(&qtr("save_packfile_as"));
+        let packfile_menu_open_from_content = QMenu::from_q_string(&qtr("open_from_content")).into_ptr();
+        let packfile_menu_open_from_data = QMenu::from_q_string(&qtr("open_from_data")).into_ptr();
+        let mut packfile_menu_change_packfile_type = QMenu::from_q_string(&qtr("change_packfile_type")).into_ptr();
+        let packfile_load_all_ca_packfiles = menu_bar_packfile.add_action_q_string(&qtr("load_all_ca_packfiles"));
+        let packfile_preferences = menu_bar_packfile.add_action_q_string(&qtr("preferences"));
+        let packfile_quit = menu_bar_packfile.add_action_q_string(&qtr("quit"));
 
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
-        unsafe { menu_bar_packfile_ref_mut.insert_menu(packfile_load_all_ca_packfiles, packfile_menu_open_from_content.as_mut_ptr()); }
-        unsafe { menu_bar_packfile_ref_mut.insert_menu(packfile_load_all_ca_packfiles, packfile_menu_open_from_data.as_mut_ptr()); }
+        menu_bar_packfile.insert_menu(packfile_load_all_ca_packfiles, packfile_menu_open_from_content);
+        menu_bar_packfile.insert_menu(packfile_load_all_ca_packfiles, packfile_menu_open_from_data);
 
-        unsafe { menu_bar_packfile_ref_mut.insert_separator(packfile_menu_open_from_content.menu_action()); }
-        unsafe { menu_bar_packfile_ref_mut.insert_separator(packfile_preferences); }
-        unsafe { menu_bar_packfile_ref_mut.insert_menu(packfile_preferences, packfile_menu_change_packfile_type.as_mut_ptr()); }
-        unsafe { menu_bar_packfile_ref_mut.insert_separator(packfile_preferences); }
+        menu_bar_packfile.insert_separator(packfile_menu_open_from_content.menu_action());
+        menu_bar_packfile.insert_separator(packfile_preferences);
+        menu_bar_packfile.insert_menu(packfile_preferences, packfile_menu_change_packfile_type);
+        menu_bar_packfile.insert_separator(packfile_preferences);
 
         // `Change PackFile Type` submenu.
-        let change_packfile_type_boot = packfile_menu_change_packfile_type.add_action(&qtr("packfile_type_boot"));
-        let change_packfile_type_release = packfile_menu_change_packfile_type.add_action(&qtr("packfile_type_release"));
-        let change_packfile_type_patch = packfile_menu_change_packfile_type.add_action(&qtr("packfile_type_patch"));
-        let change_packfile_type_mod = packfile_menu_change_packfile_type.add_action(&qtr("packfile_type_mod"));
-        let change_packfile_type_movie = packfile_menu_change_packfile_type.add_action(&qtr("packfile_type_movie"));
-        let change_packfile_type_other = packfile_menu_change_packfile_type.add_action(&qtr("packfile_type_other"));
-        let change_packfile_type_header_is_extended = packfile_menu_change_packfile_type.add_action(&qtr("change_packfile_type_header_is_extended"));
-        let change_packfile_type_index_includes_timestamp = packfile_menu_change_packfile_type.add_action(&qtr("change_packfile_type_index_includes_timestamp"));
-        let change_packfile_type_index_is_encrypted = packfile_menu_change_packfile_type.add_action(&qtr("change_packfile_type_index_is_encrypted"));
-        let change_packfile_type_data_is_encrypted = packfile_menu_change_packfile_type.add_action(&qtr("change_packfile_type_data_is_encrypted"));
-        let change_packfile_type_data_is_compressed = packfile_menu_change_packfile_type.add_action(&qtr("change_packfile_type_data_is_compressed"));
+        let mut change_packfile_type_boot = packfile_menu_change_packfile_type.add_action_q_string(&qtr("packfile_type_boot"));
+        let mut change_packfile_type_release = packfile_menu_change_packfile_type.add_action_q_string(&qtr("packfile_type_release"));
+        let mut change_packfile_type_patch = packfile_menu_change_packfile_type.add_action_q_string(&qtr("packfile_type_patch"));
+        let mut change_packfile_type_mod = packfile_menu_change_packfile_type.add_action_q_string(&qtr("packfile_type_mod"));
+        let mut change_packfile_type_movie = packfile_menu_change_packfile_type.add_action_q_string(&qtr("packfile_type_movie"));
+        let mut change_packfile_type_other = packfile_menu_change_packfile_type.add_action_q_string(&qtr("packfile_type_other"));
+        let mut change_packfile_type_header_is_extended = packfile_menu_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_header_is_extended"));
+        let mut change_packfile_type_index_includes_timestamp = packfile_menu_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_includes_timestamp"));
+        let mut change_packfile_type_index_is_encrypted = packfile_menu_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_index_is_encrypted"));
+        let mut change_packfile_type_data_is_encrypted = packfile_menu_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_encrypted"));
+        let mut change_packfile_type_data_is_compressed = packfile_menu_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_compressed"));
 
-        let mut change_packfile_type_group = unsafe { ActionGroup::new(packfile_menu_change_packfile_type.as_mut_ptr() as *mut Object) };
+        let mut change_packfile_type_group = QActionGroup::new(packfile_menu_change_packfile_type);
 
         // Configure the `PackFile` menu and his submenu.
-        unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_boot); }
-        unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_release); }
-        unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_patch); }
-        unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_mod); }
-        unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_movie); }
-        unsafe { change_packfile_type_group.add_action_unsafe(change_packfile_type_other); }
-        unsafe { change_packfile_type_boot.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_release.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_patch.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_mod.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_movie.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_other.as_mut().unwrap().set_checkable(true); }
+        change_packfile_type_group.add_action_q_action(change_packfile_type_boot);
+        change_packfile_type_group.add_action_q_action(change_packfile_type_release);
+        change_packfile_type_group.add_action_q_action(change_packfile_type_patch);
+        change_packfile_type_group.add_action_q_action(change_packfile_type_mod);
+        change_packfile_type_group.add_action_q_action(change_packfile_type_movie);
+        change_packfile_type_group.add_action_q_action(change_packfile_type_other);
+        change_packfile_type_boot.set_checkable(true);
+        change_packfile_type_release.set_checkable(true);
+        change_packfile_type_patch.set_checkable(true);
+        change_packfile_type_mod.set_checkable(true);
+        change_packfile_type_movie.set_checkable(true);
+        change_packfile_type_other.set_checkable(true);
 
         // These ones are individual, but they need to be checkable and not editable.
-        unsafe { change_packfile_type_data_is_encrypted.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_index_includes_timestamp.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_index_is_encrypted.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_header_is_extended.as_mut().unwrap().set_checkable(true); }
-        unsafe { change_packfile_type_data_is_compressed.as_mut().unwrap().set_checkable(true); }
+        change_packfile_type_data_is_encrypted.set_checkable(true);
+        change_packfile_type_index_includes_timestamp.set_checkable(true);
+        change_packfile_type_index_is_encrypted.set_checkable(true);
+        change_packfile_type_header_is_extended.set_checkable(true);
+        change_packfile_type_data_is_compressed.set_checkable(true);
 
-        unsafe { change_packfile_type_data_is_encrypted.as_mut().unwrap().set_enabled(false); }
-        unsafe { change_packfile_type_index_is_encrypted.as_mut().unwrap().set_enabled(false); }
-        unsafe { change_packfile_type_header_is_extended.as_mut().unwrap().set_enabled(false); }
-        unsafe { change_packfile_type_data_is_compressed.as_mut().unwrap().set_enabled(false); }
+        change_packfile_type_data_is_encrypted.set_enabled(false);
+        change_packfile_type_index_is_encrypted.set_enabled(false);
+        change_packfile_type_header_is_extended.set_enabled(false);
+        change_packfile_type_data_is_compressed.set_enabled(false);
 
         // Put separators in the SubMenu.
-        unsafe { packfile_menu_change_packfile_type.insert_separator(change_packfile_type_other); }
-        unsafe { packfile_menu_change_packfile_type.insert_separator(change_packfile_type_header_is_extended); }
-        unsafe { packfile_menu_change_packfile_type.insert_separator(change_packfile_type_data_is_compressed); }
+        packfile_menu_change_packfile_type.insert_separator(change_packfile_type_other);
+        packfile_menu_change_packfile_type.insert_separator(change_packfile_type_header_is_extended);
+        packfile_menu_change_packfile_type.insert_separator(change_packfile_type_data_is_compressed);
 
         //-----------------------------------------------//
         // `MyMod` Menu.
         //-----------------------------------------------//
 
         // Populate the `Game Selected` menu.
-        let menu_bar_mymod_ref_mut = unsafe { menu_bar_mymod.as_mut().unwrap() };
-        let mymod_new = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_new"));
-        let mymod_delete_selected = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_delete_selected"));
-        let mymod_install = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_install"));
-        let mymod_uninstall = menu_bar_mymod_ref_mut.add_action(&qtr("mymod_uninstall"));
+        let mut mymod_new = menu_bar_mymod.add_action_q_string(&qtr("mymod_new"));
+        let mut mymod_delete_selected = menu_bar_mymod.add_action_q_string(&qtr("mymod_delete_selected"));
+        let mut mymod_install = menu_bar_mymod.add_action_q_string(&qtr("mymod_install"));
+        let mut mymod_uninstall = menu_bar_mymod.add_action_q_string(&qtr("mymod_uninstall"));
 
-        menu_bar_mymod_ref_mut.add_separator();
+        menu_bar_mymod.add_separator();
 
-        let mymod_open_three_kingdoms = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let mymod_open_warhammer_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let mymod_open_warhammer = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let mymod_open_thrones_of_britannia = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let mymod_open_attila = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let mymod_open_rome_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let mymod_open_shogun_2 = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let mymod_open_napoleon = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let mymod_open_empire = menu_bar_mymod_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let mymod_open_three_kingdoms = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
+        let mymod_open_warhammer_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
+        let mymod_open_warhammer = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
+        let mymod_open_thrones_of_britannia = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
+        let mymod_open_attila = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
+        let mymod_open_rome_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
+        let mymod_open_shogun_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
+        let mymod_open_napoleon = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
+        let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
-        unsafe { menu_bar_mymod_ref_mut.insert_separator(mymod_install); }
+        menu_bar_mymod.insert_separator(mymod_install);
 
         // Disable all the Contextual Menu actions by default.
-        unsafe { mymod_new.as_mut().unwrap().set_enabled(false); }
-        unsafe { mymod_delete_selected.as_mut().unwrap().set_enabled(false); }
-        unsafe { mymod_install.as_mut().unwrap().set_enabled(false); }
-        unsafe { mymod_uninstall.as_mut().unwrap().set_enabled(false); }
+        mymod_new.set_enabled(false);
+        mymod_delete_selected.set_enabled(false);
+        mymod_install.set_enabled(false);
+        mymod_uninstall.set_enabled(false);
 
-        unsafe { mymod_open_three_kingdoms.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_warhammer_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_warhammer.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_thrones_of_britannia.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_attila.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_rome_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_shogun_2.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_napoleon.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
-        unsafe { mymod_open_empire.as_mut().unwrap().menu_action().as_mut().unwrap().set_visible(false); }
+        mymod_open_three_kingdoms.menu_action().set_visible(false);
+        mymod_open_warhammer_2.menu_action().set_visible(false);
+        mymod_open_warhammer.menu_action().set_visible(false);
+        mymod_open_thrones_of_britannia.menu_action().set_visible(false);
+        mymod_open_attila.menu_action().set_visible(false);
+        mymod_open_rome_2.menu_action().set_visible(false);
+        mymod_open_shogun_2.menu_action().set_visible(false);
+        mymod_open_napoleon.menu_action().set_visible(false);
+        mymod_open_empire.menu_action().set_visible(false);
 
         //-----------------------------------------------//
         // `View` Menu.
         //-----------------------------------------------//
 
         // Populate the `Game Selected` menu.
-        let menu_bar_view_ref_mut = unsafe { menu_bar_view.as_mut().unwrap() };
-        let view_toggle_packfile_contents = menu_bar_view_ref_mut.add_action(&qtr("view_toggle_packfile_contents"));
-        let view_toggle_global_search_panel = menu_bar_view_ref_mut.add_action(&qtr("view_toggle_global_search_panel"));
+        let view_toggle_packfile_contents = menu_bar_view.add_action_q_string(&qtr("view_toggle_packfile_contents"));
+        let view_toggle_global_search_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_global_search_panel"));
 
         //-----------------------------------------------//
         // `Game Selected` Menu.
         //-----------------------------------------------//
 
         // Populate the `Game Selected` menu.
-        let menu_bar_game_seleted_ref_mut = unsafe { menu_bar_game_seleted.as_mut().unwrap() };
-        let game_selected_open_game_data_folder = menu_bar_game_seleted_ref_mut.add_action(&qtr("game_selected_open_game_data_folder"));
-        let game_selected_open_game_assembly_kit_folder = menu_bar_game_seleted_ref_mut.add_action(&qtr("game_selected_open_game_assembly_kit_folder"));
+        let game_selected_open_game_data_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_game_data_folder"));
+        let game_selected_open_game_assembly_kit_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_game_assembly_kit_folder"));
 
-        let game_selected_three_kingdoms = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let game_selected_warhammer_2 = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let game_selected_warhammer = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let game_selected_thrones_of_britannia = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let game_selected_attila = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let game_selected_rome_2 = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let game_selected_shogun_2 = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let game_selected_napoleon = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let game_selected_empire = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_EMPIRE));
-        let game_selected_arena = menu_bar_game_seleted_ref_mut.add_action(&QString::from_std_str(GAME_SELECTED_ARENA));
+        let mut game_selected_three_kingdoms = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
+        let mut game_selected_warhammer_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
+        let mut game_selected_warhammer = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
+        let mut game_selected_thrones_of_britannia = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
+        let mut game_selected_attila = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
+        let mut game_selected_rome_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
+        let mut game_selected_shogun_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
+        let mut game_selected_napoleon = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
+        let mut game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let mut game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ARENA));
 
-        let mut game_selected_group = unsafe { ActionGroup::new(menu_bar_game_seleted as *mut Object) };
+        let mut game_selected_group = QActionGroup::new(menu_bar_game_selected);
 
         // Configure the `Game Selected` Menu.
-        unsafe { menu_bar_game_seleted_ref_mut.insert_separator(game_selected_three_kingdoms); }
-        unsafe { menu_bar_game_seleted_ref_mut.insert_separator(game_selected_arena); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_three_kingdoms); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_warhammer_2); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_warhammer); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_thrones_of_britannia); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_attila); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_rome_2); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_shogun_2); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_napoleon); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_empire); }
-        unsafe { game_selected_group.add_action_unsafe(game_selected_arena); }
-        unsafe { game_selected_three_kingdoms.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_warhammer_2.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_warhammer.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_thrones_of_britannia.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_attila.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_rome_2.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_shogun_2.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_napoleon.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_empire.as_mut().unwrap().set_checkable(true); }
-        unsafe { game_selected_arena.as_mut().unwrap().set_checkable(true); }
+        menu_bar_game_selected.insert_separator(game_selected_three_kingdoms);
+        menu_bar_game_selected.insert_separator(game_selected_arena);
+        game_selected_group.add_action_q_action(game_selected_three_kingdoms);
+        game_selected_group.add_action_q_action(game_selected_warhammer_2);
+        game_selected_group.add_action_q_action(game_selected_warhammer);
+        game_selected_group.add_action_q_action(game_selected_thrones_of_britannia);
+        game_selected_group.add_action_q_action(game_selected_attila);
+        game_selected_group.add_action_q_action(game_selected_rome_2);
+        game_selected_group.add_action_q_action(game_selected_shogun_2);
+        game_selected_group.add_action_q_action(game_selected_napoleon);
+        game_selected_group.add_action_q_action(game_selected_empire);
+        game_selected_group.add_action_q_action(game_selected_arena);
+        game_selected_three_kingdoms.set_checkable(true);
+        game_selected_warhammer_2.set_checkable(true);
+        game_selected_warhammer.set_checkable(true);
+        game_selected_thrones_of_britannia.set_checkable(true);
+        game_selected_attila.set_checkable(true);
+        game_selected_rome_2.set_checkable(true);
+        game_selected_shogun_2.set_checkable(true);
+        game_selected_napoleon.set_checkable(true);
+        game_selected_empire.set_checkable(true);
+        game_selected_arena.set_checkable(true);
 
         //-----------------------------------------------//
         // `Special Stuff` Menu.
         //-----------------------------------------------//
 
         // Populate the `Special Stuff` menu with submenus.
-        let menu_bar_special_stuff_ref_mut = unsafe { menu_bar_special_stuff.as_mut().unwrap() };
-        let menu_three_kingdoms = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
-        let menu_warhammer_2 = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
-        let menu_warhammer = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
-        let menu_thrones_of_britannia = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
-        let menu_attila = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ATTILA));
-        let menu_rome_2 = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_ROME_2));
-        let menu_shogun_2 = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
-        let menu_napoleon = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
-        let menu_empire = menu_bar_special_stuff_ref_mut.add_menu(&QString::from_std_str(GAME_SELECTED_EMPIRE));
+        let mut menu_three_kingdoms = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
+        let mut menu_warhammer_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
+        let mut menu_warhammer = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
+        let mut menu_thrones_of_britannia = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THRONES_OF_BRITANNIA));
+        let mut menu_attila = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ATTILA));
+        let mut menu_rome_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_ROME_2));
+        let mut menu_shogun_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_SHOGUN_2));
+        let mut menu_napoleon = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
+        let mut menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
         // Populate the `Special Stuff` submenus.
-        let menu_three_kingdoms_ref_mut = unsafe { menu_three_kingdoms.as_mut().unwrap() };
-        let menu_warhammer_2_ref_mut = unsafe { menu_warhammer_2.as_mut().unwrap() };
-        let menu_warhammer_ref_mut = unsafe { menu_warhammer.as_mut().unwrap() };
-        let menu_thrones_of_britannia_ref_mut = unsafe { menu_thrones_of_britannia.as_mut().unwrap() };
-        let menu_attila_ref_mut = unsafe { menu_attila.as_mut().unwrap() };
-        let menu_rome_2_ref_mut = unsafe { menu_rome_2.as_mut().unwrap() };
-        let menu_shogun_2_ref_mut = unsafe { menu_shogun_2.as_mut().unwrap() };
-        let menu_napoleon_ref_mut = unsafe { menu_napoleon.as_mut().unwrap() };
-        let menu_empire_ref_mut = unsafe { menu_empire.as_mut().unwrap() };
-
-        let special_stuff_three_k_generate_pak_file = menu_three_kingdoms_ref_mut.add_action(&qtr("special_stuff_generate_pak_file"));
-        let special_stuff_three_k_optimize_packfile = menu_three_kingdoms_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_wh2_generate_pak_file = menu_warhammer_2_ref_mut.add_action(&qtr("special_stuff_generate_pak_file"));
-        let special_stuff_wh2_optimize_packfile = menu_warhammer_2_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_wh2_patch_siege_ai = menu_warhammer_2_ref_mut.add_action(&qtr("special_stuff_patch_siege_ai"));
-        let special_stuff_wh_generate_pak_file = menu_warhammer_ref_mut.add_action(&qtr("special_stuff_generate_pak_file"));
-        let special_stuff_wh_optimize_packfile = menu_warhammer_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_wh_patch_siege_ai = menu_warhammer_ref_mut.add_action(&qtr("special_stuff_patch_siege_ai"));
-        let special_stuff_tob_generate_pak_file = menu_thrones_of_britannia_ref_mut.add_action(&qtr("special_stuff_generate_pak_file"));
-        let special_stuff_tob_optimize_packfile = menu_thrones_of_britannia_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_att_generate_pak_file = menu_attila_ref_mut.add_action(&qtr("special_stuff_generate_pak_file"));
-        let special_stuff_att_optimize_packfile = menu_attila_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_rom2_generate_pak_file = menu_rome_2_ref_mut.add_action(&qtr("special_stuff_generate_pak_file"));
-        let special_stuff_rom2_optimize_packfile = menu_rome_2_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_sho2_generate_pak_file = menu_shogun_2_ref_mut.add_action(&qtr("special_stuff_generate_pak_file"));
-        let special_stuff_sho2_optimize_packfile = menu_shogun_2_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_nap_optimize_packfile = menu_napoleon_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_emp_optimize_packfile = menu_empire_ref_mut.add_action(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_three_k_generate_pak_file = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_three_k_optimize_packfile = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_wh2_generate_pak_file = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_wh2_optimize_packfile = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_wh2_patch_siege_ai = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
+        let special_stuff_wh_generate_pak_file = menu_warhammer.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_wh_optimize_packfile = menu_warhammer.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_wh_patch_siege_ai = menu_warhammer.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
+        let special_stuff_tob_generate_pak_file = menu_thrones_of_britannia.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_tob_optimize_packfile = menu_thrones_of_britannia.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_att_generate_pak_file = menu_attila.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_att_optimize_packfile = menu_attila.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_rom2_generate_pak_file = menu_rome_2.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_rom2_optimize_packfile = menu_rome_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_sho2_generate_pak_file = menu_shogun_2.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_sho2_optimize_packfile = menu_shogun_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_nap_optimize_packfile = menu_napoleon.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
+        let special_stuff_emp_optimize_packfile = menu_empire.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
 
         //-----------------------------------------------//
         // `About` Menu.
         //-----------------------------------------------//
 
         // Populate the `About` menu.
-        let menu_bar_about_ref_mut = unsafe { menu_bar_about.as_mut().unwrap() };
-        let about_about_qt = menu_bar_about_ref_mut.add_action(&qtr("about_about_qt"));
-        let about_about_rpfm = menu_bar_about_ref_mut.add_action(&qtr("about_about_rpfm"));
-        let about_open_manual = menu_bar_about_ref_mut.add_action(&qtr("about_open_manual"));
-        let about_patreon_link = menu_bar_about_ref_mut.add_action(&qtr("about_patreon_link"));
-        let about_check_updates = menu_bar_about_ref_mut.add_action(&qtr("about_check_updates"));
-        let about_check_schema_updates = menu_bar_about_ref_mut.add_action(&qtr("about_check_schema_updates"));
+        let about_about_qt = menu_bar_about.add_action_q_string(&qtr("about_about_qt"));
+        let about_about_rpfm = menu_bar_about.add_action_q_string(&qtr("about_about_rpfm"));
+        let about_open_manual = menu_bar_about.add_action_q_string(&qtr("about_open_manual"));
+        let about_patreon_link = menu_bar_about.add_action_q_string(&qtr("about_patreon_link"));
+        let about_check_updates = menu_bar_about.add_action_q_string(&qtr("about_check_updates"));
+        let about_check_schema_updates = menu_bar_about.add_action_q_string(&qtr("about_check_schema_updates"));
 
         //-----------------------------------------------//
         // `Debug` Menu.
         //-----------------------------------------------//
 
         // Populate the `Debug` menu.
-        let menu_bar_debug_ref_mut = unsafe { menu_bar_debug.as_mut().unwrap() };
-        let debug_update_current_schema_from_asskit = menu_bar_debug_ref_mut.add_action(&qtr("update_current_schema_from_asskit"));
+        let debug_update_current_schema_from_asskit = menu_bar_debug.add_action_q_string(&qtr("update_current_schema_from_asskit"));
 
         command_palette_widget.hide();
 
@@ -575,22 +560,22 @@ impl Default for AppUI {
             //-------------------------------------------------------------------------------//
             // Main Window.
             //-------------------------------------------------------------------------------//
-            main_window: main_window.into_raw(),
-            tab_bar_packed_file: tab_bar_packed_file.into_raw(),
+            main_window,
+            tab_bar_packed_file: tab_bar_packed_file.into_ptr(),
             menu_bar,
             status_bar,
 
             //-------------------------------------------------------------------------------//
             // `Command Palette` DockWidget.
             //-------------------------------------------------------------------------------//
-            command_palette: command_palette_widget.into_raw(),
-            command_palette_line_edit: command_palette_line_edit.into_raw(),
-            command_palette_completer: command_palette_completer.into_raw(),
+            command_palette: command_palette_widget.into_ptr(),
+            command_palette_line_edit: command_palette_line_edit.into_ptr(),
+            command_palette_completer: command_palette_completer.into_ptr(),
             command_palette_completer_view,
-            command_palette_completer_model: command_palette_completer_model.into_raw(),
+            command_palette_completer_model: command_palette_completer_model.into_ptr(),
 
-            command_palette_show: command_palette_show.into_raw(),
-            command_palette_hide: command_palette_hide.into_raw(),
+            command_palette_show: command_palette_show.into_ptr(),
+            command_palette_hide: command_palette_hide.into_ptr(),
 
             //-------------------------------------------------------------------------------//
             // `MenuBar` menus.
@@ -598,7 +583,7 @@ impl Default for AppUI {
             menu_bar_packfile,
             menu_bar_mymod,
             menu_bar_view,
-            menu_bar_game_seleted,
+            menu_bar_game_selected,
             menu_bar_special_stuff,
             menu_bar_about,
             menu_bar_debug,
@@ -612,9 +597,9 @@ impl Default for AppUI {
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
-            packfile_open_from_content: packfile_menu_open_from_content.into_raw(),
-            packfile_open_from_data: packfile_menu_open_from_data.into_raw(),
-            packfile_change_packfile_type: packfile_menu_change_packfile_type.into_raw(),
+            packfile_open_from_content: packfile_menu_open_from_content,
+            packfile_open_from_data: packfile_menu_open_from_data,
+            packfile_change_packfile_type: packfile_menu_change_packfile_type,
             packfile_load_all_ca_packfiles,
             packfile_preferences,
             packfile_quit,
@@ -636,7 +621,7 @@ impl Default for AppUI {
             change_packfile_type_data_is_compressed,
 
             // Action Group for the submenu.
-            change_packfile_type_group: change_packfile_type_group.into_raw(),
+            change_packfile_type_group: change_packfile_type_group.into_ptr(),
 
             //-------------------------------------------------------------------------------//
             // `MyMod` menu.
@@ -679,7 +664,7 @@ impl Default for AppUI {
             game_selected_empire,
             game_selected_arena,
 
-            game_selected_group: game_selected_group.into_raw(),
+            game_selected_group: game_selected_group.into_ptr(),
 
             //-------------------------------------------------------------------------------//
             // "Special Stuff" menu.

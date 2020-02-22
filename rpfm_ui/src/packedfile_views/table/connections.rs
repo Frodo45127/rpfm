@@ -14,14 +14,12 @@ Module with all the code to connect `PackedFileTableView` signals with their cor
 This module is, and should stay, private, as it's only glue between the `PackedFileTableView` and `PackedFileTableViewSlots` structs.
 !*/
 
-use qt_core::connection::Signal;
-
 use super::{PackedFileTableView, slots::PackedFileTableViewSlots};
 
 /// This function connects all the actions from the provided `PackedFileTableView` with their slots in `PackedFileTableViewSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
-pub fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableViewSlots) {
-    ui.get_filter_line_edit().signals().text_changed().connect(&slots.filter_line_edit);
+pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableViewSlots) {
+    ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_line_edit);
 }

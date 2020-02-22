@@ -801,7 +801,7 @@ pub fn are_you_sure(
 /// This function creates a GridLayout for the provided widget with the settings we want.
 ///
 /// This is the safe version for CppBox.
-pub fn create_grid_layout_safe(widget: &mut CppBox<Widget>) -> CppBox<GridLayout> {
+pub fn create_grid_layout(widget: &mut CppBox<Widget>) -> CppBox<GridLayout> {
     let mut widget_layout = GridLayout::new();
     unsafe { widget.set_layout(widget_layout.static_cast_mut() as *mut Layout); }
 

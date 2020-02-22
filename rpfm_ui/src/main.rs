@@ -30,17 +30,20 @@
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
 #![windows_subsystem = "windows"]
 
-use qt_widgets::application::Application;
+use qt_widgets::QApplication;
 
-use qt_gui::color::Color;
-use qt_gui::font::{Font, StyleHint};
-use qt_gui::palette::{Palette, ColorGroup, ColorRole};
+use qt_gui::QColor;
+use qt_gui::{QFont, q_font::StyleHint};
+use qt_gui::{QPalette, q_palette::{ColorGroup, ColorRole}};
+
+use qt_core::QString;
 
 use lazy_static::lazy_static;
 
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::atomic::AtomicPtr;
 use std::thread;
 
 use rpfm_error::ctd::CrashReport;
@@ -55,7 +58,8 @@ use crate::locale::Locale;
 use crate::pack_tree::icons::Icons;
 use crate::ui::GameSelectedIcons;
 use crate::ui_state::UIState;
-use self::ui::UI;
+use crate::ui::UI;
+use crate::utils::atomic_from_cpp_box;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
@@ -68,25 +72,37 @@ macro_rules! clone {
             move || $body
         }
     );
+    ($($y:ident $n:ident),+ => move || $body:expr) => (
+        {
+            $( #[allow(unused_mut)] let mut $n = $n.clone(); )+
+            move || $body
+        }
+    );
     ($($n:ident),+ => move |$($p:tt),+| $body:expr) => (
         {
             $( let $n = $n.clone(); )+
             move |$(clone!(@param $p),)+| $body
         }
     );
+    ($($y:ident $n:ident),+ => move |$($p:tt),+| $body:expr) => (
+        {
+            $( #[allow(unused_mut)] let mut $n = $n.clone(); )+
+            move |$(clone!(@param $p),)+| $body
+        }
+    );
 }
 
 mod app_ui;
-mod global_search_ui;
-mod packfile_contents_ui;
+mod background_thread;
 mod command_palette;
 mod communications;
-mod background_thread;
 mod ffi;
+mod global_search_ui;
 mod locale;
 mod mymod_ui;
 mod network_thread;
 mod pack_tree;
+mod packfile_contents_ui;
 mod packedfile_views;
 mod shortcuts_ui;
 mod settings_ui;
@@ -109,51 +125,49 @@ lazy_static! {
     };
 
     /// Icons for the PackFile TreeView.
-    static ref TREEVIEW_ICONS: Icons = Icons::new();
+    static ref TREEVIEW_ICONS: Icons = unsafe { Icons::new() };
 
     /// Icons for the `Game Selected` in the TitleBar.
-    static ref GAME_SELECTED_ICONS: GameSelectedIcons = GameSelectedIcons::new();
+    static ref GAME_SELECTED_ICONS: GameSelectedIcons = unsafe { GameSelectedIcons::new() };
 
     /// Bright and dark palettes of colours for Windows.
     /// The dark one is taken from here, with some modifications: https://gist.github.com/QuantumCD/6245215
-    static ref LIGHT_PALETTE: Palette = Palette::new(());
-    static ref DARK_PALETTE: Palette = {
-        let mut palette = Palette::new(());
+    static ref LIGHT_PALETTE: AtomicPtr<QPalette> = unsafe { atomic_from_cpp_box(QPalette::new()) };
+    static ref DARK_PALETTE: AtomicPtr<QPalette> = unsafe {{
+        let mut palette = QPalette::new();
 
         // Base config.
-        palette.set_color((ColorRole::Window, &Color::new((51, 51, 51))));
-        palette.set_color((ColorRole::WindowText, &Color::new((187, 187, 187))));
-        palette.set_color((ColorRole::Base, &Color::new((34, 34, 34))));
-        palette.set_color((ColorRole::AlternateBase, &Color::new((51, 51, 51))));
-        palette.set_color((ColorRole::ToolTipBase, &Color::new((187, 187, 187))));
-        palette.set_color((ColorRole::ToolTipText, &Color::new((187, 187, 187))));
-        palette.set_color((ColorRole::Text, &Color::new((187, 187, 187))));
-        palette.set_color((ColorRole::Button, &Color::new((51, 51, 51))));
-        palette.set_color((ColorRole::ButtonText, &Color::new((187, 187, 187))));
-        palette.set_color((ColorRole::BrightText, &Color::new((255, 0, 0))));
-        palette.set_color((ColorRole::Link, &Color::new((42, 130, 218))));
-
-        palette.set_color((ColorRole::Highlight, &Color::new((42, 130, 218))));
-        palette.set_color((ColorRole::HighlightedText, &Color::new((204, 204, 204))));
+        palette.set_color_2a(ColorRole::Window, &QColor::from_3_int(51, 51, 51));
+        palette.set_color_2a(ColorRole::WindowText, &QColor::from_3_int(187, 187, 187));
+        palette.set_color_2a(ColorRole::Base, &QColor::from_3_int(34, 34, 34));
+        palette.set_color_2a(ColorRole::AlternateBase, &QColor::from_3_int(51, 51, 51));
+        palette.set_color_2a(ColorRole::ToolTipBase, &QColor::from_3_int(187, 187, 187));
+        palette.set_color_2a(ColorRole::ToolTipText, &QColor::from_3_int(187, 187, 187));
+        palette.set_color_2a(ColorRole::Text, &QColor::from_3_int(187, 187, 187));
+        palette.set_color_2a(ColorRole::Button, &QColor::from_3_int(51, 51, 51));
+        palette.set_color_2a(ColorRole::ButtonText, &QColor::from_3_int(187, 187, 187));
+        palette.set_color_2a(ColorRole::BrightText, &QColor::from_3_int(255, 0, 0));
+        palette.set_color_2a(ColorRole::Link, &QColor::from_3_int(42, 130, 218));
+        palette.set_color_2a(ColorRole::Highlight, &QColor::from_3_int(42, 130, 218));
+        palette.set_color_2a(ColorRole::HighlightedText, &QColor::from_3_int(204, 204, 204));
 
         // Disabled config.
-        palette.set_color((ColorGroup::Disabled, ColorRole::Window, &Color::new((34, 34, 34))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::WindowText, &Color::new((85, 85, 85))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::Base, &Color::new((34, 34, 34))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::AlternateBase, &Color::new((34, 34, 34))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::ToolTipBase, &Color::new((85, 85, 85))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::ToolTipText, &Color::new((85, 85, 85))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::Text, &Color::new((85, 85, 85))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::Button, &Color::new((34, 34, 34))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::ButtonText, &Color::new((85, 85, 85))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::BrightText, &Color::new((170, 0, 0))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::Link, &Color::new((42, 130, 218))));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::Window, &QColor::from_3_int(34, 34, 34));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::WindowText, &QColor::from_3_int(85, 85, 85));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::Base, &QColor::from_3_int(34, 34, 34));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::AlternateBase, &QColor::from_3_int(34, 34, 34));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::ToolTipBase, &QColor::from_3_int(85, 85, 85));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::ToolTipText, &QColor::from_3_int(85, 85, 85));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::Text, &QColor::from_3_int(85, 85, 85));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::Button, &QColor::from_3_int(34, 34, 34));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::ButtonText, &QColor::from_3_int(85, 85, 85));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::BrightText, &QColor::from_3_int(170, 0, 0));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::Link, &QColor::from_3_int(42, 130, 218));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::Highlight, &QColor::from_3_int(42, 130, 218));
+        palette.set_color_3a(ColorGroup::Disabled, ColorRole::HighlightedText, &QColor::from_3_int(85, 85, 85));
 
-        palette.set_color((ColorGroup::Disabled, ColorRole::Highlight, &Color::new((42, 130, 218))));
-        palette.set_color((ColorGroup::Disabled, ColorRole::HighlightedText, &Color::new((85, 85, 85))));
-
-        palette
-    };
+        atomic_from_cpp_box(palette)
+    }};
 
     /// Stylesheet used by the dark theme in Windows.
     static ref DARK_STYLESHEET: String = utils::create_dark_theme_stylesheet();
@@ -195,19 +209,18 @@ lazy_static! {
     static ref UI_STATE: UIState = UIState::default();
 
     /// Monospace font, just in case we need it.
-    static ref FONT_MONOSPACE: Font = {
-        let mut font = Font::new(&QString::from_std_str("Monospace"));
-        font.set_style_hint(StyleHint::Monospace);
-        font
+    static ref FONT_MONOSPACE: AtomicPtr<QFont> = {
+        unsafe {
+            let mut font = QFont::from_q_string(&QString::from_std_str("Monospace"));
+            font.set_style_hint_1a(StyleHint::Monospace);
+            atomic_from_cpp_box(font)
+        }
     };
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
 /// in two different places in every update.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// Custom type to deal with QStrings more easely.
-type QString = qt_core::string::String;
 
 /// Main function.
 fn main() {
@@ -230,9 +243,9 @@ fn main() {
     thread::spawn(move || { network_thread::network_loop(); });
 
     // Create the application and start the loop.
-    Application::create_and_exit(|app| {
+    QApplication::init(|app| {
         let slot_holder = Rc::new(RefCell::new(vec![]));
-        let (_ui, _slots) = UI::new(app, &slot_holder);
+        let (_ui, _slots) = unsafe { UI::new(app, &slot_holder) };
 
         // Dirty fix for the schemas. This has to be changed to a proper fix later.
         *SCHEMA.write().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
@@ -361,6 +374,6 @@ fn main() {
 */
 
         // And launch it.
-        Application::exec()
+        unsafe { QApplication::exec() }
     })
 }

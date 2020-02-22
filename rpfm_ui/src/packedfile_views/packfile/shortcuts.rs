@@ -12,9 +12,9 @@
 Module with all the code to setup shortcuts for `PackFileExtraView`.
 !*/
 
-use qt_gui::key_sequence::KeySequence;
+use qt_gui::QKeySequence;
 
-use qt_core::qt::ShortcutContext;
+use qt_core::ShortcutContext;
 
 use super::PackFileExtraView;
 use crate::QString;
@@ -23,12 +23,12 @@ use crate::UI_STATE;
 /// This function setup all the shortcuts used by the actions in the provided `PackFileExtraView` .
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
-pub fn set_shortcuts(ui: &PackFileExtraView) {
+pub unsafe fn set_shortcuts(ui: &mut PackFileExtraView) {
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
-    ui.get_ref_mut_expand_all().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
-    ui.get_ref_mut_collapse_all().set_shortcut(&KeySequence::from_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
+    ui.get_mut_ptr_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
+    ui.get_mut_ptr_collapse_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["collapse_all"])));
 
-    ui.get_ref_mut_expand_all().set_shortcut_context(ShortcutContext::Widget);
-    ui.get_ref_mut_collapse_all().set_shortcut_context(ShortcutContext::Widget);
+    ui.get_mut_ptr_expand_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_collapse_all().set_shortcut_context(ShortcutContext::WidgetShortcut);
 }

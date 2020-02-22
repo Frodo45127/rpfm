@@ -14,10 +14,13 @@ Module with all the submodules for controlling the views of each decodeable Pack
 This module contains the code to manage the views and actions of each decodeable PackedFile View.
 !*/
 
-use qt_widgets::widget::Widget;
-use qt_core::qt::CheckState;
+use qt_widgets::QWidget;
 
-use std::sync::atomic::{AtomicPtr, Ordering};
+use qt_core::CheckState;
+
+use cpp_core::MutPtr;
+
+use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -29,11 +32,13 @@ use rpfm_lib::schema::FieldType;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::ffi::get_text;
+use crate::ffi::get_text_safe;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::QString;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::utils::create_grid_layout_unsafe;
+use crate::utils::atomic_from_mut_ptr;
+use crate::utils::create_grid_layout;
+use crate::utils::mut_ptr_from_atomic;
 use crate::UI_STATE;
 use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
@@ -55,7 +60,7 @@ pub mod text;
 
 /// This struct contains the widget of the view of a PackedFile and his info.
 pub struct PackedFileView {
-    widget: AtomicPtr<Widget>,
+    widget: AtomicPtr<QWidget>,
     is_preview: bool,
     view: View,
     packed_file_type: PackedFileType,
@@ -93,8 +98,9 @@ pub enum TheOneSlot {
 /// Default implementation for `PackedFileView`.
 impl Default for PackedFileView {
     fn default() -> Self {
-        let widget = AtomicPtr::new(Widget::new().into_raw());
-        create_grid_layout_unsafe(widget.load(Ordering::SeqCst));
+        let widget_ptr = unsafe { QWidget::new_0a().into_ptr() };
+        let widget = atomic_from_mut_ptr(widget_ptr);
+        unsafe { create_grid_layout(widget_ptr); }
         let is_preview = false;
         let view = View::None;
         let packed_file_type = PackedFileType::Unknown;
@@ -111,8 +117,8 @@ impl Default for PackedFileView {
 impl PackedFileView {
 
     /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
-    pub fn get_mut_widget(&self) -> *mut Widget {
-        self.widget.load(Ordering::SeqCst)
+    pub fn get_mut_widget(&self) -> MutPtr<QWidget> {
+        mut_ptr_from_atomic(&self.widget)
     }
 
     /// This function returns if the `PackedFileView` is a preview or not.
@@ -131,7 +137,7 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub fn save(&self, path: &[String], global_search_ui: GlobalSearchUI, pack_file_contents_ui: &PackFileContentsUI) -> Result<()> {
+    pub unsafe fn save(&self, path: &[String], mut global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: &mut PackFileContentsUI) -> Result<()> {
 
         // This is a two-step process. First, we take the data from the view into a `DecodedPackedFile` format.
         // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
@@ -139,32 +145,30 @@ impl PackedFileView {
             PackedFileType::DB | PackedFileType::Loc => if let View::Table(view) = self.get_view() {
 
                 let mut entries = vec![];
-                let model = view.get_ref_table_model();
-                for row in 0..model.row_count(()) {
+                let model = view.get_mut_ptr_table_model();
+                for row in 0..model.row_count_0a() {
                     let mut new_row: Vec<DecodedData> = vec![];
                     for (column, field) in view.get_ref_table_definition().fields.iter().enumerate() {
 
                         // Create a new Item.
-                        let item = unsafe {
-                            match field.field_type {
+                        let item = match field.field_type {
 
-                                // This one needs a couple of changes before turning it into an item in the table.
-                                FieldType::Boolean => DecodedData::Boolean(if model.item((row as i32, column as i32)).as_mut().unwrap().check_state() == CheckState::Checked { true } else { false }),
+                            // This one needs a couple of changes before turning it into an item in the table.
+                            FieldType::Boolean => DecodedData::Boolean(if model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked { true } else { false }),
 
-                                // Numbers need parsing, and this can fail.
-                                FieldType::Float => DecodedData::Float(model.item((row as i32, column as i32)).as_mut().unwrap().data(2).to_float()),
-                                FieldType::Integer => DecodedData::Integer(model.item((row as i32, column as i32)).as_mut().unwrap().data(2).to_int()),
-                                FieldType::LongInteger => DecodedData::LongInteger(model.item((row as i32, column as i32)).as_mut().unwrap().data(2).to_long_long()),
+                            // Numbers need parsing, and this can fail.
+                            FieldType::Float => DecodedData::Float(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),
+                            FieldType::Integer => DecodedData::Integer(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
+                            FieldType::LongInteger => DecodedData::LongInteger(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
 
-                                // All these are just normal Strings.
-                                FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
-                                FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
-                                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
-                                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item((row as i32, column as i32)).as_mut().unwrap().text())),
+                            // All these are just normal Strings.
+                            FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                            FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                            FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                            FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
 
-                                // Sequences in the UI are not yet supported.
-                                FieldType::Sequence(_) => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
-                            }
+                            // Sequences in the UI are not yet supported.
+                            FieldType::Sequence(_) => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
                         };
                         new_row.push(item);
                     }
@@ -193,7 +197,7 @@ impl PackedFileView {
             PackedFileType::Text(_) => {
                 if let View::Text(view) = self.get_view() {
                     let mut text = Text::default();
-                    unsafe { text.set_contents(&get_text(view.get_mut_editor()).to_std_string()) };
+                    text.set_contents(&get_text_safe(&mut view.get_mut_editor()).to_std_string());
                     DecodedPackedFile::Text(text)
                 } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) }
             },
@@ -201,9 +205,9 @@ impl PackedFileView {
             // These ones are like very reduced tables.
             PackedFileType::DependencyPackFilesList => if let View::Table(view) = self.get_view() {
                 let mut entries = vec![];
-                let model = view.get_ref_table_model();
-                for row in 0..model.row_count(()) {
-                    let item = unsafe { model.item(row as i32).as_mut().unwrap().text().to_std_string() };
+                let model = view.get_mut_ptr_table_model();
+                for row in 0..model.row_count_0a() {
+                    let item = model.item_1a(row as i32).text().to_std_string();
                     entries.push(item);
                 }
 
@@ -226,7 +230,7 @@ impl PackedFileView {
                 let global_search = UI_STATE.get_global_search();
                 if !global_search.pattern.is_empty() {
                     let path_types = vec![PathType::File(path.to_vec())];
-                    global_search_ui.search_on_path(&pack_file_contents_ui, path_types);
+                    global_search_ui.search_on_path(&mut pack_file_contents_ui, path_types);
                     UI_STATE.set_global_search(&global_search);
                 }
 

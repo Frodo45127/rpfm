@@ -41,7 +41,7 @@ pub enum OperationalMode {
 impl OperationalMode {
 
     /// This function sets the current operational mode of the application, depending on the provided MyMod path.
-    pub fn set_operational_mode(&mut self, app_ui: &AppUI, mymod_path: Option<&PathBuf>) {
+    pub fn set_operational_mode(&mut self, app_ui: &mut AppUI, mymod_path: Option<&PathBuf>) {
         match mymod_path {
 
             // If we received a MyMod path, we enable the MyMod mode with that path.
@@ -57,18 +57,18 @@ impl OperationalMode {
                 *self = OperationalMode::MyMod(game_folder_name, mod_name);
 
                 // Enable all the "MyMod" related actions.
-                unsafe { app_ui.mymod_delete_selected.as_mut().unwrap().set_enabled(true); }
-                unsafe { app_ui.mymod_install.as_mut().unwrap().set_enabled(true); }
-                unsafe { app_ui.mymod_uninstall.as_mut().unwrap().set_enabled(true); }
+                unsafe { app_ui.mymod_delete_selected.set_enabled(true); }
+                unsafe { app_ui.mymod_install.set_enabled(true); }
+                unsafe { app_ui.mymod_uninstall.set_enabled(true); }
             }
 
             // If `None` has been provided, we disable the MyMod mode.
             None => {
                 *self = OperationalMode::Normal;
 
-                unsafe { app_ui.mymod_delete_selected.as_mut().unwrap().set_enabled(false); }
-                unsafe { app_ui.mymod_install.as_mut().unwrap().set_enabled(false); }
-                unsafe { app_ui.mymod_uninstall.as_mut().unwrap().set_enabled(false); }
+                unsafe { app_ui.mymod_delete_selected.set_enabled(false); }
+                unsafe { app_ui.mymod_install.set_enabled(false); }
+                unsafe { app_ui.mymod_uninstall.set_enabled(false); }
             }
         }
     }

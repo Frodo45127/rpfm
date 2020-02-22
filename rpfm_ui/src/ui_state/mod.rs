@@ -131,7 +131,7 @@ impl UIState {
     }
 
     /// This function sets the current operational mode of the application, depending on the provided MyMod path.
-    pub fn set_operational_mode(&self, app_ui: &AppUI, mymod_path: Option<&PathBuf>) {
+    pub fn set_operational_mode(&self, app_ui: &mut AppUI, mymod_path: Option<&PathBuf>) {
         self.operational_mode.write().unwrap().set_operational_mode(app_ui, mymod_path);
     }
 

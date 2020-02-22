@@ -1920,7 +1920,7 @@ impl PackedFileTableView {
 
                             // If we have the dependency stuff enabled, check if it's a valid reference.
                             if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && field.field_is_reference.is_some() {
-                                Self::check_references(&dependency_data, column as i32, item.as_mut_ptr());
+                                Self::check_references(&dependency_data, column as i32, item.into_ptr());
                             }
 
                             // Add the cell to the list.
@@ -3109,7 +3109,7 @@ impl PackedFileTableView {
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && table_definition.fields[index].field_is_reference.is_some() {
-                    Self::check_references(dependency_data, index as i32, item.as_mut_ptr());
+                    Self::check_references(dependency_data, index as i32, item.into_ptr());
                 }
 
                 unsafe { qlist.append_unsafe(&item.into_raw()); }

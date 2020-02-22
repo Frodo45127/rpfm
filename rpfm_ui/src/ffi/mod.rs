@@ -12,53 +12,91 @@
 Module containing the ffi functions used for custom widgets.
 !*/
 
-use qt_widgets::table_view::TableView;
-use qt_widgets::widget::Widget;
+use qt_widgets::QTableView;
+use qt_widgets::QWidget;
 
-use qt_core::abstract_item_model::AbstractItemModel;
-use qt_core::object::Object;
-use qt_core::reg_exp::RegExp;
-use qt_core::sort_filter_proxy_model::SortFilterProxyModel;
-use qt_core::string_list::StringList;
+use qt_core::QAbstractItemModel;
+use qt_core::QObject;
+use qt_core::QRegExp;
+use qt_core::QSortFilterProxyModel;
+use qt_core::QString;
+use qt_core::QStringList;
 
-use crate::QString;
+use cpp_core::MutPtr;
+use cpp_core::Ptr;
 
 /// This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
-extern "C" { pub fn new_combobox_item_delegate(table_view: *mut Object, column: i32, list: *const StringList, is_editable: bool, max_lenght: i32); }
+extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_lenght: i32); }
+pub fn new_combobox_item_delegate_safe(table_view: &mut QObject, column: i32, list: Ptr<QStringList>, is_editable: bool, max_lenght: i32) {
+    unsafe { new_combobox_item_delegate(table_view, column, list.as_raw_ptr(), is_editable, max_lenght) }
+}
 
 /// This function changes the default editor widget for I32/64 cells on tables with a numeric one.
-extern "C" { pub fn new_spinbox_item_delegate(table_view: *mut Object, column: i32, integer_type: i32); }
+extern "C" { fn new_spinbox_item_delegate(table_view: *mut QObject, column: i32, integer_type: i32); }
+pub fn new_spinbox_item_delegate_safe(table_view: &mut QObject, column: i32, integer_type: i32) {
+    unsafe { new_spinbox_item_delegate(table_view, column, integer_type) }
+}
 
 /// This function changes the default editor widget for F32 cells on tables with a numeric one.
-extern "C" { pub fn new_doublespinbox_item_delegate(table_view: *mut Object, column: i32); }
+extern "C" { fn new_doublespinbox_item_delegate(table_view: *mut QObject, column: i32); }
+pub fn new_doublespinbox_item_delegate_safe(table_view: &mut QObject, column: i32) {
+    unsafe { new_doublespinbox_item_delegate(table_view, column) }
+}
 
 /// This function changes the default editor widget for String cells, to ensure the provided data is valid for the schema..
-extern "C" { pub fn new_qstring_item_delegate(table_view: *mut Object, column: i32, max_lenght: i32); }
+extern "C" { fn new_qstring_item_delegate(table_view: *mut QObject, column: i32, max_lenght: i32); }
+pub fn new_qstring_item_delegate_safe(table_view: &mut QObject, column: i32, max_lenght: i32) {
+    unsafe { new_qstring_item_delegate(table_view, column, max_lenght) }
+}
 
 /// This function setup the special filter used for the PackFile Contents `TreeView`.
-extern "C" { pub fn new_treeview_filter(parent: *mut Object) -> *mut SortFilterProxyModel; }
+extern "C" { fn new_treeview_filter(parent: *mut QObject) -> *mut QSortFilterProxyModel; }
+pub fn new_treeview_filter_safe(parent: &mut QObject) -> MutPtr<QSortFilterProxyModel> {
+    unsafe { MutPtr::from_raw(new_treeview_filter(parent)) }
+}
 
 /// This function triggers the special filter used for the PackFile Contents `TreeView`. It has to be triggered here to work properly.
-extern "C" { pub fn trigger_treeview_filter(filter: *mut SortFilterProxyModel, pattern: *mut RegExp); }
+extern "C" { fn trigger_treeview_filter(filter: *mut QSortFilterProxyModel, pattern: *mut QRegExp); }
+pub fn trigger_treeview_filter_safe(filter: &mut QSortFilterProxyModel, pattern: &mut QRegExp) {
+    unsafe { trigger_treeview_filter(filter, pattern); }
+}
 
 /// This function allows you to create a table capable of freezing columns.
-extern "C" { pub fn new_tableview_frozen(model: *mut AbstractItemModel, frozen_table: *mut TableView) -> *mut TableView; }
+extern "C" { fn new_tableview_frozen(model: *mut QAbstractItemModel, frozen_table: *mut QTableView) -> *mut QTableView; }
+pub fn new_tableview_frozen_safe(model: &mut QAbstractItemModel, frozen_table: &mut QTableView) -> MutPtr<QTableView> {
+    unsafe { MutPtr::from_raw(new_tableview_frozen(model, frozen_table)) }
+}
 
 /// This function allow us to create a properly sized TableView for the Command Palette.
-extern "C" { pub fn new_tableview_command_palette() -> *mut TableView; }
+extern "C" { fn new_tableview_command_palette() -> *mut QTableView; }
+pub fn new_tableview_command_palette_safe() -> MutPtr<QTableView> {
+    unsafe { MutPtr::from_raw(new_tableview_command_palette()) }
+}
 
 //---------------------------------------------------------------------------//
 // KTextEditor stuff.
 //---------------------------------------------------------------------------//
 
 /// This function allow us to create a complete KTextEditor.
-extern "C" { pub fn new_text_editor(parent: *mut Widget) -> *mut Widget; }
+extern "C" { fn new_text_editor(parent: *mut QWidget) -> *mut QWidget; }
+pub fn new_text_editor_safe(parent: &mut QWidget) -> MutPtr<QWidget> {
+    unsafe { MutPtr::from_raw(new_text_editor(parent)) }
+}
 
 /// This function allow us to get the text from the provided KTextEditor.
-extern "C" { pub fn get_text(document: *mut Widget) -> QString; }
+extern "C" { fn get_text(document: *mut QWidget) -> QString; }
+pub fn get_text_safe(document: &mut QWidget) -> QString {
+    unsafe { get_text(document) }
+}
 
 /// This function allow us to set the text of  the provided KTextEditor.
-extern "C" { pub fn set_text(document: *mut Widget, string: *mut QString, highlighting_mode: *mut QString); }
+extern "C" { fn set_text(document: *mut QWidget, string: *mut QString, highlighting_mode: *mut QString); }
+pub fn set_text_safe(document: &mut QWidget, string: &mut QString, highlighting_mode: &mut QString) {
+    unsafe { set_text(document, string, highlighting_mode) }
+}
 
 /// This function triggers the config dialog for the KTextEditor.
-extern "C" { pub fn open_text_editor_config(parent: *mut Widget); }
+extern "C" { fn open_text_editor_config(parent: *mut QWidget); }
+pub fn open_text_editor_config_safe(parent: &mut QWidget) {
+    unsafe { open_text_editor_config(parent) }
+}

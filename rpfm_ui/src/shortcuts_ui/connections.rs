@@ -14,8 +14,6 @@ Module with all the code to connect `ShortcutsUI` signals with their correspondi
 This module is, and should stay, private, as it's only glue between the `ShortcutsUI` and `ShortcutsUISlots` structs.
 !*/
 
-use qt_core::connection::Signal;
-
 use super::{ShortcutsUI, slots::ShortcutsUISlots};
 
 /// This function connects all the actions from the provided `ShortcutsUI` with their slots in `ShortcutsUISlots`.
@@ -23,7 +21,7 @@ use super::{ShortcutsUI, slots::ShortcutsUISlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
 pub fn set_connections(ui: &ShortcutsUI, slots: &ShortcutsUISlots) {
-    unsafe { ui.restore_default_button.as_mut().unwrap().signals().released().connect(&slots.restore_default); }
-    unsafe { ui.cancel_button.as_mut().unwrap().signals().released().connect(&ui.dialog.as_mut().unwrap().slots().close()); }
-    unsafe { ui.accept_button.as_mut().unwrap().signals().released().connect(&ui.dialog.as_mut().unwrap().slots().accept()); }
+    unsafe { ui.restore_default_button.released().connect(&slots.restore_default); }
+    unsafe { ui.cancel_button.released().connect(ui.dialog.slot_close()); }
+    unsafe { ui.accept_button.released().connect(ui.dialog.slot_accept()); }
 }
