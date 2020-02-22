@@ -107,7 +107,7 @@ impl ShortcutsUI {
         let restore_default_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::RestoreDefaults);
         let cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
-        main_grid.add_widget_5a(&mut button_box, 1, 0, 1, 1);
+        main_grid.add_widget_5a(button_box.into_ptr(), 1, 0, 1, 1);
 
         Self {
             dialog,

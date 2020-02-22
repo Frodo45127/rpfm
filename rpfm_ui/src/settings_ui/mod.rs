@@ -140,15 +140,12 @@ impl SettingsUI {
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
     pub unsafe fn new(app_ui: &mut AppUI) -> Option<Settings> {
         let mut settings_ui = Self::new_with_parent(app_ui.main_window);
-println!("22");
         let slots = SettingsUISlots::new(&mut settings_ui);
-println!("22");
+
         connections::set_connections(&settings_ui, &slots);
-println!("22");
         tips::set_tips(&mut settings_ui);
-println!("22");
         settings_ui.load(&SETTINGS.lock().unwrap());
-println!("22");
+
         if settings_ui.dialog.exec() == 1 { Some(settings_ui.save()) }
         else { None }
     }
@@ -372,7 +369,7 @@ println!("22");
         let button_box_cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let button_box_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
 
-        main_grid.add_widget_5a(&mut button_box, 3, 0, 1, 2);
+        main_grid.add_widget_5a(button_box.into_ptr(), 3, 0, 1, 2);
 
         // Now, we build the `SettingsUI` struct and return it.
         Self {
