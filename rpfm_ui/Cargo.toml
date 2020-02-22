@@ -24,7 +24,7 @@ ron = "^0.5"
 chrono = "^0.4"
 
 # Support for checking/downloading schemas.
-restson = "^0.5"
+restson = "^0.6"
 reqwest = { version = "^0.10", features = ["blocking", "json"] }
 
 # Support for Regex operations.
@@ -43,9 +43,9 @@ qt_widgets = "^0.4"
 meval = "^0.2"
 
 # Translation support.
-fluent = "^0.9"
-fluent-bundle = "^0.9"
-unic-langid = { version = "^0.7", features = ["unic-langid-macros"] }
+fluent = "^0.10"
+fluent-bundle = "^0.10"
+unic-langid = { version = "^0.8", features = ["unic-langid-macros"] }
 
 # Improved multi-thread Support.
 crossbeam = "^0.7"

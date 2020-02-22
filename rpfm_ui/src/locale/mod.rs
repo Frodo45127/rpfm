@@ -57,7 +57,7 @@ impl Locale {
         if lang_info.len() == 2 {
             let lang_id = lang_info[1];
             let locales = Self::get_available_locales()?;
-            let selected_locale = locales.iter().map(|x| x.1.clone()).find(|x| x.get_language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
+            let selected_locale = locales.iter().map(|x| x.1.clone()).find(|x| x.language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
             let locale = format!("{}/{}.ftl", LOCALE_FOLDER, file_name);
 
             // If found, load the entire file to a string.
