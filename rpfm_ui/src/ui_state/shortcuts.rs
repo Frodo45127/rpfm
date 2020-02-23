@@ -141,13 +141,13 @@ impl Shortcuts {
     /// This function creates a new default set of Shortcuts.
     pub fn new() -> Self {
         Self {
-            menu_bar_packfile: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_PACKFILE.iter().map(|(x, y)| (x.to_string(), y.to_string()))),
+            menu_bar_packfile: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_PACKFILE.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
             menu_bar_mymod: BTreeMap::new(),
-            menu_bar_game_selected: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_GAME_SELECTED.iter().map(|(x, y)| (x.to_string(), y.to_string()))),
-            menu_bar_about: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_ABOUT.iter().map(|(x, y)| (x.to_string(), y.to_string()))),
-            packfile_contents_tree_view: BTreeMap::from_iter(SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW.iter().map(|(x, y)| (x.to_string(), y.to_string()))),
-            packed_file_table: BTreeMap::from_iter(SHORTCUTS_PACKED_FILE_TABLE.iter().map(|(x, y)| (x.to_string(), y.to_string()))),
-            packed_file_decoder: BTreeMap::from_iter(SHORTCUTS_PACKED_FILE_DECODER.iter().map(|(x, y)| (x.to_string(), y.to_string()))),
+            menu_bar_game_selected: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_GAME_SELECTED.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
+            menu_bar_about: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_ABOUT.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
+            packfile_contents_tree_view: BTreeMap::from_iter(SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
+            packed_file_table: BTreeMap::from_iter(SHORTCUTS_PACKED_FILE_TABLE.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
+            packed_file_decoder: BTreeMap::from_iter(SHORTCUTS_PACKED_FILE_DECODER.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
         }
     }
 
@@ -166,31 +166,31 @@ impl Shortcuts {
 
         {
             let mut keys_to_delete = vec![];
-            for (key, _) in &shortcuts.menu_bar_packfile { if defaults.menu_bar_packfile.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in shortcuts.menu_bar_packfile.keys() { if defaults.menu_bar_packfile.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.menu_bar_packfile.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in &shortcuts.menu_bar_mymod { if defaults.menu_bar_mymod.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in shortcuts.menu_bar_mymod.keys() { if defaults.menu_bar_mymod.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.menu_bar_mymod.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in &shortcuts.menu_bar_game_selected { if defaults.menu_bar_game_selected.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in shortcuts.menu_bar_game_selected.keys() { if defaults.menu_bar_game_selected.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.menu_bar_game_selected.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in &shortcuts.menu_bar_about { if defaults.menu_bar_about.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in shortcuts.menu_bar_about.keys() { if defaults.menu_bar_about.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.menu_bar_about.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in &shortcuts.packfile_contents_tree_view { if defaults.packfile_contents_tree_view.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in shortcuts.packfile_contents_tree_view.keys() { if defaults.packfile_contents_tree_view.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.packfile_contents_tree_view.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in &shortcuts.packed_file_table { if defaults.packed_file_table.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in shortcuts.packed_file_table.keys() { if defaults.packed_file_table.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.packed_file_table.remove(key); }
 
             let mut keys_to_delete = vec![];
-            for (key, _) in &shortcuts.packed_file_decoder { if defaults.packed_file_decoder.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in shortcuts.packed_file_decoder.keys() { if defaults.packed_file_decoder.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.packed_file_decoder.remove(key); }
         }
 
