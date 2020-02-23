@@ -184,10 +184,10 @@ impl PackedFileTableView {
         let mut row_filter_line_edit = QLineEdit::new();
         let mut row_filter_column_selector = QComboBox::new_0a();
         let mut row_filter_case_sensitive_button = QPushButton::from_q_string(&qtr("table_filter_case_sensitive"));
-        let mut row_filter_column_list = QStandardItemModel::new_0a();
+        let row_filter_column_list = QStandardItemModel::new_0a().into_ptr();
         let mut table_enable_lookups_button = QPushButton::from_q_string(&qtr("table_enable_lookups"));
 
-        row_filter_column_selector.set_model(&mut row_filter_column_list);
+        row_filter_column_selector.set_model(row_filter_column_list);
 
         let mut fields = table_definition.fields.to_vec();
         fields.sort_by(|a, b| a.ca_order.cmp(&b.ca_order));

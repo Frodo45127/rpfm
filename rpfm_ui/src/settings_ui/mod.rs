@@ -238,8 +238,8 @@ impl SettingsUI {
         let mut ui_table_remember_table_state_permanently_checkbox = QCheckBox::new();
         let mut ui_window_start_maximized_checkbox = QCheckBox::new();
 
-        let mut ui_language_model = QStandardItemModel::new_0a();
-        ui_language_combobox.set_model(&mut ui_language_model);
+        let ui_language_model = QStandardItemModel::new_0a().into_ptr();
+        ui_language_combobox.set_model(ui_language_model);
         if let Ok(locales) = Locale::get_available_locales() {
             for (language, _) in locales {
                 ui_language_combobox.add_item_q_string(&QString::from_std_str(&language));
@@ -291,8 +291,8 @@ impl SettingsUI {
         // Create the "Default Game" Label and ComboBox.
         let mut extra_global_default_game_label = QLabel::from_q_string(&qtr("settings_default_game"));
         let mut extra_global_default_game_combobox = QComboBox::new_0a();
-        let mut extra_global_default_game_model = QStandardItemModel::new_0a();
-        extra_global_default_game_combobox.set_model(&mut extra_global_default_game_model);
+        let extra_global_default_game_model = QStandardItemModel::new_0a().into_ptr();
+        extra_global_default_game_combobox.set_model(extra_global_default_game_model);
         for (_, game) in SUPPORTED_GAMES.iter() { extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name)); }
 
         // Create the aditional Labels/CheckBoxes.
