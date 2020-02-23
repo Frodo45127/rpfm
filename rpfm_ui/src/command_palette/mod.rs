@@ -24,6 +24,7 @@ use cpp_core::MutPtr;
 use cpp_core::Ref;
 
 use crate::app_ui::AppUI;
+use crate::ffi::add_to_q_list_safe;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -138,18 +139,18 @@ pub unsafe fn load_actions(app_ui: &mut AppUI, pack_file_contents_ui: &PackFileC
 		.filter(|x| x.0.is_enabled())
 		.map(|x| (x.0.text(), x.1.to_owned())) {
 
-		let action_data = QListOfQStandardItem::new();
+		let action_data = QListOfQStandardItem::new().into_ptr();
 		action_name.remove_q_string(&and);
 
-		let mut action_name = QStandardItem::from_q_string(&action_name);
+		let mut action_name = QStandardItem::from_q_string(&action_name).into_ptr();
 		action_name.set_text_alignment(QFlags::from(AlignmentFlag::AlignVCenter));
 
-		let mut action_shortcut = QStandardItem::from_q_string(&QString::from_std_str(&action_shortcut));
+		let mut action_shortcut = QStandardItem::from_q_string(&QString::from_std_str(&action_shortcut)).into_ptr();
 		action_shortcut.set_text_alignment(QFlags::from(AlignmentFlag::AlignVCenter | AlignmentFlag::AlignRight));
 
-		//action_data.append(action_name);
-		//action_data.append(action_shortcut);
-		app_ui.command_palette_completer_model.append_row_q_list_of_q_standard_item(&action_data);
+		add_to_q_list_safe(action_data, action_name);
+		add_to_q_list_safe(action_data, action_shortcut);
+		app_ui.command_palette_completer_model.append_row_q_list_of_q_standard_item(action_data.as_ref().unwrap());
 	}
 
 	app_ui.command_palette_completer_view.set_column_width(0, 360);

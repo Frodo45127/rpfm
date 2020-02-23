@@ -15,6 +15,9 @@ Module containing the ffi functions used for custom widgets.
 use qt_widgets::QTableView;
 use qt_widgets::QWidget;
 
+use qt_gui::QListOfQStandardItem;
+use qt_gui::QStandardItem;
+
 use qt_core::QAbstractItemModel;
 use qt_core::QObject;
 use qt_core::QRegExp;
@@ -71,6 +74,14 @@ pub fn new_tableview_frozen_safe(model: &mut QAbstractItemModel, frozen_table: &
 extern "C" { fn new_tableview_command_palette() -> *mut QTableView; }
 pub fn new_tableview_command_palette_safe() -> MutPtr<QTableView> {
     unsafe { MutPtr::from_raw(new_tableview_command_palette()) }
+}
+
+/// This function allow us to append items to QListOfQStandardItem.
+///
+/// TODO: Remove when the related bug in the qt bindings gets fixed.
+extern "C" { fn add_to_q_list(list: *mut QListOfQStandardItem, item: *mut QStandardItem); }
+pub fn add_to_q_list_safe(list: MutPtr<QListOfQStandardItem>, item: MutPtr<QStandardItem>) {
+    unsafe { add_to_q_list(list.as_mut_raw_ptr(), item.as_mut_raw_ptr()) }
 }
 
 //---------------------------------------------------------------------------//

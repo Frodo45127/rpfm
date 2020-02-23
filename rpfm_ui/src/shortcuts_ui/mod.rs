@@ -24,8 +24,6 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
-use qt_core::QAbstractItemModel;
-use qt_core::QObject;
 use qt_core::QSortFilterProxyModel;
 use qt_core::Orientation;
 use qt_core::QString;
@@ -34,7 +32,7 @@ use qt_core::QVariant;
 use cpp_core::CastInto;
 use cpp_core::MutPtr;
 
-use crate::ffi::new_treeview_filter_safe;
+use crate::ffi::{add_to_q_list_safe, new_treeview_filter_safe};
 use crate::locale::{qtr, tr};
 use crate::ui_state::shortcuts::Shortcuts;
 use crate::utils::create_grid_layout;
@@ -125,148 +123,162 @@ impl ShortcutsUI {
 
         // Clear all the models, just in case this is a restore default operation.
         self.shortcuts_model.clear();
-/*
+
         // Just add in mass the shortcuts to the Model, separated in sections.
         {
-            let mut menu_bar_packfile_parent = QListOfQStandardItem::new();
-            let mut section = QStandardItem::new();
-            let mut fill1 = QStandardItem::new();
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("menu_bar_packfile_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_packfile.iter() {
-                let mut row_list = QListOfQStandardItem::new();
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(key))); }
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(value))); }
-                unsafe { row_list.first().set_editable(false); }
-                section.append_row_q_list_of_q_standard_item(&row_list);
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
             }
 
-            unsafe { menu_bar_packfile_parent.append_unsafe(&section); }
-            unsafe { menu_bar_packfile_parent.append_unsafe(&fill1); }
-            self.shortcuts_model.append_row_q_list_of_q_standard_item(&menu_bar_packfile_parent);
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
 
         {
-            let mut menu_bar_packfile_parent = QListOfQStandardItem::new();
-            let mut section = QStandardItem::new();
-            let mut fill1 = QStandardItem::new();
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("menu_bar_mymod_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_mymod.iter() {
-                let mut row_list = QListOfQStandardItem::new();
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(key))); }
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(value))); }
-                unsafe { row_list.first().set_editable(false); }
-                section.append_row_q_list_of_q_standard_item(&row_list);
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
             }
 
-            unsafe { menu_bar_packfile_parent.append_unsafe(&section); }
-            unsafe { menu_bar_packfile_parent.append_unsafe(&fill1); }
-            self.shortcuts_model.append_row_q_list_of_q_standard_item(&menu_bar_packfile_parent);
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
 
         {
-            let mut menu_bar_packfile_parent = QListOfQStandardItem::new();
-            let mut section = QStandardItem::new();
-            let mut fill1 = QStandardItem::new();
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("menu_bar_game_selected_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_game_selected.iter() {
-                let mut row_list = QListOfQStandardItem::new();
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(key))); }
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(value))); }
-                unsafe { row_list.first().set_editable(false); }
-                section.append_row_q_list_of_q_standard_item(&row_list);
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
             }
 
-            unsafe { menu_bar_packfile_parent.append_unsafe(&section); }
-            unsafe { menu_bar_packfile_parent.append_unsafe(&fill1); }
-            self.shortcuts_model.append_row_q_list_of_q_standard_item(&menu_bar_packfile_parent);
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
 
         {
-            let mut menu_bar_packfile_parent = QListOfQStandardItem::new();
-            let mut section = QStandardItem::new();
-            let mut fill1 = QStandardItem::new();
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("menu_bar_about_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.menu_bar_about.iter() {
-                let mut row_list = QListOfQStandardItem::new();
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(key))); }
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(value))); }
-                unsafe { row_list.first().set_editable(false); }
-                section.append_row_q_list_of_q_standard_item(&row_list);
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
             }
 
-            unsafe { menu_bar_packfile_parent.append_unsafe(&section); }
-            unsafe { menu_bar_packfile_parent.append_unsafe(&fill1); }
-            self.shortcuts_model.append_row_q_list_of_q_standard_item(&menu_bar_packfile_parent);
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
 
         {
-            let mut menu_bar_packfile_parent = QListOfQStandardItem::new();
-            let mut section = QStandardItem::new();
-            let mut fill1 = QStandardItem::new();
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("packfile_contents_tree_view_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.packfile_contents_tree_view.iter() {
-                let mut row_list = QListOfQStandardItem::new();
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(key))); }
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(value))); }
-                unsafe { row_list.first().set_editable(false); }
-                section.append_row_q_list_of_q_standard_item(&row_list);
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
             }
 
-            unsafe { menu_bar_packfile_parent.append_unsafe(&section); }
-            unsafe { menu_bar_packfile_parent.append_unsafe(&fill1); }
-            self.shortcuts_model.append_row_q_list_of_q_standard_item(&menu_bar_packfile_parent);
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
 
         {
-            let mut menu_bar_packfile_parent = QListOfQStandardItem::new();
-            let mut section = QStandardItem::new();
-            let mut fill1 = QStandardItem::new();
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("packed_file_table_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.packed_file_table.iter() {
-                let mut row_list = QListOfQStandardItem::new();
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(key))); }
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(value))); }
-                unsafe { row_list.first().set_editable(false); }
-                section.append_row_q_list_of_q_standard_item(&row_list);
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
             }
 
-            unsafe { menu_bar_packfile_parent.append_unsafe(&section); }
-            unsafe { menu_bar_packfile_parent.append_unsafe(&fill1); }
-            self.shortcuts_model.append_row_q_list_of_q_standard_item(&menu_bar_packfile_parent);
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
 
         {
-            let mut menu_bar_packfile_parent = QListOfQStandardItem::new();
-            let mut section = QStandardItem::new();
-            let mut fill1 = QStandardItem::new();
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("packed_file_decoder_section"));
             section.set_editable(false);
             fill1.set_editable(false);
             for (key, value) in shortcuts.packed_file_decoder.iter() {
-                let mut row_list = QListOfQStandardItem::new();
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(key))); }
-                unsafe { row_list.append_unsafe(&QStandardItem::from_q_string(&QString::from_std_str(value))); }
-                unsafe { row_list.first().set_editable(false); }
-                section.append_row_q_list_of_q_standard_item(&row_list);
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
             }
 
-            unsafe { menu_bar_packfile_parent.append_unsafe(&section); }
-            unsafe { menu_bar_packfile_parent.append_unsafe(&fill1); }
-            self.shortcuts_model.append_row_q_list_of_q_standard_item(&menu_bar_packfile_parent);
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
-*/
+
         // Rename the columns and expand all.
         self.shortcuts_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("shortcut_section_action")));
         self.shortcuts_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("shortcut_text")));

@@ -293,7 +293,7 @@ impl PackedFileTableView {
                     //Self::check_references(dependency_data, index as i32, item.into_ptr());
                 }
 
-                //unsafe { qlist.append_unsafe(&item); }
+                add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
             }
             table_model.append_row_q_list_of_q_standard_item(&qlist);
         }
@@ -303,7 +303,7 @@ impl PackedFileTableView {
             let mut qlist = QListOfQStandardItem::new();
             for field in &self.table_definition.fields {
                 let item = Self::get_default_item_from_field(field);
-                //unsafe { qlist.append_unsafe(&item); }
+                add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
             }
             table_model.append_row_q_list_of_q_standard_item(&qlist);
             table_model.remove_rows_2a(0, 1);

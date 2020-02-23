@@ -1,4 +1,4 @@
-#-------------------------------------------------
+ç#-------------------------------------------------
 #
 # Project created by QtCreator 2018-09-28T23:28:57
 #
@@ -28,6 +28,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    src/q_list_of_q_standard_item.cpp \
     src/qstring_item_delegate.cpp \
     src/combobox_item_delegate.cpp \
     src/spinbox_item_delegate.cpp \
@@ -48,7 +49,8 @@ HEADERS += \
     include/doublespinbox_item_delegate.h \
     include/text_editor.h \
     include/treeview_filter.h \
-    include/qstring_item_delegate.h
+    include/qstring_item_delegate.h \
+    include/q_list_of_q_standard_item.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

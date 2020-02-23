@@ -53,7 +53,7 @@ use rpfm_lib::global_search::{GlobalSearch, schema::SchemaMatches, table::TableM
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
+use crate::ffi::{add_to_q_list_safe, new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{TheOneSlot, View};
@@ -644,11 +644,11 @@ impl GlobalSearchUI {
             for match_table in matches {
                 if !match_table.matches.is_empty() {
                     let path = match_table.path.join("/");
-                    let qlist_daddy = QListOfQStandardItem::new();
-                    let mut file = QStandardItem::new();
-                    let mut fill1 = QStandardItem::new();
-                    let mut fill2 = QStandardItem::new();
-                    let mut fill3 = QStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new().into_ptr();
+                    let mut file = QStandardItem::new().into_ptr();
+                    let mut fill1 = QStandardItem::new().into_ptr();
+                    let mut fill2 = QStandardItem::new().into_ptr();
+                    let mut fill3 = QStandardItem::new().into_ptr();
                     file.set_text(&QString::from_std_str(&path));
                     file.set_editable(false);
                     fill1.set_editable(false);
@@ -658,13 +658,13 @@ impl GlobalSearchUI {
                     for match_row in &match_table.matches {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new().into_ptr();
 
                         // Create an empty row.
-                        let mut column_name = QStandardItem::new();
-                        let mut column_number = QStandardItem::new();
-                        let mut row = QStandardItem::new();
-                        let mut text = QStandardItem::new();
+                        let mut column_name = QStandardItem::new().into_ptr();
+                        let mut column_number = QStandardItem::new().into_ptr();
+                        let mut row = QStandardItem::new().into_ptr();
+                        let mut text = QStandardItem::new().into_ptr();
 
                         column_name.set_text(&QString::from_std_str(&match_row.column_name));
                         column_number.set_data_2a(&QVariant::from_uint(match_row.column_number), 2);
@@ -677,19 +677,21 @@ impl GlobalSearchUI {
                         text.set_editable(false);
 
                         // Add an empty row to the list.
-                        //unsafe { qlist_boi.append_unsafe(&column_name); }
-                        //unsafe { qlist_boi.append_unsafe(&row); }
-                        //unsafe { qlist_boi.append_unsafe(&text); }
-                        //unsafe { qlist_boi.append_unsafe(&column_number); }
+                        add_to_q_list_safe(qlist_boi, column_name);
+                        add_to_q_list_safe(qlist_boi, row);
+                        add_to_q_list_safe(qlist_boi, text);
+                        add_to_q_list_safe(qlist_boi, column_number);
 
                         // Append the new row.
-                        file.append_row_q_list_of_q_standard_item(&qlist_boi);
+                        file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref().unwrap());
                     }
-                    //unsafe { qlist_daddy.append_unsafe(&file); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill1); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill2); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill3); }
-                    model.append_row_q_list_of_q_standard_item(&qlist_daddy);
+
+                    add_to_q_list_safe(qlist_daddy, file);
+                    add_to_q_list_safe(qlist_daddy, fill1);
+                    add_to_q_list_safe(qlist_daddy, fill2);
+                    add_to_q_list_safe(qlist_daddy, fill3);
+
+                    model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref().unwrap());
                 }
             }
 
@@ -711,11 +713,11 @@ impl GlobalSearchUI {
             for match_text in matches {
                 if !match_text.matches.is_empty() {
                     let path = match_text.path.join("/");
-                    let qlist_daddy = QListOfQStandardItem::new();
-                    let mut file = QStandardItem::new();
-                    let mut fill1 = QStandardItem::new();
-                    let mut fill2 = QStandardItem::new();
-                    let mut fill3 = QStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new().into_ptr();
+                    let mut file = QStandardItem::new().into_ptr();
+                    let mut fill1 = QStandardItem::new().into_ptr();
+                    let mut fill2 = QStandardItem::new().into_ptr();
+                    let mut fill3 = QStandardItem::new().into_ptr();
                     file.set_text(&QString::from_std_str(&path));
                     file.set_editable(false);
                     fill1.set_editable(false);
@@ -725,13 +727,13 @@ impl GlobalSearchUI {
                     for match_row in &match_text.matches {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new().into_ptr();
 
                         // Create an empty row.
-                        let mut text = QStandardItem::new();
-                        let mut row = QStandardItem::new();
-                        let mut column = QStandardItem::new();
-                        let mut len = QStandardItem::new();
+                        let mut text = QStandardItem::new().into_ptr();
+                        let mut row = QStandardItem::new().into_ptr();
+                        let mut column = QStandardItem::new().into_ptr();
+                        let mut len = QStandardItem::new().into_ptr();
 
                         text.set_text(&QString::from_std_str(&match_row.text));
                         row.set_data_2a(&QVariant::from_u64(match_row.row + 1), 2);
@@ -744,19 +746,19 @@ impl GlobalSearchUI {
                         len.set_editable(false);
 
                         // Add an empty row to the list.
-                        //unsafe { qlist_boi.append_unsafe(&text); }
-                        //unsafe { qlist_boi.append_unsafe(&row); }
-                        //unsafe { qlist_boi.append_unsafe(&column); }
-                        //unsafe { qlist_boi.append_unsafe(&len); }
+                        add_to_q_list_safe(qlist_boi, text);
+                        add_to_q_list_safe(qlist_boi, row);
+                        add_to_q_list_safe(qlist_boi, column);
+                        add_to_q_list_safe(qlist_boi, len);
 
                         // Append the new row.
-                        file.append_row_q_list_of_q_standard_item(&qlist_boi);
+                        file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref().unwrap());
                     }
-                    //unsafe { qlist_daddy.append_unsafe(&file); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill1); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill2); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill3); }
-                    model.append_row_q_list_of_q_standard_item(&qlist_daddy);
+                    add_to_q_list_safe(qlist_daddy, file);
+                    add_to_q_list_safe(qlist_daddy, fill1);
+                    add_to_q_list_safe(qlist_daddy, fill2);
+                    add_to_q_list_safe(qlist_daddy, fill3);
+                    model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref().unwrap());
                 }
             }
 
@@ -780,10 +782,10 @@ impl GlobalSearchUI {
 
             for match_schema in matches {
                 if !match_schema.matches.is_empty() {
-                    let qlist_daddy = QListOfQStandardItem::new();
-                    let mut versioned_file = QStandardItem::new();
-                    let mut fill1 = QStandardItem::new();
-                    let mut fill2 = QStandardItem::new();
+                    let qlist_daddy = QListOfQStandardItem::new().into_ptr();
+                    let mut versioned_file = QStandardItem::new().into_ptr();
+                    let mut fill1 = QStandardItem::new().into_ptr();
+                    let mut fill2 = QStandardItem::new().into_ptr();
 
                     let name = if let Some(ref name) = match_schema.versioned_file_name {
                         format!("{}/{}", match_schema.versioned_file_type, name)
@@ -797,12 +799,12 @@ impl GlobalSearchUI {
                     for match_row in &match_schema.matches {
 
                         // Create a new list of StandardItem.
-                        let qlist_boi = QListOfQStandardItem::new();
+                        let qlist_boi = QListOfQStandardItem::new().into_ptr();
 
                         // Create an empty row.
-                        let mut name = QStandardItem::new();
-                        let mut version = QStandardItem::new();
-                        let mut column = QStandardItem::new();
+                        let mut name = QStandardItem::new().into_ptr();
+                        let mut version = QStandardItem::new().into_ptr();
+                        let mut column = QStandardItem::new().into_ptr();
 
                         name.set_text(&QString::from_std_str(&match_row.name));
                         version.set_data_2a(&QVariant::from_int(match_row.version), 2);
@@ -813,17 +815,19 @@ impl GlobalSearchUI {
                         column.set_editable(false);
 
                         // Add an empty row to the list.
-                        //unsafe { qlist_boi.append_unsafe(&name); }
-                        //unsafe { qlist_boi.append_unsafe(&version); }
-                        //unsafe { qlist_boi.append_unsafe(&column); }
+                        add_to_q_list_safe(qlist_boi, name);
+                        add_to_q_list_safe(qlist_boi, version);
+                        add_to_q_list_safe(qlist_boi, column);
 
                         // Append the new row.
-                        versioned_file.append_row_q_list_of_q_standard_item(&qlist_boi);
+                        versioned_file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref().unwrap());
                     }
-                    //unsafe { qlist_daddy.append_unsafe(&versioned_file); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill1); }
-                    //unsafe { qlist_daddy.append_unsafe(&fill2); }
-                    model.append_row_q_list_of_q_standard_item(&qlist_daddy);
+
+                    add_to_q_list_safe(qlist_daddy, versioned_file);
+                    add_to_q_list_safe(qlist_daddy, fill1);
+                    add_to_q_list_safe(qlist_daddy, fill2);
+
+                    model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref().unwrap());
                 }
             }
 

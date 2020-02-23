@@ -153,9 +153,9 @@ impl PackFileContentsUI {
         let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
 
         // Create a little frame with some instructions.
-        let mut instructions_frame = QGroupBox::from_q_string(&qtr("rename_selection_instructions")).into_ptr();
+        let instructions_frame = QGroupBox::from_q_string(&qtr("rename_selection_instructions")).into_ptr();
         let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
-        let mut instructions_label = QLabel::from_q_string(&QString::from_std_str(
+        let instructions_label = QLabel::from_q_string(&QString::from_std_str(
             "\
     It's easy, but you'll not understand it without an example, so here it's one:
      - Your files/folders says 'you' and 'I'.

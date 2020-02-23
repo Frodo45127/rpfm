@@ -932,7 +932,7 @@ impl PackTree for MutPtr<QTreeView> {
                             file.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                             let icon_type = IconType::File(packed_file.path.to_vec());
                             icon_type.set_icon_to_item_safe(&mut file);
-                            parent.append_row_q_standard_item(&mut file);
+                            parent.append_row_q_standard_item(file.into_ptr());
                         }
 
                         // If it's a folder, we check first if it's already in the TreeView using the following
@@ -973,7 +973,7 @@ impl PackTree for MutPtr<QTreeView> {
                                 folder.set_data_2a(&QVariant::from_int(ITEM_STATUS_PRISTINE), ITEM_STATUS);
                                 let icon_type = IconType::Folder;
                                 icon_type.set_icon_to_item_safe(&mut folder);
-                                parent.append_row_q_standard_item(&mut folder);
+                                parent.append_row_q_standard_item(folder.into_ptr());
 
                                 // This is our parent now.
                                 let index = parent.row_count() - 1;
