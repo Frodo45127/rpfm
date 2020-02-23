@@ -24,14 +24,10 @@ use qt_widgets::QLineEdit;
 use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QPushButton;
 use qt_widgets::QTreeView;
-use qt_widgets::QWidget;
+
 
 use qt_gui::QStandardItemModel;
-
-use qt_core::QAbstractItemModel;
-use qt_core::Signal;
 use qt_core::QFlags;
-use qt_core::QObject;
 use qt_core::QRegExp;
 use qt_core::{SlotOfBool, SlotOfQString};
 use qt_core::QSortFilterProxyModel;
@@ -632,7 +628,7 @@ impl AppUI {
                 }));
 
                 // Connect the slot and store it.
-                unsafe { open_mod_action.triggered().connect(&slot_open_mod); }
+                open_mod_action.triggered().connect(&slot_open_mod);
                 open_from_slots.push(slot_open_mod);
             }
         }

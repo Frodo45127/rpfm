@@ -71,8 +71,8 @@ pub enum Command {
     /// This command is used when we want to reset the open `PackFile` to his original state.
     ResetPackFile,
 
-    /// This command is used when we want to reset the extra `PackFile` (the one used for `Add from PackFile`) to his original state.
-    ResetPackFileExtra,
+    // This command is used when we want to reset the extra `PackFile` (the one used for `Add from PackFile`) to his original state.
+    //ResetPackFileExtra,
 
     /// This command is used when we want to create a new `PackFile`.
     NewPackFile,
@@ -311,8 +311,8 @@ pub enum Response {
     /// Generic response for situations of success.
     Success,
 
-    /// Generic response for situations where the action was cancelled.
-    Cancel,
+    // Generic response for situations where the action was cancelled.
+    //Cancel,
 
     /// Generic response for situations that returned an error.
     Error(Error),
@@ -320,14 +320,14 @@ pub enum Response {
     /// Response to return (bool).
     Bool(bool),
 
-    /// Response to return (u32).
-    U32(u32),
+    // Response to return (u32).
+    //U32(u32),
 
     /// Response to return (i32).
     I32(i32),
 
-    /// Response to return (i64).
-    I64(i64),
+    // Response to return (i64).
+    //I64(i64),
 
     /// Response to return (PathBuf).
     PathBuf(PathBuf),
@@ -338,8 +338,8 @@ pub enum Response {
     /// Response to return (String)
     String(String),
 
-    /// Response to return (String, i64, Vec<Vec<String>>).
-    StringI64VecVecString((String, i64, Vec<Vec<String>>)),
+    // Response to return (String, i64, Vec<Vec<String>>).
+    //StringI64VecVecString((String, i64, Vec<Vec<String>>)),
 
     /// Response to return (PackFileInfo, Vec<PackedFileInfo>).
     PackFileInfoVecPackedFileInfo((PackFileInfo, Vec<PackedFileInfo>)),
@@ -362,14 +362,14 @@ pub enum Response {
     /// Response to return (Vec<PathType>).
     VecPathType(Vec<PathType>),
 
-    /// Response to return (Vec<(PathType, String)>).
-    VecPathTypeString(Vec<(PathType, String)>),
+    // Response to return (Vec<(PathType, String)>).
+    //VecPathTypeString(Vec<(PathType, String)>),
 
     /// Response to return (Vec<(PathType, Vec<String>)>).
     VecPathTypeVecString(Vec<(PathType, Vec<String>)>),
 
-    /// Response to return (Vec<PathType>),
-    VecPathTypeVecPathType((Vec<PathType>, Vec<PathType>)),
+    // Response to return (Vec<PathType>),
+    //VecPathTypeVecPathType((Vec<PathType>, Vec<PathType>)),
 
     /// Response to return (String, Vec<Vec<String>>).
     StringVecVecString((String, Vec<Vec<String>>)),
@@ -401,8 +401,8 @@ pub enum Response {
     /// Response to return `Vec<String>`.
     VecString(Vec<String>),
 
-    /// Response to return `(Vec<String>, Vec<PathType>)`.
-    VecStringVecPathType((Vec<String>, Vec<PathType>)),
+    // Response to return `(Vec<String>, Vec<PathType>)`.
+    //VecStringVecPathType((Vec<String>, Vec<PathType>)),
 
     /// Response to return `(i32, i32)`.
     I32I32((i32, i32)),

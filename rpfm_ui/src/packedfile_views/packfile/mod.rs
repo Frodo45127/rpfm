@@ -192,11 +192,6 @@ impl PackFileExtraView {
         mut_ptr_from_atomic(&self.tree_view)
     }
 
-    /// This function returns a mutable reference to the `SortFilterProxyModel` widget.
-    pub fn get_mut_ptr_tree_model_filter(&self) -> MutPtr<QSortFilterProxyModel> {
-        mut_ptr_from_atomic(&self.tree_model_filter)
-    }
-
     /// This function returns a mutable reference to the `Expand All` Action.
     pub fn get_mut_ptr_expand_all(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.expand_all)

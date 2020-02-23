@@ -12,8 +12,6 @@
 Module with the slots for Table Views.
 !*/
 
-use qt_widgets::QWidget;
-
 use qt_core::{SlotOfBool, Slot, SlotOfQString};
 
 use std::cell::RefCell;

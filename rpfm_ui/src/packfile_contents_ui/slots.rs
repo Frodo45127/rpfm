@@ -15,7 +15,6 @@ Module with all the code related to the main `PackFileContentsSlots`.
 use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
 use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
-use qt_widgets::QWidget;
 
 use qt_gui::QCursor;
 

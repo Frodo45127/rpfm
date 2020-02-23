@@ -39,12 +39,14 @@ pub struct PackedFileRigidModelViewSlots {
 impl PackedFileRigidModelViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub unsafe fn new(packed_file_view: PackedFileRigidModelViewRaw, global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: PackFileContentsUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
+    pub unsafe fn new(_packed_file_view: PackedFileRigidModelViewRaw, global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: PackFileContentsUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
 
         // When we want to save the contents of the UI to the backend...
         let save = Slot::new(clone!(packed_file_path => move || {
             if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui);
+                if let Err(_error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui) {
+                    //show_dialog(packed_file_view.get_table_view_primary(), error, false);
+                }
             }
         }));
 

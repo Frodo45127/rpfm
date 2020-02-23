@@ -284,7 +284,7 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Create and configure the 'Command Palette` Dock Widget and all his contents.
-        let command_palette_window_flags = QFlags::from(WindowType::Drawer | WindowType::Window);
+        let command_palette_window_flags = QFlags::from(WindowType::Dialog | WindowType::Sheet);
         let mut command_palette_widget = QDockWidget::from_q_widget_q_flags_window_type(main_window, command_palette_window_flags);
         let command_palette_inner_widget = QWidget::new_0a().into_ptr();
         let mut command_palette_layout = create_grid_layout(command_palette_inner_widget);

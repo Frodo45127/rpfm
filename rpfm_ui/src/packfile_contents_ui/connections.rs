@@ -14,9 +14,6 @@ Module with all the code to connect `PackFileContentsUI` signals with their corr
 This module is, and should stay, private, as it's only glue between the `PackFileContentsUI` and `PackFileContentsSlots` structs.
 !*/
 
-use qt_widgets::QWidget;
-use qt_core::Signal;
-
 use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 
 /// This function connects all the actions from the provided `PackFileContentsUI` with their slots in `PackFileContentsSlots`.

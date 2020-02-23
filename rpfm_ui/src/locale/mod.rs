@@ -154,6 +154,7 @@ pub fn tr(key: &str) -> String {
 /// replacing certain parts of the translation with the replacements provided.
 ///
 /// If the key doesn't exists, it returns the equivalent from the english localisation. If it fails to find it there too, returns a warning.
+#[allow(unused)]
 pub fn tre(key: &str, replacements: &[&str]) -> String {
     let mut translation = Locale::tr(key);
     replacements.iter().for_each(|x| translation = translation.replacen(REPLACE_SEQUENCE, x, 1));

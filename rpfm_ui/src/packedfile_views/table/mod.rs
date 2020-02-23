@@ -257,7 +257,7 @@ impl PackedFileTableView {
         packed_file_table_view.build_columns(&packed_file_name);
 
         // Set the connections and return success.
-        //connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
+        connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
         packed_file_view.view = View::Table(packed_file_table_view);
         packed_file_view.packed_file_type = packed_file_type;
 
@@ -716,7 +716,7 @@ impl PackedFileTableViewRaw {
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
-    unsafe fn toggle_lookups(&self, table_definition: &Definition, dependency_data: &BTreeMap<i32, Vec<(String, String)>>) {
+    unsafe fn toggle_lookups(&self, _table_definition: &Definition, _dependency_data: &BTreeMap<i32, Vec<(String, String)>>) {
         /*
         if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
             let enable_lookups = unsafe { self.table_enable_lookups_button.is_checked() };
