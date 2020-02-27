@@ -251,11 +251,11 @@ impl GlobalSearchUI {
         // Filters for the matches `TreeViews`.
         let mut filter_matches_db_line_edit = QLineEdit::new();
         let mut filter_matches_db_column_selector = QComboBox::new_0a();
-        let mut filter_matches_db_column_list = QStandardItemModel::new_0a();
+        let filter_matches_db_column_list = QStandardItemModel::new_0a();
         let mut filter_matches_db_case_sensitive_button = QPushButton::from_q_string(&qtr("global_search_case_sensitive"));
 
         filter_matches_db_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_matches_db_column_selector.set_model(&mut filter_matches_db_column_list);
+        filter_matches_db_column_selector.set_model(filter_matches_db_column_list.into_ptr());
         filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_db_column_selector.add_item_q_string(&qtr("gen_loc_row"));
@@ -264,11 +264,11 @@ impl GlobalSearchUI {
 
         let mut filter_matches_loc_line_edit = QLineEdit::new();
         let mut filter_matches_loc_column_selector = QComboBox::new_0a();
-        let mut filter_matches_loc_column_list = QStandardItemModel::new_0a();
+        let filter_matches_loc_column_list = QStandardItemModel::new_0a();
         let mut filter_matches_loc_case_sensitive_button = QPushButton::from_q_string(&qtr("global_search_case_sensitive"));
 
         filter_matches_loc_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_matches_loc_column_selector.set_model(&mut filter_matches_loc_column_list);
+        filter_matches_loc_column_selector.set_model(filter_matches_loc_column_list.into_ptr());
         filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_loc_column_selector.add_item_q_string(&qtr("gen_loc_row"));
@@ -277,11 +277,11 @@ impl GlobalSearchUI {
 
         let mut filter_matches_text_line_edit = QLineEdit::new();
         let mut filter_matches_text_column_selector = QComboBox::new_0a();
-        let mut filter_matches_text_column_list = QStandardItemModel::new_0a();
+        let filter_matches_text_column_list = QStandardItemModel::new_0a();
         let mut filter_matches_text_case_sensitive_button = QPushButton::from_q_string(&qtr("global_search_case_sensitive"));
 
         filter_matches_text_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_matches_text_column_selector.set_model(&mut filter_matches_text_column_list);
+        filter_matches_text_column_selector.set_model(filter_matches_text_column_list.into_ptr());
         filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_text_column_selector.add_item_q_string(&qtr("gen_loc_row"));
@@ -290,11 +290,11 @@ impl GlobalSearchUI {
 
         let mut filter_matches_schema_line_edit = QLineEdit::new();
         let mut filter_matches_schema_column_selector = QComboBox::new_0a();
-        let mut filter_matches_schema_column_list = QStandardItemModel::new_0a();
+        let filter_matches_schema_column_list = QStandardItemModel::new_0a();
         let mut filter_matches_schema_case_sensitive_button = QPushButton::from_q_string(&qtr("global_search_case_sensitive"));
 
         filter_matches_schema_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        filter_matches_schema_column_selector.set_model(&mut filter_matches_schema_column_list);
+        filter_matches_schema_column_selector.set_model(filter_matches_schema_column_list.into_ptr());
         filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_packedfile"));
         filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_column"));
         filter_matches_schema_column_selector.add_item_q_string(&qtr("gen_loc_row"));
