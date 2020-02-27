@@ -106,7 +106,7 @@ impl DecodedPackedFile {
                         let packed_file = DB::read(&data, name, &schema)?;
                         Ok(DecodedPackedFile::DB(packed_file))
                     }
-                    None => Ok(DecodedPackedFile::Unknown),
+                    None => Err(ErrorKind::SchemaNotFound.into()),
                 }
             }
 
@@ -124,7 +124,7 @@ impl DecodedPackedFile {
                         let packed_file = Loc::read(&data, &schema)?;
                         Ok(DecodedPackedFile::Loc(packed_file))
                     }
-                    None => Ok(DecodedPackedFile::Unknown),
+                    None => Err(ErrorKind::SchemaNotFound.into()),
                 }
             }
 
