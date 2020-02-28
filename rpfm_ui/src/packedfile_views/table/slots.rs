@@ -19,6 +19,7 @@ use qt_gui::QCursor;
 use qt_gui::SlotOfQStandardItem;
 
 use qt_core::GlobalColor;
+use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection};
 
@@ -51,6 +52,7 @@ pub struct PackedFileTableViewSlots {
     pub show_context_menu: SlotOfQPoint<'static>,
     pub context_menu_enabler: SlotOfQItemSelectionQItemSelection<'static>,
     pub item_changed: SlotOfQStandardItem<'static>,
+    pub invert_selection: Slot<'static>,
     pub save: Slot<'static>,
     pub undo: Slot<'static>,
     pub redo: Slot<'static>,
@@ -149,6 +151,20 @@ impl PackedFileTableViewSlots {
             }
         ));
 
+        // When we want to invert the selection of the table.
+        let invert_selection = Slot::new(clone!(
+            mut packed_file_view => move || {
+            let rows = packed_file_view.table_filter.row_count_0a();
+            let columns = packed_file_view.table_filter.column_count_0a();
+            if rows > 0 && columns > 0 {
+                let mut selection_model = packed_file_view.table_view_primary.selection_model();
+                let first_item = packed_file_view.table_filter.index_2a(0, 0);
+                let last_item = packed_file_view.table_filter.index_2a(rows - 1, columns - 1);
+                let selection = QItemSelection::new_2a(&first_item, &last_item);
+                selection_model.select_q_item_selection_q_flags_selection_flag(&selection, QFlags::from(SelectionFlag::Toggle));
+            }
+        }));
+
         // When we want to save the contents of the UI to the backend...
         //
         // NOTE: in-edition saves to backend are only triggered when the GlobalSearch has search data, to keep it updated.
@@ -191,6 +207,7 @@ impl PackedFileTableViewSlots {
             show_context_menu,
             context_menu_enabler,
             item_changed,
+            invert_selection,
             save,
             undo,
             redo,

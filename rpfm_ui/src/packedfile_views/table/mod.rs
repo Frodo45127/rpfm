@@ -121,6 +121,7 @@ pub struct PackedFileTableView {
 
     context_menu: AtomicPtr<QMenu>,
     context_menu_enabler: AtomicPtr<QAction>,
+    context_menu_invert_selection: AtomicPtr<QAction>,
     context_menu_undo: AtomicPtr<QAction>,
     context_menu_redo: AtomicPtr<QAction>,
 
@@ -153,6 +154,7 @@ pub struct PackedFileTableViewRaw {
 
     pub context_menu: MutPtr<QMenu>,
     pub context_menu_enabler: MutPtr<QAction>,
+    pub context_menu_invert_selection: MutPtr<QAction>,
     pub context_menu_undo: MutPtr<QAction>,
     pub context_menu_redo: MutPtr<QAction>,
 
@@ -289,9 +291,9 @@ impl PackedFileTableView {
 
         let context_menu_import = context_menu.add_action(&QString::from_std_str("&Import"));
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
-
-        let context_menu_selection_invert = context_menu.add_action(&QString::from_std_str("Inver&t Selection"));
 */
+        let context_menu_invert_selection = context_menu.add_action_q_string(&QString::from_std_str("Inver&t Selection"));
+
         let context_menu_undo = context_menu.add_action_q_string(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action_q_string(&QString::from_std_str("&Redo"));
 
@@ -308,6 +310,7 @@ impl PackedFileTableView {
 
             context_menu,
             context_menu_enabler: context_menu_enabler.into_ptr(),
+            context_menu_invert_selection,
             context_menu_undo,
             context_menu_redo,
 
@@ -340,6 +343,7 @@ impl PackedFileTableView {
 
             context_menu: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu),
             context_menu_enabler: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_enabler),
+            context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
             context_menu_undo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_undo),
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
 
@@ -516,6 +520,11 @@ impl PackedFileTableView {
     /// This function returns a pointer to the filter's LineEdit widget.
     pub fn get_mut_ptr_filter_line_edit(&self) -> MutPtr<QLineEdit> {
         mut_ptr_from_atomic(&self.filter_line_edit)
+    }
+
+    /// This function returns a pointer to the invert selection action.
+    pub fn get_mut_ptr_context_menu_invert_selection(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_invert_selection)
     }
 
     /// This function returns a pointer to the undo action.
