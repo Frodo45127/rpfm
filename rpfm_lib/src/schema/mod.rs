@@ -66,7 +66,7 @@ use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
 use std::cmp::Ordering;
-use std::fs::File;
+use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
 use std::io::{BufReader, Read, Write};
 
@@ -366,8 +366,11 @@ impl Schema {
     /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
     pub fn save(&mut self, schema_file: &str) -> Result<()> {
         let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
-        file_path.push(schema_file);
 
+        // Make sure the path exists to avoid problems with updating schemas.
+        DirBuilder::new().recursive(true).create(&file_path)?;
+
+        file_path.push(schema_file);
         let mut file = File::create(&file_path)?;
         let config = PrettyConfig::default();
 

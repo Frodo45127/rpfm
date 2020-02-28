@@ -111,6 +111,7 @@ update_schema_checker = Update Schema Checker
 update_searching = Searching for updates...
 update_button = &Update
 update_in_prog = <p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>
+update_no_local_schema = <p>No local schemas found. Do you want to download the lastest ones?</p><p><b>NOTE:</b> Schemas are needed for opening tables, locs and other PackedFiles. No schemas means you cannot edit tables.</p>
 
 ## Folder Dialogues
 

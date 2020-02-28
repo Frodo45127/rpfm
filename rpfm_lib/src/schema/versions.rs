@@ -42,6 +42,7 @@ pub struct VersionsFile(BTreeMap<String, u32>);
 #[derive(Debug, Serialize, Deserialize)]
 pub enum APIResponseSchema {
     SuccessNewUpdate(VersionsFile, VersionsFile),
+    SuccessNoLocalUpdate,
     SuccessNoUpdate,
     Error,
 }
@@ -83,7 +84,14 @@ impl VersionsFile {
         let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
         match Self::load() {
             Ok(local) => {
-                let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
+                let remote: Self = if let Ok(string) = blocking::get(&versions_file_url) {
+                    if let Ok(string) = string.text() {
+                        if let Ok(remote) = from_str::<Self>(&string) {
+                            remote
+                        } else { return Ok(APIResponseSchema::Error); }
+                    } else { return Ok(APIResponseSchema::Error); }
+                } else { return Ok(APIResponseSchema::Error); };
+
                 if local == remote { return Ok(APIResponseSchema::SuccessNoUpdate); }
 
                 for (remote_file_name, remote_version) in &remote.0 {
@@ -93,8 +101,17 @@ impl VersionsFile {
                 }
             },
 
-            // If there is no local `VersionsFile`, return an error.
-            Err(_) => return Ok(APIResponseSchema::Error),
+            // If there is no local `VersionsFile`, check if we can get them from the repo.
+            Err(_) => {
+                if let Ok(string) = blocking::get(&versions_file_url) {
+                    if let Ok(string) = string.text() {
+                        if from_str::<Self>(&string).is_ok() {
+                            return Ok(APIResponseSchema::SuccessNoLocalUpdate);
+                        }
+                    }
+                }
+                return Ok(APIResponseSchema::Error);
+            }
         }
 
         // If we reached this place, return a "no update found" response.

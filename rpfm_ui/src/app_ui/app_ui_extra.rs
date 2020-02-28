@@ -57,7 +57,7 @@ use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::qtr;
+use crate::locale::{qtr, tr};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{decoder::*, image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -874,6 +874,11 @@ impl AppUI {
                             message.push_str("<p>Do you want to update the schemas?</p>");
                             message
                         }
+
+                        APIResponseSchema::SuccessNoLocalUpdate => {
+                            update_button.set_enabled(true);
+                            tr("update_no_local_schema")
+                        },
                         APIResponseSchema::SuccessNoUpdate => "<h4>No new schema updates available</h4> <p>More luck next time :)</p>".to_owned(),
                         APIResponseSchema::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
                     }
@@ -887,19 +892,21 @@ impl AppUI {
             dialog.set_text(&QString::from_std_str(message));
             if dialog.exec() == 0 {
                 if let Response::APIResponseSchema(ref response) = response_thread {
-                    if let APIResponseSchema::SuccessNewUpdate(_,_) = response {
+                    match response {
+                        APIResponseSchema::SuccessNewUpdate(_,_) | APIResponseSchema::SuccessNoLocalUpdate => {
+                            CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
 
-                        CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
+                            dialog.show();
+                            dialog.set_text(&qtr("update_in_prog"));
+                            update_button.set_enabled(false);
 
-                        dialog.show();
-                        dialog.set_text(&qtr("update_in_prog"));
-                        update_button.set_enabled(false);
-
-                        match CENTRAL_COMMAND.recv_message_qt_try() {
-                            Response::Success => show_dialog(self.main_window, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
-                            Response::Error(error) => show_dialog(self.main_window, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+                            match CENTRAL_COMMAND.recv_message_qt_try() {
+                                Response::Success => show_dialog(self.main_window, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
+                                Response::Error(error) => show_dialog(self.main_window, error, false),
+                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+                            }
                         }
+                        _ => return
                     }
                 }
             }
@@ -931,6 +938,9 @@ impl AppUI {
                             message.push_str("<p>Do you want to update the schemas?</p>");
                             message
                         }
+                        APIResponseSchema::SuccessNoLocalUpdate => {
+                            tr("update_no_local_schema")
+                        }
                         _ => return
                     }
                 }
@@ -952,19 +962,22 @@ impl AppUI {
             // If we hit "Update", try to update the schemas.
             if dialog.exec() == 0 {
                 if let Response::APIResponseSchema(response) = response_thread {
-                    if let APIResponseSchema::SuccessNewUpdate(_,_) = response {
+                    match response {
+                        APIResponseSchema::SuccessNewUpdate(_,_) | APIResponseSchema::SuccessNoLocalUpdate => {
 
-                        CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
+                            CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
 
-                        dialog.show();
-                        dialog.set_text(&qtr("update_in_prog"));
-                        update_button.set_enabled(false);
+                            dialog.show();
+                            dialog.set_text(&qtr("update_in_prog"));
+                            update_button.set_enabled(false);
 
-                        match CENTRAL_COMMAND.recv_message_qt_try() {
-                            Response::Success => show_dialog(self.main_window, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
-                            Response::Error(error) => show_dialog(self.main_window, error, false),
-                            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            match CENTRAL_COMMAND.recv_message_qt_try() {
+                                Response::Success => show_dialog(self.main_window, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
+                                Response::Error(error) => show_dialog(self.main_window, error, false),
+                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                            }
                         }
+                        _ => return
                     }
                 }
             }
