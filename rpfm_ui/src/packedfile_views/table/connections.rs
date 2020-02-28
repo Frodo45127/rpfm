@@ -22,4 +22,12 @@ use super::{PackedFileTableView, slots::PackedFileTableViewSlots};
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableViewSlots) {
     ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_line_edit);
+
+    ui.get_mut_ptr_table_view_primary().custom_context_menu_requested().connect(&slots.show_context_menu);
+    ui.get_mut_ptr_table_view_frozen().custom_context_menu_requested().connect(&slots.show_context_menu);
+
+    ui.get_mut_ptr_table_model().item_changed().connect(&slots.item_changed);
+    ui.get_mut_ptr_table_view_primary().selection_model().selection_changed().connect(&slots.context_menu_enabler);
+    ui.get_mut_ptr_context_menu_undo().triggered().connect(&slots.undo);
+    ui.get_mut_ptr_context_menu_redo().triggered().connect(&slots.redo);
 }
