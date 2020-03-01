@@ -617,7 +617,7 @@ impl PackedFileTableViewRaw {
                         let entry = table_data.last_mut().unwrap();
                         let data = self.get_escaped_lua_string_from_index(*index);
                         if entry.0.is_none() && self.table_definition.fields[index.column() as usize].is_key {
-                            entry.0 = Some(data.to_string());
+                            entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         entry.1.push(data);
                     }
@@ -628,7 +628,7 @@ impl PackedFileTableViewRaw {
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
                         if entry.0.is_none() && self.table_definition.fields[index.column() as usize].is_key {
-                            entry.0 = Some(data);
+                            entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         table_data.push(entry);
                     }
@@ -638,7 +638,7 @@ impl PackedFileTableViewRaw {
                     let data = self.get_escaped_lua_string_from_index(*index);
                     entry.1.push(data.to_string());
                     if entry.0.is_none() && self.table_definition.fields[index.column() as usize].is_key {
-                        entry.0 = Some(data);
+                        entry.0 = Some(self.escape_string_from_index(*index));
                     }
                     table_data.push(entry);
                 }
@@ -692,9 +692,14 @@ impl PackedFileTableViewRaw {
 
     /// This function turns the data from the provided indexes into LUA compatible strings.
     unsafe fn get_escaped_lua_string_from_index(&self, index: Ref<QModelIndex>) -> String {
+        format!(" [\"{}\"] = {},", self.table_definition.fields[index.column() as usize].name, self.escape_string_from_index(index))
+    }
+
+    /// This function escapes the value inside an index.
+    unsafe fn escape_string_from_index(&self, index: Ref<QModelIndex>) -> String {
         let item = self.table_model.item_from_index(index);
         let fields = &self.table_definition.fields;
-        format!(" [\"{}\"] = {},", fields[index.column() as usize].name,  match fields[index.column() as usize].field_type {
+        match fields[index.column() as usize].field_type {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
             // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
@@ -718,7 +723,7 @@ impl PackedFileTableViewRaw {
             FieldType::OptionalStringU8 |
             FieldType::OptionalStringU16 => format!("\"{}\"", item.text().to_std_string().escape_default().to_string()),
             FieldType::Sequence(_) => "\"Sequence\"".to_owned(),
-        })
+        }
     }
 }
 
