@@ -60,10 +60,12 @@ use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
 use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
 
 use self::slots::PackedFileTableViewSlots;
+use self::raw::*;
 use self::utils::*;
 
 mod connections;
 pub mod slots;
+mod raw;
 mod utils;
 
 // Column default sizes.
@@ -121,6 +123,8 @@ pub struct PackedFileTableView {
 
     context_menu: AtomicPtr<QMenu>,
     context_menu_enabler: AtomicPtr<QAction>,
+    context_menu_copy: AtomicPtr<QAction>,
+    context_menu_copy_as_lua_table: AtomicPtr<QAction>,
     context_menu_invert_selection: AtomicPtr<QAction>,
     context_menu_undo: AtomicPtr<QAction>,
     context_menu_redo: AtomicPtr<QAction>,
@@ -135,35 +139,6 @@ pub struct PackedFileTableView {
     undo_model: AtomicPtr<QStandardItemModel>,
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
-}
-
-/// This struct contains the raw version of each pointer in `PackedFileTableView`, to be used when building the slots.
-///
-/// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
-/// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileTableView`.
-#[derive(Clone)]
-pub struct PackedFileTableViewRaw {
-    pub table_view_primary: MutPtr<QTableView>,
-    pub table_view_frozen: MutPtr<QTableView>,
-    pub table_filter: MutPtr<QSortFilterProxyModel>,
-    pub table_model: MutPtr<QStandardItemModel>,
-    pub table_enable_lookups_button: MutPtr<QPushButton>,
-    pub filter_case_sensitive_button: MutPtr<QPushButton>,
-    pub filter_column_selector: MutPtr<QComboBox>,
-    pub filter_line_edit: MutPtr<QLineEdit>,
-
-    pub context_menu: MutPtr<QMenu>,
-    pub context_menu_enabler: MutPtr<QAction>,
-    pub context_menu_invert_selection: MutPtr<QAction>,
-    pub context_menu_undo: MutPtr<QAction>,
-    pub context_menu_redo: MutPtr<QAction>,
-
-    pub save_lock: Arc<AtomicBool>,
-    pub undo_lock: Arc<AtomicBool>,
-
-    pub undo_model: MutPtr<QStandardItemModel>,
-    pub history_undo: Arc<RwLock<Vec<TableOperations>>>,
-    pub history_redo: Arc<RwLock<Vec<TableOperations>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -276,11 +251,11 @@ impl PackedFileTableView {
         let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
         let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
-
-        let mut context_menu_copy_submenu = Menu::new(&QString::from_std_str("&Copy..."));
-        let context_menu_copy = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy"));
-        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action(&QString::from_std_str("&Copy as &LUA Table"));
-
+*/
+        let mut context_menu_copy_submenu = QMenu::from_q_string(&QString::from_std_str("&Copy..."));
+        let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy"));
+        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy as &LUA Table"));
+/*
         let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
         let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste"));
         let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
@@ -297,6 +272,18 @@ impl PackedFileTableView {
         let context_menu_undo = context_menu.add_action_q_string(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action_q_string(&QString::from_std_str("&Redo"));
 
+        // Insert some separators to space the menu, and the paste submenu.
+        //context_menu.insert_separator(context_menu_search);
+        //context_menu.insert_menu(context_menu_search, context_menu_apply_submenu.into_raw());
+        //context_menu.insert_menu(context_menu_search, context_menu_clone_submenu.into_raw());
+        context_menu.insert_menu(context_menu_invert_selection, context_menu_copy_submenu.into_ptr());
+        //context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw());
+        //context_menu.insert_separator(context_menu_search);
+        //context_menu.insert_separator(context_menu_import);
+        //context_menu.insert_separator(context_menu_sidebar);
+        context_menu.insert_separator(context_menu_undo);
+
+
         // Create the raw Struct and begin
         let packed_file_table_view_raw = PackedFileTableViewRaw {
             table_view_primary: table_view,
@@ -310,9 +297,13 @@ impl PackedFileTableView {
 
             context_menu,
             context_menu_enabler: context_menu_enabler.into_ptr(),
+            context_menu_copy,
+            context_menu_copy_as_lua_table,
             context_menu_invert_selection,
             context_menu_undo,
             context_menu_redo,
+
+            table_definition: table_definition.clone(),
 
             undo_lock,
             save_lock,
@@ -343,6 +334,8 @@ impl PackedFileTableView {
 
             context_menu: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu),
             context_menu_enabler: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_enabler),
+            context_menu_copy: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy),
+            context_menu_copy_as_lua_table: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy_as_lua_table),
             context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
             context_menu_undo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_undo),
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
@@ -418,11 +411,7 @@ impl PackedFileTableView {
 
         // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
         if data.is_empty() {
-            let mut qlist = QListOfQStandardItem::new();
-            for field in &self.table_definition.fields {
-                let item = Self::get_default_item_from_field(field);
-                add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
-            }
+            let qlist = self.get_new_row();
             table_model.append_row_q_list_of_q_standard_item(&qlist);
             table_model.remove_rows_2a(0, 1);
         }
@@ -520,6 +509,16 @@ impl PackedFileTableView {
     /// This function returns a pointer to the filter's LineEdit widget.
     pub fn get_mut_ptr_filter_line_edit(&self) -> MutPtr<QLineEdit> {
         mut_ptr_from_atomic(&self.filter_line_edit)
+    }
+
+    /// This function returns a pointer to the copy action.
+    pub fn get_mut_ptr_context_menu_copy(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_copy)
+    }
+
+        /// This function returns a pointer to the copy as lua table action.
+    pub fn get_mut_ptr_context_menu_copy_as_lua_table(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_copy_as_lua_table)
     }
 
     /// This function returns a pointer to the invert selection action.
@@ -827,451 +826,15 @@ impl PackedFileTableView {
             }
         }
     }
-}
 
-/// Implementation of `PackedFileTableViewRaw`.
-impl PackedFileTableViewRaw {
-
-    unsafe fn context_menu_update(&mut self, table_definition: &Definition) {
-
-        // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
-        let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
-
-        // If we have something selected, enable these actions.
-        if indexes.count_0a() > 0 {
-            //context_menu_clone.set_enabled(true);
-            //context_menu_clone_and_append.set_enabled(true);
-            //context_menu_copy.set_enabled(true);
-            //context_menu_delete.set_enabled(true);
-            //context_menu_rewrite_selection.set_enabled(true);
-/*
-            // The "Apply" actions have to be enabled only when all the indexes are valid for the operation.
-            let mut columns = vec![];
-            for index in 0..indexes.count_0a() {
-                let model_index = indexes.at(index);
-                if model_index.is_valid() { columns.push(model_index.column()); }
-            }
-
-            columns.sort();
-            columns.dedup();
-
-            let mut can_apply = true;
-            for column in &columns {
-                let field_type = &table_definition.fields[*column as usize].field_type;
-                if *field_type != FieldType::Boolean { continue }
-                else { can_apply = false; break }
-            }*/
-            //context_menu_apply_maths_to_selection.set_enabled(can_apply);
+    /// This function returns a new default row.
+    pub unsafe fn get_new_row(&self) -> CppBox<QListOfQStandardItem> {
+        let mut qlist = QListOfQStandardItem::new();
+        for field in &self.table_definition.fields {
+            let item = Self::get_default_item_from_field(field);
+            add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
         }
-
-        // Otherwise, disable them.
-        else {
-            //context_menu_apply_maths_to_selection.set_enabled(false);
-            //context_menu_rewrite_selection.set_enabled(false);
-            //context_menu_clone.set_enabled(false);
-            //context_menu_clone_and_append.set_enabled(false);
-            //context_menu_copy.set_enabled(false);
-            //context_menu_delete.set_enabled(false);
-        }
-
-        if !self.undo_lock.load(Ordering::SeqCst) {
-            self.context_menu_undo.set_enabled(!self.history_undo.read().unwrap().is_empty());
-            self.context_menu_redo.set_enabled(!self.history_redo.read().unwrap().is_empty());
-        }
-
+        qlist
     }
 
-    /// Function to filter the table. If a value is not provided by a slot, we get it from the widget itself.
-    unsafe fn filter_table(&mut self) {
-
-        let mut pattern = QRegExp::new_1a(&self.filter_line_edit.text());
-        self.table_filter.set_filter_key_column(self.filter_column_selector.current_index());
-
-        // Check if the filter should be "Case Sensitive".
-        let case_sensitive = self.filter_case_sensitive_button.is_checked();
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
-
-        // Filter whatever it's in that column by the text we got.
-        self.table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
-    }
-
-    /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
-    unsafe fn toggle_lookups(&self, _table_definition: &Definition, _dependency_data: &BTreeMap<i32, Vec<(String, String)>>) {
-        /*
-        if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
-            let enable_lookups = unsafe { self.table_enable_lookups_button.is_checked() };
-            for (column, field) in table_definition.fields.iter().enumerate() {
-                if let Some(data) = dependency_data.get(&(column as i32)) {
-                    let mut list = QStringList::new(());
-                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append(&QString::from_std_str(x)));
-                    let list: *mut QStringList = &mut list;
-                    unsafe { new_combobox_item_delegate_safe(self.table_view_primary as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
-                    unsafe { new_combobox_item_delegate_safe(self.table_view_frozen as *mut QObject, column as i32, list as *const QStringList, true, field.max_length)};
-                }
-            }
-        }*/
-    }
-
-    /// This function returns a pointer to the Primary TableView widget.
-    pub fn get_table_view_primary(&self) -> MutPtr<QTableView> {
-        self.table_view_primary
-    }
-
-    /// Function to undo/redo an operation in the table.
-    ///
-    /// If undo = true we are undoing. Otherwise we are redoing.
-    unsafe fn undo_redo(&mut self, undo: bool) {
-        let table_view_primary = self.get_table_view_primary();
-        let filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
-        let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
-
-        let (mut history_source, mut history_opposite) = if undo {
-            (self.history_undo.write().unwrap(), self.history_redo.write().unwrap())
-        } else {
-            (self.history_redo.write().unwrap(), self.history_undo.write().unwrap())
-        };
-
-        // Get the last operation in the Undo History, or return if there is none.
-        let operation = if let Some(operation) = history_source.pop() { operation } else { return };
-        match operation {
-            TableOperations::Editing(editions) => {
-
-                // Prepare the redo operation, then do the rest.
-                let mut redo_editions = vec![];
-                editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), atomic_from_mut_ptr((&*model.item_2a((x.0).0, (x.0).1)).clone()))));
-                history_opposite.push(TableOperations::Editing(redo_editions));
-
-                self.undo_lock.store(true, Ordering::SeqCst);
-                self.save_lock.store(true, Ordering::SeqCst);
-                for (index, ((row, column), item)) in editions.iter().enumerate() {
-                    let item = &*mut_ptr_from_atomic(&item);
-                    model.set_item_3a(*row, *column, item.clone());
-
-                    // If we are going to process the last one, unlock the save.
-                    if index == editions.len() - 1 {
-                        self.save_lock.store(false, Ordering::SeqCst);
-                        model.item_2a(*row, *column).set_data_2a(&QVariant::from_int(1i32), 16);
-                        model.item_2a(*row, *column).set_data_2a(&QVariant::new(), 16);
-                    }
-                }
-
-                // Select all the edited items.
-                let mut selection_model = table_view_primary.selection_model();
-                selection_model.clear();
-                for ((row, column),_) in &editions {
-                    let model_index_filtered = filter.map_from_source(&model.index_2a(*row, *column));
-                    if model_index_filtered.is_valid() {
-                        selection_model.select_q_model_index_q_flags_selection_flag(
-                            &model_index_filtered,
-                            QFlags::from(SelectionFlag::Select)
-                        );
-                    }
-                }
-
-                self.undo_lock.store(false, Ordering::SeqCst);
-
-                // We have to manually update these from the context menu due to RwLock deadlocks.
-                if undo {
-                    self.context_menu_undo.set_enabled(!history_source.is_empty());
-                    self.context_menu_redo.set_enabled(!history_opposite.is_empty());
-                }
-                else {
-                    self.context_menu_redo.set_enabled(!history_source.is_empty());
-                    self.context_menu_undo.set_enabled(!history_opposite.is_empty());
-                }
-            }
-/*
-            // This action is special and we have to manually trigger a save for it.
-            // This actions if for undoing "add rows" actions. It deletes the stored rows.
-            // NOTE: the rows list must ALWAYS be in 9->1 order. Otherwise this breaks.
-            TableOperations::AddRows(rows) => {
-
-                // Split the row list in consecutive rows, get their data, and remove them in batches.
-                let mut rows_splitted = vec![];
-                let mut current_row_pack = vec![];
-                let mut current_row_index = -2;
-                for (index, row) in rows.iter().enumerate() {
-
-                    let mut items = vec![];
-                    for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
-                        let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
-                        items.push(item.clone());
-                    }
-
-                    if (*row == current_row_index - 1) || index == 0 {
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
-                    }
-                    else {
-                        current_row_pack.reverse();
-                        rows_splitted.push(current_row_pack.to_vec());
-                        current_row_pack.clear();
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
-                    }
-                }
-                current_row_pack.reverse();
-                rows_splitted.push(current_row_pack);
-
-                for row_pack in rows_splitted.iter() {
-                    unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
-                }
-
-                rows_splitted.reverse();
-                history_opposite.push(TableOperations::RemoveRows(rows_splitted));
-
-                Self::save_to_packed_file(
-                    &sender_qt,
-                    &sender_qt_data,
-                    &receiver_qt,
-                    &app_ui,
-                    &packed_file_path,
-                    model,
-                    &global_search_explicit_paths,
-                    update_global_search_stuff,
-                    table_definition,
-                    &mut table_type.borrow_mut(),
-                );
-            }
-
-            // NOTE: the rows list must ALWAYS be in 1->9 order. Otherwise this breaks.
-            TableOperations::RemoveRows(rows) => {
-
-                // First, we re-insert the pack of empty rows. Then, we put the data into them. And repeat with every Pack.
-                for row_pack in &rows {
-                    for (row, items) in row_pack {
-                        let mut qlist = ListStandardItemMutPtr::new(());
-                        unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
-                        unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
-                    }
-                }
-
-                // Create the "redo" action for this one.
-                let mut rows_to_add = vec![];
-                rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
-                rows_to_add.reverse();
-                history_opposite.push(TableOperations::AddRows(rows_to_add));
-
-                // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets, the slower it gets. And it gets very slow.
-                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().clear(); }
-                for row_pack in &rows {
-                    let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
-                    let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
-                    if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
-                        let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
-                        unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
-                    }
-                }
-
-                // Trick to tell the model to update everything.
-                *undo_lock.borrow_mut() = true;
-                unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
-                *undo_lock.borrow_mut() = false;
-            }
-
-            // "rows" has to come in the same format than in RemoveRows.
-            TableOperations::SmartDelete((edits, rows)) => {
-
-                // First, we re-insert each pack of rows.
-                for row_pack in &rows {
-                    for (row, items) in row_pack {
-                        let mut qlist = ListStandardItemMutPtr::new(());
-                        unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
-                        unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
-                    }
-                }
-
-                // Then, restore all the edits and keep their old state for the undo/redo action.
-                *undo_lock.borrow_mut() = true;
-                let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
-                unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-                *undo_lock.borrow_mut() = false;
-
-                // Next, prepare the redo operation.
-                let mut rows_to_add = vec![];
-                rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
-                rows_to_add.reverse();
-                history_opposite.push(TableOperations::RevertSmartDelete((edits_before, rows_to_add)));
-
-                // Select all the edited items/restored rows.
-                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().clear(); }
-                for row_pack in &rows {
-                    let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
-                    let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
-                    if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
-                        let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
-                        unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
-                    }
-                }
-
-                for edit in edits.iter() {
-                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
-                    if model_index_filtered.is_valid() {
-                        unsafe { selection_model.as_mut().unwrap().select((
-                            &model_index_filtered,
-                            Flags::from_enum(SelectionFlag::Select)
-                        )); }
-                    }
-                }
-
-                // Trick to tell the model to update everything.
-                *undo_lock.borrow_mut() = true;
-                unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
-                *undo_lock.borrow_mut() = false;
-            }
-
-            // This action is special and we have to manually trigger a save for it.
-            // "rows" has to come in the same format than in AddRows.
-            TableOperations::RevertSmartDelete((edits, rows)) => {
-
-                // First, redo all the "edits".
-                *undo_lock.borrow_mut() = true;
-                let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
-                unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-                *undo_lock.borrow_mut() = false;
-
-                // Select all the edited items, if any, before removing rows. Otherwise, the selection will not match the editions.
-                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().clear(); }
-                for edit in edits.iter() {
-                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
-                    if model_index_filtered.is_valid() {
-                        unsafe { selection_model.as_mut().unwrap().select((
-                            &model_index_filtered,
-                            Flags::from_enum(SelectionFlag::Select)
-                        )); }
-                    }
-                }
-
-                // Then, remove the restored tables after undoing a "SmartDelete".
-                // Same thing as with "AddRows": split the row list in consecutive rows, get their data, and remove them in batches.
-                let mut rows_splitted = vec![];
-                let mut current_row_pack = vec![];
-                let mut current_row_index = -2;
-                for (index, row) in rows.iter().enumerate() {
-
-                    let mut items = vec![];
-                    for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
-                        let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
-                        items.push(item.clone());
-                    }
-
-                    if (*row == current_row_index - 1) || index == 0 {
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
-                    }
-                    else {
-                        current_row_pack.reverse();
-                        rows_splitted.push(current_row_pack.to_vec());
-                        current_row_pack.clear();
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
-                    }
-                }
-                current_row_pack.reverse();
-                rows_splitted.push(current_row_pack);
-                if rows_splitted[0].is_empty() { rows_splitted.clear(); }
-
-                for row_pack in rows_splitted.iter() {
-                    unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
-                }
-
-                // Prepare the redo operation.
-                rows_splitted.reverse();
-                history_opposite.push(TableOperations::SmartDelete((edits_before, rows_splitted)));
-
-                // Try to save the PackedFile to the main PackFile.
-                Self::save_to_packed_file(
-                    &sender_qt,
-                    &sender_qt_data,
-                    &receiver_qt,
-                    &app_ui,
-                    &packed_file_path,
-                    model,
-                    &global_search_explicit_paths,
-                    update_global_search_stuff,
-                    table_definition,
-                    &mut table_type.borrow_mut(),
-                );
-            }
-
-            // This action is special and we have to manually trigger a save for it.
-            TableOperations::ImportTSV(table_data) => {
-
-                // Prepare the redo operation.
-                {
-                    let table_type = &mut *table_type.borrow_mut();
-                    match table_type {
-                        TableType::DependencyManager(data) => {
-                            history_opposite.push(TableOperations::ImportTSV(data.to_vec()));
-                            *data = table_data;
-                        },
-                        TableType::DB(data) => {
-                            history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                            data.entries = table_data;
-                        },
-                        TableType::LOC(data) => {
-                            history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                            data.entries = table_data;
-                        },
-                    }
-                }
-
-                Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
-                Self::build_columns(table_view, table_view_frozen, model, table_definition, enable_header_popups);
-
-                // If we want to let the columns resize themselfs...
-                if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
-                    unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-                }
-
-                // Try to save the PackedFile to the main PackFile.
-                Self::save_to_packed_file(
-                    &sender_qt,
-                    &sender_qt_data,
-                    &receiver_qt,
-                    &app_ui,
-                    &packed_file_path,
-                    model,
-                    &global_search_explicit_paths,
-                    update_global_search_stuff,
-                    table_definition,
-                    &mut table_type.borrow_mut(),
-                );
-            }
-            TableOperations::Carolina(operations) => {
-                for operation in &operations {
-                    history_source.push((*operation).clone());
-                    Self::undo_redo(
-                        &app_ui,
-                        &dependency_data,
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt,
-                        &packed_file_path,
-                        table_view,
-                        table_view_frozen,
-                        model,
-                        filter_model,
-                        history_source,
-                        history_opposite,
-                        &global_search_explicit_paths,
-                        update_global_search_stuff,
-                        &undo_lock,
-                        &save_lock,
-                        &table_definition,
-                        &table_type,
-                        enable_header_popups.clone()
-                    );
-                }
-                let len = history_opposite.len();
-                let mut edits = history_opposite.drain((len - operations.len())..).collect::<Vec<TableOperations>>();
-                edits.reverse();
-                history_opposite.push(TableOperations::Carolina(edits));
-            }*/
-        }
-    }
 }

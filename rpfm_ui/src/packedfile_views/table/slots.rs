@@ -16,12 +16,16 @@ use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QBrush;
 use qt_gui::QCursor;
+use qt_gui::QGuiApplication;
 use qt_gui::SlotOfQStandardItem;
 
 use qt_core::GlobalColor;
+use qt_core::QModelIndex;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection};
+
+use cpp_core::Ref;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -52,6 +56,8 @@ pub struct PackedFileTableViewSlots {
     pub show_context_menu: SlotOfQPoint<'static>,
     pub context_menu_enabler: SlotOfQItemSelectionQItemSelection<'static>,
     pub item_changed: SlotOfQStandardItem<'static>,
+    pub copy: Slot<'static>,
+    pub copy_as_lua_table: Slot<'static>,
     pub invert_selection: Slot<'static>,
     pub save: Slot<'static>,
     pub undo: Slot<'static>,
@@ -151,6 +157,18 @@ impl PackedFileTableViewSlots {
             }
         ));
 
+        // When you want to copy one or more cells.
+        let copy = Slot::new(clone!(
+            packed_file_view => move || {
+            packed_file_view.copy_selection();
+        }));
+
+        // When you want to copy a table as a lua table.
+        let copy_as_lua_table = Slot::new(clone!(
+            packed_file_view => move || {
+            packed_file_view.copy_selection_as_lua_table();
+        }));
+
         // When we want to invert the selection of the table.
         let invert_selection = Slot::new(clone!(
             mut packed_file_view => move || {
@@ -174,7 +192,7 @@ impl PackedFileTableViewSlots {
             if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
                     if let Err(error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui) {
-                        show_dialog(packed_file_view.get_table_view_primary(), error, false);
+                        show_dialog(packed_file_view.table_view_primary, error, false);
                     }
                 }
             }
@@ -207,6 +225,8 @@ impl PackedFileTableViewSlots {
             show_context_menu,
             context_menu_enabler,
             item_changed,
+            copy,
+            copy_as_lua_table,
             invert_selection,
             save,
             undo,
