@@ -66,6 +66,8 @@ use self::utils::*;
 mod connections;
 pub mod slots;
 mod raw;
+mod shortcuts;
+mod tips;
 mod utils;
 
 // Column default sizes.
@@ -369,6 +371,8 @@ impl PackedFileTableView {
 
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
+        shortcuts::set_shortcuts(&mut packed_file_table_view);
+        tips::set_tips(&mut packed_file_table_view);
         packed_file_view.view = View::Table(packed_file_table_view);
         packed_file_view.packed_file_type = packed_file_type;
 
