@@ -88,7 +88,6 @@ pub enum TheOneSlot {
     RigidModel(PackedFileRigidModelViewSlots),
     Table(PackedFileTableViewSlots),
     Text(PackedFileTextViewSlots),
-    None,
 }
 
 //-------------------------------------------------------------------------------//

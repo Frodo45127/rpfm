@@ -24,9 +24,9 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
-use qt_core::{CaseSensitivity, CheckState};
+use qt_core::CheckState;
 use qt_core::QFlags;
-use qt_core::QRegExp;
+
 use qt_core::QSortFilterProxyModel;
 use qt_core::QStringList;
 use qt_core::QVariant;
@@ -40,7 +40,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use rpfm_error::Result;
 use rpfm_lib::packedfile::PackedFileType;

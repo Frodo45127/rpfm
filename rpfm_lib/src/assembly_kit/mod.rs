@@ -53,11 +53,11 @@ const RAW_DEFINITION_IGNORED_FILES_V2: [&str; 5] = [
     "TWaD_queries",
 ];
 
-const RAW_DEFINITION_EXTENSION_V2: &str = ".xml";
-const RAW_DATA_EXTENSION_V2: &str = RAW_DEFINITION_EXTENSION_V2;
+//const RAW_DEFINITION_EXTENSION_V2: &str = ".xml";
+//const RAW_DATA_EXTENSION_V2: &str = RAW_DEFINITION_EXTENSION_V2;
 
 const RAW_DEFINITION_EXTENSION_V0: &str = ".xsd";
-const RAW_DATA_EXTENSION_V0: &str = RAW_DATA_EXTENSION_V2;
+//const RAW_DATA_EXTENSION_V0: &str = RAW_DATA_EXTENSION_V2;
 
 const BLACKLISTED_TABLES: [&str; 1] = ["translated_texts.xml"];
 

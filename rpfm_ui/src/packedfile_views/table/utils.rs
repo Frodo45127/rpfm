@@ -16,7 +16,6 @@ use qt_widgets::QTableView;
 use qt_gui::QStandardItemModel;
 use qt_core::QModelIndex;
 use qt_core::QSortFilterProxyModel;
-use qt_core::CheckState;
 
 use cpp_core::CppBox;
 use cpp_core::MutPtr;
