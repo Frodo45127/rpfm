@@ -27,6 +27,7 @@ use qt_gui::QStandardItemModel;
 
 use qt_core::CaseSensitivity;
 use qt_core::QFlags;
+use qt_core::QItemSelection;
 use qt_core::QModelIndex;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
@@ -68,6 +69,9 @@ pub struct PackedFileTableViewRaw {
 
     pub context_menu: MutPtr<QMenu>,
     pub context_menu_enabler: MutPtr<QAction>,
+    pub context_menu_add_rows: MutPtr<QAction>,
+    pub context_menu_insert_rows: MutPtr<QAction>,
+    pub context_menu_delete_rows: MutPtr<QAction>,
     pub context_menu_copy: MutPtr<QAction>,
     pub context_menu_copy_as_lua_table: MutPtr<QAction>,
     pub context_menu_invert_selection: MutPtr<QAction>,
@@ -103,7 +107,7 @@ impl PackedFileTableViewRaw {
             //context_menu_clone_and_append.set_enabled(true);
             self.context_menu_copy.set_enabled(true);
             self.context_menu_copy_as_lua_table.set_enabled(true);
-            //context_menu_delete.set_enabled(true);
+            self.context_menu_delete_rows.set_enabled(true);
             //context_menu_rewrite_selection.set_enabled(true);
 
             // The "Apply" actions have to be enabled only when all the indexes are valid for the operation.
@@ -133,7 +137,7 @@ impl PackedFileTableViewRaw {
             //context_menu_clone_and_append.set_enabled(false);
             self.context_menu_copy.set_enabled(false);
             self.context_menu_copy_as_lua_table.set_enabled(false);
-            //context_menu_delete.set_enabled(false);
+            self.context_menu_delete_rows.set_enabled(false);
         }
 
         if !self.undo_lock.load(Ordering::SeqCst) {
@@ -298,107 +302,68 @@ impl PackedFileTableViewRaw {
                 }
 
                 self.undo_lock.store(false, Ordering::SeqCst);
-
-                // We have to manually update these from the context menu due to RwLock deadlocks.
-                if undo {
-                    self.context_menu_undo.set_enabled(!history_source.is_empty());
-                    self.context_menu_redo.set_enabled(!history_opposite.is_empty());
-                }
-                else {
-                    self.context_menu_redo.set_enabled(!history_source.is_empty());
-                    self.context_menu_undo.set_enabled(!history_opposite.is_empty());
-                }
             }
-/*
-            // This action is special and we have to manually trigger a save for it.
+
             // This actions if for undoing "add rows" actions. It deletes the stored rows.
-            // NOTE: the rows list must ALWAYS be in 9->1 order. Otherwise this breaks.
-            TableOperations::AddRows(rows) => {
+            TableOperations::AddRows(mut rows) => {
 
-                // Split the row list in consecutive rows, get their data, and remove them in batches.
-                let mut rows_splitted = vec![];
-                let mut current_row_pack = vec![];
-                let mut current_row_index = -2;
-                for (index, row) in rows.iter().enumerate() {
-
-                    let mut items = vec![];
-                    for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
-                        let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
-                        items.push(item.clone());
-                    }
-
-                    if (*row == current_row_index - 1) || index == 0 {
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
-                    }
-                    else {
-                        current_row_pack.reverse();
-                        rows_splitted.push(current_row_pack.to_vec());
-                        current_row_pack.clear();
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
-                    }
-                }
-                current_row_pack.reverse();
-                rows_splitted.push(current_row_pack);
-
-                for row_pack in rows_splitted.iter() {
-                    unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
-                }
-
-                rows_splitted.reverse();
+                // Sort them 0->9, so we can process them.
+                rows.sort_by(|x, y| x.cmp(y));
+                self.undo_lock.store(true, Ordering::SeqCst);
+                let rows_splitted = delete_rows(self.table_model, &rows);
                 history_opposite.push(TableOperations::RemoveRows(rows_splitted));
-
-                Self::save_to_packed_file(
-                    &sender_qt,
-                    &sender_qt_data,
-                    &receiver_qt,
-                    &app_ui,
-                    &packed_file_path,
-                    model,
-                    &global_search_explicit_paths,
-                    update_global_search_stuff,
-                    table_definition,
-                    &mut table_type.borrow_mut(),
-                );
+                self.undo_lock.store(false, Ordering::SeqCst);
             }
 
             // NOTE: the rows list must ALWAYS be in 1->9 order. Otherwise this breaks.
-            TableOperations::RemoveRows(rows) => {
+            TableOperations::RemoveRows(mut rows) => {
+                self.undo_lock.store(true, Ordering::SeqCst);
+                self.save_lock.store(true, Ordering::SeqCst);
 
-                // First, we re-insert the pack of empty rows. Then, we put the data into them. And repeat with every Pack.
-                for row_pack in &rows {
-                    for (row, items) in row_pack {
-                        let mut qlist = ListStandardItemMutPtr::new(());
-                        unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
-                        unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
+                // Make sure the order of these ones is always correct (9->0).
+                rows.sort_by(|x, y| x.0.cmp(&y.0));
+
+                // First, we re-create the rows and re-insert them.
+                for (index, row_pack) in &rows {
+                    for (offset, row) in row_pack.iter().enumerate() {
+                        let mut qlist = QListOfQStandardItem::new();
+                        row.iter().for_each(|x| add_to_q_list_safe(qlist.as_mut_ptr(), mut_ptr_from_atomic(x)));
+                        model.insert_row_int_q_list_of_q_standard_item(*index + offset as i32, &qlist);
                     }
                 }
 
-                // Create the "redo" action for this one.
-                let mut rows_to_add = vec![];
-                rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
+                // Then, create the redo action for this one.
+                let mut rows_to_add = rows.iter()
+                    .map(|(index, row_pack)|
+                        row_pack.iter().enumerate()
+                            .map(|(x, _)| *index + x as i32)
+                            .collect::<Vec<i32>>()
+                    )
+                    .flatten()
+                    .collect::<Vec<i32>>();
+
                 rows_to_add.reverse();
                 history_opposite.push(TableOperations::AddRows(rows_to_add));
 
-                // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets, the slower it gets. And it gets very slow.
-                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().clear(); }
-                for row_pack in &rows {
-                    let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
-                    let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
+                // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets,
+                // the slower it gets. And it gets very slow on high amounts of lines.
+                let mut selection_model = self.table_view_primary.selection_model();
+                selection_model.clear();
+                for (index, row_pack) in &rows {
+                    let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index, 0));
+                    let final_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index + row_pack.len() as i32, 0));
                     if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
-                        let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
-                        unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
+                        let selection = QItemSelection::new_2a(&initial_model_index_filtered, &final_model_index_filtered);
+                        selection_model.select_q_item_selection_q_flags_selection_flag(&selection, QFlags::from(SelectionFlag::Select | SelectionFlag::Rows));
                     }
                 }
 
                 // Trick to tell the model to update everything.
-                *undo_lock.borrow_mut() = true;
-                unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
-                *undo_lock.borrow_mut() = false;
+                self.save_lock.store(false, Ordering::SeqCst);
+                model.item_2a(0, 0).set_data_2a(&QVariant::new(), 16);
+                self.undo_lock.store(false, Ordering::SeqCst);
             }
-
+/*
             // "rows" has to come in the same format than in RemoveRows.
             TableOperations::SmartDelete((edits, rows)) => {
 
@@ -600,6 +565,16 @@ impl PackedFileTableViewRaw {
                 edits.reverse();
                 history_opposite.push(TableOperations::Carolina(edits));
             }*/
+        }
+
+        // We have to manually update these from the context menu due to RwLock deadlocks.
+        if undo {
+            self.context_menu_undo.set_enabled(!history_source.is_empty());
+            self.context_menu_redo.set_enabled(!history_opposite.is_empty());
+        }
+        else {
+            self.context_menu_redo.set_enabled(!history_source.is_empty());
+            self.context_menu_undo.set_enabled(!history_opposite.is_empty());
         }
     }
 

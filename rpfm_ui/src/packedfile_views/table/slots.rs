@@ -35,6 +35,7 @@ use std::sync::atomic::Ordering;
 use rpfm_lib::schema::Definition;
 use rpfm_lib::SETTINGS;
 
+use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
@@ -56,6 +57,9 @@ pub struct PackedFileTableViewSlots {
     pub show_context_menu: SlotOfQPoint<'static>,
     pub context_menu_enabler: SlotOfQItemSelectionQItemSelection<'static>,
     pub item_changed: SlotOfQStandardItem<'static>,
+    pub add_rows: Slot<'static>,
+    pub insert_rows: Slot<'static>,
+    pub delete_rows: Slot<'static>,
     pub copy: Slot<'static>,
     pub copy_as_lua_table: Slot<'static>,
     pub invert_selection: Slot<'static>,
@@ -157,6 +161,79 @@ impl PackedFileTableViewSlots {
             }
         ));
 
+        // When you want to append a row to the table...
+        let add_rows = Slot::new(clone!(
+            mut packed_file_view => move || {
+
+                // Create the row and append it.
+                let row = get_new_row(&packed_file_view.table_definition);
+                packed_file_view.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
+
+                // Add the operation to the undo history.
+                packed_file_view.history_undo.write().unwrap().push(TableOperations::AddRows(vec![packed_file_view.table_model.row_count_0a() - 1; 1]));
+                packed_file_view.history_redo.write().unwrap().clear();
+                update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+            }
+        ));
+
+        // When you want to insert a row in a specific position of the table...
+        let insert_rows = Slot::new(clone!(
+            mut packed_file_view => move || {
+
+                // Get the indexes ready for battle.
+                let selection = packed_file_view.table_view_primary.selection_model().selection();
+                let indexes = packed_file_view.table_filter.map_selection_to_source(&selection).indexes();
+                let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+                sort_indexes_by_model(&mut indexes_sorted);
+                dedup_indexes_per_row(&mut indexes_sorted);
+                let mut row_numbers = vec![];
+
+                // If nothing is selected, we just append one new row at the end.
+                if indexes_sorted.is_empty() {
+                    let row = get_new_row(&packed_file_view.table_definition);
+                    packed_file_view.table_model.append_row_q_list_of_q_standard_item(&row);
+                    row_numbers.push(packed_file_view.table_model.row_count_0a() - 1);
+                }
+
+                for index in indexes_sorted.iter().rev() {
+                    row_numbers.push(index.row());
+                    let row = get_new_row(&packed_file_view.table_definition);
+                    packed_file_view.table_model.insert_row_int_q_list_of_q_standard_item(index.row(), &row);
+                }
+
+                // The undo mode needs this reversed.
+                row_numbers.reverse();
+                packed_file_view.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
+                packed_file_view.history_redo.write().unwrap().clear();
+                update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+            }
+        ));
+
+        // When you want to delete one or more rows...
+        let delete_rows = Slot::new(clone!(
+            mut packed_file_view => move || {
+
+                // Get all the selected rows.
+                let selection = packed_file_view.table_view_primary.selection_model().selection();
+                let indexes = packed_file_view.table_filter.map_selection_to_source(&selection).indexes();
+                let indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+                let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
+
+                // Dedup the list and reverse it.
+                rows_to_delete.sort();
+                rows_to_delete.dedup();
+                rows_to_delete.reverse();
+                let rows_splitted = delete_rows(packed_file_view.table_model, &rows_to_delete);
+
+                // If we deleted something, try to save the PackedFile to the main PackFile.
+                if !rows_to_delete.is_empty() {
+                    packed_file_view.history_undo.write().unwrap().push(TableOperations::RemoveRows(rows_splitted));
+                    packed_file_view.history_redo.write().unwrap().clear();
+                    update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                }
+            }
+        ));
+
         // When you want to copy one or more cells.
         let copy = Slot::new(clone!(
             packed_file_view => move || {
@@ -225,6 +302,9 @@ impl PackedFileTableViewSlots {
             show_context_menu,
             context_menu_enabler,
             item_changed,
+            add_rows,
+            insert_rows,
+            delete_rows,
             copy,
             copy_as_lua_table,
             invert_selection,

@@ -19,9 +19,9 @@ use super::PackedFileTableView;
 pub unsafe fn set_tips(ui: &mut PackedFileTableView) {
 
     // Status Tips for the actions.
-    //ui.get_mut_ptr_context_menu_add().set_status_tip(&qtr("Add an empty row at the end of the table."));
-    //ui.get_mut_ptr_context_menu_insert().set_status_tip(&qtr("Insert an empty row just above the one selected."));
-    //ui.get_mut_ptr_context_menu_delete().set_status_tip(&qtr("Delete all the selected rows."));
+    ui.get_mut_ptr_context_menu_add_rows().set_status_tip(&qtr("Add an empty row at the end of the table."));
+    ui.get_mut_ptr_context_menu_insert_rows().set_status_tip(&qtr("Insert an empty row just above the one selected."));
+    ui.get_mut_ptr_context_menu_delete_rows().set_status_tip(&qtr("Delete all the selected rows."));
     //ui.get_mut_ptr_context_menu_apply_maths_to_selection().set_status_tip(&qtr("Apply a simple mathematical operation to every cell in the selected cells."));
     //ui.get_mut_ptr_context_menu_rewrite_selection().set_status_tip(&qtr("Rewrite the selected cells using a pattern."));
     //ui.get_mut_ptr_context_menu_clone().set_status_tip(&qtr("Duplicate the selected rows and insert the new rows under the original ones."));

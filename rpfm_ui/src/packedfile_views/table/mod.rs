@@ -38,6 +38,7 @@ use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::{fmt, fmt::Debug};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
@@ -93,11 +94,11 @@ pub enum TableOperations {
     /// Intended for any kind of item editing. Holds a Vec<((row, column), AtomicPtr<item>)>, so we can do this in batches.
     Editing(Vec<((i32, i32), AtomicPtr<QStandardItem>)>),
 
-    // Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
-    //AddRows(Vec<i32>),
+    /// Intended for when adding/inserting rows. It holds a list of positions where the rows where inserted.
+    AddRows(Vec<i32>),
 
-    // Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows data, in consecutive batches.
-    //RemoveRows((Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
+    /// Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows data, in consecutive batches.
+    RemoveRows(Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)>),
 
     // Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
     //SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
@@ -125,6 +126,9 @@ pub struct PackedFileTableView {
 
     context_menu: AtomicPtr<QMenu>,
     context_menu_enabler: AtomicPtr<QAction>,
+    context_menu_add_rows: AtomicPtr<QAction>,
+    context_menu_insert_rows: AtomicPtr<QAction>,
+    context_menu_delete_rows: AtomicPtr<QAction>,
     context_menu_copy: AtomicPtr<QAction>,
     context_menu_copy_as_lua_table: AtomicPtr<QAction>,
     context_menu_invert_selection: AtomicPtr<QAction>,
@@ -242,10 +246,10 @@ impl PackedFileTableView {
         // Create the Contextual Menu for the TableView.
         let context_menu_enabler = QAction::new();
         let mut context_menu = QMenu::new().into_ptr();
-        /*let context_menu_add = context_menu.add_action(&QString::from_std_str("&Add Row"));
-        let context_menu_insert = context_menu.add_action(&QString::from_std_str("&Insert Row"));
-        let context_menu_delete = context_menu.add_action(&QString::from_std_str("&Delete Row"));
-
+        let context_menu_add_rows = context_menu.add_action_q_string(&QString::from_std_str("&Add Row"));
+        let context_menu_insert_rows = context_menu.add_action_q_string(&QString::from_std_str("&Insert Row"));
+        let context_menu_delete_rows = context_menu.add_action_q_string(&QString::from_std_str("&Delete Row"));
+/*
         let mut context_menu_apply_submenu = Menu::new(&QString::from_std_str("A&pply..."));
         let context_menu_apply_maths_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Maths to Selection"));
         let context_menu_rewrite_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Rewrite Selection"));
@@ -299,6 +303,9 @@ impl PackedFileTableView {
 
             context_menu,
             context_menu_enabler: context_menu_enabler.into_ptr(),
+            context_menu_add_rows,
+            context_menu_insert_rows,
+            context_menu_delete_rows,
             context_menu_copy,
             context_menu_copy_as_lua_table,
             context_menu_invert_selection,
@@ -336,6 +343,9 @@ impl PackedFileTableView {
 
             context_menu: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu),
             context_menu_enabler: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_enabler),
+            context_menu_add_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_add_rows),
+            context_menu_insert_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_insert_rows),
+            context_menu_delete_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_delete_rows),
             context_menu_copy: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy),
             context_menu_copy_as_lua_table: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy_as_lua_table),
             context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
@@ -415,7 +425,7 @@ impl PackedFileTableView {
 
         // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
         if data.is_empty() {
-            let qlist = self.get_new_row();
+            let qlist = get_new_row(&self.table_definition);
             table_model.append_row_q_list_of_q_standard_item(&qlist);
             table_model.remove_rows_2a(0, 1);
         }
@@ -515,12 +525,27 @@ impl PackedFileTableView {
         mut_ptr_from_atomic(&self.filter_line_edit)
     }
 
+    /// This function returns a pointer to the add rows action.
+    pub fn get_mut_ptr_context_menu_add_rows(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_add_rows)
+    }
+
+    /// This function returns a pointer to the insert ows action.
+    pub fn get_mut_ptr_context_menu_insert_rows(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_insert_rows)
+    }
+
+    /// This function returns a pointer to the delete rows action.
+    pub fn get_mut_ptr_context_menu_delete_rows(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_delete_rows)
+    }
+
     /// This function returns a pointer to the copy action.
     pub fn get_mut_ptr_context_menu_copy(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_copy)
     }
 
-        /// This function returns a pointer to the copy as lua table action.
+    /// This function returns a pointer to the copy as lua table action.
     pub fn get_mut_ptr_context_menu_copy_as_lua_table(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_copy_as_lua_table)
     }
@@ -641,76 +666,6 @@ impl PackedFileTableView {
         }
     }
 
-    /// This function generates a *Default* StandardItem for the provided field.
-    unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
-        match field.field_type {
-            FieldType::Boolean => {
-                let mut item = QStandardItem::new();
-                item.set_editable(false);
-                item.set_checkable(true);
-                if let Some(default_value) = &field.default_value {
-                    if default_value.to_lowercase() == "true" {
-                        item.set_check_state(CheckState::Checked);
-                    } else {
-                        item.set_check_state(CheckState::Unchecked);
-                    }
-                } else {
-                    item.set_check_state(CheckState::Unchecked);
-                }
-                item
-            }
-            FieldType::Float => {
-                let mut item = QStandardItem::new();
-                if let Some(default_value) = &field.default_value {
-                    if let Ok(default_value) = default_value.parse::<f32>() {
-                        item.set_data_2a(&QVariant::from_float(default_value), 2);
-                    } else {
-                        item.set_data_2a(&QVariant::from_float(0.0f32), 2);
-                    }
-                } else {
-                    item.set_data_2a(&QVariant::from_float(0.0f32), 2);
-                }
-                item
-            },
-            FieldType::Integer => {
-                let mut item = QStandardItem::new();
-                if let Some(default_value) = &field.default_value {
-                    if let Ok(default_value) = default_value.parse::<i32>() {
-                        item.set_data_2a(&QVariant::from_int(default_value), 2);
-                    } else {
-                        item.set_data_2a(&QVariant::from_int(0i32), 2);
-                    }
-                } else {
-                    item.set_data_2a(&QVariant::from_int(0i32), 2);
-                }
-                item
-            },
-            FieldType::LongInteger => {
-                let mut item = QStandardItem::new();
-                if let Some(default_value) = &field.default_value {
-                    if let Ok(default_value) = default_value.parse::<i64>() {
-                        item.set_data_2a(&QVariant::from_i64(default_value), 2);
-                    } else {
-                        item.set_data_2a(&QVariant::from_i64(0i64), 2);
-                    }
-                } else {
-                    item.set_data_2a(&QVariant::from_i64(0i64), 2);
-                }
-                item
-            },
-            FieldType::StringU8 |
-            FieldType::StringU16 |
-            FieldType::OptionalStringU8 |
-            FieldType::OptionalStringU16 => {
-                if let Some(default_value) = &field.default_value {
-                    QStandardItem::from_q_string(&QString::from_std_str(default_value))
-                } else {
-                    QStandardItem::from_q_string(&QString::new())
-                }
-            },
-            FieldType::Sequence(_) => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
-        }
-    }
 
     /// This function generates a StandardItem for the provided DecodedData.
     unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem> {
@@ -830,15 +785,23 @@ impl PackedFileTableView {
             }
         }
     }
+}
 
-    /// This function returns a new default row.
-    pub unsafe fn get_new_row(&self) -> CppBox<QListOfQStandardItem> {
-        let mut qlist = QListOfQStandardItem::new();
-        for field in &self.table_definition.fields {
-            let item = Self::get_default_item_from_field(field);
-            add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
+//----------------------------------------------------------------//
+// Implementations of `TableOperation`.
+//----------------------------------------------------------------//
+
+/// Debug implementation of TableOperations, so we can at least guess what is in the history.
+impl Debug for TableOperations {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TableOperations::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
+            TableOperations::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| format!("{}, ", x)).collect::<String>()),
+            TableOperations::RemoveRows(data) => write!(f, "Re-adding row/s removed in {} batches.", data.len()),
+            //TableOperations::SmartDelete(_) => write!(f, "Smart deletion."),
+            //TableOperations::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
+            //TableOperations::ImportTSV(_) => write!(f, "Imported TSV file."),
+            //TableOperations::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),
         }
-        qlist
     }
-
 }
