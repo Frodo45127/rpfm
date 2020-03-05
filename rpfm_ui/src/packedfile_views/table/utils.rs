@@ -178,7 +178,6 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
     rows_splitted
 }
 
-
 /// This function returns a new default row.
 pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStandardItem> {
     let mut qlist = QListOfQStandardItem::new();
