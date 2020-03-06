@@ -31,18 +31,16 @@ use rpfm_error::{Error, ErrorKind, Result};
 /// This trait allow us to easely decode all kind of data from a `&[u8]`.
 pub trait Decoder {
 
-    /// This function returns a byte from an slice after his bounds have been checked, to avoid `index-out-of-range` errors.
-    ///
-    /// You must provide an slice to read from, and the index of the byte you want to read.
-    fn get_byte_checked(&self, byte: usize) -> Result<&u8>;
-
     /// This function returns an slice after his bounds have been checked, to avoid `index-out-of-range` errors.
     ///
     /// You must provide an slice to read from, the position of the first byte you want to read, and the amount of bytes to read.
-    fn get_bytes_checked(&self, offset:usize, size: usize) -> Result<&Self>;
+    fn get_bytes_checked(&self, offset: usize, size: usize) -> Result<&Self>;
 
     /// This function allows us to decode a boolean from a byte. This is simple: 0 is false, 1 is true. It only uses a byte.
     fn decode_bool(&self, offset: usize) -> Result<bool>;
+
+    /// This function allows us to decode an u8 integer from raw data.
+    fn decode_integer_u8(&self, offset: usize) -> Result<u8>;
 
     /// This function allows us to decode an u16 integer from raw data.
     fn decode_integer_u16(&self, offset: usize) -> Result<u16>;
@@ -52,6 +50,12 @@ pub trait Decoder {
 
     /// This function allows us to decode an u64 integer from raw data.
     fn decode_integer_u64(&self, offset: usize) -> Result<u64>;
+
+    /// This function allows us to decode an i8 integer from raw data.
+    fn decode_integer_i8(&self, offset: usize) -> Result<i8>;
+
+    /// This function allows us to decode an i16 integer from raw data.
+    fn decode_integer_i16(&self, offset: usize) -> Result<i16>;
 
     /// This function allows us to decode an i32 integer from raw data.
     fn decode_integer_i32(&self, offset: usize) -> Result<i32>;
@@ -86,6 +90,9 @@ pub trait Decoder {
     /// This function allows us to decode a boolean from a byte, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_bool(&self, offset: usize, index: &mut usize) -> Result<bool>;
 
+    /// This function allows us to decode an u8 integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_integer_u8(&self, offset: usize, index: &mut usize) -> Result<u8>;
+
     /// This function allows us to decode an u16 integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_u16(&self, offset: usize, index: &mut usize) -> Result<u16>;
 
@@ -94,6 +101,12 @@ pub trait Decoder {
 
     /// This function allows us to decode an u64 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_u64(&self, offset: usize, index: &mut usize) -> Result<u64>;
+
+    /// This function allows us to decode an i8 integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_integer_i8(&self, offset: usize, index: &mut usize) -> Result<i8>;
+
+    /// This function allows us to decode an i16 integer from raw data, moving the provided index to the byte where the next data starts.
+    fn decode_packedfile_integer_i16(&self, offset: usize, index: &mut usize) -> Result<i16>;
 
     /// This function allows us to decode an i32 encoded integer from raw data, moving the provided index to the byte where the next data starts.
     fn decode_packedfile_integer_i32(&self, offset: usize, index: &mut usize) -> Result<i32>;
@@ -129,10 +142,6 @@ pub trait Decoder {
 /// Implementation of trait `Decoder` for `&[u8]`.
 impl Decoder for [u8] {
 
-    fn get_byte_checked(&self, byte: usize) -> Result<&u8> {
-        self.get(byte).ok_or_else(||Error::from(ErrorKind::NotEnoughBytesToDecode))
-    }
-
     fn get_bytes_checked(&self, offset: usize, size: usize) -> Result<&[u8]> {
         if size == 0 { Ok(&[]) }
         else if self.len() >= offset + size {
@@ -147,12 +156,16 @@ impl Decoder for [u8] {
     //---------------------------------------------------------------------------//
 
     fn decode_bool(&self, offset: usize) -> Result<bool> {
-        let value = self.get_byte_checked(offset)?;
+        let value = self.decode_integer_u8(offset)?;
         match value {
             0 => Ok(false),
             1 => Ok(true),
             _ => Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode \"{}\" as boolean.</p>", value)).into()),
         }
+    }
+
+    fn decode_integer_u8(&self, offset: usize) -> Result<u8> {
+        self.get(offset).map(|x| *x).ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u8 number:</p><ul><li>No bytes left to decode.</li></ul>"))))
     }
 
     fn decode_integer_u16(&self, offset: usize) -> Result<u16> {
@@ -168,6 +181,15 @@ impl Decoder for [u8] {
     fn decode_integer_u64(&self, offset: usize) -> Result<u64> {
         if self.len() >= offset + 8 { Ok(LittleEndian::read_u64(&self[offset..])) }
         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u64 number:</p><ul><li>Required bytes: 8.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
+    }
+
+    fn decode_integer_i8(&self, offset: usize) -> Result<i8> {
+        self.get(offset).map(|x| *x as i8).ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i8 number:</p><ul><li>No bytes left to decode.</li></ul>"))))
+    }
+
+    fn decode_integer_i16(&self, offset: usize) -> Result<i16> {
+        if self.len() >= offset + 2 { Ok(LittleEndian::read_i16(&self[offset..])) }
+        else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i16 number:</p><ul><li>Required bytes: 2.</li><li>Provided bytes: {}.</li></ul>", self.len())).into()) }
     }
 
     fn decode_integer_i32(&self, offset: usize) -> Result<i32> {
@@ -234,6 +256,12 @@ impl Decoder for [u8] {
         result
     }
 
+    fn decode_packedfile_integer_u8(&self, offset: usize, index: &mut usize) -> Result<u8> {
+        let result = self.decode_integer_u8(offset);
+        if result.is_ok() { *index += 1; }
+        result
+    }
+
     fn decode_packedfile_integer_u16(&self, offset: usize, index: &mut usize) -> Result<u16> {
         let result = self.decode_integer_u16(offset);
         if result.is_ok() { *index += 2; }
@@ -249,6 +277,18 @@ impl Decoder for [u8] {
     fn decode_packedfile_integer_u64(&self, offset: usize, index: &mut usize) -> Result<u64> {
         let result = self.decode_integer_u64(offset);
         if result.is_ok() { *index += 8; }
+        result
+    }
+
+    fn decode_packedfile_integer_i8(&self, offset: usize, index: &mut usize) -> Result<i8> {
+        let result = self.decode_integer_i8(offset);
+        if result.is_ok() { *index += 1; }
+        result
+    }
+
+    fn decode_packedfile_integer_i16(&self, offset: usize, index: &mut usize) -> Result<i16> {
+        let result = self.decode_integer_i16(offset);
+        if result.is_ok() { *index += 2; }
         result
     }
 

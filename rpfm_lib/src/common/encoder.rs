@@ -41,6 +41,12 @@ pub trait Encoder {
     /// This function allows us to encode an u64 integer into the provided `Vec<u8>`.
     fn encode_integer_u64(&mut self, integer: u64);
 
+    /// This function allows us to encode an i8 integer into the provided `Vec<u8>`.
+    fn encode_integer_i8(&mut self, integer: i8);
+
+    /// This function allows us to encode an i16 integer into the provided `Vec<u8>`.
+    fn encode_integer_i16(&mut self, integer: i16);
+
     /// This function allows us to encode an i32 integer into the provided `Vec<u8>`.
     fn encode_integer_i32(&mut self, integer: i32);
 
@@ -97,6 +103,14 @@ impl Encoder for Vec<u8> {
 
     fn encode_integer_u64(&mut self, integer: u64) {
         self.write_u64::<LittleEndian>(integer).unwrap();
+    }
+
+    fn encode_integer_i8(&mut self, integer: i8) {
+        self.push(integer as u8);
+    }
+
+    fn encode_integer_i16(&mut self, integer: i16) {
+        self.write_i16::<LittleEndian>(integer).unwrap();
     }
 
     fn encode_integer_i32(&mut self, integer: i32) {

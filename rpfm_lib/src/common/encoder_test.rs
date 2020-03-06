@@ -62,6 +62,26 @@ fn test_encode_integer_u64() {
     assert_eq!(data, vec![2, 1, 0, 0, 0, 0, 0, 0]);
 }
 
+/// Test to make sure the i8 integer encoder (`encode_integer_i8()`) works properly.
+#[test]
+fn test_encode_integer_i8() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_i8(-2);
+    assert_eq!(data, vec![254]);
+}
+
+/// Test to make sure the i16 integer encoder (`encode_integer_i16()`) works properly.
+#[test]
+fn test_encode_integer_i16() {
+
+    // Check the encoder works properly.
+    let mut data = vec![];
+    data.encode_integer_i16(-258);
+    assert_eq!(data, vec![254, 254]);
+}
+
 /// Test to make sure the i32 integer encoder (`encode_integer_i32()`) works properly.
 #[test]
 fn test_encode_integer_i32() {
