@@ -39,6 +39,7 @@ use self::slots::PackedFileTextViewSlots;
 pub mod slots;
 
 const CPP: &str = "C++";
+const HTML: &str = "HTML";
 const LUA: &str = "Lua";
 const XML: &str = "XML";
 const PLAIN: &str = "Normal";
@@ -87,6 +88,7 @@ impl PackedFileTextView {
 
         let mut highlighting_mode = match text.get_text_type() {
             TextType::Cpp => QString::from_std_str(CPP),
+            TextType::Html => QString::from_std_str(HTML),
             TextType::Lua => QString::from_std_str(LUA),
             TextType::Xml => QString::from_std_str(XML),
             TextType::Plain => QString::from_std_str(PLAIN),

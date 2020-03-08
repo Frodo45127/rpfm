@@ -35,7 +35,7 @@ pub const EXTENSIONS: [&str; 5] = [
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub struct Image {
 
-    /// The encoding used by the text of the PackedFile.
+    /// The raw_data of the image.
     data: Vec<u8>,
 }
 

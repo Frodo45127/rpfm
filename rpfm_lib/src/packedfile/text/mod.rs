@@ -31,7 +31,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions for files this lib can decode as Text PackedFiles, with their respective type.
-pub const EXTENSIONS: [(&str, TextType); 18] = [
+pub const EXTENSIONS: [(&str, TextType); 20] = [
     (".inl", TextType::Cpp),
     (".lua", TextType::Lua),
     (".xml", TextType::Xml),
@@ -50,6 +50,8 @@ pub const EXTENSIONS: [(&str, TextType); 18] = [
     (".battle_speech_camera", TextType::Plain),
     (".bob", TextType::Plain),
     (".txt", TextType::Plain),
+    (".htm", TextType::Html),
+    (".html", TextType::Html),
 ];
 
 //---------------------------------------------------------------------------//
@@ -85,6 +87,7 @@ pub enum SupportedEncodings {
 /// This is so you can do things depending on the language the text file is written.
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum TextType {
+    Html,
     Xml,
     Lua,
     Cpp,

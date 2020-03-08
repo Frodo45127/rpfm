@@ -110,6 +110,8 @@ impl IconType {
 
                 // If it ends in any of these, it's a plain text PackedFile.
                 else if packed_file_name.ends_with(".lua") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".htm") { &TREEVIEW_ICONS.text_xml }
+                else if packed_file_name.ends_with(".html") { &TREEVIEW_ICONS.text_xml }
                 else if packed_file_name.ends_with(".xml") { &TREEVIEW_ICONS.text_xml }
                 else if packed_file_name.ends_with(".xml.shader") { &TREEVIEW_ICONS.text_xml }
                 else if packed_file_name.ends_with(".xml.material") { &TREEVIEW_ICONS.text_xml }
@@ -172,6 +174,8 @@ impl IconType {
 
                 // If it ends in any of these, it's a plain text PackedFile.
                 else if packed_file_name.ends_with(".lua") { &TREEVIEW_ICONS.text_generic }
+                else if packed_file_name.ends_with(".htm") { &TREEVIEW_ICONS.text_xml }
+                else if packed_file_name.ends_with(".html") { &TREEVIEW_ICONS.text_xml }
                 else if packed_file_name.ends_with(".xml") { &TREEVIEW_ICONS.text_xml }
                 else if packed_file_name.ends_with(".xml.shader") { &TREEVIEW_ICONS.text_xml }
                 else if packed_file_name.ends_with(".xml.material") { &TREEVIEW_ICONS.text_xml }
