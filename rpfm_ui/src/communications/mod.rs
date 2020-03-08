@@ -24,6 +24,7 @@ use rpfm_error::Error;
 
 use rpfm_lib::global_search::GlobalSearch;
 use rpfm_lib::packedfile::DecodedPackedFile;
+use rpfm_lib::packedfile::image::Image;
 use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
@@ -379,6 +380,10 @@ pub enum Response {
 
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
+
+
+    /// Response to return `(Image, PackedFileInfo)`.
+    ImagePackedFileInfo((Image, PackedFileInfo)),
 
     /// Response to return `(Text, PackedFileInfo)`.
     TextPackedFileInfo((Text, PackedFileInfo)),

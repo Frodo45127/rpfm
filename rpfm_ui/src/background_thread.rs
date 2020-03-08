@@ -386,33 +386,12 @@ pub fn background_loop() {
 
             // In case we want to decode an Image...
             Command::DecodePackedFileImage(path) => {
-
-                // Find the PackedFile we want and send back the response.
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(packed_file) => {
-                        let name = &packed_file.get_path().last().unwrap().to_owned();
+                    Some(ref mut packed_file) => {
                         match packed_file.decode_return_ref() {
                             Ok(image) => {
                                 if let DecodedPackedFile::Image(image) = image {
-
-                                    // Create a temporal file for the image in the TEMP directory of the filesystem.
-                                    let mut temporal_file_path = temp_dir();
-                                    temporal_file_path.push(name);
-                                    match File::create(&temporal_file_path) {
-                                        Ok(mut temporal_file) => {
-
-                                            // If there is an error while trying to write the image to the TEMP folder, report it.
-                                            if temporal_file.write_all(image.get_data()).is_err() {
-                                                CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1]))));
-                                            }
-
-                                            // If it worked, create an Image with the new file and show it inside a ScrolledWindow.
-                                            else { CENTRAL_COMMAND.send_message_rust(Response::PathBufPackedFileInfo((temporal_file_path, From::from(&*packed_file)))); }
-                                        }
-
-                                        // If there is an error when trying to create the file into the TEMP folder, report it.
-                                        Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
-                                    }
+                                    CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file))));
                                 }
                                 // TODO: Put an error here.
                             }

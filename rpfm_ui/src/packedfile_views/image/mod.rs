@@ -20,6 +20,7 @@ use qt_gui::QPixmap;
 use qt_core::AspectRatioMode;
 use qt_core::QFlags;
 use qt_core::AlignmentFlag;
+use qt_core::QByteArray;
 
 use cpp_core::MutPtr;
 
@@ -32,7 +33,6 @@ use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
-use crate::QString;
 use self::slots::PackedFileImageViewSlots;
 
 pub mod slots;
@@ -61,15 +61,16 @@ impl PackedFileImageView {
         // Get the path of the extracted Image.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileImage(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let (path, packed_file_info) = match response {
-            Response::PathBufPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
+        let (image, packed_file_info) = match response {
+            Response::ImagePackedFileInfo((image, packed_file_info)) => (image, packed_file_info),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        // Get the image's path.
-        let path_string = path.to_string_lossy().as_ref().to_string();
-        let image = QPixmap::from_q_string(&QString::from_std_str(&path_string));
+        // Create the image in the UI.
+        let byte_array = QByteArray::from_slice(image.get_data());
+        let mut image = QPixmap::new();
+        image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap());
 
         // Get the size of the holding widget.
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
@@ -84,7 +85,7 @@ impl PackedFileImageView {
         let mut label = QLabel::new();
         label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
         label.set_pixmap(&scaled_image);
-        layout.add_widget_5a(&mut label, 0, 0, 1, 1);
+        layout.add_widget_5a(label.into_ptr(), 0, 0, 1, 1);
 
         packed_file_view.view = View::Image(Self {});
 
