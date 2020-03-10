@@ -153,7 +153,7 @@ pub fn extract_files(
 
 	// Load the PackFile and the different PackedFiles to memory.
 	let packfile_path = PathBuf::from(packfile);
-	let packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
+	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
 	let result = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>())
         .try_for_each(|x| packfile.extract_packed_file_by_path(&x, &destination_path));
@@ -183,7 +183,7 @@ pub fn extract_folders(
 
     // Load the PackFile and the different PackedFiles to memory.
     let packfile_path = PathBuf::from(packfile);
-    let packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
+    let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
     let paths = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()).map(|x| PathType::Folder(x)).collect::<Vec<PathType>>();
     packfile.extract_packed_files_by_type(&paths, &destination_path)?;

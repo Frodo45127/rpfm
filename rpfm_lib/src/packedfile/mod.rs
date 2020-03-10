@@ -25,6 +25,7 @@ use std::ops::Deref;
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::DEPENDENCY_DATABASE;
+use crate::packedfile::ca_vp8::CaVp8;
 use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
 use crate::packedfile::text::{Text, TextType};
@@ -33,6 +34,7 @@ use crate::packfile::packedfile::RawPackedFile;
 use crate::schema::Schema;
 use crate::SCHEMA;
 
+pub mod ca_vp8;
 pub mod image;
 pub mod rigidmodel;
 pub mod table;
@@ -51,6 +53,7 @@ pub enum DecodedPackedFile {
     AnimFragment,
     AnimPack,
     AnimTable,
+    CaVp8(CaVp8),
     CEO,
     DB(DB),
     Image(Image),
@@ -71,6 +74,7 @@ pub enum PackedFileType {
     AnimFragment,
     AnimPack,
     AnimTable,
+    CaVp8,
     CEO,
     DB,
     Image,
@@ -97,6 +101,13 @@ impl DecodedPackedFile {
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
     pub fn decode(raw_packed_file: &RawPackedFile) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
+
+            PackedFileType::CaVp8 => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = CaVp8::read(data)?;
+                Ok(DecodedPackedFile::CaVp8(packed_file))
+            }
+
             PackedFileType::DB => {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
@@ -144,6 +155,12 @@ impl DecodedPackedFile {
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
     pub fn decode_no_locks(raw_packed_file: &RawPackedFile, schema: &Schema) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
+            PackedFileType::CaVp8 => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = CaVp8::read(data)?;
+                Ok(DecodedPackedFile::CaVp8(packed_file))
+            }
+
             PackedFileType::DB => {
                 let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
                 let data = raw_packed_file.get_data()?;
@@ -177,13 +194,15 @@ impl DecodedPackedFile {
     }
 
     /// This function encodes a `DecodedPackedFile` into a `Vec<u8>`, returning it.
-    pub fn encode(&self) -> Result<Vec<u8>> {
+    ///
+    /// Keep in mind this should only work for PackedFiles with saving support.
+    pub fn encode(&self) -> Option<Result<Vec<u8>>> {
         match self {
-            DecodedPackedFile::DB(data) => data.save(),
-            DecodedPackedFile::Image(_) => unimplemented!(),
-            DecodedPackedFile::Loc(data) => data.save(),
-            DecodedPackedFile::Text(data) => data.save(),
-            _=> unimplemented!(),
+            DecodedPackedFile::CaVp8(data) => Some(data.save()),
+            DecodedPackedFile::DB(data) => Some(data.save()),
+            DecodedPackedFile::Loc(data) => Some(data.save()),
+            DecodedPackedFile::Text(data) => Some(data.save()),
+            _=> None,
         }
     }
 
@@ -233,6 +252,7 @@ impl Display for PackedFileType {
             PackedFileType::AnimFragment => write!(f, "AnimFragment"),
             PackedFileType::AnimPack => write!(f, "AnimPack"),
             PackedFileType::AnimTable => write!(f, "AnimTable"),
+            PackedFileType::CaVp8 => write!(f, "CA_VP8"),
             PackedFileType::CEO => write!(f, "CEO"),
             PackedFileType::DB => write!(f, "DB Table"),
             PackedFileType::DependencyPackFilesList => write!(f, "Dependency PackFile List"),
@@ -255,6 +275,7 @@ impl PackedFileType {
         if let Some(packedfile_name) = path.last() {
             if packedfile_name.ends_with(table::loc::EXTENSION) { PackedFileType::Loc }
             else if packedfile_name.ends_with(rigidmodel::EXTENSION) { PackedFileType::RigidModel }
+            else if packedfile_name.ends_with(ca_vp8::EXTENSION) { PackedFileType::CaVp8 }
             else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
                 PackedFileType::Text(*text_type)
             }
@@ -284,6 +305,7 @@ impl PackedFileType {
             Self::AnimFragment |
             Self::AnimPack |
             Self::AnimTable |
+            Self::CaVp8 |
             Self::CEO |
             Self::DB |
             Self::DependencyPackFilesList |
@@ -307,6 +329,7 @@ impl PackedFileType {
             Self::AnimFragment |
             Self::AnimPack |
             Self::AnimTable |
+            Self::CaVp8 |
             Self::CEO |
             Self::DB |
             Self::DependencyPackFilesList |
@@ -329,6 +352,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::AnimFragment => PackedFileType::AnimFragment,
             DecodedPackedFile::AnimPack => PackedFileType::AnimPack,
             DecodedPackedFile::AnimTable => PackedFileType::AnimTable,
+            DecodedPackedFile::CaVp8(_) => PackedFileType::CaVp8,
             DecodedPackedFile::CEO => PackedFileType::CEO,
             DecodedPackedFile::DB(_) => PackedFileType::DB,
             DecodedPackedFile::Image(_) => PackedFileType::Image,

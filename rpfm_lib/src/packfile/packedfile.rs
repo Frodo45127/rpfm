@@ -252,12 +252,6 @@ impl PackedFile {
         Ok(())
     }
 
-    /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
-    pub fn encode(&mut self) -> Result<()> {
-        self.raw.set_data(self.decoded.encode()?);
-        Ok(())
-    }
-
     /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`,
     /// and returning a reference to it.
     ///
@@ -302,10 +296,24 @@ impl PackedFile {
         Ok(&mut self.decoded)
     }
 
+    /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
+    ///
+    /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
+    pub fn encode(&mut self) -> Result<()> {
+        if let Some(data) = self.decoded.encode() {
+            self.raw.set_data(data?);
+        }
+        Ok(())
+    }
+
     /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`,
     /// and returning a reference to it.
+    ///
+    /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
     pub fn encode_and_return(&mut self) -> Result<&RawPackedFile> {
-        self.raw.set_data(self.decoded.encode()?);
+        if let Some(data) = self.decoded.encode() {
+            self.raw.set_data(data?);
+        }
         Ok(&self.raw)
     }
 
@@ -317,6 +325,30 @@ impl PackedFile {
     /// This function returns the data of a PackedFile.
     pub fn get_raw_data(&self) -> Result<Vec<u8>> {
         self.raw.get_data()
+    }
+
+    /// This function extracts the provided PackedFile into the provided path.
+    pub fn extract_packed_file(&mut self, destination_path: &Path) -> Result<()> {
+
+        // Save it, in case it's cached.
+        self.encode()?;
+
+        // We get his internal path without his name.
+        let mut internal_path = self.get_path().to_vec();
+        let file_name = internal_path.pop().unwrap();
+
+        // Then, we join his internal path with his destination path, so we have his almost-full path (his final path without his name).
+        // This way we can create the entire folder structure up to the file itself.
+        let mut current_path = destination_path.to_path_buf().join(internal_path.iter().collect::<PathBuf>());
+        DirBuilder::new().recursive(true).create(&current_path)?;
+
+        // Finish the path and try to save the file to disk.
+        current_path.push(&file_name);
+        let mut file = BufWriter::new(File::create(&current_path)?);
+        if file.write_all(&self.get_raw_data()?).is_err() {
+            return Err(ErrorKind::ExtractError(self.get_path().to_vec()).into());
+        }
+        Ok(())
     }
 }
 

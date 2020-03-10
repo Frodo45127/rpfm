@@ -413,3 +413,23 @@ tt_extra_packfile_use_dependency_checker_tip = If you enable this, when opening 
 tt_extra_packfile_use_lazy_loading_tip = If you enable this, PackFiles will load their data on-demand from the disk instead of loading the entire PackFile to Ram. This reduces Ram usage by a lot, but if something else changes/deletes the PackFile while it's open, the PackFile will likely be unrecoverable and you'll lose whatever is in it.\nIf you mainly mod in Warhammer 2's /data folder LEAVE THIS DISABLED, as a bug in the Assembly Kit causes PackFiles to become broken/be deleted when you have this enabled.
 
 tt_debug_check_for_missing_table_definitions_tip = If you enable this, RPFM will try to decode EVERY TABLE in the current PackFile when opening it or when changing the Game Selected, and it'll output all the tables without an schema to a \"missing_table_definitions.txt\" file.\nDEBUG FEATURE, VERY SLOW. DON'T ENABLE IT UNLESS YOU REALLY WANT TO USE IT.
+
+### CA_VP8 Videos
+
+format = Format:
+version = Version:
+header_len = Header Lenght:
+codec_four_cc = Codec Four CC:
+width = Width:
+height = Height:
+ms_per_frame = Ms Per Frame:
+num_frames = Number of Frames:
+largest_frame = Largest Frame:
+mistery_number = I don't know what this is:
+offset_frame_table = Frame Table's Offset:
+framerate = Framerate:
+timebase = Timebase:
+x2 = I don't know what this is:
+
+convert_to_camv = Convert to CAMV
+convert_to_ivf = Convert to IVF

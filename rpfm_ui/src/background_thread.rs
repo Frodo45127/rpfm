@@ -384,6 +384,24 @@ pub fn background_loop() {
                 }
             }
 
+            // In case we want to decode a CaVp8 PackedFile...
+            Command::DecodePackedFileCaVp8(path) => {
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(ref mut packed_file) => {
+                        match packed_file.decode_return_ref() {
+                            Ok(decoded_packed_file) => {
+                                if let DecodedPackedFile::CaVp8(data) = decoded_packed_file {
+                                    CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file))));
+                                }
+                                // TODO: Put an error here.
+                            }
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                }
+            }
+
             // In case we want to decode an Image...
             Command::DecodePackedFileImage(path) => {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
@@ -591,6 +609,25 @@ pub fn background_loop() {
 
             // In case we want to return an entire PackedFile to the UI.
             Command::GetPackedFile(path) => CENTRAL_COMMAND.send_message_rust(Response::OptionPackedFile(pack_file_decoded.get_packed_file_by_path(&path))),
+
+            // In case we want to change the format of a ca_vp8 video...
+            Command::SetCaVp8Format((path, format)) => {
+                println!("{:?}", format);
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(ref mut packed_file) => {
+                        match packed_file.decode_return_ref_mut() {
+                            Ok(data) => {
+                                if let DecodedPackedFile::CaVp8(ref mut data) = data {
+                                    data.set_format(format);
+                                }
+                                // TODO: Put an error here.
+                            }
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                }
+            },
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

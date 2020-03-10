@@ -1074,9 +1074,12 @@ impl PackFile {
     /// This function extracts, if exists, a `PackedFile` with the provided path from the `PackFile`.
     ///
     /// The destination path is always `destination_path/packfile_name/path_to_packedfile/packed_file`.
-    pub fn extract_packed_file_by_path(&self, path: &[String], destination_path: &Path) -> Result<()> {
-        match self.get_ref_packed_file_by_path(path) {
-            Some(packed_file) => {
+    pub fn extract_packed_file_by_path(&mut self, path: &[String], destination_path: &Path) -> Result<()> {
+        match self.get_ref_mut_packed_file_by_path(path) {
+            Some(ref mut packed_file) => {
+
+                // Save it, in case it's cached.
+                packed_file.encode()?;
 
                 // We get his internal path without his name.
                 let mut internal_path = packed_file.get_path().to_vec();
@@ -1104,7 +1107,7 @@ impl PackFile {
     /// As this can fail for some files, and work for others, we return `Ok(amount_files_extracted)` only if all files were extracted correctly.
     /// If any of them failed, we return `Error` with a list of the paths that failed to get extracted.
     pub fn extract_packed_files_by_type(
-        &self,
+        &mut self,
         item_types: &[PathType],
         extracted_path: &PathBuf,
     ) -> Result<u32> {
@@ -1147,8 +1150,8 @@ impl PackFile {
                         },
 
                         PathType::Folder(path) => {
-                            for packed_file in self.get_ref_packed_files_by_path_start(path) {
-                                match self.extract_packed_file_by_path(packed_file.get_path(), extracted_path) {
+                            for packed_file in self.get_ref_mut_packed_files_by_path_start(path) {
+                                match packed_file.extract_packed_file(extracted_path) {
                                     Ok(_) => files_extracted += 1,
                                     Err(_) => error_files.push(format!("{:?}", path)),
                                 }
@@ -1164,8 +1167,8 @@ impl PackFile {
             4 | 5 | 6 | 7 => {
 
                 // For each PackedFile we have, just extracted in the folder we got, under the PackFile's folder.
-                for packed_file in self.get_ref_packed_files_all() {
-                    match self.extract_packed_file_by_path(packed_file.get_path(), extracted_path) {
+                for packed_file in self.get_ref_mut_packed_files_all() {
+                    match packed_file.extract_packed_file(extracted_path) {
                         Ok(_) => files_extracted += 1,
                         Err(_) => error_files.push(format!("{:?}", packed_file.get_path())),
                     }

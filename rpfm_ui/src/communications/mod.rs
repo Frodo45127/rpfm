@@ -23,6 +23,7 @@ use std::process::exit;
 use rpfm_error::Error;
 
 use rpfm_lib::global_search::GlobalSearch;
+use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::image::Image;
 use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
@@ -171,6 +172,9 @@ pub enum Command {
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
     AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>)),
 
+    /// This command is used when we want to decode a CA_VP8 video to be shown in the UI.
+    DecodePackedFileCaVp8(Vec<String>),
+
     /// This command is used when we want to decode an image to be shown in the UI.
     DecodePackedFileImage(Vec<String>),
 
@@ -245,6 +249,10 @@ pub enum Command {
 
     /// This command is used to get a full PackedFile to the UI. Requires the path of the PackedFile.
     GetPackedFile(Vec<String>),
+
+    /// This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
+    SetCaVp8Format((Vec<String>, SupportedFormats)),
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -381,6 +389,8 @@ pub enum Response {
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
 
+    /// Response to return `(CaVp8, PackedFileInfo)`.
+    CaVp8PackedFileInfo((CaVp8, PackedFileInfo)),
 
     /// Response to return `(Image, PackedFileInfo)`.
     ImagePackedFileInfo((Image, PackedFileInfo)),

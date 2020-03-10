@@ -40,6 +40,7 @@ use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::mut_ptr_from_atomic;
 use crate::UI_STATE;
+use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
 use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
 use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
@@ -47,6 +48,7 @@ use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
 
+pub mod ca_vp8;
 pub mod decoder;
 pub mod image;
 pub mod packfile;
@@ -68,6 +70,7 @@ pub struct PackedFileView {
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
+    CaVp8(PackedFileCaVp8View),
     Decoder(PackedFileDecoderView),
     Image(PackedFileImageView),
     PackFile(PackFileExtraView),
@@ -82,6 +85,7 @@ pub enum View {
 /// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
+    CaVp8(PackedFileCaVp8ViewSlots),
     Decoder(PackedFileDecoderViewSlots),
     Image(PackedFileImageViewSlots),
     PackFile(PackFileExtraViewSlots),
@@ -191,6 +195,14 @@ impl PackedFileView {
 
             // Images are read-only.
             PackedFileType::Image => return Ok(()),
+
+            // These ones are a bit special. We just need to send back the current format of the video.
+            PackedFileType::CaVp8 => {
+                if let View::CaVp8(view) = self.get_view() {
+                    CENTRAL_COMMAND.send_message_qt(Command::SetCaVp8Format((path.to_vec(), view.get_current_format())));
+                    return Ok(())
+                } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) }
+            },
             PackedFileType::RigidModel => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
 
             PackedFileType::Text(_) => {

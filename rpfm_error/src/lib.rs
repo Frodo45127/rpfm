@@ -349,6 +349,13 @@ pub enum ErrorKind {
     ImageDecode(String),
 
     //--------------------------------//
+    // CA_VP8 Errors
+    //--------------------------------//
+
+    /// Error for when a CaVp8 PackedFile fails to decode. Contains the error message.
+    CaVp8Decode(String),
+
+    //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
@@ -649,8 +656,6 @@ impl Display for ErrorKind {
             //--------------------------------//
             // Text Errors
             //--------------------------------//
-
-            // Error for when a Text PackedFile fails to decode.
             ErrorKind::TextDecode(cause) => write!(f, "<p>Error while trying to decode the Text PackedFile:</p><p>{}</p>", cause),
             ErrorKind::TextDecodeWrongEncodingOrNotATextFile => write!(f, "<p>This is either not a Text PackedFile, or a Text PackedFile using an unsupported encoding</p>"),
             ErrorKind::NoTypesFileFound => write!(f, "<p>There is no Types file for the current Game Selected, so you can't use Kailua.</p>"),
@@ -659,8 +664,6 @@ impl Display for ErrorKind {
             //--------------------------------//
             // Loc Errors
             //--------------------------------//
-
-            // Error for when a Loc PackedFile fails to decode.
             ErrorKind::LocDecode(cause) => write!(f, "<p>Error while trying to decode the Loc PackedFile:</p><p>{}</p>", cause),
             ErrorKind::LocPackedFileIsNotALocPackedFile => write!(f, "<p>This is either not a Loc PackedFile, or it's a Loc PackedFile but it's corrupted.</p>"),
             ErrorKind::LocPackedFileCorrupted => write!(f, "<p>This Loc PackedFile seems to be corrupted.</p>"),
@@ -668,9 +671,12 @@ impl Display for ErrorKind {
             //--------------------------------//
             // Image Errors
             //--------------------------------//
-
-            // Error for when an Image fails to decode.
             ErrorKind::ImageDecode(cause) => write!(f, "<p>Error while trying to decode the Image PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // CA_VP8 Errors
+            //--------------------------------//
+            ErrorKind::CaVp8Decode(cause) => write!(f, "<p>Error while trying to decode the CaVp8 PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
             // PAK File Errors
