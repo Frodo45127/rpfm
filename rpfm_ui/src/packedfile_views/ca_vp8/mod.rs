@@ -97,7 +97,6 @@ impl PackedFileCaVp8View {
 
         let format_label = QLabel::from_q_string(&qtr("format"));
         let version_label = QLabel::from_q_string(&qtr("version"));
-        let header_len_label = QLabel::from_q_string(&qtr("header_len"));
         let codec_four_cc_label = QLabel::from_q_string(&qtr("codec_four_cc"));
         let width_label = QLabel::from_q_string(&qtr("width"));
         let height_label = QLabel::from_q_string(&qtr("height"));
@@ -106,7 +105,6 @@ impl PackedFileCaVp8View {
 
         let mut format_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_format())));
         let version_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_version())));
-        let header_len_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_header_len())));
         let codec_four_cc_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_ref_codec_four_cc())));
         let width_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_width())));
         let height_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_height())));
@@ -121,7 +119,6 @@ impl PackedFileCaVp8View {
 
         layout.add_widget_5a(format_label.into_ptr(), 2, 0, 1, 1);
         layout.add_widget_5a(version_label.into_ptr(), 3, 0, 1, 1);
-        layout.add_widget_5a(header_len_label.into_ptr(), 4, 0, 1, 1);
         layout.add_widget_5a(codec_four_cc_label.into_ptr(), 5, 0, 1, 1);
         layout.add_widget_5a(width_label.into_ptr(), 6, 0, 1, 1);
         layout.add_widget_5a(height_label.into_ptr(), 7, 0, 1, 1);
@@ -130,7 +127,6 @@ impl PackedFileCaVp8View {
 
         layout.add_widget_5a(&mut format_data_label, 2, 1, 1, 1);
         layout.add_widget_5a(version_data_label.into_ptr(), 3, 1, 1, 1);
-        layout.add_widget_5a(header_len_data_label.into_ptr(), 4, 1, 1, 1);
         layout.add_widget_5a(codec_four_cc_data_label.into_ptr(), 5, 1, 1, 1);
         layout.add_widget_5a(width_data_label.into_ptr(), 6, 1, 1, 1);
         layout.add_widget_5a(height_data_label.into_ptr(), 7, 1, 1, 1);

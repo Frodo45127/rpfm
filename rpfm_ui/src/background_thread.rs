@@ -612,7 +612,6 @@ pub fn background_loop() {
 
             // In case we want to change the format of a ca_vp8 video...
             Command::SetCaVp8Format((path, format)) => {
-                println!("{:?}", format);
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     Some(ref mut packed_file) => {
                         match packed_file.decode_return_ref_mut() {

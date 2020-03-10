@@ -39,6 +39,12 @@ pub const SIGNATURE_CAMV: &str = "CAMV";
 /// Key frame marker of a frame in IVF format.
 pub const KEY_FRAME_MARKER: &[u8; 3] = &[0x9D, 0x01, 0x2A];
 
+/// Length of the header of a CAMV video.
+const HEADER_LENGTH_CAMV: u16 = 41;
+
+/// Length of the header of a IVF video.
+const HEADER_LENGTH_IVF: u16 = 32;
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -53,9 +59,6 @@ pub struct CaVp8 {
     /// Version of the file.
     version: i16,
 
-    /// Lenght of the header in bytes.
-    header_len: u16,
-
     /// Codec FourCC (usually 'VP80').
     codec_four_cc: String,
 
@@ -69,13 +72,13 @@ pub struct CaVp8 {
     num_frames: u32,
 
     /// Framerate of the video.
-    framerate: u32,
+    framerate: f32,
 
     /// Frame Table of the video.
     frame_table: Vec<Frame>,
 
-    /// Raw data of the video. For encoding purpouses.
-    data: Vec<u8>,
+    /// Raw frame data of the video.
+    frame_data: Vec<u8>,
 }
 
 /// This enum contains the list of formats RPFM supports.
@@ -141,40 +144,40 @@ impl CaVp8 {
         offset += 4;
         let width = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let height = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
-        let ms_per_frame = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-
+        let ms_per_frame = packed_file_data.decode_packedfile_float_f32(offset, &mut offset)?;
         let _mistery_u32 = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let num_frames = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let offset_frame_table = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let _num_frames_copy = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let _largest_frame = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
 
+
+        // From here on, it's frame data, then the frame table.
         offset = offset_frame_table as usize;
 
+        let mut frame_offset = 0;
         let mut frame_table = vec![];
         for _ in 0..num_frames {
+            let _frame_offset_real = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
             let frame = Frame {
-                offset: packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?,
+                offset: frame_offset,
                 size: packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?,
             };
             let _flags = packed_file_data.decode_packedfile_integer_u8(offset, &mut offset)?;
+            frame_offset += frame.size;
             frame_table.push(frame);
         }
 
-        let framerate = 1000 / ms_per_frame;
-
         Ok(Self {
             format,
-
             version,
-            header_len,
             codec_four_cc,
             width,
             height,
             num_frames,
+            framerate: 1_000f32 / ms_per_frame,
             frame_table,
-            framerate,
-            data: packed_file_data,
+            frame_data: packed_file_data[header_len as usize..offset_frame_table as usize].to_vec(),
         })
     }
 
@@ -184,42 +187,42 @@ impl CaVp8 {
 
         let mut offset = 4;
         let version = packed_file_data.decode_packedfile_integer_i16(offset, &mut offset)?;
-        let header_len = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
+        let _header_len = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let codec_four_cc = packed_file_data.decode_string_u8(offset, 4)?;
         offset += 4;
         let width = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let height = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
-        let timebase_denominator = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-        let timebase_numerator = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+        let timebase_denominator = packed_file_data.decode_packedfile_float_f32(offset, &mut offset)?;
+        let timebase_numerator = packed_file_data.decode_packedfile_float_f32(offset, &mut offset)?;
         let num_frames = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let _unused = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
 
         let mut frame_table = vec![];
+        let mut frame_data = vec![];
+        let mut frame_offset = 0;
         for _ in 0..num_frames {
             let size = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-            let pts = packed_file_data.decode_packedfile_integer_u64(offset, &mut offset)?;
+            let _pts = packed_file_data.decode_packedfile_integer_u64(offset, &mut offset)?;
             let frame = Frame {
-                offset: offset as u32,
+                offset: frame_offset,
                 size,
             };
+            frame_data.extend_from_slice(&packed_file_data[offset..offset + frame.size as usize]);
             offset = offset + frame.size as usize;
+            frame_offset += frame.size;
             frame_table.push(frame);
         }
 
-        let framerate = timebase_denominator / timebase_numerator;
-
         Ok(Self {
             format,
-
             version,
-            header_len,
             codec_four_cc,
             width,
             height,
             num_frames,
+            framerate: timebase_denominator / timebase_numerator,
             frame_table,
-            framerate,
-            data: packed_file_data,
+            frame_data,
         })
     }
 
@@ -227,36 +230,36 @@ impl CaVp8 {
     fn save_camv(&self) -> Result<Vec<u8>> {
         let mut packed_file = vec![];
         packed_file.encode_string_u8(SIGNATURE_CAMV);
-        packed_file.encode_integer_i16(self.version);
-        packed_file.encode_integer_u16(self.header_len);
+        packed_file.encode_integer_i16(1);
+        packed_file.encode_integer_u16(HEADER_LENGTH_CAMV);
         packed_file.encode_string_u8(&self.codec_four_cc);
         packed_file.encode_integer_u16(self.width);
         packed_file.encode_integer_u16(self.height);
 
-        packed_file.encode_integer_u32(1000 / self.framerate);
+        packed_file.encode_float_f32(1_000f32 / self.framerate);
         packed_file.encode_integer_u32(1);
-        packed_file.encode_integer_u32(self.num_frames - 1);
+        packed_file.encode_integer_u32(self.num_frames);
 
-        packed_file.encode_integer_u32(40 + self.frame_table.iter().map(|x| x.size).sum::<u32>());
-        packed_file.encode_integer_u32(self.num_frames - 1);
+        packed_file.encode_integer_u32(HEADER_LENGTH_CAMV as u32 + self.frame_table.iter().map(|x| x.size).sum::<u32>());
+        packed_file.encode_integer_u32(self.num_frames);
         packed_file.encode_integer_u32(self.frame_table.iter().map(|x| x.size).max().unwrap());
 
-        let mut offset = packed_file.len() as u32;
-        let mut frame_table = vec![];
+        // Final header byte.
+        packed_file.push(0);
 
+        // Frame data and table.
+        packed_file.extend_from_slice(&self.frame_data);
+
+        let mut offset = 0;
         for frame in &self.frame_table {
-            let frame_data = &self.data[frame.offset as usize..(frame.offset + frame.size) as usize];
+            let frame_data = &self.frame_data[offset..(offset + frame.size as usize)];
             let is_key_frame = if &frame_data[3..6] == KEY_FRAME_MARKER { 1 } else { 0 };
 
-            frame_table.encode_integer_u32(offset as u32);
-            frame_table.encode_integer_u32(frame_data.len() as u32);
-            frame_table.push(is_key_frame);
-
-            offset = frame.offset + frame.size;
-            packed_file.extend_from_slice(frame_data);
+            packed_file.encode_integer_u32(offset as u32 + HEADER_LENGTH_CAMV as u32);
+            packed_file.encode_integer_u32(frame_data.len() as u32);
+            packed_file.push(is_key_frame);
+            offset += frame.size as usize;
         }
-
-        packed_file.extend_from_slice(&frame_table);
 
         Ok(packed_file)
     }
@@ -266,21 +269,24 @@ impl CaVp8 {
         let mut packed_file = vec![];
         packed_file.encode_string_u8(SIGNATURE_IVF);
         packed_file.encode_integer_i16(0);
-        packed_file.encode_integer_u16(self.header_len);
+        packed_file.encode_integer_u16(HEADER_LENGTH_IVF);
         packed_file.encode_string_u8(&self.codec_four_cc);
         packed_file.encode_integer_u16(self.width);
         packed_file.encode_integer_u16(self.height);
 
+        // This limits us to 30 FPS videos. Have to find a way to fix it.
         packed_file.encode_integer_u32(30);
         packed_file.encode_integer_u32(1);
-        packed_file.encode_integer_u32(self.num_frames + 1);
+        packed_file.encode_integer_u32(self.num_frames);
         packed_file.encode_integer_u32(0);
 
+        let mut offset = 0;
         for (index, frame) in self.frame_table.iter().enumerate() {
-            let frame_data = &self.data[frame.offset as usize..(frame.offset + frame.size) as usize];
+            let frame_data = &self.frame_data[offset..(offset + frame.size as usize)];
             packed_file.encode_integer_u32(frame_data.len() as u32);
             packed_file.encode_integer_u64(index as u64);
             packed_file.extend_from_slice(frame_data);
+            offset += frame.size as usize;
         }
 
         Ok(packed_file)
@@ -293,18 +299,12 @@ impl CaVp8 {
 
     /// This function changes the format of the currently decoded video with the provided one.
     pub fn set_format(&mut self, format: SupportedFormats) {
-        println!("format changed to {:?}", format);
         self.format = format;
     }
 
     /// This function returns the version of the video.
     pub fn get_version(&self) -> i16 {
         self.version
-    }
-
-    /// This function returns the lenght of the header of the video.
-    pub fn get_header_len(&self) -> u16 {
-        self.header_len
     }
 
     /// This function returns the FourCC of the video.
@@ -328,7 +328,7 @@ impl CaVp8 {
     }
 
     /// This function returns the framerate of the video.
-    pub fn get_framerate(&self) -> u32 {
+    pub fn get_framerate(&self) -> f32 {
         self.framerate
     }
 
@@ -337,8 +337,9 @@ impl CaVp8 {
         &self.frame_table
     }
 
-    pub fn get_ref_data(&self) -> &[u8] {
-        &self.data
+    /// This function returns an slice with the entire frame data of the video.
+    pub fn get_ref_frame_data(&self) -> &[u8] {
+        &self.frame_data
     }
 }
 
