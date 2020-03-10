@@ -300,8 +300,9 @@ impl PackedFile {
     ///
     /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
     pub fn encode(&mut self) -> Result<()> {
-        if let Some(data) = self.decoded.encode() {
-            self.raw.set_data(data?);
+        match self.decoded.encode() {
+            Some(data) => self.raw.set_data(data?),
+            None => self.raw.load_data()?,
         }
         Ok(())
     }
@@ -311,8 +312,9 @@ impl PackedFile {
     ///
     /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
     pub fn encode_and_return(&mut self) -> Result<&RawPackedFile> {
-        if let Some(data) = self.decoded.encode() {
-            self.raw.set_data(data?);
+        match self.decoded.encode() {
+            Some(data) => self.raw.set_data(data?),
+            None => self.raw.load_data()?,
         }
         Ok(&self.raw)
     }

@@ -2467,11 +2467,7 @@ impl PackFile {
         for packed_file in &mut self.packed_files {
 
             // If we decoded it, re-encode it. Otherwise, just load it.
-            match packed_file.get_decoded() {
-                DecodedPackedFile::DB(_) => packed_file.encode()?,
-                DecodedPackedFile::Loc(_) => packed_file.encode()?,
-                _ => packed_file.get_ref_mut_raw().load_data()?,
-            }
+            packed_file.encode()?;
 
             // Remember: first compress (only PFH5), then encrypt.
             let (data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
