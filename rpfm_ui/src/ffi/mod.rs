@@ -17,6 +17,7 @@ use qt_widgets::QWidget;
 
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
+use qt_gui::QStandardItemModel;
 
 use qt_core::QAbstractItemModel;
 use qt_core::QObject;
@@ -68,6 +69,12 @@ pub fn trigger_treeview_filter_safe(filter: &mut QSortFilterProxyModel, pattern:
 extern "C" { fn new_tableview_frozen(model: *mut QAbstractItemModel, frozen_table: *mut QTableView) -> *mut QTableView; }
 pub fn new_tableview_frozen_safe(model: &mut QAbstractItemModel, frozen_table: &mut QTableView) -> MutPtr<QTableView> {
     unsafe { MutPtr::from_raw(new_tableview_frozen(model, frozen_table)) }
+}
+
+/// This function allow us to create a model compatible with draggable items
+extern "C" { fn new_packed_file_model() -> *mut QStandardItemModel; }
+pub fn new_packed_file_model_safe() -> MutPtr<QStandardItemModel> {
+    unsafe { MutPtr::from_raw(new_packed_file_model()) }
 }
 
 /// This function allow us to create a properly sized TableView for the Command Palette.

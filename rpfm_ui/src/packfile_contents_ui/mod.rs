@@ -29,7 +29,7 @@ use qt_core::QSortFilterProxyModel;
 
 use cpp_core::MutPtr;
 
-use crate::ffi::new_treeview_filter_safe;
+use crate::ffi::{new_packed_file_model_safe, new_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::utils::create_grid_layout;
 
@@ -116,9 +116,9 @@ impl PackFileContentsUI {
 
         // Create and configure the `TreeView` itself.
         let mut packfile_contents_tree_view = QTreeView::new_0a();
-        let mut packfile_contents_tree_model = QStandardItemModel::new_0a();
+        let packfile_contents_tree_model = new_packed_file_model_safe();
         let mut packfile_contents_tree_model_filter = new_treeview_filter_safe(&mut packfile_contents_dock_widget);
-        packfile_contents_tree_model_filter.set_source_model(&mut packfile_contents_tree_model);
+        packfile_contents_tree_model_filter.set_source_model(packfile_contents_tree_model);
         packfile_contents_tree_view.set_model(packfile_contents_tree_model_filter);
         packfile_contents_tree_view.set_header_hidden(true);
         packfile_contents_tree_view.set_animated(true);
@@ -209,7 +209,7 @@ impl PackFileContentsUI {
             packfile_contents_dock_widget,
             packfile_contents_tree_view: packfile_contents_tree_view.into_ptr(),
             packfile_contents_tree_model_filter,
-            packfile_contents_tree_model: packfile_contents_tree_model.into_ptr(),
+            packfile_contents_tree_model,
             filter_line_edit: filter_line_edit.into_ptr(),
             filter_autoexpand_matches_button: filter_autoexpand_matches_button.into_ptr(),
             filter_case_sensitive_button: filter_case_sensitive_button.into_ptr(),
