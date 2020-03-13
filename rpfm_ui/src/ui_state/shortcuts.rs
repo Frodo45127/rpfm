@@ -93,7 +93,7 @@ const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 20] = [
     ("copy_as_lua_table", "Ctrl+Shift+C"),
     ("paste", "Ctrl+V"),
     ("paste_as_new_row", "Ctrl+Shift+V"),
-    ("paste_to_fill_selection", "Ctrl+Alt+V"),
+    ("revert_selection", "Ctrl+Alt+V"),
     ("apply_maths_to_selection", "Ctrl+B"),
     ("rewrite_selection", "Ctrl+Y"),
     ("selection_invert", "Ctrl+-"),

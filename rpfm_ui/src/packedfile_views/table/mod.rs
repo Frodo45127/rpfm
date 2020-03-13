@@ -76,6 +76,9 @@ static COLUMN_SIZE_BOOLEAN: i32 = 100;
 static COLUMN_SIZE_NUMBER: i32 = 140;
 static COLUMN_SIZE_STRING: i32 = 350;
 
+static ITEM_HAS_SOURCE_VALUE: i32 = 30;
+static ITEM_SOURCE_VALUE: i32 = 31;
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -133,6 +136,7 @@ pub struct PackedFileTableView {
     context_menu_copy_as_lua_table: AtomicPtr<QAction>,
     context_menu_paste: AtomicPtr<QAction>,
     context_menu_invert_selection: AtomicPtr<QAction>,
+    context_menu_reset_selection: AtomicPtr<QAction>,
     context_menu_undo: AtomicPtr<QAction>,
     context_menu_redo: AtomicPtr<QAction>,
 
@@ -272,6 +276,7 @@ impl PackedFileTableView {
         let context_menu_export = context_menu.add_action(&QString::from_std_str("&Export"));
 */
         let context_menu_invert_selection = context_menu.add_action_q_string(&QString::from_std_str("Inver&t Selection"));
+        let context_menu_reset_selection = context_menu.add_action_q_string(&QString::from_std_str("Reset &Selection"));
 
         let context_menu_undo = context_menu.add_action_q_string(&QString::from_std_str("&Undo"));
         let context_menu_redo = context_menu.add_action_q_string(&QString::from_std_str("&Redo"));
@@ -308,6 +313,7 @@ impl PackedFileTableView {
             context_menu_copy_as_lua_table,
             context_menu_paste,
             context_menu_invert_selection,
+            context_menu_reset_selection,
             context_menu_undo,
             context_menu_redo,
 
@@ -349,6 +355,7 @@ impl PackedFileTableView {
             context_menu_copy_as_lua_table: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy_as_lua_table),
             context_menu_paste: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste),
             context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
+            context_menu_reset_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_reset_selection),
             context_menu_undo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_undo),
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
 
@@ -560,6 +567,11 @@ impl PackedFileTableView {
         mut_ptr_from_atomic(&self.context_menu_invert_selection)
     }
 
+    /// This function returns a pointer to the reset selection action.
+    pub fn get_mut_ptr_context_menu_reset_selection(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_reset_selection)
+    }
+
     /// This function returns a pointer to the undo action.
     pub fn get_mut_ptr_context_menu_undo(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_undo)
@@ -679,6 +691,9 @@ impl PackedFileTableView {
             // This one needs a couple of changes before turning it into an item in the table.
             DecodedData::Boolean(ref data) => {
                 let mut item = QStandardItem::new();
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
                 item.set_editable(false);
                 item.set_checkable(true);
                 item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
@@ -699,16 +714,25 @@ impl PackedFileTableView {
                 };
 
                 let mut item = QStandardItem::new();
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
                 item.set_data_2a(&QVariant::from_float(data), 2);
                 item
             },
             DecodedData::Integer(ref data) => {
                 let mut item = QStandardItem::new();
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_int(*data), ITEM_SOURCE_VALUE);
                 item.set_data_2a(&QVariant::from_int(*data), 2);
                 item
             },
             DecodedData::LongInteger(ref data) => {
                 let mut item = QStandardItem::new();
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_i64(*data), ITEM_SOURCE_VALUE);
                 item.set_data_2a(&QVariant::from_i64(*data), 2);
                 item
             },
@@ -716,8 +740,18 @@ impl PackedFileTableView {
             DecodedData::StringU8(ref data) |
             DecodedData::StringU16(ref data) |
             DecodedData::OptionalStringU8(ref data) |
-            DecodedData::OptionalStringU16(ref data) => QStandardItem::from_q_string(&QString::from_std_str(data)),
-            DecodedData::Sequence(_) => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
+            DecodedData::OptionalStringU16(ref data) => {
+                let mut item = QStandardItem::from_q_string(&QString::from_std_str(data));
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
+                item
+            },
+            DecodedData::Sequence(_) => {
+                let mut item = QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence"));
+                item.set_editable(false);
+                item
+            }
         }
     }
 

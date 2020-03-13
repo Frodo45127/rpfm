@@ -64,6 +64,7 @@ pub struct PackedFileTableViewSlots {
     pub copy_as_lua_table: Slot<'static>,
     pub paste: Slot<'static>,
     pub invert_selection: Slot<'static>,
+    pub reset_selection: Slot<'static>,
     pub save: Slot<'static>,
     pub undo: Slot<'static>,
     pub redo: Slot<'static>,
@@ -267,6 +268,12 @@ impl PackedFileTableViewSlots {
             }
         }));
 
+        // When we want to reset the selected items of the table to their original value.
+        let reset_selection = Slot::new(clone!(
+            mut packed_file_view => move || {
+            packed_file_view.reset_selection();
+        }));
+
         // When we want to save the contents of the UI to the backend...
         //
         // NOTE: in-edition saves to backend are only triggered when the GlobalSearch has search data, to keep it updated.
@@ -316,6 +323,7 @@ impl PackedFileTableViewSlots {
             copy_as_lua_table,
             paste,
             invert_selection,
+            reset_selection,
             save,
             undo,
             redo,

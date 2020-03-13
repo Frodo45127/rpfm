@@ -77,6 +77,7 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_copy_as_lua_table: MutPtr<QAction>,
     pub context_menu_paste: MutPtr<QAction>,
     pub context_menu_invert_selection: MutPtr<QAction>,
+    pub context_menu_reset_selection: MutPtr<QAction>,
     pub context_menu_undo: MutPtr<QAction>,
     pub context_menu_redo: MutPtr<QAction>,
 
@@ -179,6 +180,54 @@ impl PackedFileTableViewRaw {
                 }
             }
         }*/
+    }
+
+    /// This function resets the currently selected cells to their original value.
+    pub unsafe fn reset_selection(&self) {
+
+        // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
+        let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+
+        let mut items_reverted = 0;
+        for index in &indexes_sorted {
+            if index.is_valid() {
+                let mut item = self.table_model.item_from_index(index);
+                if item.data_1a(ITEM_HAS_SOURCE_VALUE).to_bool() {
+                    let original_data = item.data_1a(ITEM_SOURCE_VALUE);
+                    let current_data = item.data_1a(2);
+                    if original_data != current_data.as_ref() {
+                        item.set_data_2a(&original_data, 2);
+                        items_reverted += 1;
+                    }
+                }
+            }
+        }
+
+        // Fix the undo history to have all the previous changed merged into one.
+        if items_reverted > 0 {
+            {
+                let mut history_undo = self.history_undo.write().unwrap();
+                let mut history_redo = self.history_redo.write().unwrap();
+
+                let len = history_undo.len();
+                let mut edits_data = vec![];
+                {
+                    let mut edits = history_undo.drain((len - items_reverted)..);
+                    for edit in &mut edits {
+                        if let TableOperations::Editing(mut edit) = edit {
+                            edits_data.append(&mut edit);
+                        }
+                    }
+                }
+
+                history_undo.push(TableOperations::Editing(edits_data));
+                history_redo.clear();
+            }
+            update_undo_model(self.table_model, self.undo_model);
+        }
     }
 
     /// This function copies the selected cells into the clipboard as a TSV file, so you can paste them in other programs.
