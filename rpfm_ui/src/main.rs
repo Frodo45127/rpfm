@@ -31,6 +31,7 @@
 #![windows_subsystem = "windows"]
 
 use qt_widgets::QApplication;
+use qt_widgets::QStatusBar;
 
 use qt_gui::QColor;
 use qt_gui::{QFont, q_font::StyleHint};
@@ -207,6 +208,9 @@ lazy_static! {
 
     /// Global variable to hold certain info about the current state of the UI.
     static ref UI_STATE: UIState = UIState::default();
+
+    /// Pointer to the status bar of the Main Window, for logging purpouses.
+    static ref STATUS_BAR: AtomicPtr<QStatusBar> = unsafe { atomic_from_cpp_box(QStatusBar::new_0a()) };
 
     /// Monospace font, just in case we need it.
     static ref FONT_MONOSPACE: AtomicPtr<QFont> = {

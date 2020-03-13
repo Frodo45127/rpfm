@@ -34,6 +34,7 @@ use crate::MEDIUM_DARKER_GREY;
 use crate::DARK_GREY;
 use crate::KINDA_WHITY_GREY;
 use crate::EVEN_MORE_WHITY_GREY;
+use crate::STATUS_BAR;
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
@@ -59,6 +60,10 @@ pub(crate) fn ref_from_atomic_ref<T: Sized>(ptr: &AtomicPtr<T>) -> Ref<T> {
     unsafe { Ref::from_raw(ptr.load(Ordering::SeqCst)).unwrap() }
 }
 
+/// This functions logs the provided message to the status bar, so it can be seen by the user.
+pub(crate) fn log_to_status_bar(text: &str) {
+    unsafe { mut_ptr_from_atomic(&STATUS_BAR).show_message_2a(&QString::from_std_str(text), 2500); }
+}
 
 /// This function creates a modal dialog, for showing successes or errors.
 ///

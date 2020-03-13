@@ -41,11 +41,15 @@ use qt_core::MatchFlag;
 
 use cpp_core::MutPtr;
 
+use std::sync::atomic::Ordering;
+
 use rpfm_lib::SETTINGS;
 
 use crate::ffi::new_tableview_command_palette_safe;
 use crate::locale::qtr;
 use crate::RPFM_PATH;
+use crate::STATUS_BAR;
+use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
 
 mod app_ui_extra;
@@ -278,6 +282,7 @@ impl AppUI {
         tab_bar_packed_file.set_tabs_closable(true);
         tab_bar_packed_file.set_movable(true);
         layout.add_widget_5a(&mut tab_bar_packed_file, 0, 0, 1, 1);
+        STATUS_BAR.store(status_bar.as_mut_raw_ptr(), Ordering::SeqCst);
 
         //-----------------------------------------------//
         // `Command Palette` DockWidget.
