@@ -36,7 +36,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     //ui.get_mut_ptr_context_menu_clone_and_append().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["clone_and_append_row"])));
     ui.get_mut_ptr_context_menu_copy().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy"])));
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy_as_lua_table"])));
-    //ui.get_mut_ptr_context_menu_paste().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste"])));
+    ui.get_mut_ptr_context_menu_paste().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste"])));
     //ui.get_mut_ptr_context_menu_paste_as_new_lines().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste_as_new_row"])));
     //ui.get_mut_ptr_context_menu_paste_to_fill_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste_to_fill_selection"])));
     ui.get_mut_ptr_context_menu_invert_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["selection_invert"])));
@@ -58,7 +58,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     //ui.get_mut_ptr_context_menu_clone_and_append().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_copy().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_shortcut_context(ShortcutContext::WidgetShortcut);
-    //ui.get_mut_ptr_context_menu_paste().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_context_menu_paste().set_shortcut_context(ShortcutContext::WidgetShortcut);
     //ui.get_mut_ptr_context_menu_paste_as_new_lines().set_shortcut_context(ShortcutContext::WidgetShortcut);
     //ui.get_mut_ptr_context_menu_paste_to_fill_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_invert_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -80,7 +80,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     //ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_clone_and_append());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_copy());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_copy_as_lua_table());
-    //ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste());
     //ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste_as_new_lines());
     //ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste_to_fill_selection());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_invert_selection());

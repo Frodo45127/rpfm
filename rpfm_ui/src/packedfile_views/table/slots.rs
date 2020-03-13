@@ -62,6 +62,7 @@ pub struct PackedFileTableViewSlots {
     pub delete_rows: Slot<'static>,
     pub copy: Slot<'static>,
     pub copy_as_lua_table: Slot<'static>,
+    pub paste: Slot<'static>,
     pub invert_selection: Slot<'static>,
     pub save: Slot<'static>,
     pub undo: Slot<'static>,
@@ -246,6 +247,12 @@ impl PackedFileTableViewSlots {
             packed_file_view.copy_selection_as_lua_table();
         }));
 
+        // When you want to copy one or more cells.
+        let paste = Slot::new(clone!(
+            mut packed_file_view => move || {
+            packed_file_view.paste();
+        }));
+
         // When we want to invert the selection of the table.
         let invert_selection = Slot::new(clone!(
             mut packed_file_view => move || {
@@ -279,7 +286,7 @@ impl PackedFileTableViewSlots {
         let undo = Slot::new(clone!(
             mut table_definition,
             mut packed_file_view => move || {
-                packed_file_view.undo_redo(true);
+                packed_file_view.undo_redo(true, 1);
                 update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
                 packed_file_view.context_menu_update(&table_definition);
             }
@@ -289,7 +296,7 @@ impl PackedFileTableViewSlots {
         let redo = Slot::new(clone!(
             mut table_definition,
             mut packed_file_view => move || {
-                packed_file_view.undo_redo(false);
+                packed_file_view.undo_redo(false, 1);
                 update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
                 packed_file_view.context_menu_update(&table_definition);
             }
@@ -307,6 +314,7 @@ impl PackedFileTableViewSlots {
             delete_rows,
             copy,
             copy_as_lua_table,
+            paste,
             invert_selection,
             save,
             undo,

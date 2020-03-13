@@ -40,12 +40,13 @@ use cpp_core::Ref;
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
+use std::sync::RwLockWriteGuard;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_lib::schema::Definition;
 
 use crate::app_ui::AppUI;
-use crate::utils::{atomic_from_mut_ptr, create_grid_layout, mut_ptr_from_atomic};
+use crate::utils::{atomic_from_mut_ptr, create_grid_layout, mut_ptr_from_atomic, log_to_status_bar};
 use super::*;
 
 //-------------------------------------------------------------------------------//
@@ -74,6 +75,7 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_delete_rows: MutPtr<QAction>,
     pub context_menu_copy: MutPtr<QAction>,
     pub context_menu_copy_as_lua_table: MutPtr<QAction>,
+    pub context_menu_paste: MutPtr<QAction>,
     pub context_menu_invert_selection: MutPtr<QAction>,
     pub context_menu_undo: MutPtr<QAction>,
     pub context_menu_redo: MutPtr<QAction>,
@@ -251,330 +253,734 @@ impl PackedFileTableViewRaw {
         QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(lua_table));
     }
 
+    /// This function allow us to paste the contents of the clipboard into the selected cells, if the content is compatible with them.
+    ///
+    /// This function has some... tricky stuff:
+    /// - There are several special behaviors when pasting, in order to provide an Excel-Like pasting experience.
+    pub unsafe fn paste(&mut self) {
+
+        // Get the current selection. We treat it like a TSV, for compatibility with table editors.
+        // Also, if the text ends in \n, remove it. Excel things.
+        let mut text = QGuiApplication::clipboard().text().to_std_string();
+        if text.ends_with('\n') { text.pop(); }
+        let rows = text.split('\n').collect::<Vec<&str>>();
+        let rows = rows.iter().map(|x| x.split('\t').collect::<Vec<&str>>()).collect::<Vec<Vec<&str>>>();
+
+        // Get the current selection and his, visually speaking, first item (top-left).
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
+
+        // If nothing is selected, got back to where you came from.
+        if indexes_sorted.is_empty() { return }
+
+        // At this point we should have the strings to paste and the selection. Now, clever pasting ahead:
+        // - If the entire selection are rows of the same amount of cells and we have only one row of text with the exact same amount
+        //   of items as the rows, we paste the same row in each selected row.
+        // - If we only have one TSV value in the text and a ton of cells selcted, paste the same value everywhere.
+        // - In any other case, pick the first selected cell, and paste the TSV using that as cell 0,0.
+        let same_amount_of_cells_selected_per_row = if rows.len() == 1 {
+            let mut row = -1;
+            let mut items = 0;
+            let mut is_valid = true;
+            for index in &indexes_sorted {
+                if row == -1 {
+                    row = index.row();
+                }
+
+                if index.row() == row {
+                    items += 1;
+                } else {
+                    if items < rows[0].len() {
+                        is_valid = false;
+                        break;
+                    }
+                    row = index.row();
+                    items = 1
+                }
+
+                if items > rows[0].len() {
+                    is_valid = false;
+                    break;
+                }
+            }
+            is_valid
+        } else { false };
+
+        if rows.len() == 1 && rows[0].len() == 1 {
+            self.paste_one_for_all(&rows[0][0], &indexes_sorted);
+        }
+
+        else if rows.len() == 1 && same_amount_of_cells_selected_per_row {
+            self.paste_same_row_for_all(&rows[0], &indexes_sorted);
+        }
+
+        else {
+            self.paste_as_it_fits(&rows, &indexes_sorted);
+        }
+    }
+
+    /// This function pastes the value in the clipboard in every selected Cell.
+    unsafe fn paste_one_for_all(&mut self, text: &str, indexes: &[Ref<QModelIndex>]) {
+
+        let mut changed_cells = 0;
+        for model_index in indexes {
+            let model_index = self.table_filter.map_to_source(*model_index);
+            if model_index.is_valid() {
+
+                // Get the column of that cell.
+                let column = model_index.column();
+                let mut item = self.table_model.item_from_index(model_index.as_ref());
+
+                // Depending on the column, we try to encode the data in one format or another.
+                let current_value = item.text().to_std_string();
+                match self.table_definition.fields[column as usize].field_type {
+                    FieldType::Boolean => {
+                        let current_value = item.check_state();
+                        let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                        if current_value != new_value {
+                            item.set_check_state(new_value);
+                            changed_cells += 1;
+                        }
+                    },
+
+                    FieldType::Float => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<f32>() {
+                                item.set_data_2a(&QVariant::from_float(value), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    FieldType::Integer => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<i32>() {
+                                item.set_data_2a(&QVariant::from_int(value), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    FieldType::LongInteger => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<i64>() {
+                                item.set_data_2a(&QVariant::from_i64(value), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    _ => {
+                        if current_value != text {
+                            item.set_text(&QString::from_std_str(&text));
+                            changed_cells += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fix the undo history to have all the previous changed merged into one.
+        if changed_cells > 0 {
+            {
+                let mut history_undo = self.history_undo.write().unwrap();
+                let mut history_redo = self.history_redo.write().unwrap();
+
+                let len = history_undo.len();
+                let mut edits_data = vec![];
+                {
+                    let mut edits = history_undo.drain((len - changed_cells)..);
+                    for edit in &mut edits {
+                        if let TableOperations::Editing(mut edit) = edit {
+                            edits_data.append(&mut edit);
+                        }
+                    }
+                }
+
+                history_undo.push(TableOperations::Editing(edits_data));
+                history_redo.clear();
+            }
+            update_undo_model(self.table_model, self.undo_model);
+            //undo_redo_enabler.trigger();
+        }
+    }
+
+    /// This function pastes the row in the clipboard in every selected row that has the same amount of items selected as items in the clipboard we have.
+    unsafe fn paste_same_row_for_all(&mut self, text: &[&str], indexes: &[Ref<QModelIndex>]) {
+
+        let mut changed_cells = 0;
+        for (index, model_index) in indexes.iter().enumerate() {
+            let text = text[index % text.len()];
+            let model_index = self.table_filter.map_to_source(*model_index);
+            if model_index.is_valid() {
+
+                // Get the column of that cell.
+                let column = model_index.column();
+                let mut item = self.table_model.item_from_index(model_index.as_ref());
+
+                // Depending on the column, we try to encode the data in one format or another.
+                let current_value = item.text().to_std_string();
+                match self.table_definition.fields[column as usize].field_type {
+                    FieldType::Boolean => {
+                        let current_value = item.check_state();
+                        let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                        if current_value != new_value {
+                            item.set_check_state(new_value);
+                            changed_cells += 1;
+                        }
+                    },
+
+                    FieldType::Float => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<f32>() {
+                                item.set_data_2a(&QVariant::from_float(value), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    FieldType::Integer => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<i32>() {
+                                item.set_data_2a(&QVariant::from_int(value), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    FieldType::LongInteger => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<i64>() {
+                                item.set_data_2a(&QVariant::from_i64(value), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    _ => {
+                        if current_value != text {
+                            item.set_text(&QString::from_std_str(&text));
+                            changed_cells += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fix the undo history to have all the previous changed merged into one.
+        if changed_cells > 0 {
+            {
+                let mut history_undo = self.history_undo.write().unwrap();
+                let mut history_redo = self.history_redo.write().unwrap();
+
+                let len = history_undo.len();
+                let mut edits_data = vec![];
+                {
+                    let mut edits = history_undo.drain((len - changed_cells)..);
+                    for edit in &mut edits {
+                        if let TableOperations::Editing(mut edit) = edit {
+                            edits_data.append(&mut edit);
+                        }
+                    }
+                }
+
+                history_undo.push(TableOperations::Editing(edits_data));
+                history_redo.clear();
+            }
+            update_undo_model(self.table_model, self.undo_model);
+            //undo_redo_enabler.trigger();
+        }
+    }
+
+    /// This function pastes the provided text into the table as it fits, following a square strategy starting in the first selected index.
+    unsafe fn paste_as_it_fits(&mut self, text: &[Vec<&str>], indexes: &[Ref<QModelIndex>]) {
+
+        // Get the base index of the square, or stop if there is none.
+        let base_index_visual = if !indexes.is_empty() {
+            &indexes[0]
+        } else { return };
+
+        // We're going to try and check in square mode. That means, start in the selected cell, then right
+        // until we reach a \n, then return to the initial column. Due to how sorting works, we have to do
+        // a test pass first and get all the real AND VALID indexes, then try to paste on them.
+        let horizontal_header = self.table_view_primary.horizontal_header();
+        let vertical_header = self.table_view_primary.vertical_header();
+        let mut visual_row = vertical_header.visual_index(base_index_visual.row());
+
+        let mut real_cells = vec![];
+        let mut added_rows = 0;
+        for row in text {
+            let mut visual_column = horizontal_header.visual_index(base_index_visual.column());
+            for text in row {
+
+                // Depending on the column, we try to encode the data in one format or another, or we just skip it.
+                let real_column = horizontal_header.logical_index(visual_column);
+                let mut real_row = vertical_header.logical_index(visual_row);
+                if let Some(field) = self.table_definition.fields.get(real_column as usize) {
+
+                    // Check if, according to the definition, we have a valid value for the type.
+                    let is_valid_data = match field.field_type {
+                        FieldType::Boolean => if text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0" { false } else { true },
+                        FieldType::Float => if text.parse::<f32>().is_err() { false } else { true },
+                        FieldType::Integer => if text.parse::<i32>().is_err() { false } else { true },
+                        FieldType::LongInteger => if text.parse::<i64>().is_err() { false } else { true },
+
+                        // All these are Strings, so we can skip their checks....
+                        FieldType::StringU8 |
+                        FieldType::StringU16 |
+                        FieldType::OptionalStringU8 |
+                        FieldType::OptionalStringU16 => true,
+
+                        // Ignore sequences.
+                        FieldType::Sequence(_) => false,
+                    };
+
+                    // If it's valid, add it to the real_cells list.
+                    if is_valid_data {
+
+                        // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER)
+                        // because that means we have no row for that position, and we need one.
+                        if real_row == -1 {
+                            let row = get_new_row(&self.table_definition);
+                            self.table_model.append_row_q_list_of_q_standard_item(&row);
+                            real_row = self.table_model.row_count_0a() - 1;
+                            added_rows += 1;
+                        }
+                        real_cells.push((self.table_filter.map_to_source(&self.table_filter.index_2a(real_row, real_column)), text));
+                    }
+                }
+                visual_column += 1;
+            }
+            visual_row += 1;
+        }
+
+        // We need to update the undo model here, because otherwise it'll start triggering crashes
+        // in case the first thing to paste is equal to the current value. In that case, the set_data
+        // will not trigger, and the update_undo_model will not trigger either, causing a crash if
+        // inmediatly after that we try to paste something in a new line (which will not exist in the undo model).
+        {
+            //let mut table_state_data = table_state_data.borrow_mut();
+            //let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
+            update_undo_model(self.table_model, self.undo_model);
+        }
+
+        self.save_lock.store(true, Ordering::SeqCst);
+
+        // Now we do the real pass, changing data if needed.
+        let mut changed_cells = 0;
+        for (index, (real_cell, text)) in real_cells.iter().enumerate() {
+
+            // Depending on the column, we try to encode the data in one format or another.
+            let z = &*self.table_model.item_from_index(real_cell);
+            let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
+            match self.table_definition.fields[real_cell.column() as usize].field_type {
+
+                FieldType::Boolean => {
+                    let current_value = self.table_model.item_from_index(real_cell).check_state();
+                    let new_value = if text.to_lowercase() == "true" || **text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                    if current_value != new_value {
+                        self.table_model.item_from_index(real_cell).set_check_state(new_value);
+                        changed_cells += 1;
+                    }
+                },
+
+                FieldType::Float => {
+                    if &current_value != *text {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_float(text.parse::<f32>().unwrap()), 2);
+                        changed_cells += 1;
+                    }
+                },
+
+                FieldType::Integer => {
+                    if &current_value != *text {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(text.parse::<i32>().unwrap()), 2);
+                        changed_cells += 1;
+                    }
+                },
+
+                FieldType::LongInteger => {
+                    if &current_value != *text {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_i64(text.parse::<i64>().unwrap()), 2);
+                        changed_cells += 1;
+                    }
+                },
+
+                _ => {
+                    if &current_value != *text {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
+                        changed_cells += 1;
+                    }
+                }
+            }
+
+            // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+            if index == real_cells.len() - 1 {
+                self.undo_lock.store(true, Ordering::SeqCst);
+                self.table_model.item_from_index(real_cell).set_data_2a(&QVariant::from_int(1i32), 16);
+                self.save_lock.store(false, Ordering::SeqCst);
+                self.table_model.item_from_index(real_cell).set_data_2a(&QVariant::new(), 16);
+                self.undo_lock.store(false, Ordering::SeqCst);
+            }
+        }
+
+        // Fix the undo history to have all the previous changed merged into one. Or that's what I wanted.
+        // Sadly, the world doesn't work like that. As we can edit AND add rows, we have to use a combined undo operation.
+        // I'll call it... Carolina.
+        if changed_cells > 0 || added_rows > 0 {
+            {
+                let mut history_undo = self.history_undo.write().unwrap();
+                let mut history_redo = self.history_redo.write().unwrap();
+
+                let len = history_undo.len();
+                let mut carolina = vec![];
+                if changed_cells > 0 {
+
+                    let mut edits_data = vec![];
+                    let mut edits = history_undo.drain((len - changed_cells)..);
+                    for edit in &mut edits {
+                        if let TableOperations::Editing(mut edit) = edit {
+                            edits_data.append(&mut edit);
+                        }
+                    }
+                    carolina.push(TableOperations::Editing(edits_data));
+                }
+
+                if added_rows > 0 {
+                    let mut rows = vec![];
+                    ((self.table_model.row_count_0a() - added_rows)..self.table_model.row_count_0a()).rev().for_each(|x| rows.push(x));
+                    carolina.push(TableOperations::AddRows(rows));
+                }
+
+                history_undo.push(TableOperations::Carolina(carolina));
+                history_redo.clear();
+            }
+            update_undo_model(self.table_model, self.undo_model);
+            //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+        }
+    }
+
     /// Function to undo/redo an operation in the table.
     ///
     /// If undo = true we are undoing. Otherwise we are redoing.
-    pub unsafe fn undo_redo(&mut self, undo: bool) {
+    pub unsafe fn undo_redo(
+        &mut self,
+        undo: bool,
+        mut repeat_x_times: usize,
+    ) {
         let filter: MutPtr<QSortFilterProxyModel> = self.table_view_primary.model().static_downcast_mut();
         let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
 
-        let (mut history_source, mut history_opposite) = if undo {
-            (self.history_undo.write().unwrap(), self.history_redo.write().unwrap())
-        } else {
-            (self.history_redo.write().unwrap(), self.history_undo.write().unwrap())
-        };
+        {
+            let (mut history_source, mut history_opposite) = if undo {
+                (self.history_undo.write().unwrap(), self.history_redo.write().unwrap())
+            } else {
+                (self.history_redo.write().unwrap(), self.history_undo.write().unwrap())
+            };
 
-        // Get the last operation in the Undo History, or return if there is none.
-        let operation = if let Some(operation) = history_source.pop() { operation } else { return };
-        match operation {
-            TableOperations::Editing(editions) => {
+            // Get the last operation in the Undo History, or return if there is none.
+            let operation = if let Some(operation) = history_source.pop() { operation } else { return };
+            log_to_status_bar(&format!("{:?}", operation));
+            match operation {
+                TableOperations::Editing(editions) => {
 
-                // Prepare the redo operation, then do the rest.
-                let mut redo_editions = vec![];
-                editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), atomic_from_mut_ptr((&*model.item_2a((x.0).0, (x.0).1)).clone()))));
-                history_opposite.push(TableOperations::Editing(redo_editions));
+                    // Prepare the redo operation, then do the rest.
+                    let mut redo_editions = vec![];
+                    editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), atomic_from_mut_ptr((&*model.item_2a((x.0).0, (x.0).1)).clone()))));
+                    history_opposite.push(TableOperations::Editing(redo_editions));
 
-                self.undo_lock.store(true, Ordering::SeqCst);
-                self.save_lock.store(true, Ordering::SeqCst);
-                for (index, ((row, column), item)) in editions.iter().enumerate() {
-                    let item = &*mut_ptr_from_atomic(&item);
-                    model.set_item_3a(*row, *column, item.clone());
+                    self.undo_lock.store(true, Ordering::SeqCst);
+                    self.save_lock.store(true, Ordering::SeqCst);
+                    for (index, ((row, column), item)) in editions.iter().enumerate() {
+                        let item = &*mut_ptr_from_atomic(&item);
+                        model.set_item_3a(*row, *column, item.clone());
 
-                    // If we are going to process the last one, unlock the save.
-                    if index == editions.len() - 1 {
-                        self.save_lock.store(false, Ordering::SeqCst);
-                        model.item_2a(*row, *column).set_data_2a(&QVariant::from_int(1i32), 16);
-                        model.item_2a(*row, *column).set_data_2a(&QVariant::new(), 16);
-                    }
-                }
-
-                // Select all the edited items.
-                let mut selection_model = self.table_view_primary.selection_model();
-                selection_model.clear();
-                for ((row, column),_) in &editions {
-                    let model_index_filtered = filter.map_from_source(&model.index_2a(*row, *column));
-                    if model_index_filtered.is_valid() {
-                        selection_model.select_q_model_index_q_flags_selection_flag(
-                            &model_index_filtered,
-                            QFlags::from(SelectionFlag::Select)
-                        );
-                    }
-                }
-
-                self.undo_lock.store(false, Ordering::SeqCst);
-            }
-
-            // This actions if for undoing "add rows" actions. It deletes the stored rows.
-            TableOperations::AddRows(mut rows) => {
-
-                // Sort them 0->9, so we can process them.
-                rows.sort_by(|x, y| x.cmp(y));
-                self.undo_lock.store(true, Ordering::SeqCst);
-                let rows_splitted = delete_rows(self.table_model, &rows);
-                history_opposite.push(TableOperations::RemoveRows(rows_splitted));
-                self.undo_lock.store(false, Ordering::SeqCst);
-            }
-
-            // NOTE: the rows list must ALWAYS be in 1->9 order. Otherwise this breaks.
-            TableOperations::RemoveRows(mut rows) => {
-                self.undo_lock.store(true, Ordering::SeqCst);
-                self.save_lock.store(true, Ordering::SeqCst);
-
-                // Make sure the order of these ones is always correct (9->0).
-                rows.sort_by(|x, y| x.0.cmp(&y.0));
-
-                // First, we re-create the rows and re-insert them.
-                for (index, row_pack) in &rows {
-                    for (offset, row) in row_pack.iter().enumerate() {
-                        let mut qlist = QListOfQStandardItem::new();
-                        row.iter().for_each(|x| add_to_q_list_safe(qlist.as_mut_ptr(), mut_ptr_from_atomic(x)));
-                        model.insert_row_int_q_list_of_q_standard_item(*index + offset as i32, &qlist);
-                    }
-                }
-
-                // Then, create the redo action for this one.
-                let mut rows_to_add = rows.iter()
-                    .map(|(index, row_pack)|
-                        row_pack.iter().enumerate()
-                            .map(|(x, _)| *index + x as i32)
-                            .collect::<Vec<i32>>()
-                    )
-                    .flatten()
-                    .collect::<Vec<i32>>();
-
-                rows_to_add.reverse();
-                history_opposite.push(TableOperations::AddRows(rows_to_add));
-
-                // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets,
-                // the slower it gets. And it gets very slow on high amounts of lines.
-                let mut selection_model = self.table_view_primary.selection_model();
-                selection_model.clear();
-                for (index, row_pack) in &rows {
-                    let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index, 0));
-                    let final_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index + row_pack.len() as i32, 0));
-                    if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
-                        let selection = QItemSelection::new_2a(&initial_model_index_filtered, &final_model_index_filtered);
-                        selection_model.select_q_item_selection_q_flags_selection_flag(&selection, QFlags::from(SelectionFlag::Select | SelectionFlag::Rows));
-                    }
-                }
-
-                // Trick to tell the model to update everything.
-                self.save_lock.store(false, Ordering::SeqCst);
-                model.item_2a(0, 0).set_data_2a(&QVariant::new(), 16);
-                self.undo_lock.store(false, Ordering::SeqCst);
-            }
-/*
-            // "rows" has to come in the same format than in RemoveRows.
-            TableOperations::SmartDelete((edits, rows)) => {
-
-                // First, we re-insert each pack of rows.
-                for row_pack in &rows {
-                    for (row, items) in row_pack {
-                        let mut qlist = ListStandardItemMutPtr::new(());
-                        unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
-                        unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
-                    }
-                }
-
-                // Then, restore all the edits and keep their old state for the undo/redo action.
-                *undo_lock.borrow_mut() = true;
-                let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
-                unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-                *undo_lock.borrow_mut() = false;
-
-                // Next, prepare the redo operation.
-                let mut rows_to_add = vec![];
-                rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
-                rows_to_add.reverse();
-                history_opposite.push(TableOperations::RevertSmartDelete((edits_before, rows_to_add)));
-
-                // Select all the edited items/restored rows.
-                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().clear(); }
-                for row_pack in &rows {
-                    let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
-                    let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
-                    if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
-                        let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
-                        unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
-                    }
-                }
-
-                for edit in edits.iter() {
-                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
-                    if model_index_filtered.is_valid() {
-                        unsafe { selection_model.as_mut().unwrap().select((
-                            &model_index_filtered,
-                            Flags::from_enum(SelectionFlag::Select)
-                        )); }
-                    }
-                }
-
-                // Trick to tell the model to update everything.
-                *undo_lock.borrow_mut() = true;
-                unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
-                *undo_lock.borrow_mut() = false;
-            }
-
-            // This action is special and we have to manually trigger a save for it.
-            // "rows" has to come in the same format than in AddRows.
-            TableOperations::RevertSmartDelete((edits, rows)) => {
-
-                // First, redo all the "edits".
-                *undo_lock.borrow_mut() = true;
-                let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
-                unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-                *undo_lock.borrow_mut() = false;
-
-                // Select all the edited items, if any, before removing rows. Otherwise, the selection will not match the editions.
-                let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                unsafe { selection_model.as_mut().unwrap().clear(); }
-                for edit in edits.iter() {
-                    let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
-                    if model_index_filtered.is_valid() {
-                        unsafe { selection_model.as_mut().unwrap().select((
-                            &model_index_filtered,
-                            Flags::from_enum(SelectionFlag::Select)
-                        )); }
-                    }
-                }
-
-                // Then, remove the restored tables after undoing a "SmartDelete".
-                // Same thing as with "AddRows": split the row list in consecutive rows, get their data, and remove them in batches.
-                let mut rows_splitted = vec![];
-                let mut current_row_pack = vec![];
-                let mut current_row_index = -2;
-                for (index, row) in rows.iter().enumerate() {
-
-                    let mut items = vec![];
-                    for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
-                        let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
-                        items.push(item.clone());
+                        // If we are going to process the last one, unlock the save.
+                        if index == editions.len() - 1 {
+                            self.save_lock.store(false, Ordering::SeqCst);
+                            model.item_2a(*row, *column).set_data_2a(&QVariant::from_int(1i32), 16);
+                            model.item_2a(*row, *column).set_data_2a(&QVariant::new(), 16);
+                        }
                     }
 
-                    if (*row == current_row_index - 1) || index == 0 {
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
+                    // Select all the edited items.
+                    let mut selection_model = self.table_view_primary.selection_model();
+                    selection_model.clear();
+                    for ((row, column),_) in &editions {
+                        let model_index_filtered = filter.map_from_source(&model.index_2a(*row, *column));
+                        if model_index_filtered.is_valid() {
+                            selection_model.select_q_model_index_q_flags_selection_flag(
+                                &model_index_filtered,
+                                QFlags::from(SelectionFlag::Select)
+                            );
+                        }
                     }
-                    else {
-                        current_row_pack.reverse();
-                        rows_splitted.push(current_row_pack.to_vec());
-                        current_row_pack.clear();
-                        current_row_pack.push((*row, items));
-                        current_row_index = *row;
+
+                    self.undo_lock.store(false, Ordering::SeqCst);
+                }
+
+                // This actions if for undoing "add rows" actions. It deletes the stored rows.
+                TableOperations::AddRows(mut rows) => {
+
+                    // Sort them 0->9, so we can process them.
+                    rows.sort_by(|x, y| x.cmp(y));
+                    self.undo_lock.store(true, Ordering::SeqCst);
+                    let rows_splitted = delete_rows(self.table_model, &rows);
+                    history_opposite.push(TableOperations::RemoveRows(rows_splitted));
+                    self.undo_lock.store(false, Ordering::SeqCst);
+                }
+
+                // NOTE: the rows list must ALWAYS be in 1->9 order. Otherwise this breaks.
+                TableOperations::RemoveRows(mut rows) => {
+                    self.undo_lock.store(true, Ordering::SeqCst);
+                    self.save_lock.store(true, Ordering::SeqCst);
+
+                    // Make sure the order of these ones is always correct (9->0).
+                    rows.sort_by(|x, y| x.0.cmp(&y.0));
+
+                    // First, we re-create the rows and re-insert them.
+                    for (index, row_pack) in &rows {
+                        for (offset, row) in row_pack.iter().enumerate() {
+                            let mut qlist = QListOfQStandardItem::new();
+                            row.iter().for_each(|x| add_to_q_list_safe(qlist.as_mut_ptr(), mut_ptr_from_atomic(x)));
+                            model.insert_row_int_q_list_of_q_standard_item(*index + offset as i32, &qlist);
+                        }
                     }
-                }
-                current_row_pack.reverse();
-                rows_splitted.push(current_row_pack);
-                if rows_splitted[0].is_empty() { rows_splitted.clear(); }
 
-                for row_pack in rows_splitted.iter() {
-                    unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
-                }
+                    // Then, create the redo action for this one.
+                    let mut rows_to_add = rows.iter()
+                        .map(|(index, row_pack)|
+                            row_pack.iter().enumerate()
+                                .map(|(x, _)| *index + x as i32)
+                                .collect::<Vec<i32>>()
+                        )
+                        .flatten()
+                        .collect::<Vec<i32>>();
 
-                // Prepare the redo operation.
-                rows_splitted.reverse();
-                history_opposite.push(TableOperations::SmartDelete((edits_before, rows_splitted)));
+                    rows_to_add.reverse();
+                    history_opposite.push(TableOperations::AddRows(rows_to_add));
 
-                // Try to save the PackedFile to the main PackFile.
-                Self::save_to_packed_file(
-                    &sender_qt,
-                    &sender_qt_data,
-                    &receiver_qt,
-                    &app_ui,
-                    &packed_file_path,
-                    model,
-                    &global_search_explicit_paths,
-                    update_global_search_stuff,
-                    table_definition,
-                    &mut table_type.borrow_mut(),
-                );
-            }
-
-            // This action is special and we have to manually trigger a save for it.
-            TableOperations::ImportTSV(table_data) => {
-
-                // Prepare the redo operation.
-                {
-                    let table_type = &mut *table_type.borrow_mut();
-                    match table_type {
-                        TableType::DependencyManager(data) => {
-                            history_opposite.push(TableOperations::ImportTSV(data.to_vec()));
-                            *data = table_data;
-                        },
-                        TableType::DB(data) => {
-                            history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                            data.entries = table_data;
-                        },
-                        TableType::LOC(data) => {
-                            history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                            data.entries = table_data;
-                        },
+                    // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets,
+                    // the slower it gets. And it gets very slow on high amounts of lines.
+                    let mut selection_model = self.table_view_primary.selection_model();
+                    selection_model.clear();
+                    for (index, row_pack) in &rows {
+                        let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index, 0));
+                        let final_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index + row_pack.len() as i32, 0));
+                        if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
+                            let selection = QItemSelection::new_2a(&initial_model_index_filtered, &final_model_index_filtered);
+                            selection_model.select_q_item_selection_q_flags_selection_flag(&selection, QFlags::from(SelectionFlag::Select | SelectionFlag::Rows));
+                        }
                     }
+
+                    // Trick to tell the model to update everything.
+                    self.save_lock.store(false, Ordering::SeqCst);
+                    model.item_2a(0, 0).set_data_2a(&QVariant::new(), 16);
+                    self.undo_lock.store(false, Ordering::SeqCst);
+                }
+    /*
+                // "rows" has to come in the same format than in RemoveRows.
+                TableOperations::SmartDelete((edits, rows)) => {
+
+                    // First, we re-insert each pack of rows.
+                    for row_pack in &rows {
+                        for (row, items) in row_pack {
+                            let mut qlist = ListStandardItemMutPtr::new(());
+                            unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
+                            unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
+                        }
+                    }
+
+                    // Then, restore all the edits and keep their old state for the undo/redo action.
+                    *undo_lock.borrow_mut() = true;
+                    let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
+                    unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
+                    *undo_lock.borrow_mut() = false;
+
+                    // Next, prepare the redo operation.
+                    let mut rows_to_add = vec![];
+                    rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
+                    rows_to_add.reverse();
+                    history_opposite.push(TableOperations::RevertSmartDelete((edits_before, rows_to_add)));
+
+                    // Select all the edited items/restored rows.
+                    let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().clear(); }
+                    for row_pack in &rows {
+                        let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
+                        let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
+                        if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
+                            let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
+                            unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
+                        }
+                    }
+
+                    for edit in edits.iter() {
+                        let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
+                        if model_index_filtered.is_valid() {
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                &model_index_filtered,
+                                Flags::from_enum(SelectionFlag::Select)
+                            )); }
+                        }
+                    }
+
+                    // Trick to tell the model to update everything.
+                    *undo_lock.borrow_mut() = true;
+                    unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
+                    *undo_lock.borrow_mut() = false;
                 }
 
-                Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
-                Self::build_columns(table_view, table_view_frozen, model, table_definition, enable_header_popups);
+                // This action is special and we have to manually trigger a save for it.
+                // "rows" has to come in the same format than in AddRows.
+                TableOperations::RevertSmartDelete((edits, rows)) => {
 
-                // If we want to let the columns resize themselfs...
-                if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
-                    unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-                }
+                    // First, redo all the "edits".
+                    *undo_lock.borrow_mut() = true;
+                    let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
+                    unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
+                    *undo_lock.borrow_mut() = false;
 
-                // Try to save the PackedFile to the main PackFile.
-                Self::save_to_packed_file(
-                    &sender_qt,
-                    &sender_qt_data,
-                    &receiver_qt,
-                    &app_ui,
-                    &packed_file_path,
-                    model,
-                    &global_search_explicit_paths,
-                    update_global_search_stuff,
-                    table_definition,
-                    &mut table_type.borrow_mut(),
-                );
-            }
-            TableOperations::Carolina(operations) => {
-                for operation in &operations {
-                    history_source.push((*operation).clone());
-                    Self::undo_redo(
-                        &app_ui,
-                        &dependency_data,
+                    // Select all the edited items, if any, before removing rows. Otherwise, the selection will not match the editions.
+                    let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
+                    unsafe { selection_model.as_mut().unwrap().clear(); }
+                    for edit in edits.iter() {
+                        let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
+                        if model_index_filtered.is_valid() {
+                            unsafe { selection_model.as_mut().unwrap().select((
+                                &model_index_filtered,
+                                Flags::from_enum(SelectionFlag::Select)
+                            )); }
+                        }
+                    }
+
+                    // Then, remove the restored tables after undoing a "SmartDelete".
+                    // Same thing as with "AddRows": split the row list in consecutive rows, get their data, and remove them in batches.
+                    let mut rows_splitted = vec![];
+                    let mut current_row_pack = vec![];
+                    let mut current_row_index = -2;
+                    for (index, row) in rows.iter().enumerate() {
+
+                        let mut items = vec![];
+                        for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
+                            let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
+                            items.push(item.clone());
+                        }
+
+                        if (*row == current_row_index - 1) || index == 0 {
+                            current_row_pack.push((*row, items));
+                            current_row_index = *row;
+                        }
+                        else {
+                            current_row_pack.reverse();
+                            rows_splitted.push(current_row_pack.to_vec());
+                            current_row_pack.clear();
+                            current_row_pack.push((*row, items));
+                            current_row_index = *row;
+                        }
+                    }
+                    current_row_pack.reverse();
+                    rows_splitted.push(current_row_pack);
+                    if rows_splitted[0].is_empty() { rows_splitted.clear(); }
+
+                    for row_pack in rows_splitted.iter() {
+                        unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
+                    }
+
+                    // Prepare the redo operation.
+                    rows_splitted.reverse();
+                    history_opposite.push(TableOperations::SmartDelete((edits_before, rows_splitted)));
+
+                    // Try to save the PackedFile to the main PackFile.
+                    Self::save_to_packed_file(
                         &sender_qt,
                         &sender_qt_data,
                         &receiver_qt,
+                        &app_ui,
                         &packed_file_path,
-                        table_view,
-                        table_view_frozen,
                         model,
-                        filter_model,
-                        history_source,
-                        history_opposite,
                         &global_search_explicit_paths,
                         update_global_search_stuff,
-                        &undo_lock,
-                        &save_lock,
-                        &table_definition,
-                        &table_type,
-                        enable_header_popups.clone()
+                        table_definition,
+                        &mut table_type.borrow_mut(),
                     );
                 }
+
+                // This action is special and we have to manually trigger a save for it.
+                TableOperations::ImportTSV(table_data) => {
+
+                    // Prepare the redo operation.
+                    {
+                        let table_type = &mut *table_type.borrow_mut();
+                        match table_type {
+                            TableType::DependencyManager(data) => {
+                                history_opposite.push(TableOperations::ImportTSV(data.to_vec()));
+                                *data = table_data;
+                            },
+                            TableType::DB(data) => {
+                                history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
+                                data.entries = table_data;
+                            },
+                            TableType::LOC(data) => {
+                                history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
+                                data.entries = table_data;
+                            },
+                        }
+                    }
+
+                    Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
+                    Self::build_columns(table_view, table_view_frozen, model, table_definition, enable_header_popups);
+
+                    // If we want to let the columns resize themselfs...
+                    if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
+                        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
+                    }
+
+                    // Try to save the PackedFile to the main PackFile.
+                    Self::save_to_packed_file(
+                        &sender_qt,
+                        &sender_qt_data,
+                        &receiver_qt,
+                        &app_ui,
+                        &packed_file_path,
+                        model,
+                        &global_search_explicit_paths,
+                        update_global_search_stuff,
+                        table_definition,
+                        &mut table_type.borrow_mut(),
+                    );
+                }*/
+                TableOperations::Carolina(mut operations) => {
+                    repeat_x_times = operations.len();
+                    operations.reverse();
+                    history_source.append(&mut operations.clone());
+                }
+            }
+
+            // We have to manually update these from the context menu due to RwLock deadlocks.
+            if undo {
+                self.context_menu_undo.set_enabled(!history_source.is_empty());
+                self.context_menu_redo.set_enabled(!history_opposite.is_empty());
+            }
+            else {
+                self.context_menu_redo.set_enabled(!history_source.is_empty());
+                self.context_menu_undo.set_enabled(!history_opposite.is_empty());
+            }
+        }
+        if repeat_x_times >= 1 {
+            self.undo_redo(undo, repeat_x_times - 1);
+
+            if repeat_x_times - 1 == 0 {
+                let mut history_opposite = if undo {
+                    self.history_redo.write().unwrap()
+                } else {
+                    self.history_undo.write().unwrap()
+                };
                 let len = history_opposite.len();
-                let mut edits = history_opposite.drain((len - operations.len())..).collect::<Vec<TableOperations>>();
+                let mut edits = history_opposite.drain((len - repeat_x_times + 1)..).collect::<Vec<TableOperations>>();
                 edits.reverse();
                 history_opposite.push(TableOperations::Carolina(edits));
-            }*/
-        }
-
-        // We have to manually update these from the context menu due to RwLock deadlocks.
-        if undo {
-            self.context_menu_undo.set_enabled(!history_source.is_empty());
-            self.context_menu_redo.set_enabled(!history_opposite.is_empty());
-        }
-        else {
-            self.context_menu_redo.set_enabled(!history_source.is_empty());
-            self.context_menu_undo.set_enabled(!history_opposite.is_empty());
+            }
         }
     }
 

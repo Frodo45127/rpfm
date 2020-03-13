@@ -109,8 +109,8 @@ pub enum TableOperations {
     // It holds a copy of the entire table, before importing.
     //ImportTSV(Vec<Vec<DecodedData>>),
 
-    // A Jack-of-all-Trades. It holds a Vec<TableOperations>, for those situations one is not enough.
-    //Carolina(Vec<TableOperations>),
+    /// A Jack-of-all-Trades. It holds a Vec<TableOperations>, for those situations one is not enough.
+    Carolina(Vec<TableOperations>),
 }
 
 /// This struct contains pointers to all the widgets in a Table View.
@@ -131,6 +131,7 @@ pub struct PackedFileTableView {
     context_menu_delete_rows: AtomicPtr<QAction>,
     context_menu_copy: AtomicPtr<QAction>,
     context_menu_copy_as_lua_table: AtomicPtr<QAction>,
+    context_menu_paste: AtomicPtr<QAction>,
     context_menu_invert_selection: AtomicPtr<QAction>,
     context_menu_undo: AtomicPtr<QAction>,
     context_menu_redo: AtomicPtr<QAction>,
@@ -261,12 +262,9 @@ impl PackedFileTableView {
         let mut context_menu_copy_submenu = QMenu::from_q_string(&QString::from_std_str("&Copy..."));
         let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy"));
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy as &LUA Table"));
-/*
-        let mut context_menu_paste_submenu = Menu::new(&QString::from_std_str("&Paste..."));
-        let context_menu_paste = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste"));
-        let context_menu_paste_as_new_lines = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste as New Rows"));
-        let context_menu_paste_to_fill_selection = context_menu_paste_submenu.add_action(&QString::from_std_str("&Paste to Fill Selection"));
 
+        let context_menu_paste = context_menu.add_action_q_string(&QString::from_std_str("&Paste"));
+        /*
         let context_menu_search = context_menu.add_action(&QString::from_std_str("&Search"));
         let context_menu_sidebar = context_menu.add_action(&QString::from_std_str("Si&debar"));
 
@@ -282,7 +280,7 @@ impl PackedFileTableView {
         //context_menu.insert_separator(context_menu_search);
         //context_menu.insert_menu(context_menu_search, context_menu_apply_submenu.into_raw());
         //context_menu.insert_menu(context_menu_search, context_menu_clone_submenu.into_raw());
-        context_menu.insert_menu(context_menu_invert_selection, context_menu_copy_submenu.into_ptr());
+        context_menu.insert_menu(context_menu_paste, context_menu_copy_submenu.into_ptr());
         //context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw());
         //context_menu.insert_separator(context_menu_search);
         //context_menu.insert_separator(context_menu_import);
@@ -308,6 +306,7 @@ impl PackedFileTableView {
             context_menu_delete_rows,
             context_menu_copy,
             context_menu_copy_as_lua_table,
+            context_menu_paste,
             context_menu_invert_selection,
             context_menu_undo,
             context_menu_redo,
@@ -348,6 +347,7 @@ impl PackedFileTableView {
             context_menu_delete_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_delete_rows),
             context_menu_copy: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy),
             context_menu_copy_as_lua_table: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy_as_lua_table),
+            context_menu_paste: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste),
             context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
             context_menu_undo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_undo),
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
@@ -548,6 +548,11 @@ impl PackedFileTableView {
     /// This function returns a pointer to the copy as lua table action.
     pub fn get_mut_ptr_context_menu_copy_as_lua_table(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_copy_as_lua_table)
+    }
+
+    /// This function returns a pointer to the paste action.
+    pub fn get_mut_ptr_context_menu_paste(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_paste)
     }
 
     /// This function returns a pointer to the invert selection action.
@@ -795,13 +800,33 @@ impl PackedFileTableView {
 impl Debug for TableOperations {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TableOperations::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
-            TableOperations::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| format!("{}, ", x)).collect::<String>()),
-            TableOperations::RemoveRows(data) => write!(f, "Re-adding row/s removed in {} batches.", data.len()),
-            //TableOperations::SmartDelete(_) => write!(f, "Smart deletion."),
-            //TableOperations::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
-            //TableOperations::ImportTSV(_) => write!(f, "Imported TSV file."),
-            //TableOperations::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),
+            Self::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
+            Self::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| format!("{}, ", x)).collect::<String>()),
+            Self::RemoveRows(data) => write!(f, "Re-adding row/s removed in {} batches.", data.len()),
+            //Self::SmartDelete(_) => write!(f, "Smart deletion."),
+            //Self::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
+            //Self::ImportTSV(_) => write!(f, "Imported TSV file."),
+            Self::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),
+        }
+    }
+}
+
+/// CLone implementation for TableOperations.
+///
+/// NOTE: CAROLINA'S CLONE IS NOT IMPLEMENTED. It'll crash if you try to clone it.
+impl Clone for TableOperations {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Editing(items) => Self::Editing(items.iter().map(|(x, y)| (*x, atomic_from_mut_ptr(mut_ptr_from_atomic(y)))).collect()),
+            Self::AddRows(rows) => Self::AddRows(rows.to_vec()),
+            Self::RemoveRows(rows) => Self::RemoveRows(rows.iter()
+                .map(|(x, y)| (*x, y.iter()
+                    .map(|y| y.iter()
+                        .map(|z| atomic_from_mut_ptr(mut_ptr_from_atomic(z)))
+                        .collect()
+                    ).collect()
+                )).collect()),
+            _ => unimplemented!()
         }
     }
 }
