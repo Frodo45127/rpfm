@@ -163,6 +163,7 @@ impl UI {
         // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
         if cfg!(target_os = "windows") {
             if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] {
+                QApplication::set_style_q_string(&QString::from_std_str("fusion"));
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
             } else {
