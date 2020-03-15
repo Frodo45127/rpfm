@@ -621,7 +621,6 @@ impl PackedFileTableViewRaw {
         for (index, (real_cell, text)) in real_cells.iter().enumerate() {
 
             // Depending on the column, we try to encode the data in one format or another.
-            let z = &*self.table_model.item_from_index(real_cell);
             let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
             match self.table_definition.fields[real_cell.column() as usize].field_type {
 

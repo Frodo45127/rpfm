@@ -17,7 +17,6 @@ Basically, this does the heavy load of the program.
 use rayon::prelude::*;
 
 use std::collections::BTreeMap;
-use std::env::temp_dir;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;

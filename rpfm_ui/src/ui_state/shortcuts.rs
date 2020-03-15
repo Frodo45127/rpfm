@@ -107,12 +107,11 @@ const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 20] = [
 ];
 
 /// List of shortcuts for the Table Decoder.
-const SHORTCUTS_PACKED_FILE_DECODER: [(&str, &str); 5] = [
+const SHORTCUTS_PACKED_FILE_DECODER: [(&str, &str); 4] = [
     ("move_up", "Ctrl+Up"),
     ("move_down", "Ctrl+Down"),
     ("delete", "Ctrl+Del"),
     ("load", "Ctrl+L"),
-    ("delete", "Ctrl+Del"),
 ];
 
 //-------------------------------------------------------------------------------//

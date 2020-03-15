@@ -12,15 +12,27 @@
 Module with all the code for managing the PackedFile decoder.
 !*/
 
+use qt_widgets::q_abstract_item_view::{EditTrigger, SelectionMode};
+use qt_widgets::QFrame;
+use qt_widgets::QLabel;
+use qt_widgets::QLineEdit;
+use qt_widgets::QAction;
+use qt_widgets::QMenu;
 use qt_widgets::QGridLayout;
 use qt_widgets::QGroupBox;
+use qt_widgets::QTableView;
+use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 
 use qt_gui::QFontMetrics;
+use qt_gui::QStandardItemModel;
 use qt_gui::q_text_cursor::{MoveOperation, MoveMode};
 
+use qt_core::ContextMenuPolicy;
 use qt_core::QSignalBlocker;
 use qt_core::QString;
+use qt_core::SortOrder;
+use qt_core::QFlags;
 
 use cpp_core::MutPtr;
 
@@ -43,6 +55,7 @@ use crate::utils::mut_ptr_from_atomic;
 use self::slots::PackedFileDecoderViewSlots;
 
 pub mod connections;
+pub mod shortcuts;
 pub mod slots;
 
 //-------------------------------------------------------------------------------//
@@ -54,8 +67,49 @@ pub struct PackedFileDecoderView {
     hex_view_index: AtomicPtr<QTextEdit>,
     hex_view_raw: AtomicPtr<QTextEdit>,
     hex_view_decoded: AtomicPtr<QTextEdit>,
-    //table_view: AtomicPtr<TableView>,
-    //table_model: AtomicPtr<StandardItemModel>,
+
+    table_view: AtomicPtr<QTableView>,
+    table_model: AtomicPtr<QStandardItemModel>,
+
+    table_view_context_menu: AtomicPtr<QMenu>,
+    table_view_context_menu_move_up: AtomicPtr<QAction>,
+    table_view_context_menu_move_down: AtomicPtr<QAction>,
+    table_view_context_menu_delete: AtomicPtr<QAction>,
+
+    bool_line_edit: AtomicPtr<QLineEdit>,
+    float_line_edit: AtomicPtr<QLineEdit>,
+    integer_line_edit: AtomicPtr<QLineEdit>,
+    long_integer_line_edit: AtomicPtr<QLineEdit>,
+    string_u8_line_edit: AtomicPtr<QLineEdit>,
+    string_u16_line_edit: AtomicPtr<QLineEdit>,
+    optional_string_u8_line_edit: AtomicPtr<QLineEdit>,
+    optional_string_u16_line_edit: AtomicPtr<QLineEdit>,
+
+    bool_button: AtomicPtr<QPushButton>,
+    float_button: AtomicPtr<QPushButton>,
+    integer_button: AtomicPtr<QPushButton>,
+    long_integer_button: AtomicPtr<QPushButton>,
+    string_u8_button: AtomicPtr<QPushButton>,
+    string_u16_button: AtomicPtr<QPushButton>,
+    optional_string_u8_button: AtomicPtr<QPushButton>,
+    optional_string_u16_button: AtomicPtr<QPushButton>,
+
+    table_info_type_decoded_label: AtomicPtr<QLabel>,
+    table_info_version_decoded_label: AtomicPtr<QLabel>,
+    table_info_entry_count_decoded_label: AtomicPtr<QLabel>,
+
+    table_view_old_versions: AtomicPtr<QTableView>,
+    table_model_old_versions: AtomicPtr<QStandardItemModel>,
+
+    table_view_old_versions_context_menu: AtomicPtr<QMenu>,
+    table_view_old_versions_context_menu_load: AtomicPtr<QAction>,
+    table_view_old_versions_context_menu_delete: AtomicPtr<QAction>,
+
+    test_definition_button: AtomicPtr<QPushButton>,
+    generate_pretty_diff_button: AtomicPtr<QPushButton>,
+    clear_definition_button: AtomicPtr<QPushButton>,
+    save_button: AtomicPtr<QPushButton>,
+
     packed_file_data: Arc<Vec<u8>>,
 }
 
@@ -68,8 +122,48 @@ pub struct PackedFileDecoderViewRaw {
     pub hex_view_index: MutPtr<QTextEdit>,
     pub hex_view_raw: MutPtr<QTextEdit>,
     pub hex_view_decoded: MutPtr<QTextEdit>,
-    //pub table_view: *mut TableView,
-    //pub table_model: *mut StandardItemModel,
+
+    pub table_view: MutPtr<QTableView>,
+    pub table_model: MutPtr<QStandardItemModel>,
+
+    pub table_view_context_menu: MutPtr<QMenu>,
+    pub table_view_context_menu_move_up: MutPtr<QAction>,
+    pub table_view_context_menu_move_down: MutPtr<QAction>,
+    pub table_view_context_menu_delete: MutPtr<QAction>,
+
+    pub bool_line_edit: MutPtr<QLineEdit>,
+    pub float_line_edit: MutPtr<QLineEdit>,
+    pub integer_line_edit: MutPtr<QLineEdit>,
+    pub long_integer_line_edit: MutPtr<QLineEdit>,
+    pub string_u8_line_edit: MutPtr<QLineEdit>,
+    pub string_u16_line_edit: MutPtr<QLineEdit>,
+    pub optional_string_u8_line_edit: MutPtr<QLineEdit>,
+    pub optional_string_u16_line_edit: MutPtr<QLineEdit>,
+
+    pub bool_button: MutPtr<QPushButton>,
+    pub float_button: MutPtr<QPushButton>,
+    pub integer_button: MutPtr<QPushButton>,
+    pub long_integer_button: MutPtr<QPushButton>,
+    pub string_u8_button: MutPtr<QPushButton>,
+    pub string_u16_button: MutPtr<QPushButton>,
+    pub optional_string_u8_button: MutPtr<QPushButton>,
+    pub optional_string_u16_button: MutPtr<QPushButton>,
+
+    pub table_info_type_decoded_label: MutPtr<QLabel>,
+    pub table_info_version_decoded_label: MutPtr<QLabel>,
+    pub table_info_entry_count_decoded_label: MutPtr<QLabel>,
+
+    pub table_view_old_versions: MutPtr<QTableView>,
+    pub table_model_old_versions: MutPtr<QStandardItemModel>,
+
+    pub table_view_old_versions_context_menu: MutPtr<QMenu>,
+    pub table_view_old_versions_context_menu_load: MutPtr<QAction>,
+    pub table_view_old_versions_context_menu_delete: MutPtr<QAction>,
+
+    pub test_definition_button: MutPtr<QPushButton>,
+    pub generate_pretty_diff_button: MutPtr<QPushButton>,
+    pub clear_definition_button: MutPtr<QPushButton>,
+    pub save_button: MutPtr<QPushButton>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -116,12 +210,202 @@ impl PackedFileDecoderView {
         hex_view_layout.add_widget_5a(&mut hex_view_raw, 0, 1, 1, 1);
         hex_view_layout.add_widget_5a(&mut hex_view_decoded, 0, 2, 1, 1);
 
-        layout.add_widget_5a(hex_view_group, 0, 2, 1, 1);
+        layout.add_widget_5a(hex_view_group, 0, 0, 5, 1);
+
+        let mut table_view = QTableView::new_0a();
+        let mut table_model = QStandardItemModel::new_0a();
+        table_view.set_model(table_model.as_mut_ptr());
+        table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
+        table_view.horizontal_header().set_stretch_last_section(true);
+        table_view.set_alternating_row_colors(true);
+
+        // Create the Contextual Menu for the TableView.
+        let mut table_view_context_menu = QMenu::new();
+
+        // Create the Contextual Menu Actions.
+        let mut table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move &Up"));
+        let mut table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("&Move Down"));
+        let mut table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("&Delete"));
+
+        // Disable them by default.
+        table_view_context_menu_move_up.set_enabled(false);
+        table_view_context_menu_move_down.set_enabled(false);
+        table_view_context_menu_delete.set_enabled(false);
+
+        layout.add_widget_5a(table_view.as_mut_ptr(), 0, 1, 1, 2);
+
+        // Create the frames for the info.
+        let mut decoded_fields_frame = QGroupBox::from_q_string(&QString::from_std_str("Current Field Decoded"));
+        let mut decoded_fields_layout = create_grid_layout(decoded_fields_frame.as_mut_ptr().static_upcast_mut());
+        decoded_fields_layout.set_column_stretch(1, 10);
+
+        // Create the stuff for the decoded fields.
+        let bool_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Bool\":"));
+        let float_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Float\":"));
+        let integer_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Integer\":"));
+        let long_integer_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Long Integer\":"));
+        let string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U8\":"));
+        let string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U16\":"));
+        let optional_string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U8\":"));
+        let optional_string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U16\":"));
+
+        let mut bool_line_edit = QLineEdit::new();
+        let mut float_line_edit = QLineEdit::new();
+        let mut integer_line_edit = QLineEdit::new();
+        let mut long_integer_line_edit = QLineEdit::new();
+        let mut string_u8_line_edit = QLineEdit::new();
+        let mut string_u16_line_edit = QLineEdit::new();
+        let mut optional_string_u8_line_edit = QLineEdit::new();
+        let mut optional_string_u16_line_edit = QLineEdit::new();
+
+        let mut bool_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut float_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut integer_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut long_integer_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut optional_string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut optional_string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+
+        decoded_fields_layout.add_widget_5a(bool_label.into_ptr(), 0, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(float_label.into_ptr(), 1, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(integer_label.into_ptr(), 2, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(long_integer_label.into_ptr(), 3, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(string_u8_label.into_ptr(), 4, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(string_u16_label.into_ptr(), 5, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(optional_string_u8_label.into_ptr(), 6, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(optional_string_u16_label.into_ptr(), 7, 0, 1, 1);
+
+        decoded_fields_layout.add_widget_5a(&mut bool_line_edit, 0, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut float_line_edit, 1, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut integer_line_edit, 2, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut long_integer_line_edit, 3, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u8_line_edit, 4, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u16_line_edit, 5, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_line_edit, 6, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_line_edit, 7, 1, 1, 1);
+
+        decoded_fields_layout.add_widget_5a(&mut bool_button, 0, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut float_button, 1, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut integer_button, 2, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut long_integer_button, 3, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u8_button, 4, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u16_button, 5, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_button, 6, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_button, 7, 2, 1, 1);
+
+        layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
+
+        let mut info_frame = QGroupBox::from_q_string(&QString::from_std_str("Table Info"));
+        let mut info_layout = create_grid_layout(info_frame.as_mut_ptr().static_upcast_mut());
+
+        // Create stuff for the info frame.
+        let table_info_type_label = QLabel::from_q_string(&QString::from_std_str("Table type:"));
+        let table_info_version_label = QLabel::from_q_string(&QString::from_std_str("Table version:"));
+        let table_info_entry_count_label = QLabel::from_q_string(&QString::from_std_str("Table entry count:"));
+
+        let mut table_info_type_decoded_label = QLabel::new();
+        let mut table_info_version_decoded_label = QLabel::new();
+        let mut table_info_entry_count_decoded_label = QLabel::new();
+
+        info_layout.add_widget_5a(table_info_type_label.into_ptr(), 0, 0, 1, 1);
+        info_layout.add_widget_5a(table_info_version_label.into_ptr(), 1, 0, 1, 1);
+        info_layout.add_widget_5a(table_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
+
+        info_layout.add_widget_5a(&mut table_info_type_decoded_label, 0, 1, 1, 1);
+        info_layout.add_widget_5a(&mut table_info_version_decoded_label, 1, 1, 1, 1);
+        info_layout.add_widget_5a(&mut table_info_entry_count_decoded_label, 2, 1, 1, 1);
+
+        layout.add_widget_5a(info_frame.into_ptr(), 1, 2, 1, 1);
+
+        // Create the TableView at the top.
+        let mut table_view_old_versions = QTableView::new_0a();
+        let mut table_model_old_versions = QStandardItemModel::new_0a();
+        table_view_old_versions.set_model(&mut table_model_old_versions);
+        table_view_old_versions.set_alternating_row_colors(true);
+        table_view_old_versions.set_edit_triggers(QFlags::from(EditTrigger::NoEditTriggers));
+        table_view_old_versions.set_selection_mode(SelectionMode::SingleSelection);
+        table_view_old_versions.set_sorting_enabled(true);
+        table_view_old_versions.sort_by_column_2a(0, SortOrder::AscendingOrder);
+        table_view_old_versions.vertical_header().set_visible(false);
+        table_view_old_versions.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
+
+        let mut table_view_old_versions_context_menu = QMenu::new();
+        let mut table_view_old_versions_context_menu_load = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Load"));
+        let mut table_view_old_versions_context_menu_delete = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Delete"));
+        table_view_old_versions_context_menu_load.set_enabled(false);
+        table_view_old_versions_context_menu_delete.set_enabled(false);
+
+        layout.add_widget_5a(&mut table_view_old_versions, 2, 2, 1, 1);
+
+        // Create the bottom ButtonBox.
+        let mut button_box = QFrame::new_0a();
+        let mut button_box_layout = create_grid_layout(button_box.as_mut_ptr().static_upcast_mut());
+
+        // Create the bottom Buttons.
+        let mut test_definition_button = QPushButton::from_q_string(&QString::from_std_str("Test Definition"));
+        let mut generate_pretty_diff_button = QPushButton::from_q_string(&QString::from_std_str("Generate Diff"));
+        let mut clear_definition_button = QPushButton::from_q_string(&QString::from_std_str("Remove all fields"));
+        let mut save_button = QPushButton::from_q_string(&QString::from_std_str("Finish it!"));
+
+        // Add them to the Dialog.
+        button_box_layout.add_widget_5a(&mut test_definition_button, 0, 0, 1, 1);
+        button_box_layout.add_widget_5a(&mut generate_pretty_diff_button, 0, 1, 1, 1);
+        button_box_layout.add_widget_5a(&mut clear_definition_button, 0, 2, 1, 1);
+        button_box_layout.add_widget_5a(&mut save_button, 0, 3, 1, 1);
+
+        layout.add_widget_5a(button_box.into_ptr(), 4, 1, 1, 2);
+
+        layout.set_column_stretch(1, 10);
+        layout.set_row_stretch(0, 10);
+        layout.set_row_stretch(2, 5);
 
         let packed_file_decoder_view_raw = PackedFileDecoderViewRaw {
             hex_view_index: hex_view_index.into_ptr(),
             hex_view_raw: hex_view_raw.into_ptr(),
             hex_view_decoded: hex_view_decoded.into_ptr(),
+
+            table_view: table_view.into_ptr(),
+            table_model: table_model.into_ptr(),
+
+            table_view_context_menu: table_view_context_menu.into_ptr(),
+            table_view_context_menu_move_up,
+            table_view_context_menu_move_down,
+            table_view_context_menu_delete,
+
+            bool_line_edit: bool_line_edit.into_ptr(),
+            float_line_edit: float_line_edit.into_ptr(),
+            integer_line_edit: integer_line_edit.into_ptr(),
+            long_integer_line_edit: long_integer_line_edit.into_ptr(),
+            string_u8_line_edit: string_u8_line_edit.into_ptr(),
+            string_u16_line_edit: string_u16_line_edit.into_ptr(),
+            optional_string_u8_line_edit: optional_string_u8_line_edit.into_ptr(),
+            optional_string_u16_line_edit: optional_string_u16_line_edit.into_ptr(),
+
+            bool_button: bool_button.into_ptr(),
+            float_button: float_button.into_ptr(),
+            integer_button: integer_button.into_ptr(),
+            long_integer_button: long_integer_button.into_ptr(),
+            string_u8_button: string_u8_button.into_ptr(),
+            string_u16_button: string_u16_button.into_ptr(),
+            optional_string_u8_button: optional_string_u8_button.into_ptr(),
+            optional_string_u16_button: optional_string_u16_button.into_ptr(),
+
+            table_info_type_decoded_label: table_info_type_decoded_label.into_ptr(),
+            table_info_version_decoded_label: table_info_version_decoded_label.into_ptr(),
+            table_info_entry_count_decoded_label: table_info_entry_count_decoded_label.into_ptr(),
+
+            table_view_old_versions: table_view_old_versions.into_ptr(),
+            table_model_old_versions: table_model_old_versions.into_ptr(),
+
+            table_view_old_versions_context_menu: table_view_old_versions_context_menu.into_ptr(),
+            table_view_old_versions_context_menu_load,
+            table_view_old_versions_context_menu_delete,
+
+            test_definition_button: test_definition_button.into_ptr(),
+            generate_pretty_diff_button: generate_pretty_diff_button.into_ptr(),
+            clear_definition_button: clear_definition_button.into_ptr(),
+            save_button: save_button.into_ptr(),
         };
 
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
@@ -131,15 +415,59 @@ impl PackedFileDecoderView {
             &packed_file_path
         );
 
-        let packed_file_decoder_view = Self {
+        let mut packed_file_decoder_view = Self {
             hex_view_index: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_index),
             hex_view_raw: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_raw),
             hex_view_decoded: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_decoded),
+
+            table_view: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view),
+            table_model: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_model),
+
+            table_view_context_menu: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu),
+            table_view_context_menu_move_up: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_up),
+            table_view_context_menu_move_down: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_down),
+            table_view_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_delete),
+
+            bool_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_line_edit),
+            float_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.float_line_edit),
+            integer_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.integer_line_edit),
+            long_integer_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.long_integer_line_edit),
+            string_u8_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u8_line_edit),
+            string_u16_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u16_line_edit),
+            optional_string_u8_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_line_edit),
+            optional_string_u16_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u16_line_edit),
+
+            bool_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_button),
+            float_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.float_button),
+            integer_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.integer_button),
+            long_integer_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.long_integer_button),
+            string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u8_button),
+            string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u16_button),
+            optional_string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_button),
+            optional_string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u16_button),
+
+            table_info_type_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_info_type_decoded_label),
+            table_info_version_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_info_version_decoded_label),
+            table_info_entry_count_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_info_entry_count_decoded_label),
+
+            table_view_old_versions: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions),
+            table_model_old_versions: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_model_old_versions),
+
+            table_view_old_versions_context_menu: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu),
+            table_view_old_versions_context_menu_load: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_load),
+            table_view_old_versions_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_delete),
+
+            test_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.test_definition_button),
+            generate_pretty_diff_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.generate_pretty_diff_button),
+            clear_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.clear_definition_button),
+            save_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.save_button),
+
             packed_file_data: Arc::new(packed_file.get_raw_data()?)
         };
 
         packed_file_decoder_view.load_raw_data();
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
+        shortcuts::set_shortcuts(&mut packed_file_decoder_view);
         packed_file_view.view = View::Decoder(packed_file_decoder_view);
 
         // Return success.
@@ -285,6 +613,30 @@ impl PackedFileDecoderView {
 
     fn get_mut_ptr_hex_view_decoded(&self) -> MutPtr<QTextEdit> {
         mut_ptr_from_atomic(&self.hex_view_decoded)
+    }
+
+    fn get_mut_ptr_table_view(&self) -> MutPtr<QTableView> {
+        mut_ptr_from_atomic(&self.table_view)
+    }
+
+    fn get_mut_ptr_table_view_context_menu_move_up(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_context_menu_move_up)
+    }
+
+    fn get_mut_ptr_table_view_context_menu_move_down(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_context_menu_move_down)
+    }
+
+    fn get_mut_ptr_table_view_context_menu_delete(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_context_menu_delete)
+    }
+
+    fn get_mut_ptr_table_view_old_versions_context_menu_load(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_old_versions_context_menu_load)
+    }
+
+    fn get_mut_ptr_table_view_old_versions_context_menu_delete(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_old_versions_context_menu_delete)
     }
 }
 
