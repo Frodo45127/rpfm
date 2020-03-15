@@ -336,7 +336,7 @@ impl AppUI {
         // This menu is hidden unless you enable it.
         let mut menu_bar_debug = menu_bar.add_menu_q_string(&qtr("menu_bar_debug"));
         if !SETTINGS.lock().unwrap().settings_bool["enable_debug_menu"] {
-            menu_bar_debug.set_visible(false);
+            menu_bar_debug.menu_action().set_visible(false);
         }
 
         //-----------------------------------------------//
