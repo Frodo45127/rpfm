@@ -21,6 +21,8 @@ use cpp_core::Ref;
 
 use std::sync::atomic::AtomicPtr;
 
+use rpfm_lib::packedfile::{text, text::TextType};
+
 use crate::RPFM_PATH;
 use crate::TREEVIEW_ICONS;
 use crate::utils::atomic_from_cpp_box;
@@ -109,26 +111,15 @@ impl IconType {
                 else if packed_file_name.ends_with(".rigid_model_v2") { &TREEVIEW_ICONS.rigid_model }
 
                 // If it ends in any of these, it's a plain text PackedFile.
-                else if packed_file_name.ends_with(".lua") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".htm") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".html") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".xml") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".xml.shader") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".xml.material") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".variantmeshdefinition") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".environment") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".lighting") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".wsmodel") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".csv") { &TREEVIEW_ICONS.text_csv }
-                else if packed_file_name.ends_with(".tsv") { &TREEVIEW_ICONS.text_csv }
-                else if packed_file_name.ends_with(".inl") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".battle_speech_camera") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".bob") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".cindyscene") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".cindyscenemanager") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".tai") { &TREEVIEW_ICONS.text_generic }
-                //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                else if packed_file_name.ends_with(".txt") { &TREEVIEW_ICONS.text_txt }
+                else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| packed_file_name.ends_with(extension)) {
+                    match text_type {
+                        TextType::Html => &TREEVIEW_ICONS.text_xml,
+                        TextType::Xml => &TREEVIEW_ICONS.text_xml,
+                        TextType::Lua => &TREEVIEW_ICONS.text_generic,
+                        TextType::Cpp => &TREEVIEW_ICONS.text_generic,
+                        TextType::Plain => &TREEVIEW_ICONS.text_txt,
+                    }
+                }
 
                 // If it ends in any of these, it's an image.
                 else if packed_file_name.ends_with(".jpg") { &TREEVIEW_ICONS.image_jpg }
@@ -173,26 +164,15 @@ impl IconType {
                 else if packed_file_name.ends_with(".rigid_model_v2") { &TREEVIEW_ICONS.rigid_model }
 
                 // If it ends in any of these, it's a plain text PackedFile.
-                else if packed_file_name.ends_with(".lua") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".htm") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".html") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".xml") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".xml.shader") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".xml.material") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".variantmeshdefinition") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".environment") { &TREEVIEW_ICONS.text_xml }
-                else if packed_file_name.ends_with(".lighting") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".wsmodel") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".csv") { &TREEVIEW_ICONS.text_csv }
-                else if packed_file_name.ends_with(".tsv") { &TREEVIEW_ICONS.text_csv }
-                else if packed_file_name.ends_with(".inl") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".battle_speech_camera") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".bob") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".cindyscene") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".cindyscenemanager") { &TREEVIEW_ICONS.text_generic }
-                else if packed_file_name.ends_with(".tai") { &TREEVIEW_ICONS.text_generic }
-                //else if packed_file_name.ends_with(".benchmark") || // This one needs special decoding/encoding.
-                else if packed_file_name.ends_with(".txt") { &TREEVIEW_ICONS.text_txt }
+                else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(extension, _)| packed_file_name.ends_with(extension)) {
+                    match text_type {
+                        TextType::Html => &TREEVIEW_ICONS.text_xml,
+                        TextType::Xml => &TREEVIEW_ICONS.text_xml,
+                        TextType::Lua => &TREEVIEW_ICONS.text_generic,
+                        TextType::Cpp => &TREEVIEW_ICONS.text_generic,
+                        TextType::Plain => &TREEVIEW_ICONS.text_txt,
+                    }
+                }
 
                 // If it ends in any of these, it's an image.
                 else if packed_file_name.ends_with(".jpg") { &TREEVIEW_ICONS.image_jpg }
