@@ -110,6 +110,14 @@ pub struct Frame {
 /// Implementation of `CaVp8`.
 impl CaVp8 {
 
+    /// This function returns if the provided data corresponds to a video or not.
+    pub fn is_video(data: &[u8]) -> bool {
+        match data.decode_string_u8(0, 4) {
+            Ok(signature) => signature == SIGNATURE_IVF || signature == SIGNATURE_CAMV,
+            Err(_) => false,
+        }
+    }
+
     /// This function creates a `CaVp8` from a `Vec<u8>`.
     ///
     /// NOTE: this takes a whole vector, not a reference. The reason is this vector can by enormous and this way

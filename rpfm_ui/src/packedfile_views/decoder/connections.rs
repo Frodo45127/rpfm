@@ -31,4 +31,8 @@ pub unsafe fn set_connections(ui: &PackedFileDecoderView, slots: &PackedFileDeco
     ui.get_mut_ptr_hex_view_raw().selection_changed().connect(&slots.hex_view_selection_raw_sync);
     ui.get_mut_ptr_hex_view_decoded().selection_changed().connect(&slots.hex_view_selection_decoded_sync);
 
+    ui.get_mut_ptr_table_view().custom_context_menu_requested().connect(&slots.table_view_context_menu);
+    ui.get_mut_ptr_table_view_old_versions().custom_context_menu_requested().connect(&slots.table_view_versions_context_menu);
+
+
 }

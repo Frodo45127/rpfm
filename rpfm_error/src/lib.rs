@@ -487,6 +487,9 @@ pub enum ErrorKind {
 
     /// Error for when we try to read a PackedFile for the Decoder.
     DecoderDecode(String),
+
+    /// Error for when we try to open in the decoder an incompatible PackedFile.
+    PackedFileNotDecodeableWithDecoder,
 }
 
 /// Implementation of `Error`.
@@ -742,6 +745,7 @@ impl Display for ErrorKind {
             ErrorKind::InvalidLocalisationFileName(name) => write!(f, "<p>The name '{}' is not a valid localisation file name. It has to have one and only one '_' somewhere and an identifier (en, fr,...) after that.</p>", name),
             ErrorKind::DependencyManagerDecode(cause) => write!(f, "<p>Error while trying to decode the Dependency PackFile List:</p><p>{}</p>", cause),
             ErrorKind::DecoderDecode(cause) => write!(f, "<p>Error while trying to load the following PackedFile to the decoder:</p><p>{}</p>", cause),
+            ErrorKind::PackedFileNotDecodeableWithDecoder => write!(f, "<p>This PackedFile cannot be decoded using the PackedFile Decoder.</p>"),
         }
     }
 }

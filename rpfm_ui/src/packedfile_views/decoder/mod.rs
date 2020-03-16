@@ -13,6 +13,7 @@ Module with all the code for managing the PackedFile decoder.
 !*/
 
 use qt_widgets::q_abstract_item_view::{EditTrigger, SelectionMode};
+use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QFrame;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
@@ -24,6 +25,7 @@ use qt_widgets::QTableView;
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 
+use qt_gui::QStandardItem;
 use qt_gui::QFontMetrics;
 use qt_gui::QStandardItemModel;
 use qt_gui::q_text_cursor::{MoveOperation, MoveMode};
@@ -33,6 +35,8 @@ use qt_core::QSignalBlocker;
 use qt_core::QString;
 use qt_core::SortOrder;
 use qt_core::QFlags;
+use qt_core::QVariant;
+use qt_core::Orientation;
 
 use cpp_core::MutPtr;
 
@@ -41,6 +45,9 @@ use std::rc::Rc;
 use std::sync::{Arc, atomic::AtomicPtr};
 
 use rpfm_error::{ErrorKind, Result};
+use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::schema::Schema;
+use rpfm_lib::SCHEMA;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -57,6 +64,12 @@ use self::slots::PackedFileDecoderViewSlots;
 pub mod connections;
 pub mod shortcuts;
 pub mod slots;
+
+/// List of supported PackedFile Types by the decoder.
+static SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 2] = [
+    PackedFileType::DB,
+    PackedFileType::Loc,
+];
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -110,6 +123,8 @@ pub struct PackedFileDecoderView {
     clear_definition_button: AtomicPtr<QPushButton>,
     save_button: AtomicPtr<QPushButton>,
 
+    packed_file_type: PackedFileType,
+    packed_file_path: Vec<String>,
     packed_file_data: Arc<Vec<u8>>,
 }
 
@@ -117,7 +132,7 @@ pub struct PackedFileDecoderView {
 ///
 /// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileDecoderView`.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PackedFileDecoderViewRaw {
     pub hex_view_index: MutPtr<QTextEdit>,
     pub hex_view_raw: MutPtr<QTextEdit>,
@@ -164,6 +179,9 @@ pub struct PackedFileDecoderViewRaw {
     pub generate_pretty_diff_button: MutPtr<QPushButton>,
     pub clear_definition_button: MutPtr<QPushButton>,
     pub save_button: MutPtr<QPushButton>,
+
+    pub packed_file_type: PackedFileType,
+    pub packed_file_path: Vec<String>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -192,6 +210,13 @@ impl PackedFileDecoderView {
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
+
+        let packed_file_type = PackedFileType::get_packed_file_type_by_data(&packed_file);
+
+        // If the PackedFileType is not one of the ones supported by the schema system, get out.
+        if !SUPPORTED_PACKED_FILE_TYPES.iter().any(|x| x == &packed_file_type)  {
+            return Err(ErrorKind::PackedFileNotDecodeableWithDecoder.into());
+        }
 
         // Create the hex view on the left side.
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
@@ -360,7 +385,7 @@ impl PackedFileDecoderView {
         layout.set_row_stretch(0, 10);
         layout.set_row_stretch(2, 5);
 
-        let packed_file_decoder_view_raw = PackedFileDecoderViewRaw {
+        let mut packed_file_decoder_view_raw = PackedFileDecoderViewRaw {
             hex_view_index: hex_view_index.into_ptr(),
             hex_view_raw: hex_view_raw.into_ptr(),
             hex_view_decoded: hex_view_decoded.into_ptr(),
@@ -406,10 +431,13 @@ impl PackedFileDecoderView {
             generate_pretty_diff_button: generate_pretty_diff_button.into_ptr(),
             clear_definition_button: clear_definition_button.into_ptr(),
             save_button: save_button.into_ptr(),
+
+            packed_file_path: packed_file.get_path().to_vec(),
+            packed_file_type,
         };
 
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
-            packed_file_decoder_view_raw,
+            packed_file_decoder_view_raw.clone(),
             *pack_file_contents_ui,
             *global_search_ui,
             &packed_file_path
@@ -462,10 +490,13 @@ impl PackedFileDecoderView {
             clear_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.clear_definition_button),
             save_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.save_button),
 
-            packed_file_data: Arc::new(packed_file.get_raw_data()?)
+            packed_file_type,
+            packed_file_path: packed_file.get_path().to_vec(),
+            packed_file_data: Arc::new(packed_file.get_raw_data()?),
         };
 
         packed_file_decoder_view.load_raw_data();
+        packed_file_decoder_view_raw.load_versions_list();
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
         packed_file_view.view = View::Decoder(packed_file_decoder_view);
@@ -619,6 +650,10 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.table_view)
     }
 
+    fn get_mut_ptr_table_view_old_versions(&self) -> MutPtr<QTableView> {
+        mut_ptr_from_atomic(&self.table_view_old_versions)
+    }
+
     fn get_mut_ptr_table_view_context_menu_move_up(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.table_view_context_menu_move_up)
     }
@@ -684,5 +719,30 @@ impl PackedFileDecoderViewRaw {
             self.hex_view_raw.set_text_cursor(&cursor_dest);
             blocker.unblock();
         }
+    }
+
+    /// This function is used to update the list of "Versions" of the currently open table decoded.
+    unsafe fn load_versions_list(&mut self) {
+        self.table_model_old_versions.clear();
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+
+            // Depending on the type, get one version list or another.
+            let versioned_file = match self.packed_file_type {
+                PackedFileType::DB => schema.get_ref_versioned_file_db(&self.packed_file_path[1]),
+                PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
+                _ => unimplemented!(),
+            };
+
+            // And get all the versions of this table, and list them in their TreeView, if we have any.
+            if let Ok(versioned_file) = versioned_file {
+                versioned_file.get_version_list().iter().map(|x| x.version).for_each(|version| {
+                    let item = QStandardItem::from_q_string(&QString::from_std_str(format!("{}", version)));
+                    self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
+                });
+            }
+        }
+
+        self.table_model_old_versions.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Versions Decoded")));
+        self.table_view_old_versions.horizontal_header().set_section_resize_mode_1a(ResizeMode::Stretch);
     }
 }

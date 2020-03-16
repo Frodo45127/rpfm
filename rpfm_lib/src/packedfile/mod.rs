@@ -30,7 +30,7 @@ use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
 use crate::packedfile::text::{Text, TextType};
 use crate::packedfile::rigidmodel::RigidModel;
-use crate::packfile::packedfile::RawPackedFile;
+use crate::packfile::packedfile::{PackedFile, RawPackedFile};
 use crate::schema::Schema;
 use crate::SCHEMA;
 
@@ -68,7 +68,7 @@ pub enum DecodedPackedFile {
 /// This enum specifies the different types of `PackedFile` we can find in a `PackFile`.
 ///
 /// Keep in mind that, despite we having logic to recognize them, we can't decode many of them yet.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PackedFileType {
     Anim,
     AnimFragment,
@@ -270,7 +270,7 @@ impl Display for PackedFileType {
 /// Implementation of `PackedFileType`.
 impl PackedFileType {
 
-    /// This function returns the type of the `PackedFile` at the provided path.
+    /// This function returns the type of the `PackedFile` at the provided path based on the path itself.
     pub fn get_packed_file_type(path: &[String]) -> Self {
         if let Some(packedfile_name) = path.last() {
             if packedfile_name.ends_with(table::loc::EXTENSION) { PackedFileType::Loc }
@@ -293,6 +293,36 @@ impl PackedFileType {
 
         // If we didn't got a name, it means something broke. Return none.
         else { PackedFileType::Unknown }
+    }
+
+    /// This function returns the type of the provided `PackedFile` based on the data it contains.
+    pub fn get_packed_file_type_by_data(packed_file: &PackedFile) -> Self {
+        match packed_file.get_raw_data() {
+            Ok(data) => {
+                if let Some(packedfile_name) = packed_file.get_path().last() {
+                    if packedfile_name.ends_with(rigidmodel::EXTENSION) {
+                        return Self::RigidModel
+                    }
+                    else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
+                        return Self::Image
+                    }
+                    else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
+                        if Text::read(&data).is_ok() {
+                            return Self::Text(*text_type)
+                        }
+
+                    }
+
+                    if Loc::is_loc(&data) { Self::Loc }
+                    else if DB::get_header(&data).is_ok() { Self::DB }
+                    else if CaVp8::is_video(&data) { Self::CaVp8 }
+                    else { Self::Unknown }
+                }
+
+                else { Self::Unknown }
+            }
+            Err(_) => Self::Unknown,
+        }
     }
 
     /// This function is a less strict version of the one implemented with the `Eq` trait.
