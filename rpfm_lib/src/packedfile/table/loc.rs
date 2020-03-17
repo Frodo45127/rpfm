@@ -31,6 +31,9 @@ const BYTEORDER_MARK: u16 = 65279; // FF FE
 /// This represents the value that every LOC PackedFile has in their 2-5 bytes. The sixth byte is always a 0.
 const PACKED_FILE_TYPE: &str = "LOC";
 
+/// Size of the header of a LOC PackedFile.
+pub const HEADER_SIZE: usize = 14;
+
 /// This is the name used in TSV-exported Loc files to identify them as Loc Files.
 pub const TSV_NAME_LOC: &str = "Loc PackedFile";
 
@@ -113,14 +116,7 @@ impl Loc {
     /// This function creates a new `Loc` from a `Vec<u8>`.
     pub fn read(packed_file_data: &[u8], schema: &Schema) -> Result<Self> {
 
-        // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
-        if packed_file_data.len() < 14 { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
-
-        // More checks to ensure this is a valid Loc PAckedFile.
-        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
-        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
-        let version = packed_file_data.decode_integer_i32(6)?;
-        let entry_count = packed_file_data.decode_integer_u32(10)?;
+        let (version, entry_count) = Self::read_header(packed_file_data)?;
 
         // Try to get the table_definition for this table, if exists.
         let versioned_file = schema.get_ref_versioned_file_loc();
@@ -141,6 +137,21 @@ impl Loc {
         Ok(Self {
             table,
         })
+    }
+
+    /// This function tries to read the header of a Loc PackedFile from raw data.
+    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, u32)> {
+
+        // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
+        if packed_file_data.len() < 14 { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
+
+        // More checks to ensure this is a valid Loc PAckedFile.
+        if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
+        if PACKED_FILE_TYPE != packed_file_data.decode_string_u8(2, 3)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
+        let version = packed_file_data.decode_integer_i32(6)?;
+        let entry_count = packed_file_data.decode_integer_u32(10)?;
+
+        Ok((version, entry_count))
     }
 
     /// This function takes a `Loc` and encodes it to `Vec<u8>`.

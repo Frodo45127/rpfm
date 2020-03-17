@@ -140,7 +140,7 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                                 if !vanilla_tables.is_empty() {
                                     let vanilla_table = &mut vanilla_tables[0];
                                     if let Ok(vanilla_table_data) = vanilla_table.get_raw_data() {
-                                        if let Ok((version, _, _, _)) = DB::get_header(&vanilla_table_data) {
+                                        if let Ok((version, _, _, _)) = DB::read_header(&vanilla_table_data) {
                                             if let Some(ref mut definition) = definitions.iter_mut().find(|x| x.version == version) {
                                                 definition.update_from_raw_definition(&raw_definition);
                                                 if let Some(ref raw_localisable_fields) = raw_localisable_fields {

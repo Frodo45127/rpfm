@@ -25,18 +25,23 @@ use qt_widgets::QTableView;
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 
-use qt_gui::QStandardItem;
+use qt_gui::QBrush;
 use qt_gui::QFontMetrics;
+use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
+use qt_gui::QTextCharFormat;
 use qt_gui::q_text_cursor::{MoveOperation, MoveMode};
 
+
 use qt_core::ContextMenuPolicy;
+use qt_core::GlobalColor;
 use qt_core::QSignalBlocker;
 use qt_core::QString;
 use qt_core::SortOrder;
 use qt_core::QFlags;
 use qt_core::QVariant;
 use qt_core::Orientation;
+use qt_core::QObject;
 
 use cpp_core::MutPtr;
 
@@ -46,8 +51,11 @@ use std::sync::{Arc, atomic::AtomicPtr};
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packedfile::table::db::DB;
+use rpfm_lib::packedfile::table::{loc, loc::Loc};
 use rpfm_lib::schema::Schema;
 use rpfm_lib::SCHEMA;
+use rpfm_lib::SETTINGS;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
@@ -66,7 +74,7 @@ pub mod shortcuts;
 pub mod slots;
 
 /// List of supported PackedFile Types by the decoder.
-static SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 2] = [
+const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 2] = [
     PackedFileType::DB,
     PackedFileType::Loc,
 ];
@@ -107,9 +115,8 @@ pub struct PackedFileDecoderView {
     optional_string_u8_button: AtomicPtr<QPushButton>,
     optional_string_u16_button: AtomicPtr<QPushButton>,
 
-    table_info_type_decoded_label: AtomicPtr<QLabel>,
-    table_info_version_decoded_label: AtomicPtr<QLabel>,
-    table_info_entry_count_decoded_label: AtomicPtr<QLabel>,
+    packed_file_info_version_decoded_label: AtomicPtr<QLabel>,
+    packed_file_info_entry_count_decoded_label: AtomicPtr<QLabel>,
 
     table_view_old_versions: AtomicPtr<QTableView>,
     table_model_old_versions: AtomicPtr<QStandardItemModel>,
@@ -164,9 +171,8 @@ pub struct PackedFileDecoderViewRaw {
     pub optional_string_u8_button: MutPtr<QPushButton>,
     pub optional_string_u16_button: MutPtr<QPushButton>,
 
-    pub table_info_type_decoded_label: MutPtr<QLabel>,
-    pub table_info_version_decoded_label: MutPtr<QLabel>,
-    pub table_info_entry_count_decoded_label: MutPtr<QLabel>,
+    pub packed_file_info_version_decoded_label: MutPtr<QLabel>,
+    pub packed_file_info_entry_count_decoded_label: MutPtr<QLabel>,
 
     pub table_view_old_versions: MutPtr<QTableView>,
     pub table_model_old_versions: MutPtr<QStandardItemModel>,
@@ -221,6 +227,10 @@ impl PackedFileDecoderView {
         // Create the hex view on the left side.
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
 
+        //---------------------------------------------//
+        // Hex Data section.
+        //---------------------------------------------//
+
         let hex_view_group = QGroupBox::from_q_string(&QString::from_std_str("PackedFile's Data")).into_ptr();
         let mut hex_view_index = QTextEdit::new();
         let mut hex_view_raw = QTextEdit::new();
@@ -236,6 +246,10 @@ impl PackedFileDecoderView {
         hex_view_layout.add_widget_5a(&mut hex_view_decoded, 0, 2, 1, 1);
 
         layout.add_widget_5a(hex_view_group, 0, 0, 5, 1);
+
+        //---------------------------------------------//
+        // Fields Table section.
+        //---------------------------------------------//
 
         let mut table_view = QTableView::new_0a();
         let mut table_model = QStandardItemModel::new_0a();
@@ -259,7 +273,10 @@ impl PackedFileDecoderView {
 
         layout.add_widget_5a(table_view.as_mut_ptr(), 0, 1, 1, 2);
 
-        // Create the frames for the info.
+        //---------------------------------------------//
+        // Decoded Fields section.
+        //---------------------------------------------//
+
         let mut decoded_fields_frame = QGroupBox::from_q_string(&QString::from_std_str("Current Field Decoded"));
         let mut decoded_fields_layout = create_grid_layout(decoded_fields_frame.as_mut_ptr().static_upcast_mut());
         decoded_fields_layout.set_column_stretch(1, 10);
@@ -321,29 +338,45 @@ impl PackedFileDecoderView {
 
         layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
 
-        let mut info_frame = QGroupBox::from_q_string(&QString::from_std_str("Table Info"));
+        //---------------------------------------------//
+        // Info section.
+        //---------------------------------------------//
+
+        let mut info_frame = QGroupBox::from_q_string(&QString::from_std_str("PackedFile Info"));
         let mut info_layout = create_grid_layout(info_frame.as_mut_ptr().static_upcast_mut());
 
         // Create stuff for the info frame.
-        let table_info_type_label = QLabel::from_q_string(&QString::from_std_str("Table type:"));
-        let table_info_version_label = QLabel::from_q_string(&QString::from_std_str("Table version:"));
-        let table_info_entry_count_label = QLabel::from_q_string(&QString::from_std_str("Table entry count:"));
+        let packed_file_info_type_label = QLabel::from_q_string(&QString::from_std_str("PackedFile Type:"));
+        let packed_file_info_version_label = QLabel::from_q_string(&QString::from_std_str("PackedFile version:"));
+        let packed_file_info_entry_count_label = QLabel::from_q_string(&QString::from_std_str("PackedFile entry count:"));
 
-        let mut table_info_type_decoded_label = QLabel::new();
-        let mut table_info_version_decoded_label = QLabel::new();
-        let mut table_info_entry_count_decoded_label = QLabel::new();
+        let packed_file_info_type_decoded_label = QLabel::from_q_string(&QString::from_std_str(match packed_file_type {
+            PackedFileType::DB => format!("DB/{}", packed_file_path.borrow()[1]),
+            _ => format!("{}", packed_file_type),
+        }));
+        let mut packed_file_info_version_decoded_label = QLabel::new();
+        let mut packed_file_info_entry_count_decoded_label = QLabel::new();
 
-        info_layout.add_widget_5a(table_info_type_label.into_ptr(), 0, 0, 1, 1);
-        info_layout.add_widget_5a(table_info_version_label.into_ptr(), 1, 0, 1, 1);
-        info_layout.add_widget_5a(table_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
+        info_layout.add_widget_5a(packed_file_info_type_label.into_ptr(), 0, 0, 1, 1);
+        info_layout.add_widget_5a(packed_file_info_version_label.into_ptr(), 1, 0, 1, 1);
 
-        info_layout.add_widget_5a(&mut table_info_type_decoded_label, 0, 1, 1, 1);
-        info_layout.add_widget_5a(&mut table_info_version_decoded_label, 1, 1, 1, 1);
-        info_layout.add_widget_5a(&mut table_info_entry_count_decoded_label, 2, 1, 1, 1);
+        info_layout.add_widget_5a(packed_file_info_type_decoded_label.into_ptr(), 0, 1, 1, 1);
+        info_layout.add_widget_5a(&mut packed_file_info_version_decoded_label, 1, 1, 1, 1);
+
+        match packed_file_type {
+            PackedFileType::DB | PackedFileType::Loc => {
+                info_layout.add_widget_5a(packed_file_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
+                info_layout.add_widget_5a(&mut packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
+            }
+            _ => unimplemented!(),
+        }
 
         layout.add_widget_5a(info_frame.into_ptr(), 1, 2, 1, 1);
 
-        // Create the TableView at the top.
+        //---------------------------------------------//
+        // Other Versions section.
+        //---------------------------------------------//
+
         let mut table_view_old_versions = QTableView::new_0a();
         let mut table_model_old_versions = QStandardItemModel::new_0a();
         table_view_old_versions.set_model(&mut table_model_old_versions);
@@ -363,7 +396,10 @@ impl PackedFileDecoderView {
 
         layout.add_widget_5a(&mut table_view_old_versions, 2, 2, 1, 1);
 
-        // Create the bottom ButtonBox.
+        //---------------------------------------------//
+        // Buttons section.
+        //---------------------------------------------//
+
         let mut button_box = QFrame::new_0a();
         let mut button_box_layout = create_grid_layout(button_box.as_mut_ptr().static_upcast_mut());
 
@@ -416,9 +452,8 @@ impl PackedFileDecoderView {
             optional_string_u8_button: optional_string_u8_button.into_ptr(),
             optional_string_u16_button: optional_string_u16_button.into_ptr(),
 
-            table_info_type_decoded_label: table_info_type_decoded_label.into_ptr(),
-            table_info_version_decoded_label: table_info_version_decoded_label.into_ptr(),
-            table_info_entry_count_decoded_label: table_info_entry_count_decoded_label.into_ptr(),
+            packed_file_info_version_decoded_label: packed_file_info_version_decoded_label.into_ptr(),
+            packed_file_info_entry_count_decoded_label: packed_file_info_entry_count_decoded_label.into_ptr(),
 
             table_view_old_versions: table_view_old_versions.into_ptr(),
             table_model_old_versions: table_model_old_versions.into_ptr(),
@@ -474,9 +509,8 @@ impl PackedFileDecoderView {
             optional_string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_button),
             optional_string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u16_button),
 
-            table_info_type_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_info_type_decoded_label),
-            table_info_version_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_info_version_decoded_label),
-            table_info_entry_count_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_info_entry_count_decoded_label),
+            packed_file_info_version_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_version_decoded_label),
+            packed_file_info_entry_count_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_entry_count_decoded_label),
 
             table_view_old_versions: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions),
             table_model_old_versions: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_model_old_versions),
@@ -495,7 +529,7 @@ impl PackedFileDecoderView {
             packed_file_data: Arc::new(packed_file.get_raw_data()?),
         };
 
-        packed_file_decoder_view.load_raw_data();
+        packed_file_decoder_view.load_packed_file_data()?;
         packed_file_decoder_view_raw.load_versions_list();
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
@@ -506,7 +540,7 @@ impl PackedFileDecoderView {
     }
 
     /// This function loads the raw data of a PackedFile into the UI and prepare it to be updated later on.
-    pub unsafe fn load_raw_data(&self) {
+    pub unsafe fn load_packed_file_data(&self) -> Result<()> {
 
         // We need to set up the fonts in a specific way, so the scroll/sizes are kept correct.
         let font = self.get_mut_ptr_hex_view_index().document().default_font();
@@ -575,63 +609,67 @@ impl PackedFileDecoderView {
         self.get_mut_ptr_hex_view_decoded().set_text(&qhex_decoded_data);
         self.get_mut_ptr_hex_view_decoded().set_fixed_width(text_size.width() + 34);
 
-/*
-            // Prepare the format for the header.
-            let mut header_format = TextCharFormat::new();
-            //header_format.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkRed } else { GlobalColor::Red }));
+        //---------------------------------------------//
+        // Header Marking section.
+        //---------------------------------------------//
 
-            // Get the cursor.
-            let mut cursor = self.get_ref_mut_hex_view_raw().text_cursor();
+        let use_dark_theme = SETTINGS.lock().unwrap().settings_bool["use_dark_theme"];
+        let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
+        let mut header_format = QTextCharFormat::new();
+        header_format.set_background(&brush);
 
-            // Create the "Selection" for the header.
-            cursor.move_position(MoveOperation::Start);
-            //cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index * 3) as i32));
+        let header_size = match self.packed_file_type {
+            PackedFileType::DB => DB::read_header(&self.packed_file_data)?.3,
+            PackedFileType::Loc => loc::HEADER_SIZE,
+            _ => unimplemented!()
+        };
 
-            // Block the signals during this, so we don't mess things up.
-            let mut blocker = SignalBlocker::new(self.get_ref_mut_hex_view_raw().static_cast_mut() as &mut Object);
+        // Block the signals during this, so we don't mess things up.
+        let mut blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_raw().static_upcast_mut::<QObject>());
+        let mut cursor = self.get_mut_ptr_hex_view_raw().text_cursor();
+        cursor.move_position_1a(MoveOperation::Start);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (header_size * 3) as i32);
+        self.get_mut_ptr_hex_view_raw().set_text_cursor(&cursor);
+        self.get_mut_ptr_hex_view_raw().set_current_char_format(&header_format);
+        cursor.clear_selection();
+        self.get_mut_ptr_hex_view_raw().set_text_cursor(&cursor);
 
-            // Set the cursor and his format.
-            self.get_ref_mut_hex_view_raw().set_text_cursor(&cursor);
-            self.get_ref_mut_hex_view_raw().set_current_char_format(&header_format);
+        blocker.unblock();
 
-            // Clear the selection.
-            cursor.clear_selection();
-            self.get_ref_mut_hex_view_raw().set_text_cursor(&cursor);
+        // Block the signals during this, so we don't mess things up.
+        let mut blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_decoded().static_upcast_mut::<QObject>());
+        let mut cursor = self.get_mut_ptr_hex_view_decoded().text_cursor();
+        cursor.move_position_1a(MoveOperation::Start);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
+        self.get_mut_ptr_hex_view_decoded().set_text_cursor(&cursor);
+        self.get_mut_ptr_hex_view_decoded().set_current_char_format(&header_format);
+        cursor.clear_selection();
+        self.get_mut_ptr_hex_view_decoded().set_text_cursor(&cursor);
 
-            // Unblock the signals.
-            blocker.unblock();*/
+        blocker.unblock();
 
-
-
-            // Prepare the format for the header.
-            //let mut header_format = TextCharFormat::new();
-            //header_format.set_background(&Brush::new(if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkRed } else { GlobalColor::Red }));
-/*
-            // Get the cursor.
-            let mut cursor = self.get_ref_mut_hex_view_decoded().text_cursor();
-
-            // Create the "Selection" for the header. We need to add 1 char per line to this.
-            cursor.move_position(MoveOperation::Start);
-            //cursor.move_position((MoveOperation::NextCharacter, MoveMode::Keep, (stuff_non_ui.initial_index + (stuff_non_ui.initial_index as f32 / 16.0).floor() as usize) as i32));
-
-            // Block the signals during this, so we don't mess things up.
-            let mut blocker = SignalBlocker::new(self.get_ref_mut_hex_view_decoded().static_cast_mut() as &mut Object);
-
-            // Set the cursor and his format.
-            self.get_ref_mut_hex_view_decoded().set_text_cursor(&cursor);
-            self.get_ref_mut_hex_view_decoded().set_current_char_format(&header_format);
-
-            // Clear the selection.
-            cursor.clear_selection();
-            self.get_ref_mut_hex_view_decoded().set_text_cursor(&cursor);
-
-            // Unblock the signals.
-            blocker.unblock();*/
+        //---------------------------------------------//
+        // Info section.
+        //---------------------------------------------//
 
         // Load the "Info" data to the view.
-        //unsafe { self.table_info_type_decoded_label.set_text(&QString::from_std_str(&stuff_non_ui.packed_file_path[1])); }
-        //unsafe { self.table_info_version_decoded_label.set_text(&QString::from_std_str(format!("{}", stuff_non_ui.version))); }
-        //unsafe { self.table_info_entry_count_decoded_label.set_text(&QString::from_std_str(format!("{}", stuff_non_ui.entry_count))); }
+        match self.packed_file_type {
+            PackedFileType::DB => {
+                if let Ok((version,_, entry_count, _)) = DB::read_header(&self.packed_file_data) {
+                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
+                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
+                }
+            }
+            PackedFileType::Loc => {
+                if let Ok((version, entry_count)) = Loc::read_header(&self.packed_file_data) {
+                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
+                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
+                }
+            }
+            _ => unimplemented!()
+        }
+
+        Ok(())
     }
 
     fn get_mut_ptr_hex_view_index(&self) -> MutPtr<QTextEdit> {
@@ -644,6 +682,14 @@ impl PackedFileDecoderView {
 
     fn get_mut_ptr_hex_view_decoded(&self) -> MutPtr<QTextEdit> {
         mut_ptr_from_atomic(&self.hex_view_decoded)
+    }
+
+    fn get_mut_ptr_packed_file_info_version_decoded_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.packed_file_info_version_decoded_label)
+    }
+
+    fn get_mut_ptr_packed_file_info_entry_count_decoded_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.packed_file_info_entry_count_decoded_label)
     }
 
     fn get_mut_ptr_table_view(&self) -> MutPtr<QTableView> {
@@ -719,6 +765,11 @@ impl PackedFileDecoderViewRaw {
             self.hex_view_raw.set_text_cursor(&cursor_dest);
             blocker.unblock();
         }
+    }
+
+    /// This function is used to update the list of "Versions" of the currently open table decoded.
+    unsafe fn load_definition(&mut self) {
+
     }
 
     /// This function is used to update the list of "Versions" of the currently open table decoded.

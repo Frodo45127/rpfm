@@ -324,7 +324,7 @@ impl Schema {
         if let Some(vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut()
             .filter(|x| x.get_path().len() == 3)
             .find(|x| x.get_path()[0] == "db" && x.get_path()[1] == *table_name) {
-            match DB::get_header(&vanilla_table.get_ref_mut_raw().get_data_and_keep_it().unwrap()) {
+            match DB::read_header(&vanilla_table.get_ref_mut_raw().get_data_and_keep_it().unwrap()) {
                 Ok(data) => self.get_ref_versioned_file_db(table_name)?.get_version(data.0),
                 Err(error) => Err(error),
             }

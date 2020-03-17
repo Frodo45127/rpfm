@@ -314,7 +314,7 @@ impl PackedFileType {
                     }
 
                     if Loc::is_loc(&data) { Self::Loc }
-                    else if DB::get_header(&data).is_ok() { Self::DB }
+                    else if DB::read_header(&data).is_ok() { Self::DB }
                     else if CaVp8::is_video(&data) { Self::CaVp8 }
                     else { Self::Unknown }
                 }

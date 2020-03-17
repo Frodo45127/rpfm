@@ -138,7 +138,7 @@ impl DB {
     ) -> Result<Self> {
 
         // Get the header of the `DB`.
-        let (version, mysterious_byte, entry_count, mut index) = Self::get_header(&packed_file_data)?;
+        let (version, mysterious_byte, entry_count, mut index) = Self::read_header(&packed_file_data)?;
 
         // These tables use the not-yet-implemented type "List" in the following versions:
         // - models_artillery: 0,
@@ -210,7 +210,7 @@ impl DB {
     /// - `mysterious_byte`: don't know.
     /// - `entry_count`: amount of entries this `DB` has.
     /// - `index`: position where the header ends. Useful if you want to decode the data of the `DB` after this.
-    pub fn get_header(packed_file_data: &[u8]) -> Result<(i32, bool, u32, usize)> {
+    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, bool, u32, usize)> {
 
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
