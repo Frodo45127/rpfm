@@ -68,7 +68,12 @@ impl VersionsFile {
 
     /// This function saves the provided `VersionsFile` to disk.
     fn save(&self) -> Result<()> {
-        let file_path = get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE);
+        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
+
+        // Make sure the path exists to avoid problems with updating schemas.
+        DirBuilder::new().recursive(true).create(&file_path)?;
+        file_path.push(SCHEMA_VERSIONS_FILE);
+
         let mut file = BufWriter::new(File::create(file_path)?);
         let config = PrettyConfig::default();
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
