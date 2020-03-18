@@ -65,6 +65,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::add_to_q_list_safe;
 use crate::ffi::new_combobox_item_delegate_safe;
+use crate::ffi::new_spinbox_item_delegate_safe;
 use crate::FONT_MONOSPACE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -1062,7 +1063,7 @@ impl PackedFileDecoderViewRaw {
             QStandardItem::from_q_string(&QString::from_std_str(&default_value))
         } else { QStandardItem::new() };
 
-        let field_max_length = QStandardItem::from_int(field.max_length);
+        let field_max_length = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.max_length)));
         let mut field_is_filename = QStandardItem::new();
         field_is_filename.set_editable(false);
         field_is_filename.set_checkable(true);
@@ -1072,7 +1073,7 @@ impl PackedFileDecoderViewRaw {
             QStandardItem::from_q_string(&QString::from_std_str(&filename_relative_path))
         } else { QStandardItem::new() };
 
-        let field_ca_order = QStandardItem::from_int(field.ca_order.into());
+        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order)));
         let field_description = QStandardItem::from_q_string(&QString::from_std_str(&field.description));
 
         add_to_q_list_safe(qlist.as_mut_ptr(), field_name.into_ptr());
@@ -1177,7 +1178,7 @@ impl PackedFileDecoderViewRaw {
         loop {
 
             // Get the ModelIndex of the cell we want to update.
-            let model_index = self.table_model.index_2a(row, 5);
+            let model_index = self.table_model.index_2a(row, 2);
             if model_index.is_valid() {
 
                 // Get the row's type.
@@ -1272,7 +1273,6 @@ impl PackedFileDecoderViewRaw {
                 let field_is_key = if self.table_model.item_2a(row, 3).check_state() == CheckState::Checked { true } else { false };
                 let ref_table = self.table_model.item_2a(row, 4).text().to_std_string();
                 let ref_column = self.table_model.item_2a(row, 5).text().to_std_string();
-                let field_lookup = self.table_model.item_2a(row, 6).text().to_std_string().split(',').map(|x| x.to_owned()).collect::<Vec<String>>();
                 let field_default_value = self.table_model.item_2a(row, 7).text().to_std_string();
                 let field_max_length = self.table_model.item_2a(row, 8).text().to_std_string().parse::<i32>().unwrap();
                 let field_is_filename = if self.table_model.item_2a(row, 9).check_state() == CheckState::Checked { true } else { false };
@@ -1297,6 +1297,11 @@ impl PackedFileDecoderViewRaw {
                     Some((ref_table, ref_column))
                 } else { None };
 
+                let field_lookup = self.table_model.item_2a(row, 6).text().to_std_string();
+                let field_lookup = if !field_lookup.is_empty() {
+                    Some(field_lookup.split(',').map(|x| x.to_owned()).collect::<Vec<String>>())
+                } else { None };
+
                 fields.push(
                     Field::new(
                         field_name,
@@ -1307,7 +1312,7 @@ impl PackedFileDecoderViewRaw {
                         field_is_filename,
                         if field_filename_relative_path.is_empty() { None } else { Some(field_filename_relative_path) },
                         field_is_reference,
-                        if field_lookup.is_empty() { None } else { Some(field_lookup) },
+                        field_lookup,
                         field_description,
                         field_ca_order
                     )
@@ -1397,4 +1402,8 @@ unsafe fn configure_table_view(table_view: MutPtr<QTableView>) {
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
     list.append_q_string(&QString::from_std_str("Sequence"));
     new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 1, list.into_ptr().as_ptr(), false, 0);
+
+    // Fields Max lenght and CA Order must be numeric.
+    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 8, 32);
+    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 11, 16);
 }

@@ -377,60 +377,57 @@ impl PackedFileDecoderViewSlots {
         // Slot for the "Finish it!" button.
         let save_definition = Slot::new(clone!(
             mut view => move || {
+                let mut schema = SCHEMA.read().unwrap().clone().unwrap();
+                let fields = view.get_fields_from_view();
 
-                if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
+                let version = match view.packed_file_type {
+                    PackedFileType::DB => DB::read_header(&view.packed_file_data).unwrap().0,
+                    PackedFileType::Loc => Loc::read_header(&view.packed_file_data).unwrap().0,
+                    _ => unimplemented!(),
+                };
 
-                    let fields = view.get_fields_from_view();
+                let versioned_file = match view.packed_file_type {
+                    PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
+                    PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
+                    _ => unimplemented!(),
+                };
 
-                    let version = match view.packed_file_type {
-                        PackedFileType::DB => DB::read_header(&view.packed_file_data).unwrap().0,
-                        PackedFileType::Loc => Loc::read_header(&view.packed_file_data).unwrap().0,
-                        _ => unimplemented!(),
-                    };
-
-                    let versioned_file = match view.packed_file_type {
-                        PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
-                        PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
-                        _ => unimplemented!(),
-                    };
-
-                    match versioned_file {
-                        Ok(versioned_file) => {
-                            match versioned_file.get_ref_mut_version(version) {
-                                Ok(definition) => definition.fields = fields,
-                                Err(_) => {
-                                    let mut definition = Definition::new(version);
-                                    definition.fields = fields;
-                                    versioned_file.add_version(&definition);
-                                }
+                match versioned_file {
+                    Ok(versioned_file) => {
+                        match versioned_file.get_ref_mut_version(version) {
+                            Ok(definition) => definition.fields = fields,
+                            Err(_) => {
+                                let mut definition = Definition::new(version);
+                                definition.fields = fields;
+                                versioned_file.add_version(&definition);
                             }
                         }
-                        Err(_) => {
-                            let mut definition = Definition::new(version);
-                            definition.fields = fields;
-
-                            let definitions = vec![definition];
-                            let versioned_file = match view.packed_file_type {
-                                PackedFileType::DB => VersionedFile::DB(view.packed_file_path[1].to_owned(), definitions),
-                                PackedFileType::Loc => VersionedFile::Loc(definitions),
-                                PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
-                                _ => unimplemented!()
-                            };
-
-                            schema.add_versioned_file(&versioned_file);
-                        }
                     }
+                    Err(_) => {
+                        let mut definition = Definition::new(version);
+                        definition.fields = fields;
 
-                    CENTRAL_COMMAND.send_message_qt(Command::SaveSchema(schema.clone()));
-                    let response = CENTRAL_COMMAND.recv_message_qt();
-                    match response {
-                        Response::Success => show_dialog(view.table_view, "Schema successfully saved.", true),
-                        Response::Error(error) => show_dialog(view.table_view, error, false),
-                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                        let definitions = vec![definition];
+                        let versioned_file = match view.packed_file_type {
+                            PackedFileType::DB => VersionedFile::DB(view.packed_file_path[1].to_owned(), definitions),
+                            PackedFileType::Loc => VersionedFile::Loc(definitions),
+                            PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
+                            _ => unimplemented!()
+                        };
+
+                        schema.add_versioned_file(&versioned_file);
                     }
-
-                    view.load_versions_list();
                 }
+
+                CENTRAL_COMMAND.send_message_qt(Command::SaveSchema(schema));
+                let response = CENTRAL_COMMAND.recv_message_qt();
+                match response {
+                    Response::Success => show_dialog(view.table_view, "Schema successfully saved.", true),
+                    Response::Error(error) => show_dialog(view.table_view, error, false),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+
+                view.load_versions_list();
             }
         ));
 

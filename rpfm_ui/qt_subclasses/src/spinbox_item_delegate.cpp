@@ -6,7 +6,7 @@
 #include <QLineEdit>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QSpinBoxItemDelegate.
-// We have to pass it the integer type (32 or 64) too for later checks.
+// We have to pass it the integer type (16, 32 or 64) too for later checks.
 extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, const bool is_optional) {
     QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, is_optional);
     dynamic_cast<QTableView*>(parent)->setItemDelegateForColumn(column, delegate);
@@ -22,7 +22,7 @@ QSpinBoxItemDelegate::QSpinBoxItemDelegate(QObject *parent, const int integer_ty
 // Function called when the widget it's created. Here we configure the spinbox/linedit.
 QWidget* QSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
 
-    // SpinBoxes only support i32, not i64, so for i64 we use a linedit with validation.
+    // SpinBoxes only support i16, i32, not i64, so for i64 we use a linedit with validation.
     if (type == 64) {
         QLineEdit* lineEdit = new QLineEdit(parent);
         return lineEdit;
@@ -36,7 +36,12 @@ QWidget* QSpinBoxItemDelegate::createEditor(QWidget *parent, const QStyleOptionV
         }
         else {
             QSpinBox* spinBox = new QSpinBox(parent);
-            spinBox->setRange(-2147483648, 2147483647);
+            if (type == 32) {
+                spinBox->setRange(-2147483648, 2147483647);
+            }
+            else if (type == 16) {
+                spinBox->setRange(-32768, 32767);
+            }
             return spinBox;
         }
     }

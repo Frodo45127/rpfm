@@ -1169,6 +1169,11 @@ impl AppUI {
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) {
 
+        // If we don't have an schema, don't even try it.
+        if SCHEMA.read().unwrap().is_none() {
+            return show_dialog(self.main_window, ErrorKind::SchemaNotFound, false);
+        }
+
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
         if !UI_STATE.get_packfile_contents_read_only() {
             let mut selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
