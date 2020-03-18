@@ -786,6 +786,22 @@ impl PackedFileDecoderView {
     fn get_mut_ptr_table_view_old_versions_context_menu_delete(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.table_view_old_versions_context_menu_delete)
     }
+
+    fn get_mut_ptr_test_definition_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.test_definition_button)
+    }
+
+    fn get_mut_ptr_generate_pretty_diff_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.generate_pretty_diff_button)
+    }
+
+    fn get_mut_ptr_clear_definition_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.clear_definition_button)
+    }
+
+    fn get_mut_ptr_save_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.save_button)
+    }
 }
 
 /// Implementation of `PackedFileDecoderViewRaw`.
@@ -1237,6 +1253,73 @@ impl PackedFileDecoderViewRaw {
 
         self.add_field_to_view(&field, &mut index);
         self.update_view(&[], false, &mut index)
+    }
+
+
+    /// This function gets the data from the decoder's table and returns it, so we can save it to a Definition.
+    pub unsafe fn get_fields_from_view(&self) -> Vec<Field> {
+        let mut fields = vec![];
+        let mut row = 0;
+
+        loop {
+
+            let model_index = self.table_model.index_2a(row, 0);
+            if model_index.is_valid() {
+
+                // Get the data from each field of the row...
+                let field_name = self.table_model.item_2a(row, 0).text().to_std_string();
+                let field_type = self.table_model.item_2a(row, 1).text().to_std_string();
+                let field_is_key = if self.table_model.item_2a(row, 3).check_state() == CheckState::Checked { true } else { false };
+                let ref_table = self.table_model.item_2a(row, 4).text().to_std_string();
+                let ref_column = self.table_model.item_2a(row, 5).text().to_std_string();
+                let field_lookup = self.table_model.item_2a(row, 6).text().to_std_string().split(',').map(|x| x.to_owned()).collect::<Vec<String>>();
+                let field_default_value = self.table_model.item_2a(row, 7).text().to_std_string();
+                let field_max_length = self.table_model.item_2a(row, 8).text().to_std_string().parse::<i32>().unwrap();
+                let field_is_filename = if self.table_model.item_2a(row, 9).check_state() == CheckState::Checked { true } else { false };
+                let field_filename_relative_path = self.table_model.item_2a(row, 10).text().to_std_string();
+                let field_ca_order = self.table_model.item_2a(row, 11).text().to_std_string().parse::<i16>().unwrap();
+                let field_description = self.table_model.item_2a(row, 12).text().to_std_string();
+
+                // Get the proper type of the field. If invalid, default to OptionalStringU16.
+                let field_type = match &*field_type {
+                    "Bool" => FieldType::Boolean,
+                    "Float" => FieldType::Float,
+                    "Integer" => FieldType::Integer,
+                    "LongInteger" => FieldType::LongInteger,
+                    "StringU8" => FieldType::StringU8,
+                    "StringU16" => FieldType::StringU16,
+                    "OptionalStringU8" => FieldType::OptionalStringU8,
+                    "OptionalStringU16" => FieldType::OptionalStringU16,
+                    "Sequence" | _=> FieldType::Sequence(Definition::new(-1)),
+                };
+
+                let field_is_reference = if !ref_table.is_empty() && !ref_column.is_empty() {
+                    Some((ref_table, ref_column))
+                } else { None };
+
+                fields.push(
+                    Field::new(
+                        field_name,
+                        field_type,
+                        field_is_key,
+                        if field_default_value.is_empty() { None } else { Some(field_default_value) },
+                        field_max_length,
+                        field_is_filename,
+                        if field_filename_relative_path.is_empty() { None } else { Some(field_filename_relative_path) },
+                        field_is_reference,
+                        if field_lookup.is_empty() { None } else { Some(field_lookup) },
+                        field_description,
+                        field_ca_order
+                    )
+                );
+                row += 1;
+            }
+
+            // Otherwise, stop the loop.
+            else { break; }
+        }
+
+        fields
     }
 }
 

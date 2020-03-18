@@ -646,6 +646,16 @@ impl VersionedFile {
         }
     }
 
+    /// This function returns a mutable reference to a specific version of a definition, if it finds it.
+    pub fn get_ref_mut_version(&mut self, version: i32) -> Result<&mut Definition> {
+        match self {
+            VersionedFile::DB(_, versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::DepManager(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::Loc(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+        }
+    }
+
+
     /// This function returns the list of the versions in the provided `VersionedFile`.
     pub fn get_version_list(&self) -> &[Definition] {
         match &self {

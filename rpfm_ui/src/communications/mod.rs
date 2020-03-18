@@ -32,7 +32,7 @@ use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::versions::APIResponseSchema;
-use rpfm_lib::schema::Definition;
+use rpfm_lib::schema::{Definition, Schema};
 use rpfm_lib::settings::*;
 
 use crate::app_ui::NewPackedFile;
@@ -252,6 +252,9 @@ pub enum Command {
 
     /// This command is used to change the format of a ca_vp8 video packedfile. Requires the path of the PackedFile and the new format.
     SetCaVp8Format((Vec<String>, SupportedFormats)),
+
+    /// This command is used to save the provided schema to disk.
+    SaveSchema(Schema),
 
     /*
     OpenPackFileExtra,

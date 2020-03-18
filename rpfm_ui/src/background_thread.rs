@@ -627,6 +627,17 @@ pub fn background_loop() {
                 }
             },
 
+            // In case we want to save an schema to disk...
+            Command::SaveSchema(mut schema) => {
+                match schema.save(&SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().schema) {
+                    Ok(_) => {
+                        *SCHEMA.write().unwrap() = Some(schema);
+                        CENTRAL_COMMAND.send_message_rust(Response::Success);
+                    },
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }

@@ -19,12 +19,17 @@ use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, Slot, S
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use rpfm_lib::packedfile::table::db::DB;
+use rpfm_lib::packedfile::table::loc::Loc;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::SCHEMA;
-use rpfm_lib::schema::FieldType;
+use rpfm_lib::schema::{Definition, FieldType, VersionedFile};
 
+use crate::CENTRAL_COMMAND;
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::utils::show_dialog;
 
 use super::get_definition;
 use super::get_header_size;
@@ -64,6 +69,9 @@ pub struct PackedFileDecoderViewSlots {
 
     pub table_view_old_versions_context_menu_load: SlotOfBool<'static>,
     pub table_view_old_versions_context_menu_delete: SlotOfBool<'static>,
+
+    pub remove_all_fields: Slot<'static>,
+    pub save_definition: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -335,6 +343,96 @@ impl PackedFileDecoderViewSlots {
                 }
             }
         ));
+/*
+        // Slot for the "Generate Pretty Diff" button.
+        let = generate_pretty_diff = Slot::new(clone!(
+            sender_qt,
+            receiver_qt,
+            app_ui => move || {
+
+                // Tell the background thread to generate the diff and wait.
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
+                sender_qt.send(Commands::GenerateSchemaDiff).unwrap();
+                match check_message_validity_tryrecv(&receiver_qt) {
+                    Data::Success => show_dialog(app_ui.window, true, "Diff generated succesfully"),
+                    Data::Error(error) => show_dialog(app_ui.window, false, error),
+
+                    // In ANY other situation, it's a message problem.
+                    _ => panic!(THREADS_MESSAGE_ERROR),
+                }
+                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
+            }
+        )),
+*/
+        // Slot for the "Kill them all!" button.
+        let remove_all_fields = Slot::new(clone!(
+            mut mutable_data,
+            mut view => move || {
+                view.table_model.clear();
+                *mutable_data.index.lock().unwrap() = get_header_size(&view.packed_file_type, &view.packed_file_data).unwrap();
+                let _ = view.update_view(&[], true, &mut mutable_data.index.lock().unwrap());
+            }
+        ));
+
+        // Slot for the "Finish it!" button.
+        let save_definition = Slot::new(clone!(
+            mut view => move || {
+
+                if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
+
+                    let fields = view.get_fields_from_view();
+
+                    let version = match view.packed_file_type {
+                        PackedFileType::DB => DB::read_header(&view.packed_file_data).unwrap().0,
+                        PackedFileType::Loc => Loc::read_header(&view.packed_file_data).unwrap().0,
+                        _ => unimplemented!(),
+                    };
+
+                    let versioned_file = match view.packed_file_type {
+                        PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
+                        PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
+                        _ => unimplemented!(),
+                    };
+
+                    match versioned_file {
+                        Ok(versioned_file) => {
+                            match versioned_file.get_ref_mut_version(version) {
+                                Ok(definition) => definition.fields = fields,
+                                Err(_) => {
+                                    let mut definition = Definition::new(version);
+                                    definition.fields = fields;
+                                    versioned_file.add_version(&definition);
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            let mut definition = Definition::new(version);
+                            definition.fields = fields;
+
+                            let definitions = vec![definition];
+                            let versioned_file = match view.packed_file_type {
+                                PackedFileType::DB => VersionedFile::DB(view.packed_file_path[1].to_owned(), definitions),
+                                PackedFileType::Loc => VersionedFile::Loc(definitions),
+                                PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
+                                _ => unimplemented!()
+                            };
+
+                            schema.add_versioned_file(&versioned_file);
+                        }
+                    }
+
+                    CENTRAL_COMMAND.send_message_qt(Command::SaveSchema(schema.clone()));
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
+                        Response::Success => show_dialog(view.table_view, "Schema successfully saved.", true),
+                        Response::Error(error) => show_dialog(view.table_view, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+
+                    view.load_versions_list();
+                }
+            }
+        ));
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
@@ -365,6 +463,9 @@ impl PackedFileDecoderViewSlots {
 
             table_view_old_versions_context_menu_load,
             table_view_old_versions_context_menu_delete,
+
+            remove_all_fields,
+            save_definition,
         }
     }
 }
