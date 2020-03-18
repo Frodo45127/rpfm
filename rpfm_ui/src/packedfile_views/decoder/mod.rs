@@ -27,11 +27,11 @@ use qt_widgets::QTextEdit;
 
 use qt_gui::QBrush;
 use qt_gui::QFontMetrics;
+use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 use qt_gui::QTextCharFormat;
 use qt_gui::q_text_cursor::{MoveOperation, MoveMode};
-
 
 use qt_core::ContextMenuPolicy;
 use qt_core::GlobalColor;
@@ -42,6 +42,8 @@ use qt_core::QFlags;
 use qt_core::QVariant;
 use qt_core::Orientation;
 use qt_core::QObject;
+use qt_core::CheckState;
+use qt_core::QStringList;
 
 use cpp_core::MutPtr;
 
@@ -50,15 +52,19 @@ use std::rc::Rc;
 use std::sync::{Arc, atomic::AtomicPtr};
 
 use rpfm_error::{ErrorKind, Result};
+
+use rpfm_lib::common::decoder::*;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::{loc, loc::Loc};
-use rpfm_lib::schema::Schema;
+use rpfm_lib::schema::{Definition, Field, FieldType};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::ffi::add_to_q_list_safe;
+use crate::ffi::new_combobox_item_delegate_safe;
 use crate::FONT_MONOSPACE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -188,6 +194,7 @@ pub struct PackedFileDecoderViewRaw {
 
     pub packed_file_type: PackedFileType,
     pub packed_file_path: Vec<String>,
+    pub packed_file_data: Arc<Vec<u8>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -467,8 +474,9 @@ impl PackedFileDecoderView {
             clear_definition_button: clear_definition_button.into_ptr(),
             save_button: save_button.into_ptr(),
 
-            packed_file_path: packed_file.get_path().to_vec(),
             packed_file_type,
+            packed_file_path: packed_file.get_path().to_vec(),
+            packed_file_data: Arc::new(packed_file.get_raw_data()?),
         };
 
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
@@ -526,11 +534,22 @@ impl PackedFileDecoderView {
 
             packed_file_type,
             packed_file_path: packed_file.get_path().to_vec(),
-            packed_file_data: Arc::new(packed_file.get_raw_data()?),
+            packed_file_data: packed_file_decoder_view_raw.packed_file_data.clone(),
         };
+
+        let definition = get_definition(
+            &packed_file_decoder_view.packed_file_type,
+            &packed_file_decoder_view.packed_file_path,
+            &packed_file_decoder_view.packed_file_data
+        );
+
+        let fields = if let Some(definition) = definition {
+            definition.fields.to_vec()
+        } else { vec![] };
 
         packed_file_decoder_view.load_packed_file_data()?;
         packed_file_decoder_view_raw.load_versions_list();
+        packed_file_decoder_view_raw.update_view(&fields, true)?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
         packed_file_view.view = View::Decoder(packed_file_decoder_view);
@@ -567,7 +586,7 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
         // Raw data section.
         //---------------------------------------------//
-        //
+
         // Prepare the Hex Raw Data string, looking like:
         // 01 0a 02 0f 0d 02 04 06 01 0a 02 0f 0d 02 04 06
         let mut hex_raw_data = format!("{:02X?}", self.packed_file_data);
@@ -614,15 +633,10 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         let use_dark_theme = SETTINGS.lock().unwrap().settings_bool["use_dark_theme"];
+        let header_size = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
         let mut header_format = QTextCharFormat::new();
         header_format.set_background(&brush);
-
-        let header_size = match self.packed_file_type {
-            PackedFileType::DB => DB::read_header(&self.packed_file_data)?.3,
-            PackedFileType::Loc => loc::HEADER_SIZE,
-            _ => unimplemented!()
-        };
 
         // Block the signals during this, so we don't mess things up.
         let mut blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_raw().static_upcast_mut::<QObject>());
@@ -767,9 +781,317 @@ impl PackedFileDecoderViewRaw {
         }
     }
 
-    /// This function is used to update the list of "Versions" of the currently open table decoded.
-    unsafe fn load_definition(&mut self) {
+    /// This function is used to update the state of the decoder view every time a change it's done.
+    unsafe fn update_view(
+        &mut self,
+        field_list: &[Field],
+        is_initial_load: bool,
+    ) -> Result<()> {
 
+        // If it's the first load, we have to prepare the table's column data.
+        if is_initial_load {
+
+            // If the table is empty, we just load a fake row, so the column headers are created properly.
+            if field_list.is_empty() {
+                let mut qlist = QListOfQStandardItem::new();
+                (0..12).for_each(|_| add_to_q_list_safe(qlist.as_mut_ptr(), QStandardItem::new().into_ptr()));
+                self.table_model.append_row_q_list_of_q_standard_item(&qlist);
+                configure_table_view(self.table_view);
+                self.table_model.remove_rows_2a(0, 1);
+            }
+
+            // Otherswise, we add each field we got as a row to the table.
+            else {
+
+                let mut index = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
+                for field in field_list {
+                    self.add_field_to_view(&field, &mut index);
+                }
+                configure_table_view(self.table_view);
+            }
+        }
+
+        // Create the variables to hold the values we'll pass to the LineEdits.
+        let index = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
+
+        let decoded_bool = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Boolean, &mut index.clone());
+        let decoded_float = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Float, &mut index.clone());
+        let decoded_integer = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Integer, &mut index.clone());
+        let decoded_long_integer = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::LongInteger, &mut index.clone());
+        let decoded_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU8, &mut index.clone());
+        let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
+        let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
+        let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU16, &mut index.clone());
+
+        // We update all the decoded entries here.
+        self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
+        self.float_line_edit.set_text(&QString::from_std_str(decoded_float));
+        self.integer_line_edit.set_text(&QString::from_std_str(decoded_integer));
+        self.long_integer_line_edit.set_text(&QString::from_std_str(decoded_long_integer));
+        self.string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u8)));
+        self.string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16)));
+        self.optional_string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8)));
+        self.optional_string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u16)));
+
+        //---------------------------------------------//
+        // Raw data cleaning section.
+        //---------------------------------------------//
+
+        // Prepare to paint the changes in the hex data views.
+        let header_size = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
+        let use_dark_theme = SETTINGS.lock().unwrap().settings_bool["use_dark_theme"];
+        let mut index_format = QTextCharFormat::new();
+        let mut decoded_format = QTextCharFormat::new();
+        let mut neutral_format = QTextCharFormat::new();
+        index_format.set_background(&QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkMagenta } else { GlobalColor::Magenta }));
+        decoded_format.set_background(&QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow }));
+        neutral_format.set_background(&QBrush::from_global_color(GlobalColor::Transparent));
+
+        // Clean both TextEdits, so we can repaint all the changes on them.
+        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast_mut::<QObject>());
+        let mut cursor = self.hex_view_raw.text_cursor();
+        cursor.move_position_1a(MoveOperation::Start);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size * 3) as i32);
+        cursor.move_position_2a(MoveOperation::End, MoveMode::KeepAnchor);
+
+        self.hex_view_raw.set_text_cursor(&cursor);
+        self.hex_view_raw.set_current_char_format(&neutral_format);
+        cursor.clear_selection();
+        self.hex_view_raw.set_text_cursor(&cursor);
+
+        blocker.unblock();
+
+        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast_mut::<QObject>());
+        let mut cursor = self.hex_view_decoded.text_cursor();
+        cursor.move_position_1a(MoveOperation::Start);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
+        cursor.move_position_2a(MoveOperation::End, MoveMode::KeepAnchor);
+
+        self.hex_view_decoded.set_text_cursor(&cursor);
+        self.hex_view_decoded.set_current_char_format(&neutral_format);
+        cursor.clear_selection();
+        self.hex_view_decoded.set_text_cursor(&cursor);
+
+        blocker.unblock();
+
+        //---------------------------------------------//
+        // Raw data painting decoded data section.
+        //---------------------------------------------//
+
+        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast_mut::<QObject>());
+        let mut cursor = self.hex_view_raw.text_cursor();
+        cursor.move_position_1a(MoveOperation::Start);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size * 3) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, ((index - header_size) * 3) as i32);
+
+        self.hex_view_raw.set_text_cursor(&cursor);
+        self.hex_view_raw.set_current_char_format(&decoded_format);
+        cursor.clear_selection();
+        self.hex_view_raw.set_text_cursor(&cursor);
+
+        blocker.unblock();
+
+        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast_mut::<QObject>());
+        let mut cursor = self.hex_view_decoded.text_cursor();
+
+        // Create the "Selection" for the decoded row.
+        let positions_to_move_end = index / 16;
+        let positions_to_move_start = header_size / 16;
+        let positions_to_move_vertical = positions_to_move_end - positions_to_move_start;
+        let positions_to_move_horizontal = index - header_size;
+        let positions_to_move = positions_to_move_horizontal + positions_to_move_vertical;
+
+        cursor.move_position_1a(MoveOperation::Start);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, positions_to_move as i32);
+
+        self.hex_view_decoded.set_text_cursor(&cursor);
+        self.hex_view_decoded.set_current_char_format(&decoded_format);
+        cursor.clear_selection();
+        self.hex_view_decoded.set_text_cursor(&cursor);
+
+        blocker.unblock();
+
+        //---------------------------------------------//
+        // Raw data painting current index section.
+        //---------------------------------------------//
+
+        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast_mut::<QObject>());
+        let mut cursor = self.hex_view_raw.text_cursor();
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, 3);
+
+        self.hex_view_raw.set_text_cursor(&cursor);
+        self.hex_view_raw.set_current_char_format(&decoded_format);
+        cursor.clear_selection();
+        self.hex_view_raw.set_text_cursor(&cursor);
+
+        blocker.unblock();
+
+        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast_mut::<QObject>());
+        let mut cursor = self.hex_view_decoded.text_cursor();
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, 1);
+
+        self.hex_view_decoded.set_text_cursor(&cursor);
+        self.hex_view_decoded.set_current_char_format(&decoded_format);
+        cursor.clear_selection();
+        self.hex_view_decoded.set_text_cursor(&cursor);
+
+        blocker.unblock();
+
+        Ok(())
+    }
+
+    /// This function adds fields to the decoder's table, so we can do this without depending on the
+    /// updates of the decoder's view.
+    pub unsafe fn add_field_to_view(
+        &mut self,
+        field: &Field,
+        mut index: &mut usize,
+    ) {
+
+        // Decode the data from the field.
+        let decoded_data = Self::decode_data_by_fieldtype(
+            &self.packed_file_data,
+            &field.field_type,
+            &mut index
+        );
+
+        // Get the type of the data we are going to put into the Table.
+        let field_type = match field.field_type {
+            FieldType::Boolean => "Bool",
+            FieldType::Float => "Float",
+            FieldType::Integer => "Integer",
+            FieldType::LongInteger => "LongInteger",
+            FieldType::StringU8 => "StringU8",
+            FieldType::StringU16 => "StringU16",
+            FieldType::OptionalStringU8 => "OptionalStringU8",
+            FieldType::OptionalStringU16 => "OptionalStringU16",
+            FieldType::Sequence(_) => "Sequence",
+        };
+
+        // Create a new list of StandardItem.
+        let mut qlist = QListOfQStandardItem::new();
+
+        // Create the items of the new row.
+        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.name));
+        let field_type = QStandardItem::from_q_string(&QString::from_std_str(field_type));
+        let mut field_is_key = QStandardItem::new();
+        field_is_key.set_editable(false);
+        field_is_key.set_checkable(true);
+        field_is_key.set_check_state(if field.is_key { CheckState::Checked } else { CheckState::Unchecked });
+
+        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.is_reference {
+            (QStandardItem::from_q_string(&QString::from_std_str(&reference.0)), QStandardItem::from_q_string(&QString::from_std_str(&reference.1)))
+        } else { (QStandardItem::new(), QStandardItem::new()) };
+
+        let field_lookup_columns = if let Some(ref columns) = field.lookup {
+            QStandardItem::from_q_string(&QString::from_std_str(columns.join(", ")))
+        } else { QStandardItem::new() };
+
+        let mut decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
+        decoded_data.set_editable(false);
+
+        let field_default_value = if let Some(ref default_value) = field.default_value {
+            QStandardItem::from_q_string(&QString::from_std_str(&default_value))
+        } else { QStandardItem::new() };
+
+        let field_max_length = QStandardItem::from_int(field.max_length);
+        let mut field_is_filename = QStandardItem::new();
+        field_is_filename.set_editable(false);
+        field_is_filename.set_checkable(true);
+        field_is_filename.set_check_state(if field.is_filename { CheckState::Checked } else { CheckState::Unchecked });
+
+        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path {
+            QStandardItem::from_q_string(&QString::from_std_str(&filename_relative_path))
+        } else { QStandardItem::new() };
+
+        let field_ca_order = QStandardItem::from_int(field.ca_order.into());
+        let field_description = QStandardItem::from_q_string(&QString::from_std_str(&field.description));
+
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_name.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_type.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), decoded_data.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_is_key.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_reference_table.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_reference_field.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_lookup_columns.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_default_value.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_max_length.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_is_filename.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_filename_relative_path.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_ca_order.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_description.into_ptr());
+
+        self.table_model.append_row_q_list_of_q_standard_item(&qlist);
+    }
+
+    /// This function is the one that takes care of actually decoding the provided data based on the field type.
+    fn decode_data_by_fieldtype(
+        packed_file_data: &[u8],
+        field_type: &FieldType,
+        mut index: &mut usize
+    ) -> String {
+        match field_type {
+            FieldType::Boolean => {
+                match packed_file_data.decode_packedfile_bool(*index, &mut index) {
+                    Ok(result) => {
+                        if result { "True".to_string() }
+                        else { "False".to_string() }
+                    }
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::Float => {
+                match packed_file_data.decode_packedfile_float_f32(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::Integer => {
+                match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::LongInteger => {
+                match packed_file_data.decode_packedfile_integer_i64(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::StringU8 => {
+                match packed_file_data.decode_packedfile_string_u8(*index, &mut index) {
+                    Ok(result) => result,
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::StringU16 => {
+                match packed_file_data.decode_packedfile_string_u16(*index, &mut index) {
+                    Ok(result) => result,
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::OptionalStringU8 => {
+                match packed_file_data.decode_packedfile_optional_string_u8(*index, &mut index) {
+                    Ok(result) => result,
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::OptionalStringU16 => {
+                match packed_file_data.decode_packedfile_optional_string_u16(*index, &mut index) {
+                    Ok(result) => result,
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+
+            // TODO: Finish this.
+            FieldType::Sequence(_) => {
+                match packed_file_data.decode_packedfile_optional_string_u16(*index, &mut index) {
+                    Ok(result) => result,
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+        }
     }
 
     /// This function is used to update the list of "Versions" of the currently open table decoded.
@@ -796,4 +1118,79 @@ impl PackedFileDecoderViewRaw {
         self.table_model_old_versions.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Versions Decoded")));
         self.table_view_old_versions.horizontal_header().set_section_resize_mode_1a(ResizeMode::Stretch);
     }
+}
+
+/// This function returns the header size (or first byte after the header) of the provided PackedFile.
+fn get_header_size(
+    packed_file_type: &PackedFileType,
+    packed_file_data: &[u8],
+) -> Result<usize> {
+    match packed_file_type {
+        PackedFileType::DB => Ok(DB::read_header(packed_file_data)?.3),
+        PackedFileType::Loc => Ok(loc::HEADER_SIZE),
+        _ => unimplemented!()
+    }
+}
+
+/// This function returns the definition corresponding to the decoded Packedfile, if exists.
+fn get_definition(
+    packed_file_type: &PackedFileType,
+    packed_file_path: &[String],
+    packed_file_data: &[u8],
+) -> Option<Definition> {
+    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+
+        // Depending on the type, get one version list or another.
+        let versioned_file = match packed_file_type {
+            PackedFileType::DB => schema.get_ref_versioned_file_db(&packed_file_path[1]),
+            PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
+            _ => unimplemented!(),
+        };
+
+        // And get all the versions of this table, and list them in their TreeView, if we have any.
+        if let Ok(versioned_file) = versioned_file {
+            let version = match packed_file_type {
+                PackedFileType::DB => DB::read_header(packed_file_data).ok()?.0,
+                PackedFileType::Loc => Loc::read_header(packed_file_data).ok()?.0,
+                _ => unimplemented!(),
+            };
+
+            return versioned_file.get_version(version).ok().cloned()
+        }
+    }
+
+    None
+}
+
+/// This function configures the provided TableView, so it has the right columns and it's resized to the right size.
+unsafe fn configure_table_view(table_view: MutPtr<QTableView>) {
+    let mut table_model = table_view.model();
+    table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Name")));
+    table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Type")));
+    table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("First Row Decoded")));
+    table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is key?")));
+    table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Table")));
+    table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Column")));
+    table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Lookup Columns")));
+    table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Default Value")));
+    table_model.set_header_data_3a(8, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Lenght")));
+    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
+    table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
+    table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
+    table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
+    table_view.horizontal_header().set_stretch_last_section(true);
+    table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+
+    // The second field should be a combobox.
+    let mut list = QStringList::new();
+    list.append_q_string(&QString::from_std_str("Bool"));
+    list.append_q_string(&QString::from_std_str("Float"));
+    list.append_q_string(&QString::from_std_str("Integer"));
+    list.append_q_string(&QString::from_std_str("LongInteger"));
+    list.append_q_string(&QString::from_std_str("StringU8"));
+    list.append_q_string(&QString::from_std_str("StringU16"));
+    list.append_q_string(&QString::from_std_str("OptionalStringU8"));
+    list.append_q_string(&QString::from_std_str("OptionalStringU16"));
+    list.append_q_string(&QString::from_std_str("Sequence"));
+    new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 1, list.into_ptr().as_ptr(), false, 0);
 }
