@@ -104,7 +104,7 @@ pub trait PackTree {
     /// This function is used to expand the entire path from the PackFile to an specific item in the `TreeView`.
     ///
     /// It returns the `ModelIndex` of the final item of the path, or None if it wasn't found or it's hidden by the filter.
-    unsafe fn expand_treeview_to_item(&mut self, path: &[String]) -> Option<Ref<QModelIndex>>;
+    unsafe fn expand_treeview_to_item(&mut self, path: &[String]) -> Option<MutPtr<QModelIndex>>;
 
     /// This function is used to expand an item and all it's children recursively.
     unsafe fn expand_all_from_item(tree_view: &mut QTreeView, item: Ptr<QStandardItem>, first_item: bool);
@@ -370,7 +370,7 @@ impl PackTree for MutPtr<QTreeView> {
         }
     }
 
-    unsafe fn expand_treeview_to_item(&mut self, path: &[String]) -> Option<Ref<QModelIndex>> {
+    unsafe fn expand_treeview_to_item(&mut self, path: &[String]) -> Option<MutPtr<QModelIndex>> {
         let filter: MutPtr<QSortFilterProxyModel> = self.model().static_downcast_mut();
         let model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
 
@@ -404,7 +404,7 @@ impl PackTree for MutPtr<QTreeView> {
                             let model_index = model.index_from_item(item);
                             let filtered_index = filter.map_from_source(&model_index);
 
-                            if filtered_index.is_valid() { return Some(filtered_index.as_ref()); }
+                            if filtered_index.is_valid() { return Some(filtered_index.into_ptr()); }
                             else { return None }
                         }
                     }

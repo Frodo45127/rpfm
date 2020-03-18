@@ -14,7 +14,7 @@ Module with all the code related to the `GlobalSearchSlots`.
 This module contains all the code needed to initialize the Global Search Panel.
 !*/
 
-use qt_widgets::q_abstract_item_view::ScrollMode;
+use qt_widgets::q_abstract_item_view::{ScrollHint, ScrollMode};
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDockWidget;
@@ -584,13 +584,15 @@ impl GlobalSearchUI {
             let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
 
             if let Some(pack_file_contents_model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
+                let pack_file_contents_model_index = pack_file_contents_model_index.as_ref().unwrap();
                 let mut selection_model = tree_view.selection_model();
 
                 // If it's not in the current TreeView Filter we CAN'T OPEN IT.
+                //
+                // Note: the selection should already trigger the open PackedFile action.
                 if pack_file_contents_model_index.is_valid() {
-                    selection_model.select_q_model_index_q_flags_selection_flag(pack_file_contents_model_index, QFlags::from(SelectionFlag::ClearAndSelect));
                     tree_view.scroll_to_1a(pack_file_contents_model_index);
-                    app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, false);
+                    selection_model.select_q_model_index_q_flags_selection_flag(pack_file_contents_model_index, QFlags::from(SelectionFlag::ClearAndSelect));
 
                     if let Some((_, packed_file_view)) = UI_STATE.get_open_packedfiles().iter().find(|x| x.0 == &path) {
                         match packed_file_view.get_view() {
@@ -608,8 +610,8 @@ impl GlobalSearchUI {
                                 let table_model_index = table_model.index_2a(row, column);
                                 let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
                                 if table_model_index_filtered.is_valid() {
+                                    table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
                                     table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                    table_view.scroll_to_1a(table_model_index_filtered.as_ref());
                                 }
                             },
 
@@ -626,19 +628,20 @@ impl GlobalSearchUI {
             let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
 
             if let Some(model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
+                let model_index = model_index.as_ref().unwrap();
                 let mut selection_model = tree_view.selection_model();
 
                 // If it's not in the current TreeView Filter we CAN'T OPEN IT.
+                //
+                // Note: the selection should already trigger the open PackedFile action.
                 if model_index.is_valid() {
-                    selection_model.select_q_model_index_q_flags_selection_flag(model_index, QFlags::from(SelectionFlag::ClearAndSelect));
                     tree_view.scroll_to_1a(model_index);
-                    app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, false);
+                    selection_model.select_q_model_index_q_flags_selection_flag(model_index, QFlags::from(SelectionFlag::ClearAndSelect));
                 }
             }
             else { show_dialog(app_ui.main_window, ErrorKind::PackedFileNotInFilter, false); }
         }
     }
-
 
     /// This function takes care of loading the results of a global search of `TableMatches` into a model.
     unsafe fn load_table_matches_to_ui(model: &mut QStandardItemModel, tree_view: &mut QTreeView, matches: &[TableMatches]) {
