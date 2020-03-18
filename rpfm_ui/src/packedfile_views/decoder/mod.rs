@@ -49,7 +49,7 @@ use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, atomic::AtomicPtr};
+use std::sync::{Arc, atomic::AtomicPtr, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -195,6 +195,12 @@ pub struct PackedFileDecoderViewRaw {
     pub packed_file_type: PackedFileType,
     pub packed_file_path: Vec<String>,
     pub packed_file_data: Arc<Vec<u8>>,
+}
+
+/// This struct contains data we need to keep separated from the other two due to mutability issues.
+#[derive(Clone)]
+pub struct PackedFileDecoderMutableData {
+    pub index: Arc<Mutex<usize>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -428,6 +434,11 @@ impl PackedFileDecoderView {
         layout.set_row_stretch(0, 10);
         layout.set_row_stretch(2, 5);
 
+        let header_size = get_header_size(
+            &packed_file_type,
+            &packed_file.get_raw_data()?
+        )?;
+
         let mut packed_file_decoder_view_raw = PackedFileDecoderViewRaw {
             hex_view_index: hex_view_index.into_ptr(),
             hex_view_raw: hex_view_raw.into_ptr(),
@@ -479,8 +490,13 @@ impl PackedFileDecoderView {
             packed_file_data: Arc::new(packed_file.get_raw_data()?),
         };
 
+        let packed_file_decoder_mutable_data = PackedFileDecoderMutableData {
+            index: Arc::new(Mutex::new(header_size)),
+        };
+
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
             packed_file_decoder_view_raw.clone(),
+            packed_file_decoder_mutable_data.clone(),
             *pack_file_contents_ui,
             *global_search_ui,
             &packed_file_path
@@ -540,7 +556,8 @@ impl PackedFileDecoderView {
         let definition = get_definition(
             &packed_file_decoder_view.packed_file_type,
             &packed_file_decoder_view.packed_file_path,
-            &packed_file_decoder_view.packed_file_data
+            &packed_file_decoder_view.packed_file_data,
+            None
         );
 
         let fields = if let Some(definition) = definition {
@@ -549,7 +566,7 @@ impl PackedFileDecoderView {
 
         packed_file_decoder_view.load_packed_file_data()?;
         packed_file_decoder_view_raw.load_versions_list();
-        packed_file_decoder_view_raw.update_view(&fields, true)?;
+        packed_file_decoder_view_raw.update_view(&fields, true, &mut packed_file_decoder_mutable_data.index.lock().unwrap())?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
         packed_file_view.view = View::Decoder(packed_file_decoder_view);
@@ -698,12 +715,48 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.hex_view_decoded)
     }
 
+    fn get_mut_ptr_bool_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.bool_button)
+    }
+
+    fn get_mut_ptr_float_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.float_button)
+    }
+
+    fn get_mut_ptr_integer_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.integer_button)
+    }
+
+    fn get_mut_ptr_long_integer_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.long_integer_button)
+    }
+
+    fn get_mut_ptr_string_u8_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.string_u8_button)
+    }
+
+    fn get_mut_ptr_string_u16_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.string_u16_button)
+    }
+
+    fn get_mut_ptr_optional_string_u8_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.optional_string_u8_button)
+    }
+
+    fn get_mut_ptr_optional_string_u16_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.optional_string_u16_button)
+    }
+
     fn get_mut_ptr_packed_file_info_version_decoded_label(&self) -> MutPtr<QLabel> {
         mut_ptr_from_atomic(&self.packed_file_info_version_decoded_label)
     }
 
     fn get_mut_ptr_packed_file_info_entry_count_decoded_label(&self) -> MutPtr<QLabel> {
         mut_ptr_from_atomic(&self.packed_file_info_entry_count_decoded_label)
+    }
+
+    fn get_mut_ptr_table_model(&self) -> MutPtr<QStandardItemModel> {
+        mut_ptr_from_atomic(&self.table_model)
     }
 
     fn get_mut_ptr_table_view(&self) -> MutPtr<QTableView> {
@@ -786,6 +839,7 @@ impl PackedFileDecoderViewRaw {
         &mut self,
         field_list: &[Field],
         is_initial_load: bool,
+        mut index: &mut usize,
     ) -> Result<()> {
 
         // If it's the first load, we have to prepare the table's column data.
@@ -802,17 +856,12 @@ impl PackedFileDecoderViewRaw {
 
             // Otherswise, we add each field we got as a row to the table.
             else {
-
-                let mut index = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
                 for field in field_list {
                     self.add_field_to_view(&field, &mut index);
                 }
                 configure_table_view(self.table_view);
             }
         }
-
-        // Create the variables to hold the values we'll pass to the LineEdits.
-        let index = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
 
         let decoded_bool = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Boolean, &mut index.clone());
         let decoded_float = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Float, &mut index.clone());
@@ -882,7 +931,7 @@ impl PackedFileDecoderViewRaw {
         let mut cursor = self.hex_view_raw.text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size * 3) as i32);
-        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, ((index - header_size) * 3) as i32);
+        cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, ((*index - header_size) * 3) as i32);
 
         self.hex_view_raw.set_text_cursor(&cursor);
         self.hex_view_raw.set_current_char_format(&decoded_format);
@@ -895,10 +944,10 @@ impl PackedFileDecoderViewRaw {
         let mut cursor = self.hex_view_decoded.text_cursor();
 
         // Create the "Selection" for the decoded row.
-        let positions_to_move_end = index / 16;
+        let positions_to_move_end = *index / 16;
         let positions_to_move_start = header_size / 16;
         let positions_to_move_vertical = positions_to_move_end - positions_to_move_start;
-        let positions_to_move_horizontal = index - header_size;
+        let positions_to_move_horizontal = *index - header_size;
         let positions_to_move = positions_to_move_horizontal + positions_to_move_vertical;
 
         cursor.move_position_1a(MoveOperation::Start);
@@ -921,7 +970,7 @@ impl PackedFileDecoderViewRaw {
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, 3);
 
         self.hex_view_raw.set_text_cursor(&cursor);
-        self.hex_view_raw.set_current_char_format(&decoded_format);
+        self.hex_view_raw.set_current_char_format(&index_format);
         cursor.clear_selection();
         self.hex_view_raw.set_text_cursor(&cursor);
 
@@ -932,7 +981,7 @@ impl PackedFileDecoderViewRaw {
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, 1);
 
         self.hex_view_decoded.set_text_cursor(&cursor);
-        self.hex_view_decoded.set_current_char_format(&decoded_format);
+        self.hex_view_decoded.set_current_char_format(&index_format);
         cursor.clear_selection();
         self.hex_view_decoded.set_text_cursor(&cursor);
 
@@ -943,6 +992,8 @@ impl PackedFileDecoderViewRaw {
 
     /// This function adds fields to the decoder's table, so we can do this without depending on the
     /// updates of the decoder's view.
+    ///
+    /// It returns the new index.
     pub unsafe fn add_field_to_view(
         &mut self,
         field: &Field,
@@ -1094,6 +1145,61 @@ impl PackedFileDecoderViewRaw {
         }
     }
 
+    /// This function updates the "First Row Decoded" column of the table, then forces an update of the rest of the view.
+    ///
+    /// To be triggered when the table changes.
+    unsafe fn update_rows_decoded(
+        &mut self,
+        mut index: &mut usize,
+    ) -> Result<()> {
+
+        // Reset the index, because this function effectively resets the decoding state.
+        *index = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
+        let mut row = 0;
+
+        // Loop through all the rows.
+        loop {
+
+            // Get the ModelIndex of the cell we want to update.
+            let model_index = self.table_model.index_2a(row, 5);
+            if model_index.is_valid() {
+
+                // Get the row's type.
+                let row_type = self.table_model.index_2a(row, 1);
+                let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
+                    "Bool" => FieldType::Boolean,
+                    "Float" => FieldType::Float,
+                    "Integer" => FieldType::Integer,
+                    "LongInteger" => FieldType::LongInteger,
+                    "StringU8" => FieldType::StringU8,
+                    "StringU16" => FieldType::StringU16,
+                    "OptionalStringU8" => FieldType::OptionalStringU8,
+                    "OptionalStringU16" => FieldType::OptionalStringU16,
+                    "Sequence" => FieldType::Sequence(Definition::new(-1)),
+                    _ => unimplemented!()
+                };
+
+                // Get the decoded data using it's type...
+                let decoded_data = Self::decode_data_by_fieldtype(
+                    &self.packed_file_data,
+                    &field_type,
+                    &mut index
+                );
+
+                // Get the item from the "First Row Decoded" column.
+                let mut item = self.table_model.item_from_index(&model_index);
+                item.set_text(&QString::from_std_str(decoded_data));
+                row += 1;
+            }
+
+            // Otherwise, stop the loop.
+            else { break; }
+        }
+
+        // Update the entire decoder to use the new index.
+        self.update_view(&[], false, &mut index)
+    }
+
     /// This function is used to update the list of "Versions" of the currently open table decoded.
     unsafe fn load_versions_list(&mut self) {
         self.table_model_old_versions.clear();
@@ -1118,6 +1224,20 @@ impl PackedFileDecoderViewRaw {
         self.table_model_old_versions.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Versions Decoded")));
         self.table_view_old_versions.horizontal_header().set_section_resize_mode_1a(ResizeMode::Stretch);
     }
+
+    /// This function is used to update the decoder view when we try to add a new field to
+    /// the definition with one of the "Use this" buttons.
+    pub unsafe fn use_this(
+        &mut self,
+        field_type: FieldType,
+        mut index: &mut usize,
+    ) -> Result<()> {
+        let mut field = Field::default();
+        field.field_type = field_type;
+
+        self.add_field_to_view(&field, &mut index);
+        self.update_view(&[], false, &mut index)
+    }
 }
 
 /// This function returns the header size (or first byte after the header) of the provided PackedFile.
@@ -1137,6 +1257,7 @@ fn get_definition(
     packed_file_type: &PackedFileType,
     packed_file_path: &[String],
     packed_file_data: &[u8],
+    version: Option<i32>
 ) -> Option<Definition> {
     if let Some(ref schema) = *SCHEMA.read().unwrap() {
 
@@ -1149,11 +1270,11 @@ fn get_definition(
 
         // And get all the versions of this table, and list them in their TreeView, if we have any.
         if let Ok(versioned_file) = versioned_file {
-            let version = match packed_file_type {
+            let version = if let Some(version) = version { version } else { match packed_file_type {
                 PackedFileType::DB => DB::read_header(packed_file_data).ok()?.0,
                 PackedFileType::Loc => Loc::read_header(packed_file_data).ok()?.0,
                 _ => unimplemented!(),
-            };
+            }};
 
             return versioned_file.get_version(version).ok().cloned()
         }
