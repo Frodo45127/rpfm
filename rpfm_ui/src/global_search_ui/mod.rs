@@ -397,6 +397,9 @@ impl GlobalSearchUI {
         global_search.case_sensitive = self.global_search_case_sensitive_checkbox.is_checked();
         global_search.use_regex = self.global_search_use_regex_checkbox.is_checked();
 
+        // If we don't have text to search, return.
+        if global_search.pattern.is_empty() { return; }
+
         if self.global_search_search_on_all_checkbox.is_checked() {
             global_search.search_on_dbs = true;
             global_search.search_on_locs = true;
