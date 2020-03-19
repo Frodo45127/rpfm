@@ -388,6 +388,16 @@ impl PackedFileDecoderViewSlots {
                         }
                     }
 
+                    PackedFileType::Loc => match Loc::read(&view.packed_file_data, &schema, true) {
+                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Err(error) => {
+                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                                let data: Table = deserialize(data).unwrap();
+                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                            }
+                        }
+                    }
+
                     _ => unimplemented!()
                 }
             }
