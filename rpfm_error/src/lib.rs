@@ -372,6 +372,9 @@ pub enum ErrorKind {
     /// This error is to be used when a decoding/encoding operation using the decoding/encoding helpers fails. Contain the error message.
     HelperDecodingEncodingError(String),
 
+    /// This error is to be used when decoding a table fails, and we want to have the data decoded until it failed.
+    TableIncompleteError(String, Vec<u8>),
+
     //-----------------------------------------------------//
     //                  MyMod Errors
     //-----------------------------------------------------//
@@ -693,6 +696,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::StringFromUTF8 => write!(f, "<p>Error while converting data to an UTF-8 String.</p>"),
             ErrorKind::HelperDecodingEncodingError(cause) => write!(f, "{}", cause),
+            ErrorKind::TableIncompleteError(cause, _) => write!(f, "{}", cause),
 
             //-----------------------------------------------------//
             //                  MyMod Errors

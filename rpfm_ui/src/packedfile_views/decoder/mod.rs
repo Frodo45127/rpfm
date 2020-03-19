@@ -57,7 +57,7 @@ use rpfm_lib::common::decoder::*;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::{loc, loc::Loc};
-use rpfm_lib::schema::{Definition, Field, FieldType};
+use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 
@@ -1325,6 +1325,53 @@ impl PackedFileDecoderViewRaw {
         }
 
         fields
+    }
+
+    /// This function adds the definition currently in the view to a temporal schema, and returns it.
+    unsafe fn add_definition_to_schema(&self) -> Schema {
+        let mut schema = SCHEMA.read().unwrap().clone().unwrap();
+        let fields = self.get_fields_from_view();
+
+        let version = match self.packed_file_type {
+            PackedFileType::DB => DB::read_header(&self.packed_file_data).unwrap().0,
+            PackedFileType::Loc => Loc::read_header(&self.packed_file_data).unwrap().0,
+            _ => unimplemented!(),
+        };
+
+        let versioned_file = match self.packed_file_type {
+            PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&self.packed_file_path[1]),
+            PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
+            _ => unimplemented!(),
+        };
+
+        match versioned_file {
+            Ok(versioned_file) => {
+                match versioned_file.get_ref_mut_version(version) {
+                    Ok(definition) => definition.fields = fields,
+                    Err(_) => {
+                        let mut definition = Definition::new(version);
+                        definition.fields = fields;
+                        versioned_file.add_version(&definition);
+                    }
+                }
+            }
+            Err(_) => {
+                let mut definition = Definition::new(version);
+                definition.fields = fields;
+
+                let definitions = vec![definition];
+                let versioned_file = match self.packed_file_type {
+                    PackedFileType::DB => VersionedFile::DB(self.packed_file_path[1].to_owned(), definitions),
+                    PackedFileType::Loc => VersionedFile::Loc(definitions),
+                    PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
+                    _ => unimplemented!()
+                };
+
+                schema.add_versioned_file(&versioned_file);
+            }
+        }
+
+        schema
     }
 }
 

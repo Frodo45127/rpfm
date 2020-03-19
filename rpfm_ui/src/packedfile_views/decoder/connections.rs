@@ -55,7 +55,7 @@ pub unsafe fn set_connections(ui: &PackedFileDecoderView, slots: &PackedFileDeco
     ui.get_mut_ptr_table_view_old_versions_context_menu_load().triggered().connect(&slots.table_view_old_versions_context_menu_load);
     ui.get_mut_ptr_table_view_old_versions_context_menu_delete().triggered().connect(&slots.table_view_old_versions_context_menu_delete);
 
-    //ui.get_mut_ptr_optional_string_u16_button().released().connect(&slots.use_this_optional_string_u16);
+    ui.get_mut_ptr_test_definition_button().released().connect(&slots.test_definition);
     ui.get_mut_ptr_clear_definition_button().released().connect(&slots.remove_all_fields);
     ui.get_mut_ptr_save_button().released().connect(&slots.save_definition);
 }

@@ -134,7 +134,8 @@ impl DB {
     pub fn read(
         packed_file_data: &[u8],
         name: &str,
-        schema: &Schema
+        schema: &Schema,
+        return_incomplete: bool
     ) -> Result<Self> {
 
         // Get the header of the `DB`.
@@ -168,7 +169,7 @@ impl DB {
 
         // Then try to decode all the entries.
         let mut table = Table::new(definition?);
-        table.decode(&packed_file_data, entry_count, &mut index)?;
+        table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }

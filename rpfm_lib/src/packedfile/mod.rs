@@ -114,7 +114,7 @@ impl DecodedPackedFile {
                     Some(schema) => {
                         let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
                         let data = raw_packed_file.get_data()?;
-                        let packed_file = DB::read(&data, name, &schema)?;
+                        let packed_file = DB::read(&data, name, &schema, false)?;
                         Ok(DecodedPackedFile::DB(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -132,7 +132,7 @@ impl DecodedPackedFile {
                 match schema.deref() {
                     Some(schema) => {
                         let data = raw_packed_file.get_data()?;
-                        let packed_file = Loc::read(&data, &schema)?;
+                        let packed_file = Loc::read(&data, &schema, false)?;
                         Ok(DecodedPackedFile::Loc(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -164,7 +164,7 @@ impl DecodedPackedFile {
             PackedFileType::DB => {
                 let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
                 let data = raw_packed_file.get_data()?;
-                let packed_file = DB::read(&data, name, &schema)?;
+                let packed_file = DB::read(&data, name, &schema, false)?;
                 Ok(DecodedPackedFile::DB(packed_file))
             }
 
@@ -176,7 +176,7 @@ impl DecodedPackedFile {
 
             PackedFileType::Loc => {
                 let data = raw_packed_file.get_data()?;
-                let packed_file = Loc::read(&data, &schema)?;
+                let packed_file = Loc::read(&data, &schema, false)?;
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
 

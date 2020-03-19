@@ -12,6 +12,7 @@
 Module with all the utility functions, to make our programming lives easier.
 !*/
 
+use qt_widgets::QApplication;
 use qt_widgets::QGridLayout;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QWidget;
@@ -25,9 +26,12 @@ use cpp_core::CppDeletable;
 use cpp_core::MutPtr;
 use cpp_core::Ref;
 
+use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
+use crate::ffi::new_text_editor_safe;
+use crate::ffi::set_text_safe;
 use crate::ORANGE;
 use crate::SLIGHTLY_DARKER_GREY;
 use crate::MEDIUM_DARKER_GREY;
@@ -87,6 +91,24 @@ pub unsafe fn show_dialog<T: Display>(parent: impl CastInto<MutPtr<QWidget>>, te
     ).exec();
 }
 
+/// This function creates a non-modal dialog, for debugging purpouses.
+///
+/// It requires:
+/// - text: something that dereferences to `str`, to put in the window.
+pub unsafe fn show_debug_dialog<T: AsRef<str>>(text: T) {
+    let mut window = QWidget::new_0a().into_ptr();
+    let mut layout = create_grid_layout(window);
+    let mut editor = new_text_editor_safe(&mut window);
+
+    layout.add_widget_5a(editor, 0, 0, 1, 1);
+    set_text_safe(&mut editor, &mut QString::from_std_str(text), &mut QString::from_std_str("plain"));
+
+    // Center it on screen.
+    window.resize_2a(1000, 600);
+    let pos_x = QApplication::desktop().screen_geometry().center().as_ref() - window.rect().center().as_ref();
+    window.move_1a(&pos_x);
+    window.show();
+}
 
 /*
 /// This function shows the tips in the PackedFile View. Remember to call "purge_them_all" before this!

@@ -114,7 +114,7 @@ impl Loc {
     }
 
     /// This function creates a new `Loc` from a `Vec<u8>`.
-    pub fn read(packed_file_data: &[u8], schema: &Schema) -> Result<Self> {
+    pub fn read(packed_file_data: &[u8], schema: &Schema, return_incomplete: bool) -> Result<Self> {
 
         let (version, entry_count) = Self::read_header(packed_file_data)?;
 
@@ -128,7 +128,7 @@ impl Loc {
         // Then try to decode all the entries.
         let mut index = 14 as usize;
         let mut table = Table::new(&definition);
-        table.decode(&packed_file_data, entry_count, &mut index)?;
+        table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }

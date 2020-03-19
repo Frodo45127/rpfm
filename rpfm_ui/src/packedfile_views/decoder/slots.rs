@@ -16,20 +16,26 @@ use qt_widgets::SlotOfQPoint;
 use qt_gui::QCursor;
 use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, Slot, SlotOfQModelIndexQModelIndexQVectorOfInt};
 
+use bincode::deserialize;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use rpfm_error::ErrorKind;
+
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::Loc;
+use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::SCHEMA;
-use rpfm_lib::schema::{Definition, FieldType, VersionedFile};
+use rpfm_lib::schema::FieldType;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
+use crate::utils::show_debug_dialog;
 
 use super::get_definition;
 use super::get_header_size;
@@ -70,6 +76,7 @@ pub struct PackedFileDecoderViewSlots {
     pub table_view_old_versions_context_menu_load: SlotOfBool<'static>,
     pub table_view_old_versions_context_menu_delete: SlotOfBool<'static>,
 
+    pub test_definition: Slot<'static>,
     pub remove_all_fields: Slot<'static>,
     pub save_definition: Slot<'static>,
 }
@@ -364,6 +371,28 @@ impl PackedFileDecoderViewSlots {
             }
         )),
 */
+
+        // Slot for the "Test Definition" button.
+        let test_definition = Slot::new(clone!(
+            mut view => move || {
+                let schema = view.add_definition_to_schema();
+
+                match view.packed_file_type {
+                    PackedFileType::DB => match DB::read(&view.packed_file_data, &view.packed_file_path[1], &schema, true) {
+                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Err(error) => {
+                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                                let data: Table = deserialize(data).unwrap();
+                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                            }
+                        }
+                    }
+
+                    _ => unimplemented!()
+                }
+            }
+        ));
+
         // Slot for the "Kill them all!" button.
         let remove_all_fields = Slot::new(clone!(
             mut mutable_data,
@@ -377,47 +406,7 @@ impl PackedFileDecoderViewSlots {
         // Slot for the "Finish it!" button.
         let save_definition = Slot::new(clone!(
             mut view => move || {
-                let mut schema = SCHEMA.read().unwrap().clone().unwrap();
-                let fields = view.get_fields_from_view();
-
-                let version = match view.packed_file_type {
-                    PackedFileType::DB => DB::read_header(&view.packed_file_data).unwrap().0,
-                    PackedFileType::Loc => Loc::read_header(&view.packed_file_data).unwrap().0,
-                    _ => unimplemented!(),
-                };
-
-                let versioned_file = match view.packed_file_type {
-                    PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
-                    PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
-                    _ => unimplemented!(),
-                };
-
-                match versioned_file {
-                    Ok(versioned_file) => {
-                        match versioned_file.get_ref_mut_version(version) {
-                            Ok(definition) => definition.fields = fields,
-                            Err(_) => {
-                                let mut definition = Definition::new(version);
-                                definition.fields = fields;
-                                versioned_file.add_version(&definition);
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        let mut definition = Definition::new(version);
-                        definition.fields = fields;
-
-                        let definitions = vec![definition];
-                        let versioned_file = match view.packed_file_type {
-                            PackedFileType::DB => VersionedFile::DB(view.packed_file_path[1].to_owned(), definitions),
-                            PackedFileType::Loc => VersionedFile::Loc(definitions),
-                            PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
-                            _ => unimplemented!()
-                        };
-
-                        schema.add_versioned_file(&versioned_file);
-                    }
-                }
+                let schema = view.add_definition_to_schema();
 
                 CENTRAL_COMMAND.send_message_qt(Command::SaveSchema(schema));
                 let response = CENTRAL_COMMAND.recv_message_qt();
@@ -461,6 +450,7 @@ impl PackedFileDecoderViewSlots {
             table_view_old_versions_context_menu_load,
             table_view_old_versions_context_menu_delete,
 
+            test_definition,
             remove_all_fields,
             save_definition,
         }
