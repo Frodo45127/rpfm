@@ -1151,6 +1151,7 @@ mdbook build --open
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="changelogs_tables/three_kingdoms/changelog.html#006">006</a></li>
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#004">004</a></li>
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#003">003</a></li>
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#002">002</a></li>
@@ -1158,6 +1159,237 @@ mdbook build --open
 <li><a href="changelogs_tables/three_kingdoms/changelog.html#000">000</a></li>
 </ul>
 <hr />
+<h1><a class="header" href="#006" id="006">006</a></h1>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>aide_de_camp_excluded_strings_tables</em>.</li>
+<li><em>ceo_equipped_set_bonuses_to_incident_junctions_tables</em>.</li>
+<li><em>ceo_to_target_ceo_junctions_tables</em>.</li>
+<li><em>ceo_to_target_province_junctions_tables</em>.</li>
+<li><em>character_assignment_constraint_set_required_conditions_tables</em>.</li>
+<li><em>character_assignment_faction_province_owned_effects_tables</em>.</li>
+<li><em>character_assignment_property_junctions_tables</em>.</li>
+<li><em>subculture_to_campaign_map_prefab_types_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><em><strong>aide_de_camp_speeches_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>refers_to_person</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Does this line refer to a person? ie. do we need a gender specific line?</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>audio_vo_actors_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>use_default_advisor</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>use vo_actor_advisor for adc</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_annex_region_costs_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>refunded_on_annex_cancelled</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>campaign_map_playable_areas_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>dlc_key</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>Used to link pdlc with campaign. USeful to frontend to correctly show buttons!</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>captive_option_requirements_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>cover_points_cost</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>treasury_cost</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>requires_free_army_slot</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>undercover_network_cost</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>character_assignments_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>base_capture_chance</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>custom_battle_characters_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>age</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Description</strong>: <em>This is used to match with the character art record that matches the age.</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>hero_battle_conversation_excluded_strings_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>vo_actor_recipient</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+<li><strong>Is Reference</strong>: <em>audio_vo_actors</em>/<em>key</em>.</li>
+<li><strong>Description</strong>: <em>actor responding to the remark</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>vo_actor</strong>:
+<ul>
+<li><em><strong>Description</strong></em>: ** =&gt; <em>actor saying the remark</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ministerial_positions_culture_details_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>faction_progression_level_requirement</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>character_rank_requirement</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ministerial_positions_tables</strong></em>:
+<ul>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>rank</em>.</li>
+<li><em>fame_level_requirement</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>technology_nodes_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>can_meet_parent_requirement_with_children</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>required_num_parents</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ui_diplomacy_treaty_components_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>hide_everywhere_but_event_feed</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <h1><a class="header" href="#004" id="004">004</a></h1>
 <p>It contains the following changes:</p>
 <ul>
@@ -40940,7 +41172,7 @@ mdbook build --open
 <li><a href="changelogs_tables/shogun_2/changelog.html#005">005</a></li>
 </ul>
 <hr />
-<h1><a class="header" href="#006" id="006">006</a></h1>
+<h1><a class="header" href="#006-1" id="006-1">006</a></h1>
 <p>It contains the following changes:</p>
 <ul>
 <li><strong>Fixed Tables</strong>:
@@ -41140,7 +41372,7 @@ mdbook build --open
 <li><a href="changelogs_tables/arena/changelog.html#006">006</a></li>
 </ul>
 <hr />
-<h1><a class="header" href="#006-1" id="006-1">006</a></h1>
+<h1><a class="header" href="#006-2" id="006-2">006</a></h1>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 
                     </main>
