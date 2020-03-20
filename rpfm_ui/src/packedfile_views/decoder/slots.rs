@@ -30,12 +30,14 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::schema::FieldType;
 
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
 use crate::utils::show_debug_dialog;
+use crate::UI_STATE;
 
 use super::get_definition;
 use super::get_header_size;
@@ -89,7 +91,13 @@ pub struct PackedFileDecoderViewSlots {
 impl PackedFileDecoderViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub unsafe fn new(view: PackedFileDecoderViewRaw, mutable_data: PackedFileDecoderMutableData, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, packed_file_path: &Rc<RefCell<Vec<String>>>) -> Self {
+    pub unsafe fn new(
+        view: PackedFileDecoderViewRaw,
+        mutable_data: PackedFileDecoderMutableData,
+        mut app_ui: AppUI,
+        pack_file_contents_ui: PackFileContentsUI,
+        global_search_ui: GlobalSearchUI,
+    ) -> Self {
 
         // Slot to keep scroll in views in sync.
         let hex_view_scroll_sync = SlotOfInt::new(clone!(
@@ -418,6 +426,27 @@ impl PackedFileDecoderViewSlots {
             mut view => move || {
                 let schema = view.add_definition_to_schema();
 
+                // Save and close all PackedFiles that use our definition.
+                let mut packed_files_to_save = vec![];
+                for (open_path, _) in UI_STATE.get_open_packedfiles().iter() {
+                    if open_path.len() > 2 &&
+                        open_path[0] == view.packed_file_path[0] &&
+                        open_path[1] == view.packed_file_path[1] &&
+                        !open_path[2].ends_with("-rpfm-decoder") {
+                        packed_files_to_save.push(open_path.to_vec());
+                    }
+                }
+
+                for path in &packed_files_to_save {
+                    app_ui.purge_that_one_specifically(
+                        global_search_ui,
+                        pack_file_contents_ui,
+                        path,
+                        true,
+                    );
+                }
+
+                CENTRAL_COMMAND.send_message_qt(Command::CleanCache(packed_files_to_save));
                 CENTRAL_COMMAND.send_message_qt(Command::SaveSchema(schema));
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 match response {

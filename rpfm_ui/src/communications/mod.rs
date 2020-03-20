@@ -256,6 +256,9 @@ pub enum Command {
     /// This command is used to save the provided schema to disk.
     SaveSchema(Schema),
 
+    /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
+    CleanCache(Vec<Vec<String>>),
+
     /*
     OpenPackFileExtra,
     SavePackFile,

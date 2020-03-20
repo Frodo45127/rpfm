@@ -61,6 +61,7 @@ use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::add_to_q_list_safe;
@@ -217,6 +218,7 @@ impl PackedFileDecoderView {
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
+        app_ui: &AppUI,
     ) -> Result<TheOneSlot> {
 
         // Get the decoded Text.
@@ -498,9 +500,9 @@ impl PackedFileDecoderView {
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
             packed_file_decoder_view_raw.clone(),
             packed_file_decoder_mutable_data.clone(),
+            app_ui.clone(),
             *pack_file_contents_ui,
             *global_search_ui,
-            &packed_file_path
         );
 
         let mut packed_file_decoder_view = Self {

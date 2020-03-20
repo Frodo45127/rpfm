@@ -1220,7 +1220,7 @@ impl AppUI {
                 let icon = icon_type.get_icon_from_path();
 
                 let path = Rc::new(RefCell::new(path.to_vec()));
-                match PackedFileDecoderView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                match PackedFileDecoderView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui, &self) {
                     Ok(slots) => {
                         slot_holder.borrow_mut().push(slots);
 

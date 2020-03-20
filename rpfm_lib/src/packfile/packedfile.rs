@@ -307,6 +307,19 @@ impl PackedFile {
         Ok(())
     }
 
+    /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
+    /// Then, it removes the decoded data from the cache.
+    ///
+    /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
+    pub fn encode_and_clean_cache(&mut self) -> Result<()> {
+        match self.decoded.encode() {
+            Some(data) => self.raw.set_data(data?),
+            None => self.raw.load_data()?,
+        }
+        self.decoded = DecodedPackedFile::Unknown;
+        Ok(())
+    }
+
     /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`,
     /// and returning a reference to it.
     ///

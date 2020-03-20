@@ -638,6 +638,12 @@ pub fn background_loop() {
                 }
             }
 
+            // In case we want to clean the cache of one or more PackedFiles...
+            Command::CleanCache(paths) => {
+                let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect::<Vec<&[String]>>());
+                packed_files.iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
+            }
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
