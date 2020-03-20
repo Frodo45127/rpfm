@@ -259,6 +259,9 @@ pub enum Command {
     /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
     CleanCache(Vec<Vec<String>>),
 
+    /// This command is used to generate a pretty diff of a schema, against the last remote version of the same schema.
+    GenerateSchemaDiff,
+
     /*
     OpenPackFileExtra,
     SavePackFile,

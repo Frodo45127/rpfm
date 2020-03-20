@@ -241,6 +241,7 @@ pub struct AppUI {
     // "Debug" menu.
     //-------------------------------------------------------------------------------//
     pub debug_update_current_schema_from_asskit: MutPtr<QAction>,
+    pub debug_generate_schema_diff: MutPtr<QAction>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -556,6 +557,7 @@ impl AppUI {
 
         // Populate the `Debug` menu.
         let debug_update_current_schema_from_asskit = menu_bar_debug.add_action_q_string(&qtr("update_current_schema_from_asskit"));
+        let debug_generate_schema_diff = menu_bar_debug.add_action_q_string(&qtr("generate_schema_diff"));
 
         command_palette_widget.hide();
 
@@ -725,6 +727,7 @@ impl AppUI {
             // "Debug" menu.
             //-------------------------------------------------------------------------------//
             debug_update_current_schema_from_asskit,
+            debug_generate_schema_diff,
         }
     }
 }

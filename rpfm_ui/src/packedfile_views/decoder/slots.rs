@@ -358,27 +358,6 @@ impl PackedFileDecoderViewSlots {
                 }
             }
         ));
-/*
-        // Slot for the "Generate Pretty Diff" button.
-        let = generate_pretty_diff = Slot::new(clone!(
-            sender_qt,
-            receiver_qt,
-            app_ui => move || {
-
-                // Tell the background thread to generate the diff and wait.
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(false); }
-                sender_qt.send(Commands::GenerateSchemaDiff).unwrap();
-                match check_message_validity_tryrecv(&receiver_qt) {
-                    Data::Success => show_dialog(app_ui.window, true, "Diff generated succesfully"),
-                    Data::Error(error) => show_dialog(app_ui.window, false, error),
-
-                    // In ANY other situation, it's a message problem.
-                    _ => panic!(THREADS_MESSAGE_ERROR),
-                }
-                unsafe { (app_ui.window.as_mut().unwrap() as &mut Widget).set_enabled(true); }
-            }
-        )),
-*/
 
         // Slot for the "Test Definition" button.
         let test_definition = Slot::new(clone!(

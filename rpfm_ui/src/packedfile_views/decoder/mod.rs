@@ -134,7 +134,6 @@ pub struct PackedFileDecoderView {
     table_view_old_versions_context_menu_delete: AtomicPtr<QAction>,
 
     test_definition_button: AtomicPtr<QPushButton>,
-    generate_pretty_diff_button: AtomicPtr<QPushButton>,
     clear_definition_button: AtomicPtr<QPushButton>,
     save_button: AtomicPtr<QPushButton>,
 
@@ -190,7 +189,6 @@ pub struct PackedFileDecoderViewRaw {
     pub table_view_old_versions_context_menu_delete: MutPtr<QAction>,
 
     pub test_definition_button: MutPtr<QPushButton>,
-    pub generate_pretty_diff_button: MutPtr<QPushButton>,
     pub clear_definition_button: MutPtr<QPushButton>,
     pub save_button: MutPtr<QPushButton>,
 
@@ -421,15 +419,13 @@ impl PackedFileDecoderView {
 
         // Create the bottom Buttons.
         let mut test_definition_button = QPushButton::from_q_string(&QString::from_std_str("Test Definition"));
-        let mut generate_pretty_diff_button = QPushButton::from_q_string(&QString::from_std_str("Generate Diff"));
         let mut clear_definition_button = QPushButton::from_q_string(&QString::from_std_str("Remove all fields"));
         let mut save_button = QPushButton::from_q_string(&QString::from_std_str("Finish it!"));
 
         // Add them to the Dialog.
         button_box_layout.add_widget_5a(&mut test_definition_button, 0, 0, 1, 1);
-        button_box_layout.add_widget_5a(&mut generate_pretty_diff_button, 0, 1, 1, 1);
-        button_box_layout.add_widget_5a(&mut clear_definition_button, 0, 2, 1, 1);
-        button_box_layout.add_widget_5a(&mut save_button, 0, 3, 1, 1);
+        button_box_layout.add_widget_5a(&mut clear_definition_button, 0, 1, 1, 1);
+        button_box_layout.add_widget_5a(&mut save_button, 0, 2, 1, 1);
 
         layout.add_widget_5a(button_box.into_ptr(), 4, 1, 1, 2);
 
@@ -484,7 +480,6 @@ impl PackedFileDecoderView {
             table_view_old_versions_context_menu_delete,
 
             test_definition_button: test_definition_button.into_ptr(),
-            generate_pretty_diff_button: generate_pretty_diff_button.into_ptr(),
             clear_definition_button: clear_definition_button.into_ptr(),
             save_button: save_button.into_ptr(),
 
@@ -547,7 +542,6 @@ impl PackedFileDecoderView {
             table_view_old_versions_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_delete),
 
             test_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.test_definition_button),
-            generate_pretty_diff_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.generate_pretty_diff_button),
             clear_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.clear_definition_button),
             save_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.save_button),
 
@@ -792,10 +786,6 @@ impl PackedFileDecoderView {
 
     fn get_mut_ptr_test_definition_button(&self) -> MutPtr<QPushButton> {
         mut_ptr_from_atomic(&self.test_definition_button)
-    }
-
-    fn get_mut_ptr_generate_pretty_diff_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.generate_pretty_diff_button)
     }
 
     fn get_mut_ptr_clear_definition_button(&self) -> MutPtr<QPushButton> {

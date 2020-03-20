@@ -101,6 +101,7 @@ about_check_schema_updates = Check Schema &Updates
 ## Debug Menu
 
 update_current_schema_from_asskit = Update currently loaded Schema with Assembly Kit
+generate_schema_diff = Generate Schema Diff
 
 ### app_ui_extra.rs localisation
 

@@ -644,6 +644,14 @@ pub fn background_loop() {
                 packed_files.iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
             }
 
+            // In case we want to generate an schema diff...
+            Command::GenerateSchemaDiff => {
+                match Schema::generate_schema_diff() {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
