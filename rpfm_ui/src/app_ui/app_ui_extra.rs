@@ -210,6 +210,9 @@ impl AppUI {
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Result<()> {
 
+        // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
+        self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder);
+
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         self.main_window.set_enabled(false);
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackFiles(pack_file_paths.to_vec()));
@@ -249,9 +252,6 @@ impl AppUI {
 
                 // Re-enable the Main Window.
                 self.main_window.set_enabled(true);
-
-                // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-                self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder);
 
                 // Close the Global Search stuff and reset the filter's history.
                 global_search_ui.clear();
