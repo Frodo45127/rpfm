@@ -31,6 +31,8 @@ pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableV
     ui.get_mut_ptr_context_menu_add_rows().triggered().connect(&slots.add_rows);
     ui.get_mut_ptr_context_menu_insert_rows().triggered().connect(&slots.insert_rows);
     ui.get_mut_ptr_context_menu_delete_rows().triggered().connect(&slots.delete_rows);
+    ui.get_mut_ptr_context_menu_clone_and_append().triggered().connect(&slots.clone_and_append);
+    ui.get_mut_ptr_context_menu_clone_and_insert().triggered().connect(&slots.clone_and_insert);
     ui.get_mut_ptr_context_menu_copy().triggered().connect(&slots.copy);
     ui.get_mut_ptr_context_menu_copy_as_lua_table().triggered().connect(&slots.copy_as_lua_table);
     ui.get_mut_ptr_context_menu_paste().triggered().connect(&slots.paste);

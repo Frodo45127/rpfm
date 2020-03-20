@@ -60,6 +60,8 @@ pub struct PackedFileTableViewSlots {
     pub add_rows: Slot<'static>,
     pub insert_rows: Slot<'static>,
     pub delete_rows: Slot<'static>,
+    pub clone_and_append: Slot<'static>,
+    pub clone_and_insert: Slot<'static>,
     pub copy: Slot<'static>,
     pub copy_as_lua_table: Slot<'static>,
     pub paste: Slot<'static>,
@@ -166,48 +168,14 @@ impl PackedFileTableViewSlots {
         // When you want to append a row to the table...
         let add_rows = Slot::new(clone!(
             mut packed_file_view => move || {
-
-                // Create the row and append it.
-                let row = get_new_row(&packed_file_view.table_definition);
-                packed_file_view.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
-
-                // Add the operation to the undo history.
-                packed_file_view.history_undo.write().unwrap().push(TableOperations::AddRows(vec![packed_file_view.table_model.row_count_0a() - 1; 1]));
-                packed_file_view.history_redo.write().unwrap().clear();
-                update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                packed_file_view.append_rows(false);
             }
         ));
 
         // When you want to insert a row in a specific position of the table...
         let insert_rows = Slot::new(clone!(
             mut packed_file_view => move || {
-
-                // Get the indexes ready for battle.
-                let selection = packed_file_view.table_view_primary.selection_model().selection();
-                let indexes = packed_file_view.table_filter.map_selection_to_source(&selection).indexes();
-                let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-                sort_indexes_by_model(&mut indexes_sorted);
-                dedup_indexes_per_row(&mut indexes_sorted);
-                let mut row_numbers = vec![];
-
-                // If nothing is selected, we just append one new row at the end.
-                if indexes_sorted.is_empty() {
-                    let row = get_new_row(&packed_file_view.table_definition);
-                    packed_file_view.table_model.append_row_q_list_of_q_standard_item(&row);
-                    row_numbers.push(packed_file_view.table_model.row_count_0a() - 1);
-                }
-
-                for index in indexes_sorted.iter().rev() {
-                    row_numbers.push(index.row());
-                    let row = get_new_row(&packed_file_view.table_definition);
-                    packed_file_view.table_model.insert_row_int_q_list_of_q_standard_item(index.row(), &row);
-                }
-
-                // The undo mode needs this reversed.
-                row_numbers.reverse();
-                packed_file_view.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
-                packed_file_view.history_redo.write().unwrap().clear();
-                update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                packed_file_view.insert_rows(false);
             }
         ));
 
@@ -235,6 +203,18 @@ impl PackedFileTableViewSlots {
                 }
             }
         ));
+
+        // When you want to clone and insert one or more rows.
+        let clone_and_append = Slot::new(clone!(
+            mut packed_file_view => move || {
+            packed_file_view.append_rows(true);
+        }));
+
+        // When you want to clone and append one or more rows.
+        let clone_and_insert = Slot::new(clone!(
+            mut packed_file_view => move || {
+            packed_file_view.insert_rows(true);
+        }));
 
         // When you want to copy one or more cells.
         let copy = Slot::new(clone!(
@@ -319,6 +299,8 @@ impl PackedFileTableViewSlots {
             add_rows,
             insert_rows,
             delete_rows,
+            clone_and_append,
+            clone_and_insert,
             copy,
             copy_as_lua_table,
             paste,

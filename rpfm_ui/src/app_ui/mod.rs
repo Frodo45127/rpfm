@@ -49,7 +49,6 @@ use crate::ffi::new_tableview_command_palette_safe;
 use crate::locale::qtr;
 use crate::RPFM_PATH;
 use crate::STATUS_BAR;
-use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
 
 mod app_ui_extra;

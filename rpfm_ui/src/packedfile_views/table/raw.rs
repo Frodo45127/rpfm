@@ -40,7 +40,6 @@ use cpp_core::Ref;
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
-use std::sync::RwLockWriteGuard;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_lib::schema::Definition;
@@ -73,6 +72,8 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_add_rows: MutPtr<QAction>,
     pub context_menu_insert_rows: MutPtr<QAction>,
     pub context_menu_delete_rows: MutPtr<QAction>,
+    pub context_menu_clone_and_append: MutPtr<QAction>,
+    pub context_menu_clone_and_insert: MutPtr<QAction>,
     pub context_menu_copy: MutPtr<QAction>,
     pub context_menu_copy_as_lua_table: MutPtr<QAction>,
     pub context_menu_paste: MutPtr<QAction>,
@@ -106,8 +107,8 @@ impl PackedFileTableViewRaw {
 
         // If we have something selected, enable these actions.
         if indexes.count_0a() > 0 {
-            //context_menu_clone.set_enabled(true);
-            //context_menu_clone_and_append.set_enabled(true);
+            self.context_menu_clone_and_append.set_enabled(true);
+            self.context_menu_clone_and_insert.set_enabled(true);
             self.context_menu_copy.set_enabled(true);
             self.context_menu_copy_as_lua_table.set_enabled(true);
             self.context_menu_delete_rows.set_enabled(true);
@@ -136,8 +137,8 @@ impl PackedFileTableViewRaw {
         else {
             //context_menu_apply_maths_to_selection.set_enabled(false);
             //context_menu_rewrite_selection.set_enabled(false);
-            //context_menu_clone.set_enabled(false);
-            //context_menu_clone_and_append.set_enabled(false);
+            self.context_menu_clone_and_append.set_enabled(false);
+            self.context_menu_clone_and_insert.set_enabled(false);
             self.context_menu_copy.set_enabled(false);
             self.context_menu_copy_as_lua_table.set_enabled(false);
             self.context_menu_delete_rows.set_enabled(false);
@@ -718,6 +719,7 @@ impl PackedFileTableViewRaw {
     ) {
         let filter: MutPtr<QSortFilterProxyModel> = self.table_view_primary.model().static_downcast_mut();
         let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+        let mut is_carolina = false;
 
         {
             let (mut history_source, mut history_opposite) = if undo {
@@ -813,8 +815,8 @@ impl PackedFileTableViewRaw {
                     let mut selection_model = self.table_view_primary.selection_model();
                     selection_model.clear();
                     for (index, row_pack) in &rows {
-                        let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index, 0));
-                        let final_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index + row_pack.len() as i32, 0));
+                        let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index - 1, 0));
+                        let final_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index + row_pack.len() as i32 - 1, 0));
                         if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
                             let selection = QItemSelection::new_2a(&initial_model_index_filtered, &final_model_index_filtered);
                             selection_model.select_q_item_selection_q_flags_selection_flag(&selection, QFlags::from(SelectionFlag::Select | SelectionFlag::Rows));
@@ -999,6 +1001,7 @@ impl PackedFileTableViewRaw {
                     );
                 }*/
                 TableOperations::Carolina(mut operations) => {
+                    is_carolina = true;
                     repeat_x_times = operations.len();
                     operations.reverse();
                     history_source.append(&mut operations.clone());
@@ -1015,7 +1018,7 @@ impl PackedFileTableViewRaw {
                 self.context_menu_undo.set_enabled(!history_opposite.is_empty());
             }
         }
-        if repeat_x_times >= 1 {
+        if repeat_x_times >= 1 && is_carolina {
             self.undo_redo(undo, repeat_x_times - 1);
 
             if repeat_x_times - 1 == 0 {
@@ -1153,6 +1156,94 @@ impl PackedFileTableViewRaw {
             FieldType::OptionalStringU16 => format!("\"{}\"", item.text().to_std_string().escape_default().to_string()),
             FieldType::Sequence(_) => "\"Sequence\"".to_owned(),
         }
+    }
+
+    /// This function is used to append new rows to a table.
+    ///
+    /// If clone = true, the appended rows are copies of the selected ones.
+    pub unsafe fn append_rows(&mut self, clone: bool) {
+
+        // Get the indexes ready for battle.
+        let selection = self.table_view_primary.selection_model().selection();
+        let indexes = self.table_filter.map_selection_to_source(&selection).indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_by_model(&mut indexes_sorted);
+        dedup_indexes_per_row(&mut indexes_sorted);
+        let mut row_numbers = vec![];
+
+        let rows = if clone {
+            let mut rows = vec![];
+            for index in indexes_sorted.iter() {
+                row_numbers.push(index.row());
+
+                let columns = self.table_model.column_count_0a();
+                let mut qlist = QListOfQStandardItem::new();
+                for column in 0..columns {
+                    let original_item = self.table_model.item_2a(index.row(), column);
+                    let item = (*original_item).clone();
+                    add_to_q_list_safe(qlist.as_mut_ptr(), item);
+                }
+
+                rows.push(qlist);
+            }
+            rows
+        } else { vec![get_new_row(&self.table_definition)] };
+
+        for row in &rows {
+            self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
+        }
+
+        // Update the undo stuff. Cloned rows are the amount of rows - the amount of cloned rows.
+        let total_rows = self.table_model.row_count_0a();
+        let range = (total_rows - rows.len() as i32..total_rows).collect::<Vec<i32>>();
+        self.history_undo.write().unwrap().push(TableOperations::AddRows(range));
+        self.history_redo.write().unwrap().clear();
+        update_undo_model(self.table_model, self.undo_model);
+        //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+    }
+
+    /// This function is used to insert new rows into a table.
+    ///
+    /// If clone = true, the appended rows are copies of the selected ones.
+    pub unsafe fn insert_rows(&mut self, clone: bool) {
+
+        // Get the indexes ready for battle.
+        let selection = self.table_view_primary.selection_model().selection();
+        let indexes = self.table_filter.map_selection_to_source(&selection).indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_by_model(&mut indexes_sorted);
+        dedup_indexes_per_row(&mut indexes_sorted);
+        let mut row_numbers = vec![];
+
+        // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
+        if indexes_sorted.is_empty() {
+            let row = get_new_row(&self.table_definition);
+            self.table_model.append_row_q_list_of_q_standard_item(&row);
+            row_numbers.push(self.table_model.row_count_0a() - 1);
+        }
+
+        for index in indexes_sorted.iter().rev() {
+            row_numbers.push(index.row() + (indexes_sorted.len() - row_numbers.len()) as i32);
+
+            // If we want to clone, we copy the currently selected row. If not, we just create a new one.
+            let row = if clone {
+                let columns = self.table_model.column_count_0a();
+                let mut qlist = QListOfQStandardItem::new();
+                for column in 0..columns {
+                    let original_item = self.table_model.item_2a(index.row(), column);
+                    let item = (*original_item).clone();
+                    add_to_q_list_safe(qlist.as_mut_ptr(), item);
+                }
+                qlist
+            } else { get_new_row(&self.table_definition) };
+
+            self.table_model.insert_row_int_q_list_of_q_standard_item(index.row(), &row);
+        }
+
+        // The undo mode needs this reversed.
+        self.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
+        self.history_redo.write().unwrap().clear();
+        update_undo_model(self.table_model, self.undo_model);
     }
 }
 

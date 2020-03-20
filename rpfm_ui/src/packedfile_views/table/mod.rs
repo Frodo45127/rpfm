@@ -132,6 +132,8 @@ pub struct PackedFileTableView {
     context_menu_add_rows: AtomicPtr<QAction>,
     context_menu_insert_rows: AtomicPtr<QAction>,
     context_menu_delete_rows: AtomicPtr<QAction>,
+    context_menu_clone_and_append: AtomicPtr<QAction>,
+    context_menu_clone_and_insert: AtomicPtr<QAction>,
     context_menu_copy: AtomicPtr<QAction>,
     context_menu_copy_as_lua_table: AtomicPtr<QAction>,
     context_menu_paste: AtomicPtr<QAction>,
@@ -260,9 +262,9 @@ impl PackedFileTableView {
         let context_menu_rewrite_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Rewrite Selection"));
 
         let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
-        let context_menu_clone = context_menu_clone_submenu.add_action(&QString::from_std_str("&Clone and Insert"));
-        let context_menu_clone_and_append = context_menu_clone_submenu.add_action(&QString::from_std_str("Clone and &Append"));
 */
+        let context_menu_clone_and_insert = context_menu.add_action_q_string(&QString::from_std_str("&Clone and Insert"));
+        let context_menu_clone_and_append = context_menu.add_action_q_string(&QString::from_std_str("Clone and &Append"));
         let mut context_menu_copy_submenu = QMenu::from_q_string(&QString::from_std_str("&Copy..."));
         let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy"));
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy as &LUA Table"));
@@ -309,6 +311,8 @@ impl PackedFileTableView {
             context_menu_add_rows,
             context_menu_insert_rows,
             context_menu_delete_rows,
+            context_menu_clone_and_append,
+            context_menu_clone_and_insert,
             context_menu_copy,
             context_menu_copy_as_lua_table,
             context_menu_paste,
@@ -351,6 +355,8 @@ impl PackedFileTableView {
             context_menu_add_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_add_rows),
             context_menu_insert_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_insert_rows),
             context_menu_delete_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_delete_rows),
+            context_menu_clone_and_append: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_clone_and_append),
+            context_menu_clone_and_insert: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_clone_and_insert),
             context_menu_copy: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy),
             context_menu_copy_as_lua_table: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy_as_lua_table),
             context_menu_paste: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste),
@@ -537,7 +543,7 @@ impl PackedFileTableView {
         mut_ptr_from_atomic(&self.context_menu_add_rows)
     }
 
-    /// This function returns a pointer to the insert ows action.
+    /// This function returns a pointer to the insert rows action.
     pub fn get_mut_ptr_context_menu_insert_rows(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_insert_rows)
     }
@@ -545,6 +551,16 @@ impl PackedFileTableView {
     /// This function returns a pointer to the delete rows action.
     pub fn get_mut_ptr_context_menu_delete_rows(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_delete_rows)
+    }
+
+    /// This function returns a pointer to the clone_and_append action.
+    pub fn get_mut_ptr_context_menu_clone_and_append(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_clone_and_append)
+    }
+
+    /// This function returns a pointer to the clone_and_insert action.
+    pub fn get_mut_ptr_context_menu_clone_and_insert(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_clone_and_insert)
     }
 
     /// This function returns a pointer to the copy action.

@@ -18,9 +18,6 @@ use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, Slot, S
 
 use bincode::deserialize;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::packedfile::table::db::DB;
