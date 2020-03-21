@@ -1805,7 +1805,7 @@ impl PackFile {
                         match table_type {
                             TSV_NAME_LOC => {
                                 let definition = schema.get_ref_versioned_file_loc()?.get_version(table_version)?;
-                                if let Ok(table) = Loc::import_tsv(&definition, &path, &table_type, table_version) {
+                                if let Ok(table) = Loc::import_tsv(&definition, &path, &table_type) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {
@@ -1836,7 +1836,7 @@ impl PackFile {
                             }
                             _ => {
                                 let definition = schema.get_ref_versioned_file_db(&table_type)?.get_version(table_version)?;
-                                if let Ok(table) = DB::import_tsv(&definition, &path, &table_type, table_version) {
+                                if let Ok(table) = DB::import_tsv(&definition, &path, &table_type) {
 
                                     // Depending on the name received, call it one thing or another.
                                     let name = match name {
@@ -1936,7 +1936,7 @@ impl PackFile {
                                 }
 
                                 export_path.push(name.to_owned());
-                                match data.export_tsv(&export_path, &path[1], data.get_definition().version) {
+                                match data.export_tsv(&export_path, &path[1]) {
                                     Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }
@@ -1956,7 +1956,7 @@ impl PackFile {
                                 }
 
                                 export_path.push(name.to_owned());
-                                match data.export_tsv(&export_path, &TSV_NAME_LOC, data.get_definition().version) {
+                                match data.export_tsv(&export_path, &TSV_NAME_LOC) {
                                     Ok(_) => exported_files.push(name),
                                     Err(error) => error_list.push((packed_file.get_path().join("\\"), error)),
                                 }

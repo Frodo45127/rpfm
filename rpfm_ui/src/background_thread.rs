@@ -28,7 +28,7 @@ use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::table::db::DB;
-use rpfm_lib::packedfile::table::loc::Loc;
+use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags};
 use rpfm_lib::schema::{*, versions::*};
@@ -39,6 +39,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::packedfile_views::table::TableType;
 use crate::RPFM_PATH;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
@@ -649,6 +650,52 @@ pub fn background_loop() {
                 match Schema::generate_schema_diff() {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // In case we want to export a PackedFile as a TSV file...
+            Command::ExportTSV((internal_path, external_path)) => {
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
+                    Some(packed_file) => match packed_file.get_decoded() {
+                        DecodedPackedFile::DB(data) => match data.export_tsv(&external_path, &internal_path[1]) {
+                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        },
+                        DecodedPackedFile::Loc(data) => match data.export_tsv(&external_path, &TSV_NAME_LOC) {
+                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        },
+                        /*
+                        DecodedPackedFile::DependencyPackFileList(data) => match data.export_tsv(&[external_path]) {
+                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        },*/
+                        _ => unimplemented!()
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                }
+            }
+
+            // In case we want to import a TSV as a PackedFile...
+            Command::ImportTSV((internal_path, external_path)) => {
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
+                    Some(packed_file) => match packed_file.get_decoded() {
+                        DecodedPackedFile::DB(data) => match DB::import_tsv(&data.get_definition(), &external_path, &internal_path[1]) {
+                            Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::DB(data))),
+                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        },
+                        DecodedPackedFile::Loc(data) => match Loc::import_tsv(&data.get_definition(), &external_path, &TSV_NAME_LOC) {
+                            Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::TableType(TableType::Loc(data))),
+                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        },
+                        /*
+                        DecodedPackedFile::DependencyPackFileList(data) => match data.export_tsv(&[external_path]) {
+                            Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                            Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        },*/
+                        _ => unimplemented!()
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
 

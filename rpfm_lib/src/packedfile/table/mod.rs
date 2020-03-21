@@ -364,7 +364,6 @@ impl Table {
         definition: &Definition,
         path: &PathBuf,
         name: &str,
-        version: i32,
     ) -> Result<Self> {
 
         // We want the reader to have no quotes, tab as delimiter and custom headers, because otherwise
@@ -386,7 +385,7 @@ impl Table {
                 // If it doesn't match with the name we provided, return an error.
                 if row == 0 {
                     if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable.into()); }
-                    if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != version {
+                    if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != definition.version {
                         return Err(ErrorKind::ImportTSVWrongVersion.into());
                     }
                 }
@@ -525,7 +524,6 @@ impl Table {
         &self,
         path: &PathBuf,
         table_name: &str,
-        table_version: i32
     ) -> Result<()> {
 
         // We want the writer to have no quotes, tab as delimiter and custom headers, because otherwise
@@ -538,7 +536,7 @@ impl Table {
             .from_writer(vec![]);
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
-        writer.serialize((table_name, table_version))?;
+        writer.serialize((table_name, self.definition.version))?;
         writer.serialize(self.definition.fields.iter().map(|x| x.name.to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.

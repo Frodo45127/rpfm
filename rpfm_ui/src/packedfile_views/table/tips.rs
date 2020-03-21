@@ -34,8 +34,8 @@ pub unsafe fn set_tips(ui: &mut PackedFileTableView) {
     //ui.get_mut_ptr_context_menu_selection_invert().set_status_tip(&qtr("Inverts the current selection."));
     //ui.get_mut_ptr_context_menu_search().set_status_tip(&qtr("Search what you want in the table. Also allows you to replace coincidences."));
     //ui.get_mut_ptr_context_menu_sidebar().set_status_tip(&qtr("Open/Close the sidebar with the controls to hide/show/freeze columns."));
-    //ui.get_mut_ptr_context_menu_import().set_status_tip(&qtr("Import a TSV file into this table, replacing all the data."));
-    //ui.get_mut_ptr_context_menu_export().set_status_tip(&qtr("Export this table's data into a TSV file."));
+    ui.get_mut_ptr_context_menu_import_tsv().set_status_tip(&qtr("Import a TSV file into this table, replacing all the data."));
+    ui.get_mut_ptr_context_menu_export_tsv().set_status_tip(&qtr("Export this table's data into a TSV file."));
     ui.get_mut_ptr_context_menu_undo().set_status_tip(&qtr("A classic."));
     ui.get_mut_ptr_context_menu_redo().set_status_tip(&qtr("Another classic."));
 }

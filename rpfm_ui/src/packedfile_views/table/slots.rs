@@ -13,6 +13,8 @@ Module with the slots for Table Views.
 !*/
 
 use qt_widgets::SlotOfQPoint;
+use qt_widgets::QFileDialog;
+use qt_widgets::q_file_dialog::AcceptMode;
 
 use qt_gui::QBrush;
 use qt_gui::QCursor;
@@ -31,6 +33,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
+use std::path::PathBuf;
 
 use rpfm_lib::schema::Definition;
 use rpfm_lib::SETTINGS;
@@ -70,6 +73,8 @@ pub struct PackedFileTableViewSlots {
     pub save: Slot<'static>,
     pub undo: Slot<'static>,
     pub redo: Slot<'static>,
+    pub import_tsv: SlotOfBool<'static>,
+    pub export_tsv: SlotOfBool<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -86,7 +91,6 @@ impl PackedFileTableViewSlots {
         mut pack_file_contents_ui: PackFileContentsUI,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         table_definition: &Definition,
-        dependency_data: &BTreeMap<i32, Vec<(String, String)>>
     ) -> Self {
 
         // When we want to filter when changing the pattern to filter with...
@@ -98,9 +102,8 @@ impl PackedFileTableViewSlots {
         // When we want to toggle the lookups on and off.
         let toggle_lookups = SlotOfBool::new(clone!(
             packed_file_view,
-            table_definition,
-            dependency_data => move |_| {
-            packed_file_view.toggle_lookups(&table_definition, &dependency_data);
+            table_definition => move |_| {
+            packed_file_view.toggle_lookups(&table_definition);
         }));
 
         // When we want to show the context menu.
@@ -111,18 +114,13 @@ impl PackedFileTableViewSlots {
 
         // When we want to trigger the context menu update function.
         let context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(clone!(
-            mut packed_file_view,
-            mut table_definition => move |_,_| {
-            packed_file_view.context_menu_update(&table_definition);
-            }
-        ));
+            mut packed_file_view => move |_,_| {
+            packed_file_view.context_menu_update();
+        }));
 
         // When we want to respond to a change in one item in the model.
         let item_changed = SlotOfQStandardItem::new(clone!(
-            mut packed_file_view,
-            //packed_file_path,
-            //dependency_data,
-            mut table_definition => move |item| {
+            mut packed_file_view => move |item| {
 
                 // If we are NOT UNDOING, paint the item as edited and add the edition to the undo list.
                 if !packed_file_view.undo_lock.load(Ordering::SeqCst) {
@@ -147,7 +145,7 @@ impl PackedFileTableViewSlots {
                         update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
                     }
 
-                    packed_file_view.context_menu_update(&table_definition);
+                    packed_file_view.context_menu_update();
                 }
 
 
@@ -271,21 +269,102 @@ impl PackedFileTableViewSlots {
 
         // When we want to undo the last action.
         let undo = Slot::new(clone!(
-            mut table_definition,
             mut packed_file_view => move || {
                 packed_file_view.undo_redo(true, 1);
                 update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
-                packed_file_view.context_menu_update(&table_definition);
+                packed_file_view.context_menu_update();
             }
         ));
 
         // When we want to redo the last undone action.
         let redo = Slot::new(clone!(
-            mut table_definition,
             mut packed_file_view => move || {
                 packed_file_view.undo_redo(false, 1);
                 update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
-                packed_file_view.context_menu_update(&table_definition);
+                packed_file_view.context_menu_update();
+            }
+        ));
+
+        // When we want to import a TSV file.
+        let import_tsv = SlotOfBool::new(clone!(
+            mut packed_file_path,
+            mut packed_file_view => move |_| {
+
+                // Create a File Chooser to get the destination path and configure it.
+                let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                    packed_file_view.table_view_primary,
+                    &QString::from_std_str("Select TSV File to Import..."),
+                );
+
+                file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
+
+                // Run it and, if we receive 1 (Accept), try to import the TSV file.
+                if file_dialog.exec() == 1 {
+                    let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+
+                    CENTRAL_COMMAND.send_message_qt(Command::ImportTSV((packed_file_path.borrow().to_vec(), path)));
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
+                        Response::TableType(data) => {
+                            let old_data = packed_file_view.get_copy_of_table();
+
+                            packed_file_view.undo_lock.store(true, Ordering::SeqCst);
+                            packed_file_view.load_data(&data);
+                            let table_name = match data {
+                                TableType::DB(_) => packed_file_path.borrow()[1].to_string(),
+                                _ => "".to_owned(),
+                            };
+                            packed_file_view.build_columns(&table_name);
+                            packed_file_view.undo_lock.store(false, Ordering::SeqCst);
+
+                            packed_file_view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
+                            packed_file_view.history_redo.write().unwrap().clear();
+                            update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                        },
+                        Response::Error(error) => return show_dialog(packed_file_view.table_view_primary, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+
+                    //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+                    packed_file_view.context_menu_update();
+                }
+            }
+        ));
+
+        // When we want to export the table as a TSV File.
+        let export_tsv = SlotOfBool::new(clone!(
+            packed_file_path,
+            packed_file_view => move |_| {
+
+                // Create a File Chooser to get the destination path and configure it.
+                let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                    packed_file_view.table_view_primary,
+                    &QString::from_std_str("Export TSV File..."),
+                );
+
+                file_dialog.set_accept_mode(AcceptMode::AcceptSave);
+                file_dialog.set_confirm_overwrite(true);
+                file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
+                file_dialog.set_default_suffix(&QString::from_std_str("tsv"));
+
+                // Run it and, if we receive 1 (Accept), export the DB Table, saving it's contents first.
+                if file_dialog.exec() == 1 {
+
+                    let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
+                    if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
+                        if let Err(error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui) {
+                            return show_dialog(packed_file_view.table_view_primary, error, false);
+                        }
+                    }
+
+                    CENTRAL_COMMAND.send_message_qt(Command::ExportTSV((packed_file_path.borrow().to_vec(), path)));
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
+                        Response::Success => return,
+                        Response::Error(error) => return show_dialog(packed_file_view.table_view_primary, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+                }
             }
         ));
 
@@ -309,6 +388,8 @@ impl PackedFileTableViewSlots {
             save,
             undo,
             redo,
+            import_tsv,
+            export_tsv,
         }
     }
 }

@@ -502,9 +502,8 @@ impl DB {
         definition: &Definition,
         path: &PathBuf,
         name: &str,
-        version: i32,
     ) -> Result<Self> {
-        let table = Table::import_tsv(definition, path, name, version)?;
+        let table = Table::import_tsv(definition, path, name)?;
         let mut db = DB::from(table);
         db.name = name.to_owned();
         Ok(db)
@@ -515,9 +514,8 @@ impl DB {
         &self,
         path: &PathBuf,
         table_name: &str,
-        table_version: i32
     ) -> Result<()> {
-        self.table.export_tsv(path, table_name, table_version)
+        self.table.export_tsv(path, table_name)
     }
 
     /// This function imports a TSV file into a binary file on disk.

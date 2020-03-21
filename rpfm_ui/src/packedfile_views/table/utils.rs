@@ -256,3 +256,26 @@ unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
         FieldType::Sequence(_) => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
     }
 }
+
+/// This function "process" the column names of a table, so they look like they should.
+pub fn clean_column_names(field_name: &str) -> String {
+    let mut new_name = String::new();
+    let mut should_be_uppercase = false;
+
+    for character in field_name.chars() {
+
+        if new_name.is_empty() || should_be_uppercase {
+            new_name.push_str(&character.to_uppercase().to_string());
+            should_be_uppercase = false;
+        }
+
+        else if character == '_' {
+            new_name.push(' ');
+            should_be_uppercase = true;
+        }
+
+        else { new_name.push(character); }
+    }
+
+    new_name
+}

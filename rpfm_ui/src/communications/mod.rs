@@ -36,6 +36,7 @@ use rpfm_lib::schema::{Definition, Schema};
 use rpfm_lib::settings::*;
 
 use crate::app_ui::NewPackedFile;
+use crate::packedfile_views::table::TableType;
 use crate::ui_state::shortcuts::Shortcuts;
 use self::network::*;
 
@@ -262,6 +263,12 @@ pub enum Command {
     /// This command is used to generate a pretty diff of a schema, against the last remote version of the same schema.
     GenerateSchemaDiff,
 
+    /// This command is used to export a table as TSV. Requires the internal and destination paths for the PackedFile.
+    ExportTSV((Vec<String>, PathBuf)),
+
+    /// This command is used to import a TSV as a table. Requires the internal and destination paths for the PackedFile.
+    ImportTSV((Vec<String>, PathBuf)),
+
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -433,6 +440,9 @@ pub enum Response {
 
     /// Response to return `Option<PackedFile>`.
     OptionPackedFile(Option<PackedFile>),
+
+    /// Response to return `TableType`.
+    TableType(TableType),
 /*
     Bool(bool),
     I32(i32),

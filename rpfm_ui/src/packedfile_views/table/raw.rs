@@ -81,7 +81,10 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_reset_selection: MutPtr<QAction>,
     pub context_menu_undo: MutPtr<QAction>,
     pub context_menu_redo: MutPtr<QAction>,
+    pub context_menu_import_tsv: MutPtr<QAction>,
+    pub context_menu_export_tsv: MutPtr<QAction>,
 
+    pub dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
     pub table_definition: Definition,
 
     pub save_lock: Arc<AtomicBool>,
@@ -99,8 +102,327 @@ pub struct PackedFileTableViewRaw {
 /// Implementation of `PackedFileTableViewRaw`.
 impl PackedFileTableViewRaw {
 
+    /// This function loads the data from a compatible `PackedFile` into a TableView.
+    pub unsafe fn load_data(
+        &mut self,
+        data: &TableType,
+    ) {
+        // First, we delete all the data from the `ListStore`. Just in case there is something there.
+        // This wipes out header information, so remember to run "build_columns" after this.
+        self.table_model.clear();
+
+        // Set the right data, depending on the table type you get.
+        let data = match data {
+            TableType::DependencyManager(data) => &data,
+            TableType::DB(data) => &*data.get_ref_table_data(),
+            TableType::Loc(data) => data.get_ref_table_data(),
+        };
+
+        // Load the data, row by row.
+        for entry in data {
+            let mut qlist = QListOfQStandardItem::new();
+            for (index, field) in entry.iter().enumerate() {
+                let item = Self::get_item_from_decoded_data(field);
+
+                // If we have the dependency stuff enabled, check if it's a valid reference.
+                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && self.table_definition.fields[index].is_reference.is_some() {
+                    //Self::check_references(dependency_data, index as i32, item.into_ptr());
+                }
+
+                add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
+            }
+            self.table_model.append_row_q_list_of_q_standard_item(&qlist);
+        }
+
+        // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
+        if data.is_empty() {
+            let qlist = get_new_row(&self.table_definition);
+            self.table_model.append_row_q_list_of_q_standard_item(&qlist);
+            self.table_model.remove_rows_2a(0, 1);
+        }
+
+        // Here we assing the ItemDelegates, so each type has his own widget with validation included.
+        // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+        let enable_lookups = self.table_enable_lookups_button.is_checked();
+        for (column, field) in self.table_definition.fields.iter().enumerate() {
+
+            // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
+            if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
+                match field.field_type {
+                    FieldType::Boolean => {},
+                    FieldType::Float => {
+                        new_doublespinbox_item_delegate_safe(&mut self.table_view_primary, column as i32);
+                        new_doublespinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32);
+                    },
+                    FieldType::Integer => {
+                        new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 32);
+                        new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 32);
+                    },
+                    FieldType::LongInteger => {
+                        new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 64);
+                        new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 64);
+                    },
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => {
+                        new_qstring_item_delegate_safe(&mut self.table_view_primary, column as i32, field.max_length);
+                        new_qstring_item_delegate_safe(&mut self.table_view_frozen, column as i32, field.max_length);
+                    },
+                    FieldType::Sequence(_) => {}
+                }
+            }
+
+            // Otherwise, we have to check first if the column has references. If it does, replace the delegate with a combo.
+            else {
+
+                if let Some(data) = self.dependency_data.read().unwrap().get(&(column as i32)) {
+                    let mut list = QStringList::new();
+                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                    new_combobox_item_delegate_safe(&mut self.table_view_primary, column as i32, list.as_ptr(), true, field.max_length);
+                    new_combobox_item_delegate_safe(&mut self.table_view_frozen, column as i32, list.as_ptr(), true, field.max_length);
+                }
+                else {
+                    match field.field_type {
+                        FieldType::Boolean => {},
+                        FieldType::Float => {
+                            new_doublespinbox_item_delegate_safe(&mut self.table_view_primary, column as i32);
+                            new_doublespinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32);
+                        },
+                        FieldType::Integer => {
+                            new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 32);
+                            new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 32);
+                        },
+                        FieldType::LongInteger => {
+                            new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 64);
+                            new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 64);
+                        },
+                        FieldType::StringU8 |
+                        FieldType::StringU16 |
+                        FieldType::OptionalStringU8 |
+                        FieldType::OptionalStringU16 => {
+                            new_qstring_item_delegate_safe(&mut self.table_view_primary, column as i32, field.max_length);
+                            new_qstring_item_delegate_safe(&mut self.table_view_frozen, column as i32, field.max_length);
+                        },
+                        FieldType::Sequence(_) => {}
+                    }
+                }
+            }
+        }
+    }
+
+    /// This function generates a StandardItem for the provided DecodedData.
+    unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem> {
+        match *data {
+
+            // This one needs a couple of changes before turning it into an item in the table.
+            DecodedData::Boolean(ref data) => {
+                let mut item = QStandardItem::new();
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_editable(false);
+                item.set_checkable(true);
+                item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
+                item
+            }
+
+            // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+            // Also, they should be limited to 3 decimals.
+            DecodedData::Float(ref data) => {
+                let data = {
+                    let data_str = format!("{}", data);
+                    if let Some(position) = data_str.find('.') {
+                        let decimals = &data_str[position..].len();
+                        if *decimals > 3 { format!("{:.3}", data).parse::<f32>().unwrap() }
+                        else { *data }
+                    }
+                    else { *data }
+                };
+
+                let mut item = QStandardItem::new();
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_float(data), 2);
+                item
+            },
+            DecodedData::Integer(ref data) => {
+                let mut item = QStandardItem::new();
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_int(*data), ITEM_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_int(*data), 2);
+                item
+            },
+            DecodedData::LongInteger(ref data) => {
+                let mut item = QStandardItem::new();
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_i64(*data), ITEM_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_i64(*data), 2);
+                item
+            },
+            // All these are Strings, so it can be together,
+            DecodedData::StringU8(ref data) |
+            DecodedData::StringU16(ref data) |
+            DecodedData::OptionalStringU8(ref data) |
+            DecodedData::OptionalStringU16(ref data) => {
+                let mut item = QStandardItem::from_q_string(&QString::from_std_str(data));
+                item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+                item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
+                item
+            },
+            DecodedData::Sequence(_) => {
+                let mut item = QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence"));
+                item.set_editable(false);
+                item
+            }
+        }
+    }
+
+
+    /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
+    /// His intended use is for just after we load/reload the data to the table.
+    pub unsafe fn build_columns(
+        &mut self,
+        table_name: &str,
+    ) {
+        let mut table_view_primary = self.table_view_primary;
+        let table_view_frozen = self.table_view_frozen;
+        let filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
+        let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+        let schema = SCHEMA.read().unwrap();
+        let mut do_we_have_ca_order = false;
+        let mut keys = vec![];
+
+        // For each column, clean their name and set their width and tooltip.
+        for (index, field) in self.table_definition.fields.iter().enumerate() {
+
+            let name = clean_column_names(&field.name);
+            let mut item = QStandardItem::from_q_string(&QString::from_std_str(&name));
+            Self::set_tooltip(&schema, &field, table_name, &mut item);
+            model.set_horizontal_header_item(index as i32, item.into_ptr());
+
+            // Depending on his type, set one width or another.
+            match field.field_type {
+                FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
+                FieldType::Float => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::Integer => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::LongInteger => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+                FieldType::StringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::StringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::OptionalStringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::OptionalStringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+                FieldType::Sequence(_) => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+            }
+
+
+            // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
+            if field.is_key { keys.push(index); }
+            if field.ca_order != -1 { do_we_have_ca_order |= true; }
+        }
+
+        // Now the order. If we have a sort order from the schema, we use that one.
+        if do_we_have_ca_order {
+            let mut fields = self.table_definition.fields.iter().enumerate().map(|(x, y)| (x, y.clone())).collect::<Vec<(usize, Field)>>();
+            fields.sort_by(|a, b| a.1.ca_order.cmp(&b.1.ca_order));
+
+            let mut header_primary = table_view_primary.horizontal_header();
+            let mut header_frozen = table_view_frozen.horizontal_header();
+            for (logical_index, field) in &fields {
+                if field.ca_order != -1 {
+                    let visual_index = header_primary.visual_index(*logical_index as i32);
+                    header_primary.move_section(visual_index as i32, field.ca_order as i32);
+                    header_frozen.move_section(visual_index as i32, field.ca_order as i32);
+                }
+            }
+        }
+
+        // Otherwise, if we have any "Key" field, move it to the beginning.
+        else if !keys.is_empty() {
+            let mut header_primary = table_view_primary.horizontal_header();
+            let mut header_frozen = table_view_frozen.horizontal_header();
+            for (position, column) in keys.iter().enumerate() {
+                header_primary.move_section(*column as i32, position as i32);
+                header_frozen.move_section(*column as i32, position as i32);
+            }
+        }
+    }
+
+    /// This function sets the tooltip for the provided column header, if the column should have one.
+    unsafe fn set_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: &mut QStandardItem) {
+
+        // If we passed it a table name, build the tooltip based on it. The logic is simple:
+        // - If we have a description, we add it to the tooltip.
+        // - If the column references another column, we add it to the tooltip.
+        // - If the column is referenced by another column, we add it to the tooltip.
+        if !table_name.is_empty() {
+            let mut tooltip_text = String::new();
+            if !field.description.is_empty() {
+                tooltip_text.push_str(&format!("<p>{}</p>", field.description));
+            }
+
+            if let Some(ref reference) = field.is_reference {
+                tooltip_text.push_str(&format!("<p>This column is a reference to:</p><p><i>\"{}/{}\"</i></p>", reference.0, reference.1));
+            }
+
+            else {
+                let mut referenced_columns = if let Some(ref schema) = schema {
+                    let short_table_name = table_name.split_at(table_name.len() - 7).0;
+                    let mut columns = vec![];
+
+                    // We get all the db definitions from the schema, then iterate all of them to find what tables reference our own.
+                    for versioned_file in schema.get_ref_versioned_file_db_all() {
+                        if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
+                            let mut found = false;
+                            for ref_version in ref_definition {
+                                for ref_field in &ref_version.fields {
+                                    if let Some((ref_ref_table, ref_ref_field)) = &ref_field.is_reference {
+                                        if ref_ref_table == short_table_name && ref_ref_field == &field.name {
+                                            found = true;
+                                            columns.push((ref_table_name.to_owned(), ref_field.name.to_owned()));
+                                        }
+                                    }
+                                }
+                                if found { break; }
+                            }
+                        }
+                    }
+                    columns
+                } else { vec![] };
+
+                referenced_columns.sort_unstable();
+                if !referenced_columns.is_empty() {
+                    tooltip_text.push_str("<p>Fields that reference this column:</p>");
+                    for (index, reference) in referenced_columns.iter().enumerate() {
+                        tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
+
+                        // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
+                        if index == 50 {
+                            tooltip_text.push_str(&format!("<p>And many more. Exactly, {} more. Too many to show them here.</p>nnnn", referenced_columns.len() as isize - 50));
+                            break ;
+                        }
+                    }
+
+                    // Dirty trick to remove the last <br> from the tooltip, or the nnnn in case that text get used.
+                    tooltip_text.pop();
+                    tooltip_text.pop();
+                    tooltip_text.pop();
+                    tooltip_text.pop();
+                }
+            }
+
+            // We only add the tooltip if we got something to put into it.
+            if !tooltip_text.is_empty() {
+                item.set_tool_tip(&QString::from_std_str(&tooltip_text));
+            }
+        }
+    }
+
     /// This function updates the state of the actions in the context menu.
-    pub unsafe fn context_menu_update(&mut self, table_definition: &Definition) {
+    pub unsafe fn context_menu_update(&mut self) {
 
         // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
         let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
@@ -113,7 +435,7 @@ impl PackedFileTableViewRaw {
             self.context_menu_copy_as_lua_table.set_enabled(true);
             self.context_menu_delete_rows.set_enabled(true);
             //context_menu_rewrite_selection.set_enabled(true);
-
+            /*
             // The "Apply" actions have to be enabled only when all the indexes are valid for the operation.
             let mut columns = vec![];
             for index in 0..indexes.count_0a() {
@@ -131,6 +453,7 @@ impl PackedFileTableViewRaw {
                 else { can_apply = false; break }
             }
             //context_menu_apply_maths_to_selection.set_enabled(can_apply);
+            */
         }
 
         // Otherwise, disable them.
@@ -167,7 +490,7 @@ impl PackedFileTableViewRaw {
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
-    pub unsafe fn toggle_lookups(&self, _table_definition: &Definition, _dependency_data: &BTreeMap<i32, Vec<(String, String)>>) {
+    pub unsafe fn toggle_lookups(&self, _table_definition: &Definition) {
         /*
         if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
             let enable_lookups = unsafe { self.table_enable_lookups_button.is_checked() };
@@ -955,51 +1278,21 @@ impl PackedFileTableViewRaw {
                         &mut table_type.borrow_mut(),
                     );
                 }
-
+*/
                 // This action is special and we have to manually trigger a save for it.
                 TableOperations::ImportTSV(table_data) => {
 
-                    // Prepare the redo operation.
-                    {
-                        let table_type = &mut *table_type.borrow_mut();
-                        match table_type {
-                            TableType::DependencyManager(data) => {
-                                history_opposite.push(TableOperations::ImportTSV(data.to_vec()));
-                                *data = table_data;
-                            },
-                            TableType::DB(data) => {
-                                history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                                data.entries = table_data;
-                            },
-                            TableType::LOC(data) => {
-                                history_opposite.push(TableOperations::ImportTSV(data.entries.to_vec()));
-                                data.entries = table_data;
-                            },
-                        }
+                    let old_data = self.get_copy_of_table();
+                    history_opposite.push(TableOperations::ImportTSV(old_data));
+
+                    let row_count = self.table_model.row_count_0a();
+                    self.table_model.remove_rows_2a(0, row_count);
+                    for row in &table_data {
+                        let row = mut_ptr_from_atomic(row);
+                        self.table_model.append_row_q_list_of_q_standard_item(row.as_ref().unwrap())
                     }
+                }
 
-                    Self::load_data_to_table_view(table_view, model, &table_type.borrow(), table_definition, &dependency_data);
-                    Self::build_columns(table_view, table_view_frozen, model, table_definition, enable_header_popups);
-
-                    // If we want to let the columns resize themselfs...
-                    if SETTINGS.lock().unwrap().settings_bool["adjust_columns_to_content"] {
-                        unsafe { table_view.as_mut().unwrap().horizontal_header().as_mut().unwrap().resize_sections(ResizeMode::ResizeToContents); }
-                    }
-
-                    // Try to save the PackedFile to the main PackFile.
-                    Self::save_to_packed_file(
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt,
-                        &app_ui,
-                        &packed_file_path,
-                        model,
-                        &global_search_explicit_paths,
-                        update_global_search_stuff,
-                        table_definition,
-                        &mut table_type.borrow_mut(),
-                    );
-                }*/
                 TableOperations::Carolina(mut operations) => {
                     is_carolina = true;
                     repeat_x_times = operations.len();
@@ -1244,6 +1537,20 @@ impl PackedFileTableViewRaw {
         self.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
         self.history_redo.write().unwrap().clear();
         update_undo_model(self.table_model, self.undo_model);
+    }
+
+    /// This function returns a copy of the entire model.
+    pub unsafe fn get_copy_of_table(&self) -> Vec<AtomicPtr<QListOfQStandardItem>> {
+        let mut old_data = vec![];
+        for row in 0..self.table_model.row_count_0a() {
+            let mut qlist = QListOfQStandardItem::new();
+            for column in 0..self.table_model.column_count_0a() {
+                let item = self.table_model.item_2a(row, column);
+                add_to_q_list_safe(qlist.as_mut_ptr(), (*item).clone());
+            }
+            old_data.push(atomic_from_mut_ptr(qlist.into_ptr()));
+        }
+        old_data
     }
 }
 

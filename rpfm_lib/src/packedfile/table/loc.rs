@@ -203,9 +203,8 @@ impl Loc {
         definition: &Definition,
         path: &PathBuf,
         name: &str,
-        version: i32,
     ) -> Result<Self> {
-        let table = Table::import_tsv(definition, path, name, version)?;
+        let table = Table::import_tsv(definition, path, name)?;
         Ok(Loc::from(table))
     }
 
@@ -214,9 +213,8 @@ impl Loc {
         &self,
         path: &PathBuf,
         table_name: &str,
-        table_version: i32
     ) -> Result<()> {
-        self.table.export_tsv(path, table_name, table_version)
+        self.table.export_tsv(path, table_name)
     }
 }
 
