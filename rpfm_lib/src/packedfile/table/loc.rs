@@ -71,7 +71,7 @@ impl Loc {
         if data.len() < 14 { return false }
         if BYTEORDER_MARK != data.decode_integer_u16(0).unwrap() { return false }
         if PACKED_FILE_TYPE != data.decode_string_u8(2, 3).unwrap() { return false }
-        return true;
+        true
     }
 
     /// This function returns a copy of the definition of this Loc Table.

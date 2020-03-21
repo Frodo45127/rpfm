@@ -489,7 +489,8 @@ impl AppUISlots {
                         KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
                         KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
                         KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
-                        KEY_EMPIRE | _ => app_ui.game_selected_empire.trigger(),
+                        KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
+                        _ => unimplemented!()
                     }
 
                     // Get his new path from the base "MyMod" path + `mod_game`.

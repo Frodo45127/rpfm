@@ -165,7 +165,7 @@ impl Decoder for [u8] {
     }
 
     fn decode_integer_u8(&self, offset: usize) -> Result<u8> {
-        self.get(offset).map(|x| *x).ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an u8 number:</p><ul><li>No bytes left to decode.</li></ul>"))))
+        self.get(offset).copied().ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an u8 number:</p><ul><li>No bytes left to decode.</li></ul>".to_owned())))
     }
 
     fn decode_integer_u16(&self, offset: usize) -> Result<u16> {
@@ -184,7 +184,7 @@ impl Decoder for [u8] {
     }
 
     fn decode_integer_i8(&self, offset: usize) -> Result<i8> {
-        self.get(offset).map(|x| *x as i8).ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode an i8 number:</p><ul><li>No bytes left to decode.</li></ul>"))))
+        self.get(offset).map(|x| *x as i8).ok_or_else(|| Error::from(ErrorKind::HelperDecodingEncodingError("<p>Error trying to decode an i8 number:</p><ul><li>No bytes left to decode.</li></ul>".to_owned())))
     }
 
     fn decode_integer_i16(&self, offset: usize) -> Result<i16> {

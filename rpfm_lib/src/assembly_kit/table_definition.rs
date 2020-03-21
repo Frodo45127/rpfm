@@ -128,7 +128,7 @@ impl RawDefinition {
                     }
                 ))
             }
-            0 | _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
         }
     }
 
@@ -141,7 +141,7 @@ impl RawDefinition {
                 definition.name = Some(raw_definition_path.file_name().unwrap().to_str().unwrap().split_at(5).1.to_string());
                 Ok(definition)
             }
-            0 | _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
         }
     }
 }

@@ -126,7 +126,7 @@ impl CaVp8 {
         match &*packed_file_data.decode_string_u8(0, 4)? {
             SIGNATURE_IVF => Self::read_ivf(packed_file_data),
             SIGNATURE_CAMV => Self::read_camv(packed_file_data),
-            _ => return Err(ErrorKind::Generic.into())
+            _ => Err(ErrorKind::Generic.into())
         }
     }
 
@@ -216,7 +216,7 @@ impl CaVp8 {
                 size,
             };
             frame_data.extend_from_slice(&packed_file_data[offset..offset + frame.size as usize]);
-            offset = offset + frame.size as usize;
+            offset += frame.size as usize;
             frame_offset += frame.size;
             frame_table.push(frame);
         }

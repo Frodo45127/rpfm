@@ -495,7 +495,7 @@ impl PackedFileDecoderView {
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
             packed_file_decoder_view_raw.clone(),
             packed_file_decoder_mutable_data.clone(),
-            app_ui.clone(),
+            *app_ui,
             *pack_file_contents_ui,
             *global_search_ui,
         );

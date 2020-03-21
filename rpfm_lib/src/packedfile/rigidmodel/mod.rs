@@ -19,6 +19,7 @@ Because I want to avoid more C++ libs if posible.
 use serde_derive::{Serialize, Deserialize};
 
 /// This represents the value that every RigidModel PackedFile has in their 0-4 bytes. A.k.a it's signature or preamble.
+#[allow(dead_code)]
 const PACKED_FILE_TYPE: &str = "RMV2";
 
 /// Extension used by RigidModel PackedFiles.

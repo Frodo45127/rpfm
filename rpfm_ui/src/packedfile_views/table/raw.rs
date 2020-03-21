@@ -1004,7 +1004,7 @@ impl PackedFileTableViewRaw {
                     is_carolina = true;
                     repeat_x_times = operations.len();
                     operations.reverse();
-                    history_source.append(&mut operations.clone());
+                    history_source.append(&mut operations);
                 }
             }
 

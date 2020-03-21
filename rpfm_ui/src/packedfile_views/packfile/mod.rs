@@ -155,14 +155,14 @@ impl PackFileExtraView {
         let raw = PackFileExtraViewRaw{
             tree_view,
             tree_model_filter,
-            tree_model: tree_model,
+            tree_model,
 
             filter_line_edit: filter_line_edit.into_ptr(),
             filter_autoexpand_matches_button: filter_autoexpand_matches_button.into_ptr(),
             filter_case_sensitive_button: filter_case_sensitive_button.into_ptr(),
 
-            expand_all: expand_all,
-            collapse_all: collapse_all,
+            expand_all,
+            collapse_all,
         };
 
         let slots = PackFileExtraViewSlots::new(*app_ui, *pack_file_contents_ui, *global_search_ui, raw);

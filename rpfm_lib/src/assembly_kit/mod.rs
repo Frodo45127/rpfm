@@ -159,7 +159,7 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                 }
                 else { Err(ErrorKind::GamePathNotConfigured.into()) }
             }
-            0 | _ => { Err(ErrorKind::AssemblyKitUnsupportedVersion(raw_db_version).into()) }
+            _ => { Err(ErrorKind::AssemblyKitUnsupportedVersion(raw_db_version).into()) }
         }
     }
 

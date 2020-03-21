@@ -270,7 +270,8 @@ impl AppUI {
                         KEY_ROME_2 => self.game_selected_rome_2.trigger(),
                         KEY_SHOGUN_2 => self.game_selected_shogun_2.trigger(),
                         KEY_NAPOLEON => self.game_selected_napoleon.trigger(),
-                        KEY_EMPIRE | _ => self.game_selected_empire.trigger(),
+                        KEY_EMPIRE => self.game_selected_empire.trigger(),
+                        _ => unimplemented!()
                     }
 
                     // Set the current "Operational Mode" to `MyMod`.
@@ -296,7 +297,8 @@ impl AppUI {
                                 let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                                 match &*game_selected {
                                     KEY_THREE_KINGDOMS => self.game_selected_three_kingdoms.trigger(),
-                                    KEY_WARHAMMER_2 | _ => self.game_selected_warhammer_2.trigger(),
+                                    KEY_WARHAMMER_2 => self.game_selected_warhammer_2.trigger(),
+                                    _ => unimplemented!()
                                 }
                             }
                         },
@@ -310,7 +312,8 @@ impl AppUI {
                                 KEY_WARHAMMER => self.game_selected_warhammer.trigger(),
                                 KEY_THRONES_OF_BRITANNIA => self.game_selected_thrones_of_britannia.trigger(),
                                 KEY_ATTILA => self.game_selected_attila.trigger(),
-                                KEY_ROME_2 | _ => self.game_selected_rome_2.trigger()
+                                KEY_ROME_2 => self.game_selected_rome_2.trigger(),
+                                _ => unimplemented!()
                             }
                         },
 
@@ -322,7 +325,8 @@ impl AppUI {
                             let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                             match &*game_selected {
                                 KEY_NAPOLEON => self.game_selected_napoleon.trigger(),
-                                KEY_EMPIRE | _ => self.game_selected_empire.trigger(),
+                                KEY_EMPIRE => self.game_selected_empire.trigger(),
+                                _ => unimplemented!()
                             }
                         },
                     }
@@ -714,7 +718,8 @@ impl AppUI {
                                 KEY_ROME_2 => self.mymod_open_rome_2,
                                 KEY_SHOGUN_2 => self.mymod_open_shogun_2,
                                 KEY_NAPOLEON => self.mymod_open_napoleon,
-                                KEY_EMPIRE | _ => self.mymod_open_empire,
+                                KEY_EMPIRE => self.mymod_open_empire,
+                                _ => unimplemented!()
                             };
 
                             if let Ok(game_folder_files) = game_folder.path().read_dir() {

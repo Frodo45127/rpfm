@@ -34,7 +34,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 		    if matches.is_present("add-files") {
 				match matches.values_of("add-files") {
 					Some(mut values) => {
-                        let destination_path = values.nth(0).unwrap();
+                        let destination_path = values.next().unwrap();
                         let packed_file_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::add_files(&config, packfile_path, &packed_file_paths, destination_path)
                     },
@@ -45,7 +45,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 		    else if matches.is_present("add-folders") {
 				match matches.values_of("add-folders") {
 					Some(mut values) => {
-                        let destination_path = values.nth(0).unwrap();
+                        let destination_path = values.next().unwrap();
                         let folder_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::add_folders(&config, packfile_path, &folder_paths, destination_path)
                     },
@@ -76,7 +76,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
             else if matches.is_present("extract-files") {
                 match matches.values_of("extract-files") {
                     Some(mut values) => {
-                        let destination_path = values.nth(0).unwrap();
+                        let destination_path = values.next().unwrap();
                         let packed_file_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::extract_files(&config, packfile_path, &packed_file_paths, destination_path)
                     },
@@ -87,7 +87,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
             else if matches.is_present("extract-folders") {
                 match matches.values_of("extract-folders") {
                     Some(mut values) => {
-                        let destination_path = values.nth(0).unwrap();
+                        let destination_path = values.next().unwrap();
                         let folder_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
                         packfile::extract_folders(&config, packfile_path, &folder_paths, destination_path)
                     },

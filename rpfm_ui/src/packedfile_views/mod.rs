@@ -157,7 +157,7 @@ impl PackedFileView {
                         let item = match field.field_type {
 
                             // This one needs a couple of changes before turning it into an item in the table.
-                            FieldType::Boolean => DecodedData::Boolean(if model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked { true } else { false }),
+                            FieldType::Boolean => DecodedData::Boolean(model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked),
 
                             // Numbers need parsing, and this can fail.
                             FieldType::Float => DecodedData::Float(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),

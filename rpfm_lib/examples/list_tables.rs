@@ -20,7 +20,7 @@ use rpfm_lib::packedfile::PackedFileType;
 fn main() {
     match PackFile::read(&PathBuf::from("test_files/example_list_tables.pack"), true) {
         Ok(packfile) => {
-            let packed_files = packfile.get_ref_packed_files_by_type(&PackedFileType::DB, false);
+            let packed_files = packfile.get_ref_packed_files_by_type(PackedFileType::DB, false);
             if packed_files.is_empty() {
                 println!("No DB Tables in this PackedFile.");
             }

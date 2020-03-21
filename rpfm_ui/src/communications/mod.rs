@@ -350,9 +350,6 @@ pub enum Response {
     /// Response to return (PathBuf).
     PathBuf(PathBuf),
 
-    /// Response to return (PathBuf, PackedFileInfo).
-    PathBufPackedFileInfo((PathBuf, PackedFileInfo)),
-
     /// Response to return (String)
     String(String),
 

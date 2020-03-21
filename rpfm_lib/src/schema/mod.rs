@@ -92,9 +92,11 @@ const SCHEMA_VERSIONS_FILE: &str = "versions.ron";
 const SCHEMA_FOLDER: &str = "schemas";
 
 /// URL of the remote repository's schema folder. Master branch.
+#[allow(dead_code)]
 const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
 
 /// URL of the remote repository's schema folder. Develop branch.
+#[allow(dead_code)]
 const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/";
 
 /// Current structural version of the Schema, for compatibility purpouses.

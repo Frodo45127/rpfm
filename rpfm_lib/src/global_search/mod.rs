@@ -135,7 +135,7 @@ impl GlobalSearch {
         // If we got no schema, don't even decode.
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
             if self.search_on_dbs {
-                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::DB, false);
+                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::DB, false);
                 self.matches_db = packed_files.par_iter_mut().filter_map(|packed_file| {
                     let path = packed_file.get_path().to_vec();
                     if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
@@ -147,7 +147,7 @@ impl GlobalSearch {
             }
 
             if self.search_on_locs {
-                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Loc, false);
+                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Loc, false);
                 self.matches_loc = packed_files.par_iter_mut().filter_map(|packed_file| {
                     let path = packed_file.get_path().to_vec();
                     if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {
@@ -159,7 +159,7 @@ impl GlobalSearch {
             }
 
             if self.search_on_texts {
-                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(&PackedFileType::Text(TextType::Plain), false);
+                let mut packed_files = pack_file.get_ref_mut_packed_files_by_type(PackedFileType::Text(TextType::Plain), false);
                 self.matches_text = packed_files.par_iter_mut().filter_map(|packed_file| {
                     let path = packed_file.get_path().to_vec();
                     if let Ok(decoded_packed_file) = packed_file.decode_return_ref_no_locks(&schema) {

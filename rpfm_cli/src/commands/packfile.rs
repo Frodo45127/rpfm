@@ -185,7 +185,7 @@ pub fn extract_folders(
     let packfile_path = PathBuf::from(packfile);
     let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-    let paths = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()).map(|x| PathType::Folder(x)).collect::<Vec<PathType>>();
+    let paths = paths.iter().map(|x| x.split('/').map(|x| x.to_owned()).collect::<Vec<String>>()).map(PathType::Folder).collect::<Vec<PathType>>();
     packfile.extract_packed_files_by_type(&paths, &destination_path)?;
 
     if config.verbosity_level > 0 {

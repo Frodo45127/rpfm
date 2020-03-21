@@ -136,9 +136,9 @@ impl UI {
             KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
             KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
             KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
-            KEY_ARENA | _ => app_ui.game_selected_arena.trigger(),
+            KEY_ARENA  => app_ui.game_selected_arena.trigger(),
+            _ => unimplemented!()
         }
-
 
         // Show the Main Window...
         app_ui.main_window.show();

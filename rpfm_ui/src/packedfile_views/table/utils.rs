@@ -163,9 +163,9 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
         model.remove_rows_2a(row_pack.0, row_pack.1.len() as i32);
     }
 
-    // Reverse them, so the final result is full top to bottom.
+    // Reverse them, so the final result is full top to bottom, and return them.
     rows_splitted.reverse();
-    let rows_splitted = rows_splitted.iter()
+    rows_splitted.iter()
         .map(|x| (x.0, x.1.iter()
             .map(|y| y.iter()
                 .map(|z| atomic_from_mut_ptr(*z))
@@ -173,9 +173,7 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
             )
             .collect()
         ))
-        .collect::<Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)>>();
-
-    rows_splitted
+        .collect::<Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)>>()
 }
 
 /// This function returns a new default row.

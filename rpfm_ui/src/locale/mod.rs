@@ -67,7 +67,7 @@ impl Locale {
 
             // Then to a resource and a bundle.
             let resource = FluentResource::try_new(ftl_string)?;
-            let mut bundle = FluentBundle::new(&[selected_locale.clone()]);
+            let mut bundle = FluentBundle::new(&[selected_locale]);
             bundle.add_resource(resource)?;
 
             // If nothing failed, return the new translation.

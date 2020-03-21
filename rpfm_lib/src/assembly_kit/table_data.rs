@@ -93,7 +93,7 @@ impl RawTable {
 
             // Version 0 is Napoleon and Empire. These two don't have an assembly kit, but CA released years ago their table files.
             // So... these are kinda unique. The schemas are xsd files, and the data format is kinda different and it's not yet supported.
-            0 | _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
         }
     }
 
@@ -139,7 +139,7 @@ impl RawTable {
                 raw_table.definition = Some(raw_definition.clone());
                 Ok(raw_table)
             }
-            0 | _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+            _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
         }
     }
 }

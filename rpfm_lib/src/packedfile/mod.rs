@@ -329,7 +329,7 @@ impl PackedFileType {
     ///
     /// It performs an equality check between both provided types, ignoring the subtypes. This means,
     /// a Text PackedFile with subtype XML and one with subtype LUA will return true, because both are Text PackedFiles.
-    pub fn eq_non_strict(&self, other: &Self) -> bool {
+    pub fn eq_non_strict(self, other: Self) -> bool {
         match self {
             Self::Anim |
             Self::AnimFragment |
@@ -353,7 +353,7 @@ impl PackedFileType {
     ///
     /// It performs an equality check between both provided types, ignoring the subtypes. This means,
     /// a Text PackedFile with subtype XML and one with subtype LUA will return true, because both are Text PackedFiles.
-    pub fn eq_non_strict_slice(&self, others: &[Self]) -> bool {
+    pub fn eq_non_strict_slice(self, others: &[Self]) -> bool {
         match self {
             Self::Anim |
             Self::AnimFragment |
