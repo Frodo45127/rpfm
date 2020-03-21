@@ -83,6 +83,7 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_redo: MutPtr<QAction>,
     pub context_menu_import_tsv: MutPtr<QAction>,
     pub context_menu_export_tsv: MutPtr<QAction>,
+    pub smart_delete: MutPtr<QAction>,
 
     pub dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
     pub table_definition: Definition,
@@ -1035,6 +1036,7 @@ impl PackedFileTableViewRaw {
     /// Function to undo/redo an operation in the table.
     ///
     /// If undo = true we are undoing. Otherwise we are redoing.
+    /// NOTE: repeat_x_times is for internal recursion!!! ALWAYS PUT A 0 THERE!!!.
     pub unsafe fn undo_redo(
         &mut self,
         undo: bool,
@@ -1151,134 +1153,7 @@ impl PackedFileTableViewRaw {
                     model.item_2a(0, 0).set_data_2a(&QVariant::new(), 16);
                     self.undo_lock.store(false, Ordering::SeqCst);
                 }
-    /*
-                // "rows" has to come in the same format than in RemoveRows.
-                TableOperations::SmartDelete((edits, rows)) => {
 
-                    // First, we re-insert each pack of rows.
-                    for row_pack in &rows {
-                        for (row, items) in row_pack {
-                            let mut qlist = ListStandardItemMutPtr::new(());
-                            unsafe { items.iter().for_each(|x| qlist.append_unsafe(x)); }
-                            unsafe { model.as_mut().unwrap().insert_row((*row, &qlist)); }
-                        }
-                    }
-
-                    // Then, restore all the edits and keep their old state for the undo/redo action.
-                    *undo_lock.borrow_mut() = true;
-                    let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
-                    unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-                    *undo_lock.borrow_mut() = false;
-
-                    // Next, prepare the redo operation.
-                    let mut rows_to_add = vec![];
-                    rows.to_vec().iter_mut().map(|x| x.iter_mut().map(|y| y.0).collect::<Vec<i32>>()).for_each(|mut x| rows_to_add.append(&mut x));
-                    rows_to_add.reverse();
-                    history_opposite.push(TableOperations::RevertSmartDelete((edits_before, rows_to_add)));
-
-                    // Select all the edited items/restored rows.
-                    let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                    unsafe { selection_model.as_mut().unwrap().clear(); }
-                    for row_pack in &rows {
-                        let initial_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack[0].0, 0))) };
-                        let final_model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index((row_pack.last().unwrap().0 as i32, 0))) };
-                        if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
-                            let selection = ItemSelection::new((&initial_model_index_filtered, &final_model_index_filtered));
-                            unsafe { selection_model.as_mut().unwrap().select((&selection, Flags::from_enum(SelectionFlag::Select) | Flags::from_enum(SelectionFlag::Rows))); }
-                        }
-                    }
-
-                    for edit in edits.iter() {
-                        let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
-                        if model_index_filtered.is_valid() {
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model_index_filtered,
-                                Flags::from_enum(SelectionFlag::Select)
-                            )); }
-                        }
-                    }
-
-                    // Trick to tell the model to update everything.
-                    *undo_lock.borrow_mut() = true;
-                    unsafe { model.as_mut().unwrap().item((0, 0)).as_mut().unwrap().set_data((&Variant::new0(()), 16)); }
-                    *undo_lock.borrow_mut() = false;
-                }
-
-                // This action is special and we have to manually trigger a save for it.
-                // "rows" has to come in the same format than in AddRows.
-                TableOperations::RevertSmartDelete((edits, rows)) => {
-
-                    // First, redo all the "edits".
-                    *undo_lock.borrow_mut() = true;
-                    let edits_before = unsafe { edits.iter().map(|x| (((x.0).0, (x.0).1), (&*model.as_mut().unwrap().item(((x.0).0, (x.0).1))).clone())).collect::<Vec<((i32, i32), *mut StandardItem)>>() };
-                    unsafe { edits.iter().for_each(|x| model.as_mut().unwrap().set_item(((x.0).0, (x.0).1, x.1.clone()))); }
-                    *undo_lock.borrow_mut() = false;
-
-                    // Select all the edited items, if any, before removing rows. Otherwise, the selection will not match the editions.
-                    let selection_model = unsafe { table_view.as_mut().unwrap().selection_model() };
-                    unsafe { selection_model.as_mut().unwrap().clear(); }
-                    for edit in edits.iter() {
-                        let model_index_filtered = unsafe { filter_model.as_ref().unwrap().map_from_source(&model.as_mut().unwrap().index(((edit.0).0, (edit.0).1))) };
-                        if model_index_filtered.is_valid() {
-                            unsafe { selection_model.as_mut().unwrap().select((
-                                &model_index_filtered,
-                                Flags::from_enum(SelectionFlag::Select)
-                            )); }
-                        }
-                    }
-
-                    // Then, remove the restored tables after undoing a "SmartDelete".
-                    // Same thing as with "AddRows": split the row list in consecutive rows, get their data, and remove them in batches.
-                    let mut rows_splitted = vec![];
-                    let mut current_row_pack = vec![];
-                    let mut current_row_index = -2;
-                    for (index, row) in rows.iter().enumerate() {
-
-                        let mut items = vec![];
-                        for column in 0..unsafe { model.as_mut().unwrap().column_count(()) } {
-                            let item = unsafe { &*model.as_mut().unwrap().item((*row, column)) };
-                            items.push(item.clone());
-                        }
-
-                        if (*row == current_row_index - 1) || index == 0 {
-                            current_row_pack.push((*row, items));
-                            current_row_index = *row;
-                        }
-                        else {
-                            current_row_pack.reverse();
-                            rows_splitted.push(current_row_pack.to_vec());
-                            current_row_pack.clear();
-                            current_row_pack.push((*row, items));
-                            current_row_index = *row;
-                        }
-                    }
-                    current_row_pack.reverse();
-                    rows_splitted.push(current_row_pack);
-                    if rows_splitted[0].is_empty() { rows_splitted.clear(); }
-
-                    for row_pack in rows_splitted.iter() {
-                        unsafe { model.as_mut().unwrap().remove_rows((row_pack[0].0, row_pack.len() as i32)); }
-                    }
-
-                    // Prepare the redo operation.
-                    rows_splitted.reverse();
-                    history_opposite.push(TableOperations::SmartDelete((edits_before, rows_splitted)));
-
-                    // Try to save the PackedFile to the main PackFile.
-                    Self::save_to_packed_file(
-                        &sender_qt,
-                        &sender_qt_data,
-                        &receiver_qt,
-                        &app_ui,
-                        &packed_file_path,
-                        model,
-                        &global_search_explicit_paths,
-                        update_global_search_stuff,
-                        table_definition,
-                        &mut table_type.borrow_mut(),
-                    );
-                }
-*/
                 // This action is special and we have to manually trigger a save for it.
                 TableOperations::ImportTSV(table_data) => {
 
@@ -1311,17 +1186,19 @@ impl PackedFileTableViewRaw {
                 self.context_menu_undo.set_enabled(!history_opposite.is_empty());
             }
         }
-        if repeat_x_times >= 1 && is_carolina {
-            self.undo_redo(undo, repeat_x_times - 1);
 
-            if repeat_x_times - 1 == 0 {
+        // If we have repetitions, it means we got a carolina. Repeat all the times we need until all editions are undone.
+        // Then, remove all the actions done and put them into a carolina.
+        if repeat_x_times > 0 {
+            self.undo_redo(undo, repeat_x_times - 1);
+            if is_carolina {
                 let mut history_opposite = if undo {
                     self.history_redo.write().unwrap()
                 } else {
                     self.history_undo.write().unwrap()
                 };
                 let len = history_opposite.len();
-                let mut edits = history_opposite.drain((len - repeat_x_times + 1)..).collect::<Vec<TableOperations>>();
+                let mut edits = history_opposite.drain((len - repeat_x_times)..).collect::<Vec<TableOperations>>();
                 edits.reverse();
                 history_opposite.push(TableOperations::Carolina(edits));
             }

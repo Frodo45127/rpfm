@@ -45,7 +45,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     //ui.get_mut_ptr_context_menu_sidebar().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["sidebar"])));
     ui.get_mut_ptr_context_menu_import_tsv().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["import_tsv"])));
     ui.get_mut_ptr_context_menu_export_tsv().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["export_tsv"])));
-    //ui.get_mut_ptr_smart_delete().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["smart_delete"])));
+    ui.get_mut_ptr_smart_delete().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["smart_delete"])));
     ui.get_mut_ptr_context_menu_undo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["undo"])));
     ui.get_mut_ptr_context_menu_redo().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["redo"])));
 
@@ -68,7 +68,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     //ui.get_mut_ptr_context_menu_sidebar().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_import_tsv().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_export_tsv().set_shortcut_context(ShortcutContext::WidgetShortcut);
-    //ui.get_mut_ptr_smart_delete().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_smart_delete().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_undo().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_redo().set_shortcut_context(ShortcutContext::WidgetShortcut);
 
@@ -91,7 +91,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     //ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_sidebar());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_import_tsv());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_export_tsv());
-    //ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_smart_delete());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_smart_delete());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_undo());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_redo());
 }

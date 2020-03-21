@@ -103,12 +103,6 @@ pub enum TableOperations {
     /// Intended for when removing rows. It holds a list of positions where the rows where deleted and the deleted rows data, in consecutive batches.
     RemoveRows(Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)>),
 
-    // Intended for when we are using the smart delete feature. This is a combination of list of edits and list of removed rows.
-    //SmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<Vec<(i32, Vec<*mut StandardItem>)>>)),
-
-    // RevertSmartDelete: Selfexplanatory. This is a combination of list of edits and list of adding rows.
-    //RevertSmartDelete((Vec<((i32, i32), *mut StandardItem)>, Vec<i32>)),
-
     /// It holds a copy of the entire table, before importing.
     ImportTSV(Vec<AtomicPtr<QListOfQStandardItem>>),
 
@@ -143,6 +137,7 @@ pub struct PackedFileTableView {
     context_menu_redo: AtomicPtr<QAction>,
     context_menu_import_tsv: AtomicPtr<QAction>,
     context_menu_export_tsv: AtomicPtr<QAction>,
+    smart_delete: AtomicPtr<QAction>,
 
     dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
     table_name: String,
@@ -250,7 +245,7 @@ impl PackedFileTableView {
         layout.add_widget_5a(&mut table_enable_lookups_button, 2, 3, 1, 1);
 
         // Action to make the delete button delete contents.
-        //let smart_delete = Action::new(()).into_raw();
+        let smart_delete = QAction::new().into_ptr();
 
         // Create the Contextual Menu for the TableView.
         let context_menu_enabler = QAction::new();
@@ -324,6 +319,7 @@ impl PackedFileTableView {
             context_menu_redo,
             context_menu_import_tsv,
             context_menu_export_tsv,
+            smart_delete,
 
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: table_definition.clone(),
@@ -370,6 +366,7 @@ impl PackedFileTableView {
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
             context_menu_import_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_import_tsv),
             context_menu_export_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_export_tsv),
+            smart_delete: atomic_from_mut_ptr(packed_file_table_view_raw.smart_delete),
 
             dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition,
@@ -504,6 +501,11 @@ impl PackedFileTableView {
         mut_ptr_from_atomic(&self.context_menu_export_tsv)
     }
 
+    /// This function returns a pointer to the smart delete action.
+    pub fn get_mut_ptr_smart_delete(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.smart_delete)
+    }
+
     /// This function returns a reference to this table's name.
     pub fn get_ref_table_name(&self) -> &str {
         &self.table_name
@@ -526,8 +528,6 @@ impl Debug for TableOperations {
             Self::Editing(data) => write!(f, "Cell/s edited, starting in row {}, column {}.", (data[0].0).0, (data[0].0).1),
             Self::AddRows(data) => write!(f, "Removing row/s added in position/s {}.", data.iter().map(|x| format!("{}, ", x)).collect::<String>()),
             Self::RemoveRows(data) => write!(f, "Re-adding row/s removed in {} batches.", data.len()),
-            //Self::SmartDelete(_) => write!(f, "Smart deletion."),
-            //Self::RevertSmartDelete(_) => write!(f, "Reverted Smart deletion."),
             Self::ImportTSV(_) => write!(f, "Imported TSV file."),
             Self::Carolina(_) => write!(f, "Carolina, trátame bien, no te rías de mi, no me arranques la piel."),
         }
