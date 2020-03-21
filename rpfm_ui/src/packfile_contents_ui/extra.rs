@@ -64,16 +64,6 @@ impl PackFileContentsUI {
 
                     // Update the global search stuff, if needed.
                     global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
-                    //unsafe { update_global_search_stuff.trigger(); }
-
-                    // For each file added, remove it from the data history if exists.
-                    //for path in &paths_packedfile {
-                        //if table_state_data.borrow().get(path).is_some() {
-                            //table_state_data.borrow_mut().remove(path);
-                        //}
-                        //let data = TableStateData::new_empty();
-                        //table_state_data.borrow_mut().insert(path.to_vec(), data);
-                    //}
                 }
 
                 Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -99,16 +89,6 @@ impl PackFileContentsUI {
 
                     // Update the global search stuff, if needed.
                     global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
-                    //unsafe { update_global_search_stuff.trigger(); }
-
-                    // For each file added, remove it from the data history if exists.
-                    //for path in &paths_packedfile {
-                        //if table_state_data.borrow().get(path).is_some() {
-                            //table_state_data.borrow_mut().remove(path);
-                        //}
-                        //let data = TableStateData::new_empty();
-                        //table_state_data.borrow_mut().insert(path.to_vec(), data);
-                    //}
                 }
 
                 Response::Error(error) => show_dialog(app_ui.main_window, error, false),

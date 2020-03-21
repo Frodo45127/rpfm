@@ -100,19 +100,9 @@ pub struct PackedFileDecoderView {
     table_view: AtomicPtr<QTableView>,
     table_model: AtomicPtr<QStandardItemModel>,
 
-    table_view_context_menu: AtomicPtr<QMenu>,
     table_view_context_menu_move_up: AtomicPtr<QAction>,
     table_view_context_menu_move_down: AtomicPtr<QAction>,
     table_view_context_menu_delete: AtomicPtr<QAction>,
-
-    bool_line_edit: AtomicPtr<QLineEdit>,
-    float_line_edit: AtomicPtr<QLineEdit>,
-    integer_line_edit: AtomicPtr<QLineEdit>,
-    long_integer_line_edit: AtomicPtr<QLineEdit>,
-    string_u8_line_edit: AtomicPtr<QLineEdit>,
-    string_u16_line_edit: AtomicPtr<QLineEdit>,
-    optional_string_u8_line_edit: AtomicPtr<QLineEdit>,
-    optional_string_u16_line_edit: AtomicPtr<QLineEdit>,
 
     bool_button: AtomicPtr<QPushButton>,
     float_button: AtomicPtr<QPushButton>,
@@ -127,9 +117,6 @@ pub struct PackedFileDecoderView {
     packed_file_info_entry_count_decoded_label: AtomicPtr<QLabel>,
 
     table_view_old_versions: AtomicPtr<QTableView>,
-    table_model_old_versions: AtomicPtr<QStandardItemModel>,
-
-    table_view_old_versions_context_menu: AtomicPtr<QMenu>,
     table_view_old_versions_context_menu_load: AtomicPtr<QAction>,
     table_view_old_versions_context_menu_delete: AtomicPtr<QAction>,
 
@@ -508,19 +495,9 @@ impl PackedFileDecoderView {
             table_view: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view),
             table_model: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_model),
 
-            table_view_context_menu: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu),
             table_view_context_menu_move_up: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_up),
             table_view_context_menu_move_down: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_down),
             table_view_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_delete),
-
-            bool_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_line_edit),
-            float_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.float_line_edit),
-            integer_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.integer_line_edit),
-            long_integer_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.long_integer_line_edit),
-            string_u8_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u8_line_edit),
-            string_u16_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u16_line_edit),
-            optional_string_u8_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_line_edit),
-            optional_string_u16_line_edit: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u16_line_edit),
 
             bool_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_button),
             float_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.float_button),
@@ -535,9 +512,6 @@ impl PackedFileDecoderView {
             packed_file_info_entry_count_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_entry_count_decoded_label),
 
             table_view_old_versions: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions),
-            table_model_old_versions: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_model_old_versions),
-
-            table_view_old_versions_context_menu: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu),
             table_view_old_versions_context_menu_load: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_load),
             table_view_old_versions_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_delete),
 

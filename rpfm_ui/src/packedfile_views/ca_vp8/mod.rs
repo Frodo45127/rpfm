@@ -54,7 +54,6 @@ pub struct PackedFileCaVp8View {
     convert_to_camv_button: AtomicPtr<QPushButton>,
     convert_to_ivf_button: AtomicPtr<QPushButton>,
     current_format: Arc<Mutex<SupportedFormats>>,
-    format_data_label: AtomicPtr<QLabel>,
 }
 
 
@@ -151,7 +150,6 @@ impl PackedFileCaVp8View {
             convert_to_camv_button: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.convert_to_camv_button),
             convert_to_ivf_button: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.convert_to_ivf_button),
             current_format: packed_file_ca_vp8_view_raw.current_format.clone(),
-            format_data_label: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.format_data_label),
         };
 
         connections::set_connections(&packed_file_ca_vp8_view, &packed_file_ca_vp8_view_slots);
@@ -164,11 +162,6 @@ impl PackedFileCaVp8View {
     /// This function returns a copy of the format the video is currently on.
     pub fn get_current_format(&self) -> SupportedFormats {
         self.current_format.lock().unwrap().clone()
-    }
-
-    /// This function sets the current format to the provided one.
-    pub fn set_current_format(&mut self, format: SupportedFormats) {
-        *self.current_format.lock().unwrap() = format;
     }
 
     /// This function returns a pointer to the `Convert to CAMV` button.

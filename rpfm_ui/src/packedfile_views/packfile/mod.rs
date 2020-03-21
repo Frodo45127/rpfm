@@ -60,8 +60,6 @@ pub mod slots;
 /// This struct contains the view of the extra PackFile.
 pub struct PackFileExtraView {
     tree_view: AtomicPtr<QTreeView>,
-    tree_model_filter: AtomicPtr<QSortFilterProxyModel>,
-    tree_model: AtomicPtr<QStandardItemModel>,
 
     filter_line_edit: AtomicPtr<QLineEdit>,
     filter_autoexpand_matches_button: AtomicPtr<QPushButton>,
@@ -79,7 +77,6 @@ pub struct PackFileExtraView {
 pub struct PackFileExtraViewRaw {
     tree_view: MutPtr<QTreeView>,
     tree_model_filter: MutPtr<QSortFilterProxyModel>,
-    tree_model: MutPtr<QStandardItemModel>,
 
     filter_line_edit: MutPtr<QLineEdit>,
     filter_autoexpand_matches_button: MutPtr<QPushButton>,
@@ -155,7 +152,6 @@ impl PackFileExtraView {
         let raw = PackFileExtraViewRaw{
             tree_view,
             tree_model_filter,
-            tree_model,
 
             filter_line_edit: filter_line_edit.into_ptr(),
             filter_autoexpand_matches_button: filter_autoexpand_matches_button.into_ptr(),
@@ -168,8 +164,6 @@ impl PackFileExtraView {
         let slots = PackFileExtraViewSlots::new(*app_ui, *pack_file_contents_ui, *global_search_ui, raw);
         let mut view = Self {
             tree_view: atomic_from_mut_ptr(raw.tree_view),
-            tree_model_filter: atomic_from_mut_ptr(raw.tree_model_filter),
-            tree_model: atomic_from_mut_ptr(raw.tree_model),
 
             filter_line_edit: atomic_from_mut_ptr(raw.filter_line_edit),
             filter_autoexpand_matches_button: atomic_from_mut_ptr(raw.filter_autoexpand_matches_button),
@@ -249,16 +243,6 @@ impl PackFileExtraViewRaw {
     /// This function returns a pointer to the `SortFilterProxyModel` widget.
     pub fn get_mut_ptr_tree_model_filter(&self) -> MutPtr<QSortFilterProxyModel> {
         self.tree_model_filter
-    }
-
-    /// This function returns a mutable reference to the `Expand All` Action.
-    pub fn get_mut_ptr_expand_all(&self) -> MutPtr<QAction> {
-        self.expand_all
-    }
-
-    /// This function returns a mutable reference to the `Collapse All` Action.
-    pub fn get_mut_ptr_collapse_all(&self) -> MutPtr<QAction> {
-        self.collapse_all
     }
 
     /// This function returns a mutable reference to the `Filter` Line Edit.

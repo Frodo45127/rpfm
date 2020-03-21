@@ -562,10 +562,8 @@ impl GlobalSearchUI {
     ///
     /// In case the provided ModelIndex is the parent, we open the file without scrolling to the match.
     pub unsafe fn open_match(
-        mut app_ui: AppUI,
+        app_ui: AppUI,
         mut pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
 

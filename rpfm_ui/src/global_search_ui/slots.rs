@@ -99,9 +99,9 @@ impl GlobalSearchSlots {
         });
 
         // What happens when we try to open the file corresponding to one of the matches.
-        let global_search_open_match = SlotOfQModelIndex::new(clone!(slot_holder => move |model_index_filter| {
-            GlobalSearchUI::open_match(app_ui, pack_file_contents_ui, global_search_ui, &slot_holder, model_index_filter.as_ptr());
-        }));
+        let global_search_open_match = SlotOfQModelIndex::new(move |model_index_filter| {
+            GlobalSearchUI::open_match(app_ui, pack_file_contents_ui, model_index_filter.as_ptr());
+        });
 
         // What happens when we toggle the "All" checkbox we have to disable/enable the rest ot the checkboxes..
         let global_search_toggle_all = SlotOfBool::new(move |state| {
