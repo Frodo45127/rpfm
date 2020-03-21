@@ -475,7 +475,7 @@ impl PackedFileTableViewRaw {
 
     }
 
-    /// Function to filter the table. If a value is not provided by a slot, we get it from the widget itself.
+    /// Function to filter the table.
     pub unsafe fn filter_table(&mut self) {
 
         let mut pattern = QRegExp::new_1a(&self.filter_line_edit.text());
@@ -483,6 +483,7 @@ impl PackedFileTableViewRaw {
 
         // Check if the filter should be "Case Sensitive".
         let case_sensitive = self.filter_case_sensitive_button.is_checked();
+
         if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
         else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
 
@@ -895,10 +896,10 @@ impl PackedFileTableViewRaw {
 
                     // Check if, according to the definition, we have a valid value for the type.
                     let is_valid_data = match field.field_type {
-                        FieldType::Boolean => if text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0" { false } else { true },
-                        FieldType::Float => if text.parse::<f32>().is_err() { false } else { true },
-                        FieldType::Integer => if text.parse::<i32>().is_err() { false } else { true },
-                        FieldType::LongInteger => if text.parse::<i64>().is_err() { false } else { true },
+                        FieldType::Boolean => !(text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0"),
+                        FieldType::Float => !text.parse::<f32>().is_err(),
+                        FieldType::Integer => !text.parse::<i32>().is_err(),
+                        FieldType::LongInteger => !text.parse::<i64>().is_err(),
 
                         // All these are Strings, so we can skip their checks....
                         FieldType::StringU8 |

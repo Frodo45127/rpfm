@@ -140,7 +140,7 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
     for (index, row) in rows.iter().enumerate() {
 
         // Items are individually cloned because there is no "takeRows" function to take out multiple individual rows.
-        let items = (0..model.column_count_0a()).into_iter()
+        let items = (0..model.column_count_0a())
             .map(|column| (&*model.item_2a(*row, column)).clone())
             .collect::<Vec<MutPtr<QStandardItem>>>();
 

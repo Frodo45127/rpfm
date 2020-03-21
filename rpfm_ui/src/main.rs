@@ -49,9 +49,7 @@ use std::thread;
 
 use rpfm_error::ctd::CrashReport;
 use rpfm_lib::config::init_config_path;
-use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
-use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
 use crate::communications::CentralCommand;
@@ -250,11 +248,6 @@ fn main() {
     QApplication::init(|app| {
         let slot_holder = Rc::new(RefCell::new(vec![]));
         let (_ui, _slots) = unsafe { UI::new(app, &slot_holder) };
-
-        // Dirty fix for the schemas. This has to be changed to a proper fix later.
-        *SCHEMA.write().unwrap() = rpfm_lib::schema::Schema::load(&SUPPORTED_GAMES.get("warhammer_2").unwrap().schema).ok();
-
-
 
 /*
 

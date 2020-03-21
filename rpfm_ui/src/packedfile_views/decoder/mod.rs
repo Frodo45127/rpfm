@@ -434,7 +434,7 @@ impl PackedFileDecoderView {
         layout.set_row_stretch(2, 5);
 
         let header_size = get_header_size(
-            &packed_file_type,
+            packed_file_type,
             &packed_file.get_raw_data()?
         )?;
 
@@ -551,7 +551,7 @@ impl PackedFileDecoderView {
         };
 
         let definition = get_definition(
-            &packed_file_decoder_view.packed_file_type,
+            packed_file_decoder_view.packed_file_type,
             &packed_file_decoder_view.packed_file_path,
             &packed_file_decoder_view.packed_file_data,
             None
@@ -647,7 +647,7 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         let use_dark_theme = SETTINGS.lock().unwrap().settings_bool["use_dark_theme"];
-        let header_size = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
+        let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
         let mut header_format = QTextCharFormat::new();
         header_format.set_background(&brush);
@@ -896,7 +896,7 @@ impl PackedFileDecoderViewRaw {
         //---------------------------------------------//
 
         // Prepare to paint the changes in the hex data views.
-        let header_size = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
+        let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
         let use_dark_theme = SETTINGS.lock().unwrap().settings_bool["use_dark_theme"];
         let mut index_format = QTextCharFormat::new();
         let mut decoded_format = QTextCharFormat::new();
@@ -1163,7 +1163,7 @@ impl PackedFileDecoderViewRaw {
     ) -> Result<()> {
 
         // Reset the index, because this function effectively resets the decoding state.
-        *index = get_header_size(&self.packed_file_type, &self.packed_file_data)?;
+        *index = get_header_size(self.packed_file_type, &self.packed_file_data)?;
         let mut row = 0;
 
         // Loop through all the rows.
@@ -1262,12 +1262,12 @@ impl PackedFileDecoderViewRaw {
                 // Get the data from each field of the row...
                 let field_name = self.table_model.item_2a(row, 0).text().to_std_string();
                 let field_type = self.table_model.item_2a(row, 1).text().to_std_string();
-                let field_is_key = if self.table_model.item_2a(row, 3).check_state() == CheckState::Checked { true } else { false };
+                let field_is_key = self.table_model.item_2a(row, 3).check_state() == CheckState::Checked;
                 let ref_table = self.table_model.item_2a(row, 4).text().to_std_string();
                 let ref_column = self.table_model.item_2a(row, 5).text().to_std_string();
                 let field_default_value = self.table_model.item_2a(row, 7).text().to_std_string();
                 let field_max_length = self.table_model.item_2a(row, 8).text().to_std_string().parse::<i32>().unwrap();
-                let field_is_filename = if self.table_model.item_2a(row, 9).check_state() == CheckState::Checked { true } else { false };
+                let field_is_filename = self.table_model.item_2a(row, 9).check_state() == CheckState::Checked;
                 let field_filename_relative_path = self.table_model.item_2a(row, 10).text().to_std_string();
                 let field_ca_order = self.table_model.item_2a(row, 11).text().to_std_string().parse::<i16>().unwrap();
                 let field_description = self.table_model.item_2a(row, 12).text().to_std_string();
@@ -1282,7 +1282,8 @@ impl PackedFileDecoderViewRaw {
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "Sequence" | _=> FieldType::Sequence(Definition::new(-1)),
+                    "Sequence" => FieldType::Sequence(Definition::new(-1)),
+                    _ => unimplemented!()
                 };
 
                 let field_is_reference = if !ref_table.is_empty() && !ref_column.is_empty() {
@@ -1369,7 +1370,7 @@ impl PackedFileDecoderViewRaw {
 
 /// This function returns the header size (or first byte after the header) of the provided PackedFile.
 fn get_header_size(
-    packed_file_type: &PackedFileType,
+    packed_file_type: PackedFileType,
     packed_file_data: &[u8],
 ) -> Result<usize> {
     match packed_file_type {
@@ -1381,7 +1382,7 @@ fn get_header_size(
 
 /// This function returns the definition corresponding to the decoded Packedfile, if exists.
 fn get_definition(
-    packed_file_type: &PackedFileType,
+    packed_file_type: PackedFileType,
     packed_file_path: &[String],
     packed_file_data: &[u8],
     version: Option<i32>

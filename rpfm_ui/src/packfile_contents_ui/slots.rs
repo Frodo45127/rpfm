@@ -778,17 +778,17 @@ impl PackFileContentsSlots {
 
         // What happens when we trigger the "Create DB PackedFile" Action.
         let contextual_menu_new_packed_file_db = SlotOfBool::new(move |_| {
-            app_ui.new_packed_file(&mut pack_file_contents_ui, &PackedFileType::DB);
+            app_ui.new_packed_file(&mut pack_file_contents_ui, PackedFileType::DB);
         });
 
         // What happens when we trigger the "Create Loc PackedFile" Action.
         let contextual_menu_new_packed_file_loc = SlotOfBool::new(move |_| {
-            app_ui.new_packed_file(&mut pack_file_contents_ui, &PackedFileType::Loc);
+            app_ui.new_packed_file(&mut pack_file_contents_ui, PackedFileType::Loc);
         });
 
         // What happens when we trigger the "Create Text PackedFile" Action.
         let contextual_menu_new_packed_file_text = SlotOfBool::new(move |_| {
-            app_ui.new_packed_file(&mut pack_file_contents_ui, &PackedFileType::Text(TextType::Plain));
+            app_ui.new_packed_file(&mut pack_file_contents_ui, PackedFileType::Text(TextType::Plain));
         });
 
         // What happens when we trigger the "New Folder" Action.

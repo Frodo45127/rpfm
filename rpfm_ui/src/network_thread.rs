@@ -61,7 +61,7 @@ pub fn network_loop() {
                         last_version.split_off(5);
 
                         // Get the version numbers from our version and from the latest released version, so we can compare them.
-                        let first = (last_version.chars().nth(0).unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().nth(0).unwrap_or('0').to_digit(10).unwrap_or(0));
+                        let first = (last_version.chars().next().unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().next().unwrap_or('0').to_digit(10).unwrap_or(0));
                         let second = (last_version.chars().nth(2).unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().nth(2).unwrap_or('0').to_digit(10).unwrap_or(0));
                         let third = (last_version.chars().nth(4).unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().nth(4).unwrap_or('0').to_digit(10).unwrap_or(0));
 

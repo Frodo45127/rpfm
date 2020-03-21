@@ -25,7 +25,7 @@ use qt_core::GlobalColor;
 use qt_core::QModelIndex;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
-use qt_core::{SlotOfBool, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection};
+use qt_core::{SlotOfBool, SlotOfInt, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection};
 
 use cpp_core::Ref;
 
@@ -56,6 +56,8 @@ use super::utils::*;
 /// This struct contains the slots of the view of an Table PackedFile.
 pub struct PackedFileTableViewSlots {
     pub filter_line_edit: SlotOfQString<'static>,
+    pub filter_column_selector: SlotOfInt<'static>,
+    pub filter_case_sensitive_button: Slot<'static>,
     pub toggle_lookups: SlotOfBool<'static>,
     pub show_context_menu: SlotOfQPoint<'static>,
     pub context_menu_enabler: SlotOfQItemSelectionQItemSelection<'static>,
@@ -94,9 +96,19 @@ impl PackedFileTableViewSlots {
         table_definition: &Definition,
     ) -> Self {
 
-        // When we want to filter when changing the pattern to filter with...
+        // When we want to filter the table...
         let filter_line_edit = SlotOfQString::new(clone!(
             mut packed_file_view => move |_| {
+            packed_file_view.filter_table();
+        }));
+
+        let filter_column_selector = SlotOfInt::new(clone!(
+            mut packed_file_view => move |_| {
+            packed_file_view.filter_table();
+        }));
+
+        let filter_case_sensitive_button = Slot::new(clone!(
+            mut packed_file_view => move || {
             packed_file_view.filter_table();
         }));
 
@@ -493,6 +505,8 @@ impl PackedFileTableViewSlots {
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             filter_line_edit,
+            filter_column_selector,
+            filter_case_sensitive_button,
             toggle_lookups,
             show_context_menu,
             context_menu_enabler,

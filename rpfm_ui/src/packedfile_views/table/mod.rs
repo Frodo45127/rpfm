@@ -298,9 +298,9 @@ impl PackedFileTableView {
             table_view_frozen: table_view_frozen.into_ptr(),
             table_filter: filter_model.into_ptr(),
             table_model: model.into_ptr(),
-            table_enable_lookups_button: row_filter_case_sensitive_button.into_ptr(),
+            table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
             filter_line_edit: row_filter_line_edit.into_ptr(),
-            filter_case_sensitive_button: table_enable_lookups_button.into_ptr(),
+            filter_case_sensitive_button: row_filter_case_sensitive_button.into_ptr(),
             filter_column_selector: row_filter_column_selector.into_ptr(),
 
             context_menu,
@@ -429,6 +429,16 @@ impl PackedFileTableView {
     /// This function returns a pointer to the filter's LineEdit widget.
     pub fn get_mut_ptr_filter_line_edit(&self) -> MutPtr<QLineEdit> {
         mut_ptr_from_atomic(&self.filter_line_edit)
+    }
+
+    /// This function returns a pointer to the filter's column selector combobox.
+    pub fn get_mut_ptr_filter_column_selector(&self) -> MutPtr<QComboBox> {
+        mut_ptr_from_atomic(&self.filter_column_selector)
+    }
+
+    /// This function returns a pointer to the filter's case sensitive button.
+    pub fn get_mut_ptr_filter_case_sensitive_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.filter_case_sensitive_button)
     }
 
     /// This function returns a pointer to the add rows action.

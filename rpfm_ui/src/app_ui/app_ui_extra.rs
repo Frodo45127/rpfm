@@ -1299,7 +1299,7 @@ impl AppUI {
     }
 
     /// This function is the one that takes care of the creation of different PackedFiles.
-    pub unsafe fn new_packed_file(&self, pack_file_contents_ui: &mut PackFileContentsUI, packed_file_type: &PackedFileType) {
+    pub unsafe fn new_packed_file(&self, pack_file_contents_ui: &mut PackFileContentsUI, packed_file_type: PackedFileType) {
 
         // Create the "New PackedFile" dialog and wait for his data (or a cancelation). If we receive None, we do nothing. If we receive Some,
         // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
@@ -1488,7 +1488,7 @@ impl AppUI {
     /// This function creates all the "New PackedFile" dialogs.
     ///
     /// It returns the type/name of the new file, or None if the dialog is canceled or closed.
-    pub unsafe fn new_packed_file_dialog(&self, packed_file_type: &PackedFileType) -> Option<Result<NewPackedFile>> {
+    pub unsafe fn new_packed_file_dialog(&self, packed_file_type: PackedFileType) -> Option<Result<NewPackedFile>> {
 
         // Create and configure the "New PackedFile" Dialog.
         let mut dialog = QDialog::new_1a(self.main_window).into_ptr();

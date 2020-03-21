@@ -316,7 +316,7 @@ impl PackedFileDecoderViewSlots {
 
                     // Get the new definition.
                     let definition = get_definition(
-                        &view.packed_file_type,
+                        view.packed_file_type,
                         &view.packed_file_path,
                         &view.packed_file_data,
                         Some(version)
@@ -324,7 +324,7 @@ impl PackedFileDecoderViewSlots {
 
                     // Reset the definition we have.
                     view.table_model.clear();
-                    *mutable_data.index.lock().unwrap() = get_header_size(&view.packed_file_type, &view.packed_file_data).unwrap();
+                    *mutable_data.index.lock().unwrap() = get_header_size(view.packed_file_type, &view.packed_file_data).unwrap();
 
                     // Update the decoder view.
                     let _ = view.update_view(&definition.fields, true, &mut mutable_data.index.lock().unwrap());
@@ -392,7 +392,7 @@ impl PackedFileDecoderViewSlots {
             mut mutable_data,
             mut view => move || {
                 view.table_model.clear();
-                *mutable_data.index.lock().unwrap() = get_header_size(&view.packed_file_type, &view.packed_file_data).unwrap();
+                *mutable_data.index.lock().unwrap() = get_header_size(view.packed_file_type, &view.packed_file_data).unwrap();
                 let _ = view.update_view(&[], true, &mut mutable_data.index.lock().unwrap());
             }
         ));
