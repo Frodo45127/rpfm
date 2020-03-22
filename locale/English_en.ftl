@@ -237,8 +237,10 @@ tt_global_search_search_on_schemas_checkbox = Include the currently loaded Schem
 
 ### Open PackedFile Dialog
 
-open_packedfile_dialog_1 = One or more of the PackedFiles you want to replace/delete is open.
-open_packedfile_dialog_2 = Are you sure you want to do it? Hitting yes will close it.
+open_packedfile_dialog_1 = Are you sure?
+open_packedfile_dialog_2 = One or more of the PackedFiles you want to replace/delete is open.
+
+    Are you sure you want to do it? Hitting yes will close it.
 
 ### TreeView Text/Filter
 
