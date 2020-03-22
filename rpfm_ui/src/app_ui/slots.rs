@@ -471,6 +471,7 @@ impl AppUISlots {
 
         // This slot is used for the "New MyMod" action.
         let mymod_new = SlotOfBool::new(clone!(
+            mut app_temp_slots,
             mut global_search_ui,
             mut slot_holder => move |_| {
 
@@ -493,12 +494,16 @@ impl AppUISlots {
                         _ => unimplemented!()
                     }
 
+                    // Disable the main window.
+                    app_ui.main_window.set_enabled(false);
+
                     // Get his new path from the base "MyMod" path + `mod_game`.
                     let mut mymod_path = SETTINGS.read().unwrap().paths["mymods_base_path"].clone().unwrap();
                     mymod_path.push(&mod_game);
 
                     // Just in case the folder doesn't exist, we try to create it.
                     if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
+                        app_ui.main_window.set_enabled(true);
                         return show_dialog(app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
                     }
 
@@ -506,6 +511,7 @@ impl AppUISlots {
                     let mut mymod_path_private = mymod_path.to_path_buf();
                     mymod_path_private.push(&mod_name);
                     if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
+                        app_ui.main_window.set_enabled(true);
                         return show_dialog(app_ui.main_window, ErrorKind::IOCreateNestedAssetFolder, false);
                     };
 
@@ -542,10 +548,15 @@ impl AppUISlots {
 
                             // Show the "Tips".
                             //display_help_tips(&app_ui);
+
+                            app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+                            app_ui.main_window.set_enabled(true);
                         }
 
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-
+                        Response::Error(error) => {
+                            app_ui.main_window.set_enabled(true);
+                            show_dialog(app_ui.main_window, error, false);
+                        }
 
                         // In ANY other situation, it's a message problem.
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
