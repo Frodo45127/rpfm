@@ -126,7 +126,7 @@ impl PackedFileTableViewRaw {
                 let item = Self::get_item_from_decoded_data(field);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] && self.table_definition.fields[index].is_reference.is_some() {
+                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && self.table_definition.fields[index].is_reference.is_some() {
                     //Self::check_references(dependency_data, index as i32, item.into_ptr());
                 }
 
@@ -148,7 +148,7 @@ impl PackedFileTableViewRaw {
         for (column, field) in self.table_definition.fields.iter().enumerate() {
 
             // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-            if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
+            if SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] {
                 match field.field_type {
                     FieldType::Boolean => {},
                     FieldType::Float => {

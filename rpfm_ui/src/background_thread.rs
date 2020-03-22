@@ -82,7 +82,7 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::OpenPackFiles(paths) => {
-                match PackFile::open_packfiles(&paths, SETTINGS.lock().unwrap().settings_bool["use_lazy_loading"], false, false) {
+                match PackFile::open_packfiles(&paths, SETTINGS.read().unwrap().settings_bool["use_lazy_loading"], false, false) {
                     Ok(pack_file) => {
                         pack_file_decoded = pack_file;
                         CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
@@ -131,8 +131,8 @@ pub fn background_loop() {
 
             // In case we want to change the current settings...
             Command::SetSettings(settings) => {
-                *SETTINGS.lock().unwrap() = settings;
-                match SETTINGS.lock().unwrap().save() {
+                *SETTINGS.write().unwrap() = settings;
+                match SETTINGS.read().unwrap().save() {
                     Ok(()) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
@@ -217,7 +217,7 @@ pub fn background_loop() {
                 // Test to see if every DB Table can be decoded. This is slow and only useful when
                 // a new patch lands and you want to know what tables you need to decode. So, unless you want
                 // to decode new tables, leave the setting as false.
-                if SETTINGS.lock().unwrap().settings_bool["check_for_missing_table_definitions"] {
+                if SETTINGS.read().unwrap().settings_bool["check_for_missing_table_definitions"] {
                     let mut counter = 0;
                     let mut table_list = String::new();
                     if let Some(ref schema) = *SCHEMA.read().unwrap() {

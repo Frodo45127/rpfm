@@ -468,7 +468,7 @@ impl AppUI {
             self.packfile_save_packfile_as.set_enabled(enable);
 
             // If there is a "MyMod" path set in the settings...
-            if let Some(ref path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+            if let Some(ref path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
 
                 // And it's a valid directory, enable the "New MyMod" button.
                 if path.is_dir() { self.mymod_new.set_enabled(true); }
@@ -701,7 +701,7 @@ impl AppUI {
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
         let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing).map(|(folder_name,_)| *folder_name).collect::<Vec<&str>>();
-        if let Some(ref mymod_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+        if let Some(ref mymod_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
                 for game_folder in game_folder_list {
                     if let Ok(game_folder) = game_folder {

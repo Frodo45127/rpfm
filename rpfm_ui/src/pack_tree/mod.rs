@@ -727,9 +727,9 @@ impl PackTree for MutPtr<QTreeView> {
     }
 
     unsafe fn paint_specific_item_treeview(mut item: MutPtr<QStandardItem>) {
-        let color_added = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green };
-        let color_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
-        let color_added_modified = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
+        let color_added = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green };
+        let color_modified = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
+        let color_added_modified = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
         let color_untouched = GlobalColor::Transparent;
         match item.data_1a(ITEM_STATUS).to_int_0a() {
             ITEM_STATUS_PRISTINE => item.set_background(&QBrush::from_global_color(color_untouched)),

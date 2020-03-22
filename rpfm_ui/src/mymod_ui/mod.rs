@@ -149,7 +149,7 @@ impl MyModUI {
         let mod_game = game.replace(' ', "_").to_lowercase();
 
         // If we have "MyMod" path configured (we SHOULD have it to access this window, but just in case...).
-        if let Some(ref mod_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+        if let Some(ref mod_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
 
             // If there is text and it doesn't have whitespaces...
             if !mod_name.is_empty() && !mod_name.contains(' ') {

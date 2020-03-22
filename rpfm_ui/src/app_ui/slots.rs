@@ -416,7 +416,7 @@ impl AppUISlots {
             app_temp_slots => move |_| {
 
                 // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
-                let old_settings = SETTINGS.lock().unwrap().clone();
+                let old_settings = SETTINGS.read().unwrap().clone();
                 if let Some(settings) = SettingsUI::new(&mut app_ui) {
 
                     // If we returned new settings, save them and wait for confirmation.
@@ -494,7 +494,7 @@ impl AppUISlots {
                     }
 
                     // Get his new path from the base "MyMod" path + `mod_game`.
-                    let mut mymod_path = SETTINGS.lock().unwrap().paths["mymods_base_path"].clone().unwrap();
+                    let mut mymod_path = SETTINGS.read().unwrap().paths["mymods_base_path"].clone().unwrap();
                     mymod_path.push(&mod_game);
 
                     // Just in case the folder doesn't exist, we try to create it.
@@ -572,7 +572,7 @@ impl AppUISlots {
                         // copy the PackFile to the data folder of the selected game.
                         OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                             old_mod_name = mod_name.to_owned();
-                            let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                            let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
                             if let Some(ref mymods_base_path) = mymods_base_path {
 
                                 // We get the "MyMod"s PackFile path.
@@ -638,7 +638,7 @@ impl AppUISlots {
                     // If we have a "MyMod" selected, and everything we need it's configured,
                     // copy the PackFile to the data folder of the selected game.
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                        let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                        let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
                         if let Some(ref mymods_base_path) = mymods_base_path {
                             if let Some(mut game_data_path) = get_game_selected_data_path() {
 
@@ -793,7 +793,7 @@ impl AppUISlots {
 
                     // Post-Shogun 2 games.
                     2 => {
-                        let mut path = SETTINGS.lock().unwrap().paths[&**GAME_SELECTED.read().unwrap()].clone().unwrap();
+                        let mut path = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()].clone().unwrap();
                         path.push("assembly_kit");
                         path.push("raw_data");
                         path.push("db");

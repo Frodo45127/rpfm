@@ -86,7 +86,7 @@ pub fn get_last_modified_time_from_file(file: &File) -> i64 {
 #[allow(dead_code)]
 pub fn get_game_selected_data_path() -> Option<PathBuf> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    if let Some(path) = SETTINGS.lock().unwrap().paths.get(game_selected) {
+    if let Some(path) = SETTINGS.read().unwrap().paths.get(game_selected) {
         if let Some(path) = path {
             Some(path.join(PathBuf::from("data")))
         }
@@ -94,12 +94,11 @@ pub fn get_game_selected_data_path() -> Option<PathBuf> {
     } else { None }
 }
 
-
 /// This function gets the `/assembly_kit` path of the game selected, if supported and it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_assembly_kit_path() -> Option<PathBuf> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    if let Some(path) = SETTINGS.lock().unwrap().paths.get(game_selected) {
+    if let Some(path) = SETTINGS.read().unwrap().paths.get(game_selected) {
         if let Some(path) = path {
             Some(path.join(PathBuf::from("assembly_kit")))
         }
@@ -111,7 +110,7 @@ pub fn get_game_selected_assembly_kit_path() -> Option<PathBuf> {
 #[allow(dead_code)]
 pub fn get_game_selected_db_pack_path() -> Option<Vec<PathBuf>> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let base_path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
+    let base_path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
     let db_packs = &SUPPORTED_GAMES.get(game_selected)?.db_packs;
     let mut db_paths = vec![];
     for pack in db_packs {
@@ -127,7 +126,7 @@ pub fn get_game_selected_db_pack_path() -> Option<Vec<PathBuf>> {
 #[allow(dead_code)]
 pub fn get_game_selected_loc_pack_path() -> Option<Vec<PathBuf>> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let base_path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
+    let base_path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
     let loc_packs = &SUPPORTED_GAMES.get(game_selected)?.loc_packs;
     let mut loc_paths = vec![];
     for pack in loc_packs {
@@ -160,7 +159,7 @@ pub fn get_game_selected_data_packfiles_paths() -> Option<Vec<PathBuf>> {
 #[allow(dead_code)]
 pub fn get_game_selected_content_packfiles_paths() -> Option<Vec<PathBuf>> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let mut path = SETTINGS.lock().unwrap().paths[game_selected].clone()?;
+    let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
     let id = SUPPORTED_GAMES.get(game_selected)?.steam_id?.to_string();
 
     path.pop();

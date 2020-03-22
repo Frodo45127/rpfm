@@ -392,7 +392,7 @@ impl PackFileContentsSlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                        let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
                         if let Some(ref mymods_base_path) = mymods_base_path {
 
                             // We get the assets folder of our mod (without .pack extension).
@@ -477,7 +477,7 @@ impl PackFileContentsSlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
 
                         // In theory, if we reach this line this should always exist. In theory I should be rich.
-                        let mymods_base_path = &SETTINGS.lock().unwrap().paths["mymods_base_path"];
+                        let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
                         if let Some(ref mymods_base_path) = mymods_base_path {
 
                             // We get the assets folder of our mod (without .pack extension).
@@ -653,7 +653,7 @@ impl PackFileContentsSlots {
 
                     // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                        if let Some(ref mymods_base_path) = SETTINGS.lock().unwrap().paths["mymods_base_path"] {
+                        if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
 
                             // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
                             let mut mod_name = mod_name.to_owned();

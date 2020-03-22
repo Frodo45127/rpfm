@@ -156,13 +156,13 @@ impl UI {
         }
 
         // If we want the window to start maximized...
-        if SETTINGS.lock().unwrap().settings_bool["start_maximized"] {
+        if SETTINGS.read().unwrap().settings_bool["start_maximized"] {
             app_ui.main_window.set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
         // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.
         if cfg!(target_os = "windows") {
-            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] {
+            if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
                 QApplication::set_style_q_string(&QString::from_std_str("fusion"));
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
@@ -174,7 +174,7 @@ impl UI {
 
         // On MacOS, we use the dark theme switch to control the StyleSheet and Palette.
         else if cfg!(target_os = "macos") {
-            if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] {
+            if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
                 QApplication::set_palette_1a(ref_from_atomic(&*DARK_PALETTE));
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
             } else {
@@ -183,10 +183,10 @@ impl UI {
         }
 
         // If we have it enabled in the prefs, check if there are updates.
-        if SETTINGS.lock().unwrap().settings_bool["check_updates_on_start"] { app_ui.check_updates(false) };
+        if SETTINGS.read().unwrap().settings_bool["check_updates_on_start"] { app_ui.check_updates(false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if SETTINGS.lock().unwrap().settings_bool["check_schema_updates_on_start"] { app_ui.check_schema_updates(false) };
+        if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { app_ui.check_schema_updates(false) };
 
         // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
         //if GENERATE_NEW_SCHEMA {

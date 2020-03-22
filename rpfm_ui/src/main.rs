@@ -195,7 +195,7 @@ lazy_static! {
 
     /// Variable to keep the locale data used by the UI loaded and available. If we fail to load the selected locale data, copy the english one instead.
     static ref LOCALE: Locale = {
-        match SETTINGS.lock().unwrap().settings_string.get("language") {
+        match SETTINGS.read().unwrap().settings_string.get("language") {
             Some(language) => Locale::initialize(language).unwrap_or_else(|_| LOCALE_FALLBACK.clone()),
             None => LOCALE_FALLBACK.clone(),
         }

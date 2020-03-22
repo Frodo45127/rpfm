@@ -1622,7 +1622,7 @@ impl PackFile {
 
             // Unless we specifically wanted to, ignore the same-name-as-vanilla files,
             // as those are probably intended to overwrite vanilla files, not to be optimized.
-            if database_path_list.contains(&path) && !SETTINGS.lock().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
+            if database_path_list.contains(&path) && !SETTINGS.read().unwrap().settings_bool["optimize_not_renamed_packedfiles"] { continue; }
 
             // If it's a DB table, try to optimize it.
             if path.len() == 3 && path[0] == "db" && !game_dbs.is_empty() {
@@ -2442,7 +2442,7 @@ impl PackFile {
     pub fn save(&mut self, new_path: Option<PathBuf>) -> Result<()> {
 
         // If any of the problematic masks in the header is set or is one of CA's, return an error.
-        if !self.is_editable(*SETTINGS.lock().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) { return Err(ErrorKind::PackFileIsNonEditable.into()) }
+        if !self.is_editable(*SETTINGS.read().unwrap().settings_bool.get("allow_editing_of_ca_packfiles").unwrap()) { return Err(ErrorKind::PackFileIsNonEditable.into()) }
 
         // If we receive a new path, update it. Otherwise, ensure the file actually exists on disk.
         if let Some(path) = new_path { self.set_file_path(&path)?; }

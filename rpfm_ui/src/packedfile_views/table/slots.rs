@@ -148,7 +148,7 @@ impl PackedFileTableViewSlots {
                     {
                         // We block the saving for painting, so this doesn't get rettriggered again.
                         //let mut blocker = QSignalBlocker::from_q_object(packed_file_view.table_model);
-                        let color = if SETTINGS.lock().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
+                        let color = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
                         //item.set_background(&QBrush::from_global_color(color));
                         //blocker.unblock();
                     }

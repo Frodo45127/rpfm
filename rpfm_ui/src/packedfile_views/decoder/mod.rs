@@ -620,7 +620,7 @@ impl PackedFileDecoderView {
         // Header Marking section.
         //---------------------------------------------//
 
-        let use_dark_theme = SETTINGS.lock().unwrap().settings_bool["use_dark_theme"];
+        let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
         let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
         let mut header_format = QTextCharFormat::new();
@@ -871,7 +871,7 @@ impl PackedFileDecoderViewRaw {
 
         // Prepare to paint the changes in the hex data views.
         let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
-        let use_dark_theme = SETTINGS.lock().unwrap().settings_bool["use_dark_theme"];
+        let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
         let mut index_format = QTextCharFormat::new();
         let mut decoded_format = QTextCharFormat::new();
         let mut neutral_format = QTextCharFormat::new();

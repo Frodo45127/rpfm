@@ -212,7 +212,7 @@ impl PackedFileTableView {
         table_view_frozen.hide();
 
         // Make the last column fill all the available space, if the setting says so.
-        if SETTINGS.lock().unwrap().settings_bool["extend_last_column_on_tables"] {
+        if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
             table_view.horizontal_header().set_stretch_last_section(true);
         }
 

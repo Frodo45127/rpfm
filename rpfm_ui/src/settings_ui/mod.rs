@@ -144,7 +144,7 @@ impl SettingsUI {
 
         connections::set_connections(&settings_ui, &slots);
         tips::set_tips(&mut settings_ui);
-        settings_ui.load(&SETTINGS.lock().unwrap());
+        settings_ui.load(&SETTINGS.read().unwrap());
 
         if settings_ui.dialog.exec() == 1 { Some(settings_ui.save()) }
         else { None }
