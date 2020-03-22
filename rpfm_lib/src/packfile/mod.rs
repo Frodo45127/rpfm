@@ -651,6 +651,7 @@ impl PackFile {
                 Ok(file_paths) => {
                     for file_path in &file_paths {
                         let new_path_filtered = file_path.to_string_lossy()
+                            .replace('\\', "/") // Fix for windows paths.
                             .split('/')
                             .collect::<Vec<&str>>()
                             .drain(path.components().count()..)
