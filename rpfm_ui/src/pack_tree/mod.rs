@@ -1567,7 +1567,7 @@ pub unsafe fn check_if_path_is_closed(app_ui: &AppUI, paths: &[Vec<String>]) -> 
 
     // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
     let open_packedfiles = UI_STATE.get_open_packedfiles();
-    if paths.iter().all(|x| !open_packedfiles.keys().any(|y| y == x)) { true }
+    if paths.iter().all(|x| !open_packedfiles.iter().filter(|(_, z)| z.get_mut_widget().is_visible()).any(|(y, _)| y == x)) { true }
     else {
         let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
             q_message_box::Icon::Information,

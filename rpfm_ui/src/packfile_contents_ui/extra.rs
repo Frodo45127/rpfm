@@ -33,6 +33,8 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use rpfm_lib::packfile::PathType;
+
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -51,14 +53,27 @@ use crate::utils::{create_grid_layout, show_dialog};
 impl PackFileContentsUI {
 
     /// This function is a helper to add PackedFiles to the UI, keeping the UI updated.
-    pub unsafe fn add_packedfiles(&mut self, app_ui: &mut AppUI, global_search_ui: &mut GlobalSearchUI, paths: &[PathBuf], paths_packedfile: &[Vec<String>]) {
+    pub unsafe fn add_packedfiles(
+        &mut self,
+        app_ui: &mut AppUI,
+        global_search_ui: &mut GlobalSearchUI,
+        paths: &[PathBuf],
+        paths_packedfile: &[Vec<String>]
+    ) {
         if check_if_path_is_closed(&app_ui, paths_packedfile) {
             app_ui.main_window.set_enabled(false);
+
 
             CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec())));
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::Success => {
+
+                    // Clear the preview cache before adding stuff!!!
+                    paths_packedfile.iter().for_each(|path| {
+                        app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                    });
+
                     let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
@@ -84,6 +99,14 @@ impl PackFileContentsUI {
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::VecPathType(paths_packedfile) => {
+
+                    // Clear the preview cache before adding stuff!!!
+                    paths_packedfile.iter().for_each(|path| {
+                        if let PathType::File(path) = path {
+                            app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                        }
+                    });
+
                     let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
 
