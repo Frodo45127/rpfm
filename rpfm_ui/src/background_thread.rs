@@ -29,7 +29,7 @@ use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
-use rpfm_lib::packedfile::text::Text;
+use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags};
 use rpfm_lib::schema::{*, versions::*};
 use rpfm_lib::SCHEMA;
@@ -423,20 +423,35 @@ pub fn background_loop() {
             // In case we want to decode a Text PackedFile...
             Command::DecodePackedFileText(path) => {
 
-                // Find the PackedFile we want and send back the response.
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
-                        match packed_file.decode_return_ref() {
-                            Ok(text) => {
-                                if let DecodedPackedFile::Text(text) = text {
-                                    CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file))));
-                                }
-                                // TODO: Put an error here.
-                            }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                // If it's the notes file, we just return the notes.
+                if path == &["notes.rpfm_reserved".to_owned()] {
+                    let mut note = Text::new();
+                    note.set_text_type(TextType::Markdown);
+                    match pack_file_decoded.get_notes() {
+                        Some(notes) => {
+                            note.set_contents(notes);
+                            CENTRAL_COMMAND.send_message_rust(Response::Text(note));
                         }
+                        None => CENTRAL_COMMAND.send_message_rust(Response::Text(note)),
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                }
+                else {
+
+                    // Find the PackedFile we want and send back the response.
+                    match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                        Some(ref mut packed_file) => {
+                            match packed_file.decode_return_ref() {
+                                Ok(text) => {
+                                    if let DecodedPackedFile::Text(text) = text {
+                                        CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file))));
+                                    }
+                                    // TODO: Put an error here.
+                                }
+                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            }
+                        }
+                        None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
+                    }
                 }
             }
 
@@ -483,7 +498,13 @@ pub fn background_loop() {
 
             // When we want to save a PackedFile from the view....
             Command::SavePackedFileFromView(path, decoded_packed_file) => {
-                if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                if path == &["notes.rpfm_reserved".to_owned()] {
+                    if let DecodedPackedFile::Text(data) = decoded_packed_file {
+                        let note = if data.get_ref_contents().is_empty() { None } else { Some(data.get_ref_contents().to_owned()) };
+                        pack_file_decoded.set_notes(&note);
+                    }
+                }
+                else if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     *packed_file.get_ref_mut_decoded() = decoded_packed_file;
                 }
                 CENTRAL_COMMAND.send_message_rust(Response::Success);
@@ -698,6 +719,25 @@ pub fn background_loop() {
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
+
+            // In case we want to open a PackFile's location in the file manager...
+            Command::OpenContainingFolder => {
+
+                // If the path exists, try to open it. If not, throw an error.
+                if pack_file_decoded.get_file_path().exists() {
+                    let mut temp_path = pack_file_decoded.get_file_path().to_path_buf();
+                    temp_path.pop();
+                    if open::that(&temp_path).is_err() {
+                        CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackFileIsNotAFile.into()));
+                    }
+                    else {
+                        CENTRAL_COMMAND.send_message_rust(Response::Success);
+                    }
+                }
+                else {
+                    CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackFileIsNotAFile.into()));
+                }
+            },
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

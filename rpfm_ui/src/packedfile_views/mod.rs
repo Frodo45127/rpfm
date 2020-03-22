@@ -208,7 +208,9 @@ impl PackedFileView {
             PackedFileType::Text(_) => {
                 if let View::Text(view) = self.get_view() {
                     let mut text = Text::default();
-                    text.set_contents(&get_text_safe(&mut view.get_mut_editor()).to_std_string());
+                    let mut widget = view.get_mut_editor();
+                    let string = get_text_safe(&mut widget).to_std_string();
+                    text.set_contents(&string);
                     DecodedPackedFile::Text(text)
                 } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) }
             },

@@ -269,6 +269,8 @@ pub enum Command {
     /// This command is used to import a TSV as a table. Requires the internal and destination paths for the PackedFile.
     ImportTSV((Vec<String>, PathBuf)),
 
+    /// This command is used to open in the defaul file manager the folder of the currently open PackFile.
+    OpenContainingFolder
     /*
     OpenPackFileExtra,
     SavePackFile,
@@ -419,6 +421,9 @@ pub enum Response {
 
     /// Response to return `(RigidModel, PackedFileInfo)`.
     RigidModelPackedFileInfo((RigidModel, PackedFileInfo)),
+
+    /// Response to return `Text`.
+    Text(Text),
 
     /// Response to return `Unknown`.
     Unknown,

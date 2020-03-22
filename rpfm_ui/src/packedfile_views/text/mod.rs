@@ -22,6 +22,7 @@ use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::Result;
+use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
@@ -43,6 +44,7 @@ const HTML: &str = "HTML";
 const LUA: &str = "Lua";
 const XML: &str = "XML";
 const PLAIN: &str = "Normal";
+const MARKDOWN: &str = "Markdown";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -75,13 +77,16 @@ impl PackedFileTextView {
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
-    ) -> Result<(TheOneSlot, PackedFileInfo)> {
+    ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
 
         // Get the decoded Text.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileText(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (text, packed_file_info) = match response {
-            Response::TextPackedFileInfo((text, packed_file_info)) => (text, packed_file_info),
+            Response::TextPackedFileInfo((text, packed_file_info)) => (text, Some(packed_file_info)),
+
+            // If only the text comes in, it's not a PackedFile.
+            Response::Text(text) => (text, None),
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -92,6 +97,7 @@ impl PackedFileTextView {
             TextType::Lua => QString::from_std_str(LUA),
             TextType::Xml => QString::from_std_str(XML),
             TextType::Plain => QString::from_std_str(PLAIN),
+            TextType::Markdown => QString::from_std_str(MARKDOWN),
         };
 
         let mut editor = new_text_editor_safe(&mut packed_file_view.get_mut_widget());
@@ -104,6 +110,7 @@ impl PackedFileTextView {
         let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *pack_file_contents_ui, *global_search_ui, &packed_file_path);
         let packed_file_text_view = Self { editor: atomic_from_mut_ptr(packed_file_text_view_raw.editor)};
 
+        packed_file_view.packed_file_type = PackedFileType::Text(text.get_text_type());
         packed_file_view.view = View::Text(packed_file_text_view);
 
         // Return success.

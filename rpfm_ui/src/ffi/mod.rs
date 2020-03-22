@@ -102,9 +102,9 @@ pub fn new_text_editor_safe(parent: &mut QWidget) -> MutPtr<QWidget> {
 }
 
 /// This function allow us to get the text from the provided KTextEditor.
-extern "C" { fn get_text(document: *mut QWidget) -> QString; }
-pub fn get_text_safe(document: &mut QWidget) -> QString {
-    unsafe { get_text(document) }
+extern "C" { fn get_text(document: *mut QWidget) -> *mut QString; }
+pub fn get_text_safe(document: &mut QWidget) -> MutPtr<QString> {
+    unsafe { MutPtr::from_raw(get_text(document)) }
 }
 
 /// This function allow us to set the text of  the provided KTextEditor.

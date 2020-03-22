@@ -118,6 +118,7 @@ impl IconType {
                         TextType::Lua => &TREEVIEW_ICONS.text_generic,
                         TextType::Cpp => &TREEVIEW_ICONS.text_generic,
                         TextType::Plain => &TREEVIEW_ICONS.text_txt,
+                        TextType::Markdown => &TREEVIEW_ICONS.text_txt,
                     }
                 }
 
@@ -171,6 +172,7 @@ impl IconType {
                         TextType::Lua => &TREEVIEW_ICONS.text_generic,
                         TextType::Cpp => &TREEVIEW_ICONS.text_generic,
                         TextType::Plain => &TREEVIEW_ICONS.text_txt,
+                        TextType::Markdown => &TREEVIEW_ICONS.text_txt,
                     }
                 }
 

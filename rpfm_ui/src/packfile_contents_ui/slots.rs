@@ -79,6 +79,9 @@ pub struct PackFileContentsSlots {
 
     pub contextual_menu_open_decoder: SlotOfBool<'static>,
     pub contextual_menu_open_dependency_manager: SlotOfBool<'static>,
+    pub contextual_menu_open_containing_folder: SlotOfBool<'static>,
+    pub contextual_menu_open_in_external_program: SlotOfBool<'static>,
+    pub contextual_menu_open_notes: SlotOfBool<'static>,
 
     pub contextual_menu_tables_check_integrity: SlotOfBool<'static>,
     pub contextual_menu_tables_merge_tables: SlotOfBool<'static>,
@@ -833,6 +836,27 @@ impl PackFileContentsSlots {
             app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &slot_holder);
         }));
 
+        // What happens when we trigger the "Open Containing Folder" Action.
+        let contextual_menu_open_containing_folder = SlotOfBool::new(move |_| {
+            CENTRAL_COMMAND.send_message_qt(Command::OpenContainingFolder);
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            match response {
+                Response::Success => {}
+                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        });
+
+        // What happens when we trigger the "Open In External Program" Action.
+        let contextual_menu_open_in_external_program = SlotOfBool::new(clone!(slot_holder => move |_| {
+            app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+        }));
+
+        // What happens when we trigger the "Open Notes" Action.
+        let contextual_menu_open_notes = SlotOfBool::new(clone!(slot_holder => move |_| {
+            app_ui.open_notes(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+        }));
+
         // What happens when we trigger the "Check Tables" action in the Contextual Menu.
         let contextual_menu_tables_check_integrity = SlotOfBool::new(move |_| {
 
@@ -1109,6 +1133,9 @@ impl PackFileContentsSlots {
 
             contextual_menu_open_decoder,
             contextual_menu_open_dependency_manager,
+            contextual_menu_open_containing_folder,
+            contextual_menu_open_in_external_program,
+            contextual_menu_open_notes,
 
             contextual_menu_tables_check_integrity,
             contextual_menu_tables_merge_tables,

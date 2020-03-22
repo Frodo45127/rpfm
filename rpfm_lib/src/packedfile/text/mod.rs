@@ -92,6 +92,7 @@ pub enum TextType {
     Xml,
     Lua,
     Cpp,
+    Markdown,
     Plain,
 }
 

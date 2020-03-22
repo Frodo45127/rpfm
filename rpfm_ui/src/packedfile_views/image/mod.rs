@@ -28,6 +28,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use rpfm_error::Result;
+use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::CENTRAL_COMMAND;
@@ -87,6 +88,7 @@ impl PackedFileImageView {
         label.set_pixmap(&scaled_image);
         layout.add_widget_5a(label.into_ptr(), 0, 0, 1, 1);
 
+        packed_file_view.packed_file_type = PackedFileType::Image;
         packed_file_view.view = View::Image(Self {});
 
         // Return success.

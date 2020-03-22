@@ -50,6 +50,9 @@ pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
 
     unsafe { ui.context_menu_open_decoder.triggered().connect(&slots.contextual_menu_open_decoder); }
     unsafe { ui.context_menu_open_dependency_manager.triggered().connect(&slots.contextual_menu_open_dependency_manager); }
+    unsafe { ui.context_menu_open_containing_folder.triggered().connect(&slots.contextual_menu_open_containing_folder); }
+    unsafe { ui.context_menu_open_with_external_program.triggered().connect(&slots.contextual_menu_open_in_external_program); }
+    unsafe { ui.context_menu_open_notes.triggered().connect(&slots.contextual_menu_open_notes); }
 
     unsafe { ui.context_menu_check_tables.triggered().connect(&slots.contextual_menu_tables_check_integrity); }
     unsafe { ui.context_menu_merge_tables.triggered().connect(&slots.contextual_menu_tables_merge_tables); }
