@@ -746,27 +746,69 @@ pub fn background_loop() {
             Command::OpenPackedFileInExternalProgram(path) => {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     Some(packed_file) => {
-                        match packed_file.get_raw_data_and_clean_cache() {
-                            Ok(data) => {
-                                let extension = path.last().unwrap().rsplitn(2, '.').next().unwrap();
-                                let name = format!("{}.{}", Uuid::new_v4(), extension);
-                                let mut temporal_file_path = temp_dir();
-                                temporal_file_path.push(name);
+                        let extension = path.last().unwrap().rsplitn(2, '.').next().unwrap();
+                        let name = format!("{}.{}", Uuid::new_v4(), extension);
+                        let mut temporal_file_path = temp_dir();
+                        temporal_file_path.push(name);
+                        match packed_file.get_packed_file_type_by_path() {
 
-                                match File::create(&temporal_file_path) {
-                                    Ok(mut file) => {
-                                        if file.write_all(&data).is_ok() {
-                                            that_in_background(&temporal_file_path);
-                                            CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                            // Tables we extract them as TSV.
+                            PackedFileType::DB => {
+                                match packed_file.decode_return_clean_cache() {
+                                    Ok(data) => {
+                                        if let DecodedPackedFile::DB(data) = data {
+                                            temporal_file_path.set_extension("tsv");
+                                            match data.export_tsv(&temporal_file_path, &path[1]) {
+                                                Ok(_) => {
+                                                    that_in_background(&temporal_file_path);
+                                                    CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                                                }
+                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                            }
                                         }
-                                        else {
-                                            CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1]))));
+                                    },
+                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                }
+                            },
+
+                            PackedFileType::Loc => {
+                                match packed_file.decode_return_clean_cache() {
+                                    Ok(data) => {
+                                        if let DecodedPackedFile::Loc(data) = data {
+                                            temporal_file_path.set_extension("tsv");
+                                            match data.export_tsv(&temporal_file_path, &TSV_NAME_LOC) {
+                                                Ok(_) => {
+                                                    that_in_background(&temporal_file_path);
+                                                    CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                                                }
+                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                            }
+                                        }
+                                    },
+                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                }
+                            },
+
+                            // The rest of the files, we extract them as we have them.
+                            _ => {
+                                match packed_file.get_raw_data_and_clean_cache() {
+                                    Ok(data) => {
+                                        match File::create(&temporal_file_path) {
+                                            Ok(mut file) => {
+                                                if file.write_all(&data).is_ok() {
+                                                    that_in_background(&temporal_file_path);
+                                                    CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                                                }
+                                                else {
+                                                    CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1]))));
+                                                }
+                                            }
+                                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
                                         }
                                     }
-                                    Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
+                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                                 }
                             }
-                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileDataCouldNotBeLoaded.into())),
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
@@ -777,18 +819,59 @@ pub fn background_loop() {
             Command::SavePackedFileFromExternalView((path, external_path)) => {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     Some(packed_file) => {
-                        match File::open(external_path) {
-                            Ok(mut file) => {
-                                let mut data = vec![];
-                                match file.read_to_end(&mut data) {
-                                    Ok(_) => {
-                                        packed_file.set_raw_data(&data);
-                                        CENTRAL_COMMAND.send_message_rust(Response::Success);
+                        match packed_file.get_packed_file_type_by_path() {
+
+                            // Tables we extract them as TSV.
+                            PackedFileType::DB | PackedFileType::Loc => {
+                                match packed_file.decode_return_ref_mut() {
+                                    Ok(data) => {
+                                        if let DecodedPackedFile::DB(ref mut data) = data {
+                                            match DB::import_tsv(&data.get_definition(), &external_path, &path[1]) {
+                                                Ok(new_data) => {
+                                                    *data = new_data;
+                                                    match packed_file.encode_and_clean_cache() {
+                                                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                                                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                    }
+                                                }
+                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                            }
+                                        }
+                                        else if let DecodedPackedFile::Loc(ref mut data) = data {
+                                            match Loc::import_tsv(&data.get_definition(), &external_path, &TSV_NAME_LOC) {
+                                                Ok(new_data) => {
+                                                    *data = new_data;
+                                                    match packed_file.encode_and_clean_cache() {
+                                                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                                                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                    }
+                                                }
+                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                            }
+                                        }
+                                        else {
+                                            unimplemented!()
+                                        }
+                                    },
+                                    Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                }
+                            },
+
+                            _ => {
+                                match File::open(external_path) {
+                                    Ok(mut file) => {
+                                        let mut data = vec![];
+                                        match file.read_to_end(&mut data) {
+                                            Ok(_) => {
+                                                packed_file.set_raw_data(&data);
+                                                CENTRAL_COMMAND.send_message_rust(Response::Success);
+                                            }
+                                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::IOGeneric.into())),
+                                        }
                                     }
                                     Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::IOGeneric.into())),
                                 }
                             }
-                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::IOGeneric.into())),
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),

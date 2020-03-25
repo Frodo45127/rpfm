@@ -296,6 +296,17 @@ impl PackedFile {
         Ok(&mut self.decoded)
     }
 
+    /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, returning the result without holding them
+    /// in the cache, and clearing any existing cache.
+    ///
+    /// This variant doesn't lock the Schema. This means is faster if you're decoding `PackedFiles` in batches.
+    pub fn decode_return_clean_cache(&mut self) -> Result<DecodedPackedFile> {
+        if self.decoded != DecodedPackedFile::Unknown {
+            self.encode_and_clean_cache()?;
+        }
+        DecodedPackedFile::decode(&self.raw)
+    }
+
     /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
     ///
     /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
@@ -377,6 +388,11 @@ impl PackedFile {
             return Err(ErrorKind::ExtractError(self.get_path().to_vec()).into());
         }
         Ok(())
+    }
+
+    /// This function returns the type of the Provided PackedFile, according to it's path.
+    pub fn get_packed_file_type_by_path(&self) -> PackedFileType {
+        PackedFileType::get_packed_file_type(self.get_path())
     }
 }
 
