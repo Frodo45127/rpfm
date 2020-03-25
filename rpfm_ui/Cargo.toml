@@ -43,6 +43,9 @@ qt_widgets = "^0.4"
 # Support for formatting math operations.
 meval = "^0.2"
 
+# UUID Generation support.
+uuid = { version = "^0.8", features = ["v4"] }
+
 # Translation support.
 fluent = "^0.10"
 fluent-bundle = "^0.10"

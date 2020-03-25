@@ -28,7 +28,7 @@ use crate::communications::*;
 use crate::ffi::{new_text_editor_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::utils::atomic_from_mut_ptr;
 
 use self::slots::PackedFileRigidModelViewSlots;
@@ -83,7 +83,7 @@ impl PackedFileRigidModelView {
         let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(packed_file_rigid_model_view_raw, *global_search_ui, *pack_file_contents_ui, &packed_file_path);
         let packed_file_rigid_model_view = Self { editor: atomic_from_mut_ptr(packed_file_rigid_model_view_raw.editor) };
 
-        packed_file_view.view = View::RigidModel(packed_file_rigid_model_view);
+        packed_file_view.view = ViewType::Internal(View::RigidModel(packed_file_rigid_model_view));
 
         // Return success.
         Ok((TheOneSlot::RigidModel(packed_file_rigid_model_view_slots), packed_file_info))

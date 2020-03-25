@@ -70,7 +70,7 @@ use crate::ffi::new_spinbox_item_delegate_safe;
 use crate::FONT_MONOSPACE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::ref_from_atomic;
@@ -540,7 +540,7 @@ impl PackedFileDecoderView {
         packed_file_decoder_view_raw.update_view(&fields, true, &mut packed_file_decoder_mutable_data.index.lock().unwrap())?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
-        packed_file_view.view = View::Decoder(packed_file_decoder_view);
+        packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
 
         // Return success.
         Ok(TheOneSlot::Decoder(packed_file_decoder_view_slots))

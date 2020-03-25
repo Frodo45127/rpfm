@@ -41,7 +41,7 @@ use crate::communications::*;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::utils::atomic_from_mut_ptr;
@@ -175,7 +175,7 @@ impl PackFileExtraView {
 
         connections::set_connections(&view, &slots);
         shortcuts::set_shortcuts(&mut view);
-        pack_file_view.view = View::PackFile(view);
+        pack_file_view.view = ViewType::Internal(View::PackFile(view));
 
         // Return success.
         Ok(TheOneSlot::PackFile(slots))

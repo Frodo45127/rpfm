@@ -438,3 +438,7 @@ convert_to_camv = Convert to CAMV
 convert_to_ivf = Convert to IVF
 
 notes = Notes
+
+external_current_path = Current path for edition:
+stop_watching = Stop watching the file
+open_folder = Open folder in file manager

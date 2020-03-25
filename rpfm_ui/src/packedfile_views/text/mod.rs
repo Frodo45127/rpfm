@@ -31,7 +31,7 @@ use crate::communications::*;
 use crate::ffi::{new_text_editor_safe, set_text_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::QString;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::mut_ptr_from_atomic;
@@ -111,7 +111,7 @@ impl PackedFileTextView {
         let packed_file_text_view = Self { editor: atomic_from_mut_ptr(packed_file_text_view_raw.editor)};
 
         packed_file_view.packed_file_type = PackedFileType::Text(text.get_text_type());
-        packed_file_view.view = View::Text(packed_file_text_view);
+        packed_file_view.view = ViewType::Internal(View::Text(packed_file_text_view));
 
         // Return success.
         Ok((TheOneSlot::Text(packed_file_text_view_slots), packed_file_info))

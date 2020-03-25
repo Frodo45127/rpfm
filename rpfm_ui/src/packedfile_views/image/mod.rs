@@ -33,7 +33,7 @@ use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use self::slots::PackedFileImageViewSlots;
 
 pub mod slots;
@@ -89,7 +89,7 @@ impl PackedFileImageView {
         layout.add_widget_5a(label.into_ptr(), 0, 0, 1, 1);
 
         packed_file_view.packed_file_type = PackedFileType::Image;
-        packed_file_view.view = View::Image(Self {});
+        packed_file_view.view = ViewType::Internal(View::Image(Self {}));
 
         // Return success.
         Ok((TheOneSlot::Image(PackedFileImageViewSlots {}), packed_file_info))

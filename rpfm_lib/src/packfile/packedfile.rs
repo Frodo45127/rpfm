@@ -301,7 +301,7 @@ impl PackedFile {
     /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
     pub fn encode(&mut self) -> Result<()> {
         match self.decoded.encode() {
-            Some(data) => self.raw.set_data(data?),
+            Some(data) => self.raw.set_data(&data?),
             None => self.raw.load_data()?,
         }
         Ok(())
@@ -313,7 +313,7 @@ impl PackedFile {
     /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
     pub fn encode_and_clean_cache(&mut self) -> Result<()> {
         match self.decoded.encode() {
-            Some(data) => self.raw.set_data(data?),
+            Some(data) => self.raw.set_data(&data?),
             None => self.raw.load_data()?,
         }
         self.decoded = DecodedPackedFile::Unknown;
@@ -326,7 +326,7 @@ impl PackedFile {
     /// If the PackedFile is not decoded or has no saving support (encode returns None), it does nothing.
     pub fn encode_and_return(&mut self) -> Result<&RawPackedFile> {
         match self.decoded.encode() {
-            Some(data) => self.raw.set_data(data?),
+            Some(data) => self.raw.set_data(&data?),
             None => self.raw.load_data()?,
         }
         Ok(&self.raw)
@@ -340,6 +340,19 @@ impl PackedFile {
     /// This function returns the data of a PackedFile.
     pub fn get_raw_data(&self) -> Result<Vec<u8>> {
         self.raw.get_data()
+    }
+
+    /// This function returns the data of a PackedFile, making sure we clear the cache before it.
+    pub fn get_raw_data_and_clean_cache(&mut self) -> Result<Vec<u8>> {
+        if self.decoded != DecodedPackedFile::Unknown {
+            self.encode_and_clean_cache()?;
+        }
+        self.raw.get_data()
+    }
+
+    /// This function replaces the raw data of a PackedFile with the provided one.
+    pub fn set_raw_data(&mut self, data: &[u8]) {
+        self.raw.set_data(data);
     }
 
     /// This function extracts the provided PackedFile into the provided path.
@@ -523,8 +536,8 @@ impl RawPackedFile {
     }
 
     /// This function replaces the data on the `RawPackedFile` with the provided one.
-    pub fn set_data(&mut self, data: Vec<u8>) {
-        self.data = PackedFileData::OnMemory(data, false, None);
+    pub fn set_data(&mut self, data: &[u8]) {
+        self.data = PackedFileData::OnMemory(data.to_vec(), false, None);
     }
 
     /// This function returns the size of the data of the provided `RawPackedFile`.

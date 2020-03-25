@@ -14,11 +14,14 @@ Module with the background loop.
 Basically, this does the heavy load of the program.
 !*/
 
+use open::that_in_background;
 use rayon::prelude::*;
+use uuid::Uuid;
 
 use std::collections::BTreeMap;
+use std::env::temp_dir;
 use std::fs::File;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
 
 use rpfm_error::{Error, ErrorKind};
@@ -738,6 +741,59 @@ pub fn background_loop() {
                     CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackFileIsNotAFile.into()));
                 }
             },
+
+            // When we want to open a PackedFile in a external program...
+            Command::OpenPackedFileInExternalProgram(path) => {
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(packed_file) => {
+                        match packed_file.get_raw_data_and_clean_cache() {
+                            Ok(data) => {
+                                let extension = path.last().unwrap().rsplitn(2, '.').next().unwrap();
+                                let name = format!("{}.{}", Uuid::new_v4(), extension);
+                                let mut temporal_file_path = temp_dir();
+                                temporal_file_path.push(name);
+
+                                match File::create(&temporal_file_path) {
+                                    Ok(mut file) => {
+                                        if file.write_all(&data).is_ok() {
+                                            that_in_background(&temporal_file_path);
+                                            CENTRAL_COMMAND.send_message_rust(Response::PathBuf(temporal_file_path));
+                                        }
+                                        else {
+                                            CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1]))));
+                                        }
+                                    }
+                                    Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::IOGenericWrite(vec![temporal_file_path.display().to_string();1])))),
+                                }
+                            }
+                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileDataCouldNotBeLoaded.into())),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                }
+            }
+
+            // When we want to save a PackedFile from the external view....
+            Command::SavePackedFileFromExternalView((path, external_path)) => {
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(packed_file) => {
+                        match File::open(external_path) {
+                            Ok(mut file) => {
+                                let mut data = vec![];
+                                match file.read_to_end(&mut data) {
+                                    Ok(_) => {
+                                        packed_file.set_raw_data(&data);
+                                        CENTRAL_COMMAND.send_message_rust(Response::Success);
+                                    }
+                                    Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::IOGeneric.into())),
+                                }
+                            }
+                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::IOGeneric.into())),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                }
+            }
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

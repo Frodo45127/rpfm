@@ -270,7 +270,13 @@ pub enum Command {
     ImportTSV((Vec<String>, PathBuf)),
 
     /// This command is used to open in the defaul file manager the folder of the currently open PackFile.
-    OpenContainingFolder
+    OpenContainingFolder,
+
+    /// This command is used to open a PackedFile on a external program. Requires the internal path of the PackedFile.
+    OpenPackedFileInExternalProgram(Vec<String>),
+
+    /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
+    SavePackedFileFromExternalView((Vec<String>, PathBuf)),
     /*
     OpenPackFileExtra,
     SavePackFile,

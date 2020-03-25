@@ -111,12 +111,12 @@ impl PackFileContentsSlots {
 
         // Slot to open the selected PackedFile as a preview.
         let open_packedfile_preview = Slot::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, true);
+            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, true, false);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
         let open_packedfile_full = Slot::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, false);
+            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, false, false);
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -848,8 +848,10 @@ impl PackFileContentsSlots {
         });
 
         // What happens when we trigger the "Open In External Program" Action.
-        let contextual_menu_open_in_external_program = SlotOfBool::new(clone!(slot_holder => move |_| {
-            app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+        let contextual_menu_open_in_external_program = SlotOfBool::new(clone!(
+            mut pack_file_contents_ui,
+            mut slot_holder => move |_| {
+            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, false, true);
         }));
 
         // What happens when we trigger the "Open Notes" Action.

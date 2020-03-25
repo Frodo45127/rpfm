@@ -56,7 +56,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::{add_to_q_list_safe, new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{TheOneSlot, View};
+use crate::packedfile_views::{TheOneSlot, View, ViewType};
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::QString;
 use crate::utils::{create_grid_layout, show_dialog};
@@ -596,7 +596,7 @@ impl GlobalSearchUI {
                         match packed_file_view.get_view() {
 
                             // In case of tables, we have to get the logical row/column of the match and select it.
-                            View::Table(view) => {
+                            ViewType::Internal(view) => if let View::Table(view) = view {
                                 let mut table_view = view.get_mut_ptr_table_view_primary();
                                 let table_filter: MutPtr<QSortFilterProxyModel> = table_view.model().static_downcast_mut();
                                 let table_model: MutPtr<QStandardItemModel> = table_filter.source_model().static_downcast_mut();

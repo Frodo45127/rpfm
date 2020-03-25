@@ -57,7 +57,7 @@ use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
 
 use self::slots::PackedFileTableViewSlots;
@@ -399,7 +399,7 @@ impl PackedFileTableView {
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_table_view);
         tips::set_tips(&mut packed_file_table_view);
-        packed_file_view.view = View::Table(packed_file_table_view);
+        packed_file_view.view = ViewType::Internal(View::Table(packed_file_table_view));
         packed_file_view.packed_file_type = packed_file_type;
 
         // Return success.

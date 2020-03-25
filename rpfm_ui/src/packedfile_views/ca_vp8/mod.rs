@@ -36,7 +36,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::mut_ptr_from_atomic;
@@ -153,7 +153,7 @@ impl PackedFileCaVp8View {
         };
 
         connections::set_connections(&packed_file_ca_vp8_view, &packed_file_ca_vp8_view_slots);
-        packed_file_view.view = View::CaVp8(packed_file_ca_vp8_view);
+        packed_file_view.view = ViewType::Internal(View::CaVp8(packed_file_ca_vp8_view));
         packed_file_view.packed_file_type = PackedFileType::CaVp8;
 
         Ok((TheOneSlot::CaVp8(packed_file_ca_vp8_view_slots), packed_file_info))
