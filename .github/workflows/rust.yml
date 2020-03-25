@@ -12,11 +12,9 @@ jobs:
         steps:
         - uses: actions/checkout@v2
 
-        - name: Build rpfm-error.
-          run: cargo build --verbose --lib rpfm_error
         - name: Build rpfm-lib.
-          run: cargo build --verbose --lib rpfm_lib
+          run: cargo build --verbose --lib
         - name: Build rpfm-cli.
           run: cargo build --verbose --bin rpfm_cli
-        - name: Run tests
+        - name: Run tests.
           run: cargo test --verbose --lib
