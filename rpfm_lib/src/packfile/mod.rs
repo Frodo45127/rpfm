@@ -650,11 +650,14 @@ impl PackFile {
             match get_files_from_subdir(path) {
                 Ok(file_paths) => {
                     for file_path in &file_paths {
+
+                        // The stupid C: letter in paths causes problems when we're on windows.
+                        let drain_fix = if cfg!(target_os = "windows") { 1 } else { 0 };
                         let new_path_filtered = file_path.to_string_lossy()
                             .replace('\\', "/") // Fix for windows paths.
                             .split('/')
                             .collect::<Vec<&str>>()
-                            .drain(path.components().count()..)
+                            .drain(path.components().count() - drain_fix..)
                             .map(|x| x.to_owned())
                             .collect::<Vec<String>>();
                         let mut new_path = base_path.to_vec();
