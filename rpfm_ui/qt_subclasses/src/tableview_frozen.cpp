@@ -96,9 +96,6 @@ void QTableViewFrozen::setDataModel(QAbstractItemModel * model) {
 // QTableViewFrozen initializer. To prepare our frozenTableView to look and behave properly.
 void QTableViewFrozen::init() {
 
-    tableViewFrozen->setSelectionMode(QAbstractItemView::SingleSelection);
-    setSelectionMode(QAbstractItemView::SingleSelection);
-
     // Configure the QTableViews to "fit" above the normal QTableView, using his same model.
     tableViewFrozen->setModel(model());
     tableViewFrozen->setFocusPolicy(Qt::NoFocus);
