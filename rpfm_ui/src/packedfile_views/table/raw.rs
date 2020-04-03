@@ -1413,7 +1413,7 @@ impl PackedFileTableViewRaw {
         }
 
         for index in indexes_sorted.iter().rev() {
-            row_numbers.push(index.row() + (indexes_sorted.len() - row_numbers.len()) as i32);
+            row_numbers.push(index.row() + (indexes_sorted.len() - row_numbers.len() - 1) as i32);
 
             // If we want to clone, we copy the currently selected row. If not, we just create a new one.
             let row = if clone {
