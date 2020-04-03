@@ -12,6 +12,7 @@
 Module with all the code for managing the view for Table PackedFiles.
 !*/
 
+use qt_widgets::QCheckBox;
 use qt_widgets::QAction;
 use qt_widgets::QComboBox;
 use qt_widgets::QGridLayout;
@@ -19,6 +20,9 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
 use qt_widgets::QTableView;
 use qt_widgets::QMenu;
+use qt_widgets::QWidget;
+use qt_widgets::QScrollArea;
+use qt_widgets::QLabel;
 
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
@@ -26,7 +30,7 @@ use qt_gui::QStandardItemModel;
 
 use qt_core::CheckState;
 use qt_core::QFlags;
-
+use qt_core::AlignmentFlag;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QStringList;
 use qt_core::QVariant;
@@ -59,6 +63,7 @@ use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
+use crate::utils::create_grid_layout;
 
 use self::slots::PackedFileTableViewSlots;
 use self::raw::*;
@@ -137,7 +142,12 @@ pub struct PackedFileTableView {
     context_menu_redo: AtomicPtr<QAction>,
     context_menu_import_tsv: AtomicPtr<QAction>,
     context_menu_export_tsv: AtomicPtr<QAction>,
+    context_menu_sidebar: AtomicPtr<QAction>,
+    context_menu_search: AtomicPtr<QAction>,
     smart_delete: AtomicPtr<QAction>,
+
+    sidebar_hide_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
+    sidebar_freeze_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
 
     dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
     table_name: String,
@@ -204,16 +214,14 @@ impl PackedFileTableView {
         let save_lock = Arc::new(AtomicBool::new(false));
 
         // Prepare the Table and its model.
-        let mut table_view_frozen = QTableView::new_0a();
         let mut filter_model = QSortFilterProxyModel::new_0a();
         let mut model = QStandardItemModel::new_0a();
         filter_model.set_source_model(&mut model);
-        let table_view = new_tableview_frozen_safe(&mut filter_model, &mut table_view_frozen);
-        table_view_frozen.hide();
+        let (table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&mut packed_file_view.get_mut_widget());
 
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
-            table_view.horizontal_header().set_stretch_last_section(true);
+            table_view_primary.horizontal_header().set_stretch_last_section(true);
         }
 
         // Create the filter's widgets.
@@ -238,7 +246,7 @@ impl PackedFileTableView {
 
         // Add everything to the grid.
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
-        layout.add_widget_5a(table_view, 0, 0, 1, 4);
+        layout.add_widget_5a(table_view_primary, 0, 0, 1, 4);
         layout.add_widget_5a(&mut row_filter_line_edit, 2, 0, 1, 1);
         layout.add_widget_5a(&mut row_filter_case_sensitive_button, 2, 1, 1, 1);
         layout.add_widget_5a(&mut row_filter_column_selector, 2, 2, 1, 1);
@@ -267,10 +275,10 @@ impl PackedFileTableView {
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy as &LUA Table"));
 
         let context_menu_paste = context_menu.add_action_q_string(&QString::from_std_str("&Paste"));
-        /*
-        let context_menu_search = context_menu.add_action(&QString::from_std_str("&Search"));
-        let context_menu_sidebar = context_menu.add_action(&QString::from_std_str("Si&debar"));
-*/
+
+        let context_menu_search = context_menu.add_action_q_string(&QString::from_std_str("&Search"));
+        let context_menu_sidebar = context_menu.add_action_q_string(&QString::from_std_str("Si&debar"));
+
         let context_menu_import_tsv = context_menu.add_action_q_string(&QString::from_std_str("&Import TSV"));
         let context_menu_export_tsv = context_menu.add_action_q_string(&QString::from_std_str("&Export TSV"));
 
@@ -291,11 +299,115 @@ impl PackedFileTableView {
         //context_menu.insert_separator(context_menu_sidebar);
         context_menu.insert_separator(context_menu_undo);
 
+        //--------------------------------------------------//
+        // Search Section.
+        //--------------------------------------------------//
+        //
+        let mut search_widget = QWidget::new_0a().into_ptr();
+        let mut search_grid = create_grid_layout(search_widget);
+
+        let matches_label = QLabel::new();
+        let search_label = QLabel::from_q_string(&QString::from_std_str("Search Pattern:"));
+        let replace_label = QLabel::from_q_string(&QString::from_std_str("Replace Pattern:"));
+        let mut search_line_edit = QLineEdit::new();
+        let mut replace_line_edit = QLineEdit::new();
+        let mut prev_match_button = QPushButton::from_q_string(&QString::from_std_str("Prev. Match"));
+        let mut next_match_button = QPushButton::from_q_string(&QString::from_std_str("Next Match"));
+        let search_button = QPushButton::from_q_string(&QString::from_std_str("Search"));
+        let mut replace_current_button = QPushButton::from_q_string(&QString::from_std_str("Replace Current"));
+        let mut replace_all_button = QPushButton::from_q_string(&QString::from_std_str("Replace All"));
+        let close_button = QPushButton::from_q_string(&QString::from_std_str("Close"));
+        let mut column_selector = QComboBox::new_0a();
+        let column_list = QStandardItemModel::new_0a();
+        let mut case_sensitive_button = QPushButton::from_q_string(&QString::from_std_str("Case Sensitive"));
+
+        search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
+        replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
+
+        column_selector.set_model(column_list.into_ptr());
+        column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
+        for column in &fields {
+            column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(&column.name)));
+        }
+        case_sensitive_button.set_checkable(true);
+
+        prev_match_button.set_enabled(false);
+        next_match_button.set_enabled(false);
+        replace_current_button.set_enabled(false);
+        replace_all_button.set_enabled(false);
+
+        // Add all the widgets to the search grid.
+        search_grid.add_widget_5a(search_label.into_ptr(), 0, 0, 1, 1);
+        search_grid.add_widget_5a(search_line_edit.into_ptr(), 0, 1, 1, 1);
+        search_grid.add_widget_5a(prev_match_button.into_ptr(), 0, 2, 1, 1);
+        search_grid.add_widget_5a(next_match_button.into_ptr(), 0, 3, 1, 1);
+        search_grid.add_widget_5a(replace_label.into_ptr(), 1, 0, 1, 1);
+        search_grid.add_widget_5a(replace_line_edit.into_ptr(), 1, 1, 1, 3);
+        search_grid.add_widget_5a(search_button.into_ptr(), 0, 4, 1, 1);
+        search_grid.add_widget_5a(replace_current_button.into_ptr(), 1, 4, 1, 1);
+        search_grid.add_widget_5a(replace_all_button.into_ptr(), 2, 4, 1, 1);
+        search_grid.add_widget_5a(close_button.into_ptr(), 2, 0, 1, 1);
+        search_grid.add_widget_5a(matches_label.into_ptr(), 2, 1, 1, 1);
+        search_grid.add_widget_5a(column_selector.into_ptr(), 2, 2, 1, 1);
+        search_grid.add_widget_5a(case_sensitive_button.into_ptr(), 2, 3, 1, 1);
+
+        layout.add_widget_5a(search_widget, 1, 0, 1, 4);
+        layout.set_column_stretch(0, 10);
+        search_widget.hide();
+
+        //--------------------------------------------------//
+        // Freeze/Hide Section.
+        //--------------------------------------------------//
+
+        // Create the search and hide/show/freeze widgets.
+        let sidebar_widget = QWidget::new_0a().into_ptr();
+        let mut sidebar_scroll_area = QScrollArea::new_0a().into_ptr();
+        let mut sidebar_grid = create_grid_layout(sidebar_widget);
+        sidebar_scroll_area.set_widget(sidebar_widget);
+        sidebar_scroll_area.set_widget_resizable(true);
+        sidebar_scroll_area.horizontal_scroll_bar().set_enabled(false);
+        sidebar_grid.set_contents_margins_4a(4, 0, 4, 4);
+        sidebar_grid.set_spacing(4);
+
+        let mut header_column = QLabel::from_q_string(&QString::from_std_str("<b><i>Column Name</i></b>"));
+        let mut header_hidden = QLabel::from_q_string(&QString::from_std_str("<b><i>Hidden</i></b>"));
+        let mut header_frozen = QLabel::from_q_string(&QString::from_std_str("<b><i>Frozen</i></b>"));
+
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_column, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_frozen, QFlags::from(AlignmentFlag::AlignHCenter));
+
+        sidebar_grid.add_widget_5a(header_column.into_ptr(), 0, 0, 1, 1);
+        sidebar_grid.add_widget_5a(header_hidden.into_ptr(), 0, 1, 1, 1);
+        sidebar_grid.add_widget_5a(header_frozen.into_ptr(), 0, 2, 1, 1);
+
+        let mut hide_show_checkboxes = vec![];
+        let mut freeze_checkboxes = vec![];
+        for (index, column) in fields.iter().enumerate() {
+            let column_name = QLabel::from_q_string(&QString::from_std_str(&utils::clean_column_names(&column.name)));
+            let mut hide_show_checkbox = QCheckBox::new();
+            let mut freeze_unfreeze_checkbox = QCheckBox::new();
+
+            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
+            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
+
+            sidebar_grid.add_widget_5a(column_name.into_ptr(), (index + 1) as i32, 0, 1, 1);
+            sidebar_grid.add_widget_5a(&mut hide_show_checkbox, (index + 1) as i32, 1, 1, 1);
+            sidebar_grid.add_widget_5a(&mut freeze_unfreeze_checkbox, (index + 1) as i32, 2, 1, 1);
+
+            hide_show_checkboxes.push(atomic_from_mut_ptr(hide_show_checkbox.into_ptr()));
+            freeze_checkboxes.push(atomic_from_mut_ptr(freeze_unfreeze_checkbox.into_ptr()));
+        }
+
+        // Add all the stuff to the main grid and hide the search widget.
+        layout.add_widget_5a(sidebar_scroll_area, 0, 4, 3, 1);
+        sidebar_scroll_area.hide();
+        sidebar_grid.set_row_stretch(999, 10);
 
         // Create the raw Struct and begin
         let mut packed_file_table_view_raw = PackedFileTableViewRaw {
-            table_view_primary: table_view,
-            table_view_frozen: table_view_frozen.into_ptr(),
+            table_view_primary,
+            table_view_frozen,
             table_filter: filter_model.into_ptr(),
             table_model: model.into_ptr(),
             table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
@@ -319,7 +431,12 @@ impl PackedFileTableView {
             context_menu_redo,
             context_menu_import_tsv,
             context_menu_export_tsv,
+            context_menu_sidebar,
+            context_menu_search,
             smart_delete,
+
+            sidebar_scroll_area,
+            search_widget,
 
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: table_definition.clone(),
@@ -366,7 +483,12 @@ impl PackedFileTableView {
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
             context_menu_import_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_import_tsv),
             context_menu_export_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_export_tsv),
+            context_menu_sidebar: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_sidebar),
+            context_menu_search: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_search),
             smart_delete: atomic_from_mut_ptr(packed_file_table_view_raw.smart_delete),
+
+            sidebar_hide_checkboxes: Arc::new(hide_show_checkboxes),
+            sidebar_freeze_checkboxes: Arc::new(freeze_checkboxes),
 
             dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition,
@@ -514,6 +636,30 @@ impl PackedFileTableView {
     /// This function returns a pointer to the smart delete action.
     pub fn get_mut_ptr_smart_delete(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.smart_delete)
+    }
+
+    /// This function returns a pointer to the sidebar action.
+    pub fn get_mut_ptr_context_menu_sidebar(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_sidebar)
+    }
+
+    /// This function returns a pointer to the search action.
+    pub fn get_mut_ptr_context_menu_search(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_search)
+    }
+
+    /// This function returns a vector with the entire hide/show checkbox list.
+    pub fn get_hide_show_checkboxes(&self) -> Vec<MutPtr<QCheckBox>> {
+        self.sidebar_hide_checkboxes.iter()
+            .map(|x| mut_ptr_from_atomic(x))
+            .collect()
+    }
+
+    /// This function returns a vector with the entire freeze checkbox list.
+    pub fn get_freeze_checkboxes(&self) -> Vec<MutPtr<QCheckBox>> {
+        self.sidebar_freeze_checkboxes.iter()
+            .map(|x| mut_ptr_from_atomic(x))
+            .collect()
     }
 
     /// This function returns a reference to this table's name.

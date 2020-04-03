@@ -44,5 +44,15 @@ pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableV
     ui.get_mut_ptr_context_menu_redo().triggered().connect(&slots.redo);
     ui.get_mut_ptr_context_menu_import_tsv().triggered().connect(&slots.import_tsv);
     ui.get_mut_ptr_context_menu_export_tsv().triggered().connect(&slots.export_tsv);
+    ui.get_mut_ptr_context_menu_sidebar().triggered().connect(&slots.sidebar);
+    ui.get_mut_ptr_context_menu_search().triggered().connect(&slots.search);
     ui.get_mut_ptr_smart_delete().triggered().connect(&slots.smart_delete);
+
+    ui.get_hide_show_checkboxes().iter()
+        .zip(slots.hide_show_columns.iter())
+        .for_each(|(x, y)| { x.state_changed().connect(y); });
+
+    ui.get_freeze_checkboxes().iter()
+        .zip(slots.freeze_columns.iter())
+        .for_each(|(x, y)| { x.state_changed().connect(y); });
 }

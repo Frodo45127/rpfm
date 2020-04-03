@@ -78,6 +78,10 @@ pub struct PackedFileTableViewSlots {
     pub import_tsv: SlotOfBool<'static>,
     pub export_tsv: SlotOfBool<'static>,
     pub smart_delete: Slot<'static>,
+    pub sidebar: SlotOfBool<'static>,
+    pub search: SlotOfBool<'static>,
+    pub hide_show_columns: Vec<SlotOfInt<'static>>,
+    pub freeze_columns: Vec<SlotOfInt<'static>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -502,6 +506,51 @@ impl PackedFileTableViewSlots {
             }
         ));
 
+        let sidebar = SlotOfBool::new(clone!(
+            mut packed_file_view => move |_| {
+            match packed_file_view.sidebar_scroll_area.is_visible() {
+                true => packed_file_view.sidebar_scroll_area.hide(),
+                false => packed_file_view.sidebar_scroll_area.show()
+            }
+        }));
+
+        let search = SlotOfBool::new(clone!(
+            mut packed_file_view => move |_| {
+            match packed_file_view.search_widget.is_visible() {
+                true => packed_file_view.search_widget.hide(),
+                false => packed_file_view.search_widget.show()
+            }
+        }));
+
+
+        let mut hide_show_columns = vec![];
+        let mut freeze_columns = vec![];
+        let mut fields = table_definition.fields.iter()
+            .enumerate()
+            .map(|(x, y)| (x as i32, y.ca_order))
+            .collect::<Vec<(i32, i16)>>();
+        fields.sort_by(|(_, a), (_, b)| a.cmp(&b));
+        let ca_order = fields.iter().map(|x| x.0).collect::<Vec<i32>>();
+
+        for index in ca_order {
+            let hide_show_slot = SlotOfInt::new(clone!(
+                mut packed_file_view => move |state| {
+                    let state = if state == 2 { true } else { false };
+                    packed_file_view.table_view_primary.set_column_hidden(index, state);
+                }
+            ));
+
+            let freeze_slot = SlotOfInt::new(clone!(
+                mut packed_file_view => move |_| {
+                    toggle_freezer_safe(&mut packed_file_view.table_view_primary, index);
+                }
+            ));
+
+            hide_show_columns.push(hide_show_slot);
+            freeze_columns.push(freeze_slot);
+        }
+
+
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             filter_line_edit,
@@ -526,7 +575,11 @@ impl PackedFileTableViewSlots {
             redo,
             import_tsv,
             export_tsv,
-            smart_delete
+            smart_delete,
+            sidebar,
+            search,
+            hide_show_columns,
+            freeze_columns
         }
     }
 }

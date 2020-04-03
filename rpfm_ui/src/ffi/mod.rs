@@ -65,12 +65,6 @@ pub fn trigger_treeview_filter_safe(filter: &mut QSortFilterProxyModel, pattern:
     unsafe { trigger_treeview_filter(filter, pattern); }
 }
 
-/// This function allows you to create a table capable of freezing columns.
-extern "C" { fn new_tableview_frozen(model: *mut QAbstractItemModel, frozen_table: *mut QTableView) -> *mut QTableView; }
-pub fn new_tableview_frozen_safe(model: &mut QAbstractItemModel, frozen_table: &mut QTableView) -> MutPtr<QTableView> {
-    unsafe { MutPtr::from_raw(new_tableview_frozen(model, frozen_table)) }
-}
-
 /// This function allow us to create a model compatible with draggable items
 extern "C" { fn new_packed_file_model() -> *mut QStandardItemModel; }
 pub fn new_packed_file_model_safe() -> MutPtr<QStandardItemModel> {
@@ -89,6 +83,31 @@ pub fn new_tableview_command_palette_safe() -> MutPtr<QTableView> {
 extern "C" { fn add_to_q_list(list: *mut QListOfQStandardItem, item: *mut QStandardItem); }
 pub fn add_to_q_list_safe(list: MutPtr<QListOfQStandardItem>, item: MutPtr<QStandardItem>) {
     unsafe { add_to_q_list(list.as_mut_raw_ptr(), item.as_mut_raw_ptr()) }
+}
+
+//---------------------------------------------------------------------------//
+// Freezing Columns stuff.
+//---------------------------------------------------------------------------//
+
+/// This function allows you to create a table capable of freezing columns.
+extern "C" { fn new_tableview_frozen(parent: *mut QWidget) -> *mut QTableView; }
+extern "C" { fn get_frozen_view(table_view: *mut QTableView) -> *mut QTableView; }
+pub fn new_tableview_frozen_safe(parent: &mut QWidget) -> (MutPtr<QTableView>, MutPtr<QTableView>) {
+    let table_view_normal = unsafe { new_tableview_frozen(parent) };
+    let table_view_frozen = unsafe { get_frozen_view(table_view_normal) };
+    unsafe { (MutPtr::from_raw(table_view_normal), MutPtr::from_raw(table_view_frozen)) }
+}
+
+/// This function allows you to load data to a table capable of freezing columns.
+extern "C" { fn set_data_model(table: *mut QTableView, model: *mut QAbstractItemModel); }
+pub fn set_frozen_data_model_safe(table: &mut QTableView, model: &mut QAbstractItemModel) {
+    unsafe { set_data_model(table, model) };
+}
+
+/// This function allows you to freeze/unfreeze a column.
+extern "C" { fn toggle_freezer(table: *mut QTableView, column: i32); }
+pub fn toggle_freezer_safe(table: &mut QTableView, column: i32) {
+    unsafe { toggle_freezer(table, column) };
 }
 
 //---------------------------------------------------------------------------//

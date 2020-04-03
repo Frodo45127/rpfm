@@ -83,7 +83,12 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_redo: MutPtr<QAction>,
     pub context_menu_import_tsv: MutPtr<QAction>,
     pub context_menu_export_tsv: MutPtr<QAction>,
+    pub context_menu_sidebar: MutPtr<QAction>,
+    pub context_menu_search: MutPtr<QAction>,
     pub smart_delete: MutPtr<QAction>,
+
+    pub sidebar_scroll_area: MutPtr<QScrollArea>,
+    pub search_widget: MutPtr<QWidget>,
 
     pub dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
     pub table_definition: Definition,
@@ -210,6 +215,9 @@ impl PackedFileTableViewRaw {
                 }
             }
         }
+
+        // Initialize the QTableView.
+        set_frozen_data_model_safe(&mut self.table_view_primary, &mut self.table_filter);
     }
 
     /// This function generates a StandardItem for the provided DecodedData.

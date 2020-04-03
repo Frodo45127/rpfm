@@ -4,28 +4,34 @@
 #include "qt_subclasses_global.h"
 #include <QTableView>
 
-extern "C" QTableView* new_tableview_frozen(QAbstractItemModel* model = nullptr, QTableView* frozen_table = nullptr);
+extern "C" QTableView* new_tableview_frozen(QWidget* parent = nullptr);
+extern "C" void toggle_freezer(QTableView* tableView = nullptr, int column = 0);
 
 class QTableViewFrozen : public QTableView {
      Q_OBJECT
 
 public:
-      QTableViewFrozen(QAbstractItemModel* model, QTableView* tableview);
-      ~QTableViewFrozen() override;
+    QTableViewFrozen(QWidget* parent);
+    ~QTableViewFrozen() override;
+
+    void setDataModel(QAbstractItemModel * model);
+    QTableView *tableViewFrozen;
 
 protected:
-      void resizeEvent(QResizeEvent *event) override;
-      QModelIndex moveCursor(CursorAction cursorAction, Qt::KeyboardModifiers modifiers) override;
-      void scrollTo (const QModelIndex & index, ScrollHint hint = EnsureVisible) override;
+    void resizeEvent(QResizeEvent *event) override;
+    QModelIndex moveCursor(CursorAction cursorAction, Qt::KeyboardModifiers modifiers) override;
+    void scrollTo (const QModelIndex & index, ScrollHint hint = EnsureVisible) override;
 
 private:
-      QTableView *frozenTableView;
-      void init();
-      void updateFrozenTableGeometry();
+    QList<int> frozenColumns;
+    void init();
+    void updateFrozenTableGeometry();
+
+public slots:
+    void toggleFreezer(int column = 0);
 
 private slots:
-      void updateSectionWidth(int logicalIndex, int oldSize, int newSize);
-      void updateSectionHeight(int logicalIndex, int oldSize, int newSize);
-
+    void updateSectionWidth(int logicalIndex, int oldSize, int newSize);
+    void updateSectionHeight(int logicalIndex, int oldSize, int newSize);
 };
 #endif // TABLEVIEW_FROZEN_H
