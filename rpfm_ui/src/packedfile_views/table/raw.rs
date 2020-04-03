@@ -22,6 +22,7 @@ use qt_widgets::QPushButton;
 use qt_widgets::QTableView;
 use qt_widgets::QMenu;
 
+use qt_gui::QBrush;
 use qt_gui::QGuiApplication;
 use qt_gui::QStandardItemModel;
 
@@ -46,6 +47,7 @@ use rpfm_lib::schema::Definition;
 
 use crate::app_ui::AppUI;
 use crate::utils::{atomic_from_mut_ptr, create_grid_layout, mut_ptr_from_atomic, log_to_status_bar};
+use crate::pack_tree::*;
 use super::*;
 
 //-------------------------------------------------------------------------------//
@@ -1352,6 +1354,7 @@ impl PackedFileTableViewRaw {
 
         let rows = if clone {
             let mut rows = vec![];
+            let color = get_color_added_modified();
             for index in indexes_sorted.iter() {
                 row_numbers.push(index.row());
 
@@ -1359,14 +1362,22 @@ impl PackedFileTableViewRaw {
                 let mut qlist = QListOfQStandardItem::new();
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
-                    let item = (*original_item).clone();
+                    let mut item = (*original_item).clone();
+                    item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
                     add_to_q_list_safe(qlist.as_mut_ptr(), item);
                 }
 
                 rows.push(qlist);
             }
             rows
-        } else { vec![get_new_row(&self.table_definition)] };
+        } else {
+            let color = get_color_added();
+            let mut row = get_new_row(&self.table_definition);
+            for index in 0..row.count() {
+                row.index(index).as_mut().unwrap().set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+            }
+            vec![row]
+        };
 
         for row in &rows {
             self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
@@ -1406,16 +1417,24 @@ impl PackedFileTableViewRaw {
 
             // If we want to clone, we copy the currently selected row. If not, we just create a new one.
             let row = if clone {
+                let color = get_color_added_modified();
                 let columns = self.table_model.column_count_0a();
                 let mut qlist = QListOfQStandardItem::new();
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
-                    let item = (*original_item).clone();
+                    let mut item = (*original_item).clone();
+                    item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
                     add_to_q_list_safe(qlist.as_mut_ptr(), item);
                 }
                 qlist
-            } else { get_new_row(&self.table_definition) };
-
+            } else {
+                let color = get_color_added();
+                let mut row = get_new_row(&self.table_definition);
+                for index in 0..row.count() {
+                    row.index(index).as_mut().unwrap().set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                }
+                row
+            };
             self.table_model.insert_row_int_q_list_of_q_standard_item(index.row(), &row);
         }
 

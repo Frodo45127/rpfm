@@ -158,34 +158,34 @@ pub fn create_dark_theme_stylesheet() -> String {
             padding-bottom: 4px;
             padding-left: 10px;
             padding-right: 10px;
-            border-color: #{button_bd_off};
-            color: #{text_normal};
-            background-color: #{button_bg_off};
+            border-color: {button_bd_off};
+            color: {text_normal};
+            background-color: {button_bg_off};
         }}
         QPushButton:hover {{
-            border-color: #{button_bd_hover};
-            color: #{text_highlighted};
-            background-color: #{button_bg_hover};
+            border-color: {button_bd_hover};
+            color: {text_highlighted};
+            background-color: {button_bg_hover};
         }}
         QPushButton:pressed {{
-            border-color: #{button_bd_hover};
-            color: #{text_highlighted};
-            background-color: #{button_bg_on};
+            border-color: {button_bd_hover};
+            color: {text_highlighted};
+            background-color: {button_bg_on};
         }}
         QPushButton:checked {{
-            border-color: #{button_bd_hover};
-            background-color: #{button_bg_on};
+            border-color: {button_bd_hover};
+            background-color: {button_bg_on};
         }}
         QPushButton:disabled {{
             color: #808086;
-            background-color: #{button_bg_off};
+            background-color: {button_bg_off};
         }}
 
         /* Normal checkboxes */
         QCheckBox::indicator:unchecked {{
             border-style: solid;
             border-width: 1px;
-            border-color: #{checkbox_bd_off};
+            border-color: {checkbox_bd_off};
         }}
         /* Disabled due to the evanesce check bug.
         QCheckBox::indicator:checked {{
@@ -193,13 +193,13 @@ pub fn create_dark_theme_stylesheet() -> String {
             width: 12px;
             border-style: solid;
             border-width: 1px;
-            border-color: #{checkbox_bd_off};
+            border-color: {checkbox_bd_off};
             image:url(img/checkbox_check.png);
         }}
         QCheckBox::indicator:hover {{
             border-style: solid;
             border-width: 1px;
-            border-color: #{checkbox_bd_hover};
+            border-color: {checkbox_bd_hover};
         }}
         */
 
@@ -209,19 +209,19 @@ pub fn create_dark_theme_stylesheet() -> String {
         QTableView::indicator:unchecked {{
             border-style: solid;
             border-width: 1px;
-            border-color: #{checkbox_bd_off};
+            border-color: {checkbox_bd_off};
         }}
 
         /* Disabled due to the evanesce check bug.
         QTableView::indicator:hover {{
             border-style: solid;
             border-width: 1px;
-            border-color: #{checkbox_bd_hover};
+            border-color: {checkbox_bd_hover};
         }}
         QTableView::indicator:checked {{
             border-style: solid;
             border-width: 1px;
-            border-color: #{checkbox_bd_off};
+            border-color: {checkbox_bd_off};
             image:url(img/checkbox_check.png);
         }}
         */
@@ -234,19 +234,19 @@ pub fn create_dark_theme_stylesheet() -> String {
             padding-bottom: 3px;
             padding-left: 3px;
             padding-right: 3px;
-            border-color: #{button_bd_off};
-            color: #{text_normal};
-            background-color: #{button_bg_off};
+            border-color: {button_bd_off};
+            color: {text_normal};
+            background-color: {button_bg_off};
         }}
         QLineEdit:hover {{
-            border-color: #{button_bd_hover};
-            color: #{text_highlighted};
-            background-color: #{button_bg_hover};
+            border-color: {button_bd_hover};
+            color: {text_highlighted};
+            background-color: {button_bg_hover};
         }}
 
         QLineEdit:disabled {{
             color: #808086;
-            background-color: #{button_bg_off};
+            background-color: {button_bg_off};
         }}
 
         /* Combos, similar to buttons. */
@@ -258,16 +258,16 @@ pub fn create_dark_theme_stylesheet() -> String {
             padding-bottom: 3px;
             padding-left: 10px;
             padding-right: 10px;
-            border-color: #{button_bd_off};
-            color: #{text_normal};
-            background-color: #{button_bg_off};
+            border-color: {button_bd_off};
+            color: {text_normal};
+            background-color: {button_bg_off};
         }}*/
 
         /* TreeView, with no rounded corners and darker. */
         QTreeView {{
             border-style: solid;
             border-width: 1px;
-            border-color: #{button_bd_off};
+            border-color: {button_bd_off};
         }}
 
         ",

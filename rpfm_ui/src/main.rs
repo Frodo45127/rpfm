@@ -172,18 +172,28 @@ lazy_static! {
     static ref DARK_STYLESHEET: String = utils::create_dark_theme_stylesheet();
 
     // Colors used all over the program for theming and stuff.
-    static ref MEDIUM_DARK_GREY: &'static str = "333333";            // Medium-Dark Grey. The color of the background of the Main Window.
-    static ref MEDIUM_DARKER_GREY: &'static str = "262626";          // Medium-Darker Grey.
-    static ref DARK_GREY: &'static str = "181818";                   // Dark Grey. The color of the background of the Main TreeView.
-    static ref SLIGHTLY_DARKER_GREY: &'static str = "101010";        // A Bit Darker Grey.
-    static ref KINDA_WHITY_GREY: &'static str = "BBBBBB";            // Light Grey. The color of the normal Text.
-    static ref KINDA_MORE_WHITY_GREY: &'static str = "CCCCCC";       // Lighter Grey. The color of the highlighted Text.
-    static ref EVEN_MORE_WHITY_GREY: &'static str = "FAFAFA";        // Even Lighter Grey.
-    static ref BRIGHT_RED: &'static str = "FF0000";                  // Bright Red, as our Lord.
-    static ref DARK_RED: &'static str = "FF0000";                    // Dark Red, as our face after facing our enemies.
-    static ref LINK_BLUE: &'static str = "2A82DA";                   // Blue, used for Zeldas.
-    static ref ORANGE: &'static str = "E67E22";                      // Orange, used for borders.
-    static ref MEDIUM_GREY: &'static str = "555555";
+    static ref MEDIUM_DARK_GREY: &'static str = "#333333";            // Medium-Dark Grey. The color of the background of the Main Window.
+    static ref MEDIUM_DARKER_GREY: &'static str = "#262626";          // Medium-Darker Grey.
+    static ref DARK_GREY: &'static str = "#181818";                   // Dark Grey. The color of the background of the Main TreeView.
+    static ref SLIGHTLY_DARKER_GREY: &'static str = "#101010";        // A Bit Darker Grey.
+    static ref KINDA_WHITY_GREY: &'static str = "#BBBBBB";            // Light Grey. The color of the normal Text.
+    static ref KINDA_MORE_WHITY_GREY: &'static str = "#CCCCCC";       // Lighter Grey. The color of the highlighted Text.
+    static ref EVEN_MORE_WHITY_GREY: &'static str = "#FAFAFA";        // Even Lighter Grey.
+    static ref BRIGHT_RED: &'static str = "#FF0000";                  // Bright Red, as our Lord.
+    static ref DARK_RED: &'static str = "#FF0000";                    // Dark Red, as our face after facing our enemies.
+    static ref LINK_BLUE: &'static str = "#2A82DA";                   // Blue, used for Zeldas.
+    static ref ORANGE: &'static str = "#E67E22";                      // Orange, used for borders.
+    static ref MEDIUM_GREY: &'static str = "#555555";
+
+    static ref YELLOW_BRIGHT: &'static str = "#FFFFDD";
+    static ref YELLOW_DARK: &'static str = "#525200";
+
+    static ref GREEN_BRIGHT: &'static str = "#D0FDCC";
+    static ref GREEN_DARK: &'static str = "#708F6E";
+
+    static ref RED_BRIGHT: &'static str = "#FFCCCC";
+    static ref RED_DARK: &'static str = "#8F6E6E";
+
 
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Locale = {

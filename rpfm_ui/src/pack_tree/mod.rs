@@ -16,6 +16,7 @@ use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QTreeView;
 
 use qt_gui::QBrush;
+use qt_gui::QColor;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
@@ -52,6 +53,7 @@ use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
+use crate::{YELLOW_BRIGHT, YELLOW_DARK, GREEN_BRIGHT, GREEN_DARK, RED_BRIGHT, RED_DARK};
 
 // This one is needed for initialization on boot, so it has to be public.
 pub mod icons;
@@ -727,15 +729,15 @@ impl PackTree for MutPtr<QTreeView> {
     }
 
     unsafe fn paint_specific_item_treeview(mut item: MutPtr<QStandardItem>) {
-        let color_added = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkGreen } else { GlobalColor::Green };
-        let color_modified = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
-        let color_added_modified = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkMagenta } else { GlobalColor::Magenta };
-        let color_untouched = GlobalColor::Transparent;
+        let color_added = get_color_added();
+        let color_modified = get_color_modified();
+        let color_added_modified = get_color_added_modified();
+        let color_untouched = get_color_unmodified();
         match item.data_1a(ITEM_STATUS).to_int_0a() {
-            ITEM_STATUS_PRISTINE => item.set_background(&QBrush::from_global_color(color_untouched)),
-            ITEM_STATUS_ADDED => item.set_background(&QBrush::from_global_color(color_added)),
-            ITEM_STATUS_MODIFIED => item.set_background(&QBrush::from_global_color(color_modified)),
-            3 => item.set_background(&QBrush::from_global_color(color_added_modified)),
+            ITEM_STATUS_PRISTINE => item.set_background(&QBrush::from_q_color(color_untouched.as_ref().unwrap())),
+            ITEM_STATUS_ADDED => item.set_background(&QBrush::from_q_color(color_added.as_ref().unwrap())),
+            ITEM_STATUS_MODIFIED => item.set_background(&QBrush::from_q_color(color_modified.as_ref().unwrap())),
+            3 => item.set_background(&QBrush::from_q_color(color_added_modified.as_ref().unwrap())),
             _=> unimplemented!(),
         };
     }
@@ -1768,5 +1770,44 @@ unsafe fn sort_item_in_tree_view(
 
         // If the Item is invalid, we can't move anymore.
         else { break; }
+    }
+}
+
+pub unsafe fn get_color_added() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*GREEN_DARK)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*GREEN_BRIGHT)).into_ptr()
+    }
+}
+
+pub unsafe fn get_color_modified() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*YELLOW_BRIGHT)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*YELLOW_DARK)).into_ptr()
+    }
+}
+
+pub unsafe fn get_color_added_modified() -> MutPtr<QColor> {
+    let color_added = get_color_added();
+    let color_modified = get_color_modified();
+    let mut color = QColor::new();
+    color.set_red((color_added.red() + color_modified.red()) / 2);
+    color.set_green((color_added.green() + color_modified.green()) / 2);
+    color.set_blue((color_added.blue() + color_modified.blue()) / 2);
+    color.set_alpha((color_added.alpha() + color_modified.alpha()) / 2);
+    color.into_ptr()
+}
+
+pub unsafe fn get_color_unmodified() -> MutPtr<QColor> {
+    QColor::from_global_color(GlobalColor::Transparent).into_ptr()
+}
+
+pub unsafe fn get_color_deleted() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*RED_DARK)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*RED_BRIGHT)).into_ptr()
     }
 }

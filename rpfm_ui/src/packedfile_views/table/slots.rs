@@ -18,10 +18,8 @@ use qt_widgets::q_file_dialog::AcceptMode;
 
 use qt_gui::QBrush;
 use qt_gui::QCursor;
-use qt_gui::QGuiApplication;
 use qt_gui::SlotOfQStandardItem;
 
-use qt_core::GlobalColor;
 use qt_core::QModelIndex;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
@@ -36,18 +34,17 @@ use std::sync::atomic::Ordering;
 use std::path::PathBuf;
 
 use rpfm_lib::schema::Definition;
-use rpfm_lib::SETTINGS;
 
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
+use crate::pack_tree::*;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
 
 use super::*;
-use super::utils::*;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -151,10 +148,11 @@ impl PackedFileTableViewSlots {
 
                     {
                         // We block the saving for painting, so this doesn't get rettriggered again.
-                        //let mut blocker = QSignalBlocker::from_q_object(packed_file_view.table_model);
-                        let color = if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] { GlobalColor::DarkYellow } else { GlobalColor::Yellow };
-                        //item.set_background(&QBrush::from_global_color(color));
-                        //blocker.unblock();
+                        let mut blocker = QSignalBlocker::from_q_object(packed_file_view.table_model);
+                        let color = get_color_modified();
+                        let mut item = item.clone();
+                        item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                        blocker.unblock();
                     }
 
                     // For pasting, only update the undo_model the last iteration of the paste.
