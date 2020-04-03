@@ -1151,7 +1151,7 @@ impl PackedFileTableViewRaw {
                     let mut selection_model = self.table_view_primary.selection_model();
                     selection_model.clear();
                     for (index, row_pack) in &rows {
-                        let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index - 1, 0));
+                        let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index, 0));
                         let final_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index + row_pack.len() as i32 - 1, 0));
                         if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
                             let selection = QItemSelection::new_2a(&initial_model_index_filtered, &final_model_index_filtered);
