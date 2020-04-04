@@ -50,18 +50,6 @@ pub unsafe fn update_undo_model(model: MutPtr<QStandardItemModel>, mut undo_mode
     }
 }
 
-/// This function causes the model to use the same colors the undo_model uses. It's for loading the "modified" state
-/// of the table when you modify it, close it and open it again.
-/// NOTE: This assumes both models are a copy one from another. Any discrepance in their sizes will send the program crashing to hell.
-pub unsafe fn load_colors_from_undo_model(model: MutPtr<QStandardItemModel>, undo_model: MutPtr<QStandardItemModel>) {
-    for row in 0..undo_model.row_count_0a() {
-        for column in 0..undo_model.column_count_0a() {
-            let color = &undo_model.item_2a(row, column).background();
-            model.item_2a(row, column).set_background(color);
-        }
-    }
-}
-
 //----------------------------------------------------------------------------//
 //                       Index helpers for tables
 //----------------------------------------------------------------------------//
