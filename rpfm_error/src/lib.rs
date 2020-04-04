@@ -629,7 +629,7 @@ impl Display for ErrorKind {
             //--------------------------------//
             // Table Errors
             //--------------------------------//
-            ErrorKind::TableRowWrongFieldCount(expected, real) => write!(f, "<p>E</p>rror while trying to save a row from a table:</p><p>We expected a row with \"{}\" fields, but we got a row with \"{}\" fields instead.</p><p>Before anything else, please check your game selected is really the one this PackFile is for! If it isn't, change your game selected and try again.</p>", expected, real),
+            ErrorKind::TableRowWrongFieldCount(expected, real) => write!(f, "<p>Error while trying to save a row from a table:</p><p>We expected a row with \"{}\" fields, but we got a row with \"{}\" fields instead.</p>", expected, real),
             ErrorKind::TableWrongFieldType(expected, real) => write!(f, "<p>Error while trying to save a row from a table:</p><p>We expected a field of type \"{}\", but we got a field of type \"{}\".</p>", expected, real),
             ErrorKind::TableEmptyWithNoDefinition => write!(f, "<p>This table is empty and there is not a Definition for it. That means is undecodeable.</p>"),
 
@@ -639,7 +639,7 @@ impl Display for ErrorKind {
             ErrorKind::DBTableIsNotADBTable => write!(f, "<p>This is either not a DB Table, or it's a DB Table but it's corrupted.</p>"),
             ErrorKind::DBTableContainsListField => write!(f, "<p>This specific table version uses a currently unimplemented type (List), so is undecodeable, for now.</p>"),
             ErrorKind::DBTableReplaceInvalidData => write!(f, "<p>Error while trying to replace the data of a Cell.</p><p>This means you tried to replace a number cell with text, or used a too big, too low or invalid number. Don't do it. It wont end well.</p>"),
-            ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p>", cause),
+            ErrorKind::DBTableDecode(cause) => write!(f, "<p>Error while trying to decode the DB Table:</p><p>{}</p><p>Before anything else, please check your game selected is really the one this PackFile is for! If it isn't, change your game selected and try again.</p>", cause),
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::NoDefinitionUpdateAvailable => write!(f, "<p>This table already has the newer definition available.</p>"),
             ErrorKind::NoTableInGameFilesToCompare => write!(f, "<p>This table cannot be found in the Game Files, so it cannot be automatically updated (yet).</p>"),
