@@ -142,8 +142,8 @@ impl PackedFileTableViewSlots {
                     let mut edition = vec![];
                     let item_old = packed_file_view.undo_model.item_2a(item.row(), item.column());
 
-                    // Only trigger this if the values are actually different.
-                    if item_old.text().compare_q_string(item.text().as_ref()) != 0 {
+                    // Only trigger this if the values are actually different. Checkable cells are tricky.
+                    if item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state() {
                         edition.push(((item.row(), item.column()), atomic_from_mut_ptr((&*item_old).clone())));
                         let operation = TableOperations::Editing(edition);
                         packed_file_view.history_undo.write().unwrap().push(operation);
