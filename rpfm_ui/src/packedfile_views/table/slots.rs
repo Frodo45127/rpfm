@@ -141,25 +141,28 @@ impl PackedFileTableViewSlots {
 
                     let mut edition = vec![];
                     let item_old = packed_file_view.undo_model.item_2a(item.row(), item.column());
-                    edition.push(((item.row(), item.column()), atomic_from_mut_ptr((&*item_old).clone())));
-                    let operation = TableOperations::Editing(edition);
-                    packed_file_view.history_undo.write().unwrap().push(operation);
-                    packed_file_view.history_redo.write().unwrap().clear();
 
-                    {
-                        // We block the saving for painting, so this doesn't get rettriggered again.
-                        let mut blocker = QSignalBlocker::from_q_object(packed_file_view.table_model);
-                        let color = get_color_modified();
-                        let mut item = item.clone();
-                        item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
-                        blocker.unblock();
+                    // Only trigger this if the values are actually different.
+                    if item_old.text().compare_q_string(item.text().as_ref()) != 0 {
+                        edition.push(((item.row(), item.column()), atomic_from_mut_ptr((&*item_old).clone())));
+                        let operation = TableOperations::Editing(edition);
+                        packed_file_view.history_undo.write().unwrap().push(operation);
+                        packed_file_view.history_redo.write().unwrap().clear();
+
+                        {
+                            // We block the saving for painting, so this doesn't get rettriggered again.
+                            let mut blocker = QSignalBlocker::from_q_object(packed_file_view.table_model);
+                            let color = get_color_modified();
+                            let mut item = item.clone();
+                            item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                            blocker.unblock();
+                        }
+
+                        // For pasting, only update the undo_model the last iteration of the paste.
+                        if packed_file_view.save_lock.load(Ordering::SeqCst) {
+                            update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                        }
                     }
-
-                    // For pasting, only update the undo_model the last iteration of the paste.
-                    if packed_file_view.save_lock.load(Ordering::SeqCst) {
-                        update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
-                    }
-
                     packed_file_view.context_menu_update();
                 }
 
