@@ -2552,8 +2552,8 @@ impl PackFile {
         file.write_all(&header)?;
         file.write_all(&pack_file_index)?;
         file.write_all(&packed_file_index)?;
-        for packed_file in &mut self.packed_files {
-            let data = packed_file.get_ref_mut_raw().get_data()?;
+        for packed_file in &self.packed_files {
+            let data = packed_file.get_ref_raw().get_raw_data()?;
             file.write_all(&data)?;
         }
 

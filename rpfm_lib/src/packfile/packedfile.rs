@@ -462,6 +462,23 @@ impl RawPackedFile {
         Ok(())
     }
 
+    /// This function returns the RAW data of the `RawPackedFile` without loading it to memory.
+    ///
+    /// This means this data is not decompressed/decrypted. For particular situations.
+    pub fn get_raw_data(&self) -> Result<Vec<u8>> {
+        match self.data {
+            PackedFileData::OnMemory(ref data, _, _) => {
+                Ok(data.to_vec())
+            },
+            PackedFileData::OnDisk(ref file, position, size, _, _) => {
+                let mut data = vec![0; size as usize];
+                file.lock().unwrap().seek(SeekFrom::Start(position))?;
+                file.lock().unwrap().read_exact(&mut data)?;
+                Ok(data)
+            }
+        }
+    }
+
     /// This function returns the data of the `RawPackedFile` without loading it to memory.
     ///
     /// It's for those situations where you just need to check the data once, then forget about it.
