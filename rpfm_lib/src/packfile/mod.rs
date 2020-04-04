@@ -2474,9 +2474,14 @@ impl PackFile {
             packed_file.encode()?;
 
             // Remember: first compress (only PFH5), then encrypt.
-            let (data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
+            let (path, data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted) = packed_file.get_ref_mut_raw().get_data_and_info_from_memory()?;
 
-            // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile.
+            // If, in any moment, we enabled/disabled the PackFile compression, compress/decompress the PackedFile. EXCEPT FOR TABLES. NEVER COMPRESS TABLES.
+            match PackedFileType::get_packed_file_type(path) {
+                PackedFileType::DB | PackedFileType::Loc => *should_be_compressed = false,
+                _ => {}
+            }
+
             if *should_be_compressed && !*is_compressed {
                 *data = compress_data(&data)?;
                 *is_compressed = true;
