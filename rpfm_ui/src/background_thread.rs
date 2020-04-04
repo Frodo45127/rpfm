@@ -228,17 +228,16 @@ pub fn background_loop() {
                     let mut counter = 0;
                     let mut table_list = String::new();
                     if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                        for packed_file in pack_file_decoded.get_ref_mut_packed_files_by_path_start(&["db".to_owned()]) {
-                            match packed_file.decode_return_ref_no_locks(schema) {
-                                Ok(data) => {
-                                    if let DecodedPackedFile::DB(data) = data {
-                                        if data.get_entry_count() > 0 {
+                        for packed_file in pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false) {
+                            if packed_file.decode_return_ref_no_locks(schema).is_err() {
+                                if let Ok(raw_data) = packed_file.get_raw_data() {
+                                    if let Ok((_, _, entry_count, _)) = DB::read_header(&raw_data) {
+                                        if entry_count > 0 {
                                             counter += 1;
                                             table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_path()))
                                         }
                                     }
                                 }
-                                Err(_) => table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_path())),
                             }
                         }
                     }
