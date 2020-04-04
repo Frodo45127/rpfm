@@ -206,6 +206,9 @@ pub fn background_loop() {
                 // Try to load the Schema for this game.
                 *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
 
+                // Send a response, so we can unlock the UI.
+                CENTRAL_COMMAND.send_message_rust(Response::Success);
+
                 // Change the `dependency_database` for that game.
                 *DEPENDENCY_DATABASE.lock().unwrap() = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
 

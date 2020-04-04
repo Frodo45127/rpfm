@@ -769,7 +769,13 @@ impl AppUISlots {
                 app_ui.main_window.set_enabled(false);
 
                 // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
+                // We have to wait because we need the GameSelected update before updating the menus.
                 CENTRAL_COMMAND.send_message_qt(Command::SetGameSelected(new_game_selected));
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
+                    Response::Success => {}
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
 
                 // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
                 app_ui.enable_packfile_actions(false);
