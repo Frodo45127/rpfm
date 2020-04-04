@@ -449,3 +449,5 @@ notes = Notes
 external_current_path = Current path for edition:
 stop_watching = Stop watching the file
 open_folder = Open folder in file manager
+
+game_selected_changed_on_opening = Game Selected changed to {"{"}{"}"}, as the PackFile you opened is not compatible with the game you had selected.

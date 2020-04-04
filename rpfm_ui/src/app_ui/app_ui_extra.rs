@@ -57,7 +57,7 @@ use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, tr};
+use crate::locale::{qtr, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -282,6 +282,7 @@ impl AppUI {
                 else {
 
                     // Depending on the Id, choose one game or another.
+                    let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                     match ui_data.pfh_version {
 
                         // PFH5 is for Warhammer 2/Arena.
@@ -294,11 +295,13 @@ impl AppUI {
 
                             // Otherwise, it's from Three Kingdoms or Warhammer 2.
                             else {
-                                let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                                 match &*game_selected {
                                     KEY_THREE_KINGDOMS => self.game_selected_three_kingdoms.trigger(),
                                     KEY_WARHAMMER_2 => self.game_selected_warhammer_2.trigger(),
-                                    _ => unimplemented!()
+                                    _ => {
+                                        show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_2]), true);
+                                        self.game_selected_warhammer_2.trigger();
+                                    }
                                 }
                             }
                         },
@@ -307,26 +310,38 @@ impl AppUI {
                         PFHVersion::PFH4 => {
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
-                            let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                             match &*game_selected {
                                 KEY_WARHAMMER => self.game_selected_warhammer.trigger(),
                                 KEY_THRONES_OF_BRITANNIA => self.game_selected_thrones_of_britannia.trigger(),
                                 KEY_ATTILA => self.game_selected_attila.trigger(),
                                 KEY_ROME_2 => self.game_selected_rome_2.trigger(),
-                                _ => unimplemented!()
+                                _ => {
+                                    show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]), true);
+                                    self.game_selected_rome_2.trigger();
+                                }
                             }
                         },
 
-                        // PFH3 is for Shogun 2.
-                        PFHVersion::PFH3 | PFHVersion::PFH2 => self.game_selected_shogun_2.trigger(),
+                        // PFH3/2 is for Shogun 2.
+                        PFHVersion::PFH3 | PFHVersion::PFH2 => {
+                            match &*game_selected {
+                                KEY_SHOGUN_2 => self.game_selected_shogun_2.trigger(),
+                                _ => {
+                                    show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]), true);
+                                    self.game_selected_shogun_2.trigger();
+                                }
+                            }
+                        }
 
                         // PFH0 is for Napoleon/Empire.
                         PFHVersion::PFH0 => {
-                            let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                             match &*game_selected {
                                 KEY_NAPOLEON => self.game_selected_napoleon.trigger(),
                                 KEY_EMPIRE => self.game_selected_empire.trigger(),
-                                _ => unimplemented!()
+                                _ => {
+                                    show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]), true);
+                                    self.game_selected_empire.trigger();
+                                }
                             }
                         },
                     }
