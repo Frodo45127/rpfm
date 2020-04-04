@@ -1783,9 +1783,9 @@ pub unsafe fn get_color_added() -> MutPtr<QColor> {
 
 pub unsafe fn get_color_modified() -> MutPtr<QColor> {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*YELLOW_BRIGHT)).into_ptr()
-    } else {
         QColor::from_q_string(&QString::from_std_str(*YELLOW_DARK)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*YELLOW_BRIGHT)).into_ptr()
     }
 }
 
