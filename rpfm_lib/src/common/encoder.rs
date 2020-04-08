@@ -153,8 +153,8 @@ impl Encoder for Vec<u8> {
     }
 
     fn encode_packedfile_string_u16(&mut self, string: &str) {
-        self.encode_integer_u16(string.as_bytes().len() as u16);
-        self.encode_string_u16(string);
+        self.encode_integer_u16(string.encode_utf16().count() as u16);
+        string.encode_utf16().for_each(|character| self.encode_integer_u16(character));
     }
 
     fn encode_packedfile_optional_string_u8(&mut self, string: &str) {
@@ -174,8 +174,8 @@ impl Encoder for Vec<u8> {
         }
         else {
             self.encode_bool(true);
-            self.encode_integer_u16(string.as_bytes().len() as u16);
-            self.encode_string_u16(string);
+            self.encode_integer_u16(string.encode_utf16().count() as u16);
+            string.encode_utf16().for_each(|character| self.encode_integer_u16(character));
         }
     }
 }

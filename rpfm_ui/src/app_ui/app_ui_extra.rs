@@ -25,7 +25,6 @@ use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QPushButton;
 use qt_widgets::QTreeView;
 
-
 use qt_gui::QStandardItemModel;
 use qt_core::QFlags;
 use qt_core::QRegExp;
