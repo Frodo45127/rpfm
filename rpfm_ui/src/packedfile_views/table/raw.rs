@@ -21,6 +21,7 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
 use qt_widgets::QTableView;
 use qt_widgets::QMenu;
+use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QBrush;
 use qt_gui::QGuiApplication;
@@ -45,7 +46,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_lib::schema::Definition;
 
-use crate::app_ui::AppUI;
 use crate::utils::{atomic_from_mut_ptr, create_grid_layout, mut_ptr_from_atomic, log_to_status_bar};
 use crate::pack_tree::*;
 use super::*;
@@ -360,6 +360,11 @@ impl PackedFileTableViewRaw {
                 header_primary.move_section(*column as i32, position as i32);
                 header_frozen.move_section(*column as i32, position as i32);
             }
+        }
+
+        // If we want to let the columns resize themselfs...
+        if SETTINGS.read().unwrap().settings_bool["adjust_columns_to_content"] {
+            self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
         }
     }
 
