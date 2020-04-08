@@ -138,6 +138,7 @@ pub struct PackedFileTableView {
     context_menu_paste: AtomicPtr<QAction>,
     context_menu_invert_selection: AtomicPtr<QAction>,
     context_menu_reset_selection: AtomicPtr<QAction>,
+    context_menu_rewrite_selection: AtomicPtr<QAction>,
     context_menu_undo: AtomicPtr<QAction>,
     context_menu_redo: AtomicPtr<QAction>,
     context_menu_import_tsv: AtomicPtr<QAction>,
@@ -261,13 +262,13 @@ impl PackedFileTableView {
         let context_menu_add_rows = context_menu.add_action_q_string(&QString::from_std_str("&Add Row"));
         let context_menu_insert_rows = context_menu.add_action_q_string(&QString::from_std_str("&Insert Row"));
         let context_menu_delete_rows = context_menu.add_action_q_string(&QString::from_std_str("&Delete Row"));
-/*
-        let mut context_menu_apply_submenu = Menu::new(&QString::from_std_str("A&pply..."));
-        let context_menu_apply_maths_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Maths to Selection"));
-        let context_menu_rewrite_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Rewrite Selection"));
 
-        let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
-*/
+        //let mut context_menu_apply_submenu = Menu::new(&QString::from_std_str("A&pply..."));
+        //let context_menu_apply_maths_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Maths to Selection"));
+        let context_menu_rewrite_selection = context_menu.add_action_q_string(&QString::from_std_str("&Rewrite Selection"));
+
+        //let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
+
         let context_menu_clone_and_insert = context_menu.add_action_q_string(&QString::from_std_str("&Clone and Insert"));
         let context_menu_clone_and_append = context_menu.add_action_q_string(&QString::from_std_str("Clone and &Append"));
         let mut context_menu_copy_submenu = QMenu::from_q_string(&QString::from_std_str("&Copy..."));
@@ -427,6 +428,7 @@ impl PackedFileTableView {
             context_menu_paste,
             context_menu_invert_selection,
             context_menu_reset_selection,
+            context_menu_rewrite_selection,
             context_menu_undo,
             context_menu_redo,
             context_menu_import_tsv,
@@ -479,6 +481,7 @@ impl PackedFileTableView {
             context_menu_paste: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste),
             context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
             context_menu_reset_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_reset_selection),
+            context_menu_rewrite_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_rewrite_selection),
             context_menu_undo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_undo),
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
             context_menu_import_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_import_tsv),
@@ -611,6 +614,11 @@ impl PackedFileTableView {
     /// This function returns a pointer to the reset selection action.
     pub fn get_mut_ptr_context_menu_reset_selection(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_reset_selection)
+    }
+
+    /// This function returns a pointer to the rewrite selection action.
+    pub fn get_mut_ptr_context_menu_rewrite_selection(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_rewrite_selection)
     }
 
     /// This function returns a pointer to the undo action.

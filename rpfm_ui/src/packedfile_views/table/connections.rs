@@ -40,6 +40,7 @@ pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableV
     ui.get_mut_ptr_context_menu_paste().triggered().connect(&slots.paste);
     ui.get_mut_ptr_context_menu_invert_selection().triggered().connect(&slots.invert_selection);
     ui.get_mut_ptr_context_menu_reset_selection().triggered().connect(&slots.reset_selection);
+    ui.get_mut_ptr_context_menu_rewrite_selection().triggered().connect(&slots.rewrite_selection);
     ui.get_mut_ptr_context_menu_undo().triggered().connect(&slots.undo);
     ui.get_mut_ptr_context_menu_redo().triggered().connect(&slots.redo);
     ui.get_mut_ptr_context_menu_import_tsv().triggered().connect(&slots.import_tsv);

@@ -81,6 +81,7 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_paste: MutPtr<QAction>,
     pub context_menu_invert_selection: MutPtr<QAction>,
     pub context_menu_reset_selection: MutPtr<QAction>,
+    pub context_menu_rewrite_selection: MutPtr<QAction>,
     pub context_menu_undo: MutPtr<QAction>,
     pub context_menu_redo: MutPtr<QAction>,
     pub context_menu_import_tsv: MutPtr<QAction>,
@@ -563,6 +564,123 @@ impl PackedFileTableViewRaw {
                 history_redo.clear();
             }
             update_undo_model(self.table_model, self.undo_model);
+        }
+    }
+
+    /// This function rewrite the currently selected cells using the provided formula.
+    pub unsafe fn rewrite_selection(&self) {
+        if let Some((is_math_operation, value)) = self.create_rewrite_selection_dialog() {
+
+            // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
+            let indexes = self.table_view_primary.selection_model().selection().indexes();
+            let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+            sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
+            let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+
+            let mut changed_cells = 0;
+            for model_index in indexes_sorted {
+                if model_index.is_valid() {
+
+                    // Get the column of that cell, the row, the current value, and the new value.
+                    let mut item = self.table_model.item_from_index(model_index.as_ref());
+                    let column = model_index.column();
+                    let row = model_index.row();
+                    let current_value = item.text().to_std_string();
+                    let new_value = value.replace("{x}", &current_value)
+                        .replace("{y}", &column.to_string())
+                        .replace("{z}", &row.to_string());
+
+                    let text = if is_math_operation {
+                         if let Ok(result) = meval::eval_str(&new_value) {
+
+                            // If we got a current value and it's different, it's a valid cell.
+                            match current_value.parse::<f64>() {
+                                Ok(value) => {
+                                    if (result - value).abs() >= std::f64::EPSILON {
+                                        result.to_string()
+                                    } else {
+                                        current_value.to_owned()
+                                    }
+                                },
+                                Err(_) => result.to_string(),
+                            }
+                        }
+
+                        // If meval fails, it's not a valid operation for this cell
+                        else { continue; }
+                    } else { new_value.to_owned() };
+
+                    // Depending on the column, we try to encode the data in one format or another.
+                    match self.table_definition.fields[column as usize].field_type {
+                        FieldType::Boolean => {
+                            let current_value = item.check_state();
+                            let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                            if current_value != new_value {
+                                item.set_check_state(new_value);
+                                changed_cells += 1;
+                            }
+                        },
+
+                        FieldType::Float => {
+                            if current_value != text {
+                                if let Ok(value) = text.parse::<f32>() {
+                                    item.set_data_2a(&QVariant::from_float(value), 2);
+                                    changed_cells += 1;
+                                }
+                            }
+                        },
+
+                        FieldType::Integer => {
+                            if current_value != text {
+                                if let Ok(value) = text.parse::<i32>() {
+                                    item.set_data_2a(&QVariant::from_int(value), 2);
+                                    changed_cells += 1;
+                                }
+                            }
+                        },
+
+                        FieldType::LongInteger => {
+                            if current_value != text {
+                                if let Ok(value) = text.parse::<i64>() {
+                                    item.set_data_2a(&QVariant::from_i64(value), 2);
+                                    changed_cells += 1;
+                                }
+                            }
+                        },
+
+                        _ => {
+                            if current_value != text {
+                                item.set_text(&QString::from_std_str(&text));
+                                changed_cells += 1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fix the undo history to have all the previous changed merged into one.
+            if changed_cells > 0 {
+                {
+                    let mut history_undo = self.history_undo.write().unwrap();
+                    let mut history_redo = self.history_redo.write().unwrap();
+
+                    let len = history_undo.len();
+                    let mut edits_data = vec![];
+                    {
+                        let mut edits = history_undo.drain((len - changed_cells)..);
+                        for edit in &mut edits {
+                            if let TableOperations::Editing(mut edit) = edit {
+                                edits_data.append(&mut edit);
+                            }
+                        }
+                    }
+
+                    history_undo.push(TableOperations::Editing(edits_data));
+                    history_redo.clear();
+                }
+                update_undo_model(self.table_model, self.undo_model);
+                //undo_redo_enabler.trigger();
+            }
         }
     }
 
@@ -1457,86 +1575,45 @@ impl PackedFileTableViewRaw {
         }
         old_data
     }
-}
 
-/// This function creates the entire "Apply Maths" dialog for tables. It returns the operation to apply.
-pub unsafe fn create_apply_maths_dialog(app_ui: &AppUI) -> Option<String> {
+    /// This function creates the entire "Rewrite selection" dialog for tables. It returns the rewriting sequence, or None.
+    pub unsafe fn create_rewrite_selection_dialog(&self) -> Option<(bool, String)> {
 
-    // Create and configure the dialog.
-    let mut dialog = QDialog::new_1a(app_ui.main_window);
-    dialog.set_window_title(&QString::from_std_str("Apply Maths to Selection"));
-    dialog.set_modal(true);
-    dialog.resize_2a(400, 50);
-    let mut main_grid = create_grid_layout(dialog.as_mut_ptr().static_upcast_mut());
+        // Create and configure the dialog.
+        let mut dialog = QDialog::new_1a(self.table_view_primary);
+        dialog.set_window_title(&QString::from_std_str("Rewrite Selection"));
+        dialog.set_modal(true);
+        dialog.resize_2a(400, 50);
+        let mut main_grid = create_grid_layout(dialog.as_mut_ptr().static_upcast_mut());
 
-    // Create a little frame with some instructions.
-    let instructions_frame = QGroupBox::from_q_string(&QString::from_std_str("Instructions")).into_ptr();
-    let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
-    let mut instructions_label = QLabel::from_q_string(&QString::from_std_str(
-    "\
-It's easy, but you'll not understand it without an example, so here it's one:
- - You selected a cell that says '5'.
- - Write '3 + {x}' in the box below.
- - Hit 'Accept'.
- - RPFM will turn that into '8' and put it in the cell.
-Easy, isn't?
-    "
-    ));
-    instructions_grid.add_widget_5a(&mut instructions_label, 0, 0, 1, 1);
+        // Create a little frame with some instructions.
+        let instructions_frame = QGroupBox::from_q_string(&QString::from_std_str("Instructions")).into_ptr();
+        let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
+        let mut instructions_label = QLabel::from_q_string(&QString::from_std_str(
+        "\
+    Legend says:
+     - {x} means current value.
+     - {y} means current column.
+     - {z} means current row.
+        "
+        ));
+        instructions_grid.add_widget_5a(&mut instructions_label, 0, 0, 1, 1);
 
-    let mut maths_line_edit = QLineEdit::new();
-    maths_line_edit.set_placeholder_text(&QString::from_std_str("Write here a maths operation. {x} it's your current number."));
-    let mut accept_button = QPushButton::from_q_string(&QString::from_std_str("Accept"));
+        let mut is_math_op = QCheckBox::from_q_string(&QString::from_std_str("Is a math operation?"));
+        let mut rewrite_sequence_line_edit = QLineEdit::new();
+        rewrite_sequence_line_edit.set_placeholder_text(&QString::from_std_str("Write here whatever you want."));
+        let mut accept_button = QPushButton::from_q_string(&QString::from_std_str("Accept"));
 
-    main_grid.add_widget_5a(instructions_frame, 0, 0, 1, 2);
-    main_grid.add_widget_5a(&mut maths_line_edit, 1, 0, 1, 1);
-    main_grid.add_widget_5a(&mut accept_button, 1, 1, 1, 1);
+        main_grid.add_widget_5a(instructions_frame, 0, 0, 1, 2);
+        main_grid.add_widget_5a(&mut is_math_op, 1, 0, 1, 2);
+        main_grid.add_widget_5a(&mut rewrite_sequence_line_edit, 2, 0, 1, 1);
+        main_grid.add_widget_5a(&mut accept_button, 2, 1, 1, 1);
 
-    accept_button.released().connect(dialog.slot_accept());
+        accept_button.released().connect(dialog.slot_accept());
 
-    if dialog.exec() == 1 {
-        let operation = maths_line_edit.text().to_std_string();
-        if operation.is_empty() { None } else { Some(maths_line_edit.text().to_std_string()) }
-    } else { None }
-}
-
-/// This function creates the entire "Rewrite selection" dialog for tables. It returns the rewriting sequence, or None.
-pub unsafe fn create_rewrite_selection_dialog(app_ui: &AppUI) -> Option<String> {
-
-    // Create and configure the dialog.
-    let mut dialog = QDialog::new_1a(app_ui.main_window);
-    dialog.set_window_title(&QString::from_std_str("Rewrite Selection"));
-    dialog.set_modal(true);
-    dialog.resize_2a(400, 50);
-    let mut main_grid = create_grid_layout(dialog.as_mut_ptr().static_upcast_mut());
-
-    // Create a little frame with some instructions.
-    let instructions_frame = QGroupBox::from_q_string(&QString::from_std_str("Instructions")).into_ptr();
-    let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
-    let mut instructions_label = QLabel::from_q_string(&QString::from_std_str(
-    "\
-It's easy, but you'll not understand it without an example, so here it's one:
- - You selected a cell that says 'you'.
- - Write 'whatever {x} want' in the box below.
- - Hit 'Accept'.
- - RPFM will turn that into 'whatever you want' and put it in the cell.
-And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
-    "
-    ));
-    instructions_grid.add_widget_5a(&mut instructions_label, 0, 0, 1, 1);
-
-    let mut rewrite_sequence_line_edit = QLineEdit::new();
-    rewrite_sequence_line_edit.set_placeholder_text(&QString::from_std_str("Write here whatever you want. {x} it's your current text."));
-    let mut accept_button = QPushButton::from_q_string(&QString::from_std_str("Accept"));
-
-    main_grid.add_widget_5a(instructions_frame, 0, 0, 1, 2);
-    main_grid.add_widget_5a(&mut rewrite_sequence_line_edit, 1, 0, 1, 1);
-    main_grid.add_widget_5a(&mut accept_button, 1, 1, 1, 1);
-
-    accept_button.released().connect(dialog.slot_accept());
-
-    if dialog.exec() == 1 {
-        let new_text = rewrite_sequence_line_edit.text().to_std_string();
-        if new_text.is_empty() { None } else { Some(rewrite_sequence_line_edit.text().to_std_string()) }
-    } else { None }
+        if dialog.exec() == 1 {
+            let new_text = rewrite_sequence_line_edit.text().to_std_string();
+            if new_text.is_empty() { None } else { Some((is_math_op.is_checked(), rewrite_sequence_line_edit.text().to_std_string())) }
+        } else { None }
+    }
 }

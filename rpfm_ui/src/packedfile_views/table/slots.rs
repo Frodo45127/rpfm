@@ -69,6 +69,7 @@ pub struct PackedFileTableViewSlots {
     pub paste: Slot<'static>,
     pub invert_selection: Slot<'static>,
     pub reset_selection: Slot<'static>,
+    pub rewrite_selection: Slot<'static>,
     pub save: Slot<'static>,
     pub undo: Slot<'static>,
     pub redo: Slot<'static>,
@@ -268,6 +269,12 @@ impl PackedFileTableViewSlots {
         let reset_selection = Slot::new(clone!(
             mut packed_file_view => move || {
             packed_file_view.reset_selection();
+        }));
+
+        // When we want to rewrite the selected items using a formula.
+        let rewrite_selection = Slot::new(clone!(
+            mut packed_file_view => move || {
+            packed_file_view.rewrite_selection();
         }));
 
         // When we want to save the contents of the UI to the backend...
@@ -571,6 +578,7 @@ impl PackedFileTableViewSlots {
             paste,
             invert_selection,
             reset_selection,
+            rewrite_selection,
             save,
             undo,
             redo,
