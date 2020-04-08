@@ -281,19 +281,19 @@ impl Table {
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>I64</b></i> value: either the value is not a valid I64, or there are insufficient bytes left to decode it as an I64 value.</p>", row + 1, column + 1))) }
                     }
                     FieldType::StringU8 => {
-                        if let Ok(data) = data.decode_packedfile_string_u8(*index, &mut index) { Ok(DecodedData::StringU8(data)) }
+                        if let Ok(data) = data.decode_packedfile_string_u8(*index, &mut index) { Ok(DecodedData::StringU8(Self::escape_special_chars(&data))) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-8 String</b></i> value: the value is not a valid UTF-8 String, or there are insufficient bytes left to decode it as an UTF-8 String.</p>", row + 1, column + 1))) }
                     }
                     FieldType::StringU16 => {
-                        if let Ok(data) = data.decode_packedfile_string_u16(*index, &mut index) { Ok(DecodedData::StringU16(data)) }
+                        if let Ok(data) = data.decode_packedfile_string_u16(*index, &mut index) { Ok(DecodedData::StringU16(Self::escape_special_chars(&data))) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>UTF-16 String</b></i> value: the value is not a valid UTF-16 String, or there are insufficient bytes left to decode it as an UTF-16 String.</p>", row + 1, column + 1))) }
                     }
                     FieldType::OptionalStringU8 => {
-                        if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, &mut index) { Ok(DecodedData::OptionalStringU8(data)) }
+                        if let Ok(data) = data.decode_packedfile_optional_string_u8(*index, &mut index) { Ok(DecodedData::OptionalStringU8(Self::escape_special_chars(&data))) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-8 String</b></i> value: the value is not a valid Optional UTF-8 String, or there are insufficient bytes left to decode it as an Optional UTF-8 String.</p>", row + 1, column + 1))) }
                     }
                     FieldType::OptionalStringU16 => {
-                        if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, &mut index) { Ok(DecodedData::OptionalStringU16(data)) }
+                        if let Ok(data) = data.decode_packedfile_optional_string_u16(*index, &mut index) { Ok(DecodedData::OptionalStringU16(Self::escape_special_chars(&data))) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as an <b><i>Optional UTF-16 String</b></i> value: the value is not a valid Optional UTF-16 String, or there are insufficient bytes left to decode it as an Optional UTF-16 String.</p>", row + 1, column + 1))) }
                     }
 
@@ -338,10 +338,10 @@ impl Table {
                     DecodedData::Float(data) => packed_file.encode_float_f32(data),
                     DecodedData::Integer(data) => packed_file.encode_integer_i32(data),
                     DecodedData::LongInteger(data) => packed_file.encode_integer_i64(data),
-                    DecodedData::StringU8(ref data) => packed_file.encode_packedfile_string_u8(data),
-                    DecodedData::StringU16(ref data) => packed_file.encode_packedfile_string_u16(data),
-                    DecodedData::OptionalStringU8(ref data) => packed_file.encode_packedfile_optional_string_u8(data),
-                    DecodedData::OptionalStringU16(ref data) => packed_file.encode_packedfile_optional_string_u16(data),
+                    DecodedData::StringU8(ref data) => packed_file.encode_packedfile_string_u8(&Self::unescape_special_chars(&data)),
+                    DecodedData::StringU16(ref data) => packed_file.encode_packedfile_string_u16(&Self::unescape_special_chars(&data)),
+                    DecodedData::OptionalStringU8(ref data) => packed_file.encode_packedfile_optional_string_u8(&Self::unescape_special_chars(&data)),
+                    DecodedData::OptionalStringU16(ref data) => packed_file.encode_packedfile_optional_string_u16(&Self::unescape_special_chars(&data)),
                     DecodedData::Sequence(ref data) => {
                         if let FieldType::Sequence(_) = fields[index].field_type {
                             packed_file.encode_integer_u32(data.entries.len() as u32);
@@ -590,6 +590,16 @@ impl Table {
         // Then we serialize each entry in the DB Table.
         for entry in entries { writer.serialize(&entry)?; }
         writer.flush().map_err(From::from)
+    }
+
+    /// This function escapes certain characters of the provided string.
+    fn escape_special_chars(data: &str)-> String {
+         data.replace("\t", "\\t").replace("\n", "\\n")
+    }
+
+    /// This function unescapes certain characters of the provided string.
+    fn unescape_special_chars(data: &str)-> String {
+         data.replace("\\t", "\t").replace("\\n", "\n")
     }
 }
 
