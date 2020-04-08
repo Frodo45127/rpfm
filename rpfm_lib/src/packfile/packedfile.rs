@@ -556,11 +556,11 @@ impl RawPackedFile {
 
     /// This function returns the data of the provided `RawPackedFile` from memory. together with his state info.
     ///
-    /// The data returned is `data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted`.
-    pub fn get_data_and_info_from_memory(&mut self) -> Result<(&mut Vec<u8>, &mut bool, &mut Option<PFHVersion>, &mut bool, &mut Option<PFHVersion>)> {
+    /// The data returned is `path, data, is_compressed, is_encrypted, should_be_compressed, should_be_encrypted`.
+    pub fn get_data_and_info_from_memory(&mut self) -> Result<(&[String], &mut Vec<u8>, &mut bool, &mut Option<PFHVersion>, &mut bool, &mut Option<PFHVersion>)> {
         match self.data {
             PackedFileData::OnMemory(ref mut data, ref mut is_compressed, ref mut is_encrypted) => {
-                Ok((data, is_compressed, is_encrypted, &mut self.should_be_compressed, &mut self.should_be_encrypted))
+                Ok((&self.path, data, is_compressed, is_encrypted, &mut self.should_be_compressed, &mut self.should_be_encrypted))
             },
             PackedFileData::OnDisk(_, _, _, _, _) => {
                 Err(ErrorKind::PackedFileDataIsNotInMemory.into())
