@@ -78,8 +78,10 @@ view_toggle_global_search_panel = Toggle Global Search Window
 
 ## Game Selected Menu
 
+game_selected_launch_game = Launch Game Selected
 game_selected_open_game_data_folder = Open Game's Data Folder
 game_selected_open_game_assembly_kit_folder = Open Game's Assembly Kit Folder
+game_selected_open_config_folder = Open RPFM's Config Folder
 
 ## Special Stuff
 

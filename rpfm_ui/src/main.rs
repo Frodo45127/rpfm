@@ -259,45 +259,6 @@ fn main() {
         let slot_holder = Rc::new(RefCell::new(vec![]));
         let (_ui, _slots) = unsafe { UI::new(app, &slot_holder) };
 
-/*
-
-
-        // What happens when we trigger the "Open Containing Folder" action in the Contextual Menu.
-        let slot_context_menu_open_containing_folder = SlotBool::new(clone!(
-            sender_qt,
-            receiver_qt => move |_| {
-                sender_qt.send(Commands::OpenContainingFolder).unwrap();
-                if let Data::Error(error) = check_message_validity_recv2(&receiver_qt) { show_dialog(app_ui.window, false, error) };
-            }
-        ));
-
-        // What happens when we trigger the "Open with External Program" action in the Contextual Menu.
-        let slot_context_menu_open_with_external_program = SlotBool::new(clone!(
-            sender_qt,
-            sender_qt_data,
-            receiver_qt => move |_| {
-
-                // Get the currently selected paths, and only continue if there is only one.
-                let selected_paths = get_path_from_main_treeview_selection(&app_ui);
-                if selected_paths.len() == 1 {
-                    let path = selected_paths[0].to_vec();
-
-                    // Get the path of the extracted Image.
-                    sender_qt.send(Commands::OpenWithExternalProgram).unwrap();
-                    sender_qt_data.send(Data::VecString(path.to_vec())).unwrap();
-                    if let Data::Error(error) = check_message_validity_recv2(&receiver_qt) { show_dialog(app_ui.window, false, error) };
-                }
-            }
-        ));
-
-
-        // What happens when we change the state of an item in the TreeView...
-        let slot_paint_treeview = SlotStandardItemMutPtr::new(move |item| {
-            paint_specific_item_treeview(item);
-        });
-
-*/
-
         // And launch it.
         unsafe { QApplication::exec() }
     })

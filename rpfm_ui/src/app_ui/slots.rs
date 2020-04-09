@@ -32,6 +32,7 @@ use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 use rpfm_lib::common::*;
+use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
@@ -106,8 +107,10 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `Game Selected` menu slots.
     //-----------------------------------------------//
+    pub game_selected_launch_game: SlotOfBool<'static>,
     pub game_selected_open_game_data_folder: SlotOfBool<'static>,
     pub game_selected_open_game_assembly_kit_folder: SlotOfBool<'static>,
+    pub game_selected_open_config_folder: SlotOfBool<'static>,
     pub change_game_selected: SlotOfBool<'static>,
 
     //-----------------------------------------------//
@@ -735,6 +738,16 @@ impl AppUISlots {
         // `Game Selected` menu logic.
         //-----------------------------------------------//
 
+        // What happens when we trigger the "Launch Game" action.
+        let game_selected_launch_game = SlotOfBool::new(move |_| {
+            if let Some(steam_id) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().steam_id {
+                if open::that(format!("steam://rungameid/{}", steam_id)).is_err() {
+                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                };
+            }
+            else { show_dialog(app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false); }
+        });
+
         // What happens when we trigger the "Open Game's Data Folder" action.
         let game_selected_open_game_data_folder = SlotOfBool::new(move |_| {
             if let Some(path) = get_game_selected_data_path() {
@@ -753,6 +766,16 @@ impl AppUISlots {
                 };
             }
             else { show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
+        });
+
+        // What happens when we trigger the "Open Config Folder" action.
+        let game_selected_open_config_folder = SlotOfBool::new(move |_| {
+            if let Ok(path) = get_config_path() {
+                if open::that(&path).is_err() {
+                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                };
+            }
+            else { show_dialog(app_ui.main_window, ErrorKind::ConfigFolderCouldNotBeOpened, false); }
         });
 
         // What happens when we trigger the "Change Game Selected" action.
@@ -1128,8 +1151,10 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `Game Selected` menu slots.
             //-----------------------------------------------//
+            game_selected_launch_game,
             game_selected_open_game_data_folder,
             game_selected_open_game_assembly_kit_folder,
+            game_selected_open_config_folder,
             change_game_selected,
 
             //-----------------------------------------------//

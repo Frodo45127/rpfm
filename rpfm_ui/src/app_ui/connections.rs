@@ -68,8 +68,11 @@ pub fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `Game Selected` menu connections.
     //-----------------------------------------------//
+    unsafe { app_ui.game_selected_launch_game.triggered().connect(&slots.game_selected_launch_game); }
+
     unsafe { app_ui.game_selected_open_game_data_folder.triggered().connect(&slots.game_selected_open_game_data_folder); }
     unsafe { app_ui.game_selected_open_game_assembly_kit_folder.triggered().connect(&slots.game_selected_open_game_assembly_kit_folder); }
+    unsafe { app_ui.game_selected_open_config_folder.triggered().connect(&slots.game_selected_open_config_folder); }
 
     unsafe { app_ui.game_selected_three_kingdoms.triggered().connect(&slots.change_game_selected); }
     unsafe { app_ui.game_selected_warhammer_2.triggered().connect(&slots.change_game_selected); }

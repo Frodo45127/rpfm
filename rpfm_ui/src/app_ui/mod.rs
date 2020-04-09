@@ -170,8 +170,11 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
     //-------------------------------------------------------------------------------//
+    pub game_selected_launch_game: MutPtr<QAction>,
+
     pub game_selected_open_game_data_folder: MutPtr<QAction>,
     pub game_selected_open_game_assembly_kit_folder: MutPtr<QAction>,
+    pub game_selected_open_config_folder: MutPtr<QAction>,
 
     pub game_selected_three_kingdoms: MutPtr<QAction>,
     pub game_selected_warhammer_2: MutPtr<QAction>,
@@ -463,8 +466,11 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `Game Selected` menu.
+        let game_selected_launch_game = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_launch_game"));
+
         let game_selected_open_game_data_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_game_data_folder"));
         let game_selected_open_game_assembly_kit_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_game_assembly_kit_folder"));
+        let game_selected_open_config_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_config_folder"));
 
         let mut game_selected_three_kingdoms = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
         let mut game_selected_warhammer_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
@@ -656,8 +662,11 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             // "Game Selected" menu.
             //-------------------------------------------------------------------------------//
+            game_selected_launch_game,
+
             game_selected_open_game_data_folder,
             game_selected_open_game_assembly_kit_folder,
+            game_selected_open_config_folder,
 
             game_selected_three_kingdoms,
             game_selected_warhammer_2,

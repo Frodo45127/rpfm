@@ -451,32 +451,12 @@ impl PackedFileTableViewRaw {
             self.context_menu_copy.set_enabled(true);
             self.context_menu_copy_as_lua_table.set_enabled(true);
             self.context_menu_delete_rows.set_enabled(true);
-            //context_menu_rewrite_selection.set_enabled(true);
-            /*
-            // The "Apply" actions have to be enabled only when all the indexes are valid for the operation.
-            let mut columns = vec![];
-            for index in 0..indexes.count_0a() {
-                let model_index = indexes.at(index);
-                if model_index.is_valid() { columns.push(model_index.column()); }
-            }
-
-            columns.sort();
-            columns.dedup();
-
-            let mut can_apply = true;
-            for column in &columns {
-                let field_type = &table_definition.fields[*column as usize].field_type;
-                if *field_type != FieldType::Boolean { continue }
-                else { can_apply = false; break }
-            }
-            //context_menu_apply_maths_to_selection.set_enabled(can_apply);
-            */
+            self.context_menu_rewrite_selection.set_enabled(true);
         }
 
         // Otherwise, disable them.
         else {
-            //context_menu_apply_maths_to_selection.set_enabled(false);
-            //context_menu_rewrite_selection.set_enabled(false);
+            self.context_menu_rewrite_selection.set_enabled(false);
             self.context_menu_clone_and_append.set_enabled(false);
             self.context_menu_clone_and_insert.set_enabled(false);
             self.context_menu_copy.set_enabled(false);
@@ -488,7 +468,6 @@ impl PackedFileTableViewRaw {
             self.context_menu_undo.set_enabled(!self.history_undo.read().unwrap().is_empty());
             self.context_menu_redo.set_enabled(!self.history_redo.read().unwrap().is_empty());
         }
-
     }
 
     /// Function to filter the table.

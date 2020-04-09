@@ -493,6 +493,12 @@ pub enum ErrorKind {
 
     /// Error for when we try to open in the decoder an incompatible PackedFile.
     PackedFileNotDecodeableWithDecoder,
+
+    /// Error for when we try to launch a game with no steam ID.
+    LaunchNotSupportedForThisGame,
+
+    /// Error for when we cannot open RPFM's config folder.
+    ConfigFolderCouldNotBeOpened
 }
 
 /// Implementation of `Error`.
@@ -750,6 +756,8 @@ impl Display for ErrorKind {
             ErrorKind::DependencyManagerDecode(cause) => write!(f, "<p>Error while trying to decode the Dependency PackFile List:</p><p>{}</p>", cause),
             ErrorKind::DecoderDecode(cause) => write!(f, "<p>Error while trying to load the following PackedFile to the decoder:</p><p>{}</p>", cause),
             ErrorKind::PackedFileNotDecodeableWithDecoder => write!(f, "<p>This PackedFile cannot be decoded using the PackedFile Decoder.</p>"),
+            ErrorKind::LaunchNotSupportedForThisGame => write!(f, "<p>The currently selected game cannot be launched from Steam.</p>"),
+            ErrorKind::ConfigFolderCouldNotBeOpened => write!(f, "<p>RPFM's config folder couldn't be open (maybe it doesn't exists?).</p>"),
         }
     }
 }
