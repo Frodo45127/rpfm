@@ -848,6 +848,50 @@ impl TableSearch {
         self.matches.iter().filter(|x| x.1.is_some()).map(|x| x.0).collect()
     }
 
+    /// This function takes care of searching data whithin a column, and adding the matches to the matches list.
+    unsafe fn find_in_column(
+        &mut self,
+        model: MutPtr<QStandardItemModel>,
+        filter: MutPtr<QSortFilterProxyModel>,
+        definition: &Definition,
+        flags: QFlags<MatchFlag>,
+        column: i32
+    ) {
+
+        // First, check the column type. Boolean columns need special logic, as they cannot be matched by string.
+        let is_bool = definition.fields[column as usize].field_type == FieldType::Boolean;
+        let mut matches_unprocessed = if is_bool {
+            match parse_str(&self.pattern.to_std_string()) {
+                Ok(boolean) => {
+                    let check_state = if boolean { CheckState::Checked } else { CheckState::Unchecked };
+                    let mut items = QListOfQStandardItem::new();
+                    for row in 0..model.row_count_0a() {
+                        let item = model.item_2a(row, column);
+                        if item.check_state() == check_state {
+                            add_to_q_list_safe(items.as_mut_ptr(), item);
+                        }
+                    }
+                    items
+                }
+
+                // If this fails, ignore the entire column.
+                Err(_) => return,
+            }
+        }
+        else {
+            model.find_items_3a(self.pattern.as_ref().unwrap(), flags, column)
+        };
+
+        for index in 0..matches_unprocessed.count() {
+            let model_index = matches_unprocessed.index(index).as_ref().unwrap().index();
+            let filter_model_index = filter.map_from_source(&model_index);
+            self.matches.push((
+                model_index.into_ptr(),
+                if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
+            ));
+        }
+    }
+
     /// This function takes care of updating the UI to reflect changes in the table search.
     pub unsafe fn update_search_ui(parent: &mut PackedFileTableViewRaw, update_type: TableSearchUpdate) {
         let table_search = &mut parent.search_data.write().unwrap();
@@ -1032,15 +1076,7 @@ impl TableSearch {
             };
 
             for column in &columns_to_search {
-                let mut matches_unprocessed = parent.table_model.find_items_3a(table_search.pattern.as_ref().unwrap(), flags, *column);
-                for index in 0..matches_unprocessed.count() {
-                    let model_index = matches_unprocessed.index(index).as_ref().unwrap().index();
-                    let filter_model_index = parent.table_filter.map_from_source(&model_index);
-                    table_search.matches.push((
-                        model_index.into_ptr(),
-                        if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
-                    ));
-                }
+                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.table_definition, flags, *column);
             }
         }
 
@@ -1078,15 +1114,7 @@ impl TableSearch {
             };
 
             for column in &columns_to_search {
-                let mut matches_unprocessed = parent.table_model.find_items_3a(table_search.pattern.as_ref().unwrap(), flags, *column);
-                for index in 0..matches_unprocessed.count() {
-                    let model_index = matches_unprocessed.index(index).as_ref().unwrap().index();
-                    let filter_model_index = parent.table_filter.map_from_source(&model_index);
-                    table_search.matches.push((
-                        model_index.into_ptr(),
-                        if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
-                    ));
-                }
+                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.table_definition, flags, *column);
             }
         }
 
@@ -1130,8 +1158,14 @@ impl TableSearch {
                 // If the position is still valid (not required, but just in case)...
                 if model_index.is_valid() {
                     item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                    let text = item.text().to_std_string();
-                    replaced_text = text.replace(&text_source, &text_replace);
+
+                    if parent.table_definition.fields[model_index.column() as usize].field_type == FieldType::Boolean {
+                        replaced_text = text_replace;
+                    }
+                    else {
+                        let text = item.text().to_std_string();
+                        replaced_text = text.replace(&text_source, &text_replace);
+                    }
 
                     // We need to do an extra check to ensure the new text can be in the field.
                     match parent.table_definition.fields[model_index.column() as usize].field_type {
