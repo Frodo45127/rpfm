@@ -166,6 +166,7 @@ impl GlobalSearchUI {
         let mut global_search_search_on_locs_checkbox = QCheckBox::from_q_string(&qtr("global_search_loc"));
         let mut global_search_search_on_texts_checkbox = QCheckBox::from_q_string(&qtr("global_search_txt"));
         let mut global_search_search_on_schemas_checkbox = QCheckBox::from_q_string(&qtr("global_search_schemas"));
+        global_search_search_on_all_checkbox.set_checked(true);
 
         global_search_search_grid.set_column_stretch(0, 10);
 
