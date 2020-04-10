@@ -56,4 +56,10 @@ pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableV
     ui.get_freeze_checkboxes().iter()
         .zip(slots.freeze_columns.iter())
         .for_each(|(x, y)| { x.state_changed().connect(y); });
+
+    ui.get_mut_ptr_search_search_button().released().connect(&slots.search_search);
+    ui.get_mut_ptr_search_prev_match_button().released().connect(&slots.search_prev_match);
+    ui.get_mut_ptr_search_next_match_button().released().connect(&slots.search_next_match);
+    ui.get_mut_ptr_search_replace_current_button().released().connect(&slots.search_replace_current);
+    ui.get_mut_ptr_search_close_button().released().connect(&slots.search_close);
 }

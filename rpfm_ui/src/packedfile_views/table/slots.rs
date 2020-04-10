@@ -80,6 +80,12 @@ pub struct PackedFileTableViewSlots {
     pub search: SlotOfBool<'static>,
     pub hide_show_columns: Vec<SlotOfInt<'static>>,
     pub freeze_columns: Vec<SlotOfInt<'static>>,
+    pub search_search: Slot<'static>,
+    pub search_prev_match: Slot<'static>,
+    pub search_next_match: Slot<'static>,
+    pub search_replace_current: Slot<'static>,
+    pub search_replace_all: Slot<'static>,
+    pub search_close: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -166,6 +172,8 @@ impl PackedFileTableViewSlots {
                     }
                     packed_file_view.context_menu_update();
                 }
+
+                TableSearch::update_search(&mut packed_file_view);
 
 
 /*
@@ -530,7 +538,6 @@ impl PackedFileTableViewSlots {
             }
         }));
 
-
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
         let mut fields = table_definition.fields.iter()
@@ -558,6 +565,46 @@ impl PackedFileTableViewSlots {
             freeze_columns.push(freeze_slot);
         }
 
+        //------------------------------------------------------//
+        // Slots related with the search panel.
+        //------------------------------------------------------//
+
+        let search_search = Slot::new(clone!(
+            mut packed_file_view => move || {
+                TableSearch::search(&mut packed_file_view);
+            }
+        ));
+
+        let search_prev_match = Slot::new(clone!(
+            mut packed_file_view => move || {
+                TableSearch::prev_match(&mut packed_file_view);
+            }
+        ));
+
+        let search_next_match = Slot::new(clone!(
+            mut packed_file_view => move || {
+                TableSearch::next_match(&mut packed_file_view);
+            }
+        ));
+
+        let search_replace_current = Slot::new(clone!(
+            mut packed_file_view => move || {
+                TableSearch::replace_current(&mut packed_file_view);
+            }
+        ));
+
+        let search_replace_all = Slot::new(clone!(
+            mut packed_file_view => move || {
+                TableSearch::replace_all(&mut packed_file_view);
+            }
+        ));
+
+        let search_close = Slot::new(clone!(
+            mut packed_file_view => move || {
+                packed_file_view.search_widget.hide();
+                packed_file_view.table_view_primary.set_focus_0a();
+            }
+        ));
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
@@ -588,7 +635,13 @@ impl PackedFileTableViewSlots {
             sidebar,
             search,
             hide_show_columns,
-            freeze_columns
+            freeze_columns,
+            search_search,
+            search_prev_match,
+            search_next_match,
+            search_replace_current,
+            search_replace_all,
+            search_close,
         }
     }
 }

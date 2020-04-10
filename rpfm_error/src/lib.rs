@@ -116,8 +116,11 @@ pub enum ErrorKind {
     // Generic error for when parsing a String as an I64 fails.
     //ParsingLongIntegerError,
 
-    /// Generic error form when the initialization of a logger has failed.
+    /// Generic error for when the initialization of a logger has failed.
     InitializingLoggerError,
+
+    /// Generic error for when trying to parse something as a bool.
+    NotABooleanValue,
 
     //-----------------------------------------------------//
     //                  Network Errors
@@ -563,6 +566,7 @@ impl Display for ErrorKind {
             ErrorKind::ParsingIntegerError => write!(f, "<p>Error while trying to parse a String as an Integer.</p>"),
             ErrorKind::InitializingLoggerError => write!(f, "<p>Error while trying to initialize the logger.</p>"),
             //ErrorKind::ParsingLongIntegerError => write!(f, "<p>Error while trying to parse a String as a Long Integer.</p>"),
+            ErrorKind::NotABooleanValue => write!(f, "<p>Error while trying to parse something as a bool.</p>"),
 
             //-----------------------------------------------------//
             //                  Network Errors

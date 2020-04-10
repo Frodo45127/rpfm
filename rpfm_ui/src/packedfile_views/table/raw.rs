@@ -93,6 +93,19 @@ pub struct PackedFileTableViewRaw {
     pub sidebar_scroll_area: MutPtr<QScrollArea>,
     pub search_widget: MutPtr<QWidget>,
 
+    pub search_search_line_edit: MutPtr<QLineEdit>,
+    pub search_replace_line_edit: MutPtr<QLineEdit>,
+    pub search_search_button: MutPtr<QPushButton>,
+    pub search_replace_current_button: MutPtr<QPushButton>,
+    pub search_replace_all_button: MutPtr<QPushButton>,
+    pub search_close_button: MutPtr<QPushButton>,
+    pub search_prev_match_button: MutPtr<QPushButton>,
+    pub search_next_match_button: MutPtr<QPushButton>,
+    pub search_matches_label: MutPtr<QLabel>,
+    pub search_column_selector: MutPtr<QComboBox>,
+    pub search_case_sensitive_button: MutPtr<QPushButton>,
+    pub search_data: Arc<RwLock<TableSearch>>,
+
     pub dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
     pub table_definition: Definition,
 

@@ -195,3 +195,17 @@ pub fn get_game_selected_pak_file() -> Result<PathBuf> {
     }
     else { Err(ErrorKind::PAKFileNotSupportedForThisGame.into()) }
 }
+
+/// This function parses strings to booleans, properly.
+pub fn parse_str(string: &str) -> Result<bool> {
+    let str_lower_case = string.to_lowercase();
+    if str_lower_case == "true" || str_lower_case == "1" {
+        Ok(true)
+    }
+    else if str_lower_case == "false" || str_lower_case == "0" {
+        Ok(false)
+    }
+    else {
+        Err(ErrorKind::NotABooleanValue.into())
+    }
+}

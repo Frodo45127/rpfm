@@ -28,6 +28,7 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::QModelIndex;
 use qt_core::CheckState;
 use qt_core::QFlags;
 use qt_core::AlignmentFlag;
@@ -36,6 +37,7 @@ use qt_core::QStringList;
 use qt_core::QVariant;
 use qt_core::QString;
 use qt_core::q_item_selection_model::SelectionFlag;
+use qt_core::MatchFlag;
 
 use cpp_core::CppBox;
 use cpp_core::MutPtr;
@@ -47,7 +49,8 @@ use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
-use rpfm_error::Result;
+use rpfm_error::{ErrorKind, Result};
+use rpfm_lib::common::parse_str;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
@@ -64,6 +67,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
 use crate::utils::create_grid_layout;
+use crate::utils::show_dialog;
 
 use self::slots::PackedFileTableViewSlots;
 use self::raw::*;
@@ -115,6 +119,28 @@ pub enum TableOperations {
     Carolina(Vec<TableOperations>),
 }
 
+/// This struct contains all the stuff needed to perform a table search. There is one per table, integrated in the view.
+#[derive(Clone)]
+pub struct TableSearch {
+    pattern: MutPtr<QString>,
+    replace: MutPtr<QString>,
+    regex: bool,
+    case_sensitive: bool,
+    column: Option<i32>,
+
+    /// This one contains the QModelIndex of the model and the QModelIndex of the filter, if exists.
+    matches: Vec<(MutPtr<QModelIndex>, Option<MutPtr<QModelIndex>>)>,
+    current_item: Option<u64>,
+}
+
+/// This enum defines the operation to be done when updating something related to the TableSearch.
+pub enum TableSearchUpdate {
+    Update,
+    Search,
+    PrevMatch,
+    NextMatch,
+}
+
 /// This struct contains pointers to all the widgets in a Table View.
 pub struct PackedFileTableView {
     table_view_primary: AtomicPtr<QTableView>,
@@ -149,6 +175,18 @@ pub struct PackedFileTableView {
 
     sidebar_hide_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
     sidebar_freeze_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
+
+    search_search_line_edit: AtomicPtr<QLineEdit>,
+    search_replace_line_edit: AtomicPtr<QLineEdit>,
+    search_search_button: AtomicPtr<QPushButton>,
+    search_replace_current_button: AtomicPtr<QPushButton>,
+    search_replace_all_button: AtomicPtr<QPushButton>,
+    search_close_button: AtomicPtr<QPushButton>,
+    search_prev_match_button: AtomicPtr<QPushButton>,
+    search_next_match_button: AtomicPtr<QPushButton>,
+    search_matches_label: AtomicPtr<QLabel>,
+    search_column_selector: AtomicPtr<QComboBox>,
+    search_case_sensitive_button: AtomicPtr<QPushButton>,
 
     dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
     table_name: String,
@@ -307,50 +345,50 @@ impl PackedFileTableView {
         let mut search_widget = QWidget::new_0a().into_ptr();
         let mut search_grid = create_grid_layout(search_widget);
 
-        let matches_label = QLabel::new();
-        let search_label = QLabel::from_q_string(&QString::from_std_str("Search Pattern:"));
-        let replace_label = QLabel::from_q_string(&QString::from_std_str("Replace Pattern:"));
-        let mut search_line_edit = QLineEdit::new();
-        let mut replace_line_edit = QLineEdit::new();
-        let mut prev_match_button = QPushButton::from_q_string(&QString::from_std_str("Prev. Match"));
-        let mut next_match_button = QPushButton::from_q_string(&QString::from_std_str("Next Match"));
-        let search_button = QPushButton::from_q_string(&QString::from_std_str("Search"));
-        let mut replace_current_button = QPushButton::from_q_string(&QString::from_std_str("Replace Current"));
-        let mut replace_all_button = QPushButton::from_q_string(&QString::from_std_str("Replace All"));
-        let close_button = QPushButton::from_q_string(&QString::from_std_str("Close"));
-        let mut column_selector = QComboBox::new_0a();
-        let column_list = QStandardItemModel::new_0a();
-        let mut case_sensitive_button = QPushButton::from_q_string(&QString::from_std_str("Case Sensitive"));
+        let mut search_matches_label = QLabel::new();
+        let search_search_label = QLabel::from_q_string(&QString::from_std_str("Search Pattern:"));
+        let search_replace_label = QLabel::from_q_string(&QString::from_std_str("Replace Pattern:"));
+        let mut search_search_line_edit = QLineEdit::new();
+        let mut search_replace_line_edit = QLineEdit::new();
+        let mut search_prev_match_button = QPushButton::from_q_string(&QString::from_std_str("Prev. Match"));
+        let mut search_next_match_button = QPushButton::from_q_string(&QString::from_std_str("Next Match"));
+        let mut search_search_button = QPushButton::from_q_string(&QString::from_std_str("Search"));
+        let mut search_replace_current_button = QPushButton::from_q_string(&QString::from_std_str("Replace Current"));
+        let mut search_replace_all_button = QPushButton::from_q_string(&QString::from_std_str("Replace All"));
+        let mut search_close_button = QPushButton::from_q_string(&QString::from_std_str("Close"));
+        let mut search_column_selector = QComboBox::new_0a();
+        let search_column_list = QStandardItemModel::new_0a();
+        let mut search_case_sensitive_button = QPushButton::from_q_string(&QString::from_std_str("Case Sensitive"));
 
-        search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
-        replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
+        search_search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
+        search_replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
 
-        column_selector.set_model(column_list.into_ptr());
-        column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
+        search_column_selector.set_model(search_column_list.into_ptr());
+        search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
         for column in &fields {
-            column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(&column.name)));
+            search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(&column.name)));
         }
-        case_sensitive_button.set_checkable(true);
+        search_case_sensitive_button.set_checkable(true);
 
-        prev_match_button.set_enabled(false);
-        next_match_button.set_enabled(false);
-        replace_current_button.set_enabled(false);
-        replace_all_button.set_enabled(false);
+        search_prev_match_button.set_enabled(false);
+        search_next_match_button.set_enabled(false);
+        search_replace_current_button.set_enabled(false);
+        search_replace_all_button.set_enabled(false);
 
         // Add all the widgets to the search grid.
-        search_grid.add_widget_5a(search_label.into_ptr(), 0, 0, 1, 1);
-        search_grid.add_widget_5a(search_line_edit.into_ptr(), 0, 1, 1, 1);
-        search_grid.add_widget_5a(prev_match_button.into_ptr(), 0, 2, 1, 1);
-        search_grid.add_widget_5a(next_match_button.into_ptr(), 0, 3, 1, 1);
-        search_grid.add_widget_5a(replace_label.into_ptr(), 1, 0, 1, 1);
-        search_grid.add_widget_5a(replace_line_edit.into_ptr(), 1, 1, 1, 3);
-        search_grid.add_widget_5a(search_button.into_ptr(), 0, 4, 1, 1);
-        search_grid.add_widget_5a(replace_current_button.into_ptr(), 1, 4, 1, 1);
-        search_grid.add_widget_5a(replace_all_button.into_ptr(), 2, 4, 1, 1);
-        search_grid.add_widget_5a(close_button.into_ptr(), 2, 0, 1, 1);
-        search_grid.add_widget_5a(matches_label.into_ptr(), 2, 1, 1, 1);
-        search_grid.add_widget_5a(column_selector.into_ptr(), 2, 2, 1, 1);
-        search_grid.add_widget_5a(case_sensitive_button.into_ptr(), 2, 3, 1, 1);
+        search_grid.add_widget_5a(search_search_label.into_ptr(), 0, 0, 1, 1);
+        search_grid.add_widget_5a(&mut search_search_line_edit, 0, 1, 1, 1);
+        search_grid.add_widget_5a(&mut search_prev_match_button, 0, 2, 1, 1);
+        search_grid.add_widget_5a(&mut search_next_match_button, 0, 3, 1, 1);
+        search_grid.add_widget_5a(search_replace_label.into_ptr(), 1, 0, 1, 1);
+        search_grid.add_widget_5a(&mut search_replace_line_edit, 1, 1, 1, 3);
+        search_grid.add_widget_5a(&mut search_search_button, 0, 4, 1, 1);
+        search_grid.add_widget_5a(&mut search_replace_current_button, 1, 4, 1, 1);
+        search_grid.add_widget_5a(&mut search_replace_all_button, 2, 4, 1, 1);
+        search_grid.add_widget_5a(&mut search_close_button, 2, 0, 1, 1);
+        search_grid.add_widget_5a(&mut search_matches_label, 2, 1, 1, 1);
+        search_grid.add_widget_5a(&mut search_column_selector, 2, 2, 1, 1);
+        search_grid.add_widget_5a(&mut search_case_sensitive_button, 2, 3, 1, 1);
 
         layout.add_widget_5a(search_widget, 1, 0, 1, 4);
         layout.set_column_stretch(0, 10);
@@ -437,6 +475,19 @@ impl PackedFileTableView {
             context_menu_search,
             smart_delete,
 
+            search_search_line_edit: search_search_line_edit.into_ptr(),
+            search_replace_line_edit: search_replace_line_edit.into_ptr(),
+            search_search_button: search_search_button.into_ptr(),
+            search_replace_current_button: search_replace_current_button.into_ptr(),
+            search_replace_all_button: search_replace_all_button.into_ptr(),
+            search_close_button: search_close_button.into_ptr(),
+            search_prev_match_button: search_prev_match_button.into_ptr(),
+            search_next_match_button: search_next_match_button.into_ptr(),
+            search_matches_label: search_matches_label.into_ptr(),
+            search_column_selector: search_column_selector.into_ptr(),
+            search_case_sensitive_button: search_case_sensitive_button.into_ptr(),
+            search_data: Arc::new(RwLock::new(TableSearch::default())),
+
             sidebar_scroll_area,
             search_widget,
 
@@ -492,6 +543,18 @@ impl PackedFileTableView {
 
             sidebar_hide_checkboxes: Arc::new(hide_show_checkboxes),
             sidebar_freeze_checkboxes: Arc::new(freeze_checkboxes),
+
+            search_search_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_line_edit),
+            search_replace_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_line_edit),
+            search_search_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_button),
+            search_replace_current_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_current_button),
+            search_replace_all_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_all_button),
+            search_close_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_close_button),
+            search_prev_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_prev_match_button),
+            search_next_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_next_match_button),
+            search_matches_label: atomic_from_mut_ptr(packed_file_table_view_raw.search_matches_label),
+            search_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.search_column_selector),
+            search_case_sensitive_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_case_sensitive_button),
 
             dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition,
@@ -670,6 +733,36 @@ impl PackedFileTableView {
             .collect()
     }
 
+    /// This function returns a pointer to the search button in the search panel.
+    pub fn get_mut_ptr_search_search_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.search_search_button)
+    }
+
+    /// This function returns a pointer to the prev match button in the search panel.
+    pub fn get_mut_ptr_search_prev_match_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.search_prev_match_button)
+    }
+
+    /// This function returns a pointer to the next_match button in the search panel.
+    pub fn get_mut_ptr_search_next_match_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.search_next_match_button)
+    }
+
+    /// This function returns a pointer to the replace current button in the search panel.
+    pub fn get_mut_ptr_search_replace_current_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.search_replace_current_button)
+    }
+
+    /// This function returns a pointer to the replace all button in the search panel.
+    pub fn get_mut_ptr_search_replace_all_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.search_replace_all_button)
+    }
+
+    /// This function returns a pointer to the close button in the search panel.
+    pub fn get_mut_ptr_search_close_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.search_close_button)
+    }
+
     /// This function returns a reference to this table's name.
     pub fn get_ref_table_name(&self) -> &str {
         &self.table_name
@@ -717,3 +810,367 @@ impl Clone for TableOperations {
         }
     }
 }
+
+//----------------------------------------------------------------//
+// Implementations of `TableSearch`.
+//----------------------------------------------------------------//
+
+/// Default implementation for TableSearch.
+impl Default for TableSearch {
+    fn default() -> Self {
+        Self {
+            pattern: unsafe { QString::new().into_ptr() },
+            replace: unsafe { QString::new().into_ptr() },
+            regex: false,
+            case_sensitive: false,
+            column: None,
+            matches: vec![],
+            current_item: None,
+        }
+    }
+}
+
+/// Implementation of `TableSearch`.
+impl TableSearch {
+
+    /// This function returns the list of matches present in the model.
+    fn get_matches_in_model(&self) -> Vec<MutPtr<QModelIndex>> {
+        self.matches.iter().map(|x| x.0).collect()
+    }
+
+    /// This function returns the list of matches visible to the user with the current filter.
+    fn get_matches_in_filter(&self) -> Vec<MutPtr<QModelIndex>> {
+        self.matches.iter().filter_map(|x| x.1).collect()
+    }
+
+    /// This function returns the list of matches present in the model that are visible to the user with the current filter.
+    fn get_visible_matches_in_model(&self) -> Vec<MutPtr<QModelIndex>> {
+        self.matches.iter().filter(|x| x.1.is_some()).map(|x| x.0).collect()
+    }
+
+    /// This function takes care of updating the UI to reflect changes in the table search.
+    pub unsafe fn update_search_ui(parent: &mut PackedFileTableViewRaw, update_type: TableSearchUpdate) {
+        let table_search = &mut parent.search_data.write().unwrap();
+        let matches_in_filter = table_search.get_matches_in_filter();
+        let matches_in_model = table_search.get_matches_in_model();
+        match update_type {
+            TableSearchUpdate::Search => {
+                if table_search.pattern.is_empty() {
+                    parent.search_matches_label.set_text(&QString::new());
+                    parent.search_prev_match_button.set_enabled(false);
+                    parent.search_next_match_button.set_enabled(false);
+                    parent.search_replace_current_button.set_enabled(false);
+                    parent.search_replace_all_button.set_enabled(false);
+                }
+
+                // If no matches have been found, report it.
+                else if table_search.matches.is_empty() {
+                    table_search.current_item = None;
+                    parent.search_matches_label.set_text(&QString::from_std_str("No matches found."));
+                    parent.search_prev_match_button.set_enabled(false);
+                    parent.search_next_match_button.set_enabled(false);
+                    parent.search_replace_current_button.set_enabled(false);
+                    parent.search_replace_all_button.set_enabled(false);
+                }
+
+                // Otherwise, if no matches have been found in the current filter, but they have been in the model...
+                else if matches_in_filter.len() == 0 {
+                    table_search.current_item = None;
+                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    parent.search_prev_match_button.set_enabled(false);
+                    parent.search_next_match_button.set_enabled(false);
+                    parent.search_replace_current_button.set_enabled(false);
+                    parent.search_replace_all_button.set_enabled(false);
+                }
+
+                // Otherwise, matches have been found both, in the model and in the filter.
+                else {
+                    table_search.current_item = Some(0);
+                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("1 of {} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    parent.search_prev_match_button.set_enabled(false);
+                    parent.search_replace_current_button.set_enabled(true);
+                    parent.search_replace_all_button.set_enabled(true);
+
+                    if matches_in_filter.len() > 1 {
+                        parent.search_next_match_button.set_enabled(true);
+                    }
+                    else {
+                        parent.search_next_match_button.set_enabled(false);
+                    }
+
+                    parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
+                        matches_in_filter[0].as_ref().unwrap(),
+                        QFlags::from(SelectionFlag::ClearAndSelect)
+                    );
+                }
+
+            }
+            TableSearchUpdate::PrevMatch => {
+                let matches_in_model = table_search.get_matches_in_model();
+                let matches_in_filter = table_search.get_matches_in_filter();
+                if let Some(ref mut pos) = table_search.current_item {
+
+                    // If we are in an invalid result, return. If it's the first one, disable the button and return.
+                    if *pos > 0 {
+                        *pos -= 1;
+                        if *pos == 0 { parent.search_prev_match_button.set_enabled(false); }
+                        else { parent.search_prev_match_button.set_enabled(true); }
+                        if *pos as usize >= matches_in_filter.len() - 1 { parent.search_next_match_button.set_enabled(false); }
+                        else { parent.search_next_match_button.set_enabled(true); }
+
+                        parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
+                            matches_in_filter[*pos as usize].as_ref().unwrap(),
+                            QFlags::from(SelectionFlag::ClearAndSelect)
+                        );
+                        parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
+                    }
+                }
+            }
+            TableSearchUpdate::NextMatch => {
+                let matches_in_model = table_search.get_matches_in_model();
+                let matches_in_filter = table_search.get_matches_in_filter();
+                if let Some(ref mut pos) = table_search.current_item {
+
+                    // If we are in an invalid result, return. If it's the last one, disable the button and return.
+                    if *pos as usize >= matches_in_filter.len() - 1 {
+                        parent.search_next_match_button.set_enabled(false);
+                    }
+                    else {
+                        *pos += 1;
+                        if *pos == 0 { parent.search_prev_match_button.set_enabled(false); }
+                        else { parent.search_prev_match_button.set_enabled(true); }
+                        if *pos as usize >= matches_in_filter.len() - 1 { parent.search_next_match_button.set_enabled(false); }
+                        else { parent.search_next_match_button.set_enabled(true); }
+
+                        parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
+                            matches_in_filter[*pos as usize].as_ref().unwrap(),
+                            QFlags::from(SelectionFlag::ClearAndSelect)
+                        );
+                        parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", *pos + 1, matches_in_filter.len(), matches_in_model.len())));
+                    }
+                }
+            }
+            TableSearchUpdate::Update => {
+                if table_search.pattern.is_empty() {
+                    parent.search_matches_label.set_text(&QString::new());
+                    parent.search_prev_match_button.set_enabled(false);
+                    parent.search_next_match_button.set_enabled(false);
+                    parent.search_replace_current_button.set_enabled(false);
+                    parent.search_replace_all_button.set_enabled(false);
+                }
+
+                // If no matches have been found, report it.
+                else if table_search.matches.is_empty() {
+                    table_search.current_item = None;
+                    parent.search_matches_label.set_text(&QString::from_std_str("No matches found."));
+                    parent.search_prev_match_button.set_enabled(false);
+                    parent.search_next_match_button.set_enabled(false);
+                    parent.search_replace_current_button.set_enabled(false);
+                    parent.search_replace_all_button.set_enabled(false);
+                }
+
+                // Otherwise, if no matches have been found in the current filter, but they have been in the model...
+                else if matches_in_filter.len() == 0 {
+                    table_search.current_item = None;
+                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
+                    parent.search_prev_match_button.set_enabled(false);
+                    parent.search_next_match_button.set_enabled(false);
+                    parent.search_replace_current_button.set_enabled(false);
+                    parent.search_replace_all_button.set_enabled(false);
+                }
+
+                // Otherwise, matches have been found both, in the model and in the filter. Which means we have to recalculate
+                // our position, and then behave more or less like a normal search.
+                else {
+                    table_search.current_item = match table_search.current_item {
+                        Some(pos) => if (pos as usize) < matches_in_filter.len() { Some(pos) } else { Some(0) }
+                        None => Some(0)
+                    };
+
+                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", table_search.current_item.unwrap(), matches_in_filter.len(), matches_in_model.len())));
+
+                    if table_search.current_item.unwrap() == 0 {
+                        parent.search_prev_match_button.set_enabled(false);
+                    }
+                    else {
+                        parent.search_prev_match_button.set_enabled(true);
+                    }
+
+                    if matches_in_filter.len() > 1 && (table_search.current_item.unwrap() as usize) < matches_in_filter.len() - 1 {
+                        parent.search_next_match_button.set_enabled(true);
+                    }
+                    else {
+                        parent.search_next_match_button.set_enabled(false);
+                    }
+
+                    parent.search_replace_current_button.set_enabled(true);
+                    parent.search_replace_all_button.set_enabled(true);
+                }
+            }
+        }
+    }
+
+    /// This function takes care of updating the search data whenever a change that can alter the results happens.
+    pub unsafe fn update_search(parent: &mut PackedFileTableViewRaw) {
+        {
+            let table_search = &mut parent.search_data.write().unwrap();
+            table_search.matches.clear();
+
+            let mut flags = if table_search.regex {
+                QFlags::from(MatchFlag::MatchRegExp)
+            } else {
+                QFlags::from(MatchFlag::MatchContains)
+            };
+
+            if table_search.case_sensitive {
+                flags = flags | QFlags::from(MatchFlag::MatchCaseSensitive);
+            }
+
+            let columns_to_search = match table_search.column {
+                Some(column) => vec![column],
+                None => (0..parent.table_definition.fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
+            };
+
+            for column in &columns_to_search {
+                let mut matches_unprocessed = parent.table_model.find_items_3a(table_search.pattern.as_ref().unwrap(), flags, *column);
+                for index in 0..matches_unprocessed.count() {
+                    let model_index = matches_unprocessed.index(index).as_ref().unwrap().index();
+                    let filter_model_index = parent.table_filter.map_from_source(&model_index);
+                    table_search.matches.push((
+                        model_index.into_ptr(),
+                        if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
+                    ));
+                }
+            }
+        }
+
+        Self::update_search_ui(parent, TableSearchUpdate::Search);
+    }
+
+    /// This function takes care of searching the patter we provided in the TableView.
+    pub unsafe fn search(parent: &mut PackedFileTableViewRaw) {
+        {
+            let table_search = &mut parent.search_data.write().unwrap();
+            table_search.matches.clear();
+            table_search.current_item = None;
+            table_search.pattern = parent.search_search_line_edit.text().into_ptr();
+            //table_search.regex = parent.search_search_line_edit.is_checked();
+            table_search.case_sensitive = parent.search_case_sensitive_button.is_checked();
+            table_search.column = {
+                let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
+                if column == "*_(all_columns)" { None }
+                else { Some(parent.table_definition.fields.iter().position(|x| x.name == column).unwrap() as i32) }
+            };
+
+            let mut flags = if table_search.regex {
+                QFlags::from(MatchFlag::MatchRegExp)
+            } else {
+                QFlags::from(MatchFlag::MatchContains)
+            };
+
+            if table_search.case_sensitive {
+                flags = flags | QFlags::from(MatchFlag::MatchCaseSensitive);
+            }
+
+            let columns_to_search = match table_search.column {
+                Some(column) => vec![column],
+                None => (0..parent.table_definition.fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
+            };
+
+            for column in &columns_to_search {
+                let mut matches_unprocessed = parent.table_model.find_items_3a(table_search.pattern.as_ref().unwrap(), flags, *column);
+                for index in 0..matches_unprocessed.count() {
+                    let model_index = matches_unprocessed.index(index).as_ref().unwrap().index();
+                    let filter_model_index = parent.table_filter.map_from_source(&model_index);
+                    table_search.matches.push((
+                        model_index.into_ptr(),
+                        if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
+                    ));
+                }
+            }
+        }
+
+        Self::update_search_ui(parent, TableSearchUpdate::Search);
+    }
+
+    /// This function takes care of moving the selection to the previous match on the matches list.
+    pub unsafe fn prev_match(parent: &mut PackedFileTableViewRaw) {
+        Self::update_search_ui(parent, TableSearchUpdate::PrevMatch);
+    }
+
+    /// This function takes care of moving the selection to the next match on the matches list.
+    pub unsafe fn next_match(parent: &mut PackedFileTableViewRaw) {
+        Self::update_search_ui(parent, TableSearchUpdate::NextMatch);
+    }
+
+    /// This function takes care of replacing the current match with the provided replacing text.
+    pub unsafe fn replace_current(parent: &mut PackedFileTableViewRaw) {
+
+        // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
+        let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
+        if !text_source.is_empty() {
+
+            // Get the replace data here, as we probably don't have it updated.
+            parent.search_data.write().unwrap().replace = parent.search_replace_line_edit.text().into_ptr();
+            let text_replace = parent.search_data.read().unwrap().replace.to_std_string();
+            if text_source == text_replace { return }
+
+            // And if we got a valid position.
+            let mut item;
+            let replaced_text;
+            if let Some(ref position) = parent.search_data.read().unwrap().current_item {
+
+                // Here is save to lock, as the lock will be drop before doing the replace.
+                let table_search = &mut parent.search_data.read().unwrap();
+
+                // Get the list of all valid ModelIndex for the current filter and the current position.
+                let matches_in_model_and_filter = table_search.get_visible_matches_in_model();
+                let model_index = matches_in_model_and_filter[*position as usize];
+
+                // If the position is still valid (not required, but just in case)...
+                if model_index.is_valid() {
+                    item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
+                    let text = item.text().to_std_string();
+                    replaced_text = text.replace(&text_source, &text_replace);
+
+                    // We need to do an extra check to ensure the new text can be in the field.
+                    match parent.table_definition.fields[model_index.column() as usize].field_type {
+                        FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::LongInteger => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        _ =>  {}
+                    }
+                } else { return }
+            } else { return }
+
+            // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
+            match parent.table_definition.fields[item.column() as usize].field_type {
+                FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
+                FieldType::Float => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
+                FieldType::Integer => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
+                FieldType::LongInteger => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
+                _ => item.set_text(&QString::from_std_str(&replaced_text)),
+            }
+
+            // At this point, the edition has been done. We're free to lock again. If we still have matches, select the next match, if any, or the first one.
+            let table_search = &mut parent.search_data.read().unwrap();
+            if let Some(pos) = table_search.current_item {
+                let matches_in_filter = table_search.get_matches_in_filter();
+
+                parent.table_view_primary.selection_model().select_q_model_index_q_flags_selection_flag(
+                    matches_in_filter[pos as usize].as_ref().unwrap(),
+                    QFlags::from(SelectionFlag::ClearAndSelect)
+                );
+            }
+        }
+    }
+
+    pub unsafe fn replace_all(parent: &mut PackedFileTableViewRaw) {
+        let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
+        if !text_source.is_empty() {
+
+        }
+    }
+}
+
