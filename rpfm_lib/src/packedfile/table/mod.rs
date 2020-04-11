@@ -594,7 +594,15 @@ impl Table {
 
     /// This function escapes certain characters of the provided string.
     fn escape_special_chars(data: &str)-> String {
-         data.replace("\t", "\\t").replace("\n", "\\n")
+         let mut output = Vec::with_capacity(data.len() + 10);
+         for c in data.as_bytes() {
+            match c {
+                b'\n' => output.extend_from_slice(b"\\n"),
+                b'\t' => output.extend_from_slice(b"\\t"),
+                _ => output.push(*c),
+            }
+        }
+        unsafe { String::from_utf8_unchecked(output) }
     }
 
     /// This function unescapes certain characters of the provided string.

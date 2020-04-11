@@ -68,7 +68,7 @@ impl Loc {
 
     /// This function returns if the provided data corresponds to a LOC Table or not.
     pub fn is_loc(data: &[u8]) -> bool {
-        if data.len() < 14 { return false }
+        if data.len() < HEADER_SIZE { return false }
         if BYTEORDER_MARK != data.decode_integer_u16(0).unwrap() { return false }
         if PACKED_FILE_TYPE != data.decode_string_u8(2, 3).unwrap() { return false }
         true
@@ -126,7 +126,7 @@ impl Loc {
         let definition = definition?;
 
         // Then try to decode all the entries.
-        let mut index = 14 as usize;
+        let mut index = HEADER_SIZE as usize;
         let mut table = Table::new(&definition);
         table.decode(&packed_file_data, entry_count, &mut index, return_incomplete)?;
 
@@ -143,7 +143,7 @@ impl Loc {
     pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, u32)> {
 
         // A valid Loc PackedFile has at least 14 bytes. This ensures they exists before anything else.
-        if packed_file_data.len() < 14 { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
+        if packed_file_data.len() < HEADER_SIZE { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
 
         // More checks to ensure this is a valid Loc PAckedFile.
         if BYTEORDER_MARK != packed_file_data.decode_integer_u16(0)? { return Err(ErrorKind::LocPackedFileIsNotALocPackedFile.into()) }
