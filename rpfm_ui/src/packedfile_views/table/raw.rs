@@ -27,6 +27,8 @@ use qt_gui::QBrush;
 use qt_gui::QGuiApplication;
 use qt_gui::QStandardItemModel;
 
+use qt_core::QObject;
+use qt_core::QSignalBlocker;
 use qt_core::CaseSensitivity;
 use qt_core::QFlags;
 use qt_core::QItemSelection;
@@ -141,7 +143,8 @@ impl PackedFileTableViewRaw {
         };
 
         // Load the data, row by row.
-        for entry in data {
+        let mut blocker = QSignalBlocker::from_q_object(self.table_model.static_upcast_mut::<QObject>());
+        for (index, entry) in data.iter().enumerate() {
             let mut qlist = QListOfQStandardItem::new();
             for (index, field) in entry.iter().enumerate() {
                 let mut item = Self::get_item_from_decoded_data(field);
@@ -152,6 +155,9 @@ impl PackedFileTableViewRaw {
                 }
 
                 add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
+            }
+            if index == data.len() - 1 {
+                blocker.unblock();
             }
             self.table_model.append_row_q_list_of_q_standard_item(&qlist);
         }
