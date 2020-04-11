@@ -21,10 +21,10 @@ use super::{PackFileContentsUI, slots::PackFileContentsSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
-    unsafe { ui.packfile_contents_tree_view.clicked().connect(&slots.open_packedfile_full); }
+    //unsafe { ui.packfile_contents_tree_view.clicked().connect(&slots.open_packedfile_preview); }
     unsafe { ui.packfile_contents_tree_view.selection_model().selection_changed().connect(&slots.open_packedfile_preview); }
     //unsafe { ui.packfile_contents_tree_view.activated().connect(&slots.open_packedfile_full); }
-    //unsafe { ui.packfile_contents_tree_view.double_clicked().connect(&slots.open_packedfile_full); }
+    unsafe { ui.packfile_contents_tree_view.double_clicked().connect(&slots.open_packedfile_full); }
 
     // Trigger the filter whenever the "filtered" text or any of his settings changes.
     unsafe { ui.filter_line_edit.text_changed().connect(&slots.filter_change_text); }

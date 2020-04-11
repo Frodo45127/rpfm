@@ -13,9 +13,12 @@ In this file are all the utility functions we need for the tables to work.
 !*/
 
 use qt_widgets::QTableView;
+
+use qt_gui::QColor;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
+
 use qt_core::QModelIndex;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
@@ -30,9 +33,14 @@ use std::cmp::Ordering;
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_lib::schema::{Definition, Field, FieldType};
+use rpfm_lib::SETTINGS;
 
+use crate::DARK_RED;
+use crate::EVEN_MORE_WHITY_GREY;
 use crate::ffi::add_to_q_list_safe;
+use crate::LINK_BLUE;
 use crate::locale::qtr;
+use crate::MEDIUM_DARK_GREY;
 use crate::utils::*;
 
 //----------------------------------------------------------------------------//
@@ -266,4 +274,31 @@ pub fn clean_column_names(field_name: &str) -> String {
     }
 
     new_name
+}
+
+/// This function returns the color used for wrong referenced data in tables.
+pub unsafe fn get_color_wrong_key() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*DARK_RED)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*DARK_RED)).into_ptr()
+    }
+}
+
+/// This function returns the color used for data with missing references in tables.
+pub unsafe fn get_color_no_ref_data() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*LINK_BLUE)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*LINK_BLUE)).into_ptr()
+    }
+}
+
+/// This function returns the color used for correct referenced data in tables.
+pub unsafe fn get_color_correct_key() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*EVEN_MORE_WHITY_GREY)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*MEDIUM_DARK_GREY)).into_ptr()
+    }
 }

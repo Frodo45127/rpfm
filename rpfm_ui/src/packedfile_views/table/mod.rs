@@ -43,7 +43,7 @@ use cpp_core::CppBox;
 use cpp_core::MutPtr;
 
 use std::cell::RefCell;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::{fmt, fmt::Debug};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -188,9 +188,9 @@ pub struct PackedFileTableView {
     search_column_selector: AtomicPtr<QComboBox>,
     search_case_sensitive_button: AtomicPtr<QPushButton>,
 
-    dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
+    dependency_data: Arc<RwLock<BTreeMap<i32, HashMap<String, String>>>>,
     table_name: String,
-    table_definition: Definition,
+    table_definition: Arc<Definition>,
 
     save_lock: Arc<AtomicBool>,
     undo_lock: Arc<AtomicBool>,
@@ -243,7 +243,7 @@ impl PackedFileTableView {
         CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(table_definition.clone()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let dependency_data = match response {
-            Response::BTreeMapI32VecStringString(dependency_data) => dependency_data,
+            Response::BTreeMapI32HashMapStringString(dependency_data) => dependency_data,
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -492,7 +492,7 @@ impl PackedFileTableView {
             search_widget,
 
             dependency_data: Arc::new(RwLock::new(dependency_data)),
-            table_definition: table_definition.clone(),
+            table_definition: Arc::new(table_definition),
 
             undo_lock,
             save_lock,
@@ -507,7 +507,6 @@ impl PackedFileTableView {
             *global_search_ui,
             *pack_file_contents_ui,
             &packed_file_path,
-            &table_definition,
         );
 
         let mut packed_file_table_view = Self {
@@ -557,7 +556,7 @@ impl PackedFileTableView {
             search_case_sensitive_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_case_sensitive_button),
 
             dependency_data: packed_file_table_view_raw.dependency_data.clone(),
-            table_definition,
+            table_definition: packed_file_table_view_raw.table_definition.clone(),
             table_name,
 
             undo_lock: packed_file_table_view_raw.undo_lock.clone(),

@@ -1455,14 +1455,14 @@ impl PackFile {
 
                 let mut broken_tables = vec![];
                 let mut real_dep_db = DEPENDENCY_DATABASE.lock().unwrap();
-                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
+                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
 
                 // Due to how mutability works, we have first to get the data of every table,
                 // then iterate them and decode them. The errors here can be silenced safetly.
-                for packed_file in self.get_ref_mut_packed_files_by_path_start(&["db".to_owned()]) {
+                self.get_ref_mut_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false).par_iter_mut().for_each(|packed_file| {
                     let _ = packed_file.decode_no_locks(schema);
+                });
 
-                }
                 for packed_file in self.get_packed_files_by_path_start(&["db".to_owned()]) {
                     if let DecodedPackedFile::DB(table) = packed_file.get_ref_decoded() {
                         let dependency_data = DB::get_dependency_data(self, schema, &table.get_definition(), &mut real_dep_db, &fake_dep_db);
@@ -1485,7 +1485,7 @@ impl PackFile {
                                         _ => "NoData".to_owned()
                                     };
 
-                                    let dependency_data = dependency_data.iter().map(|x| &x.0).collect::<Vec<&String>>();
+                                    let dependency_data = dependency_data.iter().map(|x| x.0).collect::<Vec<&String>>();
                                     if &field_data != "NoData" && !field_data.is_empty() && !dependency_data.contains(&&field_data) {
                                         broken_columns.push(*column);
                                     }

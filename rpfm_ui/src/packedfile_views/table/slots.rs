@@ -101,7 +101,6 @@ impl PackedFileTableViewSlots {
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
-        table_definition: &Definition,
     ) -> Self {
 
         // When we want to filter the table...
@@ -122,9 +121,8 @@ impl PackedFileTableViewSlots {
 
         // When we want to toggle the lookups on and off.
         let toggle_lookups = SlotOfBool::new(clone!(
-            packed_file_view,
-            table_definition => move |_| {
-            packed_file_view.toggle_lookups(&table_definition);
+            packed_file_view => move |_| {
+            packed_file_view.toggle_lookups();
         }));
 
         // When we want to show the context menu.
@@ -141,6 +139,7 @@ impl PackedFileTableViewSlots {
 
         // When we want to respond to a change in one item in the model.
         let item_changed = SlotOfQStandardItem::new(clone!(
+
             mut packed_file_view => move |item| {
 
                 // If we are NOT UNDOING, paint the item as edited and add the edition to the undo list.
@@ -175,15 +174,13 @@ impl PackedFileTableViewSlots {
 
                 TableSearch::update_search(&mut packed_file_view);
 
-
-/*
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.lock().unwrap().settings_bool["use_dependency_checker"] {
-                    let column = unsafe { item.as_mut().unwrap().column() };
-                    if table_definition.fields[column as usize].field_is_reference.is_some() {
-                        Self::check_references(&dependency_data, column, item);
+                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+                    let column = item.column();
+                    if packed_file_view.table_definition.fields[column as usize].is_reference.is_some() {
+                        packed_file_view.check_references(column, item);
                     }
-                }*/
+                }
 
                 // If we are editing the Dependency Manager, check for PackFile errors too.
                 //if let TableType::DependencyManager(_) = *table_type.borrow() { Self::check_dependency_packfile_errors(model); }
@@ -540,7 +537,7 @@ impl PackedFileTableViewSlots {
 
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
-        let mut fields = table_definition.fields.iter()
+        let mut fields = packed_file_view.table_definition.fields.iter()
             .enumerate()
             .map(|(x, y)| (x as i32, y.ca_order))
             .collect::<Vec<(i32, i16)>>();

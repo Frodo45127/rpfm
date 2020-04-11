@@ -19,7 +19,7 @@ use bincode::deserialize;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
@@ -289,7 +289,7 @@ impl DB {
 
     /// This function returns the dependency/lookup data of a column from the dependency database.
     fn get_dependency_data_from_real_dependencies(
-        references: &mut Vec<(String, String)>,
+        references: &mut HashMap<String, String>,
         reference_info: (&str, &str, &[String]),
         real_dep_db: &mut Vec<PackedFile>,
         schema: &Schema,
@@ -340,7 +340,7 @@ impl DB {
                             }
                         }
 
-                        references.push((reference_data, lookup_data.join(" ")));
+                        references.insert(reference_data, lookup_data.join(" "));
                     }
                 }
             }
@@ -349,7 +349,7 @@ impl DB {
 
     /// This function returns the dependency/lookup data of a column from the fake dependency database.
     fn get_dependency_data_from_fake_dependencies(
-        references: &mut Vec<(String, String)>,
+        references: &mut HashMap<String, String>,
         reference_info: (&str, &str, &[String]),
         fake_dep_db: &[DB],
     ) {
@@ -397,14 +397,14 @@ impl DB {
                     }
                 }
 
-                references.push((reference_data, lookup_data.join(" ")));
+                references.insert(reference_data, lookup_data.join(" "));
             }
         }
     }
 
     /// This function returns the dependency/lookup data of a column from our own `PackFile`.
     fn get_dependency_data_from_packfile(
-        references: &mut Vec<(String, String)>,
+        references: &mut HashMap<String, String>,
         reference_info: (&str, &str, &[String]),
         packfile: &mut PackFile,
         schema: &Schema,
@@ -454,7 +454,7 @@ impl DB {
                             }
                         }
 
-                        references.push((reference_data, lookup_data.join(" ")));
+                        references.insert(reference_data, lookup_data.join(" "));
                     }
                 }
             }
@@ -471,7 +471,7 @@ impl DB {
         table_definition: &Definition,
         real_dep_db: &mut Vec<PackedFile>,
         fake_dep_db: &[DB],
-    ) -> BTreeMap<i32, Vec<(String, String)>> {
+    ) -> BTreeMap<i32, HashMap<String, String>> {
         let mut data = BTreeMap::new();
         for (column, field) in table_definition.fields.iter().enumerate() {
             if let Some((ref ref_table, ref ref_column)) = field.is_reference {
@@ -479,15 +479,11 @@ impl DB {
 
                     // Get his lookup data if it has it.
                     let lookup_data = if let Some(ref data) = field.lookup { data.to_vec() } else { Vec::with_capacity(0) };
-                    let mut references = vec![];
+                    let mut references = HashMap::new();
 
                     Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), real_dep_db, schema);
                     Self::get_dependency_data_from_fake_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), fake_dep_db);
                     Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, schema);
-
-                    // Sort and dedup the data found.
-                    references.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-                    references.dedup();
 
                     data.insert(column as i32, references);
                 }

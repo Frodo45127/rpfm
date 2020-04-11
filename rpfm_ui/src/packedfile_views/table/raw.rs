@@ -40,7 +40,7 @@ use qt_core::q_item_selection_model::SelectionFlag;
 use cpp_core::MutPtr;
 use cpp_core::Ref;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -106,8 +106,8 @@ pub struct PackedFileTableViewRaw {
     pub search_case_sensitive_button: MutPtr<QPushButton>,
     pub search_data: Arc<RwLock<TableSearch>>,
 
-    pub dependency_data: Arc<RwLock<BTreeMap<i32, Vec<(String, String)>>>>,
-    pub table_definition: Definition,
+    pub dependency_data: Arc<RwLock<BTreeMap<i32, HashMap<String, String>>>>,
+    pub table_definition: Arc<Definition>,
 
     pub save_lock: Arc<AtomicBool>,
     pub undo_lock: Arc<AtomicBool>,
@@ -144,11 +144,11 @@ impl PackedFileTableViewRaw {
         for entry in data {
             let mut qlist = QListOfQStandardItem::new();
             for (index, field) in entry.iter().enumerate() {
-                let item = Self::get_item_from_decoded_data(field);
+                let mut item = Self::get_item_from_decoded_data(field);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && self.table_definition.fields[index].is_reference.is_some() {
-                    //Self::check_references(dependency_data, index as i32, item.into_ptr());
+                    self.check_references(index as i32, item.as_mut_ptr());
                 }
 
                 add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
@@ -200,7 +200,7 @@ impl PackedFileTableViewRaw {
 
                 if let Some(data) = self.dependency_data.read().unwrap().get(&(column as i32)) {
                     let mut list = QStringList::new();
-                    data.iter().map(|x| if enable_lookups { &x.1 } else { &x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                    data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
                     new_combobox_item_delegate_safe(&mut self.table_view_primary, column as i32, list.as_ptr(), true, field.max_length);
                     new_combobox_item_delegate_safe(&mut self.table_view_frozen, column as i32, list.as_ptr(), true, field.max_length);
                 }
@@ -500,7 +500,7 @@ impl PackedFileTableViewRaw {
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
-    pub unsafe fn toggle_lookups(&self, _table_definition: &Definition) {
+    pub unsafe fn toggle_lookups(&self) {
         /*
         if SETTINGS.lock().unwrap().settings_bool["disable_combos_on_tables"] {
             let enable_lookups = unsafe { self.table_enable_lookups_button.is_checked() };
@@ -1612,5 +1612,28 @@ impl PackedFileTableViewRaw {
             let new_text = rewrite_sequence_line_edit.text().to_std_string();
             if new_text.is_empty() { None } else { Some((is_math_op.is_checked(), rewrite_sequence_line_edit.text().to_std_string())) }
         } else { None }
+    }
+
+    /// Function to check if an specific field's data is in their references.
+    pub unsafe fn check_references(
+        &mut self,
+        column: i32,
+        mut item: MutPtr<QStandardItem>,
+    ) {
+        // First, check if we have dependency data for that column.
+        if let Some(ref_data) = self.dependency_data.read().unwrap().get(&column) {
+            let text = item.text().to_std_string();
+
+            // Then, check if the data we have is in the ref data list.
+            if ref_data.is_empty() {
+                item.set_foreground(&QBrush::from_q_color(get_color_no_ref_data().as_ref().unwrap()));
+            }
+            else if ref_data.contains_key(&text) {
+                item.set_foreground(&QBrush::from_q_color(get_color_correct_key().as_ref().unwrap()));
+            }
+            else {
+                item.set_foreground(&QBrush::from_q_color(get_color_wrong_key().as_ref().unwrap()));
+            }
+        }
     }
 }

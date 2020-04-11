@@ -214,7 +214,7 @@ pub fn background_loop() {
                 *DEPENDENCY_DATABASE.lock().unwrap() = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
 
                 // Change the `fake dependency_database` for that game.
-                *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = DB::read_pak_file();
+                *FAKE_DEPENDENCY_DATABASE.write().unwrap() = DB::read_pak_file();
 
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
@@ -257,7 +257,7 @@ pub fn background_loop() {
                 }
 
                 // Reload the `fake dependency_database` for that game.
-                *FAKE_DEPENDENCY_DATABASE.lock().unwrap() = DB::read_pak_file();
+                *FAKE_DEPENDENCY_DATABASE.write().unwrap() = DB::read_pak_file();
             }
 
             // In case we want to update the Schema for our Game Selected...
@@ -619,7 +619,7 @@ pub fn background_loop() {
                 let dependency_data = match &*SCHEMA.read().unwrap() {
                     Some(ref schema) => {
                         let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
-                        let fake_dep_db = FAKE_DEPENDENCY_DATABASE.lock().unwrap();
+                        let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
 
                         DB::get_dependency_data(
                             &mut pack_file_decoded,
@@ -631,7 +631,7 @@ pub fn background_loop() {
                     }
                     None => BTreeMap::new(),
                 };
-                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32VecStringString(dependency_data));
+                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32HashMapStringString(dependency_data));
             }
 
             // In case we want to return an entire PackedFile to the UI.

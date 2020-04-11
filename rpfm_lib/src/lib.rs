@@ -58,7 +58,7 @@ lazy_static! {
     pub static ref DEPENDENCY_DATABASE: Mutex<Vec<PackedFile>> = Mutex::new(vec![]);
 
     /// DB Files from the Pak File of the current game. Only for dependency checking.
-    pub static ref FAKE_DEPENDENCY_DATABASE: Mutex<Vec<DB>> = Mutex::new(vec![]);
+    pub static ref FAKE_DEPENDENCY_DATABASE: RwLock<Vec<DB>> = RwLock::new(vec![]);
 
     /// Currently loaded schema.
     pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));
