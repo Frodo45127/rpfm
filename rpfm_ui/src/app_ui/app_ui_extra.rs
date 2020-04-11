@@ -1501,6 +1501,7 @@ impl AppUI {
     /// - `db/xxxx` -> DB Table.
     /// - `text/xxxx` -> Loc Table.
     /// - `script/xxxx` -> Lua PackedFile.
+    /// - `variantmeshes/variantmeshdefinitions/xxxx` -> VMD PackedFile.
     /// The name used for each packfile is a generic one.
     pub unsafe fn new_queek_packed_file(&self, pack_file_contents_ui: &mut PackFileContentsUI) {
 
@@ -1547,7 +1548,24 @@ impl AppUI {
 
                     let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned());
                     (new_path, new_packed_file)
-                } else { return show_dialog(self.main_window, ErrorKind::NoQueekPackedFileHere, false); };
+                }
+
+                // VMD Check.
+                else if path.starts_with(&["variantmeshes".to_owned(), "variantmeshdefinitions".to_owned()]) && !path.is_empty() {
+                    if !name.ends_with(".variantmeshdefinition") { name.push_str(".variantmeshdefinition"); }
+                    let mut new_path = path.to_vec();
+                    let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
+                    new_path.append(&mut name);
+
+                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned());
+                    (new_path, new_packed_file)
+                }
+
+
+                // Neutral Check, for folders without a predefined type.
+                else {
+                    return show_dialog(self.main_window, ErrorKind::NoQueekPackedFileHere, false);
+                };
 
                 // Check if the PackedFile already exists, and report it if so.
                 CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(new_path.to_vec()));
