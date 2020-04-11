@@ -24,6 +24,7 @@ pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableV
     ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_line_edit);
     ui.get_mut_ptr_filter_column_selector().current_index_changed().connect(&slots.filter_column_selector);
     ui.get_mut_ptr_filter_case_sensitive_button().toggled().connect(&slots.filter_case_sensitive_button);
+    ui.get_mut_ptr_table_view_primary().horizontal_header().sort_indicator_changed().connect(&slots.sort_order_column_changed);
 
     ui.get_mut_ptr_table_view_primary().custom_context_menu_requested().connect(&slots.show_context_menu);
     ui.get_mut_ptr_table_view_frozen().custom_context_menu_requested().connect(&slots.show_context_menu);

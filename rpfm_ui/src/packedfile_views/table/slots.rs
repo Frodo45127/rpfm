@@ -15,6 +15,7 @@ Module with the slots for Table Views.
 use qt_widgets::SlotOfQPoint;
 use qt_widgets::QFileDialog;
 use qt_widgets::q_file_dialog::AcceptMode;
+use qt_widgets::SlotOfIntSortOrder;
 
 use qt_gui::QBrush;
 use qt_gui::QCursor;
@@ -23,6 +24,7 @@ use qt_gui::SlotOfQStandardItem;
 use qt_core::QModelIndex;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
+use qt_core::SortOrder;
 use qt_core::{SlotOfBool, SlotOfInt, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection};
 
 use cpp_core::Ref;
@@ -32,8 +34,6 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::path::PathBuf;
-
-use rpfm_lib::schema::Definition;
 
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
@@ -56,6 +56,7 @@ pub struct PackedFileTableViewSlots {
     pub filter_column_selector: SlotOfInt<'static>,
     pub filter_case_sensitive_button: Slot<'static>,
     pub toggle_lookups: SlotOfBool<'static>,
+    pub sort_order_column_changed: SlotOfIntSortOrder<'static>,
     pub show_context_menu: SlotOfQPoint<'static>,
     pub context_menu_enabler: SlotOfQItemSelectionQItemSelection<'static>,
     pub item_changed: SlotOfQStandardItem<'static>,
@@ -124,6 +125,31 @@ impl PackedFileTableViewSlots {
             packed_file_view => move |_| {
             packed_file_view.toggle_lookups();
         }));
+
+        let sort_order_column_changed = SlotOfIntSortOrder::new(clone!(
+            packed_file_view => move |column, _| {
+                let mut needs_cleaning = false;
+                {
+                    // We only change the order if it's less than 2. Otherwise, we reset it.
+                    let mut sort_data = packed_file_view.column_sort_state.write().unwrap();
+                    let mut old_order = if sort_data.0 == column { sort_data.1 } else { 0 };
+
+                    if old_order < 2 {
+                        old_order += 1;
+                        if old_order == 0 { *sort_data = (-1, old_order); }
+                        else { *sort_data = (column, old_order); }
+                    }
+                    else {
+                        needs_cleaning = true;
+                        *sort_data = (-1, -1);
+                    }
+                }
+
+                if needs_cleaning {
+                    packed_file_view.table_view_primary.horizontal_header().set_sort_indicator(-1, SortOrder::AscendingOrder);
+                }
+            }
+        ));
 
         // When we want to show the context menu.
         let show_context_menu = SlotOfQPoint::new(clone!(
@@ -609,6 +635,7 @@ impl PackedFileTableViewSlots {
             filter_column_selector,
             filter_case_sensitive_button,
             toggle_lookups,
+            sort_order_column_changed,
             show_context_menu,
             context_menu_enabler,
             item_changed,

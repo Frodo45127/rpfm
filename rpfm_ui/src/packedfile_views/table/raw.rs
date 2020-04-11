@@ -31,6 +31,7 @@ use qt_core::QObject;
 use qt_core::QSignalBlocker;
 use qt_core::CaseSensitivity;
 use qt_core::QFlags;
+use qt_core::SortOrder;
 use qt_core::QItemSelection;
 use qt_core::QModelIndex;
 use qt_core::QRegExp;
@@ -70,6 +71,7 @@ pub struct PackedFileTableViewRaw {
     pub filter_case_sensitive_button: MutPtr<QPushButton>,
     pub filter_column_selector: MutPtr<QComboBox>,
     pub filter_line_edit: MutPtr<QLineEdit>,
+    pub column_sort_state: Arc<RwLock<(i32, i8)>>,
 
     pub context_menu: MutPtr<QMenu>,
     pub context_menu_enabler: MutPtr<QAction>,
