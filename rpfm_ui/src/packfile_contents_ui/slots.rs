@@ -593,7 +593,7 @@ impl PackFileContentsSlots {
                             app_ui.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                             app_ui.tab_bar_packed_file.set_current_widget(tab_widget);
                             let mut open_list = UI_STATE.set_open_packedfiles();
-                            open_list.insert(vec!["packfile_extra.rpfm_reserved".to_owned()], tab);
+                            open_list.insert(vec!["extra_packfile.rpfm_reserved".to_owned()], tab);
 
                         }
                         Err(error) => show_dialog(app_ui.main_window, error, false),
