@@ -74,7 +74,7 @@ pub fn background_loop() {
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
 
             // In case we want to reset the Secondary PackFile to his original state (dummy)...
-            //Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
+            Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
 
             // In case we want to create a "New PackFile"...
             Command::NewPackFile => {

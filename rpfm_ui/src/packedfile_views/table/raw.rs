@@ -31,7 +31,6 @@ use qt_core::QObject;
 use qt_core::QSignalBlocker;
 use qt_core::CaseSensitivity;
 use qt_core::QFlags;
-use qt_core::SortOrder;
 use qt_core::QItemSelection;
 use qt_core::QModelIndex;
 use qt_core::QRegExp;

@@ -47,7 +47,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::{fmt, fmt::Debug};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::{AtomicBool, AtomicI8, AtomicPtr};
+use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::parse_str;

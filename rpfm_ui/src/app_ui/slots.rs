@@ -1095,6 +1095,7 @@ impl AppUISlots {
 
                         if !path.is_empty() && path.starts_with(&["extra_packfile.rpfm_reserved".to_owned()]) {
                             purge_on_delete = path.to_vec();
+                            CENTRAL_COMMAND.send_message_qt(Command::ResetPackFileExtra);
                         }
                         break;
                     }

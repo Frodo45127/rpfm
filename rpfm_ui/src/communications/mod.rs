@@ -74,8 +74,8 @@ pub enum Command {
     /// This command is used when we want to reset the open `PackFile` to his original state.
     ResetPackFile,
 
-    // This command is used when we want to reset the extra `PackFile` (the one used for `Add from PackFile`) to his original state.
-    //ResetPackFileExtra,
+    /// This command is used when we want to reset the extra `PackFile` (the one used for `Add from PackFile`) to his original state.
+    ResetPackFileExtra,
 
     /// This command is used when we want to create a new `PackFile`.
     NewPackFile,
