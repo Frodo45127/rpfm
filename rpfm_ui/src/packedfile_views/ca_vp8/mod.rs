@@ -32,6 +32,7 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::global_search_ui::GlobalSearchUI;
@@ -80,6 +81,7 @@ impl PackedFileCaVp8View {
     pub unsafe fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
+        app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
@@ -141,6 +143,7 @@ impl PackedFileCaVp8View {
 
         let packed_file_ca_vp8_view_slots = PackedFileCaVp8ViewSlots::new(
             packed_file_ca_vp8_view_raw.clone(),
+            *app_ui,
             *pack_file_contents_ui,
             *global_search_ui,
             &packed_file_path

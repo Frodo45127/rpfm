@@ -22,7 +22,6 @@ use std::rc::Rc;
 
 use crate::app_ui::AppUI;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::external::PackedFileExternalViewRaw;
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 //-------------------------------------------------------------------------------//
@@ -44,7 +43,6 @@ impl PackedFileExternalViewSlots {
 
     /// This function creates the entire slot pack for External PackedFile Views.
     pub unsafe fn new(
-        view: PackedFileExternalViewRaw,
         mut app_ui: AppUI,
         pack_file_contents_ui: PackFileContentsUI,
         global_search_ui: GlobalSearchUI,

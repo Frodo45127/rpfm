@@ -20,6 +20,7 @@ use std::rc::Rc;
 
 use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
 
+use crate::app_ui::AppUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::ca_vp8::PackedFileCaVp8ViewRaw;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -45,6 +46,7 @@ impl PackedFileCaVp8ViewSlots {
     /// This function creates the entire slot pack for CaVp8 PackedFile Views.
     pub unsafe fn new(
         view: PackedFileCaVp8ViewRaw,
+        mut app_ui: AppUI,
         mut pack_file_contents_ui: PackFileContentsUI,
         global_search_ui: GlobalSearchUI,
         packed_file_path: &Rc<RefCell<Vec<String>>>
@@ -59,7 +61,7 @@ impl PackedFileCaVp8ViewSlots {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui);
+                    let _ = packed_file.save(&packed_file_path.borrow(), &mut app_ui, global_search_ui, &mut pack_file_contents_ui);
                 }
             }
         ));
@@ -73,7 +75,7 @@ impl PackedFileCaVp8ViewSlots {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui);
+                    let _ = packed_file.save(&packed_file_path.borrow(), &mut app_ui, global_search_ui, &mut pack_file_contents_ui);
                 }
             }
         ));

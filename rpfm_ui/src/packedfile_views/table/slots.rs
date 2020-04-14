@@ -35,10 +35,12 @@ use std::rc::Rc;
 use std::sync::atomic::Ordering;
 use std::path::PathBuf;
 
+use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
+use crate::packedfile_views::utils::*;
 use crate::pack_tree::*;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::show_dialog;
@@ -101,6 +103,7 @@ impl PackedFileTableViewSlots {
         packed_file_view: &PackedFileTableViewRaw,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
+        mut app_ui: AppUI,
         packed_file_path: &Rc<RefCell<Vec<String>>>,
     ) -> Self {
 
@@ -165,7 +168,8 @@ impl PackedFileTableViewSlots {
 
         // When we want to respond to a change in one item in the model.
         let item_changed = SlotOfQStandardItem::new(clone!(
-
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move |item| {
 
                 // If we are NOT UNDOING, paint the item as edited and add the edition to the undo list.
@@ -196,6 +200,7 @@ impl PackedFileTableViewSlots {
                         }
                     }
                     packed_file_view.context_menu_update();
+                    set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
                 }
 
                 TableSearch::update_search(&mut packed_file_view);
@@ -215,20 +220,28 @@ impl PackedFileTableViewSlots {
 
         // When you want to append a row to the table...
         let add_rows = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
                 packed_file_view.append_rows(false);
+                set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
             }
         ));
 
         // When you want to insert a row in a specific position of the table...
         let insert_rows = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
                 packed_file_view.insert_rows(false);
+                set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
             }
         ));
 
         // When you want to delete one or more rows...
         let delete_rows = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
 
                 // Get all the selected rows.
@@ -248,20 +261,27 @@ impl PackedFileTableViewSlots {
                     packed_file_view.history_undo.write().unwrap().push(TableOperations::RemoveRows(rows_splitted));
                     packed_file_view.history_redo.write().unwrap().clear();
                     update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                    set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
                 }
             }
         ));
 
         // When you want to clone and insert one or more rows.
         let clone_and_append = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
             packed_file_view.append_rows(true);
+            set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
         }));
 
         // When you want to clone and append one or more rows.
         let clone_and_insert = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
             packed_file_view.insert_rows(true);
+            set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
         }));
 
         // When you want to copy one or more cells.
@@ -316,7 +336,7 @@ impl PackedFileTableViewSlots {
             packed_file_view => move || {
             if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                    if let Err(error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui) {
+                    if let Err(error) = packed_file.save(&packed_file_path.borrow(), &mut app_ui, global_search_ui, &mut pack_file_contents_ui) {
                         show_dialog(packed_file_view.table_view_primary, error, false);
                     }
                 }
@@ -325,24 +345,33 @@ impl PackedFileTableViewSlots {
 
         // When we want to undo the last action.
         let undo = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
                 packed_file_view.undo_redo(true, 0);
                 update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
                 packed_file_view.context_menu_update();
+                if packed_file_view.history_undo.read().unwrap().is_empty() {
+                    set_modified(false, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
+                }
             }
         ));
 
         // When we want to redo the last undone action.
         let redo = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
                 packed_file_view.undo_redo(false, 0);
                 update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
                 packed_file_view.context_menu_update();
+                set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
             }
         ));
 
         // When we want to import a TSV file.
         let import_tsv = SlotOfBool::new(clone!(
+            mut pack_file_contents_ui,
             mut packed_file_path,
             mut packed_file_view => move |_| {
 
@@ -376,6 +405,7 @@ impl PackedFileTableViewSlots {
                             packed_file_view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
                             packed_file_view.history_redo.write().unwrap().clear();
                             update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                            set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
                         },
                         Response::Error(error) => return show_dialog(packed_file_view.table_view_primary, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -408,7 +438,7 @@ impl PackedFileTableViewSlots {
 
                     let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                     if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
-                        if let Err(error) = packed_file.save(&packed_file_path.borrow(), global_search_ui, &mut pack_file_contents_ui) {
+                        if let Err(error) = packed_file.save(&packed_file_path.borrow(), &mut app_ui, global_search_ui, &mut pack_file_contents_ui) {
                             return show_dialog(packed_file_view.table_view_primary, error, false);
                         }
                     }
@@ -426,6 +456,8 @@ impl PackedFileTableViewSlots {
 
         // When you want to use the "Smart Delete" feature...
         let smart_delete = Slot::new(clone!(
+            mut pack_file_contents_ui,
+            mut packed_file_path,
             mut packed_file_view => move || {
 
                 // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
@@ -539,6 +571,7 @@ impl PackedFileTableViewSlots {
                             packed_file_view.history_redo.write().unwrap().clear();
                             update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
                             packed_file_view.context_menu_update();
+                            set_modified(true, &packed_file_path.borrow(), &mut app_ui, &mut pack_file_contents_ui);
                         }
                     }
                 }

@@ -30,11 +30,13 @@ use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::schema::FieldType;
 
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::get_text_safe;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::QString;
+use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
@@ -58,6 +60,8 @@ pub mod packfile;
 pub mod rigidmodel;
 pub mod table;
 pub mod text;
+
+pub mod utils;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -154,7 +158,7 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub unsafe fn save(&self, path: &[String], mut global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: &mut PackFileContentsUI) -> Result<()> {
+    pub unsafe fn save(&self, path: &[String], app_ui: &mut AppUI, mut global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: &mut PackFileContentsUI) -> Result<()> {
 
         match self.get_view() {
             ViewType::Internal(view) => {
@@ -243,6 +247,10 @@ impl PackedFileView {
 
                         // Save the new list and return Ok.
                         CENTRAL_COMMAND.send_message_qt(Command::SetDependencyPackFilesList(entries));
+
+                        // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
+                        UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                         return Ok(())
                     } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) },
 

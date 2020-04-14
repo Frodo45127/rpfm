@@ -31,6 +31,8 @@ pub fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsSlots) {
     unsafe { ui.filter_autoexpand_matches_button.toggled().connect(&slots.filter_change_autoexpand_matches); }
     unsafe { ui.filter_case_sensitive_button.toggled().connect(&slots.filter_change_case_sensitive); }
 
+    unsafe { ui.packfile_contents_tree_model.item_changed().connect(&slots.update_packfile_state); }
+
     unsafe { ui.packfile_contents_tree_view.custom_context_menu_requested().connect(&slots.contextual_menu); }
     unsafe { ui.packfile_contents_tree_view.selection_model().selection_changed().connect(&slots.contextual_menu_enabler); }
     unsafe { ui.packfile_contents_tree_view_context_menu.about_to_show().connect(&slots.contextual_menu_enabler); }

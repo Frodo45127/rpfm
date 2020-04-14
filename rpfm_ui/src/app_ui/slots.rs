@@ -39,6 +39,7 @@ use rpfm_lib::games::*;
 use rpfm_lib::packfile::{PFHFileType, CompressionState};
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
+use rpfm_lib::SCHEMA;
 use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
@@ -249,6 +250,7 @@ impl AppUISlots {
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
                     UI_STATE.set_operational_mode(&mut app_ui, None);
+                    UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
                 }
             }
         ));
@@ -313,6 +315,11 @@ impl AppUISlots {
 
                 // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
                 app_ui.main_window.set_enabled(false);
+
+                // Destroy whatever it's in the PackedFile's views and clear the global search UI.
+                global_search_ui.clear();
+                app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+
                 CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 match response {
@@ -355,10 +362,7 @@ impl AppUISlots {
                         }
 
                         UI_STATE.set_operational_mode(&mut app_ui, None);
-
-                        // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                        app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
-                        global_search_ui.clear();
+                        UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
 
                         // Close the Global Search stuff and reset the filter's history.
                         //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
@@ -395,7 +399,7 @@ impl AppUISlots {
 
                 // Send the type to the Background Thread, and update the UI.
                 CENTRAL_COMMAND.send_message_qt(Command::SetPackFileType(packfile_type));
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![TreePathType::PackFile]));
+                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
             }
         );
 
@@ -403,6 +407,7 @@ impl AppUISlots {
         let packfile_index_includes_timestamp = SlotOfBool::new(move |_| {
                 let state = app_ui.change_packfile_type_index_includes_timestamp.is_checked();
                 CENTRAL_COMMAND.send_message_qt(Command::ChangeIndexIncludesTimestamp(state));
+                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
             }
         );
 
@@ -410,6 +415,7 @@ impl AppUISlots {
         let packfile_data_is_compressed = SlotOfBool::new(move |_| {
                 let state = app_ui.change_packfile_type_data_is_compressed.is_checked();
                 CENTRAL_COMMAND.send_message_qt(Command::ChangeDataIsCompressed(state));
+                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
             }
         );
 
@@ -520,6 +526,11 @@ impl AppUISlots {
 
                     // Complete the mymod PackFile path and create it.
                     mymod_path.push(&full_mod_name);
+
+                    // Destroy whatever it's in the PackedFile's views and clear the global search UI.
+                    app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                    global_search_ui.clear();
+
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
                     CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -541,10 +552,7 @@ impl AppUISlots {
                             app_ui.enable_packfile_actions(true);
 
                             UI_STATE.set_operational_mode(&mut app_ui, Some(&mymod_path));
-
-                            // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                            app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
-                            global_search_ui.clear();
+                            UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
 
                             // Close the Global Search stuff and reset the filter's history.
                             //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
@@ -636,6 +644,7 @@ impl AppUISlots {
                         CENTRAL_COMMAND.send_message_qt(Command::ResetPackFile);
                         app_ui.enable_packfile_actions(false);
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear);
+                        UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
 
                         show_dialog(app_ui.main_window, format!("MyMod successfully deleted: \"{}\".", old_mod_name), true);
                     }
@@ -787,36 +796,40 @@ impl AppUISlots {
                 let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();
                 if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
                 let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
+                if &new_game_selected != &*GAME_SELECTED.read().unwrap() || SCHEMA.read().unwrap().is_none() {
 
-                // Disable the Main Window (so we can't do other stuff).
-                app_ui.main_window.set_enabled(false);
+                    // Disable the Main Window (so we can't do other stuff).
+                    app_ui.main_window.set_enabled(false);
 
-                // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
-                // We have to wait because we need the GameSelected update before updating the menus.
-                CENTRAL_COMMAND.send_message_qt(Command::SetGameSelected(new_game_selected));
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
-                match response {
-                    Response::Success => {}
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    // Send the command to the background thread to set the new `Game Selected`, and tell RPFM to rebuild the mymod menu when it can.
+                    // We have to wait because we need the GameSelected update before updating the menus.
+                    CENTRAL_COMMAND.send_message_qt(Command::SetGameSelected(new_game_selected));
+                    let response = CENTRAL_COMMAND.recv_message_qt_try();
+                    match response {
+                        Response::Success => {}
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+
+                    // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
+                    app_ui.enable_packfile_actions(false);
+                    if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
+                        app_ui.enable_packfile_actions(true);
+                    }
+
+                    app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+                    app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+
+                    // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+                    UI_STATE.set_operational_mode(&mut app_ui, None);
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
+                    UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+
+                    // Re-enable the Main Window.
+                    app_ui.main_window.set_enabled(true);
+
+                    // Change the GameSelected Icon. Disabled until we find better icons.
+                    GameSelectedIcons::set_game_selected_icon(app_ui.main_window);
                 }
-
-                // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
-                app_ui.enable_packfile_actions(false);
-                if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
-                    app_ui.enable_packfile_actions(true);
-                }
-
-                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
-                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
-
-                // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
-                UI_STATE.set_operational_mode(&mut app_ui, None);
-
-                // Re-enable the Main Window.
-                app_ui.main_window.set_enabled(true);
-
-                // Change the GameSelected Icon. Disabled until we find better icons.
-                GameSelectedIcons::set_game_selected_icon(app_ui.main_window);
             }
         ));
 

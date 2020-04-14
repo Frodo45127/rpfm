@@ -24,6 +24,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::utils::show_dialog;
 use super::{PackFileExtraView, PackFileExtraViewRaw};
+use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -75,8 +76,9 @@ impl PackFileExtraViewSlots {
 
                             // Update the TreeView.
                             let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok));
-
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()));
+                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
 /*
                             // Update the global search stuff, if needed.
                             let paths = paths.iter().map(|x|

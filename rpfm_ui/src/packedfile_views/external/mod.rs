@@ -107,7 +107,6 @@ impl PackedFileExternalView {
         };
 
         let packed_file_external_view_slots = PackedFileExternalViewSlots::new(
-            packed_file_external_view_raw.clone(),
             *app_ui,
             *pack_file_contents_ui,
             *global_search_ui,

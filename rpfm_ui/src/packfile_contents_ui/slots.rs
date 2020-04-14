@@ -17,6 +17,7 @@ use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
 
 use qt_gui::QCursor;
+use qt_gui::SlotOfQStandardItem;
 
 use qt_core::{SlotOfBool, Slot, SlotOfQString};
 
@@ -60,6 +61,8 @@ pub struct PackFileContentsSlots {
     pub filter_change_text: SlotOfQString<'static>,
     pub filter_change_autoexpand_matches: SlotOfBool<'static>,
     pub filter_change_case_sensitive: SlotOfBool<'static>,
+
+    pub update_packfile_state: SlotOfQStandardItem<'static>,
 
     pub contextual_menu: SlotOfQPoint<'static>,
     pub contextual_menu_enabler: Slot<'static>,
@@ -133,6 +136,10 @@ impl PackFileContentsSlots {
         // Slot to show the Contextual Menu for the TreeView.
         let contextual_menu = SlotOfQPoint::new(move |_| {
             pack_file_contents_ui.packfile_contents_tree_view_context_menu.exec_1a_mut(&QCursor::pos_0a());
+        });
+
+        let update_packfile_state = SlotOfQStandardItem::new(move |item| {
+            <MutPtr<QTreeView> as PackTree>::paint_specific_item_treeview(item);
         });
 
         // Slot to enable/disable contextual actions depending on the selected item.
@@ -615,6 +622,8 @@ impl PackFileContentsSlots {
                     Response::VecPathType(deleted_items) => {
                         let items = deleted_items.iter().map(From::from).collect::<Vec<TreePathType>>();
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()));
+                        UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
 
                         // Remove all the deleted PackedFiles from the cache.
                         for item in &items {
@@ -690,7 +699,7 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, global_search_ui, &mut pack_file_contents_ui)) {
+                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, &mut app_ui, global_search_ui, &mut pack_file_contents_ui)) {
                     show_dialog(app_ui.main_window, error, false);
                 }
 
@@ -770,7 +779,13 @@ impl PackFileContentsSlots {
                                 open_packedfiles.insert(path_after.to_vec(), data);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items.to_vec()));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(renamed_items.iter().map(|x| match x.0 {
+                                TreePathType::File(_) => TreePathType::File(x.1.to_vec()),
+                                TreePathType::Folder(_) => TreePathType::Folder(x.1.to_vec()),
+                                _ => unimplemented!()
+                            }).collect()));
+                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -815,7 +830,9 @@ impl PackFileContentsSlots {
 
                         // If the folder already exists, return an error.
                         if folder_exists { return show_dialog(app_ui.main_window, ErrorKind::FolderAlreadyInPackFile, false)}
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::Folder(complete_path); 1]));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::Folder(complete_path.to_vec()); 1]));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::Folder(complete_path); 1]));
+                        UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
                     }
                 }
             }
@@ -955,6 +972,8 @@ impl PackFileContentsSlots {
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(path_to_add.to_vec()); 1]));
+                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
 
                             // Update the global search stuff, if needed.
                             global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![PathType::File(path_to_add); 1]);
@@ -1003,6 +1022,11 @@ impl PackFileContentsSlots {
                         Response::I32I32((old_version, new_version)) => {
                             let message = format!("Table updated from version '{}' to version '{}'.", old_version, new_version);
                             show_dialog(app_ui.main_window, message, true);
+
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]));
+                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+
                             global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![path_type; 1]);
                         }
 
@@ -1047,21 +1071,12 @@ impl PackFileContentsSlots {
                                 let paths_to_add2 = paths_to_add.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
 
                                 // Update the TreeView.
-                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2.to_vec()));
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add2));
+                                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
 
                                 // Update the global search stuff, if needed.
                                 global_search_ui.search_on_path(&mut pack_file_contents_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
-
-                                // For each file added, remove it from the data history if exists.
-                                /*
-                                for path in &paths.1 {
-                                    if table_state_data.borrow().get(path).is_some() {
-                                        table_state_data.borrow_mut().remove(path);
-                                    }
-
-                                    let data = TableStateData::new_empty();
-                                    table_state_data.borrow_mut().insert(path.to_vec(), data);
-                                }*/
                             }
 
                             Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1116,6 +1131,8 @@ impl PackFileContentsSlots {
             filter_change_text,
             filter_change_autoexpand_matches,
             filter_change_case_sensitive,
+
+            update_packfile_state,
 
             contextual_menu,
             contextual_menu_enabler,

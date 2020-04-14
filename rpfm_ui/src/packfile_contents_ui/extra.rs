@@ -44,6 +44,7 @@ use crate::locale::{qtr, qtre};
 use crate::pack_tree::{check_if_path_is_closed, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::{create_grid_layout, show_dialog};
+use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -76,6 +77,8 @@ impl PackFileContentsUI {
 
                     let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                    UI_STATE.set_is_modified(true, app_ui, self);
 
                     // Update the global search stuff, if needed.
                     global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
@@ -109,6 +112,8 @@ impl PackFileContentsUI {
 
                     let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
                     self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                    UI_STATE.set_is_modified(true, app_ui, self);
 
                     // Update the global search stuff, if needed.
                     global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());

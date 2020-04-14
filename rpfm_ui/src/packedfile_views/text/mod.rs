@@ -26,6 +26,7 @@ use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_text_editor_safe, set_text_safe};
@@ -75,6 +76,7 @@ impl PackedFileTextView {
     pub unsafe fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
+        app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
     ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
@@ -107,7 +109,7 @@ impl PackedFileTextView {
         set_text_safe(&mut editor, &mut QString::from_std_str(text.get_ref_contents()), &mut highlighting_mode);
 
         let packed_file_text_view_raw = PackedFileTextViewRaw {editor};
-        let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *pack_file_contents_ui, *global_search_ui, &packed_file_path);
+        let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *app_ui, *pack_file_contents_ui, *global_search_ui, &packed_file_path);
         let packed_file_text_view = Self { editor: atomic_from_mut_ptr(packed_file_text_view_raw.editor)};
 
         packed_file_view.packed_file_type = PackedFileType::Text(text.get_text_type());

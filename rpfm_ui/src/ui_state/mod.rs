@@ -23,6 +23,7 @@ use rpfm_lib::global_search::GlobalSearch;
 
 use crate::app_ui::AppUI;
 use crate::packedfile_views::PackedFileView;
+use crate::packfile_contents_ui::PackFileContentsUI;
 use self::op_mode::OperationalMode;
 use self::shortcuts::Shortcuts;
 
@@ -42,7 +43,7 @@ pub struct UIState {
     /// This stores the current shortcuts in memory, so they can be re-applied when needed.
     shortcuts: Arc<RwLock<Shortcuts>>,
 
-    //s This stores if we have put the `PackFile Contents` view in read-only mode.
+    /// This stores if we have put the `PackFile Contents` view in read-only mode.
     packfile_contents_read_only: AtomicBool,
 
     /// This stores the list to all the widgets of the open PackedFiles.
@@ -84,8 +85,9 @@ impl UIState {
     }
 
     /// This function sets the flag that stores if the open PackFile has been modified or not.
-    pub fn set_is_modified(&self, is_modified: bool) {
+    pub unsafe fn set_is_modified(&self, is_modified: bool, app_ui: &mut AppUI, pack_file_contents_ui: &mut PackFileContentsUI) {
         self.is_modified.store(is_modified, Ordering::SeqCst);
+        app_ui.update_window_title(&pack_file_contents_ui);
     }
 
     /// This function returns the current Shortcuts.

@@ -58,6 +58,7 @@ use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 
+use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::*;
@@ -213,6 +214,7 @@ impl PackedFileTableView {
     pub unsafe fn new_view(
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
+        app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
     ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
@@ -507,6 +509,7 @@ impl PackedFileTableView {
             &packed_file_table_view_raw,
             *global_search_ui,
             *pack_file_contents_ui,
+            *app_ui,
             &packed_file_path,
         );
 

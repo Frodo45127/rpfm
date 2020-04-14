@@ -75,16 +75,17 @@ impl AppUI {
     pub unsafe fn update_window_title(&mut self, packfile_contents_ui: &PackFileContentsUI) {
 
         // First check if we have a PackFile open. If not, just leave the default title.
-        let window_title = if packfile_contents_ui.packfile_contents_tree_model.row_count_0a() == 0 {
+        let window_title = if packfile_contents_ui.packfile_contents_tree_model.invisible_root_item().is_null() ||
+            packfile_contents_ui.packfile_contents_tree_model.invisible_root_item().row_count() == 0 {
             "Rusted PackFile Manager".to_owned()
         }
 
         // If there is a `PackFile` open, check if it has been modified, and set the title accordingly.
         else {
-            let pack_file_name = packfile_contents_ui.packfile_contents_tree_model.item_1a(0).text().to_std_string();
-            if UI_STATE.get_is_modified() { format!("{} - Modified", pack_file_name) }
-            else { format!("{} - Not Modified", pack_file_name) }
+            format!("{}[*]", packfile_contents_ui.packfile_contents_tree_model.item_1a(0).text().to_std_string())
         };
+
+        self.main_window.set_window_modified(UI_STATE.get_is_modified());
         self.main_window.set_window_title(&QString::from_std_str(window_title));
     }
 
@@ -123,7 +124,7 @@ impl AppUI {
         for (path, packed_file_view) in open_packedfiles.iter_mut() {
 
             // TODO: This should report an error.
-            let _ = packed_file_view.save(path, global_search_ui, &mut pack_file_contents_ui);
+            let _ = packed_file_view.save(path, self, global_search_ui, &mut pack_file_contents_ui);
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
             self.tab_bar_packed_file.remove_tab(index);
@@ -157,7 +158,7 @@ impl AppUI {
             if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
 
                 // TODO: This should report an error.
-                let _ = packed_file_view.save(path, global_search_ui, &mut pack_file_contents_ui);
+                let _ = packed_file_view.save(path, self, global_search_ui, &mut pack_file_contents_ui);
             }
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
@@ -346,6 +347,8 @@ impl AppUI {
                     }
                 }
 
+                UI_STATE.set_is_modified(false, self, pack_file_contents_ui);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
                 //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                 // Show the "Tips".
@@ -382,7 +385,7 @@ impl AppUI {
         self.main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend.
-        UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, *global_search_ui, pack_file_contents_ui))?;
+        UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, self, *global_search_ui, pack_file_contents_ui))?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -426,6 +429,7 @@ impl AppUI {
                         packfile_item.set_text(&QString::from_std_str(&file_name));
 
                         UI_STATE.set_operational_mode(self, None);
+                        UI_STATE.set_is_modified(false, self, pack_file_contents_ui);
                     }
                     Response::Error(error) => result = Err(error),
 
@@ -443,6 +447,7 @@ impl AppUI {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
                     let mut packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
+                    UI_STATE.set_is_modified(false, self, pack_file_contents_ui);
                 }
                 Response::Error(error) => result = Err(error),
 
@@ -1016,7 +1021,7 @@ impl AppUI {
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
         // Also, only open the selection when there is only one thing selected.
         if !UI_STATE.get_packfile_contents_read_only() {
-            let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
+            let selected_items = pack_file_contents_ui.packfile_contents_tree_view.get_item_types_from_selection(true);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
             if let TreePathType::File(path) = item_type {
 
@@ -1074,7 +1079,7 @@ impl AppUI {
 
                         // If the file is a CA_VP8 PackedFile...
                         PackedFileType::CaVp8 => {
-                            match PackedFileCaVp8View::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileCaVp8View::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1092,7 +1097,7 @@ impl AppUI {
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1111,7 +1116,7 @@ impl AppUI {
 
                         // If the file is a DB PackedFile...
                         PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1130,7 +1135,7 @@ impl AppUI {
 
                         // If the file is a Text PackedFile...
                         PackedFileType::Text(_) => {
-                            match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTextView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1149,7 +1154,7 @@ impl AppUI {
 
                         // If the file is a RigidModel PackedFile...
                         PackedFileType::RigidModel => {
-                            match PackedFileRigidModelView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileRigidModelView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1330,7 +1335,7 @@ impl AppUI {
             let icon = icon_type.get_icon_from_path();
 
             let path = Rc::new(RefCell::new(path.to_vec()));
-            match PackedFileTableView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+            match PackedFileTableView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
                 Ok((slots, _)) => {
                     slot_holder.borrow_mut().push(slots);
 
@@ -1387,7 +1392,7 @@ impl AppUI {
             let icon = icon_type.get_icon_from_path();
 
             let path = Rc::new(RefCell::new(path.to_vec()));
-            match PackedFileTextView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui) {
+            match PackedFileTextView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
                 Ok((slots, _)) => {
                     slot_holder.borrow_mut().push(slots);
 
@@ -1403,7 +1408,7 @@ impl AppUI {
     }
 
     /// This function is the one that takes care of the creation of different PackedFiles.
-    pub unsafe fn new_packed_file(&self, pack_file_contents_ui: &mut PackFileContentsUI, packed_file_type: PackedFileType) {
+    pub unsafe fn new_packed_file(&mut self, mut pack_file_contents_ui: &mut PackFileContentsUI, packed_file_type: PackedFileType) {
 
         // Create the "New PackedFile" dialog and wait for his data (or a cancelation). If we receive None, we do nothing. If we receive Some,
         // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
@@ -1471,18 +1476,9 @@ impl AppUI {
                                 let response = CENTRAL_COMMAND.recv_message_qt();
                                 match response {
                                     Response::Success => {
-                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path); 1]));
-
-                                        /*
-                                        // If, for some reason, there is a TableState data for this file, remove it.
-                                        if table_state_data.borrow().get(&complete_path).is_some() {
-                                            table_state_data.borrow_mut().remove(&complete_path);
-                                        }
-
-                                        // Set it to not remove his color.
-                                        let data = TableStateData::new_empty();
-                                        table_state_data.borrow_mut().insert(complete_path, data);
-                                        */
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]));
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(complete_path); 1]));
+                                        UI_STATE.set_is_modified(true, self, &mut pack_file_contents_ui);
                                     }
 
                                     Response::Error(error) => show_dialog(self.main_window, error, false),
@@ -1503,7 +1499,7 @@ impl AppUI {
     /// - `script/xxxx` -> Lua PackedFile.
     /// - `variantmeshes/variantmeshdefinitions/xxxx` -> VMD PackedFile.
     /// The name used for each packfile is a generic one.
-    pub unsafe fn new_queek_packed_file(&self, pack_file_contents_ui: &mut PackFileContentsUI) {
+    pub unsafe fn new_queek_packed_file(&mut self, mut pack_file_contents_ui: &mut PackFileContentsUI) {
 
         // Get the currently selected path and, depending on the selected path, generate one packfile or another.
         let selected_paths = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
@@ -1577,7 +1573,11 @@ impl AppUI {
                 CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 match response {
-                    Response::Success => pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path); 1])),
+                    Response::Success => {
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path.to_vec()); 1]));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(new_path); 1]));
+                        UI_STATE.set_is_modified(true, self, &mut pack_file_contents_ui);
+                    }
                     Response::Error(error) => show_dialog(self.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }

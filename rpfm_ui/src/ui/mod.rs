@@ -100,6 +100,7 @@ impl UI {
 
     /// This function initialize the entire `UI`.
     pub unsafe fn new(mut app: MutPtr<QApplication>, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> (Self, Slots) {
+
         let mut app_ui = AppUI::new();
         let mut global_search_ui = GlobalSearchUI::new(app_ui.main_window);
         let mut pack_file_contents_ui = PackFileContentsUI::new(app_ui.main_window);
@@ -122,11 +123,9 @@ impl UI {
         packfile_contents_ui::shortcuts::set_shortcuts(&mut pack_file_contents_ui);
 
         // Here we also initialize the UI.
-        app_ui.update_window_title(&pack_file_contents_ui);
         UI_STATE.set_operational_mode(&mut app_ui, None);
 
-        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
-        match &*game_selected {
+        match &*SETTINGS.read().unwrap().settings_string["default_game"] {
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
             KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
@@ -139,6 +138,8 @@ impl UI {
             KEY_ARENA  => app_ui.game_selected_arena.trigger(),
             _ => unimplemented!()
         }
+
+        UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
 
         // Show the Main Window...
         app_ui.main_window.show();
