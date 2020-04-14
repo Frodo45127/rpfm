@@ -430,7 +430,7 @@ pub fn background_loop() {
             Command::DecodePackedFileText(path) => {
 
                 // If it's the notes file, we just return the notes.
-                if path == &["notes.rpfm_reserved".to_owned()] {
+                if path == ["notes.rpfm_reserved".to_owned()] {
                     let mut note = Text::new();
                     note.set_text_type(TextType::Markdown);
                     match pack_file_decoded.get_notes() {
@@ -504,7 +504,7 @@ pub fn background_loop() {
 
             // When we want to save a PackedFile from the view....
             Command::SavePackedFileFromView(path, decoded_packed_file) => {
-                if path == &["notes.rpfm_reserved".to_owned()] {
+                if path == ["notes.rpfm_reserved".to_owned()] {
                     if let DecodedPackedFile::Text(data) = decoded_packed_file {
                         let note = if data.get_ref_contents().is_empty() { None } else { Some(data.get_ref_contents().to_owned()) };
                         pack_file_decoded.set_notes(&note);

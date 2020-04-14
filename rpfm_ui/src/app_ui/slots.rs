@@ -796,7 +796,7 @@ impl AppUISlots {
                 let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();
                 if let Some(index) = new_game_selected.find('&') { new_game_selected.remove(index); }
                 let new_game_selected = new_game_selected.replace(' ', "_").to_lowercase();
-                if &new_game_selected != &*GAME_SELECTED.read().unwrap() || SCHEMA.read().unwrap().is_none() {
+                if new_game_selected != *GAME_SELECTED.read().unwrap() || SCHEMA.read().unwrap().is_none() {
 
                     // Disable the Main Window (so we can't do other stuff).
                     app_ui.main_window.set_enabled(false);

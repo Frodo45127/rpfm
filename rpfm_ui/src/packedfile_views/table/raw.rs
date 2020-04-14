@@ -203,38 +203,35 @@ impl PackedFileTableViewRaw {
             }
 
             // Otherwise, we have to check first if the column has references. If it does, replace the delegate with a combo.
+            else if let Some(data) = self.dependency_data.read().unwrap().get(&(column as i32)) {
+                let mut list = QStringList::new();
+                data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                new_combobox_item_delegate_safe(&mut self.table_view_primary, column as i32, list.as_ptr(), true, field.max_length);
+                new_combobox_item_delegate_safe(&mut self.table_view_frozen, column as i32, list.as_ptr(), true, field.max_length);
+            }
             else {
-
-                if let Some(data) = self.dependency_data.read().unwrap().get(&(column as i32)) {
-                    let mut list = QStringList::new();
-                    data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
-                    new_combobox_item_delegate_safe(&mut self.table_view_primary, column as i32, list.as_ptr(), true, field.max_length);
-                    new_combobox_item_delegate_safe(&mut self.table_view_frozen, column as i32, list.as_ptr(), true, field.max_length);
-                }
-                else {
-                    match field.field_type {
-                        FieldType::Boolean => {},
-                        FieldType::Float => {
-                            new_doublespinbox_item_delegate_safe(&mut self.table_view_primary, column as i32);
-                            new_doublespinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32);
-                        },
-                        FieldType::Integer => {
-                            new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 32);
-                            new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 32);
-                        },
-                        FieldType::LongInteger => {
-                            new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 64);
-                            new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 64);
-                        },
-                        FieldType::StringU8 |
-                        FieldType::StringU16 |
-                        FieldType::OptionalStringU8 |
-                        FieldType::OptionalStringU16 => {
-                            new_qstring_item_delegate_safe(&mut self.table_view_primary, column as i32, field.max_length);
-                            new_qstring_item_delegate_safe(&mut self.table_view_frozen, column as i32, field.max_length);
-                        },
-                        FieldType::Sequence(_) => {}
-                    }
+                match field.field_type {
+                    FieldType::Boolean => {},
+                    FieldType::Float => {
+                        new_doublespinbox_item_delegate_safe(&mut self.table_view_primary, column as i32);
+                        new_doublespinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32);
+                    },
+                    FieldType::Integer => {
+                        new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 32);
+                        new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 32);
+                    },
+                    FieldType::LongInteger => {
+                        new_spinbox_item_delegate_safe(&mut self.table_view_primary, column as i32, 64);
+                        new_spinbox_item_delegate_safe(&mut self.table_view_frozen, column as i32, 64);
+                    },
+                    FieldType::StringU8 |
+                    FieldType::StringU16 |
+                    FieldType::OptionalStringU8 |
+                    FieldType::OptionalStringU16 => {
+                        new_qstring_item_delegate_safe(&mut self.table_view_primary, column as i32, field.max_length);
+                        new_qstring_item_delegate_safe(&mut self.table_view_frozen, column as i32, field.max_length);
+                    },
+                    FieldType::Sequence(_) => {}
                 }
             }
         }
@@ -1029,9 +1026,9 @@ impl PackedFileTableViewRaw {
                     // Check if, according to the definition, we have a valid value for the type.
                     let is_valid_data = match field.field_type {
                         FieldType::Boolean => !(text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0"),
-                        FieldType::Float => !text.parse::<f32>().is_err(),
-                        FieldType::Integer => !text.parse::<i32>().is_err(),
-                        FieldType::LongInteger => !text.parse::<i64>().is_err(),
+                        FieldType::Float => text.parse::<f32>().is_ok(),
+                        FieldType::Integer => text.parse::<i32>().is_ok(),
+                        FieldType::LongInteger => text.parse::<i64>().is_ok(),
 
                         // All these are Strings, so we can skip their checks....
                         FieldType::StringU8 |
@@ -1277,7 +1274,7 @@ impl PackedFileTableViewRaw {
                         let final_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index + row_pack.len() as i32 - 1, 0));
                         if initial_model_index_filtered.is_valid() && final_model_index_filtered.is_valid() {
                             let selection = QItemSelection::new_2a(&initial_model_index_filtered, &final_model_index_filtered);
-                            selection_model.select_q_item_selection_q_flags_selection_flag(&selection, QFlags::from(SelectionFlag::Select | SelectionFlag::Rows));
+                            selection_model.select_q_item_selection_q_flags_selection_flag(&selection, SelectionFlag::Select | SelectionFlag::Rows);
                         }
                     }
 

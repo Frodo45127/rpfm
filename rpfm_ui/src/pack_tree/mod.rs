@@ -929,7 +929,7 @@ impl PackTree for MutPtr<QTreeView> {
 
                     // First, we reset the parent to the big_parent (the PackFile).
                     // Then, we form the path ("parent -> child" style path) to add to the model.
-                    let mut parent = big_parent.clone();
+                    let mut parent = big_parent;
                     for (index_in_path, name) in packed_file.path.iter().enumerate() {
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
@@ -1445,10 +1445,8 @@ impl PackTree for MutPtr<QTreeView> {
                 for item_type in &item_types {
                     let item = Self::get_item_from_type(item_type, model);
                     let mut item = get_status_item_from_item(item);
-                    if !item.is_null() {
-                        if !item.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
-                            item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
-                        }
+                    if !item.is_null() && !item.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
+                        item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
                     }
                 }
             }
@@ -1636,7 +1634,7 @@ pub unsafe fn check_if_path_is_closed(app_ui: &AppUI, paths: &[Vec<String>]) -> 
             q_message_box::Icon::Information,
             &qtr("open_packedfile_dialog_1"),
             &qtr("open_packedfile_dialog_2"),
-            QFlags::from(q_message_box::StandardButton::Yes | q_message_box::StandardButton::No),
+            q_message_box::StandardButton::Yes | q_message_box::StandardButton::No,
             app_ui.main_window,
         );
 

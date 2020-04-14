@@ -43,7 +43,6 @@ use cpp_core::CppBox;
 use cpp_core::MutPtr;
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
 use std::{fmt, fmt::Debug};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -146,15 +145,12 @@ pub enum TableSearchUpdate {
 pub struct PackedFileTableView {
     table_view_primary: AtomicPtr<QTableView>,
     table_view_frozen: AtomicPtr<QTableView>,
-    table_filter: AtomicPtr<QSortFilterProxyModel>,
     table_model: AtomicPtr<QStandardItemModel>,
     table_enable_lookups_button: AtomicPtr<QPushButton>,
     filter_case_sensitive_button: AtomicPtr<QPushButton>,
     filter_column_selector: AtomicPtr<QComboBox>,
     filter_line_edit: AtomicPtr<QLineEdit>,
 
-    context_menu: AtomicPtr<QMenu>,
-    context_menu_enabler: AtomicPtr<QAction>,
     context_menu_add_rows: AtomicPtr<QAction>,
     context_menu_insert_rows: AtomicPtr<QAction>,
     context_menu_delete_rows: AtomicPtr<QAction>,
@@ -177,28 +173,17 @@ pub struct PackedFileTableView {
     sidebar_hide_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
     sidebar_freeze_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
 
-    search_search_line_edit: AtomicPtr<QLineEdit>,
-    search_replace_line_edit: AtomicPtr<QLineEdit>,
     search_search_button: AtomicPtr<QPushButton>,
     search_replace_current_button: AtomicPtr<QPushButton>,
     search_replace_all_button: AtomicPtr<QPushButton>,
     search_close_button: AtomicPtr<QPushButton>,
     search_prev_match_button: AtomicPtr<QPushButton>,
     search_next_match_button: AtomicPtr<QPushButton>,
-    search_matches_label: AtomicPtr<QLabel>,
-    search_column_selector: AtomicPtr<QComboBox>,
-    search_case_sensitive_button: AtomicPtr<QPushButton>,
 
-    dependency_data: Arc<RwLock<BTreeMap<i32, HashMap<String, String>>>>,
     table_name: String,
     table_definition: Arc<Definition>,
 
-    save_lock: Arc<AtomicBool>,
-    undo_lock: Arc<AtomicBool>,
-
     undo_model: AtomicPtr<QStandardItemModel>,
-    history_undo: Arc<RwLock<Vec<TableOperations>>>,
-    history_redo: Arc<RwLock<Vec<TableOperations>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -516,15 +501,12 @@ impl PackedFileTableView {
         let mut packed_file_table_view = Self {
             table_view_primary: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_primary),
             table_view_frozen: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_frozen),
-            table_filter: atomic_from_mut_ptr(packed_file_table_view_raw.table_filter),
             table_model: atomic_from_mut_ptr(packed_file_table_view_raw.table_model),
             table_enable_lookups_button: atomic_from_mut_ptr(packed_file_table_view_raw.table_enable_lookups_button),
             filter_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.filter_line_edit),
             filter_case_sensitive_button: atomic_from_mut_ptr(packed_file_table_view_raw.filter_case_sensitive_button),
             filter_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.filter_column_selector),
 
-            context_menu: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu),
-            context_menu_enabler: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_enabler),
             context_menu_add_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_add_rows),
             context_menu_insert_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_insert_rows),
             context_menu_delete_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_delete_rows),
@@ -547,28 +529,17 @@ impl PackedFileTableView {
             sidebar_hide_checkboxes: Arc::new(hide_show_checkboxes),
             sidebar_freeze_checkboxes: Arc::new(freeze_checkboxes),
 
-            search_search_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_line_edit),
-            search_replace_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_line_edit),
             search_search_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_button),
             search_replace_current_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_current_button),
             search_replace_all_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_all_button),
             search_close_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_close_button),
             search_prev_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_prev_match_button),
             search_next_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_next_match_button),
-            search_matches_label: atomic_from_mut_ptr(packed_file_table_view_raw.search_matches_label),
-            search_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.search_column_selector),
-            search_case_sensitive_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_case_sensitive_button),
 
-            dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition: packed_file_table_view_raw.table_definition.clone(),
             table_name,
 
-            undo_lock: packed_file_table_view_raw.undo_lock.clone(),
-            save_lock: packed_file_table_view_raw.save_lock.clone(),
-
             undo_model: atomic_from_mut_ptr(packed_file_table_view_raw.undo_model),
-            history_undo: packed_file_table_view_raw.history_undo.clone(),
-            history_redo: packed_file_table_view_raw.history_redo.clone(),
         };
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
@@ -921,7 +892,7 @@ impl TableSearch {
                 }
 
                 // Otherwise, if no matches have been found in the current filter, but they have been in the model...
-                else if matches_in_filter.len() == 0 {
+                else if matches_in_filter.is_empty() {
                     table_search.current_item = None;
                     parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
                     parent.search_prev_match_button.set_enabled(false);
@@ -1017,7 +988,7 @@ impl TableSearch {
                 }
 
                 // Otherwise, if no matches have been found in the current filter, but they have been in the model...
-                else if matches_in_filter.len() == 0 {
+                else if matches_in_filter.is_empty() {
                     table_search.current_item = None;
                     parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} in current filter ({} in total)", matches_in_filter.len(), matches_in_model.len())));
                     parent.search_prev_match_button.set_enabled(false);

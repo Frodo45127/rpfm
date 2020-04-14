@@ -152,7 +152,7 @@ impl PackedFileCaVp8View {
         let packed_file_ca_vp8_view = Self {
             convert_to_camv_button: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.convert_to_camv_button),
             convert_to_ivf_button: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.convert_to_ivf_button),
-            current_format: packed_file_ca_vp8_view_raw.current_format.clone(),
+            current_format: packed_file_ca_vp8_view_raw.current_format,
         };
 
         connections::set_connections(&packed_file_ca_vp8_view, &packed_file_ca_vp8_view_slots);
@@ -164,7 +164,7 @@ impl PackedFileCaVp8View {
 
     /// This function returns a copy of the format the video is currently on.
     pub fn get_current_format(&self) -> SupportedFormats {
-        self.current_format.lock().unwrap().clone()
+        *self.current_format.lock().unwrap()
     }
 
     /// This function returns a pointer to the `Convert to CAMV` button.

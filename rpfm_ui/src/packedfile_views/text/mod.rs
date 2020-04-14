@@ -129,7 +129,7 @@ impl PackedFileTextView {
 impl PackedFileTextViewRaw {
 
     /// This function returns a pointer to the editor widget.
-    pub fn get_mut_editor(&self) -> MutPtr<QWidget> {
+    pub fn get_mut_editor(self) -> MutPtr<QWidget> {
         self.editor
     }
 }

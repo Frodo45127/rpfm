@@ -189,7 +189,7 @@ impl PackedFileTableViewSlots {
                             // We block the saving for painting, so this doesn't get rettriggered again.
                             let mut blocker = QSignalBlocker::from_q_object(packed_file_view.table_model);
                             let color = get_color_modified();
-                            let mut item = item.clone();
+                            let mut item = item;
                             item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
                             blocker.unblock();
                         }
@@ -606,7 +606,7 @@ impl PackedFileTableViewSlots {
         for index in ca_order {
             let hide_show_slot = SlotOfInt::new(clone!(
                 mut packed_file_view => move |state| {
-                    let state = if state == 2 { true } else { false };
+                    let state = state == 2;
                     packed_file_view.table_view_primary.set_column_hidden(index, state);
                 }
             ));

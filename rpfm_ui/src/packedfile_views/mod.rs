@@ -280,7 +280,7 @@ impl PackedFileView {
                 }
             },
             ViewType::External(view) => {
-                CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromExternalView((path.to_vec(), view.get_external_path().to_path_buf())));
+                CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromExternalView((path.to_vec(), view.get_external_path())));
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
                     Response::Success => {},

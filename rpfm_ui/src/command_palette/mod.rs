@@ -146,7 +146,7 @@ pub unsafe fn load_actions(app_ui: &mut AppUI, pack_file_contents_ui: &PackFileC
 		action_name.set_text_alignment(QFlags::from(AlignmentFlag::AlignVCenter));
 
 		let mut action_shortcut = QStandardItem::from_q_string(&QString::from_std_str(&action_shortcut)).into_ptr();
-		action_shortcut.set_text_alignment(QFlags::from(AlignmentFlag::AlignVCenter | AlignmentFlag::AlignRight));
+		action_shortcut.set_text_alignment(AlignmentFlag::AlignVCenter | AlignmentFlag::AlignRight);
 
 		add_to_q_list_safe(action_data, action_name);
 		add_to_q_list_safe(action_data, action_shortcut);
