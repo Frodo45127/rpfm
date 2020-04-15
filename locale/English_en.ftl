@@ -66,11 +66,6 @@ mymod_name = Name of the Mod:
 mymod_name_default = For example: one_ring_for_me
 mymod_game = Game of the Mod:
 
-tt_mymod_new = Open the dialog to create a new MyMod.
-tt_mymod_delete_selected = Delete the currently selected MyMod.
-tt_mymod_install = Copy the currently selected MyMod into the data folder of the GameSelected.
-tt_mymod_uninstall = Removes the currently selected MyMod from the data folder of the GameSelected.
-
 ## View Menu
 
 view_toggle_packfile_contents = Toggle &PackFile Contents
@@ -164,10 +159,19 @@ tt_change_packfile_type_index_is_encrypted = If checked, the PackedFile Index of
 tt_change_packfile_type_header_is_extended = If checked, the header of this PackFile is extended by 20 bytes. Only seen in Arena PackFiles with encryption. Saving this kind of PackFiles is NOT SUPPORTED.
 tt_change_packfile_type_data_is_compressed = If checked, the data of each PackedFile in the open PackFile will be compressed on save. If you want to decompress a PackFile, disable this, then save it.
 
+## MyMod menu tips
+
+tt_mymod_new = Open the dialog to create a new MyMod.
+tt_mymod_delete_selected = Delete the currently selected MyMod.
+tt_mymod_install = Copy the currently selected MyMod into the data folder of the GameSelected.
+tt_mymod_uninstall = Removes the currently selected MyMod from the data folder of the GameSelected.
+
 ## GameSelected menu tips
 
+tt_game_selected_launch_game = Tries to launch the currently selected game on steam.
 tt_game_selected_open_game_data_folder = Tries to open the currently selected game's Data folder (if exists) in the default file manager.
 tt_game_selected_open_game_assembly_kit_folder = Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.
+tt_game_selected_open_config_folder = Tries to open RPFM's config folder, where the config/schemas/ctd reports are.
 
 tt_game_selected_three_kingdoms = Sets 'TW:Three Kingdoms' as 'Game Selected'.
 tt_game_selected_warhammer_2 = Sets 'TW:Warhammer 2' as 'Game Selected'.
@@ -259,9 +263,11 @@ tt_context_menu_new_folder = Open the dialog to create an empty folder. Due to h
 tt_context_menu_new_packed_file_db = Open the dialog to create a DB Table (used by the game for... most of the things).
 tt_context_menu_new_packed_file_loc = Open the dialog to create a Loc File (used by the game to store the texts you see ingame) in the selected folder.
 tt_context_menu_new_packed_file_text = Open the dialog to create a Plain Text File. It accepts different extensions, like '.xml', '.lua', '.txt',....
+tt_context_menu_new_queek_packed_file = Open the dialog to create a Packedfile based on the context. For example, if you launch this in /text, it'll create a loc PackedFile.
 tt_context_menu_mass_import_tsv = Import a bunch of TSV files at the same time. It automatically checks if they are DB Tables, Locs or invalid TSVs, and imports them all at once. Existing files will be overwritten!
 tt_context_menu_mass_export_tsv = Export every DB Table and Loc PackedFile from this PackFile as TSV files at the same time. Existing files will be overwritten!
 tt_context_menu_merge_tables = Merge multple DB Tables/Loc PackedFiles into one.
+tt_context_menu_update_tables = Update a table to the last known working version of it for the Current game Selected.
 tt_context_menu_delete = Delete the selected File/Folder.
 
 tt_context_menu_extract = Extract the selected File/Folder from the PackFile.
@@ -342,6 +348,7 @@ context_menu_update_table = &Update Table
 
 menu_bar_packfile_section = PackFile Menu
 menu_bar_mymod_section = MyMod Menu
+menu_bar_view_section = View Menu
 menu_bar_game_selected_section = Game Selected Menu
 menu_bar_about_section = About Menu
 packfile_contents_tree_view_section = PackFile Contents Contextual Menu

@@ -173,6 +173,28 @@ impl ShortcutsUI {
             let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
             let mut section = QStandardItem::new().into_ptr();
             let mut fill1 = QStandardItem::new().into_ptr();
+            section.set_text(&qtr("menu_bar_view_section"));
+            section.set_editable(false);
+            fill1.set_editable(false);
+            for (key, value) in shortcuts.menu_bar_view.iter() {
+                let mut row_list = QListOfQStandardItem::new().into_ptr();
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(key)).into_ptr());
+                add_to_q_list_safe(row_list, QStandardItem::from_q_string(&QString::from_std_str(value)).into_ptr());
+
+                row_list.first().as_mut().unwrap().set_editable(false);
+                section.append_row_q_list_of_q_standard_item(row_list.as_ref().unwrap());
+            }
+
+            add_to_q_list_safe(menu_bar_packfile_parent, section);
+            add_to_q_list_safe(menu_bar_packfile_parent, fill1);
+
+            self.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
+        }
+
+        {
+            let menu_bar_packfile_parent = QListOfQStandardItem::new().into_ptr();
+            let mut section = QStandardItem::new().into_ptr();
+            let mut fill1 = QStandardItem::new().into_ptr();
             section.set_text(&qtr("menu_bar_game_selected_section"));
             section.set_editable(false);
             fill1.set_editable(false);
@@ -296,6 +318,7 @@ impl ShortcutsUI {
 
         let menu_bar_packfile_section_title = tr("menu_bar_packfile_section");
         let menu_bar_mymod_section_title = tr("menu_bar_mymod_section");
+        let menu_bar_view_section_title = tr("menu_bar_view_section");
         let menu_bar_game_selected_section_title = tr("menu_bar_game_selected_section");
         let menu_bar_about_section_title = tr("menu_bar_about_section");
         let packfile_contents_tree_view_section_title = tr("packfile_contents_tree_view_section");
@@ -307,6 +330,7 @@ impl ShortcutsUI {
             let section_text = section.text().to_std_string();
             let map = if section_text == menu_bar_packfile_section_title { &mut shortcuts.menu_bar_packfile }
                 else if section_text == menu_bar_mymod_section_title { &mut shortcuts.menu_bar_mymod }
+                else if section_text == menu_bar_view_section_title { &mut shortcuts.menu_bar_view }
                 else if section_text == menu_bar_game_selected_section_title { &mut shortcuts.menu_bar_game_selected }
                 else if section_text == menu_bar_about_section_title { &mut shortcuts.menu_bar_about }
                 else if section_text == packfile_contents_tree_view_section_title { &mut shortcuts.packfile_contents_tree_view }

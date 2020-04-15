@@ -24,7 +24,7 @@ use crate::UI_STATE;
 /// This function setup all the shortcuts used by the actions in the provided `AppUI` .
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
-pub fn set_shortcuts(app_ui: &mut AppUI) {
+pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
     //---------------------------------------------------------------------------------------//
@@ -32,51 +32,72 @@ pub fn set_shortcuts(app_ui: &mut AppUI) {
     //---------------------------------------------------------------------------------------//
 
     // Set the shortcuts for these actions.
-    unsafe { app_ui.packfile_new_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["new_packfile"]))); }
-    unsafe { app_ui.packfile_open_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["open_packfile"]))); }
-    unsafe { app_ui.packfile_save_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["save_packfile"]))); }
-    unsafe { app_ui.packfile_save_packfile_as.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["save_packfile_as"]))); }
-    unsafe { app_ui.packfile_load_all_ca_packfiles.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["load_all_ca_packfiles"]))); }
-    unsafe { app_ui.packfile_preferences.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["preferences"]))); }
-    unsafe { app_ui.packfile_quit.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["quit"]))); }
+    app_ui.packfile_new_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["new_packfile"])));
+    app_ui.packfile_open_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["open_packfile"])));
+    app_ui.packfile_save_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["save_packfile"])));
+    app_ui.packfile_save_packfile_as.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["save_packfile_as"])));
+    app_ui.packfile_load_all_ca_packfiles.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["load_all_ca_packfiles"])));
+    app_ui.packfile_preferences.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["preferences"])));
+    app_ui.packfile_quit.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_packfile["quit"])));
 
-    unsafe { app_ui.game_selected_open_game_data_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_game_data_folder"]))); }
-    unsafe { app_ui.game_selected_open_game_assembly_kit_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_game_assembly_kit_folder"]))); }
+    app_ui.mymod_new.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_new"])));
+    app_ui.mymod_delete_selected.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_delete_selected"])));
+    app_ui.mymod_install.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_install"])));
+    app_ui.mymod_uninstall.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_mymod["mymod_uninstall"])));
 
-    unsafe { app_ui.about_about_qt.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["about_qt"]))); }
-    unsafe { app_ui.about_about_rpfm.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["about_rpfm"]))); }
-    unsafe { app_ui.about_open_manual.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["open_manual"]))); }
-    unsafe { app_ui.about_check_updates.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["check_updates"]))); }
-    unsafe { app_ui.about_check_schema_updates.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["check_schema_updates"]))); }
+    app_ui.view_toggle_packfile_contents.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_packfile_contents"])));
+    app_ui.view_toggle_global_search_panel.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_view["view_toggle_global_search_panel"])));
 
-    // Set the shortcuts to only trigger in the TreeView.
-    unsafe { app_ui.packfile_new_packfile.set_shortcut_context(ShortcutContext:: ApplicationShortcut); }
-    unsafe { app_ui.packfile_open_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.packfile_save_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.packfile_save_packfile_as.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.packfile_load_all_ca_packfiles.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.packfile_preferences.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.packfile_quit.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
+    app_ui.game_selected_launch_game.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["launch_game"])));
+    app_ui.game_selected_open_game_data_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_game_data_folder"])));
+    app_ui.game_selected_open_game_assembly_kit_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_game_assembly_kit_folder"])));
+    app_ui.game_selected_open_config_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_config_folder"])));
 
-    unsafe { app_ui.game_selected_open_game_data_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.game_selected_open_game_assembly_kit_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
+    app_ui.about_about_qt.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["about_qt"])));
+    app_ui.about_about_rpfm.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["about_rpfm"])));
+    app_ui.about_open_manual.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["open_manual"])));
+    app_ui.about_patreon_link.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["support_me_on_patreon"])));
+    app_ui.about_check_updates.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["check_updates"])));
+    app_ui.about_check_schema_updates.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["check_schema_updates"])));
 
-    unsafe { app_ui.about_about_qt.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.about_about_rpfm.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.about_open_manual.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.about_check_updates.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.about_check_schema_updates.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
+    app_ui.packfile_new_packfile.set_shortcut_context(ShortcutContext:: ApplicationShortcut);
+    app_ui.packfile_open_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.packfile_save_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.packfile_save_packfile_as.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.packfile_load_all_ca_packfiles.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.packfile_preferences.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.packfile_quit.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.mymod_new.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.mymod_delete_selected.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.mymod_install.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.mymod_uninstall.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.view_toggle_packfile_contents.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.view_toggle_global_search_panel.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.game_selected_launch_game.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.game_selected_open_game_data_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.game_selected_open_game_assembly_kit_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.game_selected_open_config_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.about_about_qt.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.about_about_rpfm.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.about_open_manual.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.about_patreon_link.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.about_check_updates.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.about_check_schema_updates.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     //---------------------------------------------------------------------------------------//
     // Shortcuts for the Command Palette...
     //---------------------------------------------------------------------------------------//
 
-    unsafe { app_ui.command_palette_show.set_shortcut(&QKeySequence::from_q_string(&qtr("shortcut_csp"))); }
-    unsafe { app_ui.command_palette_hide.set_shortcut(&QKeySequence::from_q_string(&qtr("shortcut_esc"))); }
+    app_ui.command_palette_show.set_shortcut(&QKeySequence::from_q_string(&qtr("shortcut_csp")));
+    app_ui.command_palette_hide.set_shortcut(&QKeySequence::from_q_string(&qtr("shortcut_esc")));
 
-    unsafe { app_ui.command_palette_show.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
-    unsafe { app_ui.command_palette_hide.set_shortcut_context(ShortcutContext::ApplicationShortcut); }
+    app_ui.command_palette_show.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.command_palette_hide.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
-    unsafe { app_ui.main_window.add_action(app_ui.command_palette_show); }
-    unsafe { app_ui.main_window.add_action(app_ui.command_palette_hide); }
+    app_ui.main_window.add_action(app_ui.command_palette_show);
+    app_ui.main_window.add_action(app_ui.command_palette_hide);
 }
