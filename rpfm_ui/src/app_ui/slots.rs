@@ -810,15 +810,6 @@ impl AppUISlots {
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
-                    // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
-                    app_ui.enable_packfile_actions(false);
-                    if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
-                        app_ui.enable_packfile_actions(true);
-                    }
-
-                    app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
-                    app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
-
                     // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                     UI_STATE.set_operational_mode(&mut app_ui, None);
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
@@ -830,6 +821,17 @@ impl AppUISlots {
                     // Change the GameSelected Icon. Disabled until we find better icons.
                     GameSelectedIcons::set_game_selected_icon(app_ui.main_window);
                 }
+
+                // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
+                app_ui.enable_packfile_actions(false);
+                if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
+                    app_ui.enable_packfile_actions(true);
+                }
+
+                // Rebuild the open from submenus.
+                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+
             }
         ));
 
