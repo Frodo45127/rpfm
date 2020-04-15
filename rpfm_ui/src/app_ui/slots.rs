@@ -373,13 +373,15 @@ impl AppUISlots {
 
                     // If we got an error...
                     Response::Error(error) => {
-                        app_ui.main_window.set_enabled(true);
                         show_dialog(app_ui.main_window, error, false);
                     }
 
                     // In ANY other situation, it's a message problem.
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
+
+                // Always reenable the Main Window.
+                app_ui.main_window.set_enabled(true);
             }
         }));
 
