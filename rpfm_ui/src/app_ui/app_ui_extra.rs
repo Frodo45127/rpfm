@@ -77,7 +77,7 @@ impl AppUI {
         // First check if we have a PackFile open. If not, just leave the default title.
         let window_title = if packfile_contents_ui.packfile_contents_tree_model.invisible_root_item().is_null() ||
             packfile_contents_ui.packfile_contents_tree_model.invisible_root_item().row_count() == 0 {
-            "Rusted PackFile Manager".to_owned()
+            "Rusted PackFile Manager[*]".to_owned()
         }
 
         // If there is a `PackFile` open, check if it has been modified, and set the title accordingly.
