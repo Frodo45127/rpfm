@@ -20,7 +20,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_error::Result;
+use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::app_ui::AppUI;
@@ -71,11 +71,12 @@ impl PackedFileRigidModelView {
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Text.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileRigidModel(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (_rigid_model, packed_file_info) = match response {
             Response::RigidModelPackedFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
             Response::Error(error) => return Err(error),
+            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 

@@ -27,7 +27,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_error::Result;
+use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
@@ -86,11 +86,12 @@ impl PackedFileCaVp8View {
         pack_file_contents_ui: &PackFileContentsUI,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileCaVp8(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (data, packed_file_info) = match response {
             Response::CaVp8PackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
             Response::Error(error) => return Err(error),
+            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 

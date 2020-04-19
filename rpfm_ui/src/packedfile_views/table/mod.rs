@@ -206,7 +206,7 @@ impl PackedFileTableView {
 
         // Get the decoded Table.
         if packed_file_path.borrow().is_empty() { CENTRAL_COMMAND.send_message_qt(Command::GetDependencyPackFilesList); }
-        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileTable(packed_file_path.borrow().to_vec())); }
+        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec())); }
 
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (table_data, packed_file_info) = match response {
@@ -214,6 +214,7 @@ impl PackedFileTableView {
             Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), Some(packed_file_info)),
             Response::VecString(table) => (TableType::DependencyManager(table.iter().map(|x| vec![DecodedData::StringU8(x.to_owned()); 1]).collect::<Vec<Vec<DecodedData>>>()), None),
             Response::Error(error) => return Err(error),
+            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 

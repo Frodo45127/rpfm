@@ -240,6 +240,9 @@ pub enum ErrorKind {
     /// Error for when we fail saving a PackedFile.
     PackedFileSaveError(Vec<String>),
 
+    /// Error for when we cannot open a PackedFile due to not being decodeable on the lib.
+    PackedFileTypeUnknown,
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -635,6 +638,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileNotInFilter => write!(f, "<p>This PackedFile is not in the current TreeView filter. If you want to open it, remove the filter.</p>"),
             ErrorKind::PackedFileCouldNotBeImported(paths) => write!(f, "<p>The following failed to be imported:<ul>{}</ul></p>", paths.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::PackedFileSaveError(path) => write!(f, "<p>The following PackedFile failed to be saved: {}</p>", path.join("/")),
+            ErrorKind::PackedFileTypeUnknown => write!(f, "<p>The PackedFile could not be opened.</p>"),
 
             //--------------------------------//
             // Table Errors

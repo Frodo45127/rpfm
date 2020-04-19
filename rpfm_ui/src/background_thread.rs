@@ -391,46 +391,9 @@ pub fn background_loop() {
                 }
             }
 
-            // In case we want to decode a CaVp8 PackedFile...
-            Command::DecodePackedFileCaVp8(path) => {
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
-                        match packed_file.decode_return_ref() {
-                            Ok(decoded_packed_file) => {
-                                if let DecodedPackedFile::CaVp8(data) = decoded_packed_file {
-                                    CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file))));
-                                }
-                                // TODO: Put an error here.
-                            }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        }
-                    }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
-                }
-            }
+            // In case we want to decode a RigidModel PackedFile...
+            Command::DecodePackedFile(path) => {
 
-            // In case we want to decode an Image...
-            Command::DecodePackedFileImage(path) => {
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
-                        match packed_file.decode_return_ref() {
-                            Ok(image) => {
-                                if let DecodedPackedFile::Image(image) = image {
-                                    CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file))));
-                                }
-                                // TODO: Put an error here.
-                            }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        }
-                    }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
-                }
-            }
-
-            // In case we want to decode a Text PackedFile...
-            Command::DecodePackedFileText(path) => {
-
-                // If it's the notes file, we just return the notes.
                 if path == ["notes.rpfm_reserved".to_owned()] {
                     let mut note = Text::new();
                     note.set_text_type(TextType::Markdown);
@@ -448,58 +411,23 @@ pub fn background_loop() {
                     match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                         Some(ref mut packed_file) => {
                             match packed_file.decode_return_ref() {
-                                Ok(text) => {
-                                    if let DecodedPackedFile::Text(text) = text {
-                                        CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file))));
+                                Ok(rigid_model) => {
+                                    match rigid_model {
+                                        DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file)))),
+                                        _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
+
                                     }
-                                    // TODO: Put an error here.
                                 }
                                 Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                             }
                         }
                         None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                     }
-                }
-            }
-
-            // In case we want to decode a Table PackedFile...
-            Command::DecodePackedFileTable(path) => {
-
-                // Find the PackedFile we want and send back the response.
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
-                        match packed_file.decode_return_ref() {
-                            Ok(table) => {
-                                match table {
-                                    DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
-                                    DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
-                                    _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
-                                }
-                            }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        }
-                    }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
-                }
-            }
-
-            // In case we want to decode a RigidModel PackedFile...
-            Command::DecodePackedFileRigidModel(path) => {
-
-                // Find the PackedFile we want and send back the response.
-                match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                    Some(ref mut packed_file) => {
-                        match packed_file.decode_return_ref() {
-                            Ok(rigid_model) => {
-                                if let DecodedPackedFile::RigidModel(rigid_model) = rigid_model {
-                                    CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file))));
-                                }
-                                // TODO: Put an error here.
-                            }
-                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                        }
-                    }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))),
                 }
             }
 

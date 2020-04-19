@@ -1165,7 +1165,7 @@ impl AppUI {
                                     open_list.insert(path.borrow().to_vec(), tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(self.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
                             }
                         }
 

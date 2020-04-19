@@ -173,23 +173,11 @@ pub enum Command {
     /// It requires the list of filesystem paths to add, and their path once they're inside the `PackFile`.
     AddPackedFiles((Vec<PathBuf>, Vec<Vec<String>>)),
 
-    /// This command is used when we want to decode a CA_VP8 video to be shown in the UI.
-    DecodePackedFileCaVp8(Vec<String>),
-
-    /// This command is used when we want to decode an image to be shown in the UI.
-    DecodePackedFileImage(Vec<String>),
-
-    /// This command is used when we want to decode a text PackedFile to be shown in the UI.
-    DecodePackedFileText(Vec<String>),
-
-    /// This command is used when we want to decode a rigidmodel PackedFile to be shown in the UI.
-    DecodePackedFileRigidModel(Vec<String>),
+    /// This command is used when we want to decode a PackedFile to be shown on the UI.
+    DecodePackedFile(Vec<String>),
 
     /// This command is used when we want to save an edited `PackedFile` back to the `PackFile`.
     SavePackedFileFromView(Vec<String>, DecodedPackedFile),
-
-    /// This command is used when we want to decode a table PackedFile to be shown in the UI.
-    DecodePackedFileTable(Vec<String>),
 
     /// This command is used when we want to add a PackedFile from one PackFile into another.
     AddPackedFilesFromPackFile(Vec<PathType>),

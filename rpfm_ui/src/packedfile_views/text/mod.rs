@@ -21,7 +21,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
 
-use rpfm_error::Result;
+use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
@@ -82,7 +82,7 @@ impl PackedFileTextView {
     ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
 
         // Get the decoded Text.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileText(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (text, packed_file_info) = match response {
             Response::TextPackedFileInfo((text, packed_file_info)) => (text, Some(packed_file_info)),
@@ -90,6 +90,7 @@ impl PackedFileTextView {
             // If only the text comes in, it's not a PackedFile.
             Response::Text(text) => (text, None),
             Response::Error(error) => return Err(error),
+            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 

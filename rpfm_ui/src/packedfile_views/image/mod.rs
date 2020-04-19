@@ -27,7 +27,7 @@ use cpp_core::MutPtr;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use rpfm_error::Result;
+use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
@@ -60,11 +60,12 @@ impl PackedFileImageView {
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the path of the extracted Image.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFileImage(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (image, packed_file_info) = match response {
             Response::ImagePackedFileInfo((image, packed_file_info)) => (image, packed_file_info),
             Response::Error(error) => return Err(error),
+            Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
