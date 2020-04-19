@@ -277,62 +277,6 @@ pub enum Command {
 
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
     SavePackedFileFromExternalView((Vec<String>, PathBuf)),
-    /*
-    OpenPackFileExtra,
-    SavePackFile,
-    SavePackFileAs,
-    LoadAllCAPackFiles,
-    SetPackFileType,
-    ChangeIndexIncludesTimestamp,
-    ChangeDataIsCompressed,
-    SaveSchema,
-    SetSettings,
-    SetShortcuts,
-    SetGameSelected,
-    IsThereADependencyDatabase,
-    IsThereASchema,
-    PatchSiegeAI,
-    UpdateSchemas,
-    AddPackedFile,
-    DeletePackedFile,
-    ExtractPackedFile,
-    PackedFileExists,
-    FolderExists,
-    CreatePackedFile,
-    AddPackedFileFromPackFile,
-    MassImportTSV,
-    MassExportTSV,
-    DecodePackedFileLoc,
-    EncodePackedFileLoc,
-    DecodePackedFileDB,
-    EncodePackedFileDB,
-    DecodePackedFileText,
-    EncodePackedFileText,
-    DecodePackedFileRigidModel,
-    EncodePackedFileRigidModel,
-    PatchAttilaRigidModelToWarhammer,
-    DecodePackedFileImage,
-    RenamePackedFiles,
-    GetPackedFile,
-    GetTableListFromDependencyPackFile,
-    GetTableVersionFromDependencyPackFile,
-    OptimizePackFile,
-    GeneratePakFile,
-    GetPackFilesList,
-    SetPackFilesList,
-    DecodeDependencyDB,
-    CheckScriptWithKailua,
-    GlobalSearch,
-    UpdateGlobalSearchData,
-    OpenWithExternalProgram,
-    OpenContainingFolder,
-    ImportTSVPackedFile,
-    ExportTSVPackedFile,
-    CheckTables,
-    MergeTables,
-    GenerateSchemaDiff,
-    GetNotes,
-    SetNotes,*/
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -344,32 +288,20 @@ pub enum Response {
     /// Generic response for situations of success.
     Success,
 
-    // Generic response for situations where the action was cancelled.
-    //Cancel,
-
     /// Generic response for situations that returned an error.
     Error(Error),
 
     /// Response to return (bool).
     Bool(bool),
 
-    // Response to return (u32).
-    //U32(u32),
-
     /// Response to return (i32).
     I32(i32),
-
-    // Response to return (i64).
-    //I64(i64),
 
     /// Response to return (PathBuf).
     PathBuf(PathBuf),
 
     /// Response to return (String)
     String(String),
-
-    // Response to return (String, i64, Vec<Vec<String>>).
-    //StringI64VecVecString((String, i64, Vec<Vec<String>>)),
 
     /// Response to return (PackFileInfo, Vec<PackedFileInfo>).
     PackFileInfoVecPackedFileInfo((PackFileInfo, Vec<PackedFileInfo>)),
@@ -392,14 +324,8 @@ pub enum Response {
     /// Response to return (Vec<PathType>).
     VecPathType(Vec<PathType>),
 
-    // Response to return (Vec<(PathType, String)>).
-    //VecPathTypeString(Vec<(PathType, String)>),
-
     /// Response to return (Vec<(PathType, Vec<String>)>).
     VecPathTypeVecString(Vec<(PathType, Vec<String>)>),
-
-    // Response to return (Vec<PathType>),
-    //VecPathTypeVecPathType((Vec<PathType>, Vec<PathType>)),
 
     /// Response to return (String, Vec<Vec<String>>).
     StringVecVecString((String, Vec<Vec<String>>)),
@@ -440,9 +366,6 @@ pub enum Response {
     /// Response to return `Vec<String>`.
     VecString(Vec<String>),
 
-    // Response to return `(Vec<String>, Vec<PathType>)`.
-    //VecStringVecPathType((Vec<String>, Vec<PathType>)),
-
     /// Response to return `(i32, i32)`.
     I32I32((i32, i32)),
 
@@ -454,57 +377,6 @@ pub enum Response {
 
     /// Response to return `TableType`.
     TableType(TableType),
-/*
-    Bool(bool),
-    I32(i32),
-    I64(i64),
-
-    String(String),
-    StringVecString((String, Vec<String>)),
-    StringVecVecString((String, Vec<Vec<String>>)),
-    PathBuf(PathBuf),
-    PathBufI16((PathBuf, i16)),
-
-    Settings(Settings),
-    Shortcuts(Shortcuts),
-    Schema(Schema),
-
-    PFHFileType(PFHFileType),
-    PackFileUIData(PackFileInfo),
-
-    PackedFile(PackedFile),
-    DefinitionPathBufStringI32((Definition, PathBuf, String, i32)),
-    VecVecDecodedData((Vec<Vec<DecodedData>>)),
-    VecVecDecodedDataPathBufVecStringTupleStrI32((Vec<Vec<DecodedData>>, PathBuf, Vec<String>, (String, i32))),
-
-    Loc(Loc),
-    LocVecString((Loc, Vec<String>)),
-
-    DB(DB),
-    DBVecString((DB, Vec<String>)),
-
-    RigidModel(RigidModel),
-    RigidModelVecString((RigidModel, Vec<String>)),
-
-    PathType(PathType),
-
-    OptionStringVecPathBuf((Option<String>, Vec<PathBuf>)),
-
-    StringVecPathType((String, Vec<PathType>)),
-    VecPathBufVecVecString((Vec<PathBuf>, Vec<Vec<String>>)),
-    VecString(Vec<String>),
-    VecStringPackedFileType((Vec<String>, PackedFileType)),
-    VecVecStringStringBoolBool((Vec<Vec<String>>, String, bool, bool)),
-    VecVecStringVecVecString((Vec<Vec<String>>, Vec<Vec<String>>)),
-    VecGlobalMatch(Vec<GlobalMatch>),
-    VersionsVersions((Versions, Versions)),
-    VecPathTypeString(Vec<(PathType, String)>),
-    VecPathType(Vec<PathType>),
-    VecStringVecPathType((Vec<String>, Vec<PathType>)),
-    VecPathTypePathBuf((Vec<PathType>, PathBuf)),
-    VecPathBuf(Vec<PathBuf>),
-    Definition(Definition),
-    BTreeMapI32VecString(BTreeMap<i32, Vec<String>>),*/
 }
 
 //-------------------------------------------------------------------------------//

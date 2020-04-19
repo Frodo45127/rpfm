@@ -56,7 +56,7 @@ use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, tr, tre};
+use crate::locale::{qtr, qtre, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -93,17 +93,17 @@ impl AppUI {
     ///
     /// If you are trying to delete the open MyMod, pass it true.
     pub unsafe fn are_you_sure(&self, is_delete_my_mod: bool) -> bool {
-        let title = "Rusted PackFile Manager";
-        let message = if is_delete_my_mod { "<p>You are about to delete this <i>'MyMod'</i> from your disk.</p><p>There is no way to recover it after that.</p><p>Are you sure?</p>" }
-        else if UI_STATE.get_is_modified() { "<p>There are some changes yet to be saved.</p><p>Are you sure?</p>" }
+        let title = qtr("rpfm_title");
+        let message = if is_delete_my_mod { qtr("delete_mymod_0") }
+        else if UI_STATE.get_is_modified() { qtr("delete_mymod_1") }
 
         // In any other situation... just return true and forget about the dialog.
         else { return true };
 
         // Create the dialog and run it (Yes => 3, No => 4).
         QMessageBox::from_2_q_string_icon3_int_q_widget(
-            &QString::from_std_str(title),
-            &QString::from_std_str(message),
+            &title,
+            &message,
             q_message_box::Icon::Warning,
             65536, // No
             16384, // Yes
@@ -805,18 +805,18 @@ impl AppUI {
             let message = match response {
                 Response::APIResponse(response) => {
                     match response {
-                        APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
-                        APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
-                        APIResponse::SuccessNoUpdate => "<h4>No new updates available</h4> <p>More luck next time :)</p>".to_owned(),
-                        APIResponse::SuccessUnknownVersion => "<h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>".to_owned(),
-                        APIResponse::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
+                        APIResponse::SuccessNewUpdate(last_release) => qtre("api_response_success_new_update", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
+                        APIResponse::SuccessNewUpdateHotfix(last_release) => qtre("api_response_success_new_update_hotfix", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
+                        APIResponse::SuccessNoUpdate => qtr("api_response_success_no_update"),
+                        APIResponse::SuccessUnknownVersion => qtr("api_response_success_unknown_version"),
+                        APIResponse::Error => qtr("api_response_error"),
                     }
                 }
 
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             };
 
-            dialog.set_text(&QString::from_std_str(message));
+            dialog.set_text(&message);
             dialog.exec();
         }
 
@@ -826,8 +826,8 @@ impl AppUI {
             let message = match response {
                 Response::APIResponse(response) => {
                     match response {
-                        APIResponse::SuccessNewUpdate(last_release) => format!("<h4>New major update found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
-                        APIResponse::SuccessNewUpdateHotfix(last_release) => format!("<h4>New minor update/hotfix found: \"{}\"</h4> <p>Download and changelog available here:<br><a href=\"{}\">{}</a></p>", last_release.name, last_release.html_url, last_release.html_url),
+                        APIResponse::SuccessNewUpdate(last_release) => qtre("api_response_success_new_update", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
+                        APIResponse::SuccessNewUpdateHotfix(last_release) => qtre("api_response_success_new_update_hotfix", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
                         _ => return,
                     }
                 }
@@ -838,7 +838,7 @@ impl AppUI {
             let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
                 q_message_box::Icon::Information,
                 &qtr("update_checker"),
-                &QString::from_std_str(message),
+                &message,
                 QFlags::from(q_message_box::StandardButton::Close),
                 self.main_window,
             );
@@ -881,7 +881,7 @@ impl AppUI {
                             update_button.set_enabled(true);
 
                             // Build a table with each one of the remote schemas to show what ones got updated.
-                            let mut message = "<h4>New schema update available</h4> <table>".to_owned();
+                            let mut message = tr("schema_update_0");
                             for (remote_schema_name, remote_schema_version) in remote_versions.get() {
                                 message.push_str("<tr>");
                                 message.push_str(&format!("<td>{}:</td>", remote_schema_name));
@@ -895,7 +895,7 @@ impl AppUI {
                                 message.push_str("</tr>");
                             }
                             message.push_str("</table>");
-                            message.push_str("<p>Do you want to update the schemas?</p>");
+                            message.push_str(&tr("schema_update_1"));
                             message
                         }
 
@@ -903,8 +903,8 @@ impl AppUI {
                             update_button.set_enabled(true);
                             tr("update_no_local_schema")
                         },
-                        APIResponseSchema::SuccessNoUpdate => "<h4>No new schema updates available</h4> <p>More luck next time :)</p>".to_owned(),
-                        APIResponseSchema::Error => "<h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>".to_owned(),
+                        APIResponseSchema::SuccessNoUpdate => tr("api_response_schema_success_no_update"),
+                        APIResponseSchema::Error => tr("api_response_schema_error")
                     }
                 }
 
@@ -925,7 +925,7 @@ impl AppUI {
                             update_button.set_enabled(false);
 
                             match CENTRAL_COMMAND.recv_message_qt_try() {
-                                Response::Success => show_dialog(self.main_window, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
+                                Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
                                 Response::Error(error) => show_dialog(self.main_window, error, false),
                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
                             }
@@ -945,7 +945,7 @@ impl AppUI {
                         APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
 
                             // Build a table with each one of the remote schemas to show what ones got updated.
-                            let mut message = "<h4>New schema update available</h4> <table>".to_owned();
+                            let mut message = tr("schema_update_0");
                             for (remote_schema_name, remote_schema_version) in remote_versions.get() {
                                 message.push_str("<tr>");
                                 message.push_str(&format!("<td>{}:</td>", remote_schema_name));
@@ -959,7 +959,7 @@ impl AppUI {
                                 message.push_str("</tr>");
                             }
                             message.push_str("</table>");
-                            message.push_str("<p>Do you want to update the schemas?</p>");
+                            message.push_str(&tr("schema_update_1"));
                             message
                         }
                         APIResponseSchema::SuccessNoLocalUpdate => {
@@ -996,7 +996,7 @@ impl AppUI {
                             update_button.set_enabled(false);
 
                             match CENTRAL_COMMAND.recv_message_qt_try() {
-                                Response::Success => show_dialog(self.main_window, "<h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>", true),
+                                Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
                                 Response::Error(error) => show_dialog(self.main_window, error, false),
                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                             }
@@ -1556,7 +1556,6 @@ impl AppUI {
                     let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned());
                     (new_path, new_packed_file)
                 }
-
 
                 // Neutral Check, for folders without a predefined type.
                 else {

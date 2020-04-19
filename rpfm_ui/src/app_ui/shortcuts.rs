@@ -53,6 +53,32 @@ pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
     app_ui.game_selected_open_game_assembly_kit_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_game_assembly_kit_folder"])));
     app_ui.game_selected_open_config_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_game_selected["open_config_folder"])));
 
+    app_ui.special_stuff_three_k_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
+    app_ui.special_stuff_three_k_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+
+    app_ui.special_stuff_wh2_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
+    app_ui.special_stuff_wh2_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+    app_ui.special_stuff_wh2_patch_siege_ai.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["patch_siege_ai"])));
+
+    app_ui.special_stuff_wh_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
+    app_ui.special_stuff_wh_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+    app_ui.special_stuff_wh_patch_siege_ai.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["patch_siege_ai"])));
+
+    app_ui.special_stuff_tob_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
+    app_ui.special_stuff_tob_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+
+    app_ui.special_stuff_att_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
+    app_ui.special_stuff_att_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+
+    app_ui.special_stuff_rom2_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
+    app_ui.special_stuff_rom2_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+
+    app_ui.special_stuff_sho2_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
+    app_ui.special_stuff_sho2_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+
+    app_ui.special_stuff_nap_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+    app_ui.special_stuff_emp_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
+
     app_ui.about_about_qt.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["about_qt"])));
     app_ui.about_about_rpfm.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["about_rpfm"])));
     app_ui.about_open_manual.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_about["open_manual"])));
@@ -80,6 +106,32 @@ pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
     app_ui.game_selected_open_game_data_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.game_selected_open_game_assembly_kit_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.game_selected_open_config_folder.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_three_k_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_three_k_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_wh2_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_wh2_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_wh2_patch_siege_ai.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_wh_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_wh_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_wh_patch_siege_ai.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_tob_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_tob_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_att_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_att_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_rom2_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_rom2_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_sho2_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_sho2_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.special_stuff_nap_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_emp_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     app_ui.about_about_qt.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.about_about_rpfm.set_shortcut_context(ShortcutContext::ApplicationShortcut);

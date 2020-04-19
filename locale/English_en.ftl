@@ -460,3 +460,32 @@ stop_watching = Stop watching the file
 open_folder = Open folder in file manager
 
 game_selected_changed_on_opening = Game Selected changed to {"{"}{"}"}, as the PackFile you opened is not compatible with the game you had selected.
+
+### Extra stuff I don't remember where it goes.
+
+rpfm_title = Rusted PackFile Manager
+delete_mymod_0 = <p>You are about to delete this <i>'MyMod'</i> from your disk.</p><p>There is no way to recover it after that.</p><p>Are you sure?</p>
+delete_mymod_1 = <p>There are some changes yet to be saved.</p><p>Are you sure?</p>
+
+api_response_success_new_update = "<h4>New major update found: {"{"}{"}"}</h4> <p>Download and changelog available here:<br><a href="{"{"}{"}"}">{"{"}{"}"}</a></p>
+api_response_success_new_update_hotfix = <h4>New minor update/hotfix found: {"{"}{"}"}</h4> <p>Download and changelog available here:<br><a href="{"{"}{"}"}">{"{"}{"}"}</a></p>
+api_response_success_no_update = <h4>No new updates available</h4> <p>More luck next time :)</p>
+api_response_success_unknown_version = <h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>
+api_response_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
+
+api_response_schema_success_no_update = <h4>No new schema updates available</h4> <p>More luck next time :)</p>
+api_response_schema_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
+
+schema_update_0 = <h4>New schema update available</h4> <table>
+schema_update_1 = <p>Do you want to update the schemas?</p>
+schema_update_success = <h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>
+
+files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
+mymod_delete_success = MyMod successfully deleted: \"{"{"}{"}"}\"
+
+generate_pak_success = PAK File succesfully created and reloaded.
+game_selected_unsupported_operation = This operation is not supported for the Game Selected.
+
+optimize_packfile_success = PackFile optimized.
+update_current_schema_from_asskit_success = Currently loaded schema updated.
+generate_schema_diff_success = Diff generated succesfully.

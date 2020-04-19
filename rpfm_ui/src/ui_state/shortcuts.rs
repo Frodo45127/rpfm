@@ -62,6 +62,13 @@ const SHORTCUTS_MENU_BAR_GAME_SELECTED: [(&str, &str); 4] = [
     ("open_config_folder", "Ctrl+Shift+O"),
 ];
 
+/// List of shortcuts for the `Special Stuff` Menu.
+const SHORTCUTS_MENU_BAR_SPECIAL_STUFF: [(&str, &str); 3] = [
+    ("generate_pak", "Ctrl+Shift+O"),
+    ("optimize_packfile", "Ctrl+Alt+O"),
+    ("patch_siege_ai", "Ctrl+Shift+O"),
+];
+
 /// List of shortcuts for the `About` Menu.
 const SHORTCUTS_MENU_BAR_ABOUT: [(&str, &str); 6] = [
     ("about_qt", "Ctrl+Alt+H"),
@@ -144,6 +151,7 @@ pub struct Shortcuts {
     pub menu_bar_mymod: BTreeMap<String, String>,
     pub menu_bar_view: BTreeMap<String, String>,
     pub menu_bar_game_selected: BTreeMap<String, String>,
+    pub menu_bar_special_stuff: BTreeMap<String, String>,
     pub menu_bar_about: BTreeMap<String, String>,
     pub packfile_contents_tree_view: BTreeMap<String, String>,
     pub packed_file_table: BTreeMap<String, String>,
@@ -164,6 +172,7 @@ impl Shortcuts {
             menu_bar_mymod: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_MYMOD.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
             menu_bar_view: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_VIEW.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
             menu_bar_game_selected: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_GAME_SELECTED.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
+            menu_bar_special_stuff: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_SPECIAL_STUFF.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
             menu_bar_about: BTreeMap::from_iter(SHORTCUTS_MENU_BAR_ABOUT.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
             packfile_contents_tree_view: BTreeMap::from_iter(SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
             packed_file_table: BTreeMap::from_iter(SHORTCUTS_PACKED_FILE_TABLE.iter().map(|(x, y)| ((*x).to_string(), (*y).to_string()))),
@@ -202,6 +211,10 @@ impl Shortcuts {
             for key in &keys_to_delete { shortcuts.menu_bar_game_selected.remove(key); }
 
             let mut keys_to_delete = vec![];
+            for key in shortcuts.menu_bar_special_stuff.keys() { if defaults.menu_bar_special_stuff.get(key).is_none() { keys_to_delete.push(key.clone()); } }
+            for key in &keys_to_delete { shortcuts.menu_bar_special_stuff.remove(key); }
+
+            let mut keys_to_delete = vec![];
             for key in shortcuts.menu_bar_about.keys() { if defaults.menu_bar_about.get(key).is_none() { keys_to_delete.push(key.clone()); } }
             for key in &keys_to_delete { shortcuts.menu_bar_about.remove(key); }
 
@@ -223,6 +236,7 @@ impl Shortcuts {
             for (key, value) in defaults.menu_bar_mymod { if shortcuts.menu_bar_mymod.get(&key).is_none() { shortcuts.menu_bar_mymod.insert(key, value);  } }
             for (key, value) in defaults.menu_bar_view { if shortcuts.menu_bar_view.get(&key).is_none() { shortcuts.menu_bar_view.insert(key, value);  } }
             for (key, value) in defaults.menu_bar_game_selected { if shortcuts.menu_bar_game_selected.get(&key).is_none() { shortcuts.menu_bar_game_selected.insert(key, value);  } }
+            for (key, value) in defaults.menu_bar_special_stuff { if shortcuts.menu_bar_special_stuff.get(&key).is_none() { shortcuts.menu_bar_special_stuff.insert(key, value);  } }
             for (key, value) in defaults.menu_bar_about { if shortcuts.menu_bar_about.get(&key).is_none() { shortcuts.menu_bar_about.insert(key, value);  } }
             for (key, value) in defaults.packfile_contents_tree_view { if shortcuts.packfile_contents_tree_view.get(&key).is_none() { shortcuts.packfile_contents_tree_view.insert(key, value);  } }
             for (key, value) in defaults.packed_file_table { if shortcuts.packed_file_table.get(&key).is_none() { shortcuts.packed_file_table.insert(key, value);  } }

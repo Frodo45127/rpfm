@@ -42,6 +42,7 @@ use rpfm_lib::SUPPORTED_GAMES;
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::locale::tre;
 use crate::packedfile_views::table::TableType;
 use crate::RPFM_PATH;
 
@@ -120,7 +121,7 @@ pub fn background_loop() {
             Command::SavePackFile => {
                 match pack_file_decoded.save(None) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
                 }
             }
 
@@ -128,7 +129,7 @@ pub fn background_loop() {
             Command::SavePackFileAs(path) => {
                 match pack_file_decoded.save(Some(path.to_path_buf())) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(From::from(&pack_file_decoded))),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(format!("{}", error))))),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
                 }
             }
 
@@ -524,7 +525,7 @@ pub fn background_loop() {
             // In case we want to extract PackedFiles from a PackFile...
             Command::ExtractPackedFiles(item_types, path) => {
                 match pack_file_decoded.extract_packed_files_by_type(&item_types, &path) {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(format!("{} files extracted. No errors detected.", result))),
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(tre("files_extracted_success", &[&result.to_string()]))),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
@@ -540,7 +541,6 @@ pub fn background_loop() {
                     Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecStringVecVecString(result)),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
-
             }
 
             // In case we want to Mass-Export TSV Files...

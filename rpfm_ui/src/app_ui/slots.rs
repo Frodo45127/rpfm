@@ -47,7 +47,7 @@ use crate::CENTRAL_COMMAND;
 use crate::command_palette;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::qtr;
+use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
 use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packedfile_views::TheOneSlot;
@@ -648,7 +648,7 @@ impl AppUISlots {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear);
                         UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
 
-                        show_dialog(app_ui.main_window, format!("MyMod successfully deleted: \"{}\".", old_mod_name), true);
+                        show_dialog(app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
                     }
                 }
             }
@@ -908,7 +908,7 @@ impl AppUISlots {
                     CENTRAL_COMMAND.send_message_qt(Command::GeneratePakFile(path, version));
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
-                        Response::Success => show_dialog(app_ui.main_window, "PAK File succesfully created and reloaded.", true),
+                        Response::Success => show_dialog(app_ui.main_window, tr("generate_pak_success"), true),
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
@@ -916,7 +916,7 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(true);
                 }
                 else {
-                    show_dialog(app_ui.main_window, "This operation is not supported for the Game Selected.", false);
+                    show_dialog(app_ui.main_window, tr("game_selected_unsupported_operation"), false);
                 }
             }
         );
@@ -938,7 +938,7 @@ impl AppUISlots {
                         let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
 
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
-                        show_dialog(app_ui.main_window, "PackFile optimized.", true);
+                        show_dialog(app_ui.main_window, tr("optimize_packfile_success"), true);
                     }
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
@@ -990,6 +990,8 @@ impl AppUISlots {
             QMessageBox::about(
                 app_ui.main_window,
                 &qtr("about_about_rpfm"),
+
+                // NOTE: This one is hardcoded, because I don't want people attributing themselfs the program in the translations.
                 &QString::from_std_str(format!(
                     "<table>
                         <tr>
@@ -1070,7 +1072,7 @@ impl AppUISlots {
                 CENTRAL_COMMAND.send_message_qt(Command::UpdateCurrentSchemaFromAssKit(path));
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
-                    Response::Success => show_dialog(app_ui.main_window, "Currently loaded schema updated.", true),
+                    Response::Success => show_dialog(app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
                     Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
@@ -1082,13 +1084,11 @@ impl AppUISlots {
 
         // Slot for the "Generate Schema Diff" button.
         let debug_generate_schema_diff = SlotOfBool::new(move |_| {
-
                 app_ui.main_window.set_enabled(false);
-
                 CENTRAL_COMMAND.send_message_qt(Command::GenerateSchemaDiff);
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
-                    Response::Success => show_dialog(app_ui.main_window, "Diff generated succesfully.", true),
+                    Response::Success => show_dialog(app_ui.main_window, tr("generate_schema_diff_success"), true),
                     Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }

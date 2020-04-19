@@ -53,16 +53,26 @@ pub unsafe fn get_actions(
 	actions.push((app_ui.packfile_quit, shortcuts.menu_bar_packfile["quit"].to_owned()));
 
     //-------------------------------------------------------------------------------//
+    // `MyMod` menu.
+    //-------------------------------------------------------------------------------//
+    actions.push((app_ui.mymod_new, shortcuts.menu_bar_mymod["mymod_new"].to_owned()));
+    actions.push((app_ui.mymod_delete_selected, shortcuts.menu_bar_mymod["mymod_delete_selected"].to_owned()));
+    actions.push((app_ui.mymod_install, shortcuts.menu_bar_mymod["mymod_install"].to_owned()));
+    actions.push((app_ui.mymod_uninstall, shortcuts.menu_bar_mymod["mymod_uninstall"].to_owned()));
+
+    //-------------------------------------------------------------------------------//
     // `View` menu.
     //-------------------------------------------------------------------------------//
-	//actions.push((app_ui.view_toggle_packfile_contents, shortcuts.menu_bar_packfile["toggle_packfile_contents"].to_owned()));
-	//actions.push((app_ui.view_toggle_global_search_panel, shortcuts.menu_bar_packfile["toggle_global_search_panel"].to_owned()));
+	actions.push((app_ui.view_toggle_packfile_contents, shortcuts.menu_bar_view["view_toggle_packfile_contents"].to_owned()));
+	actions.push((app_ui.view_toggle_global_search_panel, shortcuts.menu_bar_view["view_toggle_global_search_panel"].to_owned()));
 
     //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
     //-------------------------------------------------------------------------------//
-	//actions.push((app_ui.game_selected_open_game_data_folder, shortcuts.menu_bar_packfile["new_packfile"].to_owned()));
-	//actions.push((app_ui.game_selected_open_game_assembly_kit_folder, shortcuts.menu_bar_packfile["new_packfile"].to_owned()));
+	actions.push((app_ui.game_selected_launch_game, shortcuts.menu_bar_game_selected["launch_game"].to_owned()));
+    actions.push((app_ui.game_selected_open_game_data_folder, shortcuts.menu_bar_game_selected["open_game_data_folder"].to_owned()));
+	actions.push((app_ui.game_selected_open_game_assembly_kit_folder, shortcuts.menu_bar_game_selected["open_game_assembly_kit_folder"].to_owned()));
+    actions.push((app_ui.game_selected_open_config_folder, shortcuts.menu_bar_game_selected["open_config_folder"].to_owned()));
 
 	//-------------------------------------------------------------------------------//
     // `Special Stuff` menu.
@@ -100,7 +110,7 @@ pub unsafe fn get_actions(
 	actions.push((app_ui.about_about_qt, shortcuts.menu_bar_about["about_qt"].to_owned()));
 	actions.push((app_ui.about_about_rpfm, shortcuts.menu_bar_about["about_rpfm"].to_owned()));
 	actions.push((app_ui.about_open_manual, shortcuts.menu_bar_about["open_manual"].to_owned()));
-	actions.push((app_ui.about_patreon_link, "".to_owned()));
+	actions.push((app_ui.about_patreon_link, shortcuts.menu_bar_about["support_me_on_patreon"].to_owned()));
 	actions.push((app_ui.about_check_updates, shortcuts.menu_bar_about["check_updates"].to_owned()));
 	actions.push((app_ui.about_check_schema_updates, shortcuts.menu_bar_about["check_schema_updates"].to_owned()));
 
