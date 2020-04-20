@@ -619,6 +619,7 @@ impl GlobalSearchUI {
                     }
                 }
             }
+            else { show_dialog(app_ui.main_window, ErrorKind::PackedFileNotInFilter, false); }
         }
 
         // If not... just expand and open the PackedFile.
