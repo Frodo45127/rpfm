@@ -19,7 +19,7 @@ use qt_core::QString;
 
 use cpp_core::CppBox;
 
-use fluent_bundle::{FluentBundle, FluentResource};
+use fluent_bundle::{FluentResource, concurrent::FluentBundle};
 use unic_langid::{langid, LanguageIdentifier};
 
 use std::fs::File;
