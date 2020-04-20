@@ -812,10 +812,12 @@ impl AppUISlots {
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
-                    // Set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
-                    UI_STATE.set_operational_mode(&mut app_ui, None);
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
-                    UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                    // If we have a packfile open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
+                    if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
+                        UI_STATE.set_operational_mode(&mut app_ui, None);
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
+                        UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                    }
 
                     // Re-enable the Main Window.
                     app_ui.main_window.set_enabled(true);
