@@ -36,6 +36,8 @@ use qt_widgets::QStatusBar;
 use qt_gui::QColor;
 use qt_gui::{QFont, q_font::StyleHint};
 use qt_gui::{QPalette, q_palette::{ColorGroup, ColorRole}};
+use qt_gui::QFontDatabase;
+use qt_gui::q_font_database::SystemFont;
 
 use qt_core::QString;
 
@@ -221,13 +223,7 @@ lazy_static! {
     static ref STATUS_BAR: AtomicPtr<QStatusBar> = unsafe { atomic_from_cpp_box(QStatusBar::new_0a()) };
 
     /// Monospace font, just in case we need it.
-    static ref FONT_MONOSPACE: AtomicPtr<QFont> = {
-        unsafe {
-            let mut font = QFont::from_q_string(&QString::from_std_str("Monospace"));
-            font.set_style_hint_1a(StyleHint::Monospace);
-            atomic_from_cpp_box(font)
-        }
-    };
+    static ref FONT_MONOSPACE: AtomicPtr<QFont> = unsafe { atomic_from_cpp_box(QFontDatabase::system_font(SystemFont::FixedFont)) };
 }
 
 /// This constant gets RPFM's version from the `Cargo.toml` file, so we don't have to change it
