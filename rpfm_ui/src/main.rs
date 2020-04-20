@@ -34,7 +34,7 @@ use qt_widgets::QApplication;
 use qt_widgets::QStatusBar;
 
 use qt_gui::QColor;
-use qt_gui::{QFont, q_font::StyleHint};
+use qt_gui::QFont;
 use qt_gui::{QPalette, q_palette::{ColorGroup, ColorRole}};
 use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
