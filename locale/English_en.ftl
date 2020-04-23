@@ -381,7 +381,7 @@ settings_ui_dark_theme = Use Dark Theme (Requires restart):
 settings_ui_table_adjust_columns_to_content = Adjust Columns to Content:
 settings_ui_table_disable_combos = Disable ComboBoxes on Tables:
 settings_ui_table_extend_last_column_label = Extend Last Column on Tables:
-settings_ui_table_remember_column_sorting_label = Remember Column's Sorting State:
+settings_ui_table_tight_table_mode_label = Enable 'Tight Mode' on Tables:
 settings_ui_table_remember_column_visual_order_label = Remember Column's Visual Order:
 settings_ui_table_remember_table_state_permanently_label = Remember Table State Across PackFiles:
 settings_ui_window_start_maximized_label = Start Maximized:
@@ -412,7 +412,7 @@ tt_ui_table_adjust_columns_to_content_tip = If you enable this, when you open a 
 tt_ui_table_disable_combos_tip = If you disable this, no more combos will be shown in referenced columns in tables. This means no combos nor autocompletion on DB Tables.
     Now shut up Baldy.
 tt_ui_table_extend_last_column_tip = If you enable this, the last column on DB Tables and Loc PackedFiles will extend itself to fill the empty space at his right, if there is any.
-tt_ui_table_remember_column_sorting_tip = Enable this to make RPFM remember for what column was a DB Table/LOC sorted when closing it and opening it again.
+tt_ui_table_tight_table_mode_tip = If you enable this, the vertical useless space in tables will be reduced, so you can see more data at the same time.
 tt_ui_table_remember_column_visual_order_tip = Enable this to make RPFM remember the visual order of the columns of a DB Table/LOC, when closing it and opening it again.
 tt_ui_table_remember_table_state_permanently_tip = If you enable this, RPFM will remember the state of a DB Table or Loc PackedFile (filter data, columns moved, what column was sorting the Table,...) even when you close RPFM and open it again. If you don't want this behavior, leave this disabled.
 tt_ui_window_start_maximized_tip = If you enable this, RPFM will start maximized.

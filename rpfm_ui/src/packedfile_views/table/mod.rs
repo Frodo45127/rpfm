@@ -251,6 +251,12 @@ impl PackedFileTableView {
             table_view_primary.horizontal_header().set_stretch_last_section(true);
         }
 
+        // Setup tight mode if the setting is enabled.
+        if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
+            table_view_primary.vertical_header().set_minimum_section_size(22);
+            table_view_primary.vertical_header().set_default_section_size(22);
+        }
+
         // Create the filter's widgets.
         let mut row_filter_line_edit = QLineEdit::new();
         let mut row_filter_column_selector = QComboBox::new_0a();

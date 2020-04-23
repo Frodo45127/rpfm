@@ -70,6 +70,7 @@ impl Settings {
         settings_bool.insert("start_maximized".to_owned(), false);
         settings_bool.insert("remember_table_state_permanently".to_owned(), false);
         settings_bool.insert("use_dark_theme".to_owned(), false);
+        settings_bool.insert("tight_table_mode".to_owned(), false);
 
         // Behavioral Settings.
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);

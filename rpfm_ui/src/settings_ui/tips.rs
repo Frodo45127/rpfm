@@ -26,7 +26,7 @@ pub unsafe fn set_tips(settings_ui: &mut SettingsUI) {
     let ui_table_adjust_columns_to_content_tip = qtr("tt_ui_table_adjust_columns_to_content_tip");
     let ui_table_disable_combos_tip = qtr("tt_ui_table_disable_combos_tip");
     let ui_table_extend_last_column_tip = qtr("tt_ui_table_extend_last_column_tip");
-    let ui_table_remember_column_sorting_tip = qtr("tt_ui_table_remember_column_sorting_tip");
+    let ui_table_tight_table_mode_tip = qtr("tt_ui_table_tight_table_mode_tip");
     let ui_table_remember_column_visual_order_tip = qtr("tt_ui_table_remember_column_visual_order_tip");
     let ui_table_remember_table_state_permanently_tip = qtr("tt_ui_table_remember_table_state_permanently_tip");
 
@@ -40,8 +40,8 @@ pub unsafe fn set_tips(settings_ui: &mut SettingsUI) {
     settings_ui.ui_table_disable_combos_checkbox.set_tool_tip(&ui_table_disable_combos_tip);
     settings_ui.ui_table_extend_last_column_label.set_tool_tip(&ui_table_extend_last_column_tip);
     settings_ui.ui_table_extend_last_column_checkbox.set_tool_tip(&ui_table_extend_last_column_tip);
-    settings_ui.ui_table_remember_column_sorting_label.set_tool_tip(&ui_table_remember_column_sorting_tip);
-    settings_ui.ui_table_remember_column_sorting_checkbox.set_tool_tip(&ui_table_remember_column_sorting_tip);
+    settings_ui.ui_table_tight_table_mode_label.set_tool_tip(&ui_table_tight_table_mode_tip);
+    settings_ui.ui_table_tight_table_mode_checkbox.set_tool_tip(&ui_table_tight_table_mode_tip);
     settings_ui.ui_table_remember_column_visual_order_label.set_tool_tip(&ui_table_remember_column_visual_order_tip);
     settings_ui.ui_table_remember_column_visual_order_checkbox.set_tool_tip(&ui_table_remember_column_visual_order_tip);
     settings_ui.ui_table_remember_table_state_permanently_label.set_tool_tip(&ui_table_remember_table_state_permanently_tip);
