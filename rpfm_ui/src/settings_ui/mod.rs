@@ -23,6 +23,7 @@ use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 
+use qt_gui::QGuiApplication;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QFlags;
@@ -126,6 +127,7 @@ pub struct SettingsUI {
     pub button_box_restore_default_button: MutPtr<QPushButton>,
     pub button_box_text_editor_settings_button: MutPtr<QPushButton>,
     pub button_box_shortcuts_button: MutPtr<QPushButton>,
+    pub button_box_font_settings_button: MutPtr<QPushButton>,
     pub button_box_cancel_button: MutPtr<QPushButton>,
     pub button_box_accept_button: MutPtr<QPushButton>,
 }
@@ -362,10 +364,12 @@ impl SettingsUI {
         let mut button_box = QDialogButtonBox::new();
         let mut button_box_shortcuts_button = QPushButton::from_q_string(&qtr("shortcut_title"));
         let mut button_box_text_editor_settings_button = QPushButton::from_q_string(&qtr("settings_text_title"));
+        let mut button_box_font_settings_button = QPushButton::from_q_string(&qtr("settings_font_title"));
 
         let button_box_restore_default_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::RestoreDefaults);
         button_box.add_button_q_abstract_button_button_role(&mut button_box_shortcuts_button, ButtonRole::ResetRole);
         button_box.add_button_q_abstract_button_button_role(&mut button_box_text_editor_settings_button, ButtonRole::ResetRole);
+        button_box.add_button_q_abstract_button_button_role(&mut button_box_font_settings_button, ButtonRole::ResetRole);
         let button_box_cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let button_box_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
 
@@ -444,6 +448,7 @@ impl SettingsUI {
             button_box_restore_default_button,
             button_box_text_editor_settings_button: button_box_text_editor_settings_button.into_ptr(),
             button_box_shortcuts_button: button_box_shortcuts_button.into_ptr(),
+            button_box_font_settings_button: button_box_font_settings_button.into_ptr(),
             button_box_cancel_button,
             button_box_accept_button,
         }
@@ -512,6 +517,10 @@ impl SettingsUI {
         if let Some(index) = game.find('&') { game.remove(index); }
         game = game.replace(' ', "_").to_lowercase();
         settings.settings_string.insert("default_game".to_owned(), game);
+
+        let current_font = QGuiApplication::font();
+        settings.settings_string.insert("font_name".to_owned(), current_font.family().to_std_string());
+        settings.settings_string.insert("font_size".to_owned(), current_font.point_size().to_string());
 
         // Get the UI Settings.
         settings.settings_bool.insert("use_dark_theme".to_owned(), self.ui_global_use_dark_theme_checkbox.is_checked());

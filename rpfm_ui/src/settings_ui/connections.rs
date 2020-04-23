@@ -30,6 +30,7 @@ pub fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots) {
     unsafe { settings_ui.button_box_shortcuts_button.released().connect(&slots.shortcuts); }
     unsafe { settings_ui.button_box_restore_default_button.released().connect(&slots.restore_default); }
     unsafe { settings_ui.button_box_text_editor_settings_button.released().connect(&slots.text_editor); }
+    unsafe { settings_ui.button_box_font_settings_button.released().connect(&slots.font_settings); }
     unsafe { settings_ui.button_box_accept_button.released().connect(settings_ui.dialog.slot_accept()); }
     unsafe { settings_ui.button_box_cancel_button.released().connect(settings_ui.dialog.slot_close()); }
 }

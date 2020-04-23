@@ -401,7 +401,7 @@ settings_debug_title = Debug Settings
 settings_debug_missing_table = Check for Missing Table Definitions
 settings_debug_enable_debug_menu = Enable Debug Menu
 
-settings_text_title = Text Editor Preferences
+settings_text_title = Text Editor Settings
 
 ### Settings Tips
 
@@ -489,3 +489,4 @@ game_selected_unsupported_operation = This operation is not supported for the Ga
 optimize_packfile_success = PackFile optimized.
 update_current_schema_from_asskit_success = Currently loaded schema updated.
 generate_schema_diff_success = Diff generated succesfully.
+settings_font_title = Font Settings

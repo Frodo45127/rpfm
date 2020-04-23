@@ -17,6 +17,7 @@ This module contains the code to manage the main UI and store all his slots.
 use qt_widgets::QApplication;
 use qt_widgets::QMainWindow;
 
+use qt_gui::QFont;
 use qt_gui::QIcon;
 
 use qt_core::QFlags;
@@ -159,6 +160,13 @@ impl UI {
         // If we want the window to start maximized...
         if SETTINGS.read().unwrap().settings_bool["start_maximized"] {
             app_ui.main_window.set_window_state(QFlags::from(WindowState::WindowMaximized));
+        }
+
+        if !SETTINGS.read().unwrap().settings_string["font_name"].is_empty() && !SETTINGS.read().unwrap().settings_string["font_size"].is_empty() {
+            let mut font = QFont::new();
+            font.set_family(&QString::from_std_str(&SETTINGS.read().unwrap().settings_string["font_name"]));
+            font.set_point_size(SETTINGS.read().unwrap().settings_string["font_size"].parse::<i32>().unwrap());
+            QApplication::set_font_1a(&font);
         }
 
         // On Windows, we use the dark theme switch to control the Style, StyleSheet and Palette.

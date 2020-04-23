@@ -12,7 +12,15 @@
 Module with all the code related to `SettingsUISlots`.
 !*/
 
+use qt_widgets::QFontDialog;
+
+use qt_gui::QGuiApplication;
+use qt_gui::QFontDatabase;
+use qt_gui::q_font_database::SystemFont;
+
 use qt_core::Slot;
+
+use cpp_core::MutPtr;
 
 use std::collections::BTreeMap;
 
@@ -39,6 +47,7 @@ pub struct SettingsUISlots {
     pub select_game_paths: BTreeMap<String, Slot<'static>>,
     pub shortcuts: Slot<'static>,
     pub text_editor: Slot<'static>,
+    pub font_settings: Slot<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -53,7 +62,8 @@ impl SettingsUISlots {
 
         // What happens when we hit thr "Restore Default" button.
         let restore_default = Slot::new(clone!(mut ui => move || {
-            ui.load(&Settings::new())
+            ui.load(&Settings::new());
+            QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
         }));
 
         // What happens when we hit the "..." button for MyMods.
@@ -95,13 +105,24 @@ impl SettingsUISlots {
             ffi::open_text_editor_config_safe(&mut ui.dialog);
         }));
 
+        let font_settings = Slot::new(clone!(mut ui => move || {
+            let font_changed: *mut bool = &mut false;
+            let font_changed = MutPtr::from_raw(font_changed);
+            let current_font = QGuiApplication::font();
+            let new_font = QFontDialog::get_font_bool_q_font_q_widget(font_changed, current_font.as_ref(), ui.dialog);
+            if *font_changed {
+                QGuiApplication::set_font(new_font.as_ref());
+            }
+        }));
+
         // And here... we return all the slots.
 		Self {
             restore_default,
             select_mymod_path,
             select_game_paths,
             shortcuts,
-            text_editor
+            text_editor,
+            font_settings
 		}
 	}
 }
