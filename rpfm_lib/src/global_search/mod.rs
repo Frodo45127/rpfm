@@ -14,7 +14,7 @@ Module with all the code related to the `GlobalSearch`.
 This module contains the code needed to get a `GlobalSeach` over an entire `PackFile`.
 !*/
 
-use regex::Regex;
+use regex::{RegexBuilder, Regex};
 use rayon::prelude::*;
 
 use rpfm_error::{ErrorKind, Result};
@@ -120,7 +120,7 @@ impl GlobalSearch {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
-            if let Ok(regex) = Regex::new(&self.pattern) {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
                 MatchingMode::Regex(regex)
             }
             else { MatchingMode::Pattern }
@@ -192,7 +192,7 @@ impl GlobalSearch {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
-            if let Ok(regex) = Regex::new(&self.pattern) {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
                 MatchingMode::Regex(regex)
             }
             else { MatchingMode::Pattern }
@@ -270,7 +270,7 @@ impl GlobalSearch {
 
         // If we want to use regex and the pattern is invalid, don't search.
         let matching_mode = if self.use_regex {
-            if let Ok(regex) = Regex::new(&self.pattern) {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
                 MatchingMode::Regex(regex)
             }
             else { MatchingMode::Pattern }
@@ -472,17 +472,30 @@ impl GlobalSearch {
 
             // If we're searching a pattern, we just check every text PackedFile, line by line.
             MatchingMode::Pattern => {
+                let pattern = if self.case_sensitive { self.pattern.to_owned() } else { self.pattern.to_lowercase() };
                 let lenght = self.pattern.chars().count();
                 let mut column = 0;
 
                 for (row, data) in data.get_ref_contents().lines().enumerate() {
                     while let Some(text) = data.get(column..) {
-                        match text.find(&self.pattern) {
-                            Some(position) => {
-                                matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
-                                column += position + lenght;
+                        if self.case_sensitive {
+                            match text.find(&pattern) {
+                                Some(position) => {
+                                    matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
+                                    column += position + lenght;
+                                }
+                                None => break,
                             }
-                            None => break,
+                        }
+                        else {
+                            let text = text.to_lowercase();
+                            match text.find(&pattern) {
+                                Some(position) => {
+                                    matches.matches.push(TextMatch::new(position as u64, row as u64, lenght as i64, data.to_owned()));
+                                    column += position + lenght;
+                                }
+                                None => break,
+                            }
                         }
                     }
 
@@ -521,14 +534,27 @@ impl GlobalSearch {
 
                         // If we're searching a pattern, we just check every text PackedFile, line by line.
                         MatchingMode::Pattern => {
+                            let pattern = if self.case_sensitive { self.pattern.to_owned() } else { self.pattern.to_lowercase() };
                             for definition in definitions {
                                 for (index, field) in definition.fields.iter().enumerate() {
-                                    if field.name.contains(&self.pattern) {
-                                        matches.push(SchemaMatch::new(
-                                            definition.version,
-                                            index as u32,
-                                            field.name.to_owned()
-                                        ));
+                                    if self.case_sensitive {
+                                        if field.name.contains(&pattern) {
+                                            matches.push(SchemaMatch::new(
+                                                definition.version,
+                                                index as u32,
+                                                field.name.to_owned()
+                                            ));
+                                        }
+                                    }
+                                    else {
+                                        let name = field.name.to_lowercase();
+                                        if name.contains(&pattern) {
+                                            matches.push(SchemaMatch::new(
+                                                definition.version,
+                                                index as u32,
+                                                field.name.to_owned()
+                                            ));
+                                        }
                                     }
                                 }
                             }
@@ -570,9 +596,19 @@ impl GlobalSearch {
             }
 
             MatchingMode::Pattern => {
-                if text.contains(&self.pattern) {
-                    let column_name = &definition.fields[column_number as usize].name;
-                    matches.push(TableMatch::new(column_name, column_number, row_number, text));
+                if self.case_sensitive {
+                    if text.contains(&self.pattern) {
+                        let column_name = &definition.fields[column_number as usize].name;
+                        matches.push(TableMatch::new(column_name, column_number, row_number, text));
+                    }
+                }
+                else {
+                    let pattern = self.pattern.to_lowercase();
+                    let text = text.to_lowercase();
+                    if text.contains(&pattern) {
+                        let column_name = &definition.fields[column_number as usize].name;
+                        matches.push(TableMatch::new(column_name, column_number, row_number, &text));
+                    }
                 }
             }
         }
