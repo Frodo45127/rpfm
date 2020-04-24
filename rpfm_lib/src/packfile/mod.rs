@@ -657,7 +657,7 @@ impl PackFile {
                             .replace('\\', "/") // Fix for windows paths.
                             .split('/')
                             .collect::<Vec<&str>>()
-                            .drain(path.components().count() - drain_fix..)
+                            .drain(path.components().count() - 1 - drain_fix..)
                             .map(|x| x.to_owned())
                             .collect::<Vec<String>>();
                         let mut new_path = base_path.to_vec();
