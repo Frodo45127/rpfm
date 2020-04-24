@@ -473,6 +473,13 @@ impl SettingsUI {
             }
         }
 
+        for (index, (language,_)) in Locale::get_available_locales().unwrap().iter().enumerate() {
+            if *language == settings.settings_string["language"] {
+                self.ui_language_combobox.set_current_index(index as i32);
+                break;
+            }
+        }
+
         // Load the UI Stuff.
         self.ui_global_use_dark_theme_checkbox.set_checked(settings.settings_bool["use_dark_theme"]);
         self.ui_table_adjust_columns_to_content_checkbox.set_checked(settings.settings_bool["adjust_columns_to_content"]);
@@ -517,6 +524,10 @@ impl SettingsUI {
         if let Some(index) = game.find('&') { game.remove(index); }
         game = game.replace(' ', "_").to_lowercase();
         settings.settings_string.insert("default_game".to_owned(), game);
+
+        let mut language = self.ui_language_combobox.current_text().to_std_string();
+        if let Some(index) = language.find('&') { language.remove(index); }
+        settings.settings_string.insert("language".to_owned(), language);
 
         let current_font = QGuiApplication::font();
         settings.settings_string.insert("font_name".to_owned(), current_font.family().to_std_string());
