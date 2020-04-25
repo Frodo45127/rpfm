@@ -37,6 +37,7 @@ use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
 use qt_core::QString;
+use qt_core::Orientation;
 use qt_core::q_item_selection_model::SelectionFlag;
 
 use cpp_core::MutPtr;
@@ -491,7 +492,14 @@ impl PackedFileTableViewRaw {
     pub unsafe fn filter_table(&mut self) {
 
         let mut pattern = QRegExp::new_1a(&self.filter_line_edit.text());
-        self.table_filter.set_filter_key_column(self.filter_column_selector.current_index());
+
+        let column_name = self.filter_column_selector.current_text();
+        for column in 0..self.table_model.column_count_0a() {
+            if self.table_model.header_data_2a(column, Orientation::Horizontal).to_string().compare_q_string_case_sensitivity(&column_name, CaseSensitivity::CaseSensitive) == 0 {
+                self.table_filter.set_filter_key_column(column);
+                break;
+            }
+        }
 
         // Check if the filter should be "Case Sensitive".
         let case_sensitive = self.filter_case_sensitive_button.is_checked();
