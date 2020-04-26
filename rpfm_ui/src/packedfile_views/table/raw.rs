@@ -819,11 +819,16 @@ impl PackedFileTableViewRaw {
             is_valid
         } else { false };
 
+        // Amount of rows selected, to ensure certain behavior only triggers when we got the correct number of rows selected.
+        let mut rows_selected = indexes_sorted.iter().map(|x| x.row()).collect::<Vec<i32>>();
+        rows_selected.sort();
+        rows_selected.dedup();
+
         if rows.len() == 1 && rows[0].len() == 1 {
             self.paste_one_for_all(&rows[0][0], &indexes_sorted);
         }
 
-        else if rows.len() == 1 && same_amount_of_cells_selected_per_row {
+        else if rows.len() == 1 && same_amount_of_cells_selected_per_row && rows_selected.len() > 1 {
             self.paste_same_row_for_all(&rows[0], &indexes_sorted);
         }
 
