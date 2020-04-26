@@ -1012,7 +1012,7 @@ impl TableSearch {
                         None => Some(0)
                     };
 
-                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", table_search.current_item.unwrap(), matches_in_filter.len(), matches_in_model.len())));
+                    parent.search_matches_label.set_text(&QString::from_std_str(&format!("{} of {} in current filter ({} in total)", table_search.current_item.unwrap() + 1, matches_in_filter.len(), matches_in_model.len())));
 
                     if table_search.current_item.unwrap() == 0 {
                         parent.search_prev_match_button.set_enabled(false);
@@ -1061,7 +1061,7 @@ impl TableSearch {
             }
         }
 
-        Self::update_search_ui(parent, TableSearchUpdate::Search);
+        Self::update_search_ui(parent, TableSearchUpdate::Update);
     }
 
     /// This function takes care of searching the patter we provided in the TableView.
