@@ -1181,10 +1181,88 @@ impl TableSearch {
         }
     }
 
+    /// This function takes care of replacing all the instances of a match with the provided replacing text.
     pub unsafe fn replace_all(parent: &mut PackedFileTableViewRaw) {
+
+        // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
         let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
         if !text_source.is_empty() {
 
+            // Get the replace data here, as we probably don't have it updated.
+            parent.search_data.write().unwrap().replace = parent.search_replace_line_edit.text().into_ptr();
+            let text_replace = parent.search_data.read().unwrap().replace.to_std_string();
+            if text_source == text_replace { return }
+
+            let mut positions_and_texts: Vec<(MutPtr<QModelIndex>, String)> = vec![];
+            {
+                // Here is save to lock, as the lock will be drop before doing the replace.
+                let table_search = &mut parent.search_data.read().unwrap();
+
+                // Get the list of all valid ModelIndex for the current filter and the current position.
+                let matches_in_model_and_filter = table_search.get_visible_matches_in_model();
+                for model_index in &matches_in_model_and_filter {
+
+                    // If the position is still valid (not required, but just in case)...
+                    if model_index.is_valid() {
+                        let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
+
+                        let replaced_text = if parent.table_definition.fields[model_index.column() as usize].field_type == FieldType::Boolean {
+                            text_replace.to_owned()
+                        }
+                        else {
+                            let text = item.text().to_std_string();
+                            text.replace(&text_source, &text_replace)
+                        };
+
+                        // We need to do an extra check to ensure the new text can be in the field.
+                        match parent.table_definition.fields[model_index.column() as usize].field_type {
+                            FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::LongInteger => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            _ =>  {}
+                        }
+
+                        positions_and_texts.push((model_index.clone(), replaced_text));
+                    } else { return }
+                }
+            }
+
+            // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
+            for (model_index, replaced_text) in &positions_and_texts {
+                let mut item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
+                match parent.table_definition.fields[item.column() as usize].field_type {
+                    FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
+                    FieldType::Float => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
+                    FieldType::Integer => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
+                    FieldType::LongInteger => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
+                    _ => item.set_text(&QString::from_std_str(&replaced_text)),
+                }
+            }
+
+            // At this point, the edition has been done. We're free to lock again. As this is a full replace,
+            // we have to fix the undo history to compensate the mass-editing and turn it into a single action.
+            if !positions_and_texts.is_empty() {
+                {
+                    let mut history_undo = parent.history_undo.write().unwrap();
+                    let mut history_redo = parent.history_redo.write().unwrap();
+
+                    let len = history_undo.len();
+                    let mut edits_data = vec![];
+                    {
+                        let mut edits = history_undo.drain((len - positions_and_texts.len())..);
+                        for edit in &mut edits {
+                            if let TableOperations::Editing(mut edit) = edit {
+                                edits_data.append(&mut edit);
+                            }
+                        }
+                    }
+
+                    history_undo.push(TableOperations::Editing(edits_data));
+                    history_redo.clear();
+                }
+                update_undo_model(parent.table_model, parent.undo_model);
+            }
         }
     }
 }
