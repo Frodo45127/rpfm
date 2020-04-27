@@ -1508,7 +1508,7 @@ impl AppUI {
             if let Some(mut name) = self.new_packed_file_name_dialog() {
 
                 // DB Check.
-                let (new_path, new_packed_file) = if path.starts_with(&["db".to_owned()]) && path.len() == 2 || path.len() == 3 {
+                let (new_path, new_packed_file) = if path.starts_with(&["db".to_owned()]) && (path.len() == 2 || path.len() == 3) {
                     let new_path = vec!["db".to_owned(), path[1].to_owned(), name];
                     let table = &path[1];
 
