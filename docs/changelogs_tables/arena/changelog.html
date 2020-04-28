@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js">
+<html lang="en" class="sidebar-visible no-js rust">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -32,11 +32,11 @@
 
         
     </head>
-    <body class="rust">
+    <body>
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
             var path_to_root = "../../";
-            var default_theme = "rust";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "rust" : "rust";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -60,8 +60,11 @@
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
-            document.body.className = theme;
-            document.querySelector('html').className = theme + ' js';
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('rust')
+            html.classList.add(theme);
+            html.classList.add('js');
         </script>
 
         <!-- Hide / unhide sidebar before it is displayed -->
@@ -77,8 +80,8 @@
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <div class="sidebar-scrollbox">
-                <ol class="chapter"><li><a href="../../chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li><a href="../../chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li><a href="../../chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li><a href="../../chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li><a href="../../chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li><a href="../../chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li><a href="../../chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li><a href="../../chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li><a href="../../chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li><a href="../../chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li><a href="../../chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li><a href="../../chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li><li><a href="../../chapter_3_2_3.html"><strong aria-hidden="true">3.2.3.</strong> Notes</a></li></ol></li></ol></li><li><a href="../../chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li><a href="../../chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li><a href="../../chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li><a href="../../chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li><a href="../../chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li><a href="../../chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li><a href="../../chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li><a href="../../chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li><a href="../../chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li><li><a href="../../chapter_6.html"><strong aria-hidden="true">7.</strong> Compilation Instructions</a></li><li class="spacer"></li><li><a href="../../changelogs.html"><strong aria-hidden="true">8.</strong> Changelogs</a></li><li><ol class="section"><li><a href="../../changelogs_rpfm/changelogs.html"><strong aria-hidden="true">8.1.</strong> RPFM Changelogs</a></li><li><a href="../../changelogs_tables/changelogs.html"><strong aria-hidden="true">8.2.</strong> Schema Changelogs</a></li><li><ol class="section"><li><a href="../../changelogs_tables/three_kingdoms/changelog.html"><strong aria-hidden="true">8.2.1.</strong> Three Kingdoms</a></li><li><a href="../../changelogs_tables/warhammer_2/changelog.html"><strong aria-hidden="true">8.2.2.</strong> Warhammer 2</a></li><li><a href="../../changelogs_tables/warhammer/changelog.html"><strong aria-hidden="true">8.2.3.</strong> Warhammer</a></li><li><a href="../../changelogs_tables/thrones_of_britannia/changelog.html"><strong aria-hidden="true">8.2.4.</strong> Thrones of Britannia</a></li><li><a href="../../changelogs_tables/attila/changelog.html"><strong aria-hidden="true">8.2.5.</strong> Attila</a></li><li><a href="../../changelogs_tables/rome_2/changelog.html"><strong aria-hidden="true">8.2.6.</strong> Rome 2</a></li><li><a href="../../changelogs_tables/shogun_2/changelog.html"><strong aria-hidden="true">8.2.7.</strong> Shogun 2</a></li><li><a href="../../changelogs_tables/napoleon/changelog.html"><strong aria-hidden="true">8.2.8.</strong> Napoleon</a></li><li><a href="../../changelogs_tables/empire/changelog.html"><strong aria-hidden="true">8.2.9.</strong> Empire</a></li><li><a href="../../changelogs_tables/arena/changelog.html" class="active"><strong aria-hidden="true">8.2.10.</strong> Arena</a></li></ol></li></ol></li></ol>
+            <div id="sidebar-scrollbox" class="sidebar-scrollbox">
+                <ol class="chapter"><li class="expanded "><a href="../../chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li class="expanded "><a href="../../chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li class="expanded "><a href="../../chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li class="expanded "><a href="../../chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li class="expanded "><a href="../../chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li class="expanded "><a href="../../chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li class="expanded "><a href="../../chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li class="expanded "><a href="../../chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li class="expanded "><a href="../../chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li class="expanded "><a href="../../chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li class="expanded "><a href="../../chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li class="expanded "><a href="../../chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li><li class="expanded "><a href="../../chapter_3_2_3.html"><strong aria-hidden="true">3.2.3.</strong> Notes</a></li></ol></li></ol></li><li class="expanded "><a href="../../chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li class="expanded "><a href="../../chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li class="expanded "><a href="../../chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li class="expanded "><a href="../../chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li class="expanded "><a href="../../chapter_4_4.html"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li class="expanded "><a href="../../chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li class="expanded "><a href="../../chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li class="expanded "><a href="../../chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li class="expanded "><a href="../../chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li><li class="expanded "><a href="../../chapter_6.html"><strong aria-hidden="true">7.</strong> Compilation Instructions</a></li><li class="spacer"></li><li class="expanded "><a href="../../changelogs.html"><strong aria-hidden="true">8.</strong> Changelogs</a></li><li><ol class="section"><li class="expanded "><a href="../../changelogs_rpfm/changelogs.html"><strong aria-hidden="true">8.1.</strong> RPFM Changelogs</a></li><li class="expanded "><a href="../../changelogs_tables/changelogs.html"><strong aria-hidden="true">8.2.</strong> Schema Changelogs</a></li><li><ol class="section"><li class="expanded "><a href="../../changelogs_tables/three_kingdoms/changelog.html"><strong aria-hidden="true">8.2.1.</strong> Three Kingdoms</a></li><li class="expanded "><a href="../../changelogs_tables/warhammer_2/changelog.html"><strong aria-hidden="true">8.2.2.</strong> Warhammer 2</a></li><li class="expanded "><a href="../../changelogs_tables/warhammer/changelog.html"><strong aria-hidden="true">8.2.3.</strong> Warhammer</a></li><li class="expanded "><a href="../../changelogs_tables/thrones_of_britannia/changelog.html"><strong aria-hidden="true">8.2.4.</strong> Thrones of Britannia</a></li><li class="expanded "><a href="../../changelogs_tables/attila/changelog.html"><strong aria-hidden="true">8.2.5.</strong> Attila</a></li><li class="expanded "><a href="../../changelogs_tables/rome_2/changelog.html"><strong aria-hidden="true">8.2.6.</strong> Rome 2</a></li><li class="expanded "><a href="../../changelogs_tables/shogun_2/changelog.html"><strong aria-hidden="true">8.2.7.</strong> Shogun 2</a></li><li class="expanded "><a href="../../changelogs_tables/napoleon/changelog.html"><strong aria-hidden="true">8.2.8.</strong> Napoleon</a></li><li class="expanded "><a href="../../changelogs_tables/empire/changelog.html"><strong aria-hidden="true">8.2.9.</strong> Empire</a></li><li class="expanded "><a href="../../changelogs_tables/arena/changelog.html" class="active"><strong aria-hidden="true">8.2.10.</strong> Arena</a></li></ol></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -87,37 +90,36 @@
 
             <div class="page">
                 
-                <div id="menu-bar" class="menu-bar">
-                    <div id="menu-bar-sticky-container">
-                        <div class="left-buttons">
-                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
-                                <i class="fa fa-bars"></i>
-                            </button>
-                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
-                                <i class="fa fa-paint-brush"></i>
-                            </button>
-                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                                <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust (default)</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
-                            </ul>
-                            
-                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
-                                <i class="fa fa-search"></i>
-                            </button>
-                            
-                        </div>
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
 
-                        <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
+                    <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
 
-                        <div class="right-buttons">
-                            <a href="../../print.html" title="Print this book" aria-label="Print this book">
-                                <i id="print-button" class="fa fa-print"></i>
-                            </a>
-                            
-                        </div>
+                    <div class="right-buttons">
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
                     </div>
                 </div>
 
@@ -149,9 +151,863 @@
 <p>Here you can find <strong>all the changes the schemas have received since I started logging them</strong> (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.</p>
 <hr />
 <ul>
+<li><a href="#007">007</a></li>
 <li><a href="#006">006</a></li>
 </ul>
 <hr />
+<h1><a class="header" href="#007" id="007">007</a></h1>
+<p>It contains the following changes:</p>
+<ul>
+<li>
+<p><strong>New tables decoded</strong>:</p>
+<ul>
+<li><em>ability_strike_target_direction_enums_tables</em>.</li>
+<li><em>ability_strike_target_priority_enums_tables</em>.</li>
+<li><em>ability_strikes_tables</em>.</li>
+<li><em>ability_tooltip_strings_tables</em>.</li>
+<li><em>ability_type_enums_tables</em>.</li>
+<li><em>arena_commander_abilities_tables</em>.</li>
+<li><em>arena_commander_abilities_to_tiers_tables</em>.</li>
+<li><em>arena_commander_abilities_tree_links_tables</em>.</li>
+<li><em>arena_commander_ability_levels_tables</em>.</li>
+<li><em>arena_commander_emotes_tables</em>.</li>
+<li><em>arena_commander_skin_colours_tables</em>.</li>
+<li><em>arena_commander_talent_points_tables</em>.</li>
+<li><em>arena_commander_tiers_unique_ids_tables</em>.</li>
+<li><em>arena_commanders_to_com_abilities_tables</em>.</li>
+<li><em>arena_commanders_to_starting_ability_levels_tables</em>.</li>
+<li><em>arena_commanders_to_starting_units_tables</em>.</li>
+<li><em>arena_consumables_to_units_tables</em>.</li>
+<li><em>arena_currencies_tables</em>.</li>
+<li><em>arena_currency_conversion_rates_tables</em>.</li>
+<li><em>arena_event_groups_tables</em>.</li>
+<li><em>arena_event_rewards_achievements_jcts_tables</em>.</li>
+<li><em>arena_event_rewards_currencies_jcts_tables</em>.</li>
+<li><em>arena_event_rewards_equipment_jcts_tables</em>.</li>
+<li><em>arena_event_rewards_tables</em>.</li>
+<li><em>arena_filename_enums_tables</em>.</li>
+<li><em>arena_filenames_tables</em>.</li>
+<li><em>arena_frontend_scenes_tables</em>.</li>
+<li><em>arena_matchmaking_hints_tables</em>.</li>
+<li><em>arena_matchmaking_status_strings_tables</em>.</li>
+<li><em>arena_matchmaking_unit_groupings_tables</em>.</li>
+<li><em>arena_matchmaking_unit_groupings_to_unit_types_tables</em>.</li>
+<li><em>arena_titles_tables</em>.</li>
+<li><em>arena_unit_equipment_slots_tables</em>.</li>
+<li><em>arena_unit_equipment_to_arena_unit_equipment_juncs_tables</em>.</li>
+<li><em>arena_unit_equipment_tree_links_tables</em>.</li>
+<li><em>arena_unit_equipment_trees_tables</em>.</li>
+<li><em>arena_unit_equipment_types_tables</em>.</li>
+<li><em>arena_unit_officer_portraits_tables</em>.</li>
+<li><em>arena_unit_officer_skills_tables</em>.</li>
+<li><em>arena_unit_officer_skills_to_effects_tables</em>.</li>
+<li><em>arena_unit_officers_tables</em>.</li>
+<li><em>arena_unit_roles_tables</em>.</li>
+<li><em>arena_unit_tree_links_tables</em>.</li>
+<li><em>arena_unit_tree_upgrades_jcts_tables</em>.</li>
+<li><em>arena_unit_trees_tables</em>.</li>
+<li><em>deployable_ability_to_invalid_usage_flags_tables</em>.</li>
+<li><em>land_units_to_deployables_abilities_junctions_tables</em>.</li>
+<li><em>special_ability_activation_types_tables</em>.</li>
+<li><em>special_ability_animation_overrides_tables</em>.</li>
+<li><em>special_ability_animation_triggers_tables</em>.</li>
+<li><em>special_ability_behaviour_groups_tables</em>.</li>
+<li><em>special_ability_behaviour_groups_to_types_tables</em>.</li>
+<li><em>special_ability_cursor_junctions_tables</em>.</li>
+<li><em>special_ability_intensity_conditions_tables</em>.</li>
+<li><em>special_ability_intensity_settings_tables</em>.</li>
+<li><em>special_ability_modifier_localisations_tables</em>.</li>
+<li><em>statistical_groups_to_stats_tables</em>.</li>
+<li><em>unit_ability_context_enums_tables</em>.</li>
+<li><em>unit_ability_group_enums_tables</em>.</li>
+<li><em>unit_ability_group_usages_tables</em>.</li>
+<li><em>unit_ability_groupings_tables</em>.</li>
+<li><em>unit_bonus_stats_tables</em>.</li>
+<li><em>unit_effect_special_ability_mods_tables</em>.</li>
+<li><em>unit_effects_special_abilities_jcts_tables</em>.</li>
+<li><em>unit_effects_special_ability_mods_jcts_tables</em>.</li>
+<li><em>unit_effects_stat_modifiers_jcts_tables</em>.</li>
+<li><em>unit_effects_tables</em>.</li>
+<li><em>unit_rank_details_tables</em>.</li>
+<li><em>unit_rank_per_rank_details_tables</em>.</li>
+<li><em>unit_ranks_tables</em>.</li>
+<li><em>unit_special_ability_channeling_conditions_tables</em>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Updated Tables</strong>:</p>
+<ul>
+<li><em><strong>audio_armour_types_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>group_movement</em>.</li>
+<li><em>key</em>.</li>
+<li><em>switch</em>.</li>
+<li><em>group_collision</em>.</li>
+<li><em>group_impact</em>.</li>
+<li><em>group_melee</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>deployables_abilities_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>Deployables ability name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>Deployables ability name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>ability_key</em>.</li>
+<li><em>deployable</em>.</li>
+<li><em>unique_id</em>.</li>
+<li><em>num_uses</em>.</li>
+<li><em>recharge_time</em>.</li>
+<li><em>wind_up_time</em>.</li>
+<li><em>drag_ground</em>.</li>
+<li><em>click_ground</em>.</li>
+<li><em>intercept_distance</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>land_units_to_unit_abilites_junctions_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>Ability name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>Unit name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>Type</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>Unit name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>ability</em>.</li>
+<li><em>land_unit</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>main_units_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>campaign_total_cap</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>audio_language</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+<li><strong>Is Reference</strong>: <em>cultures_subcultures</em>/<em>subculture</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>OptionalStringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Changed fields</strong>:
+<ul>
+<li><strong>num_men</strong>:
+<ul>
+<li><em><strong>Description</strong></em>: ** =&gt; <em>The number of men must be equal to the number of mounts, which is set in the land units table. Also keep in mind that this value is multiplied by 0.75, 0.5 and 0.25 for the large, medium and small unit size settings.</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>audio_voiceover_culture</em>.</li>
+<li><em>ui_unit_group_land</em>.</li>
+<li><em>ui_unit_group_naval</em>.</li>
+<li><em>tier</em>.</li>
+<li><em>is_high_threat</em>.</li>
+<li><em>porthole_camera</em>.</li>
+<li><em>mount</em>.</li>
+<li><em>use_hitpoints_in_campaign</em>.</li>
+<li><em>unit_scaling</em>.</li>
+<li><em>porthole_composite_scene</em>.</li>
+<li><em>melee_cp</em>.</li>
+<li><em>missile_cp</em>.</li>
+<li><em>can_siege</em>.</li>
+<li><em>audio_voiceover_culture_override</em>.</li>
+<li><em>restrict_xp_gain_in_campaign</em>.</li>
+<li><em>audio_voiceover_actor_group</em>.</li>
+<li><em>food_cost</em>.</li>
+<li><em>has_spoken_vo</em>.</li>
+<li><em>is_monstrous</em>.</li>
+<li><em>multiplayer_qb_cap</em>.</li>
+<li><em>vo_is_dragon</em>.</li>
+<li><em>vo_is_dinosaur</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>special_ability_invalid_usage_flags_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>flag_key</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>special_ability_phase_stat_effects_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>Abiliti name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>Modifier value</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>Stat name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>Modifier</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>phase</em>.</li>
+<li><em>value</em>.</li>
+<li><em>stat</em>.</li>
+<li><em>how</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>ui_unit_stats_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>key</em>.</li>
+<li><em>max_value</em>.</li>
+<li><em>campaign_only</em>.</li>
+<li><em>sort_order</em>.</li>
+<li><em>localisation</em>.</li>
+<li><em>icon</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>unit_abilities_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>Abiliti in-game name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>Abiliti  name</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>true</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>Abiliti detail type</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>Tier</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>Abiliti type</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>key</em>.</li>
+<li><em>supersedes_ability</em>.</li>
+<li><em>requires_effect_enabling</em>.</li>
+<li><em>icon_name</em>.</li>
+<li><em>overpower_option</em>.</li>
+<li><em>type</em>.</li>
+<li><em>video</em>.</li>
+<li><em>uniqueness</em>.</li>
+<li><em>is_unit_upgrade</em>.</li>
+<li><em>is_hidden_in_ui</em>.</li>
+<li><em>source_type</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>unit_experience_bonuses_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>stat</em>.</li>
+<li><em>value</em>.</li>
+<li><em>growth_rate</em>.</li>
+<li><em>growth_scalar</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><em><strong>unit_special_abilities_tables</strong></em>:
+<ul>
+<li><strong>New fields</strong>:
+<ul>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Float</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Integer</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>Boolean</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+<li><em><strong>new_field</strong></em>:
+<ul>
+<li><strong>Type</strong>: <em>StringU8</em>.</li>
+<li><strong>Is Key</strong>: <em>false</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Removed fields</strong>:
+<ul>
+<li><em>key</em>.</li>
+<li><em>active_time</em>.</li>
+<li><em>recharge_time</em>.</li>
+<li><em>num_uses</em>.</li>
+<li><em>effect_range</em>.</li>
+<li><em>affect_self</em>.</li>
+<li><em>num_effected_friendly_units</em>.</li>
+<li><em>num_effected_enemy_units</em>.</li>
+<li><em>update_targets_every_frame</em>.</li>
+<li><em>initial_recharge</em>.</li>
+<li><em>activated_projectile</em>.</li>
+<li><em>target_friends</em>.</li>
+<li><em>target_enemies</em>.</li>
+<li><em>target_ground</em>.</li>
+<li><em>target_intercept_range</em>.</li>
+<li><em>assume_specific_behaviour</em>.</li>
+<li><em>clear_current_order</em>.</li>
+<li><em>wind_up_time</em>.</li>
+<li><em>passive</em>.</li>
+<li><em>unique_id</em>.</li>
+<li><em>bombardment</em>.</li>
+<li><em>spawned_unit</em>.</li>
+<li><em>wind_up_stance</em>.</li>
+<li><em>mana_cost</em>.</li>
+<li><em>min_range</em>.</li>
+<li><em>targetting_aoe</em>.</li>
+<li><em>passive_aoe</em>.</li>
+<li><em>active_aoe</em>.</li>
+<li><em>activation_effect</em>.</li>
+<li><em>vortex</em>.</li>
+<li><em>miscast_chance</em>.</li>
+<li><em>miscast_explosion</em>.</li>
+<li><em>ai_usage</em>.</li>
+<li><em>audio</em>.</li>
+<li><em>special_ability_display</em>.</li>
+<li><em>voiceover_state</em>.</li>
+<li><em>additional_melee_cp</em>.</li>
+<li><em>additional_missile_cp</em>.</li>
+<li><em>parent_ability</em>.</li>
+<li><em>spawn_type</em>.</li>
+<li><em>spawn_proxy_vfx</em>.</li>
+<li><em>target_ground_under_allies</em>.</li>
+<li><em>target_ground_under_enemies</em>.</li>
+<li><em>miscast_global_bonus</em>.</li>
+<li><em>target_self</em>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 <h1><a class="header" href="#006" id="006">006</a></h1>
 <p>Here is when the changelogs were created. Before this, there is only darkness...</p>
 
@@ -174,7 +1030,7 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a href="../../changelogs_tables/empire/changelog.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../../changelogs_tables/empire/changelog.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
@@ -186,6 +1042,14 @@
 
         
 
+        
+
+        
+        
+        
+        <script type="text/javascript">
+            window.playpen_copyable = true;
+        </script>
         
 
         
