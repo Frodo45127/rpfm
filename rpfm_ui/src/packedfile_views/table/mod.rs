@@ -39,10 +39,11 @@ use qt_core::QString;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::MatchFlag;
 
-use cpp_core::CppBox;
 use cpp_core::MutPtr;
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::{fmt, fmt::Debug};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -53,7 +54,7 @@ use rpfm_lib::common::parse_str;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
-use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
+use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 
@@ -179,11 +180,15 @@ pub struct PackedFileTableView {
     search_close_button: AtomicPtr<QPushButton>,
     search_prev_match_button: AtomicPtr<QPushButton>,
     search_next_match_button: AtomicPtr<QPushButton>,
+    search_column_selector: AtomicPtr<QComboBox>,
 
     table_name: String,
     table_definition: Arc<Definition>,
+    dependency_data: Arc<RwLock<BTreeMap<i32, HashMap<String, String>>>>,
 
     undo_model: AtomicPtr<QStandardItemModel>,
+    history_undo: Arc<RwLock<Vec<TableOperations>>>,
+    history_redo: Arc<RwLock<Vec<TableOperations>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -244,7 +249,8 @@ impl PackedFileTableView {
         let mut filter_model = QSortFilterProxyModel::new_0a();
         let mut model = QStandardItemModel::new_0a();
         filter_model.set_source_model(&mut model);
-        let (table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&mut packed_file_view.get_mut_widget());
+        let (mut table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&mut packed_file_view.get_mut_widget());
+        set_frozen_data_model_safe(&mut table_view_primary, &mut filter_model);
 
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
@@ -438,7 +444,7 @@ impl PackedFileTableView {
         sidebar_grid.set_row_stretch(999, 10);
 
         // Create the raw Struct and begin
-        let mut packed_file_table_view_raw = PackedFileTableViewRaw {
+        let packed_file_table_view_raw = PackedFileTableViewRaw {
             table_view_primary,
             table_view_frozen,
             table_filter: filter_model.into_ptr(),
@@ -542,16 +548,26 @@ impl PackedFileTableView {
             search_close_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_close_button),
             search_prev_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_prev_match_button),
             search_next_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_next_match_button),
+            search_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.search_column_selector),
 
+            dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition: packed_file_table_view_raw.table_definition.clone(),
             table_name,
 
             undo_model: atomic_from_mut_ptr(packed_file_table_view_raw.undo_model),
+            history_undo: packed_file_table_view_raw.history_undo.clone(),
+            history_redo: packed_file_table_view_raw.history_redo.clone(),
         };
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
-        packed_file_table_view_raw.load_data(&table_data);
+        load_data(
+            packed_file_table_view_raw.table_view_primary,
+            packed_file_table_view_raw.table_view_frozen,
+            &packed_file_table_view_raw.table_definition,
+            &packed_file_table_view_raw.dependency_data,
+            &table_data
+        );
 
         // Initialize the undo model.
         update_undo_model(mut_ptr_from_atomic(&packed_file_table_view.table_model), mut_ptr_from_atomic(&packed_file_table_view.undo_model));
@@ -562,7 +578,12 @@ impl PackedFileTableView {
             packed_file_path.borrow()[1].to_owned()
         } else { "".to_owned() };
 
-        packed_file_table_view_raw.build_columns(&packed_file_name);
+        build_columns(
+            packed_file_table_view_raw.table_view_primary,
+            packed_file_table_view_raw.table_view_frozen,
+            &packed_file_table_view_raw.table_definition,
+            &packed_file_name
+        );
 
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
@@ -573,6 +594,66 @@ impl PackedFileTableView {
 
         // Return success.
         Ok((TheOneSlot::Table(packed_file_table_view_slots), packed_file_info))
+    }
+
+    /// Function to reload the data of the view without having to delete the view itself.
+    ///
+    /// NOTE: This allows for a table to change it's definition on-the-fly, so be carefull with that!
+    pub unsafe fn reload_view(&mut self, data: TableType) {
+        let table_view_primary = mut_ptr_from_atomic(&self.table_view_primary);
+        let table_view_frozen = mut_ptr_from_atomic(&self.table_view_frozen);
+        let undo_model = mut_ptr_from_atomic(&self.undo_model);
+
+        let filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
+        let model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+
+        // Update the stored definition.
+        let table_definition = match data {
+            TableType::DB(ref table) => table.get_definition(),
+            TableType::Loc(ref table) => table.get_definition(),
+            _ => unimplemented!(),
+        };
+
+        self.table_definition = Arc::new(table_definition);
+
+        // Load the data to the Table. For some reason, if we do this after setting the titles of
+        // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
+        load_data(
+            table_view_primary,
+            table_view_frozen,
+            &self.table_definition,
+            &self.dependency_data,
+            &data
+        );
+
+        // Reset the undo model and the undo/redo history.
+        update_undo_model(model, undo_model);
+        self.history_undo.write().unwrap().clear();
+        self.history_redo.write().unwrap().clear();
+
+        // Rebuild the column's stuff.
+        build_columns(
+            table_view_primary,
+            table_view_frozen,
+            &self.table_definition,
+            &self.table_name
+        );
+
+        // Rebuild the column list of the filter and search panels, just in case the definition changed.
+        let mut filter_column_selector = mut_ptr_from_atomic(&self.filter_column_selector);
+        let mut search_column_selector = mut_ptr_from_atomic(&self.search_column_selector);
+        filter_column_selector.clear();
+        search_column_selector.clear();
+        search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
+        for column in &self.table_definition.fields {
+            let name = QString::from_std_str(&utils::clean_column_names(&column.name));
+            filter_column_selector.add_item_q_string(&name);
+            search_column_selector.add_item_q_string(&name);
+        }
+
+        // Reset this setting so the last column gets resized properly.
+        table_view_primary.horizontal_header().set_stretch_last_section(!SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"]);
+        table_view_primary.horizontal_header().set_stretch_last_section(SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"]);
     }
 
     /// This function returns a reference to the StandardItemModel widget.

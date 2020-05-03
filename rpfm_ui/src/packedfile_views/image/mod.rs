@@ -17,7 +17,7 @@ use qt_widgets::QLabel;
 
 use qt_gui::QPixmap;
 
-use qt_core::AspectRatioMode;
+
 use qt_core::QFlags;
 use qt_core::AlignmentFlag;
 use qt_core::QByteArray;
@@ -26,14 +26,18 @@ use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{Result, ErrorKind};
+use rpfm_lib::packedfile::image::Image;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::ffi::{new_resizable_label_safe, set_pixmap_on_resizable_label_safe};
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
+use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
 use self::slots::PackedFileImageViewSlots;
 
 pub mod slots;
@@ -43,8 +47,10 @@ pub mod slots;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of an Image PackedFile.
-pub struct PackedFileImageView {}
-
+pub struct PackedFileImageView {
+    label: AtomicPtr<QLabel>,
+    image: AtomicPtr<QPixmap>,
+}
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -71,28 +77,32 @@ impl PackedFileImageView {
 
         // Create the image in the UI.
         let byte_array = QByteArray::from_slice(image.get_data());
-        let mut image = QPixmap::new();
+        let mut image = QPixmap::new().into_ptr();
         image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap());
 
         // Get the size of the holding widget.
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
-        let widget_height = layout.parent_widget().height();
-        let widget_width = layout.parent_widget().width();
-
-        let scaled_image = if image.height() >= widget_height || image.width() >= widget_width {
-            image.scaled_2_int_aspect_ratio_mode(widget_height - 25, widget_width - 25, AspectRatioMode::KeepAspectRatio)
-        } else { image };
-
-        // Create a Label.
-        let mut label = QLabel::new();
+        let mut label = new_resizable_label_safe(&mut packed_file_view.get_mut_widget(), &mut image);
         label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
-        label.set_pixmap(&scaled_image);
-        layout.add_widget_5a(label.into_ptr(), 0, 0, 1, 1);
+        layout.add_widget_5a(label.as_mut_raw_ptr(), 0, 0, 1, 1);
 
         packed_file_view.packed_file_type = PackedFileType::Image;
-        packed_file_view.view = ViewType::Internal(View::Image(Self {}));
+        packed_file_view.view = ViewType::Internal(View::Image(Self {
+            image: atomic_from_mut_ptr(image),
+            label: atomic_from_mut_ptr(label)
+        }));
 
         // Return success.
         Ok((TheOneSlot::Image(PackedFileImageViewSlots {}), packed_file_info))
+    }
+
+    /// Function to reload the data of the view without having to delete the view itself.
+    pub unsafe fn reload_view(&self, data: &Image) {
+        let mut image = mut_ptr_from_atomic(&self.image);
+        let mut label = mut_ptr_from_atomic(&self.label);
+
+        let byte_array = QByteArray::from_slice(data.get_data());
+        image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap());
+        set_pixmap_on_resizable_label_safe(&mut label, &mut image);
     }
 }

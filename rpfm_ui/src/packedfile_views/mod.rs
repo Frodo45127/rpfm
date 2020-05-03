@@ -47,7 +47,7 @@ use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
 use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::external::{PackedFileExternalView, slots::PackedFileExternalViewSlots};
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
-use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
+use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots, TableType};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
@@ -155,6 +155,11 @@ impl PackedFileView {
     /// This function returns the ViewType of the specific `PackedFile`.
     pub fn get_view(&self) -> &ViewType {
         &self.view
+    }
+
+    /// This function returns a mutable reference to the ViewType of the specific `PackedFile`.
+    pub fn get_ref_mut_view(&mut self) -> &mut ViewType {
+        &mut self.view
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
@@ -290,6 +295,75 @@ impl PackedFileView {
 
                 Ok(())
             }
+        }
+    }
+
+    /// This function reloads the data in a view from the backend. Useful to avoid having to close a PackedFile when the backend changes.
+    pub unsafe fn reload(
+        &mut self,
+        path: &[String],
+        pack_file_contents_ui: &mut PackFileContentsUI
+    ) -> Result<()> {
+         match self.get_ref_mut_view() {
+            ViewType::Internal(view) => {
+
+                CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(path.to_vec()));
+                let response = CENTRAL_COMMAND.recv_message_qt();
+
+                match response {
+                    Response::DBPackedFileInfo((table, packed_file_info)) => {
+                        if let View::Table(old_table) = view {
+                            old_table.reload_view(TableType::DB(table));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::LocPackedFileInfo((table, packed_file_info)) => {
+                        if let View::Table(old_table) = view {
+                            old_table.reload_view(TableType::Loc(table));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::ImagePackedFileInfo((image, packed_file_info)) => {
+                        if let View::Image(old_image) = view {
+                            old_image.reload_view(&image);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::TextPackedFileInfo((text, packed_file_info)) => {
+                        if let View::Text(old_text) = view {
+                            old_text.reload_view(&text);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+                    Response::Error(error) => return Err(error),
+                    Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+
+                Ok(())
+            },
+
+            // External views don't need reloading.
+            ViewType::External(_) => Ok(())
         }
     }
 }

@@ -32,6 +32,7 @@ SOURCES += \
     src/q_list_of_q_standard_item.cpp \
     src/qstring_item_delegate.cpp \
     src/combobox_item_delegate.cpp \
+    src/resizable_label.cpp \
     src/spinbox_item_delegate.cpp \
     src/doublespinbox_item_delegate.cpp \
     src/tableview_command_palette.cpp \
@@ -52,7 +53,8 @@ HEADERS += \
     include/treeview_filter.h \
     include/qstring_item_delegate.h \
     include/q_list_of_q_standard_item.h \
-    include/packed_file_model.h
+    include/packed_file_model.h \
+    include/resizable_label.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

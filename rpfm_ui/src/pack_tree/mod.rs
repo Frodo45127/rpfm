@@ -12,7 +12,6 @@
 This module contains code to make our live easier when dealing with `TreeViews`.
 !*/
 
-use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QTreeView;
 use qt_widgets::q_header_view::ResizeMode;
 
@@ -49,14 +48,11 @@ use rpfm_lib::packfile::{CompressionState, PackFileInfo, PathType, PFHFlags};
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
-use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::add_to_q_list_safe;
-use crate::locale::qtr;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::UI_STATE;
 use crate::{YELLOW_BRIGHT, YELLOW_DARK, GREEN_BRIGHT, GREEN_DARK};
 
 // This one is needed for initialization on boot, so it has to be public.
@@ -1617,39 +1613,6 @@ unsafe fn get_visible_childs_of_item(parent: &QStandardItem, tree_view: &QTreeVi
                 item_types.push(<MutPtr<QTreeView> as PackTree>::get_type_from_item(child, model));
             }
         }
-    }
-}
-
-/// This function checks if a PackedFile is open in the program.
-///
-/// It'll prompt you a message asking you to close it, and it'll close it if you accept it.
-/// It returns `true` if the PackedFile is no longer open. Otherwise, it returns `false`.
-pub unsafe fn check_if_path_is_closed(app_ui: &AppUI, paths: &[Vec<String>]) -> bool {
-
-    // If we have a PackedFile open and it's on the adding list, ask the user to be sure. Do it in rev, otherwise it has problems.
-    let open_packedfiles = UI_STATE.get_open_packedfiles();
-    if paths.iter().all(|x| !open_packedfiles.iter().filter(|(_, z)| z.get_mut_widget().is_visible()).any(|(y, _)| y == x)) { true }
-    else {
-        let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-            q_message_box::Icon::Information,
-            &qtr("open_packedfile_dialog_1"),
-            &qtr("open_packedfile_dialog_2"),
-            q_message_box::StandardButton::Yes | q_message_box::StandardButton::No,
-            app_ui.main_window,
-        );
-
-        // 16384 means yes, don't ask why.
-        if dialog.exec() == 16384 {
-            //for view in &views {
-                //purge_that_one_specifically(&app_ui, *view, &packedfiles_open_in_packedfile_view);
-                //let widgets = unsafe { app_ui.packed_file_splitter.count() };
-                //let visible_widgets = (0..widgets).filter(|x| unsafe {app_ui.packed_file_splitter.widget(*x).is_visible() } ).count();
-                //if visible_widgets == 0 { display_help_tips(&app_ui); }
-            //}
-            true
-        }
-        else { false }
-
     }
 }
 

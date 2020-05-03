@@ -23,7 +23,7 @@ use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::text::TextType;
+use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::app_ui::AppUI;
@@ -123,6 +123,22 @@ impl PackedFileTextView {
     /// This function returns a pointer to the editor widget.
     pub fn get_mut_editor(&self) -> MutPtr<QWidget> {
         mut_ptr_from_atomic(&self.editor)
+    }
+
+    /// Function to reload the data of the view without having to delete the view itself.
+    pub unsafe fn reload_view(&self, data: &Text) {
+        let mut editor = mut_ptr_from_atomic(&self.editor);
+
+        let mut highlighting_mode = match data.get_text_type() {
+            TextType::Cpp => QString::from_std_str(CPP),
+            TextType::Html => QString::from_std_str(HTML),
+            TextType::Lua => QString::from_std_str(LUA),
+            TextType::Xml => QString::from_std_str(XML),
+            TextType::Plain => QString::from_std_str(PLAIN),
+            TextType::Markdown => QString::from_std_str(MARKDOWN),
+        };
+
+        set_text_safe(&mut editor, &mut QString::from_std_str(data.get_ref_contents()), &mut highlighting_mode);
     }
 }
 

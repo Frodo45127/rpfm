@@ -209,7 +209,7 @@ impl PackedFileTableViewSlots {
                 if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
                     let column = item.column();
                     if packed_file_view.table_definition.fields[column as usize].is_reference.is_some() {
-                        packed_file_view.check_references(column, item);
+                        check_references(column, item, &packed_file_view.dependency_data);
                     }
                 }
 
@@ -394,12 +394,26 @@ impl PackedFileTableViewSlots {
                             let old_data = packed_file_view.get_copy_of_table();
 
                             packed_file_view.undo_lock.store(true, Ordering::SeqCst);
-                            packed_file_view.load_data(&data);
+                            load_data(
+                                packed_file_view.table_view_primary,
+                                packed_file_view.table_view_frozen,
+                                &packed_file_view.table_definition,
+                                &packed_file_view.dependency_data,
+                                &data
+                            );
+
                             let table_name = match data {
                                 TableType::DB(_) => packed_file_path.borrow()[1].to_string(),
                                 _ => "".to_owned(),
                             };
-                            packed_file_view.build_columns(&table_name);
+
+                            build_columns(
+                                packed_file_view.table_view_primary,
+                                packed_file_view.table_view_frozen,
+                                &packed_file_view.table_definition,
+                                &table_name
+                            );
+
                             packed_file_view.undo_lock.store(false, Ordering::SeqCst);
 
                             packed_file_view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));

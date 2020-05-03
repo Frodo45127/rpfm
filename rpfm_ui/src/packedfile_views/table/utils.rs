@@ -13,15 +13,19 @@ In this file are all the utility functions we need for the tables to work.
 !*/
 
 use qt_widgets::QTableView;
+use qt_widgets::q_header_view::ResizeMode;
 
+use qt_gui::QBrush;
 use qt_gui::QColor;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QModelIndex;
+use qt_core::QSignalBlocker;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
+use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QString;
 
@@ -29,7 +33,10 @@ use cpp_core::CppBox;
 use cpp_core::MutPtr;
 use cpp_core::Ref;
 
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::cmp::Ordering;
+use std::sync::RwLock;
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_lib::schema::{Definition, Field, FieldType};
@@ -37,11 +44,12 @@ use rpfm_lib::SETTINGS;
 
 use crate::DARK_RED;
 use crate::EVEN_MORE_WHITY_GREY;
-use crate::ffi::add_to_q_list_safe;
+use crate::ffi::*;
 use crate::LINK_BLUE;
 use crate::locale::qtr;
 use crate::MEDIUM_DARK_GREY;
 use crate::utils::*;
+use super::*;
 
 //----------------------------------------------------------------------------//
 //                       Undo/Redo helpers for tables
@@ -300,5 +308,359 @@ pub unsafe fn get_color_correct_key() -> MutPtr<QColor> {
         QColor::from_q_string(&QString::from_std_str(*EVEN_MORE_WHITY_GREY)).into_ptr()
     } else {
         QColor::from_q_string(&QString::from_std_str(*MEDIUM_DARK_GREY)).into_ptr()
+    }
+}
+
+/// Function to check if an specific field's data is in their references.
+pub unsafe fn check_references(
+    column: i32,
+    mut item: MutPtr<QStandardItem>,
+    dependency_data: &RwLock<BTreeMap<i32, HashMap<String, String>>>,
+) {
+    // First, check if we have dependency data for that column.
+    if let Some(ref_data) = dependency_data.read().unwrap().get(&column) {
+        let text = item.text().to_std_string();
+
+        // Then, check if the data we have is in the ref data list.
+        if ref_data.is_empty() {
+            item.set_foreground(&QBrush::from_q_color(get_color_no_ref_data().as_ref().unwrap()));
+        }
+        else if ref_data.contains_key(&text) {
+            item.set_foreground(&QBrush::from_q_color(get_color_correct_key().as_ref().unwrap()));
+        }
+        else {
+            item.set_foreground(&QBrush::from_q_color(get_color_wrong_key().as_ref().unwrap()));
+        }
+    }
+}
+
+
+/// This function loads the data from a compatible `PackedFile` into a TableView.
+pub unsafe fn load_data(
+    mut table_view_primary: MutPtr<QTableView>,
+    mut table_view_frozen: MutPtr<QTableView>,
+    definition: &Definition,
+    dependency_data: &RwLock<BTreeMap<i32, HashMap<String, String>>>,
+    data: &TableType,
+) {
+    let table_filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
+    let mut table_model: MutPtr<QStandardItemModel> = table_filter.source_model().static_downcast_mut();
+
+    // First, we delete all the data from the `ListStore`. Just in case there is something there.
+    // This wipes out header information, so remember to run "build_columns" after this.
+    table_model.clear();
+
+    // Set the right data, depending on the table type you get.
+    let data = match data {
+        TableType::DependencyManager(data) => &data,
+        TableType::DB(data) => &*data.get_ref_table_data(),
+        TableType::Loc(data) => data.get_ref_table_data(),
+    };
+
+    // Load the data, row by row.
+    let mut blocker = QSignalBlocker::from_q_object(table_model.static_upcast_mut::<QObject>());
+    for (index, entry) in data.iter().enumerate() {
+        let mut qlist = QListOfQStandardItem::new();
+        for (index, field) in entry.iter().enumerate() {
+            let mut item = get_item_from_decoded_data(field);
+
+            // If we have the dependency stuff enabled, check if it's a valid reference.
+            if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.fields[index].is_reference.is_some() {
+                check_references(index as i32, item.as_mut_ptr(), dependency_data);
+            }
+
+            add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
+        }
+        if index == data.len() - 1 {
+            blocker.unblock();
+        }
+        table_model.append_row_q_list_of_q_standard_item(&qlist);
+    }
+
+    // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
+    if data.is_empty() {
+        let qlist = get_new_row(&definition);
+        table_model.append_row_q_list_of_q_standard_item(&qlist);
+        table_model.remove_rows_2a(0, 1);
+    }
+
+    // Here we assing the ItemDelegates, so each type has his own widget with validation included.
+    // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+    let enable_lookups = false; //table_enable_lookups_button.is_checked();
+    for (column, field) in definition.fields.iter().enumerate() {
+
+        // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
+        if SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] {
+            match field.field_type {
+                FieldType::Boolean => {},
+                FieldType::Float => {
+                    new_doublespinbox_item_delegate_safe(&mut table_view_primary, column as i32);
+                    new_doublespinbox_item_delegate_safe(&mut table_view_frozen, column as i32);
+                },
+                FieldType::Integer => {
+                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 32);
+                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 32);
+                },
+                FieldType::LongInteger => {
+                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 64);
+                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 64);
+                },
+                FieldType::StringU8 |
+                FieldType::StringU16 |
+                FieldType::OptionalStringU8 |
+                FieldType::OptionalStringU16 => {
+                    new_qstring_item_delegate_safe(&mut table_view_primary, column as i32, field.max_length);
+                    new_qstring_item_delegate_safe(&mut table_view_frozen, column as i32, field.max_length);
+                },
+                FieldType::Sequence(_) => {}
+            }
+        }
+
+        // Otherwise, we have to check first if the column has references. If it does, replace the delegate with a combo.
+        else if let Some(data) = dependency_data.read().unwrap().get(&(column as i32)) {
+            let mut list = QStringList::new();
+            data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+            new_combobox_item_delegate_safe(&mut table_view_primary, column as i32, list.as_ptr(), true, field.max_length);
+            new_combobox_item_delegate_safe(&mut table_view_frozen, column as i32, list.as_ptr(), true, field.max_length);
+        }
+        else {
+            match field.field_type {
+                FieldType::Boolean => {},
+                FieldType::Float => {
+                    new_doublespinbox_item_delegate_safe(&mut table_view_primary, column as i32);
+                    new_doublespinbox_item_delegate_safe(&mut table_view_frozen, column as i32);
+                },
+                FieldType::Integer => {
+                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 32);
+                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 32);
+                },
+                FieldType::LongInteger => {
+                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 64);
+                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 64);
+                },
+                FieldType::StringU8 |
+                FieldType::StringU16 |
+                FieldType::OptionalStringU8 |
+                FieldType::OptionalStringU16 => {
+                    new_qstring_item_delegate_safe(&mut table_view_primary, column as i32, field.max_length);
+                    new_qstring_item_delegate_safe(&mut table_view_frozen, column as i32, field.max_length);
+                },
+                FieldType::Sequence(_) => {}
+            }
+        }
+    }
+}
+
+/// This function generates a StandardItem for the provided DecodedData.
+unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem> {
+    match *data {
+
+        // This one needs a couple of changes before turning it into an item in the table.
+        DecodedData::Boolean(ref data) => {
+            let mut item = QStandardItem::new();
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
+            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_editable(false);
+            item.set_checkable(true);
+            item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
+            item
+        }
+
+        // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
+        // Also, they should be limited to 3 decimals.
+        DecodedData::Float(ref data) => {
+            let data = {
+                let data_str = format!("{}", data);
+                if let Some(position) = data_str.find('.') {
+                    let decimals = &data_str[position..].len();
+                    if *decimals > 3 { format!("{:.3}", data).parse::<f32>().unwrap() }
+                    else { *data }
+                }
+                else { *data }
+            };
+
+            let mut item = QStandardItem::new();
+            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_float(data), 2);
+            item
+        },
+        DecodedData::Integer(ref data) => {
+            let mut item = QStandardItem::new();
+            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_int(*data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_int(*data), 2);
+            item
+        },
+        DecodedData::LongInteger(ref data) => {
+            let mut item = QStandardItem::new();
+            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_i64(*data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_i64(*data), 2);
+            item
+        },
+        // All these are Strings, so it can be together,
+        DecodedData::StringU8(ref data) |
+        DecodedData::StringU16(ref data) |
+        DecodedData::OptionalStringU8(ref data) |
+        DecodedData::OptionalStringU16(ref data) => {
+            let mut item = QStandardItem::from_q_string(&QString::from_std_str(data));
+            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
+            item
+        },
+        DecodedData::Sequence(_) => {
+            let mut item = QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence"));
+            item.set_editable(false);
+            item
+        }
+    }
+}
+
+/// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
+/// His intended use is for just after we load/reload the data to the table.
+pub unsafe fn build_columns(
+    mut table_view_primary: MutPtr<QTableView>,
+    table_view_frozen: MutPtr<QTableView>,
+    definition: &Definition,
+    table_name: &str,
+) {
+    let filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
+    let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+    let schema = SCHEMA.read().unwrap();
+    let mut do_we_have_ca_order = false;
+    let mut keys = vec![];
+
+    // For each column, clean their name and set their width and tooltip.
+    for (index, field) in definition.fields.iter().enumerate() {
+
+        let name = clean_column_names(&field.name);
+        let mut item = QStandardItem::from_q_string(&QString::from_std_str(&name));
+        set_column_tooltip(&schema, &field, table_name, &mut item);
+        model.set_horizontal_header_item(index as i32, item.into_ptr());
+
+        // Depending on his type, set one width or another.
+        match field.field_type {
+            FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
+            FieldType::Float => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+            FieldType::Integer => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+            FieldType::LongInteger => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+            FieldType::StringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+            FieldType::StringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+            FieldType::OptionalStringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+            FieldType::OptionalStringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+            FieldType::Sequence(_) => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+        }
+
+
+        // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
+        if field.is_key { keys.push(index); }
+        if field.ca_order != -1 { do_we_have_ca_order |= true; }
+    }
+
+    // Now the order. If we have a sort order from the schema, we use that one.
+    if do_we_have_ca_order {
+        let mut fields = definition.fields.iter().enumerate().map(|(x, y)| (x, y.clone())).collect::<Vec<(usize, Field)>>();
+        fields.sort_by(|a, b| a.1.ca_order.cmp(&b.1.ca_order));
+
+        let mut header_primary = table_view_primary.horizontal_header();
+        let mut header_frozen = table_view_frozen.horizontal_header();
+        for (logical_index, field) in &fields {
+            if field.ca_order != -1 {
+                let visual_index = header_primary.visual_index(*logical_index as i32);
+                header_primary.move_section(visual_index as i32, field.ca_order as i32);
+                header_frozen.move_section(visual_index as i32, field.ca_order as i32);
+            }
+        }
+    }
+
+    // Otherwise, if we have any "Key" field, move it to the beginning.
+    else if !keys.is_empty() {
+        let mut header_primary = table_view_primary.horizontal_header();
+        let mut header_frozen = table_view_frozen.horizontal_header();
+        for (position, column) in keys.iter().enumerate() {
+            header_primary.move_section(*column as i32, position as i32);
+            header_frozen.move_section(*column as i32, position as i32);
+        }
+    }
+
+    // If we want to let the columns resize themselfs...
+    if SETTINGS.read().unwrap().settings_bool["adjust_columns_to_content"] {
+        table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+    }
+}
+
+/// This function sets the tooltip for the provided column header, if the column should have one.
+unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: &mut QStandardItem) {
+
+    // If we passed it a table name, build the tooltip based on it. The logic is simple:
+    // - If we have a description, we add it to the tooltip.
+    // - If the column references another column, we add it to the tooltip.
+    // - If the column is referenced by another column, we add it to the tooltip.
+    if !table_name.is_empty() {
+        let mut tooltip_text = String::new();
+        if !field.description.is_empty() {
+            tooltip_text.push_str(&format!("<p>{}</p>", field.description));
+        }
+
+        if let Some(ref reference) = field.is_reference {
+            tooltip_text.push_str(&format!("<p>This column is a reference to:</p><p><i>\"{}/{}\"</i></p>", reference.0, reference.1));
+        }
+
+        else {
+            let mut referenced_columns = if let Some(ref schema) = schema {
+                let short_table_name = table_name.split_at(table_name.len() - 7).0;
+                let mut columns = vec![];
+
+                // We get all the db definitions from the schema, then iterate all of them to find what tables reference our own.
+                for versioned_file in schema.get_ref_versioned_file_db_all() {
+                    if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
+                        let mut found = false;
+                        for ref_version in ref_definition {
+                            for ref_field in &ref_version.fields {
+                                if let Some((ref_ref_table, ref_ref_field)) = &ref_field.is_reference {
+                                    if ref_ref_table == short_table_name && ref_ref_field == &field.name {
+                                        found = true;
+                                        columns.push((ref_table_name.to_owned(), ref_field.name.to_owned()));
+                                    }
+                                }
+                            }
+                            if found { break; }
+                        }
+                    }
+                }
+                columns
+            } else { vec![] };
+
+            referenced_columns.sort_unstable();
+            if !referenced_columns.is_empty() {
+                tooltip_text.push_str("<p>Fields that reference this column:</p>");
+                for (index, reference) in referenced_columns.iter().enumerate() {
+                    tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
+
+                    // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
+                    if index == 50 {
+                        tooltip_text.push_str(&format!("<p>And many more. Exactly, {} more. Too many to show them here.</p>nnnn", referenced_columns.len() as isize - 50));
+                        break ;
+                    }
+                }
+
+                // Dirty trick to remove the last <br> from the tooltip, or the nnnn in case that text get used.
+                tooltip_text.pop();
+                tooltip_text.pop();
+                tooltip_text.pop();
+                tooltip_text.pop();
+            }
+        }
+
+        // We only add the tooltip if we got something to put into it.
+        if !tooltip_text.is_empty() {
+            item.set_tool_tip(&QString::from_std_str(&tooltip_text));
+        }
     }
 }

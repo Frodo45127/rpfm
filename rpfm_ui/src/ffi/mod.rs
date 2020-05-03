@@ -12,10 +12,12 @@
 Module containing the ffi functions used for custom widgets.
 !*/
 
+use qt_widgets::QLabel;
 use qt_widgets::QTableView;
 use qt_widgets::QWidget;
 
 use qt_gui::QListOfQStandardItem;
+use qt_gui::QPixmap;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
@@ -136,4 +138,19 @@ pub fn set_text_safe(document: &mut QWidget, string: &mut QString, highlighting_
 extern "C" { fn open_text_editor_config(parent: *mut QWidget); }
 pub fn open_text_editor_config_safe(parent: &mut QWidget) {
     unsafe { open_text_editor_config(parent) }
+}
+
+//---------------------------------------------------------------------------//
+// Image stuff.
+//---------------------------------------------------------------------------//
+
+/// This function allow us to create a QLabel whose QPixmap gets resized with the resize events of the label.
+extern "C" { fn new_resizable_label(parent: *mut QWidget, pixmap: *mut QPixmap) -> *mut QLabel; }
+pub fn new_resizable_label_safe(parent: &mut QWidget, pixmap: &mut QPixmap) -> MutPtr<QLabel> {
+    unsafe { MutPtr::from_raw(new_resizable_label(parent, pixmap)) }
+}
+
+extern "C" { fn set_pixmap_on_resizable_label(label: *mut QLabel, pixmap: *mut QPixmap); }
+pub fn set_pixmap_on_resizable_label_safe(label: &mut QLabel, pixmap: &mut QPixmap) {
+    unsafe { set_pixmap_on_resizable_label(label, pixmap); }
 }

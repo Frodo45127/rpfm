@@ -243,6 +243,9 @@ pub enum ErrorKind {
     /// Error for when we cannot open a PackedFile due to not being decodeable on the lib.
     PackedFileTypeUnknown,
 
+    /// Error for when we replace the binary data of a PackedFile with another data that's not decodeable in the same way as the old data.
+    NewDataIsNotDecodeableTheSameWayAsOldDAta,
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -624,6 +627,7 @@ impl Display for ErrorKind {
             ErrorKind::PackFileIsNotAPackFile => write!(f, "<p>This file is not a valid PackFile.</p>"),
             ErrorKind::PackFileIsNotAFile => write!(f, "<p>This PackFile doesn't exists as a file in the disk.</p>"),
             ErrorKind::PackFileSizeIsNotWhatWeExpect(reported_size, expected_size) => write!(f, "<p>This PackFile's reported size is <i><b>{}</b></i> bytes, but we expected it to be <i><b>{}</b></i> bytes. This means that either the decoding logic in RPFM is broken for this PackFile, or this PackFile is corrupted.</p>", reported_size, expected_size),
+            ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta => write!(f, "<p>The PackedFile you added is not the same type as the one you had before. So... the view showing it will get closed.</p>"),
 
             //-----------------------------------------------------//
             //                PackedFile Errors

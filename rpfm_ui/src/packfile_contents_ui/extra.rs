@@ -41,7 +41,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter_safe;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre};
-use crate::pack_tree::{check_if_path_is_closed, PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::{create_grid_layout, show_dialog};
 use crate::UI_STATE;
@@ -61,71 +61,74 @@ impl PackFileContentsUI {
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>]
     ) {
-        if check_if_path_is_closed(&app_ui, paths_packedfile) {
-            app_ui.main_window.set_enabled(false);
+        app_ui.main_window.set_enabled(false);
 
+        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec())));
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        match response {
+            Response::Success => {
+                let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                UI_STATE.set_is_modified(true, app_ui, self);
 
-            CENTRAL_COMMAND.send_message_qt(Command::AddPackedFiles((paths.to_vec(), paths_packedfile.to_vec())));
-            let response = CENTRAL_COMMAND.recv_message_qt();
-            match response {
-                Response::Success => {
+                // Update the global search stuff, if needed.
+                global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
 
-                    // Clear the preview cache before adding stuff!!!
-                    paths_packedfile.iter().for_each(|path| {
-                        app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
-                    });
-
-                    let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
-                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
-                    UI_STATE.set_is_modified(true, app_ui, self);
-
-                    // Update the global search stuff, if needed.
-                    global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
-                }
-
-                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                // Try to reload all open files which data we altered, and close those that failed.
+                let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                paths_packedfile.iter().for_each(|path| {
+                    if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
+                        if packed_file_view.reload(path, self).is_err() {
+                            app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                        }
+                    }
+                });
             }
 
-            // Re-enable the Main Window.
-            app_ui.main_window.set_enabled(true);
+            Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
+
+        // Re-enable the Main Window.
+        app_ui.main_window.set_enabled(true);
     }
 
     /// This function is a helper to add entire folders with subfolders to the UI, keeping the UI updated.
     pub unsafe fn add_packed_files_from_folders(&mut self, app_ui: &mut AppUI, global_search_ui: &mut GlobalSearchUI, paths: &[PathBuf], paths_packedfile: &[Vec<String>]) {
-        if check_if_path_is_closed(&app_ui, paths_packedfile) {
-            app_ui.main_window.set_enabled(false);
-            let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
-            CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send));
-            let response = CENTRAL_COMMAND.recv_message_qt();
-            match response {
-                Response::VecPathType(paths_packedfile) => {
+        app_ui.main_window.set_enabled(false);
+        let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
+        CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send));
+        let response = CENTRAL_COMMAND.recv_message_qt();
+        match response {
+            Response::VecPathType(paths_packedfile) => {
+                let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
+                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                UI_STATE.set_is_modified(true, app_ui, self);
 
-                    // Clear the preview cache before adding stuff!!!
-                    paths_packedfile.iter().for_each(|path| {
-                        if let PathType::File(path) = path {
-                            app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                // Update the global search stuff, if needed.
+                global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
+
+                // Try to reload all open files which data we altered, and close those that failed.
+                let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                paths_packedfile.iter().for_each(|path| {
+                    if let PathType::File(path) = path {
+                        if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
+                            if packed_file_view.reload(path, self).is_err() {
+                                app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                            }
                         }
-                    });
-
-                    let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
-                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
-                    self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
-                    UI_STATE.set_is_modified(true, app_ui, self);
-
-                    // Update the global search stuff, if needed.
-                    global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
-                }
-
-                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+                });
             }
 
-            // Re-enable the Main Window.
-            app_ui.main_window.set_enabled(true);
+            Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
+
+        // Re-enable the Main Window.
+        app_ui.main_window.set_enabled(true);
     }
 
     /// Function to filter the PackFile Contents TreeView.
