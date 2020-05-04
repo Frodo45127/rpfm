@@ -40,7 +40,7 @@ use qt_core::q_item_selection_model::SelectionFlag;
 use cpp_core::MutPtr;
 use cpp_core::Ref;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -107,7 +107,7 @@ pub struct PackedFileTableViewRaw {
     pub search_case_sensitive_button: MutPtr<QPushButton>,
     pub search_data: Arc<RwLock<TableSearch>>,
 
-    pub dependency_data: Arc<RwLock<BTreeMap<i32, HashMap<String, String>>>>,
+    pub dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
     pub table_definition: Arc<Definition>,
 
     pub save_lock: Arc<AtomicBool>,

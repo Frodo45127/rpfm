@@ -16,7 +16,7 @@ use qt_core::QEventLoop;
 
 use crossbeam::{Receiver, Sender, unbounded};
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -357,8 +357,8 @@ pub enum Response {
     /// Response to return `(i32, i32)`.
     I32I32((i32, i32)),
 
-    /// Response to return `BTreeMap<i32, HashMap<String, String>>`.
-    BTreeMapI32HashMapStringString(BTreeMap<i32, HashMap<String, String>>),
+    /// Response to return `BTreeMap<i32, BTreeMap<String, String>>`.
+    BTreeMapI32BTreeMapStringString(BTreeMap<i32, BTreeMap<String, String>>),
 
     /// Response to return `Option<PackedFile>`.
     OptionPackedFile(Option<PackedFile>),

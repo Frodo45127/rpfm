@@ -43,7 +43,6 @@ use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::{fmt, fmt::Debug};
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
@@ -184,7 +183,7 @@ pub struct PackedFileTableView {
 
     table_name: String,
     table_definition: Arc<Definition>,
-    dependency_data: Arc<RwLock<BTreeMap<i32, HashMap<String, String>>>>,
+    dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
 
     undo_model: AtomicPtr<QStandardItemModel>,
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
@@ -236,7 +235,7 @@ impl PackedFileTableView {
         CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(table_definition.clone()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let dependency_data = match response {
-            Response::BTreeMapI32HashMapStringString(dependency_data) => dependency_data,
+            Response::BTreeMapI32BTreeMapStringString(dependency_data) => dependency_data,
             Response::Error(error) => return Err(error),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };

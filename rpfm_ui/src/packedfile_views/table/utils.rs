@@ -34,7 +34,6 @@ use cpp_core::MutPtr;
 use cpp_core::Ref;
 
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::sync::RwLock;
 use std::sync::atomic::AtomicPtr;
@@ -315,7 +314,7 @@ pub unsafe fn get_color_correct_key() -> MutPtr<QColor> {
 pub unsafe fn check_references(
     column: i32,
     mut item: MutPtr<QStandardItem>,
-    dependency_data: &RwLock<BTreeMap<i32, HashMap<String, String>>>,
+    dependency_data: &RwLock<BTreeMap<i32, BTreeMap<String, String>>>,
 ) {
     // First, check if we have dependency data for that column.
     if let Some(ref_data) = dependency_data.read().unwrap().get(&column) {
@@ -340,7 +339,7 @@ pub unsafe fn load_data(
     mut table_view_primary: MutPtr<QTableView>,
     mut table_view_frozen: MutPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &RwLock<BTreeMap<i32, HashMap<String, String>>>,
+    dependency_data: &RwLock<BTreeMap<i32, BTreeMap<String, String>>>,
     data: &TableType,
 ) {
     let table_filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();

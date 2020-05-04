@@ -559,7 +559,7 @@ pub fn background_loop() {
                     }
                     None => BTreeMap::new(),
                 };
-                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32HashMapStringString(dependency_data));
+                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32BTreeMapStringString(dependency_data));
             }
 
             // In case we want to return an entire PackedFile to the UI.
