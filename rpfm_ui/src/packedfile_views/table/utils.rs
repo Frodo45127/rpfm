@@ -28,6 +28,7 @@ use qt_core::QVariant;
 use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QString;
+use qt_core::Orientation;
 
 use cpp_core::CppBox;
 use cpp_core::MutPtr;
@@ -48,6 +49,7 @@ use crate::LINK_BLUE;
 use crate::locale::qtr;
 use crate::MEDIUM_DARK_GREY;
 use crate::utils::*;
+use crate::UI_STATE;
 use super::*;
 
 //----------------------------------------------------------------------------//
@@ -314,10 +316,10 @@ pub unsafe fn get_color_correct_key() -> MutPtr<QColor> {
 pub unsafe fn check_references(
     column: i32,
     mut item: MutPtr<QStandardItem>,
-    dependency_data: &RwLock<BTreeMap<i32, BTreeMap<String, String>>>,
+    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
 ) {
     // First, check if we have dependency data for that column.
-    if let Some(ref_data) = dependency_data.read().unwrap().get(&column) {
+    if let Some(ref_data) = dependency_data.get(&column) {
         let text = item.text().to_std_string();
 
         // Then, check if the data we have is in the ref data list.
@@ -336,8 +338,8 @@ pub unsafe fn check_references(
 
 /// This function loads the data from a compatible `PackedFile` into a TableView.
 pub unsafe fn load_data(
-    mut table_view_primary: MutPtr<QTableView>,
-    mut table_view_frozen: MutPtr<QTableView>,
+    table_view_primary: MutPtr<QTableView>,
+    table_view_frozen: MutPtr<QTableView>,
     definition: &Definition,
     dependency_data: &RwLock<BTreeMap<i32, BTreeMap<String, String>>>,
     data: &TableType,
@@ -365,7 +367,7 @@ pub unsafe fn load_data(
 
             // If we have the dependency stuff enabled, check if it's a valid reference.
             if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.fields[index].is_reference.is_some() {
-                check_references(index as i32, item.as_mut_ptr(), dependency_data);
+                check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap());
             }
 
             add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
@@ -383,71 +385,12 @@ pub unsafe fn load_data(
         table_model.remove_rows_2a(0, 1);
     }
 
-    // Here we assing the ItemDelegates, so each type has his own widget with validation included.
-    // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-    let enable_lookups = false; //table_enable_lookups_button.is_checked();
-    for (column, field) in definition.fields.iter().enumerate() {
-
-        // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] {
-            match field.field_type {
-                FieldType::Boolean => {},
-                FieldType::Float => {
-                    new_doublespinbox_item_delegate_safe(&mut table_view_primary, column as i32);
-                    new_doublespinbox_item_delegate_safe(&mut table_view_frozen, column as i32);
-                },
-                FieldType::Integer => {
-                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 32);
-                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 32);
-                },
-                FieldType::LongInteger => {
-                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 64);
-                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 64);
-                },
-                FieldType::StringU8 |
-                FieldType::StringU16 |
-                FieldType::OptionalStringU8 |
-                FieldType::OptionalStringU16 => {
-                    new_qstring_item_delegate_safe(&mut table_view_primary, column as i32, field.max_length);
-                    new_qstring_item_delegate_safe(&mut table_view_frozen, column as i32, field.max_length);
-                },
-                FieldType::Sequence(_) => {}
-            }
-        }
-
-        // Otherwise, we have to check first if the column has references. If it does, replace the delegate with a combo.
-        else if let Some(data) = dependency_data.read().unwrap().get(&(column as i32)) {
-            let mut list = QStringList::new();
-            data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
-            new_combobox_item_delegate_safe(&mut table_view_primary, column as i32, list.as_ptr(), true, field.max_length);
-            new_combobox_item_delegate_safe(&mut table_view_frozen, column as i32, list.as_ptr(), true, field.max_length);
-        }
-        else {
-            match field.field_type {
-                FieldType::Boolean => {},
-                FieldType::Float => {
-                    new_doublespinbox_item_delegate_safe(&mut table_view_primary, column as i32);
-                    new_doublespinbox_item_delegate_safe(&mut table_view_frozen, column as i32);
-                },
-                FieldType::Integer => {
-                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 32);
-                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 32);
-                },
-                FieldType::LongInteger => {
-                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 64);
-                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 64);
-                },
-                FieldType::StringU8 |
-                FieldType::StringU16 |
-                FieldType::OptionalStringU8 |
-                FieldType::OptionalStringU16 => {
-                    new_qstring_item_delegate_safe(&mut table_view_primary, column as i32, field.max_length);
-                    new_qstring_item_delegate_safe(&mut table_view_frozen, column as i32, field.max_length);
-                },
-                FieldType::Sequence(_) => {}
-            }
-        }
-    }
+    setup_item_delegates(
+        table_view_primary,
+        table_view_frozen,
+        definition,
+        &dependency_data.read().unwrap()
+    )
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
@@ -660,6 +603,134 @@ unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name:
         // We only add the tooltip if we got something to put into it.
         if !tooltip_text.is_empty() {
             item.set_tool_tip(&QString::from_std_str(&tooltip_text));
+        }
+    }
+}
+
+/// This function returns the reference data for an entire table.
+pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32, BTreeMap<String, String>>> {
+
+    // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
+    let files_to_ignore = UI_STATE.get_open_packedfiles().keys().cloned().collect();
+    CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(definition.clone(), files_to_ignore));
+
+    let reference_data = definition.get_reference_data();
+    let mut dependency_data_visual = BTreeMap::new();
+
+    let open_packedfiles = UI_STATE.get_open_packedfiles();
+    for (index, (table, column, lookup)) in &reference_data {
+        let mut dependency_data_visual_column = BTreeMap::new();
+        for (path, packed_file_view) in open_packedfiles.iter() {
+            if path.len() == 3 && path[0].to_lowercase() == "db" && path[1].to_lowercase() == format!("{}_tables", table) {
+                if let ViewType::Internal(view) = packed_file_view.get_view() {
+                    if let View::Table(table) = view {
+                        let column = clean_column_names(column);
+                        let table_model = mut_ptr_from_atomic(&table.table_model);
+                        for column_index in 0..table_model.column_count_0a() {
+                            if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
+                                for row in 0..table_model.row_count_0a() {
+                                    let item = table_model.item_2a(row, column_index);
+                                    let value = item.text().to_std_string();
+                                    let lookup_value = match lookup {
+                                        Some(columns) => {
+                                            let data: Vec<String> = (0..table_model.column_count_0a()).filter(|x| {
+                                                columns.contains(&table_model.header_data_2a(*x, Orientation::Horizontal).to_string().to_std_string())
+                                            }).map(|x| table_model.item_2a(row, x).text().to_std_string()).collect();
+                                            data.join(" ")
+                                        },
+                                        None => String::new(),
+                                    };
+                                    dependency_data_visual_column.insert(value, lookup_value);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        dependency_data_visual.insert(index, dependency_data_visual_column);
+    }
+
+    let mut response = CENTRAL_COMMAND.recv_message_qt();
+    match response {
+        Response::BTreeMapI32BTreeMapStringString(ref mut dependency_data) => {
+            for index in reference_data.keys() {
+                if let Some(mut column_data_visual) = dependency_data_visual.get_mut(index) {
+                    if let Some(column_data) = dependency_data.get_mut(index) {
+                        column_data.append(&mut column_data_visual);
+                    }
+                }
+            }
+
+            Ok(dependency_data.clone())
+        },
+        Response::Error(error) => Err(error),
+        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+    }
+}
+
+/// This function sets up the item delegates for all columns in a table.
+pub unsafe fn setup_item_delegates(
+    mut table_view_primary: MutPtr<QTableView>,
+    mut table_view_frozen: MutPtr<QTableView>,
+    definition: &Definition,
+    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
+) {
+    let enable_lookups = false; //table_enable_lookups_button.is_checked();
+    for (column, field) in definition.fields.iter().enumerate() {
+
+        // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
+        if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() {
+            if let Some(data) = dependency_data.get(&(column as i32)) {
+                let mut list = QStringList::new();
+                data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                new_combobox_item_delegate_safe(&mut table_view_primary, column as i32, list.as_ptr(), true, field.max_length);
+                new_combobox_item_delegate_safe(&mut table_view_frozen, column as i32, list.as_ptr(), true, field.max_length);
+            }
+        }
+
+        else {
+            match field.field_type {
+                FieldType::Boolean => {},
+                FieldType::Float => {
+                    new_doublespinbox_item_delegate_safe(&mut table_view_primary, column as i32);
+                    new_doublespinbox_item_delegate_safe(&mut table_view_frozen, column as i32);
+                },
+                FieldType::Integer => {
+                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 32);
+                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 32);
+                },
+
+                // LongInteger uses normal string controls due to QSpinBox being limited to i32.
+                FieldType::LongInteger => {
+                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 64);
+                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 64);
+                },
+                FieldType::StringU8 |
+                FieldType::StringU16 |
+                FieldType::OptionalStringU8 |
+                FieldType::OptionalStringU16 => {
+                    new_qstring_item_delegate_safe(&mut table_view_primary, column as i32, field.max_length);
+                    new_qstring_item_delegate_safe(&mut table_view_frozen, column as i32, field.max_length);
+                },
+                FieldType::Sequence(_) => {}
+            }
+        }
+    }
+}
+
+/// This function checks an entire table for errors.
+pub unsafe fn check_table_for_error(
+    model: MutPtr<QStandardItemModel>,
+    definition: &Definition,
+    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
+) {
+    for (column, field) in definition.fields.iter().enumerate() {
+        if field.is_reference.is_some() {
+            for row in 0..model.row_count_0a() {
+                let item = model.item_2a(row, column as i32);
+                check_references(column as i32, item, dependency_data);
+            }
         }
     }
 }

@@ -41,7 +41,7 @@ use cpp_core::MutPtr;
 use cpp_core::Ref;
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use rpfm_lib::schema::Definition;
@@ -108,7 +108,7 @@ pub struct PackedFileTableViewRaw {
     pub search_data: Arc<RwLock<TableSearch>>,
 
     pub dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
-    pub table_definition: Arc<Definition>,
+    pub table_definition: Arc<RwLock<Definition>>,
 
     pub save_lock: Arc<AtomicBool>,
     pub undo_lock: Arc<AtomicBool>,
@@ -124,6 +124,11 @@ pub struct PackedFileTableViewRaw {
 
 /// Implementation of `PackedFileTableViewRaw`.
 impl PackedFileTableViewRaw {
+
+    /// This function returns a reference to the definition of this table.
+    pub fn get_ref_table_definition(&self) -> RwLockReadGuard<Definition> {
+        self.table_definition.read().unwrap()
+    }
 
     /// This function updates the state of the actions in the context menu.
     pub unsafe fn context_menu_update(&mut self) {
@@ -289,7 +294,7 @@ impl PackedFileTableViewRaw {
                     } else { new_value.to_owned() };
 
                     // Depending on the column, we try to encode the data in one format or another.
-                    match self.table_definition.fields[column as usize].field_type {
+                    match self.get_ref_table_definition().fields[column as usize].field_type {
                         FieldType::Boolean => {
                             let current_value = item.check_state();
                             let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
@@ -423,7 +428,7 @@ impl PackedFileTableViewRaw {
             .partition(|x|
                 indexes_sorted.iter()
                     .filter(|y| y.row() == x.row())
-                    .any(|z| self.table_definition.fields[z.column() as usize].is_key)
+                    .any(|z| self.get_ref_table_definition().fields[z.column() as usize].is_key)
             );
 
         let mut lua_table = self.get_indexes_as_lua_table(&intexed_keys, true);
@@ -520,7 +525,7 @@ impl PackedFileTableViewRaw {
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = item.text().to_std_string();
-                match self.table_definition.fields[column as usize].field_type {
+                match self.get_ref_table_definition().fields[column as usize].field_type {
                     FieldType::Boolean => {
                         let current_value = item.check_state();
                         let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
@@ -607,7 +612,7 @@ impl PackedFileTableViewRaw {
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = item.text().to_std_string();
-                match self.table_definition.fields[column as usize].field_type {
+                match self.get_ref_table_definition().fields[column as usize].field_type {
                     FieldType::Boolean => {
                         let current_value = item.check_state();
                         let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
@@ -703,7 +708,8 @@ impl PackedFileTableViewRaw {
                 // Depending on the column, we try to encode the data in one format or another, or we just skip it.
                 let real_column = horizontal_header.logical_index(visual_column);
                 let mut real_row = vertical_header.logical_index(visual_row);
-                if let Some(field) = self.table_definition.fields.get(real_column as usize) {
+                let fields = self.get_ref_table_definition().fields.to_vec();
+                if let Some(field) = fields.get(real_column as usize) {
 
                     // Check if, according to the definition, we have a valid value for the type.
                     let is_valid_data = match field.field_type {
@@ -728,7 +734,7 @@ impl PackedFileTableViewRaw {
                         // If real_row is -1 (invalid), then we need to add an empty row to the model (NOT TO THE FILTER)
                         // because that means we have no row for that position, and we need one.
                         if real_row == -1 {
-                            let row = get_new_row(&self.table_definition);
+                            let row = get_new_row(&self.get_ref_table_definition());
                             self.table_model.append_row_q_list_of_q_standard_item(&row);
                             real_row = self.table_model.row_count_0a() - 1;
                             added_rows += 1;
@@ -759,7 +765,8 @@ impl PackedFileTableViewRaw {
 
             // Depending on the column, we try to encode the data in one format or another.
             let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
-            match self.table_definition.fields[real_cell.column() as usize].field_type {
+            let fields = self.get_ref_table_definition().fields.to_vec();
+            match fields[real_cell.column() as usize].field_type {
 
                 FieldType::Boolean => {
                     let current_value = self.table_model.item_from_index(real_cell).check_state();
@@ -1030,7 +1037,7 @@ impl PackedFileTableViewRaw {
                     if current_row == row {
                         let entry = table_data.last_mut().unwrap();
                         let data = self.get_escaped_lua_string_from_index(*index);
-                        if entry.0.is_none() && self.table_definition.fields[index.column() as usize].is_key {
+                        if entry.0.is_none() && self.get_ref_table_definition().fields[index.column() as usize].is_key {
                             entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         entry.1.push(data);
@@ -1041,7 +1048,7 @@ impl PackedFileTableViewRaw {
                         let mut entry = (None, vec![]);
                         let data = self.get_escaped_lua_string_from_index(*index);
                         entry.1.push(data.to_string());
-                        if entry.0.is_none() && self.table_definition.fields[index.column() as usize].is_key {
+                        if entry.0.is_none() && self.get_ref_table_definition().fields[index.column() as usize].is_key {
                             entry.0 = Some(self.escape_string_from_index(*index));
                         }
                         table_data.push(entry);
@@ -1051,7 +1058,7 @@ impl PackedFileTableViewRaw {
                     let mut entry = (None, vec![]);
                     let data = self.get_escaped_lua_string_from_index(*index);
                     entry.1.push(data.to_string());
-                    if entry.0.is_none() && self.table_definition.fields[index.column() as usize].is_key {
+                    if entry.0.is_none() && self.get_ref_table_definition().fields[index.column() as usize].is_key {
                         entry.0 = Some(self.escape_string_from_index(*index));
                     }
                     table_data.push(entry);
@@ -1106,13 +1113,13 @@ impl PackedFileTableViewRaw {
 
     /// This function turns the data from the provided indexes into LUA compatible strings.
     unsafe fn get_escaped_lua_string_from_index(&self, index: Ref<QModelIndex>) -> String {
-        format!(" [\"{}\"] = {},", self.table_definition.fields[index.column() as usize].name, self.escape_string_from_index(index))
+        format!(" [\"{}\"] = {},", self.get_ref_table_definition().fields[index.column() as usize].name, self.escape_string_from_index(index))
     }
 
     /// This function escapes the value inside an index.
     unsafe fn escape_string_from_index(&self, index: Ref<QModelIndex>) -> String {
         let item = self.table_model.item_from_index(index);
-        let fields = &self.table_definition.fields;
+        let fields = &self.get_ref_table_definition().fields;
         match fields[index.column() as usize].field_type {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
@@ -1173,7 +1180,7 @@ impl PackedFileTableViewRaw {
             rows
         } else {
             let color = get_color_added();
-            let mut row = get_new_row(&self.table_definition);
+            let mut row = get_new_row(&self.get_ref_table_definition());
             for index in 0..row.count() {
                 row.index(index).as_mut().unwrap().set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
             }
@@ -1208,7 +1215,7 @@ impl PackedFileTableViewRaw {
 
         // If nothing is selected, we just append one new row at the end. This only happens when adding empty rows, so...
         if indexes_sorted.is_empty() {
-            let row = get_new_row(&self.table_definition);
+            let row = get_new_row(&self.get_ref_table_definition());
             self.table_model.append_row_q_list_of_q_standard_item(&row);
             row_numbers.push(self.table_model.row_count_0a() - 1);
         }
@@ -1230,7 +1237,7 @@ impl PackedFileTableViewRaw {
                 qlist
             } else {
                 let color = get_color_added();
-                let mut row = get_new_row(&self.table_definition);
+                let mut row = get_new_row(&self.get_ref_table_definition());
                 for index in 0..row.count() {
                     row.index(index).as_mut().unwrap().set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
                 }

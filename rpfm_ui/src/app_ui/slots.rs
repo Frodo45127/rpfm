@@ -50,7 +50,8 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
 use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::TheOneSlot;
+use crate::packedfile_views::{TheOneSlot, View, ViewType};
+use crate::packedfile_views::table::utils::{check_table_for_error, get_reference_data, setup_item_delegates};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
@@ -141,6 +142,7 @@ pub struct AppUISlots {
     // `PackedFileView` slots.
     //-----------------------------------------------//
     pub packed_file_hide: SlotOfInt<'static>,
+    pub packed_file_update: SlotOfInt<'static>,
 }
 
 pub struct AppUITempSlots {
@@ -1106,25 +1108,58 @@ impl AppUISlots {
 
             // PackFile Views must be deleted on close.
             let mut purge_on_delete = vec![];
-            {
-                let open_packedfiles = UI_STATE.set_open_packedfiles();
-                for (path, packed_file_view) in open_packedfiles.iter() {
-                    let widget = packed_file_view.get_mut_widget();
-                    if app_ui.tab_bar_packed_file.index_of(widget) == index {
-
-                        if !path.is_empty() && path.starts_with(&["extra_packfile.rpfm_reserved".to_owned()]) {
-                            purge_on_delete = path.to_vec();
-                            CENTRAL_COMMAND.send_message_qt(Command::ResetPackFileExtra);
-                        }
-                        break;
+            let mut tab_index = -1;
+            for (path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+                let widget = packed_file_view.get_mut_widget();
+                if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                    tab_index = index;
+                    if !path.is_empty() && path.starts_with(&["extra_packfile.rpfm_reserved".to_owned()]) {
+                        purge_on_delete = path.to_vec();
+                        CENTRAL_COMMAND.send_message_qt(Command::ResetPackFileExtra);
                     }
+                    break;
                 }
+            }
 
-                app_ui.tab_bar_packed_file.remove_tab(index);
+            if tab_index != -1 {
+                app_ui.tab_bar_packed_file.remove_tab(tab_index);
             }
 
             if !purge_on_delete.is_empty() {
                 app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
+            }
+        });
+
+        let packed_file_update = SlotOfInt::new(move |index| {
+            if index == -1 { return; }
+
+            for packed_file_view in UI_STATE.get_open_packedfiles().values() {
+                let widget = packed_file_view.get_mut_widget();
+                if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                    if let ViewType::Internal(view) = packed_file_view.get_view() {
+
+                        // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
+                        if let View::Table(table) = view {
+                            if let Ok(data) = get_reference_data(&table.get_ref_table_definition()) {
+                                table.set_dependency_data(&data);
+
+                                setup_item_delegates(
+                                    table.get_mut_ptr_table_view_primary(),
+                                    table.get_mut_ptr_table_view_frozen(),
+                                    &table.get_ref_table_definition(),
+                                    &data
+                                );
+
+                                check_table_for_error(
+                                    table.get_mut_ptr_table_model(),
+                                    &table.get_ref_table_definition(),
+                                    &data
+                                );
+                            }
+                        }
+                    }
+                    break;
+                }
             }
         });
 
@@ -1204,6 +1239,7 @@ impl AppUISlots {
             // `PackedFileView` slots.
             //-----------------------------------------------//
             packed_file_hide,
+            packed_file_update
 		}
 	}
 }

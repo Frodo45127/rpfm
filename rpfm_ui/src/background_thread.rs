@@ -543,7 +543,7 @@ pub fn background_loop() {
             }
 
             // In case we want to get the reference data for a definition...
-            Command::GetReferenceDataFromDefinition(definition) => {
+            Command::GetReferenceDataFromDefinition(definition, files_to_ignore) => {
                 let dependency_data = match &*SCHEMA.read().unwrap() {
                     Some(ref schema) => {
                         let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
@@ -554,7 +554,8 @@ pub fn background_loop() {
                             schema,
                             &definition,
                             &mut dep_db,
-                            &fake_dep_db
+                            &fake_dep_db,
+                            &files_to_ignore,
                         )
                     }
                     None => BTreeMap::new(),

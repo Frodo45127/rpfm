@@ -20,7 +20,7 @@ use qt_core::CheckState;
 
 use cpp_core::MutPtr;
 
-use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -70,7 +70,7 @@ pub mod utils;
 /// This struct contains the widget of the view of a PackedFile and his info.
 pub struct PackedFileView {
     widget: AtomicPtr<QWidget>,
-    is_preview: bool,
+    is_preview: AtomicBool,
     view: ViewType,
     packed_file_type: PackedFileType,
 }
@@ -122,7 +122,7 @@ impl Default for PackedFileView {
         let widget_ptr = unsafe { QWidget::new_0a().into_ptr() };
         let widget = atomic_from_mut_ptr(widget_ptr);
         unsafe { create_grid_layout(widget_ptr); }
-        let is_preview = false;
+        let is_preview = AtomicBool::new(false);
         let view = ViewType::Internal(View::None);
         let packed_file_type = PackedFileType::Unknown;
         Self {
@@ -144,12 +144,12 @@ impl PackedFileView {
 
     /// This function returns if the `PackedFileView` is a preview or not.
     pub fn get_is_preview(&self) -> bool {
-        self.is_preview
+        self.is_preview.load(Ordering::SeqCst)
     }
 
     /// This function allows you to set a `PackedFileView` as a preview or normal view.
-    pub fn set_is_preview(&mut self, is_preview: bool) {
-        self.is_preview = is_preview;
+    pub fn set_is_preview(&self, is_preview: bool) {
+        self.is_preview.store(is_preview, Ordering::SeqCst);
     }
 
     /// This function returns the ViewType of the specific `PackedFile`.
@@ -206,12 +206,12 @@ impl PackedFileView {
 
                         match self.packed_file_type {
                             PackedFileType::DB => {
-                                let mut table = DB::new(view.get_ref_table_name(), view.get_ref_table_definition());
+                                let mut table = DB::new(view.get_ref_table_name(), &view.get_ref_table_definition());
                                 table.set_table_data(&entries)?;
                                 DecodedPackedFile::DB(table)
                             }
                             PackedFileType::Loc => {
-                                let mut table = Loc::new(view.get_ref_table_definition());
+                                let mut table = Loc::new(&view.get_ref_table_definition());
                                 table.set_table_data(&entries)?;
                                 DecodedPackedFile::Loc(table)
                             }

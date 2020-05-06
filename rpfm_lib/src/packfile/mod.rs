@@ -1465,7 +1465,7 @@ impl PackFile {
 
                 for packed_file in self.get_packed_files_by_path_start(&["db".to_owned()]) {
                     if let DecodedPackedFile::DB(table) = packed_file.get_ref_decoded() {
-                        let dependency_data = DB::get_dependency_data(self, schema, &table.get_definition(), &mut real_dep_db, &fake_dep_db);
+                        let dependency_data = DB::get_dependency_data(self, schema, &table.get_definition(), &mut real_dep_db, &fake_dep_db, &[]);
 
                         // If we got some dependency data (the referenced tables actually exists), check every
                         // referenced field of every referenced column for errors.

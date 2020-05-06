@@ -65,6 +65,7 @@ use ron::de::{from_str, from_reader};
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
+use std::collections::BTreeMap;
 use std::cmp::Ordering;
 use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
@@ -707,6 +708,15 @@ impl Definition {
             localised_fields: vec![],
             fields: vec![],
         }
+    }
+
+    /// This function returns the reference and lookup data of a definition.
+    pub fn get_reference_data(&self) -> BTreeMap<i32, (String, String, Option<Vec<String>>)> {
+        self.fields.iter()
+            .enumerate()
+            .filter(|x| x.1.is_reference.is_some())
+            .map(|x| (x.0 as i32, (x.1.is_reference.clone().unwrap().0, x.1.is_reference.clone().unwrap().1, x.1.lookup.clone())))
+            .collect()
     }
 
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.

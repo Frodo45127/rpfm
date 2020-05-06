@@ -129,4 +129,5 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     // `PackedFileView` connections.
     //-----------------------------------------------//
     app_ui.tab_bar_packed_file.tab_close_requested().connect(&slots.packed_file_hide);
+    app_ui.tab_bar_packed_file.current_changed().connect(&slots.packed_file_update);
 }

@@ -208,8 +208,8 @@ impl PackedFileTableViewSlots {
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
                     let column = item.column();
-                    if packed_file_view.table_definition.fields[column as usize].is_reference.is_some() {
-                        check_references(column, item, &packed_file_view.dependency_data);
+                    if packed_file_view.get_ref_table_definition().fields[column as usize].is_reference.is_some() {
+                        check_references(column, item, &packed_file_view.dependency_data.read().unwrap());
                     }
                 }
 
@@ -397,7 +397,7 @@ impl PackedFileTableViewSlots {
                             load_data(
                                 packed_file_view.table_view_primary,
                                 packed_file_view.table_view_frozen,
-                                &packed_file_view.table_definition,
+                                &packed_file_view.get_ref_table_definition(),
                                 &packed_file_view.dependency_data,
                                 &data
                             );
@@ -410,7 +410,7 @@ impl PackedFileTableViewSlots {
                             build_columns(
                                 packed_file_view.table_view_primary,
                                 packed_file_view.table_view_frozen,
-                                &packed_file_view.table_definition,
+                                &packed_file_view.get_ref_table_definition(),
                                 &table_name
                             );
 
@@ -513,7 +513,7 @@ impl PackedFileTableViewSlots {
                     for column in columns {
                         let mut item = packed_file_view.table_model.item_2a(*row, *column);
                         let current_value = item.text().to_std_string();
-                        match packed_file_view.table_definition.fields[*column as usize].field_type {
+                        match packed_file_view.get_ref_table_definition().fields[*column as usize].field_type {
                             FieldType::Boolean => {
                                 let current_value = item.check_state();
                                 if current_value != CheckState::Unchecked {
@@ -610,7 +610,7 @@ impl PackedFileTableViewSlots {
 
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
-        let mut fields = packed_file_view.table_definition.fields.iter()
+        let mut fields = packed_file_view.get_ref_table_definition().fields.iter()
             .enumerate()
             .map(|(x, y)| (x as i32, y.ca_order))
             .collect::<Vec<(i32, i16)>>();

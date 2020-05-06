@@ -119,22 +119,22 @@ impl AppUI {
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
     ) {
 
-        // Black magic.
-        let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-        for (path, packed_file_view) in open_packedfiles.iter_mut() {
+        for (path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
 
             // TODO: This should report an error.
             let _ = packed_file_view.save(path, self, global_search_ui, &mut pack_file_contents_ui);
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
-            self.tab_bar_packed_file.remove_tab(index);
+            if index != -1 {
+                self.tab_bar_packed_file.remove_tab(index);
+            }
 
             // Delete the widget manually to free memory.
             widget.delete_later();
         }
 
         // Remove all open PackedFiles and their slots.
-        open_packedfiles.clear();
+        UI_STATE.set_open_packedfiles().clear();
         slot_holder.borrow_mut().clear();
 
         // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
@@ -153,8 +153,7 @@ impl AppUI {
     ) {
 
         // Black magic to remove widgets.
-        let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-        if let Some(packed_file_view) = open_packedfiles.get_mut(path) {
+        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(path) {
             if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
 
                 // TODO: This should report an error.
@@ -162,20 +161,22 @@ impl AppUI {
             }
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
-            self.tab_bar_packed_file.remove_tab(index);
+            if index != -1 {
+                self.tab_bar_packed_file.remove_tab(index);
+            }
 
             // Delete the widget manually to free memory.
             widget.delete_later();
         }
 
         if !path.is_empty() {
-            open_packedfiles.remove(path);
+            UI_STATE.set_open_packedfiles().remove(path);
             if path != ["extra_packfile.rpfm_reserved".to_owned()] {
 
                 // We check if there are more tables open. This is because we cannot change the GameSelected
                 // when there is a PackedFile using his Schema.
                 let mut enable_game_selected_menu = true;
-                for path in open_packedfiles.keys() {
+                for path in UI_STATE.get_open_packedfiles().keys() {
                     if let Some(folder) = path.get(0) {
                         if folder.to_lowercase() == "db" {
                             enable_game_selected_menu = false;
@@ -1035,7 +1036,7 @@ impl AppUI {
 
                 // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
                 // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
-                if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(path) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().get(path) {
                     if !is_external {
                         let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
@@ -1059,7 +1060,7 @@ impl AppUI {
                 }
 
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
-                if is_external && UI_STATE.set_open_packedfiles().get_mut(path).is_some() {
+                if is_external && UI_STATE.get_open_packedfiles().get(path).is_some() {
                     self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, path, true)
                 }
 
@@ -1257,7 +1258,7 @@ impl AppUI {
                 }
 
                 // If the decoder is already open, or it's hidden, we show it/focus it, instead of opening it again.
-                if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(&fake_path) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().get(&fake_path) {
                     let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                     if index == -1 {
@@ -1315,7 +1316,7 @@ impl AppUI {
             }
 
             // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
-            if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(&path) {
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().get(&path) {
                 let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
@@ -1372,7 +1373,7 @@ impl AppUI {
             }
 
             // If the notes are already open, or are hidden, we show them/focus them, instead of opening them again.
-            if let Some(ref mut tab_widget) = UI_STATE.set_open_packedfiles().get_mut(&path) {
+            if let Some(ref mut tab_widget) = UI_STATE.get_open_packedfiles().get(&path) {
                 let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {

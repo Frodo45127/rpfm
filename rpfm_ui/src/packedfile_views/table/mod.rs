@@ -45,7 +45,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::{fmt, fmt::Debug};
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use rpfm_error::{ErrorKind, Result};
@@ -78,7 +78,7 @@ pub mod slots;
 mod raw;
 mod shortcuts;
 mod tips;
-mod utils;
+pub mod utils;
 
 // Column default sizes.
 static COLUMN_SIZE_BOOLEAN: i32 = 100;
@@ -182,7 +182,7 @@ pub struct PackedFileTableView {
     search_column_selector: AtomicPtr<QComboBox>,
 
     table_name: String,
-    table_definition: Arc<Definition>,
+    table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
 
     undo_model: AtomicPtr<QStandardItemModel>,
@@ -232,13 +232,7 @@ impl PackedFileTableView {
         };
 
         // Get the dependency data of this Table.
-        CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(table_definition.clone()));
-        let response = CENTRAL_COMMAND.recv_message_qt();
-        let dependency_data = match response {
-            Response::BTreeMapI32BTreeMapStringString(dependency_data) => dependency_data,
-            Response::Error(error) => return Err(error),
-            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-        };
+        let dependency_data = get_reference_data(&table_definition)?;
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
         let undo_lock = Arc::new(AtomicBool::new(false));
@@ -492,7 +486,7 @@ impl PackedFileTableView {
             search_widget,
 
             dependency_data: Arc::new(RwLock::new(dependency_data)),
-            table_definition: Arc::new(table_definition),
+            table_definition: Arc::new(RwLock::new(table_definition)),
 
             undo_lock,
             save_lock,
@@ -563,7 +557,7 @@ impl PackedFileTableView {
         load_data(
             packed_file_table_view_raw.table_view_primary,
             packed_file_table_view_raw.table_view_frozen,
-            &packed_file_table_view_raw.table_definition,
+            &packed_file_table_view_raw.table_definition.read().unwrap(),
             &packed_file_table_view_raw.dependency_data,
             &table_data
         );
@@ -580,7 +574,7 @@ impl PackedFileTableView {
         build_columns(
             packed_file_table_view_raw.table_view_primary,
             packed_file_table_view_raw.table_view_frozen,
-            &packed_file_table_view_raw.table_definition,
+            &packed_file_table_view_raw.table_definition.read().unwrap(),
             &packed_file_name
         );
 
@@ -613,14 +607,14 @@ impl PackedFileTableView {
             _ => unimplemented!(),
         };
 
-        self.table_definition = Arc::new(table_definition);
+        *self.table_definition.write().unwrap() = table_definition;
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
         load_data(
             table_view_primary,
             table_view_frozen,
-            &self.table_definition,
+            &self.get_ref_table_definition(),
             &self.dependency_data,
             &data
         );
@@ -634,7 +628,7 @@ impl PackedFileTableView {
         build_columns(
             table_view_primary,
             table_view_frozen,
-            &self.table_definition,
+            &self.get_ref_table_definition(),
             &self.table_name
         );
 
@@ -644,7 +638,7 @@ impl PackedFileTableView {
         filter_column_selector.clear();
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
-        for column in &self.table_definition.fields {
+        for column in &self.table_definition.read().unwrap().fields {
             let name = QString::from_std_str(&utils::clean_column_names(&column.name));
             filter_column_selector.add_item_q_string(&name);
             search_column_selector.add_item_q_string(&name);
@@ -830,8 +824,13 @@ impl PackedFileTableView {
     }
 
     /// This function returns a reference to the definition of this table.
-    pub fn get_ref_table_definition(&self) -> &Definition {
-        &self.table_definition
+    pub fn get_ref_table_definition(&self) -> RwLockReadGuard<Definition> {
+        self.table_definition.read().unwrap()
+    }
+
+    /// This function allows you to set a new dependency data to an already created table.
+    pub fn set_dependency_data(&self, data: &BTreeMap<i32, BTreeMap<String, String>>) {
+        *self.dependency_data.write().unwrap() = data.clone();
     }
 }
 
@@ -1133,11 +1132,11 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.table_definition.fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.get_ref_table_definition().fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.table_definition, flags, *column);
+                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.get_ref_table_definition(), flags, *column);
             }
         }
 
@@ -1156,7 +1155,7 @@ impl TableSearch {
             table_search.column = {
                 let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
                 if column == "*_(all_columns)" { None }
-                else { Some(parent.table_definition.fields.iter().position(|x| x.name == column).unwrap() as i32) }
+                else { Some(parent.get_ref_table_definition().fields.iter().position(|x| x.name == column).unwrap() as i32) }
             };
 
             let mut flags = if table_search.regex {
@@ -1171,11 +1170,11 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.table_definition.fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.get_ref_table_definition().fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.table_definition, flags, *column);
+                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.get_ref_table_definition(), flags, *column);
             }
         }
 
@@ -1220,7 +1219,7 @@ impl TableSearch {
                 if model_index.is_valid() {
                     item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
 
-                    if parent.table_definition.fields[model_index.column() as usize].field_type == FieldType::Boolean {
+                    if parent.get_ref_table_definition().fields[model_index.column() as usize].field_type == FieldType::Boolean {
                         replaced_text = text_replace;
                     }
                     else {
@@ -1229,7 +1228,7 @@ impl TableSearch {
                     }
 
                     // We need to do an extra check to ensure the new text can be in the field.
-                    match parent.table_definition.fields[model_index.column() as usize].field_type {
+                    match parent.get_ref_table_definition().fields[model_index.column() as usize].field_type {
                         FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1240,7 +1239,7 @@ impl TableSearch {
             } else { return }
 
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
-            match parent.table_definition.fields[item.column() as usize].field_type {
+            match parent.get_ref_table_definition().fields[item.column() as usize].field_type {
                 FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                 FieldType::Float => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                 FieldType::Integer => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
@@ -1286,7 +1285,7 @@ impl TableSearch {
                     if model_index.is_valid() {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
 
-                        let replaced_text = if parent.table_definition.fields[model_index.column() as usize].field_type == FieldType::Boolean {
+                        let replaced_text = if parent.get_ref_table_definition().fields[model_index.column() as usize].field_type == FieldType::Boolean {
                             text_replace.to_owned()
                         }
                         else {
@@ -1295,7 +1294,7 @@ impl TableSearch {
                         };
 
                         // We need to do an extra check to ensure the new text can be in the field.
-                        match parent.table_definition.fields[model_index.column() as usize].field_type {
+                        match parent.get_ref_table_definition().fields[model_index.column() as usize].field_type {
                             FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1311,7 +1310,7 @@ impl TableSearch {
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             for (model_index, replaced_text) in &positions_and_texts {
                 let mut item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                match parent.table_definition.fields[item.column() as usize].field_type {
+                match parent.get_ref_table_definition().fields[item.column() as usize].field_type {
                     FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::Float => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::Integer => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),

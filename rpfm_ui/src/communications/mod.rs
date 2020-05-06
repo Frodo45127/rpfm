@@ -228,7 +228,8 @@ pub enum Command {
     AddPackedFilesFromFolder(Vec<(PathBuf, Vec<String>)>),
 
     /// This command is used to decode all tables referenced by columns in the provided definition and return their data.
-    GetReferenceDataFromDefinition(Definition),
+    /// It requires the definition of the table to get the reference data from and the list of PackedFiles to ignore.
+    GetReferenceDataFromDefinition(Definition, Vec<Vec<String>>),
 
     /// This command is used to get the list of PackFiles that are marked as dependency of our PackFile.
     GetDependencyPackFilesList,
