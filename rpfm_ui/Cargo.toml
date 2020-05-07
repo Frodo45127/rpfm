@@ -47,9 +47,9 @@ meval = "^0.2"
 uuid = { version = "^0.8", features = ["v4"] }
 
 # Translation support.
-fluent = "^0.11"
-fluent-bundle = "^0.11"
-unic-langid = { version = "^0.8", features = ["unic-langid-macros"] }
+fluent = "^0.12"
+fluent-bundle = "^0.12"
+unic-langid = { version = "^0.9", features = ["unic-langid-macros"] }
 
 # Improved multi-thread Support.
 crossbeam = "^0.7"

@@ -20,12 +20,13 @@ use qt_core::QString;
 use cpp_core::CppBox;
 
 use fluent_bundle::{FluentResource, concurrent::FluentBundle};
-use unic_langid::{langid, LanguageIdentifier};
+use unic_langid::{langid, LanguageIdentifier, subtags::Language};
 
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::str::FromStr;
 
 use rpfm_error::{Error, ErrorKind, Result};
 use rpfm_lib::common::get_files_from_subdir;
@@ -57,7 +58,7 @@ impl Locale {
         if lang_info.len() == 2 {
             let lang_id = lang_info[1];
             let locales = Self::get_available_locales()?;
-            let selected_locale = locales.iter().map(|x| x.1.clone()).find(|x| x.language() == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
+            let selected_locale = locales.iter().map(|x| x.1.clone()).find(|x| x.language == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
             let locale = format!("{}/{}.ftl", LOCALE_FOLDER, file_name);
 
             // If found, load the entire file to a string.
@@ -102,10 +103,9 @@ impl Locale {
             let language = file.file_stem().unwrap().to_string_lossy().to_string();
             let lang_info = language.split('_').collect::<Vec<&str>>();
             if lang_info.len() == 2 {
-                let lang_id = lang_info[1];
-                if let Ok(language_id) = LanguageIdentifier::from_parts(Some(lang_id), None, None, &[]) {
-                    languages.push((lang_info[0].to_owned(), language_id));
-                }
+                let lang_id = Language::from_str(lang_info[1]).unwrap();
+                let language_id = LanguageIdentifier::from_parts(lang_id, None, None, &[]);
+                languages.push((lang_info[0].to_owned(), language_id));
             }
         }
         Ok(languages)
