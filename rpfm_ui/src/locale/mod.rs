@@ -33,6 +33,7 @@ use rpfm_lib::common::get_files_from_subdir;
 
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
+use crate::RPFM_PATH;
 
 /// Name of the folder containing all the schemas.
 const LOCALE_FOLDER: &str = "locale";
@@ -99,7 +100,7 @@ impl Locale {
     /// This function returns a list of all the languages we have translation files for in the `("English", "en")` form.
     pub fn get_available_locales() -> Result<Vec<(String, LanguageIdentifier)>> {
         let mut languages = vec![];
-        for file in get_files_from_subdir(Path::new("locale"))? {
+        for file in get_files_from_subdir(&RPFM_PATH.to_path_buf().join(Path::new("locale")))? {
             let language = file.file_stem().unwrap().to_string_lossy().to_string();
             let lang_info = language.split('_').collect::<Vec<&str>>();
             if lang_info.len() == 2 {
