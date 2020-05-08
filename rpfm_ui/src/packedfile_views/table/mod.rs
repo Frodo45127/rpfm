@@ -253,7 +253,12 @@ impl PackedFileTableView {
         // Setup tight mode if the setting is enabled.
         if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
             table_view_primary.vertical_header().set_minimum_section_size(22);
+            table_view_primary.vertical_header().set_maximum_section_size(22);
             table_view_primary.vertical_header().set_default_section_size(22);
+
+            table_view_frozen.vertical_header().set_minimum_section_size(22);
+            table_view_frozen.vertical_header().set_maximum_section_size(22);
+            table_view_frozen.vertical_header().set_default_section_size(22);
         }
 
         // Create the filter's widgets.
