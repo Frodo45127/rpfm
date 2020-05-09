@@ -358,28 +358,31 @@ pub unsafe fn load_data(
         TableType::Loc(data) => data.get_ref_table_data(),
     };
 
-    // Load the data, row by row.
-    let mut blocker = QSignalBlocker::from_q_object(table_model.static_upcast_mut::<QObject>());
-    for (index, entry) in data.iter().enumerate() {
-        let mut qlist = QListOfQStandardItem::new();
-        for (index, field) in entry.iter().enumerate() {
-            let mut item = get_item_from_decoded_data(field);
+    if !data.is_empty() {
 
-            // If we have the dependency stuff enabled, check if it's a valid reference.
-            if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.fields[index].is_reference.is_some() {
-                check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap());
+        // Load the data, row by row.
+        let mut blocker = QSignalBlocker::from_q_object(table_model.static_upcast_mut::<QObject>());
+        for (index, entry) in data.iter().enumerate() {
+            let mut qlist = QListOfQStandardItem::new();
+            for (index, field) in entry.iter().enumerate() {
+                let mut item = get_item_from_decoded_data(field);
+
+                // If we have the dependency stuff enabled, check if it's a valid reference.
+                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.fields[index].is_reference.is_some() {
+                    check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap());
+                }
+
+                add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
             }
-
-            add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
+            if index == data.len() - 1 {
+                blocker.unblock();
+            }
+            table_model.append_row_q_list_of_q_standard_item(&qlist);
         }
-        if index == data.len() - 1 {
-            blocker.unblock();
-        }
-        table_model.append_row_q_list_of_q_standard_item(&qlist);
     }
 
     // If the table it's empty, we add an empty row and delete it, so the "columns" get created.
-    if data.is_empty() {
+    else {
         let qlist = get_new_row(&definition);
         table_model.append_row_q_list_of_q_standard_item(&qlist);
         table_model.remove_rows_2a(0, 1);
