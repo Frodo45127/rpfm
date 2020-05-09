@@ -88,6 +88,14 @@ enum MatchingMode {
     Pattern,
 }
 
+/// This enum is a way to put toguether all kind of matches.
+#[derive(Debug, Clone)]
+pub enum MatchHolder {
+    Table(TableMatches),
+    Text(TextMatches),
+    Schema(SchemaMatches),
+}
+
 //---------------------------------------------------------------p----------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -262,6 +270,82 @@ impl GlobalSearch {
         let paths = paths.iter().filter_map(|x| if let PathType::File(path) = x { Some(&**path) } else { None }).collect();
         let packed_files = pack_file.get_ref_packed_files_by_paths(paths);
         packed_files.iter().map(|x| From::from(*x)).collect()
+    }
+
+    /// This function performs a replace operation over the provided matches.
+    ///
+    /// NOTE: Schema matches are always ignored.
+    pub fn replace_matches(&mut self, pack_file: &mut PackFile, matches: &[MatchHolder]) -> Vec<Vec<String>>{
+        let mut errors = vec![];
+
+        // If we want to use regex and the pattern is invalid, don't search.
+        let matching_mode = if self.use_regex {
+            if let Ok(regex) = RegexBuilder::new(&self.pattern).case_insensitive(self.case_sensitive).build() {
+                MatchingMode::Regex(regex)
+            }
+            else { MatchingMode::Pattern }
+        } else { MatchingMode::Pattern };
+        let schema = &*SCHEMA.read().unwrap();
+        if let Some(ref schema) = schema {
+            let mut changed_files = vec![];
+            for match_file in matches {
+                match match_file {
+                    MatchHolder::Table(match_table) => {
+                        if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&match_table.path) {
+                            if let Ok(packed_file) = packed_file.decode_return_ref_mut_no_locks(&schema) {
+                                match packed_file {
+                                    DecodedPackedFile::DB(ref mut table) => {
+                                        let mut data = table.get_table_data();
+                                        for match_data in &match_table.matches {
+
+                                            // If any replace in the table fails, forget about this one and try the next one.
+                                            if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
+                                                changed_files.retain(|x| x != &match_table.path);
+                                                errors.push(match_table.path.to_vec());
+                                                break;
+                                            }
+                                        }
+
+                                        if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                                            changed_files.retain(|x| x != &match_table.path);
+                                            errors.push(match_table.path.to_vec());
+                                        }
+                                    }
+                                    DecodedPackedFile::Loc(ref mut table)=> {
+                                        let mut data = table.get_table_data();
+                                        for match_data in &match_table.matches {
+
+                                            // If any replace in the table fails, forget about this one and try the next one.
+                                            if self.replace_match_table(&mut data, &mut changed_files, match_table, match_data, &matching_mode).is_err() {
+                                                changed_files.retain(|x| x != &match_table.path);
+                                                errors.push(match_table.path.to_vec());
+                                                break;
+                                            }
+                                        }
+
+                                        if changed_files.contains(&match_table.path) && table.set_table_data(&data).is_err() {
+                                            changed_files.retain(|x| x != &match_table.path);
+                                            errors.push(match_table.path.to_vec());
+                                        }
+                                    }
+                                    _ => unimplemented!()
+                                }
+                            }
+                        }
+                    }
+
+                    // TODO.
+                    MatchHolder::Text(_) => {
+
+                    }
+                    MatchHolder::Schema(_) => continue,
+                }
+            }
+
+            let changed_files = changed_files.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>();
+            self.update(pack_file, &changed_files);
+        }
+        errors
     }
 
     /// This function performs a replace operation over the entire match set, except schemas..

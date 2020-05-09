@@ -37,6 +37,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 pub struct GlobalSearchSlots {
     pub global_search_search: Slot<'static>,
     pub global_search_clear: Slot<'static>,
+    pub global_search_replace_current: Slot<'static>,
     pub global_search_replace_all: Slot<'static>,
     pub global_search_check_regex: SlotOfQString<'static>,
     pub global_search_open_match: SlotOfQModelIndex<'static>,
@@ -72,13 +73,18 @@ impl GlobalSearchSlots {
             global_search_ui.clear();
         });
 
+        // What happens when we trigger the "Replace Current" action.
+        let global_search_replace_current = Slot::new(clone!(
+            mut pack_file_contents_ui => move || {
+            global_search_ui.replace_current(&mut pack_file_contents_ui);
+        }));
+
         // What happens when we trigger the "Replace All" action.
         let global_search_replace_all = Slot::new(clone!(
             mut pack_file_contents_ui,
             mut slot_holder => move || {
             global_search_ui.replace_all(&mut app_ui, &mut pack_file_contents_ui, &slot_holder);
         }));
-
 
         // What happens when we trigger the "Check Regex" action.
         let global_search_check_regex = SlotOfQString::new(move |string| {
@@ -152,6 +158,7 @@ impl GlobalSearchSlots {
 		Self {
             global_search_search,
             global_search_clear,
+            global_search_replace_current,
             global_search_replace_all,
             global_search_check_regex,
             global_search_open_match,

@@ -23,6 +23,7 @@ use super::{GlobalSearchUI, slots::GlobalSearchSlots};
 pub unsafe fn set_connections(global_search_ui: &GlobalSearchUI, slots: &GlobalSearchSlots) {
     global_search_ui.global_search_search_button.released().connect(&slots.global_search_search);
     global_search_ui.global_search_clear_button.released().connect(&slots.global_search_clear);
+    global_search_ui.global_search_replace_button.released().connect(&slots.global_search_replace_current);
     global_search_ui.global_search_replace_all_button.released().connect(&slots.global_search_replace_all);
     global_search_ui.global_search_search_line_edit.return_pressed().connect(&slots.global_search_search);
     global_search_ui.global_search_search_line_edit.text_changed().connect(&slots.global_search_check_regex);

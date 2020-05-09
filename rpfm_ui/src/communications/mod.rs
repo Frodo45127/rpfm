@@ -23,6 +23,7 @@ use std::process::exit;
 use rpfm_error::Error;
 
 use rpfm_lib::global_search::GlobalSearch;
+use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::image::Image;
@@ -220,6 +221,9 @@ pub enum Command {
 
     /// This command is used when we want to update a table to a newer version.
     UpdateTable(PathType),
+
+    /// This command is used when we want to replace some specific matches in a Global Search.
+    GlobalSearchReplaceMatches(GlobalSearch, Vec<MatchHolder>),
 
     /// This command is used when we want to replace all matches in a Global Search.
     GlobalSearchReplaceAll(GlobalSearch),

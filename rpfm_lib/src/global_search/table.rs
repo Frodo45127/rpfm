@@ -19,7 +19,7 @@ This module contains the code needed to get table matches from a `GlobalSeach`.
 //-------------------------------------------------------------------------------//
 
 /// This struct represents all the matches of the global search within a table.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TableMatches {
 
     /// The path of the table.
@@ -30,7 +30,7 @@ pub struct TableMatches {
 }
 
 /// This struct represents a match on a row of a Table PackedFile (DB & Loc).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct TableMatch {
 
     // The name of the column where the match is.

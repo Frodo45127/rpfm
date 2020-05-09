@@ -536,6 +536,13 @@ pub fn background_loop() {
             }
 
             // In case we want to replace all matches in a Global Search...
+            Command::GlobalSearchReplaceMatches(mut global_search, matches) => {
+                let _ = global_search.replace_matches(&mut pack_file_decoded, &matches);
+                let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);
+                CENTRAL_COMMAND.send_message_rust(Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)));
+            }
+
+            // In case we want to replace all matches in a Global Search...
             Command::GlobalSearchReplaceAll(mut global_search) => {
                 let _ = global_search.replace_all(&mut pack_file_decoded);
                 let packed_files_info = global_search.get_results_packed_file_info(&mut pack_file_decoded);

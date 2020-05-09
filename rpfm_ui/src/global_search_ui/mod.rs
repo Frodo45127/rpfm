@@ -48,7 +48,7 @@ use std::cell::RefCell;
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::packfile::PathType;
-use rpfm_lib::global_search::{GlobalSearch, schema::SchemaMatches, table::TableMatches, text::TextMatches};
+use rpfm_lib::global_search::{GlobalSearch, MatchHolder, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -167,6 +167,10 @@ impl GlobalSearchUI {
         let mut global_search_search_on_texts_checkbox = QCheckBox::from_q_string(&qtr("global_search_txt"));
         let mut global_search_search_on_schemas_checkbox = QCheckBox::from_q_string(&qtr("global_search_schemas"));
         global_search_search_on_all_checkbox.set_checked(true);
+        global_search_search_on_dbs_checkbox.set_disabled(true);
+        global_search_search_on_locs_checkbox.set_disabled(true);
+        global_search_search_on_texts_checkbox.set_disabled(true);
+        global_search_search_on_schemas_checkbox.set_disabled(true);
 
         global_search_search_grid.set_column_stretch(0, 10);
 
@@ -500,13 +504,58 @@ impl GlobalSearchUI {
     }
 
     /// This function replace the currently selected match with the provided text.
-    pub unsafe fn replace(&mut self) {
-        UI_STATE.set_global_search(&GlobalSearch::default());
+    pub unsafe fn replace_current(&mut self, pack_file_contents_ui: &mut PackFileContentsUI) {
 
+        let mut global_search = UI_STATE.get_global_search();
+        global_search.pattern = self.global_search_search_line_edit.text().to_std_string();
+        global_search.replace_text = self.global_search_replace_line_edit.text().to_std_string();
+        global_search.case_sensitive = self.global_search_case_sensitive_checkbox.is_checked();
+        global_search.use_regex = self.global_search_use_regex_checkbox.is_checked();
+
+        if self.global_search_search_on_all_checkbox.is_checked() {
+            global_search.search_on_dbs = true;
+            global_search.search_on_locs = true;
+            global_search.search_on_texts = true;
+            global_search.search_on_schema = true;
+        }
+        else {
+            global_search.search_on_dbs = self.global_search_search_on_dbs_checkbox.is_checked();
+            global_search.search_on_locs = self.global_search_search_on_locs_checkbox.is_checked();
+            global_search.search_on_texts = self.global_search_search_on_texts_checkbox.is_checked();
+            global_search.search_on_schema = self.global_search_search_on_schemas_checkbox.is_checked();
+        }
+
+        let matches = self.get_matches_from_selection();
+        CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchReplaceMatches(global_search, matches.to_vec()));
+
+        // While we wait for an answer, we need to clear the current results panels.
         self.global_search_matches_db_tree_model.clear();
         self.global_search_matches_loc_tree_model.clear();
         self.global_search_matches_text_tree_model.clear();
-        self.global_search_matches_schema_tree_model.clear();
+
+        match CENTRAL_COMMAND.recv_message_qt() {
+            Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
+                UI_STATE.set_global_search(&global_search);
+                self.search(pack_file_contents_ui);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+
+                // Update the views of the updated PackedFiles.
+                for replace_match in matches {
+                    let path = match replace_match {
+                        MatchHolder::Table(matches) => matches.path,
+                        MatchHolder::Text(matches) => matches.path,
+                        _ => unimplemented!(),
+                    };
+
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().get_mut(&path) {
+                        let _ = packed_file_view.reload(&path, pack_file_contents_ui);
+                    }
+
+                    // Set them as modified in the UI.
+                }
+            },
+            _ => unimplemented!()
+        }
     }
 
     /// This function replace all the matches in the current search with the provided text.
@@ -866,5 +915,84 @@ impl GlobalSearchUI {
         let mut model_filter: MutPtr<QSortFilterProxyModel> = view.model().static_downcast_mut();
         model_filter.set_filter_key_column(column_combobox.current_index());
         trigger_treeview_filter_safe(&mut model_filter, &mut pattern);
+    }
+
+    /// Function to get all the selected matches in the visible selection.
+    unsafe fn get_matches_from_selection(&self) -> Vec<MatchHolder> {
+
+        let tree_view = match self.global_search_matches_tab_widget.current_index() {
+            0 => self.global_search_matches_db_tree_view,
+            1 => self.global_search_matches_loc_tree_view,
+            _ => return vec![],
+        };
+
+        let filter_model: Ptr<QSortFilterProxyModel> = tree_view.model().static_downcast();
+        let items = tree_view.get_items_from_selection(true);
+
+        // For each item we follow the following logic:
+        // - If it's a parent, it's all the matches on a table.
+        // - If it's a child, check if the parent already exists.
+        // - If it does, add another entry to it's matches.
+        // - If not, create it with only that match.
+        let mut matches: Vec<TableMatches> = vec![];
+        for item in items {
+            let is_match = !item.has_children();
+
+            // If it's a match (not an entire file), get the entry and add it to the tablematches of that table.
+            if is_match {
+                let parent = item.parent();
+                let path = parent.text().to_std_string();
+                let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+
+                let match_file = match matches.iter_mut().find(|x| x.path == path) {
+                    Some(match_file) => match_file,
+                    None => {
+                        let table = TableMatches::new(&path);
+                        matches.push(table);
+                        matches.last_mut().unwrap()
+                    }
+                };
+
+                let column_name = parent.child_2a(item.row(), 0).text().to_std_string();
+                let column_number = parent.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                let row_number = parent.child_2a(item.row(), 1).text().to_std_string().parse::<i64>().unwrap() - 1;
+                let text = parent.child_2a(item.row(), 2).text().to_std_string();
+                let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+
+                if !match_file.matches.contains(&match_entry) {
+                    match_file.matches.push(match_entry);
+                }
+            }
+
+            // If it's not a particular match, it's an entire file.
+            else {
+                let path = item.text().to_std_string();
+                let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+
+                // If it already exists, delete it, as the new one contains the entire set for it.
+                if let Some(position) = matches.iter().position(|x| x.path == path) {
+                    matches.remove(position);
+                }
+
+                let table = TableMatches::new(&path);
+                matches.push(table);
+                let match_file = matches.last_mut().unwrap();
+
+                // For the individual matches, we have to get them from the view, so the filtered out items are not added.
+                for row in 0..item.row_count() {
+                    let row_item = item.child_2a(row, 0);
+                    if filter_model.map_from_source(row_item.index().as_ref()).is_valid() {
+                        let column_name = item.child_2a(item.row(), 0).text().to_std_string();
+                        let column_number = item.child_2a(item.row(), 3).text().to_std_string().parse().unwrap();
+                        let row_number = item.child_2a(item.row(), 1).text().to_std_string().parse::<i64>().unwrap() - 1;
+                        let text = item.child_2a(item.row(), 2).text().to_std_string();
+                        let match_entry = TableMatch::new(&column_name, column_number, row_number, &text);
+                        match_file.matches.push(match_entry);
+                    }
+                }
+            }
+
+        }
+        matches.iter().map(|x| MatchHolder::Table(x.clone())).collect()
     }
 }
