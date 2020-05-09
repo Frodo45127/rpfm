@@ -1289,6 +1289,13 @@ impl TableSearch {
                     // If the position is still valid (not required, but just in case)...
                     if model_index.is_valid() {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
+                        let original_text = match parent.get_ref_table_definition().fields[model_index.column() as usize].field_type {
+                            FieldType::Boolean => item.data_0a().to_bool().to_string(),
+                            FieldType::Float => item.data_0a().to_float_0a().to_string(),
+                            FieldType::Integer => item.data_0a().to_int_0a().to_string(),
+                            FieldType::LongInteger => item.data_0a().to_long_long_0a().to_string(),
+                            _ => item.text().to_std_string(),
+                        };
 
                         let replaced_text = if parent.get_ref_table_definition().fields[model_index.column() as usize].field_type == FieldType::Boolean {
                             text_replace.to_owned()
@@ -1297,6 +1304,11 @@ impl TableSearch {
                             let text = item.text().to_std_string();
                             text.replace(&text_source, &text_replace)
                         };
+
+                        // If no replacement has been done, skip it.
+                        if original_text == replaced_text {
+                            continue;
+                        }
 
                         // We need to do an extra check to ensure the new text can be in the field.
                         match parent.get_ref_table_definition().fields[model_index.column() as usize].field_type {
