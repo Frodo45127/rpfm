@@ -507,17 +507,23 @@ pub unsafe fn build_columns(
 
     // Now the order. If we have a sort order from the schema, we use that one.
     if do_we_have_ca_order {
-        let mut fields = definition.fields.iter().enumerate().map(|(x, y)| (x, y.clone())).collect::<Vec<(usize, Field)>>();
-        fields.sort_by(|a, b| a.1.ca_order.cmp(&b.1.ca_order));
-
         let mut header_primary = table_view_primary.horizontal_header();
         let mut header_frozen = table_view_frozen.horizontal_header();
-        for (logical_index, field) in &fields {
-            if field.ca_order != -1 {
+
+        let mut fields = definition.fields.iter()
+            .enumerate()
+            .map(|(x, y)| (x, y.ca_order))
+            .collect::<Vec<(usize, i16)>>();
+        fields.sort_by(|a, b| a.1.cmp(&b.1));
+
+        let mut new_pos = 0;
+        for (logical_index, ca_order) in &fields {
+            if *ca_order != -1 {
                 let visual_index = header_primary.visual_index(*logical_index as i32);
-                header_primary.move_section(visual_index as i32, field.ca_order as i32);
-                header_frozen.move_section(visual_index as i32, field.ca_order as i32);
+                header_primary.move_section(visual_index as i32, new_pos);
+                header_frozen.move_section(visual_index as i32, new_pos);
             }
+            new_pos += 1;
         }
     }
 
