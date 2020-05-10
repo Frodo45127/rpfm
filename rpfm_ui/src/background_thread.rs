@@ -525,12 +525,13 @@ pub fn background_loop() {
             Command::UpdateTable(path_type) => {
                 if let PathType::File(path) = path_type {
                     if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
-                        if let Ok(packed_file) = packed_file.decode_return_ref_mut() {
-                            match packed_file.update_table() {
-                                Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::I32I32(data)),
-                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                            }
-                        } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
+                        match packed_file.decode_return_ref_mut() {
+                            Ok(packed_file) => match packed_file.update_table() {
+                                    Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::I32I32(data)),
+                                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                }
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        }
                     } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())); }
             }
