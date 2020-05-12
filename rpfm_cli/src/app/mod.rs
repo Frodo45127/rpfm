@@ -132,7 +132,13 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("list")
                 .short("l")
                 .long("list")
-                .help("Lists the contents of the PackFile.")))
+                .help("Lists the contents of the PackFile."))
+
+            // `New Packfile` option. The destination is the path of the PackFile you provided before.
+            .arg(Arg::with_name("new-packfile")
+                .short("n")
+                .long("new-packfile")
+                .help("Creates a new empty Packfile with the provided path.")))
 
         // `Table` Subcommand. Every command that allows you to manipulate DB/Loc Tables in any way goes here.
         .subcommand(SubCommand::with_name("table")

@@ -96,6 +96,8 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
             }
 
 			else if matches.is_present("list") { packfile::list_packfile_contents(&config, packfile_path) }
+            else if matches.is_present("new-packfile") { packfile::new_packfile(&config, packfile_path)}
+
 			else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
         },
         None => Err(ErrorKind::NoHTMLError("No PackFile provided.".to_owned()).into()),
