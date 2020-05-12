@@ -41,11 +41,14 @@ pub fn add_files(
 	let packfile_path = PathBuf::from(packfile);
 	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	let destination_path = destination_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+	let destination_path = if destination_path == "." { vec![] } else { destination_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>() };
     let packed_file_paths = packed_file_path.iter()
-        .map(|x| (PathBuf::from(x), destination_path.to_vec()))
+        .map(|x| {
+            let mut full_path = destination_path.to_vec();
+            full_path.append(&mut x.split('/').map(|x| x.to_owned()).collect());
+            (PathBuf::from(x), full_path)
+        })
         .collect::<Vec<(PathBuf, Vec<String>)>>();
-
 	packfile.add_from_files(&packed_file_paths, true)?;
 	let result = packfile.save(None);
 
@@ -71,9 +74,13 @@ pub fn add_folders(
 	let packfile_path = PathBuf::from(packfile);
 	let mut packfile = PackFile::open_packfiles(&[packfile_path], true, false, false)?;
 
-	let destination_path = destination_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
+    let destination_path = if destination_path == "." { vec![] } else { destination_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>() };
     let folder_paths = folder_paths.iter()
-        .map(|x| (PathBuf::from(x), destination_path.to_vec()))
+        .map(|x| {
+            let mut full_path = destination_path.to_vec();
+            full_path.append(&mut x.split('/').map(|x| x.to_owned()).collect());
+            (PathBuf::from(x), full_path)
+        })
         .collect::<Vec<(PathBuf, Vec<String>)>>();
 
 	packfile.add_from_folders(&folder_paths, true)?;

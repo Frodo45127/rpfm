@@ -35,7 +35,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 				match matches.values_of("add-files") {
 					Some(mut values) => {
                         let destination_path = values.next().unwrap();
-                        let packed_file_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
+                        let packed_file_paths = values.collect::<Vec<&str>>();
                         packfile::add_files(&config, packfile_path, &packed_file_paths, destination_path)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
@@ -46,7 +46,7 @@ pub fn command_packfile(config: &Config, matches: &ArgMatches, packfile: Option<
 				match matches.values_of("add-folders") {
 					Some(mut values) => {
                         let destination_path = values.next().unwrap();
-                        let folder_paths = values.enumerate().filter(|(x, _)| x != &0).map(|(_, y)| y).collect::<Vec<&str>>();
+                        let folder_paths = values.collect::<Vec<&str>>();
                         packfile::add_folders(&config, packfile_path, &folder_paths, destination_path)
                     },
 					None => Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into())
