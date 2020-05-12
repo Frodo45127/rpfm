@@ -147,33 +147,44 @@ impl CaVp8 {
 
         let mut offset = 4;
         let version = packed_file_data.decode_packedfile_integer_i16(offset, &mut offset)?;
-        let header_len = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
+        let _header_len = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let codec_four_cc = packed_file_data.decode_string_u8(offset, 4)?;
         offset += 4;
         let width = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let height = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let ms_per_frame = packed_file_data.decode_packedfile_float_f32(offset, &mut offset)?;
         let _mistery_u32 = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-        let num_frames = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-        let offset_frame_table = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let _num_frames_copy = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+        let offset_frame_table = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+        let num_frames = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let _largest_frame = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
-
 
         // From here on, it's frame data, then the frame table.
         offset = offset_frame_table as usize;
 
+        // Brace yourself, wonky workaround incomming!
+        // There are some files that, for unknown reasons, have 13 bytes instead of 9 in the frame table.
+        // I have no freaking idea what's the logic behind 9/13 bytes, so we go with the getto solution:
+        // - Frames / 13. If the remainder is 0, we have groups of 13. If not, groups of 9.
+        let bells = if packed_file_data[offset..].len() / 13 == num_frames as usize && packed_file_data[offset..].len() % 13 == 0 { true } else { false };
         let mut frame_offset = 0;
         let mut frame_table = vec![];
+        let mut frame_data = vec![];
+
         for _ in 0..num_frames {
             let _frame_offset_real = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
             let frame = Frame {
                 offset: frame_offset,
                 size: packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?,
             };
+            if bells {
+                let _unknown_data = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+            }
             let _flags = packed_file_data.decode_packedfile_integer_u8(offset, &mut offset)?;
+
             frame_offset += frame.size;
             frame_table.push(frame);
+            frame_data.extend_from_slice(&packed_file_data[_frame_offset_real as usize..(_frame_offset_real + frame.size) as usize]);
         }
 
         Ok(Self {
@@ -185,7 +196,7 @@ impl CaVp8 {
             num_frames,
             framerate: 1_000f32 / ms_per_frame,
             frame_table,
-            frame_data: packed_file_data[header_len as usize..offset_frame_table as usize].to_vec(),
+            frame_data,
         })
     }
 
