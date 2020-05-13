@@ -22,6 +22,7 @@ to the MIT license above and are under the CC-SA 4.0 license, available here:
 !*/
 
 use serde_derive::{Serialize, Deserialize};
+use fraction::GenericFraction;
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -211,8 +212,8 @@ impl CaVp8 {
         offset += 4;
         let width = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
         let height = packed_file_data.decode_packedfile_integer_u16(offset, &mut offset)?;
-        let timebase_denominator = packed_file_data.decode_packedfile_float_f32(offset, &mut offset)?;
-        let timebase_numerator = packed_file_data.decode_packedfile_float_f32(offset, &mut offset)?;
+        let timebase_denominator = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
+        let timebase_numerator = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let num_frames = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
         let _unused = packed_file_data.decode_packedfile_integer_u32(offset, &mut offset)?;
 
@@ -239,7 +240,7 @@ impl CaVp8 {
             width,
             height,
             num_frames,
-            framerate: timebase_denominator / timebase_numerator,
+            framerate: timebase_denominator as f32 / timebase_numerator as f32,
             frame_table,
             frame_data,
         })
@@ -293,9 +294,9 @@ impl CaVp8 {
         packed_file.encode_integer_u16(self.width);
         packed_file.encode_integer_u16(self.height);
 
-        // This limits us to 30 FPS videos. Have to find a way to fix it.
-        packed_file.encode_integer_u32(30);
-        packed_file.encode_integer_u32(1);
+        let fraction: GenericFraction<u32> = GenericFraction::from(self.framerate);
+        packed_file.encode_integer_u32(*fraction.numer().unwrap());
+        packed_file.encode_integer_u32(*fraction.denom().unwrap());
         packed_file.encode_integer_u32(self.num_frames);
         packed_file.encode_integer_u32(0);
 
