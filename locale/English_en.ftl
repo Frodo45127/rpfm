@@ -493,3 +493,12 @@ settings_font_title = Font Settings
 
 title_success = Success!
 title_error = Error!
+
+rename_instructions = It's easy, but you'll not understand it without an example, so here it's one:
+     - Your files/folders says 'you' and 'I'.
+     - Write 'whatever {"{"}x{"}"} want' in the box below.
+     - Hit 'Accept'.
+     - RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.
+    And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
+
+update_table_success = Table updated from version '{"{"}{"}"}' to version '{"{"}{"}"}'.

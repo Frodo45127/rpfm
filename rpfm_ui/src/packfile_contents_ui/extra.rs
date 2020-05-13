@@ -166,14 +166,7 @@ impl PackFileContentsUI {
         // Create a little frame with some instructions.
         let instructions_frame = QGroupBox::from_q_string(&qtr("rename_selection_instructions")).into_ptr();
         let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
-        let instructions_label = QLabel::from_q_string(&QString::from_std_str(
-            "\
-    It's easy, but you'll not understand it without an example, so here it's one:
-     - Your files/folders says 'you' and 'I'.
-     - Write 'whatever {x} want' in the box below.
-     - Hit 'Accept'.
-     - RPFM will turn that into 'whatever you want' and 'whatever I want' and call your files/folders that.
-    And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number."));
+        let instructions_label = QLabel::from_q_string(&qtr("rename_instructions"));
         instructions_grid.add_widget_5a(instructions_label.into_ptr(), 0, 0, 1, 1);
 
         let mut rewrite_sequence_line_edit = QLineEdit::new();

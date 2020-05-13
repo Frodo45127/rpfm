@@ -39,7 +39,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::qtr;
+use crate::locale::{qtr, tre};
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
@@ -977,22 +977,6 @@ impl PackFileContentsSlots {
 
                             // Update the global search stuff, if needed.
                             global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![PathType::File(path_to_add); 1]);
-                            /*
-
-                            // Remove the added file from the data history if exists.
-                            if table_state_data.borrow().get(&path_to_add).is_some() {
-                                table_state_data.borrow_mut().remove(&path_to_add);
-                            }
-                            // Same with the deleted ones.
-                            for item in &items_to_remove {
-                                let path = if let TreePathType::File(path) = item { path.to_vec() } else { panic!("This should never happen.") };
-                                if table_state_data.borrow().get(&path).is_some() {
-                                    table_state_data.borrow_mut().remove(&path);
-                                }
-
-                                let data = TableStateData::new_empty();
-                                table_state_data.borrow_mut().insert(path.to_vec(), data);
-                            }*/
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1020,7 +1004,7 @@ impl PackFileContentsSlots {
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
                         Response::I32I32((old_version, new_version)) => {
-                            let message = format!("Table updated from version '{}' to version '{}'.", old_version, new_version);
+                            let message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
                             show_dialog(app_ui.main_window, message, true);
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]));
