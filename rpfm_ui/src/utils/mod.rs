@@ -32,6 +32,7 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::ffi::new_text_editor_safe;
 use crate::ffi::set_text_safe;
+use crate::locale::qtr;
 use crate::ORANGE;
 use crate::SLIGHTLY_DARKER_GREY;
 use crate::MEDIUM_DARKER_GREY;
@@ -78,13 +79,13 @@ pub(crate) fn log_to_status_bar(text: &str) {
 pub unsafe fn show_dialog<T: Display>(parent: impl CastInto<MutPtr<QWidget>>, text: T, is_success: bool) {
 
     // Depending on the type of the dialog, set everything specific here.
-    let title = if is_success { "Success!" } else { "Error!" };
+    let title = if is_success { qtr("title_success") } else { qtr("error") };
     let icon = if is_success { Icon::Information } else { Icon::Critical };
 
     // Create and run the dialog.
     QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
         icon,
-        &QString::from_std_str(title),
+        &title,
         &QString::from_std_str(&text.to_string()),
         QFlags::from(StandardButton::Ok),
         parent,

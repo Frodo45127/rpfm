@@ -20,17 +20,17 @@ use super::{SettingsUI, slots::SettingsUISlots};
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
-pub fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots) {
-    unsafe { settings_ui.paths_mymod_button.released().connect(&slots.select_mymod_path); }
+pub unsafe fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots) {
+    settings_ui.paths_mymod_button.released().connect(&slots.select_mymod_path);
 
     for (key, button) in settings_ui.paths_games_buttons.iter() {
-        unsafe { button.released().connect(&slots.select_game_paths[key]); }
+        button.released().connect(&slots.select_game_paths[key]);
     }
 
-    unsafe { settings_ui.button_box_shortcuts_button.released().connect(&slots.shortcuts); }
-    unsafe { settings_ui.button_box_restore_default_button.released().connect(&slots.restore_default); }
-    unsafe { settings_ui.button_box_text_editor_settings_button.released().connect(&slots.text_editor); }
-    unsafe { settings_ui.button_box_font_settings_button.released().connect(&slots.font_settings); }
-    unsafe { settings_ui.button_box_accept_button.released().connect(settings_ui.dialog.slot_accept()); }
-    unsafe { settings_ui.button_box_cancel_button.released().connect(settings_ui.dialog.slot_close()); }
+    settings_ui.button_box_shortcuts_button.released().connect(&slots.shortcuts);
+    settings_ui.button_box_restore_default_button.released().connect(&slots.restore_default);
+    settings_ui.button_box_text_editor_settings_button.released().connect(&slots.text_editor);
+    settings_ui.button_box_font_settings_button.released().connect(&slots.font_settings);
+    settings_ui.button_box_accept_button.released().connect(settings_ui.dialog.slot_accept());
+    settings_ui.button_box_cancel_button.released().connect(settings_ui.dialog.slot_close());
 }

@@ -14,17 +14,13 @@
 #![allow(
     clippy::cognitive_complexity,           // Disabled due to useless warnings.
     //clippy::cyclomatic_complexity,          // Disabled due to useless warnings.
-    //clippy::doc_markdown,                   // Disabled due to false positives on things that shouldn't be formated in the docs as it says.
     clippy::if_same_then_else,              // Disabled because some of the solutions it provides are freaking hard to read.
-    //clippy::match_bool,                     // Disabled because the solutions it provides are harder to read than the current code.
-    //clippy::module_inception,               // Disabled because it's quite useless.
-    //clippy::needless_bool,                  // Disabled because the solutions it provides are harder to read than the current code.
+    clippy::match_bool,                     // Disabled because the solutions it provides are harder to read than the current code.
     clippy::new_ret_no_self,                // Disabled because the reported situations are special cases. So no, I'm not going to rewrite them.
     clippy::suspicious_else_formatting,     // Disabled because the errors it gives are actually false positives due to comments.
-    //clippy::too_many_arguments,             // Disabled because you never have enough arguments.
-    //clippy::type_complexity,                // Disabled temporarily because there are other things to do before rewriting the types it warns about.
     clippy::match_wild_err_arm,              // Disabled because, despite being a bad practice, it's the intended behavior in the code it warns about.
-    //clippy::mut_from_ref,                   // Disabled because it's intended behavior and some false positives.
+    clippy::large_enum_variant,
+    clippy::clone_on_copy
 )]
 
 // This disables the terminal window, so it doesn't show up when executing RPFM in Windows.

@@ -490,3 +490,6 @@ optimize_packfile_success = PackFile optimized.
 update_current_schema_from_asskit_success = Currently loaded schema updated.
 generate_schema_diff_success = Diff generated succesfully.
 settings_font_title = Font Settings
+
+title_success = Success!
+title_error = Error!

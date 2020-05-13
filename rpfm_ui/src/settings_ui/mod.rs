@@ -15,7 +15,7 @@ This module contains the code to build/use the ***Settings*** UI.
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
-use qt_widgets::{QDialogButtonBox, q_dialog_button_box, q_dialog_button_box::{ButtonRole}};
+use qt_widgets::{QDialogButtonBox, q_dialog_button_box, q_dialog_button_box::ButtonRole};
 use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;

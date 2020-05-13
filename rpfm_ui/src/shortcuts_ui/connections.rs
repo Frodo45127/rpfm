@@ -20,8 +20,8 @@ use super::{ShortcutsUI, slots::ShortcutsUISlots};
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
-pub fn set_connections(ui: &ShortcutsUI, slots: &ShortcutsUISlots) {
-    unsafe { ui.restore_default_button.released().connect(&slots.restore_default); }
-    unsafe { ui.cancel_button.released().connect(ui.dialog.slot_close()); }
-    unsafe { ui.accept_button.released().connect(ui.dialog.slot_accept()); }
+pub unsafe fn set_connections(ui: &ShortcutsUI, slots: &ShortcutsUISlots) {
+    ui.restore_default_button.released().connect(&slots.restore_default);
+    ui.cancel_button.released().connect(ui.dialog.slot_close());
+    ui.accept_button.released().connect(ui.dialog.slot_accept());
 }

@@ -13,7 +13,6 @@
 //! Any logging helper should be here.
 
 use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
-use simple_logger;
 
 use std::fs::File;
 

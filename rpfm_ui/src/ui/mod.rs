@@ -197,23 +197,6 @@ impl UI {
         // If we have it enabled in the prefs, check if there are schema updates.
         if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { app_ui.check_schema_updates(false) };
 
-        // This is to get the new schemas. It's controlled by a global const. Don't enable this unless you know what you're doing.
-        //if GENERATE_NEW_SCHEMA {
-
-            // These are the paths needed for the new schemas. First one should be `assembly_kit/raw_data/db`.
-            // The second one should contain all the tables of the game, extracted directly from `data.pack`.
-            //let assembly_kit_schemas_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_raw");
-            //let testing_tables_path: PathBuf = PathBuf::from("/home/frodo45127/test stuff/db_bin/");
-            //match import_schema(Schema::load("schema_wh.json").ok(), &assembly_kit_schemas_path, &testing_tables_path) {
-                //Ok(_) => show_dialog(app_ui.window, true, "Schema successfully created."),
-                //Err(error) => show_dialog(app_ui.window, false, error),
-            //}
-
-            // Close the program with code 69
-            //return 69
-        //}
-
-
         (Self {
             app_ui,
             global_search_ui,
