@@ -27,8 +27,6 @@ pub unsafe fn set_tips(settings_ui: &mut SettingsUI) {
     let ui_table_disable_combos_tip = qtr("tt_ui_table_disable_combos_tip");
     let ui_table_extend_last_column_tip = qtr("tt_ui_table_extend_last_column_tip");
     let ui_table_tight_table_mode_tip = qtr("tt_ui_table_tight_table_mode_tip");
-    let ui_table_remember_column_visual_order_tip = qtr("tt_ui_table_remember_column_visual_order_tip");
-    let ui_table_remember_table_state_permanently_tip = qtr("tt_ui_table_remember_table_state_permanently_tip");
 
     let ui_window_start_maximized_tip = qtr("tt_ui_window_start_maximized_tip");
 
@@ -42,10 +40,6 @@ pub unsafe fn set_tips(settings_ui: &mut SettingsUI) {
     settings_ui.ui_table_extend_last_column_checkbox.set_tool_tip(&ui_table_extend_last_column_tip);
     settings_ui.ui_table_tight_table_mode_label.set_tool_tip(&ui_table_tight_table_mode_tip);
     settings_ui.ui_table_tight_table_mode_checkbox.set_tool_tip(&ui_table_tight_table_mode_tip);
-    settings_ui.ui_table_remember_column_visual_order_label.set_tool_tip(&ui_table_remember_column_visual_order_tip);
-    settings_ui.ui_table_remember_column_visual_order_checkbox.set_tool_tip(&ui_table_remember_column_visual_order_tip);
-    settings_ui.ui_table_remember_table_state_permanently_label.set_tool_tip(&ui_table_remember_table_state_permanently_tip);
-    settings_ui.ui_table_remember_table_state_permanently_checkbox.set_tool_tip(&ui_table_remember_table_state_permanently_tip);
     settings_ui.ui_window_start_maximized_label.set_tool_tip(&ui_window_start_maximized_tip);
     settings_ui.ui_window_start_maximized_checkbox.set_tool_tip(&ui_window_start_maximized_tip);
 
