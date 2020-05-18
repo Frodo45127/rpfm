@@ -287,7 +287,7 @@ impl PackedFileTableView {
         layout.add_widget_5a(&mut row_filter_line_edit, 2, 0, 1, 1);
         layout.add_widget_5a(&mut row_filter_case_sensitive_button, 2, 1, 1, 1);
         layout.add_widget_5a(&mut row_filter_column_selector, 2, 2, 1, 1);
-        layout.add_widget_5a(&mut table_enable_lookups_button, 2, 3, 1, 1);
+        //layout.add_widget_5a(&mut table_enable_lookups_button, 2, 3, 1, 1);
 
         // Action to make the delete button delete contents.
         let smart_delete = QAction::new().into_ptr();
