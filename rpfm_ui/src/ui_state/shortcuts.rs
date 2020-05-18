@@ -37,73 +37,71 @@ const SHORTCUTS_MENU_BAR_PACKFILE: [(&str, &str); 7] = [
     ("save_packfile_as", "Ctrl+Shift+S"),
     ("load_all_ca_packfiles", "Ctrl+G"),
     ("preferences", "Ctrl+P"),
-    ("quit", "Ctrl+Q"),
+    ("quit", ""),
 ];
 
 /// List of shortcuts for the `MyMod` Menu.
 const SHORTCUTS_MENU_BAR_MYMOD: [(&str, &str); 4] = [
-    ("mymod_new", "Ctrl+Shift+O"),
-    ("mymod_delete_selected", "Ctrl+Shift+O"),
-    ("mymod_install", "Ctrl+Alt+O"),
-    ("mymod_uninstall", "Ctrl+Shift+O"),
+    ("mymod_new", ""),
+    ("mymod_delete_selected", ""),
+    ("mymod_install", "Ctrl+Shift+I"),
+    ("mymod_uninstall", ""),
 ];
 
 /// List of shortcuts for the `View` Menu.
 const SHORTCUTS_MENU_BAR_VIEW: [(&str, &str); 2] = [
-    ("view_toggle_packfile_contents", "Ctrl+Shift+O"),
-    ("view_toggle_global_search_panel", "Ctrl+Shift+O"),
+    ("view_toggle_packfile_contents", ""),
+    ("view_toggle_global_search_panel", "Ctrl+Shift+F"),
 ];
 
 /// List of shortcuts for the `Game Selected` Menu.
 const SHORTCUTS_MENU_BAR_GAME_SELECTED: [(&str, &str); 4] = [
-    ("launch_game", "Ctrl+Shift+O"),
-    ("open_game_data_folder", "Ctrl+Shift+O"),
-    ("open_game_assembly_kit_folder", "Ctrl+Alt+O"),
-    ("open_config_folder", "Ctrl+Shift+O"),
+    ("launch_game", ""),
+    ("open_game_data_folder", ""),
+    ("open_game_assembly_kit_folder", ""),
+    ("open_config_folder", ""),
 ];
 
 /// List of shortcuts for the `Special Stuff` Menu.
 const SHORTCUTS_MENU_BAR_SPECIAL_STUFF: [(&str, &str); 3] = [
-    ("generate_pak", "Ctrl+Shift+O"),
-    ("optimize_packfile", "Ctrl+Alt+O"),
-    ("patch_siege_ai", "Ctrl+Shift+O"),
+    ("generate_pak", ""),
+    ("optimize_packfile", ""),
+    ("patch_siege_ai", ""),
 ];
 
 /// List of shortcuts for the `About` Menu.
 const SHORTCUTS_MENU_BAR_ABOUT: [(&str, &str); 6] = [
-    ("about_qt", "Ctrl+Alt+H"),
-    ("about_rpfm", "Ctrl+Shift+H"),
+    ("about_qt", ""),
+    ("about_rpfm", ""),
     ("open_manual", "Ctrl+H"),
-    ("support_me_on_patreon", "Ctrl+H"),
+    ("support_me_on_patreon", ""),
     ("check_updates", "Ctrl+U"),
     ("check_schema_updates", "Ctrl+Shift+U"),
 ];
 
 /// List of shortcuts for the PackFile Contents Contextual Menu.
-const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 25] = [
+const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 23] = [
     ("add_file", "Ctrl+A"),
     ("add_folder", "Ctrl+Shift+A"),
     ("add_from_packfile", "Ctrl+Alt+A"),
-    ("check_tables", "Ctrl+Shift+I"),
+    ("check_tables", ""),
     ("create_folder", "Ctrl+F"),
     ("create_db", "Ctrl+D"),
     ("create_loc", "Ctrl+L"),
     ("create_text", "Ctrl+T"),
-    ("create_queek", "Ctrl+T"),
+    ("create_queek", "Ctrl+Q"),
     ("mass_import_tsv", "Ctrl+."),
     ("mass_export_tsv", "Ctrl+,"),
     ("merge_tables", "Ctrl+M"),
-    ("update_tables", "Ctrl+M"),
+    ("update_tables", ""),
     ("delete", "Del"),
     ("extract", "Ctrl+E"),
     ("rename", "Ctrl+R"),
     ("open_in_decoder", "Ctrl+J"),
-    ("open_packfiles_list", "Ctrl+Alt+M"),
+    ("open_packfiles_list", ""),
     ("open_with_external_program", "Ctrl+K"),
-    ("open_containing_folder", "Ctrl+0"),
-    ("open_in_multi_view", "Ctrl+B"),
+    ("open_containing_folder", ""),
     ("open_notes", "Ctrl+Y"),
-    ("global_search", "Ctrl+Shift+F"),
     ("expand_all", "Ctrl++"),
     ("collapse_all", "Ctrl+-"),
 ];
@@ -120,11 +118,11 @@ const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 18] = [
     ("paste", "Ctrl+V"),
     ("rewrite_selection", "Ctrl+Y"),
     ("selection_invert", "Ctrl+-"),
-    ("revert_selection", "Ctrl+Alt+V"),
-    ("import_tsv", "Ctrl+W"),
-    ("export_tsv", "Ctrl+E"),
+    ("revert_selection", ""),
+    ("import_tsv", ""),
+    ("export_tsv", ""),
     ("search", "Ctrl+F"),
-    ("sidebar", "Ctrl+A"),
+    ("sidebar", ""),
     ("undo", "Ctrl+Z"),
     ("redo", "Ctrl+Shift+Z"),
     ("smart_delete", "Del"),
