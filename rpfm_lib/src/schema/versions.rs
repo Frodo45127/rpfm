@@ -153,17 +153,17 @@ impl VersionsFile {
                     }
                 }
 
-                local.save()
+                remote.save()
             },
 
             // If there is no local `VersionsFile`, download all the schemas, then save the new local `VersionsFile`.
             Err(_) => {
-                let local: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
-                for file_name in local.0.keys() {
+                let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
+                for file_name in remote.0.keys() {
                     let mut schema: Schema = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
                     schema.save(file_name)?;
                 }
-                local.save()
+                remote.save()
             }
         }
     }
