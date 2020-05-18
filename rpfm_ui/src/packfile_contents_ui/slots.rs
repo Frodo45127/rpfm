@@ -39,7 +39,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, tre};
+use crate::locale::{qtr, tr, tre};
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
@@ -884,7 +884,7 @@ impl PackFileContentsSlots {
             CENTRAL_COMMAND.send_message_qt(Command::DBCheckTableIntegrity);
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
-                Response::Success => show_dialog(app_ui.main_window, "No errors detected.", true),
+                Response::Success => show_dialog(app_ui.main_window, tr("no_errors_detected"), true),
                 Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
@@ -900,7 +900,7 @@ impl PackFileContentsSlots {
             // First, we check if we're merging locs, as it's far simpler.
             let mut loc_pass = true;
             for path in &selected_paths {
-                if !path.last().unwrap().ends_with(".loc") {
+                if !path.last().unwrap().to_lowercase().ends_with(".loc") {
                     loc_pass = false;
                     break;
                 }
@@ -913,7 +913,7 @@ impl PackFileContentsSlots {
             let mut db_folder = String::new();
             for path in &selected_paths {
                 if path.len() == 3 {
-                    if path[0] == "db" {
+                    if path[0].to_lowercase() == "db" {
                         if db_folder.is_empty() {
                             db_folder = path[1].to_owned();
                         }
@@ -941,7 +941,7 @@ impl PackFileContentsSlots {
                 if let Some((mut name, delete_source_files)) = app_ui.merge_tables_dialog() {
 
                     // If it's a loc file and the name doesn't end in a ".loc" termination, call it ".loc".
-                    if loc_pass && !name.ends_with(".loc") {
+                    if loc_pass && !name.to_lowercase().ends_with(".loc") {
                         name.push_str(".loc");
                     }
 

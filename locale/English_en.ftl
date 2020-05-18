@@ -371,7 +371,7 @@ settings_paths_mymod = MyMod's Folder
 settings_paths_mymod_ph = This is the folder where you want to store all \"MyMod\" related files.
 
 settings_game_label = TW: {"{"}{"}"} Folder
-settings_game_line_ph = This is the folder where you have {"{"}{"}"} installed.
+settings_game_line_ph = This is the folder where you have {"{"}{"}"} installed, where the .exe is.
 
 settings_ui_title = UI Settings
 settings_table_title = Table Settings
@@ -502,3 +502,46 @@ rename_instructions = It's easy, but you'll not understand it without an example
     And, in case you ask, works with numeric cells too, as long as the resulting text is a valid number.
 
 update_table_success = Table updated from version '{"{"}{"}"}' to version '{"{"}{"}"}'.
+no_errors_detected = No errors detected.
+original_data = Original Data: '{"{"}{"}"}'
+column_tooltip_1 = This column is a reference to:
+column_tooltip_2 = And many more. Exactly, {"{"}{"}"} more. Too many to show them here.
+column_tooltip_3 = Fields that reference this column:
+
+tsv_select_title = Select TSV File to Import...
+tsv_export_title = Export TSV File...
+
+rewrite_selection_title = Rewrite Selection
+rewrite_selection_instructions_title = Instructions
+rewrite_selection_instructions = Legend says:
+     - {"{"}x{"}"} means current value.
+     - {"{"}y{"}"} means current column.
+     - {"{"}z{"}"} means current row.
+rewrite_selection_is_math = Is a math operation?
+rewrite_selection_placeholder = Write here whatever you want.
+rewrite_selection_accept = Accept
+
+context_menu_apply_submenu = A&pply...
+context_menu_clone_submenu = &Clone...
+context_menu_copy_submenu = &Copy...
+context_menu_add_rows = &Add Row
+context_menu_insert_rows = &Insert Row
+context_menu_delete_rows = &Delete Row
+context_menu_rewrite_selection = &Rewrite Selection
+context_menu_clone_and_insert = &Clone and Insert
+context_menu_clone_and_append = Clone and &Append
+context_menu_copy = &Copy
+context_menu_copy_as_lua_table = &Copy as &LUA Table
+context_menu_paste = &Paste
+context_menu_search = &Search
+context_menu_sidebar = Si&debar
+context_menu_import_tsv = &Import TSV
+context_menu_export_tsv = &Export TSV
+context_menu_invert_selection = Inver&t Selection
+context_menu_reset_selection = Reset &Selection
+context_menu_undo = &Undo
+context_menu_redo = &Redo
+
+header_column = <b><i>Column Name</i></b>
+header_hidden = <b><i>Hidden</i></b>
+header_frozen = <b><i>Frozen</i></b>

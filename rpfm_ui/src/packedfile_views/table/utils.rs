@@ -46,7 +46,7 @@ use crate::DARK_RED;
 use crate::EVEN_MORE_WHITY_GREY;
 use crate::ffi::*;
 use crate::LINK_BLUE;
-use crate::locale::qtr;
+use crate::locale::{qtr, tr, tre};
 use crate::MEDIUM_DARK_GREY;
 use crate::utils::*;
 use crate::UI_STATE;
@@ -405,7 +405,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
             let mut item = QStandardItem::new();
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
-            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_editable(false);
             item.set_checkable(true);
             item.set_check_state(if *data { CheckState::Checked } else { CheckState::Unchecked });
@@ -426,7 +426,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
             };
 
             let mut item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_float(data), 2);
@@ -434,7 +434,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
         },
         DecodedData::Integer(ref data) => {
             let mut item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_int(*data), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_int(*data), 2);
@@ -442,7 +442,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
         },
         DecodedData::LongInteger(ref data) => {
             let mut item = QStandardItem::new();
-            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_i64(*data), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_i64(*data), 2);
@@ -454,7 +454,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
         DecodedData::OptionalStringU8(ref data) |
         DecodedData::OptionalStringU16(ref data) => {
             let mut item = QStandardItem::from_q_string(&QString::from_std_str(data));
-            item.set_tool_tip(&QString::from_std_str(&format!("Original Data: '{}'", data)));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
             item
@@ -560,7 +560,7 @@ unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name:
         }
 
         if let Some(ref reference) = field.is_reference {
-            tooltip_text.push_str(&format!("<p>This column is a reference to:</p><p><i>\"{}/{}\"</i></p>", reference.0, reference.1));
+            tooltip_text.push_str(&format!("<p>{}</p><p><i>\"{}/{}\"</i></p>", tr("column_tooltip_1"), reference.0, reference.1));
         }
 
         else {
@@ -590,14 +590,14 @@ unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name:
 
             referenced_columns.sort_unstable();
             if !referenced_columns.is_empty() {
-                tooltip_text.push_str("<p>Fields that reference this column:</p>");
+                tooltip_text.push_str(&format!("<p>{}</p>", tr("column_tooltip_3")));
                 for (index, reference) in referenced_columns.iter().enumerate() {
                     tooltip_text.push_str(&format!("<i>\"{}/{}\"</i><br>", reference.0, reference.1));
 
                     // There is a bug that causes tooltips to be displayed out of screen if they're too big. This fixes it.
                     if index == 50 {
-                        tooltip_text.push_str(&format!("<p>And many more. Exactly, {} more. Too many to show them here.</p>nnnn", referenced_columns.len() as isize - 50));
-                        break ;
+                        tooltip_text.push_str(&format!("<p>{}</p>nnnn", tre("column_tooltip_2", &[&(referenced_columns.len() as isize - 50).to_string()])));
+                        break;
                     }
                 }
 

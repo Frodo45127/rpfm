@@ -295,45 +295,39 @@ impl PackedFileTableView {
         // Create the Contextual Menu for the TableView.
         let context_menu_enabler = QAction::new();
         let mut context_menu = QMenu::new().into_ptr();
-        let context_menu_add_rows = context_menu.add_action_q_string(&QString::from_std_str("&Add Row"));
-        let context_menu_insert_rows = context_menu.add_action_q_string(&QString::from_std_str("&Insert Row"));
-        let context_menu_delete_rows = context_menu.add_action_q_string(&QString::from_std_str("&Delete Row"));
+        let context_menu_add_rows = context_menu.add_action_q_string(&qtr("context_menu_add_rows"));
+        let context_menu_insert_rows = context_menu.add_action_q_string(&qtr("context_menu_insert_rows"));
+        let context_menu_delete_rows = context_menu.add_action_q_string(&qtr("context_menu_delete_rows"));
 
-        //let mut context_menu_apply_submenu = Menu::new(&QString::from_std_str("A&pply..."));
-        //let context_menu_apply_maths_to_selection = context_menu_apply_submenu.add_action(&QString::from_std_str("&Apply Maths to Selection"));
-        let context_menu_rewrite_selection = context_menu.add_action_q_string(&QString::from_std_str("&Rewrite Selection"));
+        let mut context_menu_clone_submenu = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
+        let context_menu_clone_and_insert = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_insert"));
+        let context_menu_clone_and_append = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_append"));
 
-        //let mut context_menu_clone_submenu = Menu::new(&QString::from_std_str("&Clone..."));
+        let mut context_menu_copy_submenu = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
+        let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy"));
+        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
 
-        let context_menu_clone_and_insert = context_menu.add_action_q_string(&QString::from_std_str("&Clone and Insert"));
-        let context_menu_clone_and_append = context_menu.add_action_q_string(&QString::from_std_str("Clone and &Append"));
-        let mut context_menu_copy_submenu = QMenu::from_q_string(&QString::from_std_str("&Copy..."));
-        let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy"));
-        let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&QString::from_std_str("&Copy as &LUA Table"));
+        let context_menu_paste = context_menu.add_action_q_string(&qtr("context_menu_paste"));
 
-        let context_menu_paste = context_menu.add_action_q_string(&QString::from_std_str("&Paste"));
+        let context_menu_rewrite_selection = context_menu.add_action_q_string(&qtr("context_menu_rewrite_selection"));
+        let context_menu_invert_selection = context_menu.add_action_q_string(&qtr("context_menu_invert_selection"));
+        let context_menu_reset_selection = context_menu.add_action_q_string(&qtr("context_menu_reset_selection"));
 
-        let context_menu_search = context_menu.add_action_q_string(&QString::from_std_str("&Search"));
-        let context_menu_sidebar = context_menu.add_action_q_string(&QString::from_std_str("Si&debar"));
+        let context_menu_import_tsv = context_menu.add_action_q_string(&qtr("context_menu_import_tsv"));
+        let context_menu_export_tsv = context_menu.add_action_q_string(&qtr("context_menu_export_tsv"));
 
-        let context_menu_import_tsv = context_menu.add_action_q_string(&QString::from_std_str("&Import TSV"));
-        let context_menu_export_tsv = context_menu.add_action_q_string(&QString::from_std_str("&Export TSV"));
+        let context_menu_search = context_menu.add_action_q_string(&qtr("context_menu_search"));
+        let context_menu_sidebar = context_menu.add_action_q_string(&qtr("context_menu_sidebar"));
 
-        let context_menu_invert_selection = context_menu.add_action_q_string(&QString::from_std_str("Inver&t Selection"));
-        let context_menu_reset_selection = context_menu.add_action_q_string(&QString::from_std_str("Reset &Selection"));
-
-        let context_menu_undo = context_menu.add_action_q_string(&QString::from_std_str("&Undo"));
-        let context_menu_redo = context_menu.add_action_q_string(&QString::from_std_str("&Redo"));
+        let context_menu_undo = context_menu.add_action_q_string(&qtr("context_menu_undo"));
+        let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
 
         // Insert some separators to space the menu, and the paste submenu.
-        //context_menu.insert_separator(context_menu_search);
-        //context_menu.insert_menu(context_menu_search, context_menu_apply_submenu.into_raw());
-        //context_menu.insert_menu(context_menu_search, context_menu_clone_submenu.into_raw());
+        context_menu.insert_menu(context_menu_paste, context_menu_clone_submenu.into_ptr());
         context_menu.insert_menu(context_menu_paste, context_menu_copy_submenu.into_ptr());
-        //context_menu.insert_menu(context_menu_search, context_menu_paste_submenu.into_raw());
-        //context_menu.insert_separator(context_menu_search);
-        //context_menu.insert_separator(context_menu_import);
-        //context_menu.insert_separator(context_menu_sidebar);
+        context_menu.insert_separator(context_menu_rewrite_selection);
+        context_menu.insert_separator(context_menu_import_tsv);
+        context_menu.insert_separator(context_menu_search);
         context_menu.insert_separator(context_menu_undo);
 
         //--------------------------------------------------//
@@ -406,9 +400,9 @@ impl PackedFileTableView {
         sidebar_grid.set_contents_margins_4a(4, 0, 4, 4);
         sidebar_grid.set_spacing(4);
 
-        let mut header_column = QLabel::from_q_string(&QString::from_std_str("<b><i>Column Name</i></b>"));
-        let mut header_hidden = QLabel::from_q_string(&QString::from_std_str("<b><i>Hidden</i></b>"));
-        let mut header_frozen = QLabel::from_q_string(&QString::from_std_str("<b><i>Frozen</i></b>"));
+        let mut header_column = QLabel::from_q_string(&qtr("header_column"));
+        let mut header_hidden = QLabel::from_q_string(&qtr("header_hidden"));
+        let mut header_frozen = QLabel::from_q_string(&qtr("header_frozen"));
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_column, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));

@@ -1271,28 +1271,21 @@ impl PackedFileTableViewRaw {
 
         // Create and configure the dialog.
         let mut dialog = QDialog::new_1a(self.table_view_primary);
-        dialog.set_window_title(&QString::from_std_str("Rewrite Selection"));
+        dialog.set_window_title(&qtr("rewrite_selection_title"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
         let mut main_grid = create_grid_layout(dialog.as_mut_ptr().static_upcast_mut());
 
         // Create a little frame with some instructions.
-        let instructions_frame = QGroupBox::from_q_string(&QString::from_std_str("Instructions")).into_ptr();
+        let instructions_frame = QGroupBox::from_q_string(&qtr("rewrite_selection_instructions_title")).into_ptr();
         let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
-        let mut instructions_label = QLabel::from_q_string(&QString::from_std_str(
-        "\
-    Legend says:
-     - {x} means current value.
-     - {y} means current column.
-     - {z} means current row.
-        "
-        ));
+        let mut instructions_label = QLabel::from_q_string(&qtr("rewrite_selection_instructions"));
         instructions_grid.add_widget_5a(&mut instructions_label, 0, 0, 1, 1);
 
-        let mut is_math_op = QCheckBox::from_q_string(&QString::from_std_str("Is a math operation?"));
+        let mut is_math_op = QCheckBox::from_q_string(&qtr("rewrite_selection_is_math"));
         let mut rewrite_sequence_line_edit = QLineEdit::new();
-        rewrite_sequence_line_edit.set_placeholder_text(&QString::from_std_str("Write here whatever you want."));
-        let mut accept_button = QPushButton::from_q_string(&QString::from_std_str("Accept"));
+        rewrite_sequence_line_edit.set_placeholder_text(&qtr("rewrite_selection_placeholder"));
+        let mut accept_button = QPushButton::from_q_string(&qtr("rewrite_selection_accept"));
 
         main_grid.add_widget_5a(instructions_frame, 0, 0, 1, 2);
         main_grid.add_widget_5a(&mut is_math_op, 1, 0, 1, 2);

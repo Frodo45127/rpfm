@@ -378,7 +378,7 @@ impl PackedFileTableViewSlots {
                 // Create a File Chooser to get the destination path and configure it.
                 let mut file_dialog = QFileDialog::from_q_widget_q_string(
                     packed_file_view.table_view_primary,
-                    &QString::from_std_str("Select TSV File to Import..."),
+                    &qtr("tsv_select_title"),
                 );
 
                 file_dialog.set_name_filter(&QString::from_std_str("TSV Files (*.tsv)"));
@@ -439,7 +439,7 @@ impl PackedFileTableViewSlots {
                 // Create a File Chooser to get the destination path and configure it.
                 let mut file_dialog = QFileDialog::from_q_widget_q_string(
                     packed_file_view.table_view_primary,
-                    &QString::from_std_str("Export TSV File..."),
+                    &qtr("tsv_export_title")
                 );
 
                 file_dialog.set_accept_mode(AcceptMode::AcceptSave);
