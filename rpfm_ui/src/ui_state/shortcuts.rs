@@ -109,27 +109,25 @@ const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 25] = [
 ];
 
 /// List of shortcuts for the Table PackedFile's Contextual Menu.
-const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 20] = [
+const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 18] = [
     ("add_row", "Ctrl+Shift+A"),
     ("insert_row", "Ctrl+I"),
     ("delete_row", "Ctrl+Del"),
-    ("clone_row", "Ctrl+D"),
+    ("clone_and_insert_row", "Ctrl+D"),
     ("clone_and_append_row", "Ctrl+Shift+D"),
     ("copy", "Ctrl+C"),
     ("copy_as_lua_table", "Ctrl+Shift+C"),
     ("paste", "Ctrl+V"),
-    ("paste_as_new_row", "Ctrl+Shift+V"),
-    ("revert_selection", "Ctrl+Alt+V"),
-    ("apply_maths_to_selection", "Ctrl+B"),
     ("rewrite_selection", "Ctrl+Y"),
     ("selection_invert", "Ctrl+-"),
-    ("search", "Ctrl+F"),
-    ("sidebar", "Ctrl+A"),
+    ("revert_selection", "Ctrl+Alt+V"),
     ("import_tsv", "Ctrl+W"),
     ("export_tsv", "Ctrl+E"),
-    ("smart_delete", "Del"),
+    ("search", "Ctrl+F"),
+    ("sidebar", "Ctrl+A"),
     ("undo", "Ctrl+Z"),
     ("redo", "Ctrl+Shift+Z"),
+    ("smart_delete", "Del"),
 ];
 
 /// List of shortcuts for the Table Decoder.
