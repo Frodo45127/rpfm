@@ -549,7 +549,7 @@ impl From<Table> for DB {
     fn from(table: Table) -> Self {
         Self {
             name: String::new(),
-            mysterious_byte: false,
+            mysterious_byte: true,
             table,
         }
     }
@@ -575,7 +575,7 @@ impl From<&RawTable> for DB {
 
         Self {
             name: name_table,
-            mysterious_byte: false,
+            mysterious_byte: true,
             table: From::from(raw_table),
         }
     }
