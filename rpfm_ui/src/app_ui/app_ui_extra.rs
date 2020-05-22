@@ -36,7 +36,6 @@ use cpp_core::MutPtr;
 use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
 use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
@@ -121,7 +120,6 @@ impl AppUI {
     ) {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            let path = packed_file_view.get_path();
 
             // TODO: This should report an error.
             let _ = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
@@ -1285,7 +1283,7 @@ impl AppUI {
                 let icon = icon_type.get_icon_from_path();
                 tab.set_path(path);
 
-                match PackedFileDecoderView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui, &self) {
+                match PackedFileDecoderView::new_view(&mut tab, global_search_ui, pack_file_contents_ui, &self) {
                     Ok(slots) => {
                         slot_holder.borrow_mut().push(slots);
 
