@@ -58117,6 +58117,36 @@
       ]
     },
     {
+      "name": "regions_vampire_mercenary_pools_junctions_tables",
+      "versions": [
+        {
+          "version": 0,
+          "fields": [
+            {
+              "field_name": "region",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "regions",
+                "key"
+              ],
+              "field_description": ""
+            },
+            {
+              "field_name": "mercenary_pool",
+              "field_type": "StringU8",
+              "field_is_key": true,
+              "field_is_reference": [
+                "mercenary_pools",
+                "key"
+              ],
+              "field_description": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "religion_conversion_mods_tables",
       "versions": [
         {
