@@ -153,7 +153,8 @@ impl AppUI {
     ) {
 
         // Black magic to remove widgets.
-        if let Some(position) = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path) {
+        let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path);
+        if let Some(position) = position {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
                 if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
 
