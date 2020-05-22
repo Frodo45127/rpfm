@@ -186,13 +186,13 @@ impl Loc {
         let definition = self.get_ref_definition();
 
         // To do it faster, make a freaking big table with all the vanilla entries together.
-        let mut vanilla_table = vanilla_tables.iter()
+        let vanilla_table = vanilla_tables.iter()
             .filter(|x| x.get_ref_definition().version == definition.version)
             .map(|x| x.get_ref_table_data())
             .flatten();
 
         for entry in entries {
-            if vanilla_table.find(|x| x == &entry).is_none() {
+            if vanilla_table.clone().find(|x| x == &entry).is_none() {
                 new_entries.push(entry.to_vec());
             }
         }
