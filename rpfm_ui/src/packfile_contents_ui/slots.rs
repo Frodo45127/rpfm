@@ -43,7 +43,7 @@ use crate::locale::{qtr, tr, tre};
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, ViewType, View};
+use crate::packedfile_views::{PackedFileView, TheOneSlot};
 use crate::QString;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
@@ -733,7 +733,6 @@ impl PackFileContentsSlots {
                                 let original_name = path.last().unwrap();
                                 let new_name = rewrite_sequence.to_owned().replace("{x}", &original_name);
                                 renaming_data_background.push((From::from(&item_type), new_name));
-
                             },
 
                             // These two should, if everything works properly, never trigger.
@@ -742,7 +741,7 @@ impl PackFileContentsSlots {
                     }
 
                     // Send the renaming data to the Background Thread, wait for a response.
-                    CENTRAL_COMMAND.send_message_qt(Command::RenamePackedFiles(renaming_data_background));
+                    CENTRAL_COMMAND.send_message_qt(Command::RenamePackedFiles(renaming_data_background.to_vec()));
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
                         Response::VecPathTypeVecString(renamed_items) => {
@@ -782,7 +781,19 @@ impl PackFileContentsSlots {
                                 open_packedfiles.push(data);
                             }
 
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items.to_vec()));
+                            // Ok, problem here: the view expects you pass the exact items renamed, NOT THE GODDAM FILES!!!!
+                            // which menas in case of folders we have turn all those "renamed items" into a big "renamed folder".
+                            // What a fucking planning mess.
+                            let renamed_items_view: Vec<(TreePathType, Vec<String>)> = renaming_data_background.iter().map(|(x, y)| {
+                                let path = if let PathType::File(path) | PathType::Folder(path) = x {
+                                    let mut path = path.to_vec();
+                                    *path.last_mut().unwrap() = y.to_owned();
+                                    path
+                                } else { unimplemented!() };
+                                (TreePathType::from(x), path)
+                            }).collect();
+
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items_view));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(renamed_items.iter().map(|x| match x.0 {
                                 TreePathType::File(_) => TreePathType::File(x.1.to_vec()),
                                 TreePathType::Folder(_) => TreePathType::Folder(x.1.to_vec()),
