@@ -261,24 +261,26 @@ impl DB {
         db_files
     }
 
-
-
     /// This function is used to optimize the size of a DB Table.
     ///
     /// It scans every line to check if it's a vanilla line, and remove it in that case. Also, if the entire
     /// file is composed of only vanilla lines, it marks the entire PackedFile for removal.
     pub fn optimize_table(&mut self, vanilla_tables: &[&Self]) -> bool {
 
-        // For each vanilla table, if it's the same table/version as our own, we check
+        // For each vanilla table, if it's the same table/version as our own, we check it
         let mut new_entries = Vec::with_capacity(self.table.get_entry_count());
         let entries = self.get_ref_table_data();
         let definition = self.get_ref_definition();
+
+        // To do it faster, make a freaking big table with all the vanilla entries together.
+        let mut vanilla_table = vanilla_tables.iter()
+            .filter(|x| x.name == self.name && x.get_ref_definition().version == definition.version)
+            .map(|x| x.get_ref_table_data())
+            .flatten();
+
         for entry in entries {
-            for vanilla_entries in vanilla_tables.iter().filter(|x| x.name == self.name && x.get_ref_definition().version == definition.version).map(|x| x.get_ref_table_data()) {
-                if vanilla_entries.contains(entry) {
-                    new_entries.push(entry.to_vec());
-                    continue;
-                }
+            if vanilla_table.find(|x| x == &entry).is_none() {
+                new_entries.push(entry.to_vec());
             }
         }
 

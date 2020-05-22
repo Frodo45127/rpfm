@@ -184,12 +184,16 @@ impl Loc {
         let mut new_entries = Vec::with_capacity(self.table.get_entry_count());
         let entries = self.get_ref_table_data();
         let definition = self.get_ref_definition();
+
+        // To do it faster, make a freaking big table with all the vanilla entries together.
+        let mut vanilla_table = vanilla_tables.iter()
+            .filter(|x| x.get_ref_definition().version == definition.version)
+            .map(|x| x.get_ref_table_data())
+            .flatten();
+
         for entry in entries {
-            for vanilla_entries in vanilla_tables.iter().filter(|x| x.get_ref_definition().version == definition.version).map(|x| x.get_ref_table_data()) {
-                if vanilla_entries.contains(entry) {
-                    new_entries.push(entry.to_vec());
-                    continue;
-                }
+            if vanilla_table.find(|x| x == &entry).is_none() {
+                new_entries.push(entry.to_vec());
             }
         }
 
