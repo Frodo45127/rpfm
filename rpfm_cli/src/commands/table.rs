@@ -39,7 +39,7 @@ pub fn import_tsv(
             let schema = Schema::load(&SUPPORTED_GAMES[&**game_selected].schema)?;
         	let source_paths = source_paths.iter().map(PathBuf::from).collect::<Vec<PathBuf>>();
         	let result = DB::import_tsv_to_binary_file(&schema, &source_paths);
-            info!("All binary files exported to TSV.");
+            info!("All TSV files imported to binary.");
             result
         },
         None => Err(ErrorKind::NoHTMLError("No Game Selected provided.".to_owned()).into()),

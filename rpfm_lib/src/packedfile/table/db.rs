@@ -522,8 +522,9 @@ impl DB {
         schema: &Schema,
         source_paths: &[PathBuf],
     ) -> Result<()> {
-        let destination = PathBuf::from(".");
         for path in source_paths {
+            let mut destination = path.clone();
+            destination.set_extension("");
             Table::import_tsv_to_binary_file(&schema, &path, &destination)?;
         }
 
@@ -535,8 +536,9 @@ impl DB {
         schema: &Schema,
         source_paths: &[PathBuf],
     ) -> Result<()> {
-        let destination = PathBuf::from(".");
         for path in source_paths {
+            let mut destination = path.clone();
+            destination.set_extension("tsv");
             Table::export_tsv_from_binary_file(&schema, &path, &destination)?;
         }
 
