@@ -20,11 +20,7 @@ use qt_core::QString;
 
 use cpp_core::MutPtr;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{Result, ErrorKind};
@@ -68,6 +64,7 @@ pub struct PackedFileCaVp8ViewRaw {
     pub convert_to_ivf_button: MutPtr<QPushButton>,
     pub current_format: Arc<Mutex<SupportedFormats>>,
     pub format_data_label: MutPtr<QLabel>,
+    pub path: Arc<RwLock<Vec<String>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -79,14 +76,13 @@ impl PackedFileCaVp8View {
 
     /// This function creates a new CaVp8 View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (data, packed_file_info) = match response {
             Response::CaVp8PackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
@@ -140,6 +136,7 @@ impl PackedFileCaVp8View {
             convert_to_ivf_button: convert_to_ivf_button.into_ptr(),
             current_format: Arc::new(Mutex::new(data.get_format())),
             format_data_label: format_data_label.into_ptr(),
+            path: packed_file_view.get_path_raw().clone()
         };
 
         let packed_file_ca_vp8_view_slots = PackedFileCaVp8ViewSlots::new(
@@ -147,7 +144,6 @@ impl PackedFileCaVp8View {
             *app_ui,
             *pack_file_contents_ui,
             *global_search_ui,
-            &packed_file_path
         );
 
         let packed_file_ca_vp8_view = Self {

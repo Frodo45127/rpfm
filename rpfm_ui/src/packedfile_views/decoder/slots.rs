@@ -404,7 +404,7 @@ impl PackedFileDecoderViewSlots {
 
                 // Save and close all PackedFiles that use our definition.
                 let mut packed_files_to_save = vec![];
-                for (open_path, _) in UI_STATE.get_open_packedfiles().iter() {
+                for open_path in UI_STATE.get_open_packedfiles().iter().map(|x| x.get_ref_path()) {
                     if open_path.len() > 2 &&
                         open_path[0] == view.packed_file_path[0] &&
                         open_path[1] == view.packed_file_path[1] &&

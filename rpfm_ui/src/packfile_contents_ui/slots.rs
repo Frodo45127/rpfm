@@ -43,7 +43,7 @@ use crate::locale::{qtr, tr, tre};
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
-use crate::packedfile_views::{PackedFileView, TheOneSlot};
+use crate::packedfile_views::{PackedFileView, TheOneSlot, ViewType, View};
 use crate::QString;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
@@ -588,7 +588,7 @@ impl PackFileContentsSlots {
                             // If there is another Extra PackFile already open, close it.
                             {
                                 let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                if let Some(view) = open_packedfiles.get(&vec!["extra_packfile.rpfm_reserved".to_owned()]) {
+                                if let Some(view) = open_packedfiles.iter().find(|x| *x.get_ref_path() == &["extra_packfile.rpfm_reserved".to_owned()]) {
                                     let widget = view.get_mut_widget();
                                     let index = app_ui.tab_bar_packed_file.index_of(widget);
 
@@ -600,8 +600,8 @@ impl PackFileContentsSlots {
                             app_ui.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                             app_ui.tab_bar_packed_file.set_current_widget(tab_widget);
                             let mut open_list = UI_STATE.set_open_packedfiles();
-                            open_list.insert(vec!["extra_packfile.rpfm_reserved".to_owned()], tab);
-
+                            tab.set_path(&["extra_packfile.rpfm_reserved".to_owned()]);
+                            open_list.push(tab);
                         }
                         Err(error) => show_dialog(app_ui.main_window, error, false),
                     }
@@ -633,7 +633,7 @@ impl PackFileContentsSlots {
                                     let mut paths_to_remove = vec![];
                                     {
                                         let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                        for packed_file_path in open_packedfiles.keys() {
+                                        for packed_file_path in open_packedfiles.iter().map(|x| x.get_ref_path()) {
                                             if !packed_file_path.is_empty() && packed_file_path.starts_with(path) {
                                                 paths_to_remove.push(packed_file_path.to_vec());
                                             }
@@ -699,7 +699,7 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, &mut app_ui, global_search_ui, &mut pack_file_contents_ui)) {
+                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|packed_file| packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui)) {
                     show_dialog(app_ui.main_window, error, false);
                 }
 
@@ -749,14 +749,14 @@ impl PackFileContentsSlots {
                             let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, Vec<String>)>>();
                             let mut path_changes = vec![];
                             let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                            for (path, _) in open_packedfiles.iter_mut() {
+                            for path in open_packedfiles.iter_mut().map(|x| x.get_ref_path()) {
                                 if !path.is_empty() {
                                     for (item_type, new_path) in &renamed_items {
 
                                         // Due to how the backend is built (doing a Per-PackedFile movement) we will always receive here individual PackedFiles.
                                         // So we don't need to check the rest. But the name change can be in any place of the path, so we have to take that into account.
                                         if let TreePathType::File(ref current_path) = item_type {
-                                            if current_path == path {
+                                            if *current_path == *path {
                                                 path_changes.push((current_path.to_vec(), new_path.to_vec()));
 
                                                 // Update the global search stuff, if needed.
@@ -768,7 +768,8 @@ impl PackFileContentsSlots {
                             }
 
                             for (path_before, path_after) in &path_changes {
-                                let data = open_packedfiles.remove(path_before).unwrap();
+                                let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before).unwrap();
+                                let data = open_packedfiles.remove(position);
                                 let widget = data.get_mut_widget();
                                 let index = app_ui.tab_bar_packed_file.index_of(widget);
                                 let old_name = path_before.last().unwrap();
@@ -776,7 +777,9 @@ impl PackFileContentsSlots {
                                 if old_name != new_name {
                                     app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(new_name));
                                 }
-                                open_packedfiles.insert(path_after.to_vec(), data);
+
+                                data.set_path(path_after);
+                                open_packedfiles.push(data);
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items.to_vec()));
@@ -949,8 +952,8 @@ impl PackFileContentsSlots {
                     let mut paths_to_close = vec![];
                     {
                         let open_packedfiles = UI_STATE.set_open_packedfiles();
-                        for (path, _) in open_packedfiles.iter() {
-                            if selected_paths.contains(path) {
+                        for path in open_packedfiles.iter().map(|x| x.get_ref_path())  {
+                            if selected_paths.contains(&path) {
                                 paths_to_close.push(path.to_vec());
                             }
                         }

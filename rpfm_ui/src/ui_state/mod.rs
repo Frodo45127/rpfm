@@ -14,7 +14,6 @@ Module with all the code related to the main `UIState`.
 This module contains the code needed to keep track of the current state of the UI.
 !*/
 
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -47,7 +46,7 @@ pub struct UIState {
     packfile_contents_read_only: AtomicBool,
 
     /// This stores the list to all the widgets of the open PackedFiles.
-    open_packedfiles: Arc<RwLock<BTreeMap<Vec<String>, PackedFileView>>>,
+    open_packedfiles: Arc<RwLock<Vec<PackedFileView>>>,
 
     /// This stores the current operational mode of the application.
     operational_mode: Arc<RwLock<OperationalMode>>,
@@ -69,7 +68,7 @@ impl Default for UIState {
             is_modified: AtomicBool::new(false),
             shortcuts: Arc::new(RwLock::new(Shortcuts::load().unwrap_or_else(|_|Shortcuts::new()))),
             packfile_contents_read_only: AtomicBool::new(false),
-            open_packedfiles: Arc::new(RwLock::new(BTreeMap::new())),
+            open_packedfiles: Arc::new(RwLock::new(vec![])),
             operational_mode: Arc::new(RwLock::new(OperationalMode::Normal)),
             global_search: Arc::new(RwLock::new(GlobalSearch::default())),
         }
@@ -116,14 +115,14 @@ impl UIState {
     }
 
     /// This function returns the open packedfiles list with a reading lock.
-    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<BTreeMap<Vec<String>, PackedFileView>> {
+    pub fn get_open_packedfiles(&self) -> RwLockReadGuard<Vec<PackedFileView>> {
         self.open_packedfiles.read().unwrap()
     }
 
     /// This function returns the open packedfiles list with a writing lock. This acts kinda like a setter.
     ///
     /// Use this only if you need to perform multiple write operations with this.
-    pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<BTreeMap<Vec<String>, PackedFileView>> {
+    pub fn set_open_packedfiles(&self) -> RwLockWriteGuard<Vec<PackedFileView>> {
         self.open_packedfiles.write().unwrap()
     }
 

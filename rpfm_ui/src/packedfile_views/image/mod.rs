@@ -24,8 +24,6 @@ use qt_core::QByteArray;
 
 use cpp_core::MutPtr;
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{Result, ErrorKind};
@@ -61,12 +59,11 @@ impl PackedFileImageView {
 
     /// This function creates a new Image View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the path of the extracted Image.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (image, packed_file_info) = match response {
             Response::ImagePackedFileInfo((image, packed_file_info)) => (image, packed_file_info),
