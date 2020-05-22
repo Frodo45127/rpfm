@@ -620,7 +620,7 @@ unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name:
 pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32, BTreeMap<String, String>>> {
 
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
-    let files_to_ignore = UI_STATE.get_open_packedfiles().keys().cloned().collect();
+    let files_to_ignore = UI_STATE.get_open_packedfiles().iter().map(|x| x.get_path()).collect();
     CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(definition.clone(), files_to_ignore));
 
     let reference_data = definition.get_reference_data();
@@ -629,7 +629,8 @@ pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32
     let open_packedfiles = UI_STATE.get_open_packedfiles();
     for (index, (table, column, lookup)) in &reference_data {
         let mut dependency_data_visual_column = BTreeMap::new();
-        for (path, packed_file_view) in open_packedfiles.iter() {
+        for packed_file_view in open_packedfiles.iter() {
+            let path = packed_file_view.get_ref_path();
             if path.len() == 3 && path[0].to_lowercase() == "db" && path[1].to_lowercase() == format!("{}_tables", table) {
                 if let ViewType::Internal(view) = packed_file_view.get_view() {
                     if let View::Table(table) = view {

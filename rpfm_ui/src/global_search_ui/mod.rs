@@ -547,7 +547,7 @@ impl GlobalSearchUI {
                         _ => unimplemented!(),
                     };
 
-                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().get_mut(&path) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == path) {
                         let _ = packed_file_view.reload(&path, pack_file_contents_ui);
                     }
 
@@ -642,7 +642,7 @@ impl GlobalSearchUI {
                     tree_view.scroll_to_1a(pack_file_contents_model_index);
                     selection_model.select_q_model_index_q_flags_selection_flag(pack_file_contents_model_index, QFlags::from(SelectionFlag::ClearAndSelect));
 
-                    if let Some((_, packed_file_view)) = UI_STATE.get_open_packedfiles().iter().find(|x| x.0 == &path) {
+                    if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
                         match packed_file_view.get_view() {
 
                             // In case of tables, we have to get the logical row/column of the match and select it.

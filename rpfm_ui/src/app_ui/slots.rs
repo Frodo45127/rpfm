@@ -1109,7 +1109,8 @@ impl AppUISlots {
             // PackFile Views must be deleted on close.
             let mut purge_on_delete = vec![];
             let mut tab_index = -1;
-            for (path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                let path = packed_file_view.get_ref_path();
                 let widget = packed_file_view.get_mut_widget();
                 if app_ui.tab_bar_packed_file.index_of(widget) == index {
                     tab_index = index;
@@ -1133,7 +1134,7 @@ impl AppUISlots {
         let packed_file_update = SlotOfInt::new(move |index| {
             if index == -1 { return; }
 
-            for packed_file_view in UI_STATE.get_open_packedfiles().values() {
+            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                 let widget = packed_file_view.get_mut_widget();
                 if app_ui.tab_bar_packed_file.index_of(widget) == index {
                     if let ViewType::Internal(view) = packed_file_view.get_view() {

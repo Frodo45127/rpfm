@@ -119,10 +119,10 @@ impl AppUI {
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
     ) {
 
-        for (path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
 
             // TODO: This should report an error.
-            let _ = packed_file_view.save(path, self, global_search_ui, &mut pack_file_contents_ui);
+            let _ = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
             if index != -1 {
@@ -153,47 +153,49 @@ impl AppUI {
     ) {
 
         // Black magic to remove widgets.
-        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(path) {
-            if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
+        if let Some(position) = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path) {
+            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
+                if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
 
-                // TODO: This should report an error.
-                let _ = packed_file_view.save(path, self, global_search_ui, &mut pack_file_contents_ui);
-            }
-            let mut widget = packed_file_view.get_mut_widget();
-            let index = self.tab_bar_packed_file.index_of(widget);
-            if index != -1 {
-                self.tab_bar_packed_file.remove_tab(index);
-            }
-
-            // Delete the widget manually to free memory.
-            widget.delete_later();
-        }
-
-        if !path.is_empty() {
-            UI_STATE.set_open_packedfiles().remove(path);
-            if path != ["extra_packfile.rpfm_reserved".to_owned()] {
-
-                // We check if there are more tables open. This is because we cannot change the GameSelected
-                // when there is a PackedFile using his Schema.
-                let mut enable_game_selected_menu = true;
-                for path in UI_STATE.get_open_packedfiles().keys() {
-                    if let Some(folder) = path.get(0) {
-                        if folder.to_lowercase() == "db" {
-                            enable_game_selected_menu = false;
-                            break;
-                        }
-                    }
-
-                    else if let Some(file) = path.last() {
-                        if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
-                            enable_game_selected_menu = false;
-                            break;
-                        }
-                    }
+                    // TODO: This should report an error.
+                    let _ = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
+                }
+                let mut widget = packed_file_view.get_mut_widget();
+                let index = self.tab_bar_packed_file.index_of(widget);
+                if index != -1 {
+                    self.tab_bar_packed_file.remove_tab(index);
                 }
 
-                if enable_game_selected_menu {
-                    self.game_selected_group.set_enabled(true);
+                // Delete the widget manually to free memory.
+                widget.delete_later();
+            }
+
+            if !path.is_empty() {
+                UI_STATE.set_open_packedfiles().remove(position);
+                if path != ["extra_packfile.rpfm_reserved".to_owned()] {
+
+                    // We check if there are more tables open. This is because we cannot change the GameSelected
+                    // when there is a PackedFile using his Schema.
+                    let mut enable_game_selected_menu = true;
+                    for path in UI_STATE.get_open_packedfiles().iter().map(|x| x.get_ref_path()) {
+                        if let Some(folder) = path.get(0) {
+                            if folder.to_lowercase() == "db" {
+                                enable_game_selected_menu = false;
+                                break;
+                            }
+                        }
+
+                        else if let Some(file) = path.last() {
+                            if !file.is_empty() && file.to_lowercase().ends_with(".loc") {
+                                enable_game_selected_menu = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if enable_game_selected_menu {
+                        self.game_selected_group.set_enabled(true);
+                    }
                 }
             }
         }
@@ -386,7 +388,7 @@ impl AppUI {
         self.main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend.
-        UI_STATE.get_open_packedfiles().iter().try_for_each(|(path, packed_file)| packed_file.save(path, self, *global_search_ui, pack_file_contents_ui))?;
+        UI_STATE.get_open_packedfiles().iter().try_for_each(|packed_file| packed_file.save(self, *global_search_ui, pack_file_contents_ui))?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -1027,16 +1029,17 @@ impl AppUI {
             if let TreePathType::File(path) = item_type {
 
                 // Close all preview views except the file we're opening.
-                for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                    let open_path = packed_file_view.get_ref_path();
                     let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                    if open_path != path && packed_file_view.get_is_preview() && index != -1 {
+                    if *open_path != *path && packed_file_view.get_is_preview() && index != -1 {
                         self.tab_bar_packed_file.remove_tab(index);
                     }
                 }
 
                 // If the file we want to open is already open, or it's hidden, we show it/focus it, instead of opening it again.
                 // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
-                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().get(path) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *path) {
                     if !is_external {
                         let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
@@ -1060,7 +1063,7 @@ impl AppUI {
                 }
 
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
-                if is_external && UI_STATE.get_open_packedfiles().get(path).is_some() {
+                if is_external && UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *path).is_some() {
                     self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, path, true)
                 }
 
@@ -1074,13 +1077,13 @@ impl AppUI {
 
                     // Put the Path into a Rc<RefCell<> so we can alter it while it's open.
                     let packed_file_type = PackedFileType::get_packed_file_type(&path);
-                    let path = Rc::new(RefCell::new(path.to_vec()));
+                    tab.set_path(&path);
 
                     match packed_file_type {
 
                         // If the file is a CA_VP8 PackedFile...
                         PackedFileType::CaVp8 => {
-                            match PackedFileCaVp8View::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileCaVp8View::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1088,7 +1091,7 @@ impl AppUI {
                                     self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
+                                    open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
@@ -1098,7 +1101,7 @@ impl AppUI {
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1106,7 +1109,7 @@ impl AppUI {
                                     self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
+                                    open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
@@ -1117,7 +1120,7 @@ impl AppUI {
 
                         // If the file is a DB PackedFile...
                         PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1125,7 +1128,7 @@ impl AppUI {
                                     self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
+                                    open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
@@ -1136,7 +1139,7 @@ impl AppUI {
 
                         // If the file is a Text PackedFile...
                         PackedFileType::Text(_) => {
-                            match PackedFileTextView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1144,7 +1147,7 @@ impl AppUI {
                                     self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
+                                    open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
@@ -1155,7 +1158,7 @@ impl AppUI {
 
                         // If the file is a RigidModel PackedFile...
                         PackedFileType::RigidModel => {
-                            match PackedFileRigidModelView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileRigidModelView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1163,7 +1166,7 @@ impl AppUI {
                                     self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
+                                    open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
@@ -1172,7 +1175,7 @@ impl AppUI {
 
                         // If the file is a Image PackedFile...
                         PackedFileType::Image => {
-                            match PackedFileImageView::new_view(&path, &mut tab) {
+                            match PackedFileImageView::new_view(&mut tab) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1180,7 +1183,7 @@ impl AppUI {
                                     self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.insert(path.borrow().to_vec(), tab);
+                                    open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::ImageDecode(format!("{}", error)), false),
@@ -1210,7 +1213,7 @@ impl AppUI {
                             self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                             self.tab_bar_packed_file.set_current_widget(tab_widget);
                             let mut open_list = UI_STATE.set_open_packedfiles();
-                            open_list.insert(path.borrow().to_vec(), tab);
+                            open_list.push(tab);
                         }
                         Err(error) => show_dialog(self.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
                     }
@@ -1241,16 +1244,18 @@ impl AppUI {
                 *fake_path.last_mut().unwrap() = format!("{}-rpfm-decoder", fake_path.last_mut().unwrap());
 
                 // Close all preview views except the file we're opening.
-                for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                    let open_path = packed_file_view.get_ref_path();
                     let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                    if open_path != path && packed_file_view.get_is_preview() && index != -1 {
+                    if *open_path != *path && packed_file_view.get_is_preview() && index != -1 {
                         self.tab_bar_packed_file.remove_tab(index);
                     }
                 }
 
                 // Close all preview views except the file we're opening. The path used for the decoder is empty.
                 let name = qtr("decoder_title");
-                for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                    let open_path = packed_file_view.get_ref_path();
                     let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
                     if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
                         self.tab_bar_packed_file.remove_tab(index);
@@ -1258,7 +1263,7 @@ impl AppUI {
                 }
 
                 // If the decoder is already open, or it's hidden, we show it/focus it, instead of opening it again.
-                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().get(&fake_path) {
+                if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == fake_path) {
                     let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                     if index == -1 {
@@ -1276,9 +1281,9 @@ impl AppUI {
                 tab.set_is_preview(false);
                 let icon_type = IconType::PackFile(true);
                 let icon = icon_type.get_icon_from_path();
+                tab.set_path(path);
 
-                let path = Rc::new(RefCell::new(path.to_vec()));
-                match PackedFileDecoderView::new_view(&path, &mut tab, global_search_ui, pack_file_contents_ui, &self) {
+                match PackedFileDecoderView::new_view(&mut tab, global_search_ui, pack_file_contents_ui, &self) {
                     Ok(slots) => {
                         slot_holder.borrow_mut().push(slots);
 
@@ -1286,7 +1291,7 @@ impl AppUI {
                         self.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
                         self.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                         let mut open_list = UI_STATE.set_open_packedfiles();
-                        open_list.insert(fake_path, tab);
+                        open_list.push(tab);
                     },
                     Err(error) => return show_dialog(self.main_window, ErrorKind::DecoderDecode(format!("{}", error)), false),
                 }
@@ -1308,7 +1313,8 @@ impl AppUI {
             // Close all preview views except the file we're opening. The path used for the manager is empty.
             let path = vec![];
             let name = qtr("table_dependency_manager_title");
-            for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                let open_path = packed_file_view.get_ref_path();
                 let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
                 if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
                     self.tab_bar_packed_file.remove_tab(index);
@@ -1316,7 +1322,7 @@ impl AppUI {
             }
 
             // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
-            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().get(&path) {
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
                 let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
@@ -1332,19 +1338,18 @@ impl AppUI {
             // If it's not already open/hidden, we create it and add it as a new tab.
             let mut tab = PackedFileView::default();
             tab.set_is_preview(false);
+            tab.set_path(&path);
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
 
-            let path = Rc::new(RefCell::new(path.to_vec()));
-            match PackedFileTableView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
+            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                 Ok((slots, _)) => {
                     slot_holder.borrow_mut().push(slots);
 
                     // Add the manager to the 'Currently open' list and make it visible.
                     self.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
                     self.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                    let mut open_list = UI_STATE.set_open_packedfiles();
-                    open_list.insert(path.borrow().to_vec(), tab);
+                    UI_STATE.set_open_packedfiles().push(tab);
                 },
                 Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }
@@ -1365,15 +1370,16 @@ impl AppUI {
             // Close all preview views except the file we're opening. The path used for the notes is reserved.
             let path = vec!["notes.rpfm_reserved".to_owned()];
             let name = qtr("notes");
-            for (open_path, packed_file_view) in UI_STATE.get_open_packedfiles().iter() {
+            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                let open_path = packed_file_view.get_ref_path();
                 let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
-                if open_path != &path && packed_file_view.get_is_preview() && index != -1 {
+                if *open_path != path && packed_file_view.get_is_preview() && index != -1 {
                     self.tab_bar_packed_file.remove_tab(index);
                 }
             }
 
             // If the notes are already open, or are hidden, we show them/focus them, instead of opening them again.
-            if let Some(ref mut tab_widget) = UI_STATE.get_open_packedfiles().get(&path) {
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
                 let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
@@ -1391,17 +1397,16 @@ impl AppUI {
             tab.set_is_preview(false);
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
+            tab.set_path(&path);
 
-            let path = Rc::new(RefCell::new(path.to_vec()));
-            match PackedFileTextView::new_view(&path, &mut tab, self, global_search_ui, pack_file_contents_ui) {
+            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                 Ok((slots, _)) => {
                     slot_holder.borrow_mut().push(slots);
 
                     // Add the manager to the 'Currently open' list and make it visible.
                     self.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
                     self.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
-                    let mut open_list = UI_STATE.set_open_packedfiles();
-                    open_list.insert(path.borrow().to_vec(), tab);
+                    UI_STATE.set_open_packedfiles().push(tab);
                 },
                 Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }

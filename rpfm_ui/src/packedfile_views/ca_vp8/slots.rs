@@ -15,9 +15,6 @@ Module with the slots for CA_VP8 Views.
 use qt_core::QString;
 use qt_core::Slot;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
 
 use crate::app_ui::AppUI;
@@ -48,34 +45,33 @@ impl PackedFileCaVp8ViewSlots {
         view: PackedFileCaVp8ViewRaw,
         mut app_ui: AppUI,
         mut pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        packed_file_path: &Rc<RefCell<Vec<String>>>
+        global_search_ui: GlobalSearchUI
     )  -> Self {
 
         // Slot to change the format of the video to CAMV.
         let convert_to_camv = Slot::new(clone!(
-            mut packed_file_path,
+            mut view,
             mut view => move || {
                 view.set_current_format(SupportedFormats::Camv);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::Camv)));
-                if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
+                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&packed_file_path.borrow(), &mut app_ui, global_search_ui, &mut pack_file_contents_ui);
+                    let _ = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui);
                 }
             }
         ));
 
         // Slot to change the format of the video to IVF.
         let convert_to_ivf = Slot::new(clone!(
-            mut packed_file_path,
+            mut view,
             mut view => move || {
                 view.set_current_format(SupportedFormats::Ivf);
                 view.format_data_label.set_text(&QString::from_std_str(format!("{:?}", SupportedFormats::Ivf)));
-                if let Some(packed_file) = UI_STATE.get_open_packedfiles().get(&*packed_file_path.borrow()) {
+                if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&packed_file_path.borrow(), &mut app_ui, global_search_ui, &mut pack_file_contents_ui);
+                    let _ = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui);
                 }
             }
         ));

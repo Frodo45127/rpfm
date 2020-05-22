@@ -21,6 +21,7 @@ use qt_core::CheckState;
 use cpp_core::MutPtr;
 
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -69,6 +70,7 @@ pub mod utils;
 
 /// This struct contains the widget of the view of a PackedFile and his info.
 pub struct PackedFileView {
+    path: Arc<RwLock<Vec<String>>>,
     widget: AtomicPtr<QWidget>,
     is_preview: AtomicBool,
     view: ViewType,
@@ -119,6 +121,7 @@ pub enum TheOneSlot {
 /// Default implementation for `PackedFileView`.
 impl Default for PackedFileView {
     fn default() -> Self {
+        let path = Arc::new(RwLock::new(vec![]));
         let widget_ptr = unsafe { QWidget::new_0a().into_ptr() };
         let widget = atomic_from_mut_ptr(widget_ptr);
         unsafe { create_grid_layout(widget_ptr); }
@@ -126,6 +129,7 @@ impl Default for PackedFileView {
         let view = ViewType::Internal(View::None);
         let packed_file_type = PackedFileType::Unknown;
         Self {
+            path,
             widget,
             is_preview,
             view,
@@ -136,6 +140,26 @@ impl Default for PackedFileView {
 
 /// Implementation for `PackedFileView`.
 impl PackedFileView {
+
+    /// This function returns a copy of the path of this `PackedFileView`.
+    pub fn get_path(&self) -> Vec<String> {
+        self.path.read().unwrap().to_vec()
+    }
+
+    /// This function returns a copy of the path of this `PackedFileView`.
+    pub fn get_path_raw(&self) -> Arc<RwLock<Vec<String>>> {
+        self.path.clone()
+    }
+
+    /// This function returns a reference to the path of this `PackedFileView`.
+    pub fn get_ref_path(&self) -> RwLockReadGuard<Vec<String>> {
+        self.path.read().unwrap()
+    }
+
+    /// This function allows you to set a `PackedFileView` as a preview or normal view.
+    pub fn set_path(&self, path: &[String]) {
+        *self.path.write().unwrap() = path.to_vec();
+    }
 
     /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
     pub fn get_mut_widget(&self) -> MutPtr<QWidget> {
@@ -163,7 +187,7 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub unsafe fn save(&self, path: &[String], app_ui: &mut AppUI, mut global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: &mut PackFileContentsUI) -> Result<()> {
+    pub unsafe fn save(&self, app_ui: &mut AppUI, mut global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: &mut PackFileContentsUI) -> Result<()> {
 
         match self.get_view() {
             ViewType::Internal(view) => {
@@ -197,7 +221,7 @@ impl PackedFileView {
                                     FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
 
                                     // Sequences in the UI are not yet supported.
-                                    FieldType::Sequence(_) => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
+                                    FieldType::Sequence(_) => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
                                 };
                                 new_row.push(item);
                             }
@@ -215,9 +239,9 @@ impl PackedFileView {
                                 table.set_table_data(&entries)?;
                                 DecodedPackedFile::Loc(table)
                             }
-                            _ => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into())
+                            _ => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into())
                         }
-                    } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) },
+                    } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
 
                     // Images are read-only.
                     PackedFileType::Image => return Ok(()),
@@ -225,11 +249,11 @@ impl PackedFileView {
                     // These ones are a bit special. We just need to send back the current format of the video.
                     PackedFileType::CaVp8 => {
                         if let View::CaVp8(view) = view {
-                            CENTRAL_COMMAND.send_message_qt(Command::SetCaVp8Format((path.to_vec(), view.get_current_format())));
+                            CENTRAL_COMMAND.send_message_qt(Command::SetCaVp8Format((self.get_path(), view.get_current_format())));
                             return Ok(())
-                        } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) }
+                        } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                     },
-                    PackedFileType::RigidModel => return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()),
+                    PackedFileType::RigidModel => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
 
                     PackedFileType::Text(_) => {
                         if let View::Text(view) = view {
@@ -238,7 +262,7 @@ impl PackedFileView {
                             let string = get_text_safe(&mut widget).to_std_string();
                             text.set_contents(&string);
                             DecodedPackedFile::Text(text)
-                        } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) }
+                        } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
                     },
 
                     // These ones are like very reduced tables.
@@ -257,14 +281,14 @@ impl PackedFileView {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
                         return Ok(())
-                    } else { return Err(ErrorKind::PackedFileSaveError(path.to_vec()).into()) },
+                    } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
 
                     PackedFileType::Unknown => return Ok(()),
                     _ => unimplemented!(),
                 };
 
                 // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
-                CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(path.to_vec(), data));
+                CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(self.get_path(), data));
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
                     Response::Success => {
@@ -272,7 +296,7 @@ impl PackedFileView {
                         // If we have a GlobalSearch on, update the results for this specific PackedFile.
                         let global_search = UI_STATE.get_global_search();
                         if !global_search.pattern.is_empty() {
-                            let path_types = vec![PathType::File(path.to_vec())];
+                            let path_types = vec![PathType::File(self.get_path())];
                             global_search_ui.search_on_path(&mut pack_file_contents_ui, path_types);
                             UI_STATE.set_global_search(&global_search);
                         }
@@ -285,7 +309,7 @@ impl PackedFileView {
                 }
             },
             ViewType::External(view) => {
-                CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromExternalView((path.to_vec(), view.get_external_path())));
+                CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromExternalView((self.get_path(), view.get_external_path())));
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
                     Response::Success => {},

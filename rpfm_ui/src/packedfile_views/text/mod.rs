@@ -17,9 +17,8 @@ use qt_widgets::QWidget;
 
 use cpp_core::MutPtr;
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
+use std::sync::{Arc, RwLock};
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
@@ -60,9 +59,10 @@ pub struct PackedFileTextView {
 ///
 /// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileTextViewRaw`.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PackedFileTextViewRaw {
     pub editor: MutPtr<QWidget>,
+    pub path: Arc<RwLock<Vec<String>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -74,7 +74,6 @@ impl PackedFileTextView {
 
     /// This function creates a new Text View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
@@ -82,7 +81,7 @@ impl PackedFileTextView {
     ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
 
         // Get the decoded Text.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (text, packed_file_info) = match response {
             Response::TextPackedFileInfo((text, packed_file_info)) => (text, Some(packed_file_info)),
@@ -109,8 +108,8 @@ impl PackedFileTextView {
 
         set_text_safe(&mut editor, &mut QString::from_std_str(text.get_ref_contents()), &mut highlighting_mode);
 
-        let packed_file_text_view_raw = PackedFileTextViewRaw {editor};
-        let packed_file_text_view_slots = PackedFileTextViewSlots::new(packed_file_text_view_raw, *app_ui, *pack_file_contents_ui, *global_search_ui, &packed_file_path);
+        let packed_file_text_view_raw = PackedFileTextViewRaw {editor, path: packed_file_view.get_path_raw() };
+        let packed_file_text_view_slots = PackedFileTextViewSlots::new(&packed_file_text_view_raw, *app_ui, *pack_file_contents_ui, *global_search_ui);
         let packed_file_text_view = Self { editor: atomic_from_mut_ptr(packed_file_text_view_raw.editor)};
 
         packed_file_view.packed_file_type = PackedFileType::Text(text.get_text_type());
@@ -146,7 +145,7 @@ impl PackedFileTextView {
 impl PackedFileTextViewRaw {
 
     /// This function returns a pointer to the editor widget.
-    pub fn get_mut_editor(self) -> MutPtr<QWidget> {
+    pub fn get_mut_editor(&self) -> MutPtr<QWidget> {
         self.editor
     }
 }

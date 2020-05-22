@@ -41,10 +41,8 @@ use qt_core::MatchFlag;
 
 use cpp_core::MutPtr;
 
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::{fmt, fmt::Debug};
-use std::rc::Rc;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 
@@ -184,6 +182,7 @@ pub struct PackedFileTableView {
     table_name: String,
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
+    packed_file_path: Arc<RwLock<Vec<String>>>,
 
     undo_model: AtomicPtr<QStandardItemModel>,
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
@@ -201,7 +200,6 @@ impl PackedFileTableView {
     ///
     /// NOTE: To open the dependency list, pass it an empty path.
     pub unsafe fn new_view(
-        packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
@@ -209,8 +207,8 @@ impl PackedFileTableView {
     ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
 
         // Get the decoded Table.
-        if packed_file_path.borrow().is_empty() { CENTRAL_COMMAND.send_message_qt(Command::GetDependencyPackFilesList); }
-        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec())); }
+        if packed_file_view.get_ref_path().is_empty() { CENTRAL_COMMAND.send_message_qt(Command::GetDependencyPackFilesList); }
+        else { CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path())); }
 
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (table_data, packed_file_info) = match response {
@@ -486,6 +484,7 @@ impl PackedFileTableView {
 
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
+            packed_file_path: packed_file_view.get_path_raw().clone(),
 
             undo_lock,
             save_lock,
@@ -500,7 +499,6 @@ impl PackedFileTableView {
             *global_search_ui,
             *pack_file_contents_ui,
             *app_ui,
-            &packed_file_path,
         );
 
         let mut packed_file_table_view = Self {
@@ -545,6 +543,7 @@ impl PackedFileTableView {
             dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition: packed_file_table_view_raw.table_definition.clone(),
             table_name,
+            packed_file_path: packed_file_view.get_path_raw().clone(),
 
             undo_model: atomic_from_mut_ptr(packed_file_table_view_raw.undo_model),
             history_undo: packed_file_table_view_raw.history_undo.clone(),
@@ -565,9 +564,9 @@ impl PackedFileTableView {
         update_undo_model(mut_ptr_from_atomic(&packed_file_table_view.table_model), mut_ptr_from_atomic(&packed_file_table_view.undo_model));
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
-        let packed_file_name = if packed_file_path.borrow().len() == 3 &&
-            packed_file_path.borrow()[0].to_lowercase() == "db" {
-            packed_file_path.borrow()[1].to_owned()
+        let packed_file_name = if packed_file_view.get_ref_path().len() == 3 &&
+            packed_file_view.get_ref_path()[0].to_lowercase() == "db" {
+            packed_file_view.get_ref_path()[1].to_owned()
         } else { "".to_owned() };
 
         build_columns(

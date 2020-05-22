@@ -47,8 +47,6 @@ use qt_core::QStringList;
 
 use cpp_core::MutPtr;
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::{Arc, atomic::AtomicPtr, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
@@ -199,7 +197,6 @@ impl PackedFileDecoderView {
 
     /// This function creates a new Decoder View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
@@ -207,7 +204,7 @@ impl PackedFileDecoderView {
     ) -> Result<TheOneSlot> {
 
         // Get the decoded Text.
-        CENTRAL_COMMAND.send_message_qt(Command::GetPackedFile(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::GetPackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let packed_file = match response {
             Response::OptionPackedFile(packed_file) => match packed_file {
@@ -352,7 +349,7 @@ impl PackedFileDecoderView {
         let packed_file_info_entry_count_label = QLabel::from_q_string(&QString::from_std_str("PackedFile entry count:"));
 
         let packed_file_info_type_decoded_label = QLabel::from_q_string(&QString::from_std_str(match packed_file_type {
-            PackedFileType::DB => format!("DB/{}", packed_file_path.borrow()[1]),
+            PackedFileType::DB => format!("DB/{}", packed_file_view.get_path()[1]),
             _ => format!("{}", packed_file_type),
         }));
         let mut packed_file_info_version_decoded_label = QLabel::new();

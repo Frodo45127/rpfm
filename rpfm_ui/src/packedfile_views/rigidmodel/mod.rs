@@ -16,9 +16,8 @@ use qt_widgets::QWidget;
 
 use cpp_core::MutPtr;
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
+use std::sync::{Arc, RwLock};
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
@@ -49,9 +48,10 @@ pub struct PackedFileRigidModelView {
 ///
 /// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileRigidModelView`.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PackedFileRigidModelViewRaw {
     pub editor: MutPtr<QWidget>,
+    pub path: Arc<RwLock<Vec<String>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -63,7 +63,6 @@ impl PackedFileRigidModelView {
 
     /// This function creates a new Text View, and sets up his slots and connections.
     pub unsafe fn new_view(
-        packed_file_path: &Rc<RefCell<Vec<String>>>,
         packed_file_view: &mut PackedFileView,
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
@@ -71,7 +70,7 @@ impl PackedFileRigidModelView {
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Text.
-        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_path.borrow().to_vec()));
+        CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (_rigid_model, packed_file_info) = match response {
             Response::RigidModelPackedFileInfo((rigid_model, packed_file_info)) => (rigid_model, packed_file_info),
@@ -82,8 +81,8 @@ impl PackedFileRigidModelView {
 
         let editor = new_text_editor_safe(&mut packed_file_view.get_mut_widget());
 
-        let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor};
-        let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(packed_file_rigid_model_view_raw, *app_ui, *global_search_ui, *pack_file_contents_ui, &packed_file_path);
+        let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor, path: packed_file_view.get_path_raw().clone()};
+        let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(&packed_file_rigid_model_view_raw, *app_ui, *global_search_ui, *pack_file_contents_ui);
         let packed_file_rigid_model_view = Self { editor: atomic_from_mut_ptr(packed_file_rigid_model_view_raw.editor) };
 
         packed_file_view.view = ViewType::Internal(View::RigidModel(packed_file_rigid_model_view));
