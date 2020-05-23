@@ -1151,11 +1151,13 @@ impl AppUISlots {
                                     &data
                                 );
 
-                                check_table_for_error(
-                                    table.get_mut_ptr_table_model(),
-                                    &table.get_ref_table_definition(),
-                                    &data
-                                );
+                                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+                                    check_table_for_error(
+                                        table.get_mut_ptr_table_model(),
+                                        &table.get_ref_table_definition(),
+                                        &data
+                                    );
+                                }
                             }
                         }
                     }

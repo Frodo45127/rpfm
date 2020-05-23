@@ -735,6 +735,7 @@ pub unsafe fn check_table_for_error(
     definition: &Definition,
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
 ) {
+    let _blocker = QSignalBlocker::from_q_object(model.static_upcast_mut::<QObject>());
     for (column, field) in definition.fields.iter().enumerate() {
         if field.is_reference.is_some() {
             for row in 0..model.row_count_0a() {
