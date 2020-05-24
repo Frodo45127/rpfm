@@ -17,7 +17,7 @@ QStringItemDelegate::QStringItemDelegate(QObject *parent, const int lenght): QSt
 QWidget* QStringItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &, const QModelIndex &) const {
     QLineEdit *editor = new QLineEdit(parent);
     if (this->max_lenght > 0) {
-        editor->setMaxLength(max_lenght);
+        //editor->setMaxLength(max_lenght);
     }
     return editor;
 }
