@@ -30,22 +30,25 @@ use rpfm_lib::config::get_config_path;
 const SHORTCUTS_FILE: &str = "shortcuts.ron";
 
 /// List of shortcuts for the `PackFile` Menu.
-const SHORTCUTS_MENU_BAR_PACKFILE: [(&str, &str); 7] = [
+const SHORTCUTS_MENU_BAR_PACKFILE: [(&str, &str); 9] = [
     ("new_packfile", "Ctrl+N"),
     ("open_packfile", "Ctrl+O"),
     ("save_packfile", "Ctrl+S"),
     ("save_packfile_as", "Ctrl+Shift+S"),
+    ("packfile_install", "Ctrl+I"),
+    ("packfile_uninstall", "Ctrl+U"),
     ("load_all_ca_packfiles", "Ctrl+G"),
     ("preferences", "Ctrl+P"),
     ("quit", ""),
 ];
 
 /// List of shortcuts for the `MyMod` Menu.
-const SHORTCUTS_MENU_BAR_MYMOD: [(&str, &str); 4] = [
+const SHORTCUTS_MENU_BAR_MYMOD: [(&str, &str); 5] = [
     ("mymod_new", ""),
     ("mymod_delete_selected", ""),
-    ("mymod_install", "Ctrl+Shift+I"),
-    ("mymod_uninstall", ""),
+    ("mymod_import", ""),
+    ("mymod_export", ""),
+    ("mymod_rpfm_ignore", "")
 ];
 
 /// List of shortcuts for the `View` Menu.

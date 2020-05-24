@@ -59,8 +59,9 @@ impl OperationalMode {
 
                 // Enable all the "MyMod" related actions.
                 unsafe { app_ui.mymod_delete_selected.set_enabled(true); }
-                unsafe { app_ui.mymod_install.set_enabled(true); }
-                unsafe { app_ui.mymod_uninstall.set_enabled(true); }
+                unsafe { app_ui.mymod_import.set_enabled(true); }
+                unsafe { app_ui.mymod_export.set_enabled(true); }
+                unsafe { app_ui.mymod_rpfm_ignore.set_enabled(true); }
             }
 
             // If `None` has been provided, we disable the MyMod mode.
@@ -68,8 +69,9 @@ impl OperationalMode {
                 *self = OperationalMode::Normal;
 
                 unsafe { app_ui.mymod_delete_selected.set_enabled(false); }
-                unsafe { app_ui.mymod_install.set_enabled(false); }
-                unsafe { app_ui.mymod_uninstall.set_enabled(false); }
+                unsafe { app_ui.mymod_import.set_enabled(false); }
+                unsafe { app_ui.mymod_export.set_enabled(false); }
+                unsafe { app_ui.mymod_rpfm_ignore.set_enabled(false); }
             }
         }
     }

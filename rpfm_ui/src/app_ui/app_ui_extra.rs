@@ -73,7 +73,8 @@ use crate::QString;
 use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
-use crate::utils::{create_grid_layout, show_dialog};
+use crate::utils::{create_grid_layout, show_dialog, show_debug_dialog};
+
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -518,6 +519,9 @@ impl AppUI {
             app_ui.packfile_new_packfile.set_enabled(false);
             app_ui.packfile_save_packfile.set_enabled(false);
             app_ui.packfile_save_packfile_as.set_enabled(false);
+            // TODO - don't know if these should be specified like this in Arena
+            //app_ui.packfile_install.set_enabled(false);
+            //app_ui.packfile_uninstall.set_enabled(false);
 
             // This one too, though we had to deal with it specially later on.
             app_ui.mymod_new.set_enabled(false);
@@ -530,6 +534,88 @@ impl AppUI {
             app_ui.packfile_new_packfile.set_enabled(true);
             app_ui.packfile_save_packfile.set_enabled(enable);
             app_ui.packfile_save_packfile_as.set_enabled(enable);
+
+            // Read to see if the current opened .pack file is in the /data/ folder of the current game selected
+
+            // Send the GetPackFilePath message through CC, then read the response to get the path
+            CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+            let response = CENTRAL_COMMAND.recv_message_qt();
+
+            // translate the response to the path
+            let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+
+            // check if the string exists; if not, no pack is selected, disable
+            let mut pack_path_str = pack_path.to_string_lossy();
+
+            // use these bools to determine inst/uninst logic, trigger the enable/disable call on the UICs at the end
+            let mut inst_enable = false;
+            let mut uninst_enable = false;
+
+            if !pack_path.exists() {
+                // path is empty, disbable install/uninstall
+                inst_enable = false;
+                uninst_enable = false;
+            } // path isn't empty, check it
+            else {
+                //show_debug_dialog(&format!("{}", pack_path_str));
+
+                match get_game_selected_data_path() {
+                    Some(ref mut data_path) => {
+                        // if a path was found, check if it matches the PackFile's path; if it doesn't, allow install
+                        let data_path_str = data_path.to_string_lossy();
+                        //show_debug_dialog(&format!("{}", data_path_str));
+
+                        // if the paths are different, enable -- compare the PathBufs so the / and \ aren't confused
+                        if data_path != &pack_path {
+                            inst_enable = true;
+
+                            // check to see if the .pack exists in data - if it does, enable uninst
+                            if let Some(ref packfile_name) = pack_path.file_name() {
+                                let packfile_name_str = packfile_name.to_string_lossy();
+                                show_debug_dialog(&app_ui.main_window, &format!("{}", packfile_name_str));
+
+                                // add the `xxx.pack` bit to the data path, and check if any exist
+                                data_path.push(packfile_name);
+                                if data_path.exists() && data_path.is_file() {
+                                    uninst_enable = true;
+                                }
+                            }
+                        } // otherwise, disable
+                        /*else {
+                            inst_enable = false;
+                        }*/
+                    }
+                    None => {
+                        // no path was found; disable install
+                        inst_enable = false;
+                    }
+                }
+            }
+            app_ui.packfile_install.set_enabled(inst_enable);
+            app_ui.packfile_uninstall.set_enabled(uninst_enable);
+
+
+            /*let mut path = if let Response::PathBuf(path) = response {
+                path
+            } else {
+                panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
+            };*/
+
+            /*if let Some(ref path) = Command::GetPackFilePath {
+                if path.is_dir() {
+                    let path_str = path.to_str();
+                    let Some(ref data_path) = get_game_selected_data_path();
+                    let data_path_str = data_path.to_str();
+                    if path_str == data_path_str {
+                        // do nothing
+                    } else {
+                        // enable it
+
+                    }
+                }
+            }*/
+            //self.packfile_install.set_enabled(true);
+            //self.packfile_uninstall.set_enabled(enable);
 
             // If there is a "MyMod" path set in the settings...
             if let Some(ref path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {

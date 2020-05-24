@@ -102,6 +102,8 @@ pub struct AppUI {
     pub packfile_open_packfile: QPtr<QAction>,
     pub packfile_save_packfile: QPtr<QAction>,
     pub packfile_save_packfile_as: QPtr<QAction>,
+    pub packfile_install: QPtr<QAction>,
+    pub packfile_uninstall: QPtr<QAction>,
     pub packfile_open_recent: QBox<QMenu>,
     pub packfile_open_from_content: QBox<QMenu>,
     pub packfile_open_from_data: QBox<QMenu>,
@@ -136,8 +138,9 @@ pub struct AppUI {
     pub mymod_open_mymod_folder: QPtr<QAction>,
     pub mymod_new: QPtr<QAction>,
     pub mymod_delete_selected: QPtr<QAction>,
-    pub mymod_install: QPtr<QAction>,
-    pub mymod_uninstall: QPtr<QAction>,
+    pub mymod_import: QPtr<QAction>,
+    pub mymod_export: QPtr<QAction>,
+    pub mymod_rpfm_ignore: QPtr<QAction>,
 
     pub mymod_open_troy: QPtr<QMenu>,
     pub mymod_open_three_kingdoms: QPtr<QMenu>,
@@ -355,6 +358,8 @@ impl AppUI {
         let packfile_open_packfile = menu_bar_packfile.add_action_q_string(&qtr("open_packfile"));
         let packfile_save_packfile = menu_bar_packfile.add_action_q_string(&qtr("save_packfile"));
         let packfile_save_packfile_as = menu_bar_packfile.add_action_q_string(&qtr("save_packfile_as"));
+        let packfile_install = menu_bar_packfile.add_action_q_string(&qtr("packfile_install"));
+        let packfile_uninstall = menu_bar_packfile.add_action_q_string(&qtr("packfile_uninstall"));
         let packfile_open_recent = QMenu::from_q_string_q_widget(&qtr("open_recent"), &menu_bar_packfile);
         let packfile_open_from_content = QMenu::from_q_string_q_widget(&qtr("open_from_content"), &menu_bar_packfile);
         let packfile_open_from_data = QMenu::from_q_string_q_widget(&qtr("open_from_data"), &menu_bar_packfile);
@@ -429,8 +434,9 @@ impl AppUI {
         let mymod_open_mymod_folder = menu_bar_mymod.add_action_q_string(&qtr("mymod_open_mymod_folder"));
         let mymod_new = menu_bar_mymod.add_action_q_string(&qtr("mymod_new"));
         let mymod_delete_selected = menu_bar_mymod.add_action_q_string(&qtr("mymod_delete_selected"));
-        let mymod_install = menu_bar_mymod.add_action_q_string(&qtr("mymod_install"));
-        let mymod_uninstall = menu_bar_mymod.add_action_q_string(&qtr("mymod_uninstall"));
+        let mymod_import = menu_bar_mymod.add_action_q_string(&qtr("mymod_import"));
+        let mymod_export = menu_bar_mymod.add_action_q_string(&qtr("mymod_export"));
+        let mymod_rpfm_ignore = menu_bar_mymod.add_action_q_string(&qtr("mymod_rpfm_ignore"));
 
         menu_bar_mymod.add_separator();
 
@@ -446,13 +452,14 @@ impl AppUI {
         let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
         menu_bar_mymod.insert_separator(&mymod_new);
-        menu_bar_mymod.insert_separator(&mymod_install);
+        menu_bar_mymod.insert_separator(&mymod_rpfm_ignore);
 
         // Disable all the Contextual Menu actions by default.
         mymod_new.set_enabled(false);
         mymod_delete_selected.set_enabled(false);
-        mymod_install.set_enabled(false);
-        mymod_uninstall.set_enabled(false);
+        mymod_import.set_enabled(false);
+        mymod_export.set_enabled(false);
+        mymod_rpfm_ignore.set_enabled(false);
 
         mymod_open_troy.menu_action().set_visible(false);
         mymod_open_three_kingdoms.menu_action().set_visible(false);
@@ -656,6 +663,8 @@ impl AppUI {
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
+            packfile_install,
+            packfile_uninstall,
             packfile_open_recent,
             packfile_open_from_content,
             packfile_open_from_data,
@@ -690,8 +699,9 @@ impl AppUI {
             mymod_open_mymod_folder,
             mymod_new,
             mymod_delete_selected,
-            mymod_install,
-            mymod_uninstall,
+            mymod_import,
+            mymod_export,
+            mymod_rpfm_ignore,
 
             mymod_open_troy,
             mymod_open_three_kingdoms,

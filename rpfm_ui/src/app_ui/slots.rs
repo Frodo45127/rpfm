@@ -78,6 +78,8 @@ pub struct AppUISlots {
     pub packfile_open_packfile: QBox<SlotOfBool>,
     pub packfile_save_packfile: QBox<SlotOfBool>,
     pub packfile_save_packfile_as: QBox<SlotOfBool>,
+    pub packfile_install: QBox<SlotOfBool>,
+    pub packfile_uninstall: QBox<SlotOfBool>,
     pub packfile_load_all_ca_packfiles: QBox<SlotOfBool>,
     pub packfile_change_packfile_type: QBox<SlotOfBool>,
     pub packfile_index_includes_timestamp: QBox<SlotOfBool>,
@@ -92,8 +94,8 @@ pub struct AppUISlots {
     pub mymod_open_mymod_folder: QBox<SlotOfBool>,
     pub mymod_new: QBox<SlotOfBool>,
     pub mymod_delete_selected: QBox<SlotOfBool>,
-    pub mymod_install: QBox<SlotOfBool>,
-    pub mymod_uninstall: QBox<SlotOfBool>,
+    pub mymod_import: QBox<SlotOfBool>,
+    pub mymod_export: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -695,9 +697,39 @@ impl AppUISlots {
             }
         ));
 
-        // This slot is used for the "Install MyMod" action.
-        let mymod_install = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
+        // This slot is used for the "Install PackFile" action.
+        let packfile_install = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
+
+            // First up, get the opened PackFile
+
+            // Send the GetPackFilePath message through CC, then read the response to get the path
+            CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+            let response = CENTRAL_COMMAND.recv_message_qt();
+
+            // translate the response to the path
+            let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+
+            // we can safely assume the pack is not in the /data path and can be added safely, so next we get the /data path
+            if let Some(mut game_data_path) = get_game_selected_data_path() {
+                // make sure the game data path exists!
+                if !game_data_path.is_dir() {
+                    // TODO change this to a "game folder isn't configured" error
+                    return show_dialog(&app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
+                }
+
+                // get the packfile's name and extension
+                if let Some(ref mod_name) = pack_path.file_name() {
+                    game_data_path.push(&mod_name);
+                    if copy(pack_path, game_data_path.to_path_buf()).is_err() {
+                        return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                    } else {
+                        // if it worked, enable the "uninstall" button, in case it was disabled previously
+                        app_ui.packfile_uninstall.set_enabled(true);
+                    }
+                }
+            }
+
+            /* legacy
 
                 // Depending on our current "Mode", we choose what to do.
                 match UI_STATE.get_operational_mode() {
@@ -737,13 +769,45 @@ impl AppUISlots {
                     // If we have no "MyMod" selected, return an error.
                     OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
                 }
-
+            */
             }
+
+
         ));
 
-        // This slot is used for the "Uninstall MyMod" action.
-        let mymod_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(
-            app_ui => move |_| {
+        // This slot is used for the "Uninstall PackFile" action.
+        let packfile_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
+
+            // First up, get the currently selected PackFile
+
+            // Send the GetPackFilePath message through CC, then read the response to get the path
+            CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
+            let response = CENTRAL_COMMAND.recv_message_qt();
+
+            // translate the response to the path
+            let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+
+            // we can safely assume the pack is not in the /data path and can be added safely, so next we get the /data path
+            if let Some(mut game_data_path) = get_game_selected_data_path() {
+                // make sure the game data path exists!
+                if !game_data_path.is_dir() {
+                    // TODO change this to a "game folder isn't configured" error
+                    return show_dialog(&app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
+                }
+
+                // get the packfile's name and extension
+                if let Some(ref mod_name) = pack_path.file_name() {
+                    game_data_path.push(&mod_name);
+                    if remove_file(game_data_path.to_path_buf()).is_err() {
+                        return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+                    } else {
+                        // if it worked, disable the "uninstall" button
+                        app_ui.packfile_uninstall.set_enabled(false);
+                    }
+                }
+            }
+
+            /* TODO disbabled for now
 
                 // Depending on our current "Mode", we choose what to do.
                 match UI_STATE.get_operational_mode() {
@@ -768,8 +832,19 @@ impl AppUISlots {
                    // If we have no "MyMod" selected, return an error.
                     OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
                 }
+                */
             }
+
+
         ));
+
+        let mymod_import = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
+
+        }));
+
+        let mymod_export = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
+
+        }));
 
         //-----------------------------------------------//
         // `View` menu logic.
@@ -1389,6 +1464,8 @@ impl AppUISlots {
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
+            packfile_install,
+            packfile_uninstall,
             packfile_load_all_ca_packfiles,
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
@@ -1403,8 +1480,8 @@ impl AppUISlots {
             mymod_open_mymod_folder,
             mymod_new,
             mymod_delete_selected,
-            mymod_install,
-            mymod_uninstall,
+            mymod_import,
+            mymod_export,
 
             //-----------------------------------------------//
             // `View` menu slots.
