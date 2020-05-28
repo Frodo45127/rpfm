@@ -1,6 +1,6 @@
 # Maintainer: Frodo45127 <frodo_gv@hotmail.com>
-pkgname=('rpfm')
-pkgver=1.6.2.1162.gef3e2fe
+pkgname=('rpfm-git')
+pkgver=2.0.0.1534.gaeb7524
 pkgrel=1
 pkgdesc="Rusted PackFile Manager (RPFM) is a modding tool for modern (since Empire) Total War games."
 arch=('x86_64')
@@ -14,21 +14,43 @@ sha256sums=('SKIP')
 
 pkgver() {
     cd $pkgname
-    echo "$(grep '^version =' Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+    git checkout develop &> /dev/null
+    #echo "$(grep '^version =' $srcdir/$pkgname/rpfm_error/Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+    #echo "$(grep '^version =' $srcdir/$pkgname/rpfm_lib/Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+    #echo "$(grep '^version =' $srcdir/$pkgname/rpfm_cli/Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+    echo "$(grep '^version =' $srcdir/$pkgname/rpfm_ui/Cargo.toml|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
 }
 
 build() {
-    git checkout develop
     cd $pkgname
+    git checkout develop
     env CARGO_INCREMENTAL=0 cargo build --release
 }
 
 package() {
 
     # The executables.
-    install -D -m755 "$srcdir/$pkgname/target/release/rpfm-ui" "$pkgdir/usr/bin/rpfm-ui"
-    install -D -m755 "$srcdir/$pkgname/target/release/rpfm-cli" "$pkgdir/usr/bin/rpfm-cli"
+    install -D -m755 "$srcdir/$pkgname/target/release/rpfm_ui" "$pkgdir/usr/bin/rpfm_ui"
+    install -D -m755 "$srcdir/$pkgname/target/release/rpfm_cli" "$pkgdir/usr/bin/rpfm_cli"
+
+    # The icons.
+    mkdir -p "$pkgdir/usr/share/$pkgname/img"
+    for image in "$srcdir/$pkgname/img/."; do
+        cp -R $image "$pkgdir/usr/share/$pkgname/img/"
+    done
+
+    # The language files.
+    mkdir -p "$pkgdir/usr/share/$pkgname/locale"
+    for locale in "$srcdir/$pkgname/locale/."; do
+        cp -R $locale "$pkgdir/usr/share/$pkgname/locale/"
+    done
+
+    # Shortcuts.
+    install -D -m644 "$srcdir/$pkgname/install/arch/rpfm.desktop" "$pkgdir/usr/share/applications/rpfm.desktop"
+
+    # License.
+    install -D -m644 "$srcdir/$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 
     # This one is not in the qt5-imageformats package by default since Qt 5.8.
-    install -D -m644 "$srcdir/$pkgname/imageformats/libqdds.so" "$pkgdir/usr/lib/qt/plugins/imageformats/libqdds.so"
+    #install -D -m644 "$srcdir/$pkgname/imageformats/libqdds.so" "$pkgdir/usr/lib/qt/plugins/imageformats/libqdds.so"
 }
