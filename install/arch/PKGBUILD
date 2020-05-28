@@ -1,0 +1,34 @@
+# Maintainer: Frodo45127 <frodo_gv@hotmail.com>
+pkgname=('rpfm')
+pkgver=1.6.2.1162.gef3e2fe
+pkgrel=1
+pkgdesc="Rusted PackFile Manager (RPFM) is a modding tool for modern (since Empire) Total War games."
+arch=('x86_64')
+url="https://github.com/Frodo45127/rpfm.git"
+license=('MIT')
+depends=('qt5-base' 'qt5-imageformats' 'xz' 'p7zip')
+makedepends=('git' 'rust')
+provides=('rpfm')
+source=("git+https://github.com/Frodo45127/rpfm.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd $pkgname
+    echo "$(grep '^version =' Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
+}
+
+build() {
+    git checkout develop
+    cd $pkgname
+    env CARGO_INCREMENTAL=0 cargo build --release
+}
+
+package() {
+
+    # The executables.
+    install -D -m755 "$srcdir/$pkgname/target/release/rpfm-ui" "$pkgdir/usr/bin/rpfm-ui"
+    install -D -m755 "$srcdir/$pkgname/target/release/rpfm-cli" "$pkgdir/usr/bin/rpfm-cli"
+
+    # This one is not in the qt5-imageformats package by default since Qt 5.8.
+    install -D -m644 "$srcdir/$pkgname/imageformats/libqdds.so" "$pkgdir/usr/lib/qt/plugins/imageformats/libqdds.so"
+}

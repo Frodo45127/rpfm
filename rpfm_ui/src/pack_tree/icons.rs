@@ -23,7 +23,7 @@ use std::sync::atomic::AtomicPtr;
 
 use rpfm_lib::packedfile::{text, text::TextType};
 
-use crate::RPFM_PATH;
+use crate::ASSETS_PATH;
 use crate::TREEVIEW_ICONS;
 use crate::utils::atomic_from_cpp_box;
 use crate::utils::ref_from_atomic_ref;
@@ -197,7 +197,7 @@ impl Icons {
     pub unsafe fn new() -> Self {
 
         // Get the Path as a String, so Qt can understand it.
-        let rpfm_path_string = RPFM_PATH.to_string_lossy().as_ref().to_string();
+        let rpfm_path_string = ASSETS_PATH.to_string_lossy().as_ref().to_string();
 
         // Prepare the path for the icons of the TreeView.
         let mut icon_packfile_editable_path = rpfm_path_string.to_owned();

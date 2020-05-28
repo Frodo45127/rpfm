@@ -30,6 +30,7 @@ use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
+use crate::ASSETS_PATH;
 use crate::ffi::new_text_editor_safe;
 use crate::ffi::set_text_safe;
 use crate::locale::qtr;
@@ -195,7 +196,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-style: solid;
             border-width: 1px;
             border-color: {checkbox_bd_off};
-            image:url(img/checkbox_check.png);
+            image:url({assets_path}/img/checkbox_check.png);
         }}
         QCheckBox::indicator:hover {{
             border-style: solid;
@@ -223,7 +224,7 @@ pub fn create_dark_theme_stylesheet() -> String {
             border-style: solid;
             border-width: 1px;
             border-color: {checkbox_bd_off};
-            image:url(img/checkbox_check.png);
+            image:url({assets_path}/img/checkbox_check.png);
         }}
         */
         /* Normal LineEdits, with no rounded corners, dark background (darker when enabled), and colored borders. */
@@ -272,6 +273,7 @@ pub fn create_dark_theme_stylesheet() -> String {
         }}
 
         ",
+        assets_path = ASSETS_PATH.to_string_lossy(),
         button_bd_hover = *ORANGE,
         button_bd_off = *SLIGHTLY_DARKER_GREY,
         button_bg_on = *SLIGHTLY_DARKER_GREY,

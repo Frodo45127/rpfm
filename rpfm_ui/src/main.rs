@@ -121,6 +121,24 @@ lazy_static! {
         path
     };
 
+    /// Path that contains the extra assets we need, like images.
+    #[derive(Debug)]
+    static ref ASSETS_PATH: PathBuf = if cfg!(debug_assertions) {
+        RPFM_PATH.to_path_buf()
+    } else {
+        // For release builds:
+        // - Windows: Same as RFPM exe.
+        // - Linux: /usr/share/rpfm.
+        // - MacOs: Who knows?
+        if cfg!(target_os = "linux") {
+            PathBuf::from("/usr/share/rpfm")
+        }
+        //if cfg!(target_os = "windows") {
+        else {
+            RPFM_PATH.to_path_buf()
+        }
+    };
+
     /// Icons for the PackFile TreeView.
     static ref TREEVIEW_ICONS: Icons = unsafe { Icons::new() };
 
