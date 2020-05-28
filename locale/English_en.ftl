@@ -89,7 +89,7 @@ special_stuff_select_raw_db_folder = Select Raw DB Folder
 ## About Menu
 
 about_about_qt = About &Qt
-about_about_rpfm = &About RPFM
+about_about_rpfm = About RPFM
 about_open_manual = &Open Manual
 about_patreon_link = &Support me on Patreon
 about_check_updates = &Check Updates

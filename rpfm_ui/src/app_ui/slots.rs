@@ -1013,7 +1013,8 @@ impl AppUISlots {
                     <h3>Credits</h3>
                     <ul style=\"list-style-type: disc\">
                         <li>Created and Programmed by: <b>Frodo45127</b>.</li>
-                        <li>Icon by: <b>Maruka</b>.</li>
+                        <li>Icon until 1.6.2 by: <b>Maruka</b>.</li>
+                        <li>Icons since 2.0.0 by: <b>Jake Armitage</b>.</li>
                         <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
                         <li>LUA functions by: <b>Aexrael Dex</b>.</li>
                         <li>LUA Types for Kailua: <b>DrunkFlamingo</b>.</li>
