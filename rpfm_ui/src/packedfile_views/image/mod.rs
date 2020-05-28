@@ -17,7 +17,6 @@ use qt_widgets::QLabel;
 
 use qt_gui::QPixmap;
 
-
 use qt_core::QFlags;
 use qt_core::AlignmentFlag;
 use qt_core::QByteArray;
@@ -75,7 +74,9 @@ impl PackedFileImageView {
         // Create the image in the UI.
         let byte_array = QByteArray::from_slice(image.get_data());
         let mut image = QPixmap::new().into_ptr();
-        image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap());
+        if !image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap()) {
+           return Err(ErrorKind::ImageDecode("The image is not supported by the previsualizer.".to_owned()).into());
+        }
 
         // Get the size of the holding widget.
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();

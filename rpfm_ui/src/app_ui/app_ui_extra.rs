@@ -1174,20 +1174,17 @@ impl AppUI {
                             }
                         }
 
-                        // If the file is a Image PackedFile...
+                        // If the file is a Image PackedFile, ignore failures while opening.
                         PackedFileType::Image => {
-                            match PackedFileImageView::new_view(&mut tab) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            if let Ok((slots, packed_file_info)) = PackedFileImageView::new_view(&mut tab) {
+                                slot_holder.borrow_mut().push(slots);
 
-                                    // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
-                                    let mut open_list = UI_STATE.set_open_packedfiles();
-                                    open_list.push(tab);
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-                                },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::ImageDecode(format!("{}", error)), false),
+                                // Add the file to the 'Currently open' list and make it visible.
+                                self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                let mut open_list = UI_STATE.set_open_packedfiles();
+                                open_list.push(tab);
+                                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                             }
                         }
 
