@@ -16,6 +16,7 @@ use qt_widgets::SlotOfQPoint;
 use qt_widgets::QFileDialog;
 use qt_widgets::q_file_dialog::AcceptMode;
 use qt_widgets::SlotOfIntSortOrder;
+use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QBrush;
 use qt_gui::QCursor;
@@ -77,6 +78,7 @@ pub struct PackedFileTableViewSlots {
     pub import_tsv: SlotOfBool<'static>,
     pub export_tsv: SlotOfBool<'static>,
     pub smart_delete: Slot<'static>,
+    pub resize_columns: Slot<'static>,
     pub sidebar: SlotOfBool<'static>,
     pub search: SlotOfBool<'static>,
     pub hide_show_columns: Vec<SlotOfInt<'static>>,
@@ -454,6 +456,15 @@ impl PackedFileTableViewSlots {
             }
         ));
 
+        // When we want to resize the columns depending on their contents...
+        let resize_columns = Slot::new(clone!(packed_file_view => move || {
+            packed_file_view.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+            if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
+                packed_file_view.table_view_primary.horizontal_header().set_stretch_last_section(false);
+                packed_file_view.table_view_primary.horizontal_header().set_stretch_last_section(true);
+            }
+        }));
+
         // When you want to use the "Smart Delete" feature...
         let smart_delete = Slot::new(clone!(
             mut pack_file_contents_ui,
@@ -688,6 +699,7 @@ impl PackedFileTableViewSlots {
             import_tsv,
             export_tsv,
             smart_delete,
+            resize_columns,
             sidebar,
             search,
             hide_show_columns,

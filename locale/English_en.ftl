@@ -539,6 +539,7 @@ context_menu_import_tsv = &Import TSV
 context_menu_export_tsv = &Export TSV
 context_menu_invert_selection = Inver&t Selection
 context_menu_reset_selection = Reset &Selection
+context_menu_resize_columns = Resize Columns
 context_menu_undo = &Undo
 context_menu_redo = &Redo
 

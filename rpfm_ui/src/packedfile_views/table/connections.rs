@@ -46,6 +46,7 @@ pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableV
     ui.get_mut_ptr_context_menu_redo().triggered().connect(&slots.redo);
     ui.get_mut_ptr_context_menu_import_tsv().triggered().connect(&slots.import_tsv);
     ui.get_mut_ptr_context_menu_export_tsv().triggered().connect(&slots.export_tsv);
+    ui.get_mut_ptr_context_menu_resize_columns().triggered().connect(&slots.resize_columns);
     ui.get_mut_ptr_context_menu_sidebar().triggered().connect(&slots.sidebar);
     ui.get_mut_ptr_context_menu_search().triggered().connect(&slots.search);
     ui.get_mut_ptr_smart_delete().triggered().connect(&slots.smart_delete);

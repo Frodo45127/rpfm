@@ -38,6 +38,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     ui.get_mut_ptr_context_menu_rewrite_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["rewrite_selection"])));
     ui.get_mut_ptr_context_menu_invert_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["selection_invert"])));
     ui.get_mut_ptr_context_menu_reset_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["revert_selection"])));
+    ui.get_mut_ptr_context_menu_resize_columns().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["resize_columns"])));
     ui.get_mut_ptr_context_menu_search().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["search"])));
     ui.get_mut_ptr_context_menu_sidebar().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["sidebar"])));
     ui.get_mut_ptr_context_menu_import_tsv().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["import_tsv"])));
@@ -62,6 +63,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     ui.get_mut_ptr_context_menu_sidebar().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_import_tsv().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_export_tsv().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_context_menu_resize_columns().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_smart_delete().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_undo().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_redo().set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -78,6 +80,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackedFileTableView) {
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_rewrite_selection());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_invert_selection());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_reset_selection());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_resize_columns());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_search());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_sidebar());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_import_tsv());

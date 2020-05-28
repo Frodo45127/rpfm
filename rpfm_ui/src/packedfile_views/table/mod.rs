@@ -164,6 +164,7 @@ pub struct PackedFileTableView {
     context_menu_redo: AtomicPtr<QAction>,
     context_menu_import_tsv: AtomicPtr<QAction>,
     context_menu_export_tsv: AtomicPtr<QAction>,
+    context_menu_resize_columns: AtomicPtr<QAction>,
     context_menu_sidebar: AtomicPtr<QAction>,
     context_menu_search: AtomicPtr<QAction>,
     smart_delete: AtomicPtr<QAction>,
@@ -246,6 +247,7 @@ impl PackedFileTableView {
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
             table_view_primary.horizontal_header().set_stretch_last_section(true);
+            table_view_frozen.horizontal_header().set_stretch_last_section(true);
         }
 
         // Setup tight mode if the setting is enabled.
@@ -310,6 +312,7 @@ impl PackedFileTableView {
         let context_menu_rewrite_selection = context_menu.add_action_q_string(&qtr("context_menu_rewrite_selection"));
         let context_menu_invert_selection = context_menu.add_action_q_string(&qtr("context_menu_invert_selection"));
         let context_menu_reset_selection = context_menu.add_action_q_string(&qtr("context_menu_reset_selection"));
+        let context_menu_resize_columns = context_menu.add_action_q_string(&qtr("context_menu_resize_columns"));
 
         let context_menu_import_tsv = context_menu.add_action_q_string(&qtr("context_menu_import_tsv"));
         let context_menu_export_tsv = context_menu.add_action_q_string(&qtr("context_menu_export_tsv"));
@@ -462,6 +465,7 @@ impl PackedFileTableView {
             context_menu_redo,
             context_menu_import_tsv,
             context_menu_export_tsv,
+            context_menu_resize_columns,
             context_menu_sidebar,
             context_menu_search,
             smart_delete,
@@ -525,6 +529,7 @@ impl PackedFileTableView {
             context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
             context_menu_import_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_import_tsv),
             context_menu_export_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_export_tsv),
+            context_menu_resize_columns: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_resize_columns),
             context_menu_sidebar: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_sidebar),
             context_menu_search: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_search),
             smart_delete: atomic_from_mut_ptr(packed_file_table_view_raw.smart_delete),
@@ -760,6 +765,11 @@ impl PackedFileTableView {
     /// This function returns a pointer to the smart delete action.
     pub fn get_mut_ptr_smart_delete(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.smart_delete)
+    }
+
+    /// This function returns a pointer to the resize columns action.
+    pub fn get_mut_ptr_context_menu_resize_columns(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_resize_columns)
     }
 
     /// This function returns a pointer to the sidebar action.

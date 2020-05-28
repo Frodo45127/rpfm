@@ -87,6 +87,7 @@ pub struct PackedFileTableViewRaw {
     pub context_menu_redo: MutPtr<QAction>,
     pub context_menu_import_tsv: MutPtr<QAction>,
     pub context_menu_export_tsv: MutPtr<QAction>,
+    pub context_menu_resize_columns: MutPtr<QAction>,
     pub context_menu_sidebar: MutPtr<QAction>,
     pub context_menu_search: MutPtr<QAction>,
     pub smart_delete: MutPtr<QAction>,
