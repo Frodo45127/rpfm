@@ -81,6 +81,9 @@ pub struct GameInfo {
 
     /// Name of the icon used to display the game as `Game Selected`, in an UI.
     pub game_selected_icon: String,
+
+    /// Name of the big icon used to display the game as `Game Selected`, in an UI.
+    pub game_selected_big_icon: String,
 }
 
 /// This function returns a `SupportedGames` struct with the list of all games supported by this lib inside.
@@ -114,6 +117,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_3k.png".to_owned(),
+        game_selected_big_icon: "gs_big_3k.png".to_owned(),
     });
 
     // Warhammer 2
@@ -143,6 +147,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: Some("ca_types_wh2".to_owned()),
         supports_editing: true,
         game_selected_icon: "gs_wh2.png".to_owned(),
+        game_selected_big_icon: "gs_big_wh2.png".to_owned(),
     });
 
     // Warhammer
@@ -176,6 +181,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_wh.png".to_owned(),
+        game_selected_big_icon: "gs_big_wh.png".to_owned(),
     });
 
     // Thrones of Britannia
@@ -205,6 +211,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_tob.png".to_owned(),
+        game_selected_big_icon: "gs_big_tob.png".to_owned(),
     });
 
     // Attila
@@ -234,6 +241,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_att.png".to_owned(),
+        game_selected_big_icon: "gs_big_att.png".to_owned(),
     });
 
     // Rome 2
@@ -263,6 +271,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_rom2.png".to_owned(),
+        game_selected_big_icon: "gs_big_rom2.png".to_owned(),
     });
 
     // Shogun 2
@@ -292,6 +301,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_sho2.png".to_owned(),
+        game_selected_big_icon: "gs_big_sho2.png".to_owned(),
     });
 
     // Napoleon
@@ -341,6 +351,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_nap.png".to_owned(),
+        game_selected_big_icon: "gs_big_nap.png".to_owned(),
     });
 
     // Empire
@@ -391,6 +402,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: true,
         game_selected_icon: "gs_emp.png".to_owned(),
+        game_selected_big_icon: "gs_big_emp.png".to_owned(),
     });
 
     // NOTE: There are things that depend on the order of this list, and this game must ALWAYS be the last one.
@@ -408,6 +420,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         ca_types_file: None,
         supports_editing: false,
         game_selected_icon: "gs_are.png".to_owned(),
+        game_selected_big_icon: "gs_big_are.png".to_owned(),
     });
 
     list

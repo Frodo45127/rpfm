@@ -15,7 +15,6 @@ This module contains the code to manage the main UI and store all his slots.
 !*/
 
 use qt_widgets::QApplication;
-use qt_widgets::QMainWindow;
 
 use qt_gui::QFont;
 use qt_gui::QIcon;
@@ -80,16 +79,16 @@ pub struct Slots {
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
 pub struct GameSelectedIcons {
-    pub three_kingdoms: AtomicPtr<QIcon>,
-    pub warhammer_2: AtomicPtr<QIcon>,
-    pub warhammer: AtomicPtr<QIcon>,
-    pub thrones_of_britannia: AtomicPtr<QIcon>,
-    pub attila: AtomicPtr<QIcon>,
-    pub rome_2: AtomicPtr<QIcon>,
-    pub shogun_2: AtomicPtr<QIcon>,
-    pub napoleon: AtomicPtr<QIcon>,
-    pub empire: AtomicPtr<QIcon>,
-    pub arena: AtomicPtr<QIcon>,
+    pub three_kingdoms: (AtomicPtr<QIcon>, String),
+    pub warhammer_2: (AtomicPtr<QIcon>, String),
+    pub warhammer: (AtomicPtr<QIcon>, String),
+    pub thrones_of_britannia: (AtomicPtr<QIcon>, String),
+    pub attila: (AtomicPtr<QIcon>, String),
+    pub rome_2: (AtomicPtr<QIcon>, String),
+    pub shogun_2: (AtomicPtr<QIcon>, String),
+    pub napoleon: (AtomicPtr<QIcon>, String),
+    pub empire: (AtomicPtr<QIcon>, String),
+    pub arena: (AtomicPtr<QIcon>, String),
 }
 
 //-------------------------------------------------------------------------------//
@@ -217,22 +216,22 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub unsafe fn new() -> Self {
         Self {
-            three_kingdoms: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_icon)))),
-            warhammer_2: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_icon)))),
-            warhammer: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_icon)))),
-            thrones_of_britannia: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THRONES_OF_BRITANNIA).unwrap().game_selected_icon)))),
-            attila: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ATTILA).unwrap().game_selected_icon)))),
-            rome_2: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ROME_2).unwrap().game_selected_icon)))),
-            shogun_2: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_SHOGUN_2).unwrap().game_selected_icon)))),
-            napoleon: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_NAPOLEON).unwrap().game_selected_icon)))),
-            empire: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_EMPIRE).unwrap().game_selected_icon)))),
-            arena: atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ARENA).unwrap().game_selected_icon)))),
+            three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_big_icon)),
+            warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_big_icon)),
+            warhammer: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_big_icon)),
+            thrones_of_britannia: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THRONES_OF_BRITANNIA).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_THRONES_OF_BRITANNIA).unwrap().game_selected_big_icon)),
+            attila: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ATTILA).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_ATTILA).unwrap().game_selected_big_icon)),
+            rome_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ROME_2).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_ROME_2).unwrap().game_selected_big_icon)),
+            shogun_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_SHOGUN_2).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_SHOGUN_2).unwrap().game_selected_big_icon)),
+            napoleon: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_NAPOLEON).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_NAPOLEON).unwrap().game_selected_big_icon)),
+            empire: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_EMPIRE).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_EMPIRE).unwrap().game_selected_big_icon)),
+            arena: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ARENA).unwrap().game_selected_icon)))), format!("img/{}", SUPPORTED_GAMES.get(KEY_ARENA).unwrap().game_selected_big_icon)),
         }
     }
 
     /// This function sets the main window icon according to the currently selected game.
-    pub unsafe fn set_game_selected_icon(mut main_window: MutPtr<QMainWindow>) {
-        let icon = match &**GAME_SELECTED.read().unwrap() {
+    pub unsafe fn set_game_selected_icon(app_ui: &mut AppUI) {
+        let (icon, big_icon) = match &**GAME_SELECTED.read().unwrap() {
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
             KEY_WARHAMMER_2 => &GAME_SELECTED_ICONS.warhammer_2,
             KEY_WARHAMMER => &GAME_SELECTED_ICONS.warhammer,
@@ -245,6 +244,19 @@ impl GameSelectedIcons {
             KEY_ARENA => &GAME_SELECTED_ICONS.arena,
             _ => unimplemented!(),
         };
-        main_window.set_window_icon(ref_from_atomic(&*icon));
+        app_ui.main_window.set_window_icon(ref_from_atomic(&*icon));
+
+        if !SETTINGS.read().unwrap().settings_bool["hide_background_icon"] {
+            app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str(&format!("
+                QTabWidget::pane {{
+                    background-image: url({});
+                    background-repeat: no-repeat;
+                    background-position: center;
+                }}
+            ", big_icon)));
+        }
+        else {
+            app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str("QTabWidget::pane {background-image: url();}"));
+        }
     }
 }

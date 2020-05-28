@@ -81,6 +81,7 @@ pub struct SettingsUI {
     pub ui_table_extend_last_column_label: MutPtr<QLabel>,
     pub ui_table_tight_table_mode_label: MutPtr<QLabel>,
     pub ui_window_start_maximized_label: MutPtr<QLabel>,
+    pub ui_window_hide_background_icon_label: MutPtr<QLabel>,
 
     pub ui_language_combobox: MutPtr<QComboBox>,
     pub ui_global_use_dark_theme_checkbox: MutPtr<QCheckBox>,
@@ -89,6 +90,7 @@ pub struct SettingsUI {
     pub ui_table_extend_last_column_checkbox: MutPtr<QCheckBox>,
     pub ui_table_tight_table_mode_checkbox: MutPtr<QCheckBox>,
     pub ui_window_start_maximized_checkbox: MutPtr<QCheckBox>,
+    pub ui_window_hide_background_icon_checkbox: MutPtr<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Extra` section of the `Settings` dialog.
@@ -223,6 +225,7 @@ impl SettingsUI {
         let mut ui_table_extend_last_column_label = QLabel::from_q_string(&qtr("settings_ui_table_extend_last_column_label"));
         let mut ui_table_tight_table_mode_label = QLabel::from_q_string(&qtr("settings_ui_table_tight_table_mode_label"));
         let mut ui_window_start_maximized_label = QLabel::from_q_string(&qtr("settings_ui_window_start_maximized_label"));
+        let mut ui_window_hide_background_icon_label = QLabel::from_q_string(&qtr("settings_ui_window_hide_background_icon"));
 
         let mut ui_language_combobox = QComboBox::new_0a();
         let mut ui_global_use_dark_theme_checkbox = QCheckBox::new();
@@ -231,6 +234,7 @@ impl SettingsUI {
         let mut ui_table_extend_last_column_checkbox = QCheckBox::new();
         let mut ui_table_tight_table_mode_checkbox = QCheckBox::new();
         let mut ui_window_start_maximized_checkbox = QCheckBox::new();
+        let mut ui_window_hide_background_icon_checkbox = QCheckBox::new();
 
         let ui_language_model = QStandardItemModel::new_0a().into_ptr();
         ui_language_combobox.set_model(ui_language_model);
@@ -249,8 +253,11 @@ impl SettingsUI {
         ui_grid.add_widget_5a(&mut ui_window_start_maximized_label, 1, 0, 1, 1);
         ui_grid.add_widget_5a(&mut ui_window_start_maximized_checkbox, 1, 1, 1, 1);
 
-        ui_grid.add_widget_5a(&mut ui_language_label, 2, 0, 1, 1);
-        ui_grid.add_widget_5a(&mut ui_language_combobox, 2, 1, 1, 1);
+        ui_grid.add_widget_5a(&mut ui_window_hide_background_icon_label, 2, 0, 1, 1);
+        ui_grid.add_widget_5a(&mut ui_window_hide_background_icon_checkbox, 2, 1, 1, 1);
+
+        ui_grid.add_widget_5a(&mut ui_language_label, 3, 0, 1, 1);
+        ui_grid.add_widget_5a(&mut ui_language_combobox, 3, 1, 1, 1);
 
         ui_table_view_grid.add_widget_5a(&mut ui_table_adjust_columns_to_content_label, 0, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&mut ui_table_adjust_columns_to_content_checkbox, 0, 1, 1, 1);
@@ -389,6 +396,7 @@ impl SettingsUI {
             ui_table_extend_last_column_label: ui_table_extend_last_column_label.into_ptr(),
             ui_table_tight_table_mode_label: ui_table_tight_table_mode_label.into_ptr(),
             ui_window_start_maximized_label: ui_window_start_maximized_label.into_ptr(),
+            ui_window_hide_background_icon_label: ui_window_hide_background_icon_label.into_ptr(),
 
             ui_language_combobox: ui_language_combobox.into_ptr(),
             ui_global_use_dark_theme_checkbox: ui_global_use_dark_theme_checkbox.into_ptr(),
@@ -397,6 +405,7 @@ impl SettingsUI {
             ui_table_extend_last_column_checkbox: ui_table_extend_last_column_checkbox.into_ptr(),
             ui_table_tight_table_mode_checkbox: ui_table_tight_table_mode_checkbox.into_ptr(),
             ui_window_start_maximized_checkbox: ui_window_start_maximized_checkbox.into_ptr(),
+            ui_window_hide_background_icon_checkbox: ui_window_hide_background_icon_checkbox.into_ptr(),
 
             //-------------------------------------------------------------------------------//
             // `Extra` section of the `Settings` dialog.
@@ -469,6 +478,7 @@ impl SettingsUI {
         self.ui_table_extend_last_column_checkbox.set_checked(settings.settings_bool["extend_last_column_on_tables"]);
         self.ui_table_tight_table_mode_checkbox.set_checked(settings.settings_bool["tight_table_mode"]);
         self.ui_window_start_maximized_checkbox.set_checked(settings.settings_bool["start_maximized"]);
+        self.ui_window_hide_background_icon_checkbox.set_checked(settings.settings_bool["hide_background_icon"]);
 
         // Load the Extra Stuff.
         self.extra_network_check_updates_on_start_checkbox.set_checked(settings.settings_bool["check_updates_on_start"]);
@@ -520,6 +530,7 @@ impl SettingsUI {
         settings.settings_bool.insert("extend_last_column_on_tables".to_owned(), self.ui_table_extend_last_column_checkbox.is_checked());
         settings.settings_bool.insert("tight_table_mode".to_owned(), self.ui_table_tight_table_mode_checkbox.is_checked());
         settings.settings_bool.insert("start_maximized".to_owned(), self.ui_window_start_maximized_checkbox.is_checked());
+        settings.settings_bool.insert("hide_background_icon".to_owned(), self.ui_window_hide_background_icon_checkbox.is_checked());
 
         // Get the Extra Settings.
         settings.settings_bool.insert("check_updates_on_start".to_owned(), self.extra_network_check_updates_on_start_checkbox.is_checked());

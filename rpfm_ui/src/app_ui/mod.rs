@@ -43,7 +43,9 @@ use cpp_core::MutPtr;
 
 use std::sync::atomic::Ordering;
 
+use rpfm_lib::games::*;
 use rpfm_lib::SETTINGS;
+use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::ffi::new_tableview_command_palette_safe;
 use crate::locale::qtr;
@@ -482,6 +484,17 @@ impl AppUI {
         let mut game_selected_napoleon = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
         let mut game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
         let mut game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ARENA));
+
+        game_selected_three_kingdoms.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_icon))).as_ref());
+        game_selected_warhammer_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_icon))).as_ref());
+        game_selected_warhammer.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_icon))).as_ref());
+        game_selected_thrones_of_britannia.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_THRONES_OF_BRITANNIA).unwrap().game_selected_icon))).as_ref());
+        game_selected_attila.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ATTILA).unwrap().game_selected_icon))).as_ref());
+        game_selected_rome_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ROME_2).unwrap().game_selected_icon))).as_ref());
+        game_selected_shogun_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_SHOGUN_2).unwrap().game_selected_icon))).as_ref());
+        game_selected_napoleon.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_NAPOLEON).unwrap().game_selected_icon))).as_ref());
+        game_selected_empire.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_EMPIRE).unwrap().game_selected_icon))).as_ref());
+        game_selected_arena.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("img/{}", SUPPORTED_GAMES.get(KEY_ARENA).unwrap().game_selected_icon))).as_ref());
 
         let mut game_selected_group = QActionGroup::new(menu_bar_game_selected);
 

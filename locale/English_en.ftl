@@ -385,6 +385,7 @@ settings_ui_table_tight_table_mode_label = Enable 'Tight Mode' on Tables:
 settings_ui_table_remember_column_visual_order_label = Remember Column's Visual Order:
 settings_ui_table_remember_table_state_permanently_label = Remember Table State Across PackFiles:
 settings_ui_window_start_maximized_label = Start Maximized:
+settings_ui_window_hide_background_icon = Hide Background Game Selected Icon:
 
 settings_select_folder = Select Folder
 

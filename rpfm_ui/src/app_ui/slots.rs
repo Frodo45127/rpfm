@@ -825,7 +825,7 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(true);
 
                     // Change the GameSelected Icon. Disabled until we find better icons.
-                    GameSelectedIcons::set_game_selected_icon(app_ui.main_window);
+                    GameSelectedIcons::set_game_selected_icon(&mut app_ui);
                 }
 
                 // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
