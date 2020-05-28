@@ -79,7 +79,7 @@ pub(crate) fn log_to_status_bar(text: &str) {
 pub unsafe fn show_dialog<T: Display>(parent: impl CastInto<MutPtr<QWidget>>, text: T, is_success: bool) {
 
     // Depending on the type of the dialog, set everything specific here.
-    let title = if is_success { qtr("title_success") } else { qtr("error") };
+    let title = if is_success { qtr("title_success") } else { qtr("title_error") };
     let icon = if is_success { Icon::Information } else { Icon::Critical };
 
     // Create and run the dialog.
