@@ -31,9 +31,9 @@ use std::str::FromStr;
 use rpfm_error::{Error, ErrorKind, Result};
 use rpfm_lib::common::get_files_from_subdir;
 
+use crate::ASSETS_PATH;
 use crate::LOCALE;
 use crate::LOCALE_FALLBACK;
-use crate::RPFM_PATH;
 
 /// Name of the folder containing all the schemas.
 const LOCALE_FOLDER: &str = "locale";
@@ -60,7 +60,7 @@ impl Locale {
             let lang_id = lang_info[1];
             let locales = Self::get_available_locales()?;
             let selected_locale = locales.iter().map(|x| x.1.clone()).find(|x| x.language == lang_id).ok_or_else(|| Error::from(ErrorKind::FluentResourceLoadingError))?;
-            let locale = format!("{}/{}.ftl", LOCALE_FOLDER, file_name);
+            let locale = format!("{}/{}/{}.ftl", ASSETS_PATH.to_string_lossy(), LOCALE_FOLDER, file_name);
 
             // If found, load the entire file to a string.
             let mut file = File::open(&locale)?;
@@ -100,7 +100,7 @@ impl Locale {
     /// This function returns a list of all the languages we have translation files for in the `("English", "en")` form.
     pub fn get_available_locales() -> Result<Vec<(String, LanguageIdentifier)>> {
         let mut languages = vec![];
-        for file in get_files_from_subdir(&RPFM_PATH.to_path_buf().join(Path::new("locale")))? {
+        for file in get_files_from_subdir(&ASSETS_PATH.to_path_buf().join(Path::new("locale")))? {
             let language = file.file_stem().unwrap().to_string_lossy().to_string();
             let lang_info = language.split('_').collect::<Vec<&str>>();
             if lang_info.len() == 2 {
