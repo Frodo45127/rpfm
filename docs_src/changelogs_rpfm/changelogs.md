@@ -3,6 +3,9 @@
 Here you can find **all the changelogs for every RPFM update** since... since I started writing changelogs for it. If you don't want to scroll, just click in the version you want to check, and it'll send you right to it.
 
 -----------------------------------
+- ***2.0 Versions***, when everything ended, and began again:
+    - [**2.0.0**](#200)
+
 - ***1.6 Versions***, when Sun Ce, the Betrayer, tried to take down the mighty Kingdom of Wu, and failed:
 	- [**1.6.2**](#162)
 	- [**1.6.1**](#161)
@@ -16,7 +19,7 @@ Here you can find **all the changelogs for every RPFM update** since... since I 
 	- [**1.4.2**](#142)
 	- [**1.4.1**](#141)
 	- [**1.4.0**](#140)
-	
+
 - ***1.3 Versions***, when the Shogunate and the other island kingdom fell under my feet:
 	- [**1.3.5**](#135)
 	- [**1.3.4**](#134)
@@ -58,6 +61,8 @@ Here you can find **all the changelogs for every RPFM update** since... since I 
 Before this, only God, Git and I knew what changes where done. Now, only God and Git know it. And in case you like scrolling, from here you have all the changelogs.
 
 -----------------------------------
+{{ #include 2.0.0.md }}
+
 {{ #include 1.6.2.md }}
 {{ #include 1.6.1.md }}
 {{ #include 1.6.0.md }}

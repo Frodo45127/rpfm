@@ -1,5 +1,5 @@
-# Images
+# CA_VP8
 
-![Imagine how hard can be....](./images/image22.png)
+![Imagine how hard can be....](./images/image_vp8.png)
 
-RPFM can open a variety of image formats, such as **PNG, JPG, TGA, DDS (most of them)...** Just select the image you want to see, and it'll open in the right side of the window.
+RPFM can decode the CA_VP8 video files CA uses in total war games, and convert them into VP8 IVF and back. Just press the button of the format you want, then press extract. Also, this is video only. No audio is converted.

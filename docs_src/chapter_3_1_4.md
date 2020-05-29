@@ -1,8 +1,21 @@
-# `Special Stuff` Menu
+# `Game Selected` Menu
 
-![Because you are S.P.E.C.I.A.L!](./images/image10.png)
+![I'm a man of many games...](./images/image9.png)
 
-This menu contains... special features implemented for specific games. Basically, any feature that **doesn't really fit in any other place** goes here. Here we have:
-- `Patch SiegeAI`: used in Warhammer 1 & 2 for **creating siege maps that the AI can handle**. Basically, make your map with the stuff required for the AI to work, and then patch his PackFile with this.
-- `Optimize PackFile`: reduces the size of your PackFile by *cleaning* your tables from data that's unchanged from the vanilla game. It also does the same for Loc PackedFiles, **if you have the game's language set to *English*** . For example, if you have a table where all rows but one are exactly the same as the ones in vanilla tables and another table that's a 1:1 copy of a vanilla table without changes, RPFM remove all the rows but the one you changed from the first table, and it'll remove the second table. This is meant to **improve compatibility with other mods** , and to reduce the size of the PackFile.
-- `Generate PAK File`: generates a file from raw data from the Assembly Kit that allows RPFM to provide a ton of reference data from tables not in the game. Or easier to understand, if you use the dependency checker, you'll have **far fewer blue columns**. Doesn't work for Empire and Napoleon, yet.
+In this menu you can **change the currently selected game**. When opening PackFiles, RPFM tries to be smart and auto-select a game, but there are some PackFiles that are the same between games (for example, Attila and Warhammer 1 PackFiles are identical), so... just make sure the right game is selected after opening a PackFile, as that affects how many parts of the program work. The complete list of supported games is:
+- `Three Kingdoms`: Full Support.
+- `Warhammer 2`: Full Support.
+- `Warhammer`: Full Support.
+- `Thrones of Britannia`: Full Support.
+- `Attila`: Full Support.
+- `Rome 2`: Full Support.
+- `Shogun 2`: Full Support.
+- `Napoleon`: Almost Full Support. Missing `Generate PAK File` support.
+- `Empire`: Almost Full Support. Missing `Generate PAK File` support.
+- `Arena`: Read-Only Support for PackFiles. Incomplete schema.
+
+Also, at the top we have a couple of convenient buttons to open certain folders on the default file manager of your system:
+- `Launch Game Selected`: A quick shortcut to launch the currently selected game.
+- `Open Game's Data Folder`: Open your currently selected game's data folder, if it has his path configured in the settings.
+- `Open Game's Assembly Kit Folder`: Open your currently selected game's assembly kit folder, if it has his path configured in the settings. Only for Rome 2 and later games.
+- `Open RPFM's Config Folder`: Open the config folder of RPFM, which contains configs, shortcuts, schemas, crashlogs, porn,....

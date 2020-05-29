@@ -1,5 +1,5 @@
-# RigidModel PackedFiles
+# Images
 
-![It's the most rigid thing you'll ever see...](./images/image21.png)
+![Imagine how hard can be....](./images/image22.png)
 
-RigidModels are 3D models used by Total War Games. RPFM allows some limited editing of them. It allows you to **change any of the textures** each model uses and to patch Attila's RigidModels for being loadable in Warhammer games (just the model, it doesn't patch collisions or logic). It doesn't work with all the RigidModels.
+RPFM can open a variety of image formats, such as **PNG, JPG, TGA, DDS (most of them)...** Just select the image you want to see, and it'll open in the right side of the window. If it doesn't open, it's a format it cannot (yet) open.

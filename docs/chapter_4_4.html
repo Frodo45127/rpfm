@@ -1,9 +1,9 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js">
+<html lang="en" class="sidebar-visible no-js rust">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>RigidModel - Rusted PackFile Manager Documentation</title>
+        <title>Images - Rusted PackFile Manager Documentation</title>
         
 
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
@@ -32,11 +32,11 @@
 
         
     </head>
-    <body class="rust">
+    <body>
         <!-- Provide site root to javascript -->
         <script type="text/javascript">
             var path_to_root = "";
-            var default_theme = "rust";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "rust" : "rust";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -60,8 +60,11 @@
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
-            document.body.className = theme;
-            document.querySelector('html').className = theme + ' js';
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('rust')
+            html.classList.add(theme);
+            html.classList.add('js');
         </script>
 
         <!-- Hide / unhide sidebar before it is displayed -->
@@ -78,7 +81,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li><a href="chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li><a href="chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li><a href="chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li><a href="chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li><a href="chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li><a href="chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> Game Selected Menu</a></li><li><a href="chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Special Stuff Menu</a></li><li><a href="chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> About Menu</a></li></ol></li><li><a href="chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li><a href="chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li><a href="chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li><li><a href="chapter_3_2_3.html"><strong aria-hidden="true">3.2.3.</strong> Notes</a></li></ol></li></ol></li><li><a href="chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li><a href="chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li><a href="chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li><a href="chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li><a href="chapter_4_4.html" class="active"><strong aria-hidden="true">4.4.</strong> RigidModel</a></li><li><a href="chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> Images</a></li></ol></li><li><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li><a href="chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li><a href="chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li><li><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Compilation Instructions</a></li><li class="spacer"></li><li><a href="changelogs.html"><strong aria-hidden="true">8.</strong> Changelogs</a></li><li><ol class="section"><li><a href="changelogs_rpfm/changelogs.html"><strong aria-hidden="true">8.1.</strong> RPFM Changelogs</a></li><li><a href="changelogs_tables/changelogs.html"><strong aria-hidden="true">8.2.</strong> Schema Changelogs</a></li><li><ol class="section"><li><a href="changelogs_tables/three_kingdoms/changelog.html"><strong aria-hidden="true">8.2.1.</strong> Three Kingdoms</a></li><li><a href="changelogs_tables/warhammer_2/changelog.html"><strong aria-hidden="true">8.2.2.</strong> Warhammer 2</a></li><li><a href="changelogs_tables/warhammer/changelog.html"><strong aria-hidden="true">8.2.3.</strong> Warhammer</a></li><li><a href="changelogs_tables/thrones_of_britannia/changelog.html"><strong aria-hidden="true">8.2.4.</strong> Thrones of Britannia</a></li><li><a href="changelogs_tables/attila/changelog.html"><strong aria-hidden="true">8.2.5.</strong> Attila</a></li><li><a href="changelogs_tables/rome_2/changelog.html"><strong aria-hidden="true">8.2.6.</strong> Rome 2</a></li><li><a href="changelogs_tables/shogun_2/changelog.html"><strong aria-hidden="true">8.2.7.</strong> Shogun 2</a></li><li><a href="changelogs_tables/napoleon/changelog.html"><strong aria-hidden="true">8.2.8.</strong> Napoleon</a></li><li><a href="changelogs_tables/empire/changelog.html"><strong aria-hidden="true">8.2.9.</strong> Empire</a></li><li><a href="changelogs_tables/arena/changelog.html"><strong aria-hidden="true">8.2.10.</strong> Arena</a></li></ol></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="chapter_1.html"><strong aria-hidden="true">1.</strong> What's RPFM?</a></li><li class="chapter-item expanded "><a href="chapter_2.html"><strong aria-hidden="true">2.</strong> Initial Configuration</a></li><li class="chapter-item expanded "><a href="chapter_3_0.html"><strong aria-hidden="true">3.</strong> Buttons and What They Do</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_1_0.html"><strong aria-hidden="true">3.1.</strong> Menu Bar</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_1_1.html"><strong aria-hidden="true">3.1.1.</strong> PackFile Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_2.html"><strong aria-hidden="true">3.1.2.</strong> MyMod Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_3.html"><strong aria-hidden="true">3.1.3.</strong> View Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_4.html"><strong aria-hidden="true">3.1.4.</strong> Game Selected Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_5.html"><strong aria-hidden="true">3.1.5.</strong> Special Stuff Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_6.html"><strong aria-hidden="true">3.1.6.</strong> About Menu</a></li><li class="chapter-item expanded "><a href="chapter_3_1_7.html"><strong aria-hidden="true">3.1.7.</strong> Debug Menu</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_3_2_0.html"><strong aria-hidden="true">3.2.</strong> PackFile TreeView</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_3_2_1.html"><strong aria-hidden="true">3.2.1.</strong> Dependency Manager</a></li><li class="chapter-item expanded "><a href="chapter_3_2_2.html"><strong aria-hidden="true">3.2.2.</strong> Global Search</a></li><li class="chapter-item expanded "><a href="chapter_3_2_3.html"><strong aria-hidden="true">3.2.3.</strong> Notes</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="chapter_4_0.html"><strong aria-hidden="true">4.</strong> PackedFiles</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_4_1.html"><strong aria-hidden="true">4.1.</strong> DB Tables</a></li><li class="chapter-item expanded "><a href="chapter_4_2.html"><strong aria-hidden="true">4.2.</strong> Locs</a></li><li class="chapter-item expanded "><a href="chapter_4_3.html"><strong aria-hidden="true">4.3.</strong> Text</a></li><li class="chapter-item expanded "><a href="chapter_4_4.html" class="active"><strong aria-hidden="true">4.4.</strong> Images</a></li><li class="chapter-item expanded "><a href="chapter_4_5.html"><strong aria-hidden="true">4.5.</strong> CA_VP8</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_5.html"><strong aria-hidden="true">5.</strong> DB Decoder</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="chapter_5_1.html"><strong aria-hidden="true">5.1.</strong> DB Types</a></li></ol></li><li class="chapter-item expanded "><a href="chapter_appendix.html"><strong aria-hidden="true">6.</strong> Extras</a></li><li class="chapter-item expanded "><a href="chapter_6.html"><strong aria-hidden="true">7.</strong> Compilation Instructions</a></li><li class="spacer"></li><li class="chapter-item expanded "><a href="changelogs.html"><strong aria-hidden="true">8.</strong> Changelogs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="changelogs_rpfm/changelogs.html"><strong aria-hidden="true">8.1.</strong> RPFM Changelogs</a></li><li class="chapter-item expanded "><a href="changelogs_tables/changelogs.html"><strong aria-hidden="true">8.2.</strong> Schema Changelogs</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="changelogs_tables/three_kingdoms/changelog.html"><strong aria-hidden="true">8.2.1.</strong> Three Kingdoms</a></li><li class="chapter-item expanded "><a href="changelogs_tables/warhammer_2/changelog.html"><strong aria-hidden="true">8.2.2.</strong> Warhammer 2</a></li><li class="chapter-item expanded "><a href="changelogs_tables/warhammer/changelog.html"><strong aria-hidden="true">8.2.3.</strong> Warhammer</a></li><li class="chapter-item expanded "><a href="changelogs_tables/thrones_of_britannia/changelog.html"><strong aria-hidden="true">8.2.4.</strong> Thrones of Britannia</a></li><li class="chapter-item expanded "><a href="changelogs_tables/attila/changelog.html"><strong aria-hidden="true">8.2.5.</strong> Attila</a></li><li class="chapter-item expanded "><a href="changelogs_tables/rome_2/changelog.html"><strong aria-hidden="true">8.2.6.</strong> Rome 2</a></li><li class="chapter-item expanded "><a href="changelogs_tables/shogun_2/changelog.html"><strong aria-hidden="true">8.2.7.</strong> Shogun 2</a></li><li class="chapter-item expanded "><a href="changelogs_tables/napoleon/changelog.html"><strong aria-hidden="true">8.2.8.</strong> Napoleon</a></li><li class="chapter-item expanded "><a href="changelogs_tables/empire/changelog.html"><strong aria-hidden="true">8.2.9.</strong> Empire</a></li><li class="chapter-item expanded "><a href="changelogs_tables/arena/changelog.html"><strong aria-hidden="true">8.2.10.</strong> Arena</a></li></ol></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -87,37 +90,36 @@
 
             <div class="page">
                 
-                <div id="menu-bar" class="menu-bar">
-                    <div id="menu-bar-sticky-container">
-                        <div class="left-buttons">
-                            <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
-                                <i class="fa fa-bars"></i>
-                            </button>
-                            <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
-                                <i class="fa fa-paint-brush"></i>
-                            </button>
-                            <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
-                                <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="rust">Rust (default)</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
-                                <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
-                            </ul>
-                            
-                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
-                                <i class="fa fa-search"></i>
-                            </button>
-                            
-                        </div>
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
 
-                        <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
+                    <h1 class="menu-title">Rusted PackFile Manager Documentation</h1>
 
-                        <div class="right-buttons">
-                            <a href="print.html" title="Print this book" aria-label="Print this book">
-                                <i id="print-button" class="fa fa-print"></i>
-                            </a>
-                            
-                        </div>
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
                     </div>
                 </div>
 
@@ -145,9 +147,9 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1><a class="header" href="#rigidmodel-packedfiles" id="rigidmodel-packedfiles">RigidModel PackedFiles</a></h1>
-<p><img src="./images/image21.png" alt="It's the most rigid thing you'll ever see..." /></p>
-<p>RigidModels are 3D models used by Total War Games. RPFM allows some limited editing of them. It allows you to <strong>change any of the textures</strong> each model uses and to patch Attila's RigidModels for being loadable in Warhammer games (just the model, it doesn't patch collisions or logic). It doesn't work with all the RigidModels.</p>
+                        <h1><a class="header" href="#images" id="images">Images</a></h1>
+<p><img src="./images/image22.png" alt="Imagine how hard can be...." /></p>
+<p>RPFM can open a variety of image formats, such as <strong>PNG, JPG, TGA, DDS (most of them)...</strong> Just select the image you want to see, and it'll open in the right side of the window. If it doesn't open, it's a format it cannot (yet) open.</p>
 
                     </main>
 
@@ -172,13 +174,13 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                    <a href="chapter_4_3.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="chapter_4_3.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
 
                 
-                    <a href="chapter_4_5.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next" href="chapter_4_5.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                 
@@ -188,6 +190,14 @@
 
         
 
+        
+
+        
+        
+        
+        <script type="text/javascript">
+            window.playpen_copyable = true;
+        </script>
         
 
         
