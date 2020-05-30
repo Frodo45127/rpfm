@@ -14,7 +14,7 @@ sha256sums=('SKIP')
 
 pkgver() {
     cd $pkgname
-    git checkout develop &> /dev/null
+    #git checkout develop &> /dev/null
     #echo "$(grep '^version =' $srcdir/$pkgname/rpfm_error/Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
     #echo "$(grep '^version =' $srcdir/$pkgname/rpfm_lib/Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
     #echo "$(grep '^version =' $srcdir/$pkgname/rpfm_cli/Cargo.toml|head -n1|cut -d\" -f2).$(git rev-list --count HEAD).g$(git rev-parse --short HEAD)"
@@ -23,7 +23,7 @@ pkgver() {
 
 build() {
     cd $pkgname
-    git checkout develop
+    #git checkout develop
     env CARGO_INCREMENTAL=0 cargo build --release
 }
 
