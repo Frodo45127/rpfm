@@ -86,7 +86,7 @@ impl VersionsFile {
     pub fn check_update() -> Result<APIResponseSchema> {
 
         // If there is a local schema, match it against the remote one, to check if there is an update or not.
-        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
+        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE);
         match Self::load() {
             Ok(local) => {
                 let remote: Self = if let Ok(string) = blocking::get(&versions_file_url) {
@@ -130,12 +130,12 @@ impl VersionsFile {
 
         // If there is a local schema, match it against the remote one, download the different schemas,
         // then update our local schema with the remote one's data.
-        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE);
+        let versions_file_url = format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE);
         match Self::load() {
             Ok(local) => {
                 let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
                 for (remote_file_name, remote_version) in &remote.0 {
-                    let schema_url = format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, remote_file_name);
+                    let schema_url = format!("{}{}", SCHEMA_UPDATE_URL_MASTER, remote_file_name);
                     match local.0.get(remote_file_name) {
                         Some(local_version) => {
 
@@ -160,7 +160,7 @@ impl VersionsFile {
             Err(_) => {
                 let remote: Self = from_str(&blocking::get(&versions_file_url)?.text()?)?;
                 for file_name in remote.0.keys() {
-                    let mut schema: Schema = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, file_name))?.text()?)?;
+                    let mut schema: Schema = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_MASTER, file_name))?.text()?)?;
                     schema.save(file_name)?;
                 }
                 remote.save()
