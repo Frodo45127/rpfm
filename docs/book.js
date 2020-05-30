@@ -294,8 +294,6 @@ function playpen_text(playpen) {
         themeToggleButton.focus();
     }
 
-<<<<<<< HEAD
-=======
     function get_theme() {
         var theme;
         try { theme = localStorage.getItem('mdbook-theme'); } catch (e) { }
@@ -306,7 +304,6 @@ function playpen_text(playpen) {
         }
     }
 
->>>>>>> develop
     function set_theme(theme, store = true) {
         let ace_theme;
 
@@ -418,7 +415,6 @@ function playpen_text(playpen) {
 (function sidebar() {
     var html = document.querySelector("html");
     var sidebar = document.getElementById("sidebar");
-    var sidebarScrollBox = document.querySelector(".sidebar-scrollbox");
     var sidebarLinks = document.querySelectorAll('#sidebar a');
     var sidebarToggleButton = document.getElementById("sidebar-toggle");
     var sidebarResizeHandle = document.getElementById("sidebar-resize-handle");
@@ -517,12 +513,8 @@ function playpen_text(playpen) {
     // Scroll sidebar to current active section
     var activeSection = document.getElementById("sidebar").querySelector(".active");
     if (activeSection) {
-<<<<<<< HEAD
-        sidebarScrollBox.scrollTop = activeSection.offsetTop;
-=======
         // https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView
         activeSection.scrollIntoView({ block: 'center' });
->>>>>>> develop
     }
 })();
 
