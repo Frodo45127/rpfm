@@ -1,15 +1,11 @@
-# `About` Menu
+# `Special Stuff` Menu
 
-![What do you want to learn about me, honey?](./images/image11.png)
+![Because you are S.P.E.C.I.A.L!](./images/image10.png)
 
-Pretty simple and straightforward menu:
-- `About QT`: Shows info about the version of Qt (the framework RPFM uses for the UI) in use.
-- `About RPFM`: Shows info about the version of RPFM in use, and the credits.
-- `Open Manual`: Opens this manual on the web browser you have as *Default*.
-- `Support me on Patreon`: Open ***RPFM***'s Patreon page. In case you want to contribute with money or you want to check the dev blog
-- `Check Updates`: Checks if there is a newer version of RPFM available.
-- `Check Schema Update`: Checks if there is any newer version of RPFM's Schemas available and downloads it.
-
-The *Schemas* I talked in the last point are what **allows RPFM to decode and open the tables** of all the supported games. Newer schemas means more tables to open. It's very common that after an update a few tables change his structure and are no longer decodables. To get them to work again, the schema has to be updated.
-
-And that's all for the top `Menu` Bar. Now we'll take a look at the thing you're going to use the most (or almost the most): the `TreeView`.
+This menu contains... special features implemented for specific games. Basically, any feature that **doesn't really fit in any other place** goes here. Here we have:
+- `Patch SiegeAI`: used in Warhammer 1 & 2 for **creating siege maps that the AI can handle**. Basically, make your map with the stuff required for the AI to work, and then patch his PackFile with this.
+- `Optimize PackFile`: reduces the size of your PackFile and increase its compatibility with other mods by *cleaning* certain stuff on your packfile:
+    - **DB**: Removes unchanged rows from vanilla. If table is empty, it removes it. Ignore files called the same as the vanilla ones (unless you disable that in the settings).
+    - **Loc**: Removes unchanged rows from vanilla.
+    - **Xml**: Removes xml files under the `terrain/tiles` folder, as those are leftovers of Terry's exports..
+- `Generate PAK File`: generates a file from raw data from the Assembly Kit that allows RPFM to provide a ton of reference data from tables not in the game. Or easier to understand, if you use the dependency checker, you'll have **far fewer blue columns**. Doesn't work for Empire and Napoleon, yet.

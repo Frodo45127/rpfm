@@ -1,0 +1,22 @@
+[package]
+name = "rpfm_cli"
+version = "2.0.0"
+authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
+description = "A CLI tool to automate all your modding needs."
+edition = "2018"
+
+[dependencies]
+# Internal dependencies.
+rpfm_error = { path = "../rpfm_error" }
+rpfm_lib = { path = "../rpfm_lib" }
+
+# CLI parsing, formatting and color support.
+clap = "^2.33"
+colored = "^1.8"
+prettytable-rs = "^0.8"
+bytesize = "^1.0"
+
+# Logging support.
+log = "^0.4"
+simplelog = "^0.7.0"
+simple_logger = "^1.4"

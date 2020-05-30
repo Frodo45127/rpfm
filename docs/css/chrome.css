@@ -423,7 +423,11 @@ ul#searchresults span.teaser em {
     display: none;
 }
 
+<<<<<<< HEAD
 .chapter li.expanded {
+=======
+.chapter li.chapter-item {
+>>>>>>> develop
     line-height: 1.5em;
     margin-top: 0.6em;
 }

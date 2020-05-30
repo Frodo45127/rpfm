@@ -2,7 +2,7 @@
 
 ![Menuses...](./images/image6.png)
 
-Here, we can find the *basic* actions: 
+Here, we can find the *basic* actions:
 - `New PackFile`: Creates a new PackFile outtanowhere.
 - `Open PackFile`: Opens one or more PackFiles in RPFM.
 - `Save PackFile`: Saves the changes done in a PackFile to disk.
@@ -29,9 +29,10 @@ There are also a few more options to configure a PackFiles under this menu:
 - `Index Includes Timestamp`: There is a timestamp, maybe a *Last Modified Date* in the index of the PackFile.
 - `Index Is Encrypted`: The index of the PackFile is encrypted.
 - `Data Is Encrypted`: The data of the PackFile is encrypted.
+- `Data Is Conpressed`: The data of the PackFile is compressed.
 
-About these options, just take into account that any PackFile with any of these options enabled will **NOT BE RECOGNIZED** as a mod by the launcher. And RPFM doesn't support saving PackFiles with `Index Is Encrypted`, `Data Is Encrypted` or `Header Is Extended` enabled.
+About these options, just take into account that any PackFile with any of these options enabled (except `Data Is Compressed`) will **NOT BE RECOGNIZED** as a mod by the launcher. And RPFM doesn't support saving PackFiles with `Index Is Encrypted`, `Data Is Encrypted` or `Header Is Extended` enabled.
 
-And, if you don't enable `Allow Editing of CA PackFiles`, RPFM will not let you save `Boot`, `Release` or `Patch` PackFiles. 
+And, if you don't enable `Allow Editing of CA PackFiles`, RPFM will not let you save `Boot`, `Release` or `Patch` PackFiles.
 
 And with that, we finish the `PackFile` Menu. Next, the `MyMod` menu.

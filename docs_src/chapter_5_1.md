@@ -11,7 +11,7 @@ People have complained that the types used in the DB Decoder and, by extension, 
 - `OptionalStringU16`: Like a UTF-16 String. but with a bool before. If the bool is true, there is a `StringU16` after it. If it's false, then **there is nothing more** of that field after it.
 
 There are some extra types that RPFM doesn't yet support for one reason or another:
-- `OptionalInteger`: Like an Integer, but with a bool before. If the bool is true, there is a `Integer` after it. If it's false, then there is nothing more of that field after it. Only seen in one table in Warhammer 2.
-- `List`: It's... like a table inside a field. It's a complex type used in many *XXX_models* tables. Not yet implemented because it's a pain to implement properly on the UI side.
+- `OptionalInteger` (This one may not exists): Like an Integer, but with a bool before. If the bool is true, there is a `Integer` after it. If it's false, then there is nothing more of that field after it. Only seen in one table in Warhammer 2.
+- `List`: It's... like a table inside a field. It's a complex type used in many *XXX_models* tables. Implemented in the backend, not fully in the UI.
 
 If you need more help to understand these types, please search on google.
