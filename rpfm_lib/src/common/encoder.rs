@@ -19,6 +19,8 @@ Note: If you change anything from here, remember to update the `encoder_test.rs`
 !*/
 
 use byteorder::{LittleEndian, WriteBytesExt};
+use encoding::all::ISO_8859_1;
+use encoding::types::{Encoding, EncoderTrap};
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -58,6 +60,9 @@ pub trait Encoder {
 
     /// This function allows us to encode an UTF-8 String into the provided `Vec<u8>`.
     fn encode_string_u8(&mut self, string: &str);
+
+    /// This function allows us to encode an UTF-8 String into the provided `Vec<u8>` as an ISO-8859-1 encoded String.
+    fn encode_string_u8_iso_8859_1(&mut self, string: &str);
 
     /// This function allows us to encode a 00-Padded UTF-8 String into the provided `Vec<u8>`.
     ///
@@ -127,6 +132,10 @@ impl Encoder for Vec<u8> {
 
     fn encode_string_u8(&mut self, string: &str) {
         self.extend_from_slice(string.as_bytes());
+    }
+
+    fn encode_string_u8_iso_8859_1(&mut self, string: &str) {
+        self.extend_from_slice(&ISO_8859_1.encode(&string, EncoderTrap::Replace).unwrap());
     }
 
     fn encode_string_u8_0padded(&mut self, (string, size): &(String, usize)) -> Result<()> {
