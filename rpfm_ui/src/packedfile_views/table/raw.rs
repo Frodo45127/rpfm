@@ -1189,8 +1189,19 @@ impl PackedFileTableViewRaw {
             vec![row]
         };
 
+        let mut selection_model = self.table_view_primary.selection_model();
+        selection_model.clear();
         for row in &rows {
             self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
+
+            // Select the row.
+            let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(self.table_filter.row_count_0a() - 1, 0));
+            if model_index_filtered.is_valid() {
+                selection_model.select_q_model_index_q_flags_selection_flag(
+                    &model_index_filtered,
+                    QFlags::from(SelectionFlag::Select | SelectionFlag::Rows)
+                );
+            }
         }
 
         // Update the undo stuff. Cloned rows are the amount of rows - the amount of cloned rows.
@@ -1222,6 +1233,9 @@ impl PackedFileTableViewRaw {
             row_numbers.push(self.table_model.row_count_0a() - 1);
         }
 
+        let mut selection_model = self.table_view_primary.selection_model();
+        selection_model.clear();
+
         for index in indexes_sorted.iter().rev() {
             row_numbers.push(index.row() + (indexes_sorted.len() - row_numbers.len() - 1) as i32);
 
@@ -1246,6 +1260,15 @@ impl PackedFileTableViewRaw {
                 row
             };
             self.table_model.insert_row_int_q_list_of_q_standard_item(index.row(), &row);
+
+            // Select the row.
+            let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(index.row(), 0));
+            if model_index_filtered.is_valid() {
+                selection_model.select_q_model_index_q_flags_selection_flag(
+                    &model_index_filtered,
+                    QFlags::from(SelectionFlag::Select | SelectionFlag::Rows)
+                );
+            }
         }
 
         // The undo mode needs this reversed.
