@@ -464,8 +464,9 @@ impl SettingsUI {
             }
         }
 
+        let language_selected = settings.settings_string["language"].split("_").collect::<Vec<&str>>()[0];
         for (index, (language,_)) in Locale::get_available_locales().unwrap().iter().enumerate() {
-            if *language == settings.settings_string["language"] {
+            if *language == language_selected {
                 self.ui_language_combobox.set_current_index(index as i32);
                 break;
             }
@@ -515,9 +516,13 @@ impl SettingsUI {
         game = game.replace(' ', "_").to_lowercase();
         settings.settings_string.insert("default_game".to_owned(), game);
 
+        // We need to store the full locale filename, not just the visible name!
         let mut language = self.ui_language_combobox.current_text().to_std_string();
         if let Some(index) = language.find('&') { language.remove(index); }
-        settings.settings_string.insert("language".to_owned(), language);
+        if let Some((_, locale)) = Locale::get_available_locales().unwrap().iter().find(|(x, _)| &language == x) {
+            let file_name = format!("{}_{}", language, locale.language);
+            settings.settings_string.insert("language".to_owned(), file_name);
+        }
 
         let current_font = QGuiApplication::font();
         settings.settings_string.insert("font_name".to_owned(), current_font.family().to_std_string());
