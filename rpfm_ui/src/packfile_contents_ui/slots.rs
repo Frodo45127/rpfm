@@ -20,6 +20,8 @@ use qt_gui::QCursor;
 use qt_gui::SlotOfQStandardItem;
 
 use qt_core::{SlotOfBool, Slot, SlotOfQString};
+use qt_core::QSignalBlocker;
+use qt_core::QObject;
 
 use cpp_core::MutPtr;
 
@@ -747,8 +749,7 @@ impl PackFileContentsSlots {
                         Response::VecPathTypeVecString(renamed_items) => {
                             let renamed_items = renamed_items.iter().map(|x| (From::from(&x.0), x.1.to_owned())).collect::<Vec<(TreePathType, Vec<String>)>>();
                             let mut path_changes = vec![];
-                            let mut open_packedfiles = UI_STATE.set_open_packedfiles();
-                            for path in open_packedfiles.iter_mut().map(|x| x.get_ref_path()) {
+                            for path in UI_STATE.get_open_packedfiles().iter().map(|x| x.get_ref_path()) {
                                 if !path.is_empty() {
                                     for (item_type, new_path) in &renamed_items {
 
@@ -767,6 +768,7 @@ impl PackFileContentsSlots {
                             }
 
                             for (path_before, path_after) in &path_changes {
+                                let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                 let position = open_packedfiles.iter().position(|x| *x.get_ref_path() == *path_before).unwrap();
                                 let data = open_packedfiles.remove(position);
                                 let widget = data.get_mut_widget();
@@ -793,12 +795,14 @@ impl PackFileContentsSlots {
                                 (TreePathType::from(x), path)
                             }).collect();
 
+                            let mut blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.selection_model().static_upcast_mut::<QObject>());
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items_view));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(renamed_items.iter().map(|x| match x.0 {
                                 TreePathType::File(_) => TreePathType::File(x.1.to_vec()),
                                 TreePathType::Folder(_) => TreePathType::Folder(x.1.to_vec()),
                                 _ => unimplemented!()
                             }).collect()));
+                            blocker.unblock();
                             UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
