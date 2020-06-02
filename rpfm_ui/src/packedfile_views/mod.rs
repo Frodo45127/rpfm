@@ -230,7 +230,7 @@ impl PackedFileView {
 
                         match self.packed_file_type {
                             PackedFileType::DB => {
-                                let mut table = DB::new(view.get_ref_table_name(), &view.get_ref_table_definition());
+                                let mut table = DB::new(view.get_ref_table_name(), Some(view.get_ref_table_uuid()), &view.get_ref_table_definition());
                                 table.set_table_data(&entries)?;
                                 DecodedPackedFile::DB(table)
                             }

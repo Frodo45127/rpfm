@@ -1555,7 +1555,7 @@ impl PackFile {
                 for table in &mut db_files { table.set_definition(&definition); }
                 db_files
             };
-            let mut new_table = DB::new(&db_files[0].name, &db_files[0].get_definition());
+            let mut new_table = DB::new(&db_files[0].name, None, &db_files[0].get_definition());
             let mut entries = vec![];
             db_files.iter().for_each(|x| entries.extend_from_slice(x.get_ref_table_data()));
             new_table.set_table_data(&entries)?;

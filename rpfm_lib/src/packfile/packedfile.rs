@@ -177,7 +177,7 @@ impl PackedFile {
                     Some(ref schema) => schema.get_ref_last_definition_db(table_name)?,
                     None => return Err(ErrorKind::SchemaNotFound.into())
                 };
-                DecodedPackedFile::DB(DB::new(&table_name, &table_definition))
+                DecodedPackedFile::DB(DB::new(&table_name, None, &table_definition))
             }
 
             // TODO: Add Text files here.

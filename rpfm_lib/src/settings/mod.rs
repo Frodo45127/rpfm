@@ -79,6 +79,7 @@ impl Settings {
         settings_bool.insert("use_dependency_checker".to_owned(), false);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
+        settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), false);
 
         // Debug Settings.
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);

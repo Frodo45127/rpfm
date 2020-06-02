@@ -506,7 +506,7 @@ impl Table {
             file.save()
         }
         else {
-            let mut file = db::DB::new(&table_type, &definition);
+            let mut file = db::DB::new(&table_type, None, &definition);
             file.set_table_data(&entries)?;
             file.save()
         }?;
