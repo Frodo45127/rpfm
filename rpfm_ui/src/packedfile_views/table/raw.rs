@@ -12,6 +12,7 @@
 Module with all the code to deal with the raw version of the tables.
 !*/
 
+use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::QAction;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
@@ -1194,12 +1195,17 @@ impl PackedFileTableViewRaw {
         for row in &rows {
             self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
 
-            // Select the row.
+            // Select the row and scroll to it.
             let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(self.table_filter.row_count_0a() - 1, 0));
             if model_index_filtered.is_valid() {
                 selection_model.select_q_model_index_q_flags_selection_flag(
                     &model_index_filtered,
                     QFlags::from(SelectionFlag::Select | SelectionFlag::Rows)
+                );
+
+                self.table_view_primary.scroll_to_2a(
+                    model_index_filtered.as_ref(),
+                    ScrollHint::EnsureVisible
                 );
             }
         }
