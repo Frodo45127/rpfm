@@ -172,12 +172,11 @@ impl PackedFileTableViewSlots {
 
                 // If we are NOT UNDOING, paint the item as edited and add the edition to the undo list.
                 if !packed_file_view.undo_lock.load(Ordering::SeqCst) {
-
-                    let mut edition = vec![];
                     let item_old = packed_file_view.undo_model.item_2a(item.row(), item.column());
 
                     // Only trigger this if the values are actually different. Checkable cells are tricky.
                     if item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state() {
+                        let mut edition = Vec::with_capacity(1);
                         edition.push(((item.row(), item.column()), atomic_from_mut_ptr((&*item_old).clone())));
                         let operation = TableOperations::Editing(edition);
                         packed_file_view.history_undo.write().unwrap().push(operation);
@@ -192,16 +191,15 @@ impl PackedFileTableViewSlots {
                             blocker.unblock();
                         }
 
-                        // For pasting, only update the undo_model the last iteration of the paste.
-                        if packed_file_view.save_lock.load(Ordering::SeqCst) {
+                        // For pasting, or really any heavy operation, only do these tasks the last iteration of the operation.
+                        if !packed_file_view.save_lock.load(Ordering::SeqCst) {
                             update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
+                            TableSearch::update_search(&mut packed_file_view);
+                            packed_file_view.context_menu_update();
+                            set_modified(true, &packed_file_view.packed_file_path.read().unwrap(), &mut app_ui, &mut pack_file_contents_ui);
                         }
                     }
-                    packed_file_view.context_menu_update();
-                    set_modified(true, &packed_file_view.packed_file_path.read().unwrap(), &mut app_ui, &mut pack_file_contents_ui);
                 }
-
-                TableSearch::update_search(&mut packed_file_view);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
