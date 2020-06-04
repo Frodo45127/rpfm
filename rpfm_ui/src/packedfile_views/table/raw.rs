@@ -516,9 +516,10 @@ impl PackedFileTableViewRaw {
 
     /// This function pastes the value in the clipboard in every selected Cell.
     unsafe fn paste_one_for_all(&mut self, text: &str, indexes: &[Ref<QModelIndex>]) {
-
         let mut changed_cells = 0;
-        for model_index in indexes {
+        self.save_lock.store(true, Ordering::SeqCst);
+
+        for (index, model_index) in indexes.iter().enumerate() {
             let model_index = self.table_filter.map_to_source(*model_index);
             if model_index.is_valid() {
 
@@ -572,6 +573,15 @@ impl PackedFileTableViewRaw {
                         }
                     }
                 }
+
+                // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+                if index == indexes.len() - 1 {
+                    self.undo_lock.store(true, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
+                    self.save_lock.store(false, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
+                    self.undo_lock.store(false, Ordering::SeqCst);
+                }
             }
         }
 
@@ -602,8 +612,9 @@ impl PackedFileTableViewRaw {
 
     /// This function pastes the row in the clipboard in every selected row that has the same amount of items selected as items in the clipboard we have.
     unsafe fn paste_same_row_for_all(&mut self, text: &[&str], indexes: &[Ref<QModelIndex>]) {
-
+        self.save_lock.store(true, Ordering::SeqCst);
         let mut changed_cells = 0;
+
         for (index, model_index) in indexes.iter().enumerate() {
             let text = text[index % text.len()];
             let model_index = self.table_filter.map_to_source(*model_index);
@@ -658,6 +669,15 @@ impl PackedFileTableViewRaw {
                             changed_cells += 1;
                         }
                     }
+                }
+
+                // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+                if index == indexes.len() - 1 {
+                    self.undo_lock.store(true, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
+                    self.save_lock.store(false, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
+                    self.undo_lock.store(false, Ordering::SeqCst);
                 }
             }
         }
@@ -850,6 +870,7 @@ impl PackedFileTableViewRaw {
                 history_undo.push(TableOperations::Carolina(carolina));
                 history_redo.clear();
             }
+
             update_undo_model(self.table_model, self.undo_model);
             //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
         }
