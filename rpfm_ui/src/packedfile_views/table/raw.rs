@@ -37,6 +37,7 @@ use qt_core::QVariant;
 use qt_core::QString;
 use qt_core::Orientation;
 use qt_core::q_item_selection_model::SelectionFlag;
+use qt_core::QSignalBlocker;
 
 use cpp_core::MutPtr;
 use cpp_core::Ref;
@@ -908,14 +909,12 @@ impl PackedFileTableViewRaw {
                     history_opposite.push(TableOperations::Editing(redo_editions));
 
                     self.undo_lock.store(true, Ordering::SeqCst);
-                    self.save_lock.store(true, Ordering::SeqCst);
                     for (index, ((row, column), item)) in editions.iter().enumerate() {
                         let item = &*mut_ptr_from_atomic(&item);
                         model.set_item_3a(*row, *column, item.clone());
 
                         // If we are going to process the last one, unlock the save.
                         if index == editions.len() - 1 {
-                            self.save_lock.store(false, Ordering::SeqCst);
                             model.item_2a(*row, *column).set_data_2a(&QVariant::from_int(1i32), 16);
                             model.item_2a(*row, *column).set_data_2a(&QVariant::new(), 16);
                         }
@@ -924,6 +923,9 @@ impl PackedFileTableViewRaw {
                     // Select all the edited items.
                     let mut selection_model = self.table_view_primary.selection_model();
                     selection_model.clear();
+
+                    // TODO: This is still very slow. We need some kind of range optimization.
+                    let _blocker = QSignalBlocker::from_q_object(selection_model);
                     for ((row, column),_) in &editions {
                         let model_index_filtered = filter.map_from_source(&model.index_2a(*row, *column));
                         if model_index_filtered.is_valid() {
