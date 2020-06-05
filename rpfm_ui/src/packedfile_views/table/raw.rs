@@ -12,6 +12,7 @@
 Module with all the code to deal with the raw version of the tables.
 !*/
 
+use qt_widgets::q_abstract_item_view::ScrollHint;
 use qt_widgets::QAction;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
@@ -36,6 +37,7 @@ use qt_core::QVariant;
 use qt_core::QString;
 use qt_core::Orientation;
 use qt_core::q_item_selection_model::SelectionFlag;
+use qt_core::QSignalBlocker;
 
 use cpp_core::MutPtr;
 use cpp_core::Ref;
@@ -515,9 +517,10 @@ impl PackedFileTableViewRaw {
 
     /// This function pastes the value in the clipboard in every selected Cell.
     unsafe fn paste_one_for_all(&mut self, text: &str, indexes: &[Ref<QModelIndex>]) {
-
         let mut changed_cells = 0;
-        for model_index in indexes {
+        self.save_lock.store(true, Ordering::SeqCst);
+
+        for (index, model_index) in indexes.iter().enumerate() {
             let model_index = self.table_filter.map_to_source(*model_index);
             if model_index.is_valid() {
 
@@ -571,6 +574,15 @@ impl PackedFileTableViewRaw {
                         }
                     }
                 }
+
+                // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+                if index == indexes.len() - 1 {
+                    self.undo_lock.store(true, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
+                    self.save_lock.store(false, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
+                    self.undo_lock.store(false, Ordering::SeqCst);
+                }
             }
         }
 
@@ -601,8 +613,9 @@ impl PackedFileTableViewRaw {
 
     /// This function pastes the row in the clipboard in every selected row that has the same amount of items selected as items in the clipboard we have.
     unsafe fn paste_same_row_for_all(&mut self, text: &[&str], indexes: &[Ref<QModelIndex>]) {
-
+        self.save_lock.store(true, Ordering::SeqCst);
         let mut changed_cells = 0;
+
         for (index, model_index) in indexes.iter().enumerate() {
             let text = text[index % text.len()];
             let model_index = self.table_filter.map_to_source(*model_index);
@@ -657,6 +670,15 @@ impl PackedFileTableViewRaw {
                             changed_cells += 1;
                         }
                     }
+                }
+
+                // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+                if index == indexes.len() - 1 {
+                    self.undo_lock.store(true, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
+                    self.save_lock.store(false, Ordering::SeqCst);
+                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
+                    self.undo_lock.store(false, Ordering::SeqCst);
                 }
             }
         }
@@ -849,6 +871,7 @@ impl PackedFileTableViewRaw {
                 history_undo.push(TableOperations::Carolina(carolina));
                 history_redo.clear();
             }
+
             update_undo_model(self.table_model, self.undo_model);
             //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
         }
@@ -886,14 +909,12 @@ impl PackedFileTableViewRaw {
                     history_opposite.push(TableOperations::Editing(redo_editions));
 
                     self.undo_lock.store(true, Ordering::SeqCst);
-                    self.save_lock.store(true, Ordering::SeqCst);
                     for (index, ((row, column), item)) in editions.iter().enumerate() {
                         let item = &*mut_ptr_from_atomic(&item);
                         model.set_item_3a(*row, *column, item.clone());
 
                         // If we are going to process the last one, unlock the save.
                         if index == editions.len() - 1 {
-                            self.save_lock.store(false, Ordering::SeqCst);
                             model.item_2a(*row, *column).set_data_2a(&QVariant::from_int(1i32), 16);
                             model.item_2a(*row, *column).set_data_2a(&QVariant::new(), 16);
                         }
@@ -902,6 +923,9 @@ impl PackedFileTableViewRaw {
                     // Select all the edited items.
                     let mut selection_model = self.table_view_primary.selection_model();
                     selection_model.clear();
+
+                    // TODO: This is still very slow. We need some kind of range optimization.
+                    let _blocker = QSignalBlocker::from_q_object(selection_model);
                     for ((row, column),_) in &editions {
                         let model_index_filtered = filter.map_from_source(&model.index_2a(*row, *column));
                         if model_index_filtered.is_valid() {
@@ -1189,8 +1213,24 @@ impl PackedFileTableViewRaw {
             vec![row]
         };
 
+        let mut selection_model = self.table_view_primary.selection_model();
+        selection_model.clear();
         for row in &rows {
             self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
+
+            // Select the row and scroll to it.
+            let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(self.table_filter.row_count_0a() - 1, 0));
+            if model_index_filtered.is_valid() {
+                selection_model.select_q_model_index_q_flags_selection_flag(
+                    &model_index_filtered,
+                    QFlags::from(SelectionFlag::Select | SelectionFlag::Rows)
+                );
+
+                self.table_view_primary.scroll_to_2a(
+                    model_index_filtered.as_ref(),
+                    ScrollHint::EnsureVisible
+                );
+            }
         }
 
         // Update the undo stuff. Cloned rows are the amount of rows - the amount of cloned rows.
@@ -1222,6 +1262,9 @@ impl PackedFileTableViewRaw {
             row_numbers.push(self.table_model.row_count_0a() - 1);
         }
 
+        let mut selection_model = self.table_view_primary.selection_model();
+        selection_model.clear();
+
         for index in indexes_sorted.iter().rev() {
             row_numbers.push(index.row() + (indexes_sorted.len() - row_numbers.len() - 1) as i32);
 
@@ -1246,6 +1289,15 @@ impl PackedFileTableViewRaw {
                 row
             };
             self.table_model.insert_row_int_q_list_of_q_standard_item(index.row(), &row);
+
+            // Select the row.
+            let model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(index.row(), 0));
+            if model_index_filtered.is_valid() {
+                selection_model.select_q_model_index_q_flags_selection_flag(
+                    &model_index_filtered,
+                    QFlags::from(SelectionFlag::Select | SelectionFlag::Rows)
+                );
+            }
         }
 
         // The undo mode needs this reversed.

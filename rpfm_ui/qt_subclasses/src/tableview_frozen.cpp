@@ -33,54 +33,54 @@ extern "C" void toggle_freezer(QTableView* tableView, int column) {
 // Constructor of QTableViewFrozen.
 QTableViewFrozen::QTableViewFrozen(QWidget* parent) {
 
-    this->setParent(parent);
+    //this->setParent(parent);
     frozenColumns = QList<int>();
     tableViewFrozen = new QTableView(parent);
 
     // Connect the header's resize signal of both QTableViews together, so they keep the same size.
-    connect(
-        horizontalHeader(),
-        &QHeaderView::sectionResized,
-        this,
-        &QTableViewFrozen::updateSectionWidth
-    );
-
-    connect(
-        verticalHeader(),
-        &QHeaderView::sectionResized,
-        this,
-        &QTableViewFrozen::updateSectionHeight
-    );
-
-    // Connect the vertical scrollbars, so both QTableViews are kept in sync.
-    connect(
-        tableViewFrozen->verticalScrollBar(),
-        &QAbstractSlider::valueChanged,
-        verticalScrollBar(),
-        &QAbstractSlider::setValue
-    );
-
-    connect(
-        verticalScrollBar(),
-        &QAbstractSlider::valueChanged,
-        tableViewFrozen->verticalScrollBar(),
-        &QAbstractSlider::setValue
-    );
-
-    // Connect the sort indicators of both QTableViews, so they're kept in sync.
-    connect(
-        horizontalHeader(),
-        &QHeaderView::sortIndicatorChanged,
-        tableViewFrozen->horizontalHeader(),
-        &QHeaderView::setSortIndicator
-    );
-
-    connect(
-        tableViewFrozen->horizontalHeader(),
-        &QHeaderView::sortIndicatorChanged,
-        horizontalHeader(),
-        &QHeaderView::setSortIndicator
-    );
+    //connect(
+    //    horizontalHeader(),
+    //    &QHeaderView::sectionResized,
+    //    this,
+    //    &QTableViewFrozen::updateSectionWidth
+    //);
+    //
+    //connect(
+    //    verticalHeader(),
+    //    &QHeaderView::sectionResized,
+    //    this,
+    //    &QTableViewFrozen::updateSectionHeight
+    //);
+    //
+    //// Connect the vertical scrollbars, so both QTableViews are kept in sync.
+    //connect(
+    //    tableViewFrozen->verticalScrollBar(),
+    //    &QAbstractSlider::valueChanged,
+    //    verticalScrollBar(),
+    //    &QAbstractSlider::setValue
+    //);
+    //
+    //connect(
+    //    verticalScrollBar(),
+    //    &QAbstractSlider::valueChanged,
+    //    tableViewFrozen->verticalScrollBar(),
+    //    &QAbstractSlider::setValue
+    //);
+    //
+    //// Connect the sort indicators of both QTableViews, so they're kept in sync.
+    //connect(
+    //    horizontalHeader(),
+    //    &QHeaderView::sortIndicatorChanged,
+    //    tableViewFrozen->horizontalHeader(),
+    //    &QHeaderView::setSortIndicator
+    //);
+    //
+    //connect(
+    //    tableViewFrozen->horizontalHeader(),
+    //    &QHeaderView::sortIndicatorChanged,
+    //    horizontalHeader(),
+    //    &QHeaderView::setSortIndicator
+    //);
 }
 
 // Destructor. Nothing to see here, keep scrolling.
@@ -138,92 +138,92 @@ void QTableViewFrozen::init() {
         "selection-background-color: #999}"
     );
 
-    updateFrozenTableGeometry();
+    //updateFrozenTableGeometry();
 }
 
 // Function to change the width columns at the same time we resize them in the main QTableView.
-void QTableViewFrozen::updateSectionWidth(int logicalIndex, int /* oldSize */, int newSize) {
-    tableViewFrozen->setColumnWidth(logicalIndex, newSize);
-    updateFrozenTableGeometry();
-}
+//void QTableViewFrozen::updateSectionWidth(int logicalIndex, int /* oldSize */, int newSize) {
+//    tableViewFrozen->setColumnWidth(logicalIndex, newSize);
+//    updateFrozenTableGeometry();
+//}
 
 // Function to change the height columns at the same time we resize them in the main QTableView.
-void QTableViewFrozen::updateSectionHeight(int logicalIndex, int /* oldSize */, int newSize) {
-    tableViewFrozen->setRowHeight(logicalIndex, newSize);
-}
+//void QTableViewFrozen::updateSectionHeight(int logicalIndex, int /* oldSize */, int newSize) {
+//    tableViewFrozen->setRowHeight(logicalIndex, newSize);
+//}
 
 // Function to trigger a full geometry update of the frozen QTableView when we resize the main one.
-void QTableViewFrozen::resizeEvent(QResizeEvent* event) {
-    QTableView::resizeEvent(event);
-    updateFrozenTableGeometry();
-}
+//void QTableViewFrozen::resizeEvent(QResizeEvent* event) {
+//    QTableView::resizeEvent(event);
+//    updateFrozenTableGeometry();
+//}
 
 // Function to keep the cursor always visible, so it never gets hidden under the Frozen Columns.
-QModelIndex QTableViewFrozen::moveCursor(
-    CursorAction cursorAction,
-    Qt::KeyboardModifiers modifiers
-) {
-    QModelIndex current = QTableView::moveCursor(cursorAction, modifiers);
-
-    // We need to get this done dinamically, depending on the amount and size of frozen columns.
-    int frozen_columns = 0;
-    int frozen_width = 0;
-    QSortFilterProxyModel* model = dynamic_cast<QSortFilterProxyModel*>(this->model());
-    for (int i = 0; i < model->sourceModel()->columnCount(); ++i) {
-        if (!tableViewFrozen->isColumnHidden(i)) {
-            frozen_columns += 1;
-            frozen_width += columnWidth(i);
-        }
-    }
-
-    if (cursorAction == MoveLeft &&
-        current.column() >= frozen_columns  &&
-        visualRect(current).topLeft().x() < frozen_width
-    ){
-        const int newValue = horizontalScrollBar()->value() + visualRect(current).topLeft().x() - frozen_width;
-        horizontalScrollBar()->setValue(newValue);
-    }
-    return current;
-}
+//QModelIndex QTableViewFrozen::moveCursor(
+//    CursorAction cursorAction,
+//    Qt::KeyboardModifiers modifiers
+//) {
+//    QModelIndex current = QTableView::moveCursor(cursorAction, modifiers);
+//
+//    // We need to get this done dinamically, depending on the amount and size of frozen columns.
+//    int frozen_columns = 0;
+//    int frozen_width = 0;
+//    QSortFilterProxyModel* model = dynamic_cast<QSortFilterProxyModel*>(this->model());
+//    for (int i = 0; i < model->sourceModel()->columnCount(); ++i) {
+//        if (!tableViewFrozen->isColumnHidden(i)) {
+//            frozen_columns += 1;
+//            frozen_width += columnWidth(i);
+//        }
+//    }
+//
+//    if (cursorAction == MoveLeft &&
+//        current.column() >= frozen_columns  &&
+//        visualRect(current).topLeft().x() < frozen_width
+//    ){
+//        const int newValue = horizontalScrollBar()->value() + visualRect(current).topLeft().x() - frozen_width;
+//        horizontalScrollBar()->setValue(newValue);
+//    }
+//    return current;
+//}
 
 // Function to make the FrozenTableView work in consonance with the QtableView when the selection is out of view.
-void QTableViewFrozen::scrollTo(const QModelIndex & index, ScrollHint hint) {
-    if (index.column() >= frozenColumns.count()) {
-        QTableView::scrollTo(index, hint);
-    }
-}
+//void QTableViewFrozen::scrollTo(const QModelIndex & index, ScrollHint hint) {
+//    if (index.column() >= frozenColumns.count()) {
+//        QTableView::scrollTo(index, hint);
+//    }
+//}
 
 // Function to update the geometry of the frozen QTableView when needed, to keep it at the right size.
-void QTableViewFrozen::updateFrozenTableGeometry() {
-
-    // It's simple, we get the width of every visible column, then use that as our width.
-    int width = 0;
-    QSortFilterProxyModel* frozenTableModel = dynamic_cast<QSortFilterProxyModel*>(tableViewFrozen->model());
-    width += frozenColumns.count();
-    for (int i = 0; i < frozenTableModel->sourceModel()->columnCount(); ++i) {
-        if (frozenColumns.contains(i)) {
-            width += columnWidth(i);
-        }
-    }
-
-    if (frozenColumns.isEmpty()){
-        tableViewFrozen->verticalHeader()->hide();
-    }
-    else {
-        tableViewFrozen->verticalHeader()->show();
-    }
-
-    QMargins margins = viewportMargins();
-    margins.setLeft(verticalHeader()->width() + frameWidth() + width);
-    setViewportMargins(margins);
-
-    tableViewFrozen->setGeometry(
-        verticalHeader()->width() + frameWidth(),
-        frameWidth(),
-        width,
-        viewport()->height()+horizontalHeader()->height()
-    );
-}
+//void QTableViewFrozen::updateFrozenTableGeometry() {
+//
+//    // It's simple, we get the width of every visible column, then use that as our width.
+//    int width = 0;
+//    QSortFilterProxyModel* frozenTableModel = dynamic_cast<QSortFilterProxyModel*>(tableViewFrozen->model());
+//    width += frozenColumns.count();
+//    for (int i = 0; i < frozenTableModel->sourceModel()->columnCount(); ++i) {
+//        if (frozenColumns.contains(i)) {
+//            width += columnWidth(i);
+//        }
+//    }
+//
+//    if (frozenColumns.isEmpty()){
+//        tableViewFrozen->verticalHeader()->hide();
+//    }
+//    else {
+//        tableViewFrozen->verticalHeader()->show();
+//    }
+//
+//    QMargins margins = viewportMargins();
+//    margins.setLeft(verticalHeader()->width() + frameWidth() + width);
+//    setViewportMargins(margins);
+//
+//    tableViewFrozen->setGeometry(
+//        verticalHeader()->width() + frameWidth(),
+//        frameWidth(),
+//        width,
+//        viewport()->height()+horizontalHeader()->height()
+//    );
+//}
 
 void QTableViewFrozen::toggleFreezer(int column) {
 
@@ -235,5 +235,5 @@ void QTableViewFrozen::toggleFreezer(int column) {
         frozenColumns.append(column);
         tableViewFrozen->setColumnHidden(column, false);
     }
-    updateFrozenTableGeometry();
+    //updateFrozenTableGeometry();
 }

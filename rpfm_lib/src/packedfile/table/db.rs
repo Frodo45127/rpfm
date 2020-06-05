@@ -35,6 +35,7 @@ use crate::packedfile::DecodedPackedFile;
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::*;
+use crate::SETTINGS;
 use super::DecodedData;
 use super::Table;
 
@@ -56,7 +57,11 @@ pub struct DB {
     pub name: String,
 
     /// Don't know his use, but it's in all the tables I've seen, always being `1` or `0`.
+    /// NOTE: In Warhammer 2, a 0 here seems to crash the game when the tables are loaded.
     pub mysterious_byte: bool,
+
+    /// UUID of this table.
+    pub uuid: String,
 
     /// The table's data, containing all the stuff needed to decode/encode it.
     table: Table,
@@ -72,11 +77,13 @@ impl DB {
     /// This function creates a new empty `DB` from a definition and his name.
     pub fn new(
         name: &str,
+        uuid: Option<&str>,
         definition: &Definition
     ) -> Self {
         Self{
             name: name.to_owned(),
             mysterious_byte: true,
+            uuid: if let Some(uuid) = uuid { uuid.to_owned() } else { Uuid::new_v4().to_string() },
             table: Table::new(&definition),
         }
     }
@@ -89,6 +96,11 @@ impl DB {
     /// This function returns a reference of the name of this DB Table.
     pub fn get_ref_table_name(&self) -> &str {
         &self.name
+    }
+
+    /// This function returns a copy of the UUID of this DB Table.
+    pub fn get_uuid(&self) -> String {
+        self.uuid.to_owned()
     }
 
     /// This function returns a copy of the definition of this DB Table.
@@ -139,7 +151,7 @@ impl DB {
     ) -> Result<Self> {
 
         // Get the header of the `DB`.
-        let (version, mysterious_byte, entry_count, mut index) = Self::read_header(&packed_file_data)?;
+        let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(&packed_file_data)?;
 
         // These tables use the not-yet-implemented type "List" in the following versions:
         // - models_artillery: 0,
@@ -178,6 +190,7 @@ impl DB {
         Ok(Self {
             name: name.to_owned(),
             mysterious_byte,
+            uuid,
             table,
         })
     }
@@ -191,7 +204,12 @@ impl DB {
         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
         if game_selected != KEY_EMPIRE && game_selected != KEY_NAPOLEON {
             packed_file.extend_from_slice(GUID_MARKER);
-            packed_file.encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
+            if SETTINGS.read().unwrap().settings_bool["disable_uuid_regeneration_on_db_tables"] && !self.uuid.is_empty() {
+                packed_file.encode_packedfile_string_u16(&self.uuid);
+            }
+            else {
+                packed_file.encode_packedfile_string_u16(&format!("{}", Uuid::new_v4()));
+            }
         }
         packed_file.extend_from_slice(VERSION_MARKER);
         packed_file.encode_integer_i32(self.table.definition.version);
@@ -209,9 +227,10 @@ impl DB {
     /// The data returned is:
     /// - `version`: the version of this table.
     /// - `mysterious_byte`: don't know.
+    /// - `uuid`: the UUID of this table.
     /// - `entry_count`: amount of entries this `DB` has.
     /// - `index`: position where the header ends. Useful if you want to decode the data of the `DB` after this.
-    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, bool, u32, usize)> {
+    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, bool, String, u32, usize)> {
 
         // 5 is the minimum amount of bytes a valid DB Table can have. If there is less, either the table is broken,
         // or the data is not from a DB Table.
@@ -222,7 +241,11 @@ impl DB {
 
         // If there is a GUID_MARKER, skip it together with the GUID itself (4 bytes for the marker, 74 for the GUID).
         // About this GUID, it's something that gets randomly generated every time you export a table with DAVE. Not useful.
-        if packed_file_data.get_bytes_checked(0, 4)? == GUID_MARKER { index += 78; }
+        let uuid = if packed_file_data.get_bytes_checked(0, 4)? == GUID_MARKER {
+            index += 4;
+            packed_file_data.decode_packedfile_string_u16(index, &mut index)?
+        }
+        else { String::new() };
 
         // If there is a VERSION_MARKER, we get the version (4 bytes for the marker, 4 for the version). Otherwise, we default to 0.
         let version = if packed_file_data.get_bytes_checked(index, 4)? == VERSION_MARKER {
@@ -233,7 +256,7 @@ impl DB {
         // We get the rest of the data from the header.
         let mysterious_byte = packed_file_data.decode_packedfile_bool(index, &mut index)?;
         let entry_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
-        Ok((version, mysterious_byte, entry_count, index))
+        Ok((version, mysterious_byte, uuid, entry_count, index))
     }
 
     /// This function loads the PAK file of the game selected (if exists) into memory.
@@ -554,6 +577,7 @@ impl From<Table> for DB {
         Self {
             name: String::new(),
             mysterious_byte: true,
+            uuid: Uuid::new_v4().to_string(),
             table,
         }
     }
@@ -580,6 +604,7 @@ impl From<&RawTable> for DB {
         Self {
             name: name_table,
             mysterious_byte: true,
+            uuid: Uuid::new_v4().to_string(),
             table: From::from(raw_table),
         }
     }

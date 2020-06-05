@@ -181,6 +181,7 @@ pub struct PackedFileTableView {
     search_column_selector: AtomicPtr<QComboBox>,
 
     table_name: String,
+    table_uuid: String,
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
     packed_file_path: Arc<RwLock<Vec<String>>>,
@@ -221,13 +222,13 @@ impl PackedFileTableView {
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
-        let (table_definition, table_name, packed_file_type) = match table_data {
+        let (table_definition, table_name, table_uuid, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
                 let schema = SCHEMA.read().unwrap();
-                (schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone(), String::new(), PackedFileType::DependencyPackFilesList)
+                (schema.as_ref().unwrap().get_ref_versioned_file_dep_manager().unwrap().get_version_list()[0].clone(), String::new(), String::new(), PackedFileType::DependencyPackFilesList)
             },
-            TableType::DB(ref table) => (table.get_definition(), table.get_table_name(), PackedFileType::DB),
-            TableType::Loc(ref table) => (table.get_definition(), String::new(), PackedFileType::Loc),
+            TableType::DB(ref table) => (table.get_definition(), table.get_table_name(), table.get_uuid(), PackedFileType::DB),
+            TableType::Loc(ref table) => (table.get_definition(), String::new(), String::new(), PackedFileType::Loc),
         };
 
         // Get the dependency data of this Table.
@@ -419,6 +420,7 @@ impl PackedFileTableView {
             let column_name = QLabel::from_q_string(&QString::from_std_str(&utils::clean_column_names(&column.name)));
             let mut hide_show_checkbox = QCheckBox::new();
             let mut freeze_unfreeze_checkbox = QCheckBox::new();
+            freeze_unfreeze_checkbox.set_enabled(false);
 
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -548,6 +550,7 @@ impl PackedFileTableView {
             dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition: packed_file_table_view_raw.table_definition.clone(),
             table_name,
+            table_uuid,
             packed_file_path: packed_file_view.get_path_raw().clone(),
 
             undo_model: atomic_from_mut_ptr(packed_file_table_view_raw.undo_model),
@@ -829,6 +832,11 @@ impl PackedFileTableView {
     /// This function returns a reference to this table's name.
     pub fn get_ref_table_name(&self) -> &str {
         &self.table_name
+    }
+
+    /// This function returns a reference to this table's uuid.
+    pub fn get_ref_table_uuid(&self) -> &str {
+        &self.table_uuid
     }
 
     /// This function returns a reference to the definition of this table.

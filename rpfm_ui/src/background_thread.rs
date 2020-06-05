@@ -232,7 +232,7 @@ pub fn background_loop() {
                         for packed_file in pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false) {
                             if packed_file.decode_return_ref_no_locks(schema).is_err() {
                                 if let Ok(raw_data) = packed_file.get_raw_data() {
-                                    if let Ok((_, _, entry_count, _)) = DB::read_header(&raw_data) {
+                                    if let Ok((_, _, _, entry_count, _)) = DB::read_header(&raw_data) {
                                         if entry_count > 0 {
                                             counter += 1;
                                             table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_path()))
@@ -322,7 +322,7 @@ pub fn background_loop() {
                             match schema.get_ref_versioned_file_db(&table) {
                                 Ok(versioned_file) => {
                                     match versioned_file.get_version(version) {
-                                        Ok(definition) =>  DecodedPackedFile::DB(DB::new(&table, definition)),
+                                        Ok(definition) =>  DecodedPackedFile::DB(DB::new(&table, None, definition)),
                                         Err(error) => {
                                             CENTRAL_COMMAND.send_message_rust(Response::Error(error));
                                             continue;
@@ -344,7 +344,11 @@ pub fn background_loop() {
                                 }
                             }
                         }
-                        NewPackedFile::Text(_) => DecodedPackedFile::Text(Text::new()),
+                        NewPackedFile::Text(_, text_type) => {
+                            let mut packed_file = Text::new();
+                            packed_file.set_text_type(text_type);
+                            DecodedPackedFile::Text(packed_file)
+                        },
                     };
                     let packed_file = PackedFile::new_from_decoded(&decoded, path);
                     match pack_file_decoded.add_packed_file(&packed_file, false) {

@@ -654,7 +654,7 @@ impl PackedFileDecoderView {
         // Load the "Info" data to the view.
         match self.packed_file_type {
             PackedFileType::DB => {
-                if let Ok((version,_, entry_count, _)) = DB::read_header(&self.packed_file_data) {
+                if let Ok((version, _, _, entry_count, _)) = DB::read_header(&self.packed_file_data) {
                     self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
                     self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
                 }
@@ -1345,7 +1345,7 @@ fn get_header_size(
     packed_file_data: &[u8],
 ) -> Result<usize> {
     match packed_file_type {
-        PackedFileType::DB => Ok(DB::read_header(packed_file_data)?.3),
+        PackedFileType::DB => Ok(DB::read_header(packed_file_data)?.4),
         PackedFileType::Loc => Ok(loc::HEADER_SIZE),
         _ => unimplemented!()
     }

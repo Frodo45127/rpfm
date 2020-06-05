@@ -397,6 +397,7 @@ settings_allow_editing_of_ca_packfiles = Allow Editing of CA PackFiles:
 settings_optimize_not_renamed_packedfiles = Optimize Non-Renamed PackedFiles:
 settings_use_dependency_checker = Enable Dependency Checker for DB Tables:
 settings_use_lazy_loading = Use Lazy-Loading for PackFiles:
+settings_disable_uuid_regeneration_tables = Disable UUID Regeneration on DB Tables:
 
 settings_debug_title = Debug Settings
 settings_debug_missing_table = Check for Missing Table Definitions
@@ -430,6 +431,7 @@ tt_extra_packfile_optimize_not_renamed_packedfiles_tip = If you enable this, whe
 tt_extra_packfile_use_dependency_checker_tip = If you enable this, when opening a DB Table RPFM will try to get his dependencies and mark all cells with a reference to another table as 'Not Found In Table' (Red), 'Referenced Table Not Found' (Blue) or 'Correct Reference' (Black). It makes opening a big table a bit slower.
 tt_extra_packfile_use_lazy_loading_tip = If you enable this, PackFiles will load their data on-demand from the disk instead of loading the entire PackFile to Ram. This reduces Ram usage by a lot, but if something else changes/deletes the PackFile while it's open, the PackFile will likely be unrecoverable and you'll lose whatever is in it.
     If you mainly mod in Warhammer 2's /data folder LEAVE THIS DISABLED, as a bug in the Assembly Kit causes PackFiles to become broken/be deleted when you have this enabled.
+tt_extra_disable_uuid_regeneration_on_db_tables_label_tip = Check this if you plan to put your binary tables under Git/Svn/any kind of version control software.
 
 tt_debug_check_for_missing_table_definitions_tip = If you enable this, RPFM will try to decode EVERY TABLE in the current PackFile when opening it or when changing the Game Selected, and it'll output all the tables without an schema to a \"missing_table_definitions.txt\" file.
     DEBUG FEATURE, VERY SLOW. DON'T ENABLE IT UNLESS YOU REALLY WANT TO USE IT.

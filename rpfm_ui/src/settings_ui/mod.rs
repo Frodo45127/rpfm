@@ -102,6 +102,7 @@ pub struct SettingsUI {
     pub extra_packfile_optimize_not_renamed_packedfiles_label: MutPtr<QLabel>,
     pub extra_packfile_use_dependency_checker_label: MutPtr<QLabel>,
     pub extra_packfile_use_lazy_loading_label: MutPtr<QLabel>,
+    pub extra_disable_uuid_regeneration_on_db_tables_label: MutPtr<QLabel>,
 
     pub extra_global_default_game_combobox: MutPtr<QComboBox>,
     pub extra_network_check_updates_on_start_checkbox: MutPtr<QCheckBox>,
@@ -110,6 +111,7 @@ pub struct SettingsUI {
     pub extra_packfile_optimize_not_renamed_packedfiles_checkbox: MutPtr<QCheckBox>,
     pub extra_packfile_use_dependency_checker_checkbox: MutPtr<QCheckBox>,
     pub extra_packfile_use_lazy_loading_checkbox: MutPtr<QCheckBox>,
+    pub extra_disable_uuid_regeneration_on_db_tables_checkbox: MutPtr<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Debug` section of the `Settings` dialog.
@@ -297,6 +299,7 @@ impl SettingsUI {
         let mut extra_packfile_optimize_not_renamed_packedfiles_label = QLabel::from_q_string(&qtr("settings_optimize_not_renamed_packedfiles"));
         let mut extra_packfile_use_dependency_checker_label = QLabel::from_q_string(&qtr("settings_use_dependency_checker"));
         let mut extra_packfile_use_lazy_loading_label = QLabel::from_q_string(&qtr("settings_use_lazy_loading"));
+        let mut extra_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string(&qtr("settings_disable_uuid_regeneration_tables"));
 
         let mut extra_network_check_updates_on_start_checkbox = QCheckBox::new();
         let mut extra_network_check_schema_updates_on_start_checkbox = QCheckBox::new();
@@ -304,6 +307,7 @@ impl SettingsUI {
         let mut extra_packfile_optimize_not_renamed_packedfiles_checkbox = QCheckBox::new();
         let mut extra_packfile_use_dependency_checker_checkbox = QCheckBox::new();
         let mut extra_packfile_use_lazy_loading_checkbox = QCheckBox::new();
+        let mut extra_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::new();
 
         extra_grid.add_widget_5a(&mut extra_global_default_game_label, 0, 0, 1, 1);
         extra_grid.add_widget_5a(&mut extra_global_default_game_combobox, 0, 1, 1, 1);
@@ -325,6 +329,9 @@ impl SettingsUI {
 
         extra_grid.add_widget_5a(&mut extra_packfile_use_lazy_loading_label, 6, 0, 1, 1);
         extra_grid.add_widget_5a(&mut extra_packfile_use_lazy_loading_checkbox, 6, 1, 1, 1);
+
+        extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_label, 7, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_checkbox, 7, 1, 1, 1);
 
         main_grid.add_widget_5a(extra_frame, 1, 1, 1, 1);
 
@@ -417,6 +424,7 @@ impl SettingsUI {
             extra_packfile_optimize_not_renamed_packedfiles_label: extra_packfile_optimize_not_renamed_packedfiles_label.into_ptr(),
             extra_packfile_use_dependency_checker_label: extra_packfile_use_dependency_checker_label.into_ptr(),
             extra_packfile_use_lazy_loading_label: extra_packfile_use_lazy_loading_label.into_ptr(),
+            extra_disable_uuid_regeneration_on_db_tables_label: extra_disable_uuid_regeneration_on_db_tables_label.into_ptr(),
 
             extra_global_default_game_combobox: extra_global_default_game_combobox.into_ptr(),
             extra_network_check_updates_on_start_checkbox: extra_network_check_updates_on_start_checkbox.into_ptr(),
@@ -425,6 +433,7 @@ impl SettingsUI {
             extra_packfile_optimize_not_renamed_packedfiles_checkbox: extra_packfile_optimize_not_renamed_packedfiles_checkbox.into_ptr(),
             extra_packfile_use_dependency_checker_checkbox: extra_packfile_use_dependency_checker_checkbox.into_ptr(),
             extra_packfile_use_lazy_loading_checkbox: extra_packfile_use_lazy_loading_checkbox.into_ptr(),
+            extra_disable_uuid_regeneration_on_db_tables_checkbox: extra_disable_uuid_regeneration_on_db_tables_checkbox.into_ptr(),
 
             //-------------------------------------------------------------------------------//
             // `Debug` section of the `Settings` dialog.
@@ -464,8 +473,9 @@ impl SettingsUI {
             }
         }
 
+        let language_selected = settings.settings_string["language"].split("_").collect::<Vec<&str>>()[0];
         for (index, (language,_)) in Locale::get_available_locales().unwrap().iter().enumerate() {
-            if *language == settings.settings_string["language"] {
+            if *language == language_selected {
                 self.ui_language_combobox.set_current_index(index as i32);
                 break;
             }
@@ -487,6 +497,7 @@ impl SettingsUI {
         self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(settings.settings_bool["optimize_not_renamed_packedfiles"]);
         self.extra_packfile_use_dependency_checker_checkbox.set_checked(settings.settings_bool["use_dependency_checker"]);
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(settings.settings_bool["use_lazy_loading"]);
+        self.extra_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(settings.settings_bool["disable_uuid_regeneration_on_db_tables"]);
 
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
@@ -515,9 +526,13 @@ impl SettingsUI {
         game = game.replace(' ', "_").to_lowercase();
         settings.settings_string.insert("default_game".to_owned(), game);
 
+        // We need to store the full locale filename, not just the visible name!
         let mut language = self.ui_language_combobox.current_text().to_std_string();
         if let Some(index) = language.find('&') { language.remove(index); }
-        settings.settings_string.insert("language".to_owned(), language);
+        if let Some((_, locale)) = Locale::get_available_locales().unwrap().iter().find(|(x, _)| &language == x) {
+            let file_name = format!("{}_{}", language, locale.language);
+            settings.settings_string.insert("language".to_owned(), file_name);
+        }
 
         let current_font = QGuiApplication::font();
         settings.settings_string.insert("font_name".to_owned(), current_font.family().to_std_string());
@@ -539,6 +554,7 @@ impl SettingsUI {
         settings.settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
         settings.settings_bool.insert("use_dependency_checker".to_owned(), self.extra_packfile_use_dependency_checker_checkbox.is_checked());
         settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_packfile_use_lazy_loading_checkbox.is_checked());
+        settings.settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), self.extra_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
 
         // Get the Debug Settings.
         settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.is_checked());

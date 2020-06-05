@@ -26,6 +26,7 @@ use qt_core::QString;
 
 use cpp_core::MutPtr;
 
+use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
@@ -94,11 +95,19 @@ impl MyModUI {
         mymod_game_combobox.set_model(&mut mymod_game_model);
 
         // Add the games to the ComboBox.
-        for (_, game) in SUPPORTED_GAMES.iter() {
+        let mut selected_index = 0;
+        let mut selected_index_counter = 0;
+        for (key_name, game) in SUPPORTED_GAMES.iter() {
             if game.supports_editing {
                 mymod_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name));
+
+                if key_name == &*GAME_SELECTED.read().unwrap() {
+                    selected_index = selected_index_counter
+                }
+                selected_index_counter += 1;
             }
         }
+        mymod_game_combobox.set_current_index(selected_index as i32);
 
         // Add all the widgets to the main grid.
         main_grid.add_widget_5a(&mut mymod_name_label, 1, 0, 1, 1);

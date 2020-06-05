@@ -59,7 +59,7 @@ impl Settings {
 
         // Default Game.
         settings_string.insert("default_game".to_owned(), KEY_THREE_KINGDOMS.to_owned());
-        settings_string.insert("language".to_owned(), "English".to_owned());
+        settings_string.insert("language".to_owned(), "English_en".to_owned());
         settings_string.insert("font_name".to_owned(), "".to_owned());
         settings_string.insert("font_size".to_owned(), "".to_owned());
 
@@ -79,6 +79,7 @@ impl Settings {
         settings_bool.insert("use_dependency_checker".to_owned(), false);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
+        settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), false);
 
         // Debug Settings.
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);

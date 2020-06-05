@@ -433,7 +433,7 @@ impl Schema {
 
         // To avoid doing a lot of useless checking, we only check for schemas with different version.
         let local_schema_versions: VersionsFile = from_reader(BufReader::new(File::open(get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE))?))?;
-        let current_schema_versions: VersionsFile = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_DEVELOP, SCHEMA_VERSIONS_FILE))?.text()?)?;
+        let current_schema_versions: VersionsFile = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.text()?)?;
         let mut schemas_to_update = vec![];
 
         // If the game's schema is not in the repo (when adding a new game's support) skip it.
@@ -461,7 +461,7 @@ impl Schema {
             // Uncomment and tweak the commented schema_current to test against a local schema.
             let schema_local = Schema::load(schema_name).unwrap();
             //let schema_current = Schema::load("schema_att.ron").unwrap();
-            let schema_current: Schema = from_reader(blocking::get(&format!("{}/{}", SCHEMA_UPDATE_URL_DEVELOP, schema_name))?)?;
+            let schema_current: Schema = from_reader(blocking::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, schema_name))?)?;
 
             // Lists to store the different types of differences.
             let mut diff = String::new();
