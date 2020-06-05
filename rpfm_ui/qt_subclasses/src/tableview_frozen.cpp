@@ -33,7 +33,7 @@ extern "C" void toggle_freezer(QTableView* tableView, int column) {
 // Constructor of QTableViewFrozen.
 QTableViewFrozen::QTableViewFrozen(QWidget* parent) {
 
-    //this->setParent(parent);
+    this->setParent(parent);
     frozenColumns = QList<int>();
     tableViewFrozen = new QTableView(parent);
 
@@ -117,7 +117,7 @@ void QTableViewFrozen::init() {
     tableViewFrozen->setContextMenuPolicy(Qt::ContextMenuPolicy::CustomContextMenu);
 
     // Place the Frozen QTableView above the normal one.
-    viewport()->stackUnder(tableViewFrozen);
+    //viewport()->stackUnder(tableViewFrozen);
 
     tableViewFrozen->setSelectionModel(selectionModel());
     tableViewFrozen->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -138,6 +138,7 @@ void QTableViewFrozen::init() {
         "selection-background-color: #999}"
     );
 
+    tableViewFrozen->setVisible(false);
     //updateFrozenTableGeometry();
 }
 
