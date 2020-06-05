@@ -344,7 +344,11 @@ pub fn background_loop() {
                                 }
                             }
                         }
-                        NewPackedFile::Text(_) => DecodedPackedFile::Text(Text::new()),
+                        NewPackedFile::Text(_, text_type) => {
+                            let mut packed_file = Text::new();
+                            packed_file.set_text_type(text_type);
+                            DecodedPackedFile::Text(packed_file)
+                        },
                     };
                     let packed_file = PackedFile::new_from_decoded(&decoded, path);
                     match pack_file_decoded.add_packed_file(&packed_file, false) {

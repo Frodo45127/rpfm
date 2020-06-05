@@ -1423,7 +1423,7 @@ impl AppUI {
                     // First we make sure the name is correct, and fix it if needed.
                     match new_packed_file {
                         NewPackedFile::Loc(ref mut name) |
-                        NewPackedFile::Text(ref mut name) |
+                        NewPackedFile::Text(ref mut name, _) |
                         NewPackedFile::DB(ref mut name, _, _) => {
 
                             // If the name is_empty, stop.
@@ -1435,7 +1435,7 @@ impl AppUI {
                             if let PackedFileType::Loc = packed_file_type {
                                 if !name.ends_with(loc::EXTENSION) { name.push_str(loc::EXTENSION); }
                             }
-                            if let PackedFileType::Text(TextType::Plain) = packed_file_type {
+                            if let PackedFileType::Text(_) = packed_file_type {
                                 if !text::EXTENSIONS.iter().any(|(x, _)| name.ends_with(x)) {
                                     name.push_str(".txt");
                                 }
@@ -1443,10 +1443,16 @@ impl AppUI {
                         }
                     }
 
+                    if let NewPackedFile::Text(ref mut name, ref mut text_type) = new_packed_file {
+                        if let Some((_, text_type_real)) = text::EXTENSIONS.iter().find(|(x, _)| name.ends_with(x)) {
+                            *text_type = *text_type_real
+                        }
+                    }
+
                     // If we reach this place, we got all alright.
                     match new_packed_file {
                         NewPackedFile::Loc(ref name) |
-                        NewPackedFile::Text(ref name) |
+                        NewPackedFile::Text(ref name, _) |
                         NewPackedFile::DB(ref name, _, _) => {
 
                             // Get the currently selected paths (or the complete path, in case of DB Tables),
@@ -1546,7 +1552,7 @@ impl AppUI {
                     let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
                     new_path.append(&mut name);
 
-                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned());
+                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned(), TextType::Lua);
                     (new_path, new_packed_file)
                 }
 
@@ -1557,7 +1563,7 @@ impl AppUI {
                     let mut name = name.split('/').map(|x| x.to_owned()).filter(|x| !x.is_empty()).collect::<Vec<String>>();
                     new_path.append(&mut name);
 
-                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned());
+                    let new_packed_file = NewPackedFile::Text(new_path.last().unwrap().to_owned(), TextType::Xml);
                     (new_path, new_packed_file)
                 }
 
@@ -1693,7 +1699,7 @@ impl AppUI {
                     Some(Ok(NewPackedFile::DB(packed_file_name, table, version)))
                 },
                 PackedFileType::Loc => Some(Ok(NewPackedFile::Loc(packed_file_name))),
-                PackedFileType::Text(_) => Some(Ok(NewPackedFile::Text(packed_file_name))),
+                PackedFileType::Text(_) => Some(Ok(NewPackedFile::Text(packed_file_name, TextType::Plain))),
                 _ => unimplemented!(),
             }
         }

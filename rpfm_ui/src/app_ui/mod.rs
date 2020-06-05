@@ -44,6 +44,7 @@ use cpp_core::MutPtr;
 use std::sync::atomic::Ordering;
 
 use rpfm_lib::games::*;
+use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
@@ -259,7 +260,7 @@ pub enum NewPackedFile {
     Loc(String),
 
     /// Name of the Table.
-    Text(String)
+    Text(String, TextType)
 }
 
 //-------------------------------------------------------------------------------//
