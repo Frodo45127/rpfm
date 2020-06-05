@@ -420,6 +420,7 @@ impl PackedFileTableView {
             let column_name = QLabel::from_q_string(&QString::from_std_str(&utils::clean_column_names(&column.name)));
             let mut hide_show_checkbox = QCheckBox::new();
             let mut freeze_unfreeze_checkbox = QCheckBox::new();
+            freeze_unfreeze_checkbox.set_enabled(false);
 
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
