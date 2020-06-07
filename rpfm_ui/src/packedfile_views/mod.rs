@@ -44,6 +44,7 @@ use crate::utils::create_grid_layout;
 use crate::utils::mut_ptr_from_atomic;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
+use self::animpack::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
 use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
 use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::external::{PackedFileExternalView, slots::PackedFileExternalViewSlots};
@@ -53,6 +54,7 @@ use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
 
+pub mod animpack;
 pub mod ca_vp8;
 pub mod decoder;
 pub mod external;
@@ -89,6 +91,7 @@ pub enum ViewType {
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
+    AnimPack(PackedFileAnimPackView),
     CaVp8(PackedFileCaVp8View),
     Decoder(PackedFileDecoderView),
     Image(PackedFileImageView),
@@ -104,6 +107,7 @@ pub enum View {
 /// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
+    AnimPack(PackedFileAnimPackViewSlots),
     CaVp8(PackedFileCaVp8ViewSlots),
     Decoder(PackedFileDecoderViewSlots),
     External(PackedFileExternalViewSlots),
@@ -245,6 +249,7 @@ impl PackedFileView {
 
                     // Images are read-only.
                     PackedFileType::Image => return Ok(()),
+                    PackedFileType::AnimPack => return Ok(()),
 
                     // These ones are a bit special. We just need to send back the current format of the video.
                     PackedFileType::CaVp8 => {

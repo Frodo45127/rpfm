@@ -270,6 +270,9 @@ pub enum Command {
 
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
     SavePackedFileFromExternalView((Vec<String>, PathBuf)),
+
+    /// This command is used to unpack an AnimPack into the current PackFile. Requires the path of the PackedFile to unpack.
+    AnimPackUnpack(Vec<String>),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -328,6 +331,9 @@ pub enum Response {
 
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
+
+    /// Response to return `(Vec<String>, PackedFileInfo)`.
+    AnimPackPackedFileInfo((Vec<String>, PackedFileInfo)),
 
     /// Response to return `(CaVp8, PackedFileInfo)`.
     CaVp8PackedFileInfo((CaVp8, PackedFileInfo)),

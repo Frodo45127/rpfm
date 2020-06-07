@@ -25,6 +25,7 @@ use std::ops::Deref;
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::DEPENDENCY_DATABASE;
+use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
 use crate::packedfile::image::Image;
 use crate::packedfile::table::{db::DB, loc::Loc};
@@ -34,6 +35,7 @@ use crate::packfile::packedfile::{PackedFile, RawPackedFile};
 use crate::schema::Schema;
 use crate::SCHEMA;
 
+pub mod animpack;
 pub mod ca_vp8;
 pub mod image;
 pub mod rigidmodel;
@@ -51,7 +53,7 @@ pub mod text;
 pub enum DecodedPackedFile {
     Anim,
     AnimFragment,
-    AnimPack,
+    AnimPack(AnimPack),
     AnimTable,
     CaVp8(CaVp8),
     CEO,
@@ -101,6 +103,12 @@ impl DecodedPackedFile {
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
     pub fn decode(raw_packed_file: &RawPackedFile) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
+
+            PackedFileType::AnimPack => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = AnimPack::read(&data)?;
+                Ok(DecodedPackedFile::AnimPack(packed_file))
+            }
 
             PackedFileType::CaVp8 => {
                 let data = raw_packed_file.get_data()?;
@@ -155,6 +163,13 @@ impl DecodedPackedFile {
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
     pub fn decode_no_locks(raw_packed_file: &RawPackedFile, schema: &Schema) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
+
+            PackedFileType::AnimPack => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = AnimPack::read(&data)?;
+                Ok(DecodedPackedFile::AnimPack(packed_file))
+            }
+
             PackedFileType::CaVp8 => {
                 let data = raw_packed_file.get_data()?;
                 let packed_file = CaVp8::read(data)?;
@@ -274,6 +289,7 @@ impl PackedFileType {
     pub fn get_packed_file_type(path: &[String]) -> Self {
         if let Some(packedfile_name) = path.last() {
             if packedfile_name.ends_with(table::loc::EXTENSION) { PackedFileType::Loc }
+            else if packedfile_name.ends_with(animpack::EXTENSION) { PackedFileType::AnimPack }
             else if packedfile_name.ends_with(rigidmodel::EXTENSION) { PackedFileType::RigidModel }
             else if packedfile_name.ends_with(ca_vp8::EXTENSION) { PackedFileType::CaVp8 }
             else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
@@ -296,12 +312,17 @@ impl PackedFileType {
     }
 
     /// This function returns the type of the provided `PackedFile` based on the data it contains.
+    ///
+    /// Note that his one is tricky, and we only check the data in a few packedfiles. In the rest, we check their extension.
     pub fn get_packed_file_type_by_data(packed_file: &PackedFile) -> Self {
         match packed_file.get_raw_data() {
             Ok(data) => {
                 if let Some(packedfile_name) = packed_file.get_path().last() {
                     if packedfile_name.ends_with(rigidmodel::EXTENSION) {
                         return Self::RigidModel
+                    }
+                    else if packedfile_name.ends_with(animpack::EXTENSION) {
+                        return Self::AnimPack
                     }
                     else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
                         return Self::Image
@@ -310,7 +331,6 @@ impl PackedFileType {
                         if Text::read(&data).is_ok() {
                             return Self::Text(*text_type)
                         }
-
                     }
 
                     if Loc::is_loc(&data) { Self::Loc }
@@ -380,7 +400,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
         match packed_file {
             DecodedPackedFile::Anim => PackedFileType::Anim,
             DecodedPackedFile::AnimFragment => PackedFileType::AnimFragment,
-            DecodedPackedFile::AnimPack => PackedFileType::AnimPack,
+            DecodedPackedFile::AnimPack(_) => PackedFileType::AnimPack,
             DecodedPackedFile::AnimTable => PackedFileType::AnimTable,
             DecodedPackedFile::CaVp8(_) => PackedFileType::CaVp8,
             DecodedPackedFile::CEO => PackedFileType::CEO,

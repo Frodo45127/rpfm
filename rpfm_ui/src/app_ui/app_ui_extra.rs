@@ -58,7 +58,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, netw
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
+use crate::packedfile_views::{animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -1082,6 +1082,23 @@ impl AppUI {
 
                     match packed_file_type {
 
+                        // If the file is an AnimPack PackedFile...
+                        PackedFileType::AnimPack => {
+                            match PackedFileAnimPackView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                                Ok((slots, packed_file_info)) => {
+                                    slot_holder.borrow_mut().push(slots);
+
+                                    // Add the file to the 'Currently open' list and make it visible.
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
+                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                },
+                                Err(error) => return show_dialog(self.main_window, ErrorKind::AnimPackDecode(format!("{}", error)), false),
+                            }
+                        }
+
                         // If the file is a CA_VP8 PackedFile...
                         PackedFileType::CaVp8 => {
                             match PackedFileCaVp8View::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
@@ -1098,7 +1115,6 @@ impl AppUI {
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
                             }
                         }
-
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {

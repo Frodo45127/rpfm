@@ -415,8 +415,9 @@ pub fn background_loop() {
                     match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                         Some(ref mut packed_file) => {
                             match packed_file.decode_return_ref() {
-                                Ok(rigid_model) => {
-                                    match rigid_model {
+                                Ok(packed_file_data) => {
+                                    match packed_file_data {
+                                        DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_file_list(), From::from(&**packed_file)))),
                                         DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file)))),
@@ -819,6 +820,29 @@ pub fn background_loop() {
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                }
+            }
+
+            // When we want to unpack an AnimPack...
+            Command::AnimPackUnpack(path) => {
+                let data = match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(ref mut packed_file) => {
+                        match packed_file.decode_return_ref() {
+                            Ok(packed_file_data) => {
+                                match packed_file_data {
+                                    DecodedPackedFile::AnimPack(data) => data.clone(),
+                                    _ => { CENTRAL_COMMAND.send_message_rust(Response::Unknown); continue },
+                                }
+                            }
+                            Err(error) => { CENTRAL_COMMAND.send_message_rust(Response::Error(error)); continue },
+                        }
+                    }
+                    None => { CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))); continue },
+                };
+
+                match data.unpack(&mut pack_file_decoded) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 

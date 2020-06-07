@@ -24,6 +24,7 @@ use std::sync::{Arc, Mutex};
 
 use rpfm_error::Error;
 
+use crate::packedfile::animpack::AnimPacked;
 use crate::packfile::*;
 use crate::packfile::compression::decompress_data;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
@@ -686,5 +687,14 @@ impl From<&PackedFile> for PackedFileInfo {
             is_cached,
             cached_type,
         }
+    }
+}
+
+/// Implementation to create a `PackedFile` from a `AnimPacked`.
+impl From<&AnimPacked> for PackedFile {
+    fn from(anim_packed: &AnimPacked) -> Self {
+        let mut packed_file = Self::new(anim_packed.get_ref_path().to_owned(), String::new());
+        packed_file.set_raw_data(anim_packed.get_ref_data());
+        packed_file
     }
 }

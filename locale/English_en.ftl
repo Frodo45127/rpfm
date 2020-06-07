@@ -549,3 +549,7 @@ context_menu_redo = &Redo
 header_column = <b><i>Column Name</i></b>
 header_hidden = <b><i>Hidden</i></b>
 header_frozen = <b><i>Frozen</i></b>
+
+file_count = File Count:
+file_paths = File Paths:
+animpack_unpack = Unpack

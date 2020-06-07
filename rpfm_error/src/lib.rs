@@ -365,6 +365,13 @@ pub enum ErrorKind {
     CaVp8Decode(String),
 
     //--------------------------------//
+    // AnimPack Errors
+    //--------------------------------//
+
+    /// Error for when an AnimPack PackedFile fails to decode. Contains the error message.
+    AnimPackDecode(String),
+
+    //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
@@ -701,6 +708,11 @@ impl Display for ErrorKind {
             // CA_VP8 Errors
             //--------------------------------//
             ErrorKind::CaVp8Decode(cause) => write!(f, "<p>Error while trying to decode the CaVp8 PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // AnimPack Errors
+            //--------------------------------//
+            ErrorKind::AnimPackDecode(cause) => write!(f, "<p>Error while trying to decode the AnimPack PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
             // PAK File Errors
