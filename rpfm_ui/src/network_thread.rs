@@ -58,7 +58,7 @@ pub fn network_loop() {
                         // We only compare the numbers here (X.X.X), so we have to remove everything else.
                         let mut last_version = last_release.name.to_owned();
                         last_version.remove(0);
-                        last_version.split_off(5);
+                        last_version.truncate(5);
 
                         // Get the version numbers from our version and from the latest released version, so we can compare them.
                         let first = (last_version.chars().next().unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().next().unwrap_or('0').to_digit(10).unwrap_or(0));
