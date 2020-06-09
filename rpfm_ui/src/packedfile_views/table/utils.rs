@@ -209,7 +209,7 @@ unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
             }
             item
         }
-        FieldType::Float => {
+        FieldType::F32 => {
             let mut item = QStandardItem::new();
             if let Some(default_value) = &field.default_value {
                 if let Ok(default_value) = default_value.parse::<f32>() {
@@ -222,7 +222,20 @@ unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
             }
             item
         },
-        FieldType::Integer => {
+        FieldType::I16 => {
+            let mut item = QStandardItem::new();
+            if let Some(default_value) = &field.default_value {
+                if let Ok(default_value) = default_value.parse::<i16>() {
+                    item.set_data_2a(&QVariant::from_int(default_value as i32), 2);
+                } else {
+                    item.set_data_2a(&QVariant::from_int(0i32), 2);
+                }
+            } else {
+                item.set_data_2a(&QVariant::from_int(0i32), 2);
+            }
+            item
+        },
+        FieldType::I32 => {
             let mut item = QStandardItem::new();
             if let Some(default_value) = &field.default_value {
                 if let Ok(default_value) = default_value.parse::<i32>() {
@@ -235,7 +248,7 @@ unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
             }
             item
         },
-        FieldType::LongInteger => {
+        FieldType::I64 => {
             let mut item = QStandardItem::new();
             if let Some(default_value) = &field.default_value {
                 if let Ok(default_value) = default_value.parse::<i64>() {
@@ -258,7 +271,7 @@ unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
                 QStandardItem::from_q_string(&QString::new())
             }
         },
-        FieldType::Sequence(_) => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
+        FieldType::SequenceU16(_) | FieldType::SequenceU32(_)  => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
     }
 }
 
@@ -414,7 +427,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
 
         // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
         // Also, they should be limited to 3 decimals.
-        DecodedData::Float(ref data) => {
+        DecodedData::F32(ref data) => {
             let data = {
                 let data_str = format!("{}", data);
                 if let Some(position) = data_str.find('.') {
@@ -432,7 +445,15 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_float(data), 2);
             item
         },
-        DecodedData::Integer(ref data) => {
+        DecodedData::I16(ref data) => {
+            let mut item = QStandardItem::new();
+            item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_int(*data as i32), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_int(*data as i32), 2);
+            item
+        },
+        DecodedData::I32(ref data) => {
             let mut item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -440,7 +461,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_int(*data), 2);
             item
         },
-        DecodedData::LongInteger(ref data) => {
+        DecodedData::I64(ref data) => {
             let mut item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -459,7 +480,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
             item
         },
-        DecodedData::Sequence(_) => {
+        DecodedData::SequenceU16(_) | DecodedData::SequenceU32(_) => {
             let mut item = QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence"));
             item.set_editable(false);
             item
@@ -492,16 +513,16 @@ pub unsafe fn build_columns(
         // Depending on his type, set one width or another.
         match field.field_type {
             FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
-            FieldType::Float => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-            FieldType::Integer => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
-            FieldType::LongInteger => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+            FieldType::F32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+            FieldType::I16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+            FieldType::I32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
+            FieldType::I64 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
             FieldType::StringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
             FieldType::StringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
             FieldType::OptionalStringU8 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
             FieldType::OptionalStringU16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
-            FieldType::Sequence(_) => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
+            FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_STRING),
         }
-
 
         // If the field is key, add that column to the "Key" list, so we can move them at the beginning later.
         if field.is_key { keys.push(index); }
@@ -702,17 +723,21 @@ pub unsafe fn setup_item_delegates(
         else {
             match field.field_type {
                 FieldType::Boolean => {},
-                FieldType::Float => {
+                FieldType::F32 => {
                     new_doublespinbox_item_delegate_safe(&mut table_view_primary, column as i32);
                     new_doublespinbox_item_delegate_safe(&mut table_view_frozen, column as i32);
                 },
-                FieldType::Integer => {
+                FieldType::I16 => {
+                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 16);
+                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 16);
+                },
+                FieldType::I32 => {
                     new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 32);
                     new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 32);
                 },
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
-                FieldType::LongInteger => {
+                FieldType::I64 => {
                     new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 64);
                     new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 64);
                 },
@@ -723,7 +748,7 @@ pub unsafe fn setup_item_delegates(
                     new_qstring_item_delegate_safe(&mut table_view_primary, column as i32, field.max_length);
                     new_qstring_item_delegate_safe(&mut table_view_frozen, column as i32, field.max_length);
                 },
-                FieldType::Sequence(_) => {}
+                FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => {}
             }
         }
     }

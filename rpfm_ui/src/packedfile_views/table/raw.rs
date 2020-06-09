@@ -308,7 +308,7 @@ impl PackedFileTableViewRaw {
                             }
                         },
 
-                        FieldType::Float => {
+                        FieldType::F32 => {
                             if current_value != text {
                                 if let Ok(value) = text.parse::<f32>() {
                                     item.set_data_2a(&QVariant::from_float(value), 2);
@@ -317,7 +317,16 @@ impl PackedFileTableViewRaw {
                             }
                         },
 
-                        FieldType::Integer => {
+                        FieldType::I16 => {
+                            if current_value != text {
+                                if let Ok(value) = text.parse::<i16>() {
+                                    item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                    changed_cells += 1;
+                                }
+                            }
+                        },
+
+                        FieldType::I32 => {
                             if current_value != text {
                                 if let Ok(value) = text.parse::<i32>() {
                                     item.set_data_2a(&QVariant::from_int(value), 2);
@@ -326,7 +335,7 @@ impl PackedFileTableViewRaw {
                             }
                         },
 
-                        FieldType::LongInteger => {
+                        FieldType::I64 => {
                             if current_value != text {
                                 if let Ok(value) = text.parse::<i64>() {
                                     item.set_data_2a(&QVariant::from_i64(value), 2);
@@ -540,7 +549,7 @@ impl PackedFileTableViewRaw {
                         }
                     },
 
-                    FieldType::Float => {
+                    FieldType::F32 => {
                         if current_value != text {
                             if let Ok(value) = text.parse::<f32>() {
                                 item.set_data_2a(&QVariant::from_float(value), 2);
@@ -549,7 +558,16 @@ impl PackedFileTableViewRaw {
                         }
                     },
 
-                    FieldType::Integer => {
+                    FieldType::I16 => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<i16>() {
+                                item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    FieldType::I32 => {
                         if current_value != text {
                             if let Ok(value) = text.parse::<i32>() {
                                 item.set_data_2a(&QVariant::from_int(value), 2);
@@ -558,7 +576,7 @@ impl PackedFileTableViewRaw {
                         }
                     },
 
-                    FieldType::LongInteger => {
+                    FieldType::I64 => {
                         if current_value != text {
                             if let Ok(value) = text.parse::<i64>() {
                                 item.set_data_2a(&QVariant::from_i64(value), 2);
@@ -637,7 +655,7 @@ impl PackedFileTableViewRaw {
                         }
                     },
 
-                    FieldType::Float => {
+                    FieldType::F32 => {
                         if current_value != text {
                             if let Ok(value) = text.parse::<f32>() {
                                 item.set_data_2a(&QVariant::from_float(value), 2);
@@ -646,7 +664,16 @@ impl PackedFileTableViewRaw {
                         }
                     },
 
-                    FieldType::Integer => {
+                    FieldType::I16 => {
+                        if current_value != text {
+                            if let Ok(value) = text.parse::<i16>() {
+                                item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                changed_cells += 1;
+                            }
+                        }
+                    },
+
+                    FieldType::I32 => {
                         if current_value != text {
                             if let Ok(value) = text.parse::<i32>() {
                                 item.set_data_2a(&QVariant::from_int(value), 2);
@@ -655,7 +682,7 @@ impl PackedFileTableViewRaw {
                         }
                     },
 
-                    FieldType::LongInteger => {
+                    FieldType::I64 => {
                         if current_value != text {
                             if let Ok(value) = text.parse::<i64>() {
                                 item.set_data_2a(&QVariant::from_i64(value), 2);
@@ -738,9 +765,10 @@ impl PackedFileTableViewRaw {
                     // Check if, according to the definition, we have a valid value for the type.
                     let is_valid_data = match field.field_type {
                         FieldType::Boolean => !(text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0"),
-                        FieldType::Float => text.parse::<f32>().is_ok(),
-                        FieldType::Integer => text.parse::<i32>().is_ok(),
-                        FieldType::LongInteger => text.parse::<i64>().is_ok(),
+                        FieldType::F32 => text.parse::<f32>().is_ok(),
+                        FieldType::I16 => text.parse::<i16>().is_ok(),
+                        FieldType::I32 => text.parse::<i32>().is_ok(),
+                        FieldType::I64 => text.parse::<i64>().is_ok(),
 
                         // All these are Strings, so we can skip their checks....
                         FieldType::StringU8 |
@@ -749,7 +777,7 @@ impl PackedFileTableViewRaw {
                         FieldType::OptionalStringU16 => true,
 
                         // Ignore sequences.
-                        FieldType::Sequence(_) => false,
+                        FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => false,
                     };
 
                     // If it's valid, add it to the real_cells list.
@@ -801,21 +829,28 @@ impl PackedFileTableViewRaw {
                     }
                 },
 
-                FieldType::Float => {
+                FieldType::F32 => {
                     if &current_value != *text {
                         self.table_model.set_data_3a(real_cell, &QVariant::from_float(text.parse::<f32>().unwrap()), 2);
                         changed_cells += 1;
                     }
                 },
 
-                FieldType::Integer => {
+                FieldType::I16 => {
+                    if &current_value != *text {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(text.parse::<i16>().unwrap() as i32), 2);
+                        changed_cells += 1;
+                    }
+                },
+
+                FieldType::I32 => {
                     if &current_value != *text {
                         self.table_model.set_data_3a(real_cell, &QVariant::from_int(text.parse::<i32>().unwrap()), 2);
                         changed_cells += 1;
                     }
                 },
 
-                FieldType::LongInteger => {
+                FieldType::I64 => {
                     if &current_value != *text {
                         self.table_model.set_data_3a(real_cell, &QVariant::from_i64(text.parse::<i64>().unwrap()), 2);
                         changed_cells += 1;
@@ -1150,7 +1185,7 @@ impl PackedFileTableViewRaw {
             FieldType::Boolean => if let CheckState::Checked = item.check_state() { "true".to_owned() } else { "false".to_owned() },
 
             // Floats need to be tweaked to fix trailing zeroes and precission issues, like turning 0.5000004 into 0.5.
-            FieldType::Float => {
+            FieldType::F32 => {
                 let data_str = format!("{}", item.data_1a(2).to_float_0a());
 
                 // If we have more than 3 decimals, we limit it to three, then do magic to remove trailing zeroes.
@@ -1161,15 +1196,17 @@ impl PackedFileTableViewRaw {
                 }
                 else { data_str }
             },
-            FieldType::Integer |
-            FieldType::LongInteger => format!("{}", item.data_1a(2).to_long_long_0a()),
+            FieldType::I16 |
+            FieldType::I32 |
+            FieldType::I64 => format!("{}", item.data_1a(2).to_long_long_0a()),
 
             // All these are Strings, so they need to escape certain chars and include commas in Lua.
             FieldType::StringU8 |
             FieldType::StringU16 |
             FieldType::OptionalStringU8 |
             FieldType::OptionalStringU16 => format!("\"{}\"", item.text().to_std_string().escape_default().to_string()),
-            FieldType::Sequence(_) => "\"Sequence\"".to_owned(),
+            FieldType::SequenceU16(_) => "\"SequenceU16\"".to_owned(),
+            FieldType::SequenceU32(_) => "\"SequenceU32\"".to_owned(),
         }
     }
 

@@ -52,9 +52,10 @@ pub struct PackedFileDecoderViewSlots {
     pub hex_view_selection_decoded_sync: Slot<'static>,
 
     pub use_this_bool: Slot<'static>,
-    pub use_this_float: Slot<'static>,
-    pub use_this_integer: Slot<'static>,
-    pub use_this_long_integer: Slot<'static>,
+    pub use_this_f32: Slot<'static>,
+    pub use_this_i16: Slot<'static>,
+    pub use_this_i32: Slot<'static>,
+    pub use_this_i64: Slot<'static>,
     pub use_this_string_u8: Slot<'static>,
     pub use_this_string_u16: Slot<'static>,
     pub use_this_optional_string_u8: Slot<'static>,
@@ -124,24 +125,31 @@ impl PackedFileDecoderViewSlots {
         }));
 
         // Slot to use a float value.
-        let use_this_float = Slot::new(clone!(
+        let use_this_f32 = Slot::new(clone!(
             mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::Float, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::F32, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use an integer value.
-        let use_this_integer = Slot::new(clone!(
+        let use_this_i16 = Slot::new(clone!(
             mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::Integer, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::I16, &mut mutable_data.index.lock().unwrap());
+        }));
+
+        // Slot to use an integer value.
+        let use_this_i32 = Slot::new(clone!(
+            mut mutable_data,
+            mut view => move || {
+            let _ = view.use_this(FieldType::I32, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use a long integer value.
-        let use_this_long_integer = Slot::new(clone!(
+        let use_this_i64 = Slot::new(clone!(
             mut mutable_data,
             mut view => move || {
-            let _ = view.use_this(FieldType::LongInteger, &mut mutable_data.index.lock().unwrap());
+            let _ = view.use_this(FieldType::I64, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use a string u8 value.
@@ -442,9 +450,10 @@ impl PackedFileDecoderViewSlots {
             hex_view_selection_decoded_sync,
 
             use_this_bool,
-            use_this_float,
-            use_this_integer,
-            use_this_long_integer,
+            use_this_f32,
+            use_this_i16,
+            use_this_i32,
+            use_this_i64,
             use_this_string_u8,
             use_this_string_u16,
             use_this_optional_string_u8,

@@ -1475,9 +1475,10 @@ impl PackFile {
                                 for (column, dependency_data) in &dependency_data {
                                     let field_data = match row[*column as usize] {
                                         DecodedData::Boolean(ref entry) => entry.to_string(),
-                                        DecodedData::Float(ref entry) => entry.to_string(),
-                                        DecodedData::Integer(ref entry) => entry.to_string(),
-                                        DecodedData::LongInteger(ref entry) => entry.to_string(),
+                                        DecodedData::F32(ref entry) => entry.to_string(),
+                                        DecodedData::I16(ref entry) => entry.to_string(),
+                                        DecodedData::I32(ref entry) => entry.to_string(),
+                                        DecodedData::I64(ref entry) => entry.to_string(),
                                         DecodedData::StringU8(ref entry) |
                                         DecodedData::StringU16(ref entry) |
                                         DecodedData::OptionalStringU8(ref entry) |

@@ -45,6 +45,7 @@ use crate::utils::mut_ptr_from_atomic;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
 use self::animpack::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
+use self::animtable::{PackedFileAnimTableView, slots::PackedFileAnimTableViewSlots};
 use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
 use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::external::{PackedFileExternalView, slots::PackedFileExternalViewSlots};
@@ -55,6 +56,7 @@ use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
 
 pub mod animpack;
+pub mod animtable;
 pub mod ca_vp8;
 pub mod decoder;
 pub mod external;
@@ -92,6 +94,7 @@ pub enum ViewType {
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
     AnimPack(PackedFileAnimPackView),
+    AnimTable(PackedFileAnimTableView),
     CaVp8(PackedFileCaVp8View),
     Decoder(PackedFileDecoderView),
     Image(PackedFileImageView),
@@ -108,6 +111,7 @@ pub enum View {
 /// and in the darkness bind them.
 pub enum TheOneSlot {
     AnimPack(PackedFileAnimPackViewSlots),
+    AnimTable(PackedFileAnimTableViewSlots),
     CaVp8(PackedFileCaVp8ViewSlots),
     Decoder(PackedFileDecoderViewSlots),
     External(PackedFileExternalViewSlots),
@@ -214,9 +218,10 @@ impl PackedFileView {
                                     FieldType::Boolean => DecodedData::Boolean(model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked),
 
                                     // Numbers need parsing, and this can fail.
-                                    FieldType::Float => DecodedData::Float(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),
-                                    FieldType::Integer => DecodedData::Integer(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
-                                    FieldType::LongInteger => DecodedData::LongInteger(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
+                                    FieldType::F32 => DecodedData::F32(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),
+                                    FieldType::I16 => DecodedData::I16(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a() as i16),
+                                    FieldType::I32 => DecodedData::I32(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
+                                    FieldType::I64 => DecodedData::I64(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
 
                                     // All these are just normal Strings.
                                     FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
@@ -225,7 +230,7 @@ impl PackedFileView {
                                     FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
 
                                     // Sequences in the UI are not yet supported.
-                                    FieldType::Sequence(_) => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
+                                    FieldType::SequenceU16(_) | FieldType::SequenceU32(_) => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
                                 };
                                 new_row.push(item);
                             }

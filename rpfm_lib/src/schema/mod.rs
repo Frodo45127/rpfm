@@ -16,7 +16,7 @@ This module contains all the code related with the schemas used by this lib to d
 The basic structure of an `Schema` is:
 ```rust
 (
-    version: 2,
+    version: 3,
     versioned_files: [
         DB("_kv_battle_ai_ability_usage_variables_tables", [
             (
@@ -37,7 +37,7 @@ The basic structure of an `Schema` is:
                     ),
                     (
                         name: "value",
-                        field_type: Float,
+                        field_type: F32,
                         is_key: false,
                         default_value: None,
                         max_length: 0,
@@ -82,6 +82,7 @@ use crate::packedfile::table::db::DB;
 use self::versions::VersionsFile;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
+pub(crate) mod v2;
 pub(crate) mod v1;
 pub(crate) mod v0;
 pub mod versions;
@@ -101,7 +102,7 @@ const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo4
 const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/";
 
 /// Current structural version of the Schema, for compatibility purpouses.
-const CURRENT_STRUCTURAL_VERSION: u16 = 2;
+const CURRENT_STRUCTURAL_VERSION: u16 = 3;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -121,6 +122,9 @@ pub struct Schema {
 /// This enum defines all types of versioned files that the schema system supports.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VersionedFile {
+
+    /// It stores a `Vec<Definition>` with the definitions for each version of AnomTable files decoded.
+    AnimTable(Vec<Definition>),
 
     /// It stores the name of the table, and a `Vec<Definition>` with the definitions for each version of that table decoded.
     DB(String, Vec<Definition>),
@@ -191,14 +195,16 @@ pub struct Field {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
-    Float,
-    Integer,
-    LongInteger,
+    F32,
+    I16,
+    I32,
+    I64,
     StringU8,
     StringU16,
     OptionalStringU8,
     OptionalStringU16,
-    Sequence(Definition)
+    SequenceU16(Definition),
+    SequenceU32(Definition)
 }
 
 //---------------------------------------------------------------------------//
@@ -220,6 +226,27 @@ impl Schema {
     /// This function returns the structural version of the provided Schema.
     pub fn get_version(&self) -> u16 {
         self.version
+    }
+
+    /// This function returns a copy of a specific `VersionedFile` of AnimTable Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimTable `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_animtable(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_animtable()).cloned().ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of AnimTable Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimTable `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_animtable(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_animtable()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of AnimTable Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimTable `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_animtable(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_animtable()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a copy of a specific `VersionedFile` of DB Type from the provided `Schema`.
@@ -386,14 +413,22 @@ impl Schema {
     pub fn sort(&mut self) {
         self.versioned_files.sort_by(|a, b| {
             match a {
+                VersionedFile::AnimTable(_) => {
+                    match b {
+                        VersionedFile::AnimTable(_) => Ordering::Equal,
+                        _ => Ordering::Less,
+                    }
+                }
                 VersionedFile::DB(table_name_a, _) => {
                     match b {
+                        VersionedFile::AnimTable(_) => Ordering::Greater,
                         VersionedFile::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
                         _ => Ordering::Less,
                     }
                 }
                 VersionedFile::DepManager(_) => {
                     match b {
+                        VersionedFile::AnimTable(_) => Ordering::Greater,
                         VersionedFile::DB(_,_) => Ordering::Greater,
                         VersionedFile::DepManager(_) => Ordering::Equal,
                         VersionedFile::Loc(_) => Ordering::Less,
@@ -597,11 +632,20 @@ impl Schema {
     pub fn update() {
         v0::SchemaV0::update();
         v1::SchemaV1::update();
+        v2::SchemaV2::update();
     }
 }
 
 /// Implementation of `VersionedFile`.
 impl VersionedFile {
+
+    /// This function returns true if the provided `VersionedFile` is an AnimTable Definition. Otherwise, it returns false.
+    pub fn is_animtable(&self) -> bool {
+        match *self {
+            VersionedFile::AnimTable(_) => true,
+            _ => false,
+        }
+    }
 
     /// This function returns true if the provided `VersionedFile` is a DB Definition. Otherwise, it returns false.
     pub fn is_db(&self) -> bool {
@@ -630,7 +674,9 @@ impl VersionedFile {
     /// This function returns true if both `VersionFile` are conflicting (they're the same, but their definitions may be different).
     pub fn conflict(&self, secondary: &VersionedFile) -> bool {
         match &self {
+            VersionedFile::AnimTable(_) => secondary.is_animtable(),
             VersionedFile::DB(table_name, _) => match &secondary {
+                VersionedFile::AnimTable( _) => false,
                 VersionedFile::DB(secondary_table_name, _) => table_name == secondary_table_name,
                 VersionedFile::DepManager( _) => false,
                 VersionedFile::Loc( _) => false,
@@ -643,6 +689,7 @@ impl VersionedFile {
     /// This function returns a reference to a specific version of a definition, if it finds it.
     pub fn get_version(&self, version: i32) -> Result<&Definition> {
         match &self {
+            VersionedFile::AnimTable(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
             VersionedFile::DB(_, versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
             VersionedFile::DepManager(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
             VersionedFile::Loc(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
@@ -652,6 +699,7 @@ impl VersionedFile {
     /// This function returns a mutable reference to a specific version of a definition, if it finds it.
     pub fn get_ref_mut_version(&mut self, version: i32) -> Result<&mut Definition> {
         match self {
+            VersionedFile::AnimTable(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
             VersionedFile::DB(_, versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
             VersionedFile::DepManager(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
             VersionedFile::Loc(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
@@ -662,6 +710,7 @@ impl VersionedFile {
     /// This function returns the list of the versions in the provided `VersionedFile`.
     pub fn get_version_list(&self) -> &[Definition] {
         match &self {
+            VersionedFile::AnimTable(versions) => versions,
             VersionedFile::DB(_, versions) => versions,
             VersionedFile::DepManager(versions) => versions,
             VersionedFile::Loc(versions) => versions,
@@ -671,6 +720,10 @@ impl VersionedFile {
     /// This function adds the provided version to the provided `VersionedFile`, replacing an existing version if there is a conflict.
     pub fn add_version(&mut self, version: &Definition) {
         match self {
+            VersionedFile::AnimTable(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
+                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
+                None => versions.push(version.clone()),
+            }
             VersionedFile::DB(_, ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
                 Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
                 None => versions.push(version.clone()),
@@ -691,6 +744,7 @@ impl VersionedFile {
     /// If the version doesn't exist, it does nothing.
     pub fn remove_version(&mut self, version: i32) {
         match self {
+            VersionedFile::AnimTable(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
             VersionedFile::DB(_, versions) =>  if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
             VersionedFile::DepManager(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
             VersionedFile::Loc(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
@@ -1159,14 +1213,16 @@ impl Display for FieldType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FieldType::Boolean => write!(f, "Boolean"),
-            FieldType::Float => write!(f, "Float"),
-            FieldType::Integer => write!(f, "Integer"),
-            FieldType::LongInteger => write!(f, "Long Integer"),
+            FieldType::F32 => write!(f, "F32"),
+            FieldType::I16 => write!(f, "I16"),
+            FieldType::I32 => write!(f, "I32"),
+            FieldType::I64 => write!(f, "I64"),
             FieldType::StringU8 => write!(f, "StringU8"),
             FieldType::StringU16 => write!(f, "StringU16"),
             FieldType::OptionalStringU8 => write!(f, "OptionalStringU8"),
             FieldType::OptionalStringU16 => write!(f, "OptionalStringU16"),
-            FieldType::Sequence(sequence) => write!(f, "Sequence of: {:#?}", sequence),
+            FieldType::SequenceU16(sequence) => write!(f, "SequenceU16 of: {:#?}", sequence),
+            FieldType::SequenceU32(sequence) => write!(f, "SequenceU32 of: {:#?}", sequence),
         }
     }
 }
@@ -1186,9 +1242,10 @@ impl From<&RawField> for Field {
     fn from(raw_field: &RawField) -> Self {
         let field_type = match &*raw_field.field_type {
             "Boolean" => FieldType::Boolean,
-            "Float" => FieldType::Float,
-            "Integer" => FieldType::Integer,
-            "LongInteger" => FieldType::LongInteger,
+            "F32" => FieldType::F32,
+            "I16" => FieldType::I16,
+            "I32" => FieldType::I32,
+            "I64" => FieldType::I64,
             "StringU8" => FieldType::StringU8,
             "StringU16" => FieldType::StringU16,
             "OptionalStringU8" => FieldType::OptionalStringU8,

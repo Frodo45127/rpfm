@@ -516,21 +516,28 @@ impl PackedFileTableViewSlots {
                                 }
                             }
 
-                            FieldType::Float => {
+                            FieldType::F32 => {
                                 if !current_value.is_empty() {
                                     item.set_data_2a(&QVariant::from_float(0.0f32), 2);
                                     editions += 1;
                                 }
                             }
 
-                            FieldType::Integer => {
+                            FieldType::I16 => {
                                 if !current_value.is_empty() {
                                     item.set_data_2a(&QVariant::from_int(0i32), 2);
                                     editions += 1;
                                 }
                             }
 
-                            FieldType::LongInteger => {
+                            FieldType::I32 => {
+                                if !current_value.is_empty() {
+                                    item.set_data_2a(&QVariant::from_int(0i32), 2);
+                                    editions += 1;
+                                }
+                            }
+
+                            FieldType::I64 => {
                                 if !current_value.is_empty() {
                                     item.set_data_2a(&QVariant::from_i64(0i64), 2);
                                     editions += 1;

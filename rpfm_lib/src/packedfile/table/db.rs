@@ -337,9 +337,10 @@ impl DB {
                         if let Some(index) = db.get_definition().fields.iter().position(|x| x.name == ref_column) {
                             match row[index] {
                                 DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::Float(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::Integer(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::LongInteger(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::StringU8(ref entry) |
                                 DecodedData::StringU16(ref entry) |
                                 DecodedData::OptionalStringU8(ref entry) |
@@ -353,9 +354,10 @@ impl DB {
                             if let Some(index) = db.get_definition().fields.iter().position(|x| &x.name == column) {
                                 match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::Float(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::Integer(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::LongInteger(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::StringU8(ref entry) |
                                     DecodedData::StringU16(ref entry) |
                                     DecodedData::OptionalStringU8(ref entry) |
@@ -394,9 +396,10 @@ impl DB {
                 if let Some(index) = table.get_definition().fields.iter().position(|x| x.name == ref_column) {
                     match row[index] {
                         DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
-                        DecodedData::Float(ref entry) => reference_data = format!("{}", entry),
-                        DecodedData::Integer(ref entry) => reference_data = format!("{}", entry),
-                        DecodedData::LongInteger(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
+                        DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
                         DecodedData::StringU8(ref entry) |
                         DecodedData::StringU16(ref entry) |
                         DecodedData::OptionalStringU8(ref entry) |
@@ -410,9 +413,10 @@ impl DB {
                     if let Some(index) = table.get_definition().fields.iter().position(|x| &x.name == column) {
                         match row[index] {
                             DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
-                            DecodedData::Float(ref entry) => lookup_data.push(format!("{}", entry)),
-                            DecodedData::Integer(ref entry) => lookup_data.push(format!("{}", entry)),
-                            DecodedData::LongInteger(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
+                            DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
                             DecodedData::StringU8(ref entry) |
                             DecodedData::StringU16(ref entry) |
                             DecodedData::OptionalStringU8(ref entry) |
@@ -453,9 +457,10 @@ impl DB {
                         if let Some(index) = db.get_definition().fields.iter().position(|x| x.name == ref_column) {
                             match row[index] {
                                 DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::Float(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::Integer(ref entry) => reference_data = format!("{}", entry),
-                                DecodedData::LongInteger(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::I16(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::I32(ref entry) => reference_data = format!("{}", entry),
+                                DecodedData::I64(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::StringU8(ref entry) |
                                 DecodedData::StringU16(ref entry) |
                                 DecodedData::OptionalStringU8(ref entry) |
@@ -469,9 +474,10 @@ impl DB {
                             if let Some(index) = db.get_definition().fields.iter().position(|x| &x.name == column) {
                                 match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::Float(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::Integer(ref entry) => lookup_data.push(format!("{}", entry)),
-                                    DecodedData::LongInteger(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::I16(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::I32(ref entry) => lookup_data.push(format!("{}", entry)),
+                                    DecodedData::I64(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::StringU8(ref entry) |
                                     DecodedData::StringU16(ref entry) |
                                     DecodedData::OptionalStringU8(ref entry) |

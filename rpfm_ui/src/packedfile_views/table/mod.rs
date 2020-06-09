@@ -1246,9 +1246,10 @@ impl TableSearch {
                     // We need to do an extra check to ensure the new text can be in the field.
                     match parent.get_ref_table_definition().fields[model_index.column() as usize].field_type {
                         FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::LongInteger => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         _ =>  {}
                     }
                 } else { return }
@@ -1257,9 +1258,10 @@ impl TableSearch {
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             match parent.get_ref_table_definition().fields[item.column() as usize].field_type {
                 FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
-                FieldType::Float => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
-                FieldType::Integer => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
-                FieldType::LongInteger => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
+                FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
+                FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
+                FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
+                FieldType::I64 => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
                 _ => item.set_text(&QString::from_std_str(&replaced_text)),
             }
 
@@ -1302,9 +1304,10 @@ impl TableSearch {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
                         let original_text = match parent.get_ref_table_definition().fields[model_index.column() as usize].field_type {
                             FieldType::Boolean => item.data_0a().to_bool().to_string(),
-                            FieldType::Float => item.data_0a().to_float_0a().to_string(),
-                            FieldType::Integer => item.data_0a().to_int_0a().to_string(),
-                            FieldType::LongInteger => item.data_0a().to_long_long_0a().to_string(),
+                            FieldType::F32 => item.data_0a().to_float_0a().to_string(),
+                            FieldType::I16 => item.data_0a().to_int_0a().to_string(),
+                            FieldType::I32 => item.data_0a().to_int_0a().to_string(),
+                            FieldType::I64 => item.data_0a().to_long_long_0a().to_string(),
                             _ => item.text().to_std_string(),
                         };
 
@@ -1324,9 +1327,10 @@ impl TableSearch {
                         // We need to do an extra check to ensure the new text can be in the field.
                         match parent.get_ref_table_definition().fields[model_index.column() as usize].field_type {
                             FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::Float => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::Integer => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::LongInteger => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             _ =>  {}
                         }
 
@@ -1340,9 +1344,10 @@ impl TableSearch {
                 let mut item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
                 match parent.get_ref_table_definition().fields[item.column() as usize].field_type {
                     FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
-                    FieldType::Float => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
-                    FieldType::Integer => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
-                    FieldType::LongInteger => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
+                    FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
+                    FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
+                    FieldType::I32 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i32>().unwrap()), 2),
+                    FieldType::I64 => item.set_data_2a(&QVariant::from_i64(replaced_text.parse::<i64>().unwrap()), 2),
                     _ => item.set_text(&QString::from_std_str(&replaced_text)),
                 }
             }

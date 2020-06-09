@@ -9,50 +9,55 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with the code to support migration operations from Schema V1 onwards.
+Module with the code to support migration operations from Schema V2 onwards.
 
-Schema V1 was the one used by RPFM during the development of 2.0. Was written in Ron, Unversioned.
-This module contains only the code needed for reading/writing Schemas V1 and for migrating them to Schemas V2.
+Schema V2 was the one used by RPFM between 2.0 and 2.1. Was written in Ron, Versioned.
+This module contains only the code needed for reading/writing Schemas V2 and for migrating them to Schemas V3.
 
 In case it's not clear enough, this is for supporting legacy schemas, not intended to be used externally in ANY other way.
 
-The basic structure of an V1 `Schema` is:
+The basic structure of an V2 `Schema` is:
 ```rust
-([
-    DB("_kv_battle_ai_ability_usage_variables_tables", [
-        (
-            version: 0,
-            fields: [
-                (
-                    name: "key",
-                    field_type: StringU8,
-                    is_key: true,
-                    default_value: None,
-                    max_length: 0,
-                    is_filename: false,
-                    filename_relative_path: None,
-                    is_reference: None,
-                    lookup: None,
-                    description: "",
-                ),
-                (
-                    name: "value",
-                    field_type: Float,
-                    is_key: false,
-                    default_value: None,
-                    max_length: 0,
-                    is_filename: false,
-                    filename_relative_path: None,
-                    is_reference: None,
-                    lookup: None,
-                    description: "",
-                ),
-            ],
-        ),
-    ]),
-])
+(
+    version: 2,
+    versioned_files: [
+        DB("_kv_battle_ai_ability_usage_variables_tables", [
+            (
+                version: 0,
+                fields: [
+                    (
+                        name: "key",
+                        field_type: StringU8,
+                        is_key: true,
+                        default_value: None,
+                        max_length: 0,
+                        is_filename: false,
+                        filename_relative_path: None,
+                        is_reference: None,
+                        lookup: None,
+                        description: "",
+                        ca_order: -1,
+                    ),
+                    (
+                        name: "value",
+                        field_type: Float,
+                        is_key: false,
+                        default_value: None,
+                        max_length: 0,
+                        is_filename: false,
+                        filename_relative_path: None,
+                        is_reference: None,
+                        lookup: None,
+                        description: "",
+                        ca_order: -1,
+                    ),
+                ],
+                localised_fields: [],
+            ),
+        ]),
+    ],
+)
 ```
-
 !*/
 
 use rayon::prelude::*;
@@ -71,33 +76,44 @@ use crate::config::get_config_path;
 use crate::schema::SCHEMA_FOLDER;
 use crate::SUPPORTED_GAMES;
 
-use super::v2::*;
+use crate::schema::Schema as SchemaV3;
+use crate::schema::VersionedFile as VersionedFileV3;
+use crate::schema::Definition as DefinitionV3;
+use crate::schema::FieldType as FieldTypeV3;
+use crate::schema::Field as FieldV3;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
 
-/// This struct represents a SchemaV1 File in memory, ready to be used to decode versioned PackedFiles.
-#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
-pub struct SchemaV1(pub(crate) Vec<VersionedFileV1>);
+/// This struct represents a Schema File in memory, ready to be used to decode versioned PackedFiles.
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct SchemaV2 {
+
+    /// It stores the structural version of the Schema.
+    version: u16,
+
+    /// It stores the versioned files inside the Schema.
+    pub versioned_files: Vec<VersionedFileV2>
+}
 
 /// This enum defines all types of versioned files that the schema system supports.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub enum VersionedFileV1 {
+pub enum VersionedFileV2 {
 
     /// It stores the name of the table, and a `Vec<Definition>` with the definitions for each version of that table decoded.
-    DB(String, Vec<DefinitionV1>),
+    DB(String, Vec<DefinitionV2>),
 
     /// It stores a `Vec<Definition>` to decode the dependencies of a PackFile.
-    DepManager(Vec<DefinitionV1>),
+    DepManager(Vec<DefinitionV2>),
 
     /// It stores a `Vec<Definition>` with the definitions for each version of Loc files decoded (currently, only version `1`).
-    Loc(Vec<DefinitionV1>),
+    Loc(Vec<DefinitionV2>),
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct DefinitionV1 {
+pub struct DefinitionV2 {
 
     /// The version of the PackedFile the definition is for. These versions are:
     /// - `-1`: for fake `Definition`, used for dependency resolving stuff.
@@ -106,18 +122,21 @@ pub struct DefinitionV1 {
     pub version: i32,
 
     /// This is a collection of all `Field`s the PackedFile uses, in the order it uses them.
-    pub fields: Vec<FieldV1>,
+    pub fields: Vec<FieldV2>,
+
+    /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
+    pub localised_fields: Vec<FieldV2>,
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct FieldV1 {
+pub struct FieldV2 {
 
     /// Name of the field. Should contain no spaces, using `_` instead.
     pub name: String,
 
     /// Type of the field.
-    pub field_type: FieldTypeV1,
+    pub field_type: FieldTypeV2,
 
     /// `True` if the field is a `Key` field of a table. `False` otherwise.
     pub is_key: bool,
@@ -142,11 +161,14 @@ pub struct FieldV1 {
 
     /// Aclarative description of what the field is for.
     pub description: String,
+
+    /// Visual position in CA's Table. `-1` means we don't know its position.
+    pub ca_order: i16,
 }
 
 /// This enum defines every type of field the lib can encode/decode.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub enum FieldTypeV1 {
+pub enum FieldTypeV2 {
     Boolean,
     Float,
     Integer,
@@ -155,21 +177,21 @@ pub enum FieldTypeV1 {
     StringU16,
     OptionalStringU8,
     OptionalStringU16,
-    Sequence(DefinitionV1)
+    Sequence(DefinitionV2)
 }
 
 //---------------------------------------------------------------------------//
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
 
-impl SchemaV1 {
+impl SchemaV2 {
 
     /// This function adds a new `VersionedFile` to the schema. This checks if the provided `VersionedFile`
     /// already exists, and replace it if neccesary.
-    pub fn add_versioned_file(&mut self, versioned_file: &VersionedFileV1) {
-        match self.0.iter().position(|x| x.conflict(versioned_file)) {
-            Some(position) => { self.0.splice(position..=position, [versioned_file.clone()].iter().cloned()); },
-            None => self.0.push(versioned_file.clone()),
+    pub fn add_versioned_file(&mut self, versioned_file: &VersionedFileV2) {
+        match self.versioned_files.iter().position(|x| x.conflict(versioned_file)) {
+            Some(position) => { self.versioned_files.splice(position..=position, [versioned_file.clone()].iter().cloned()); },
+            None => self.versioned_files.push(versioned_file.clone()),
         }
     }
 
@@ -197,24 +219,24 @@ impl SchemaV1 {
 
     /// This function sorts a `Schema` alphabetically, so the schema diffs are more or less clean.
     pub fn sort(&mut self) {
-        self.0.sort_by(|a, b| {
+        self.versioned_files.sort_by(|a, b| {
             match a {
-                VersionedFileV1::DB(table_name_a, _) => {
+                VersionedFileV2::DB(table_name_a, _) => {
                     match b {
-                        VersionedFileV1::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
+                        VersionedFileV2::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
                         _ => Ordering::Less,
                     }
                 }
-                VersionedFileV1::DepManager(_) => {
+                VersionedFileV2::DepManager(_) => {
                     match b {
-                        VersionedFileV1::DB(_,_) => Ordering::Greater,
-                        VersionedFileV1::DepManager(_) => Ordering::Equal,
-                        VersionedFileV1::Loc(_) => Ordering::Less,
+                        VersionedFileV2::DB(_,_) => Ordering::Greater,
+                        VersionedFileV2::DepManager(_) => Ordering::Equal,
+                        VersionedFileV2::Loc(_) => Ordering::Less,
                     }
                 }
-                VersionedFileV1::Loc(_) => {
+                VersionedFileV2::Loc(_) => {
                     match b {
-                        VersionedFileV1::Loc(_) => Ordering::Equal,
+                        VersionedFileV2::Loc(_) => Ordering::Equal,
                         _ => Ordering::Greater,
                     }
                 }
@@ -223,20 +245,20 @@ impl SchemaV1 {
     }
 
     pub fn update() {
-        println!("Importing schemas from V1 to V2");
-        let mut legacy_schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV2>>();
-        println!("Amount of SchemasV1: {:?}", legacy_schemas.len());
+        println!("Importing schemas from V2 to V3");
+        let mut legacy_schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV3>>();
+        println!("Amount of SchemasV2: {:?}", legacy_schemas.len());
         legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
             if let Some(file_name) = SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true) {
                 if legacy_schema.save(&file_name).is_ok() {
-                    println!("SchemaV1 for game {} updated to SchemaV2.", game);
+                    println!("SchemaV2 for game {} updated to SchemaV3.", game);
                 }
             }
         });
     }
 }
 
-impl VersionedFileV1 {
+impl VersionedFileV2 {
 
     /// This function returns true if both `VersionFile` are conflicting (they're the same, but their definitions may be different).
     pub fn conflict(&self, secondary: &Self) -> bool {
@@ -268,20 +290,21 @@ impl VersionedFileV1 {
     }
 }
 
-impl DefinitionV1 {
-    pub fn new(version: i32) -> DefinitionV1 {
-        DefinitionV1 {
+impl DefinitionV2 {
+    pub fn new(version: i32) -> DefinitionV2 {
+        DefinitionV2 {
             version,
             fields: vec![],
+            localised_fields: vec![],
         }
     }
 }
 
-impl Default for FieldV1 {
+impl Default for FieldV2 {
     fn default() -> Self {
         Self {
             name: String::from("new_field"),
-            field_type: FieldTypeV1::StringU8,
+            field_type: FieldTypeV2::StringU8,
             is_key: false,
             default_value: None,
             max_length: 0,
@@ -290,39 +313,41 @@ impl Default for FieldV1 {
             is_reference: None,
             lookup: None,
             description: String::from(""),
+            ca_order: -1,
         }
     }
 }
 
 
-impl From<&SchemaV1> for SchemaV2 {
-    fn from(legacy_schema: &SchemaV1) -> Self {
+impl From<&SchemaV2> for SchemaV3 {
+    fn from(legacy_schema: &SchemaV2) -> Self {
         let mut schema = Self::default();
-        legacy_schema.0.iter().map(From::from).for_each(|x| schema.versioned_files.push(x));
+        legacy_schema.versioned_files.iter().map(From::from).for_each(|x| schema.versioned_files.push(x));
         schema
     }
 }
 
-impl From<&VersionedFileV1> for VersionedFileV2 {
-    fn from(legacy_table_definitions: &VersionedFileV1) -> Self {
+impl From<&VersionedFileV2> for VersionedFileV3 {
+    fn from(legacy_table_definitions: &VersionedFileV2) -> Self {
         match legacy_table_definitions {
-            VersionedFileV1::DB(name, definitions) => Self::DB(name.to_string(), definitions.iter().map(From::from).collect()),
-            VersionedFileV1::DepManager(definitions) => Self::DepManager(definitions.iter().map(From::from).collect()),
-            VersionedFileV1::Loc(definitions) => Self::Loc(definitions.iter().map(From::from).collect()),
+            VersionedFileV2::DB(name, definitions) => Self::DB(name.to_string(), definitions.iter().map(From::from).collect()),
+            VersionedFileV2::DepManager(definitions) => Self::DepManager(definitions.iter().map(From::from).collect()),
+            VersionedFileV2::Loc(definitions) => Self::Loc(definitions.iter().map(From::from).collect()),
         }
     }
 }
 
-impl From<&DefinitionV1> for DefinitionV2 {
-    fn from(legacy_table_definition: &DefinitionV1) -> Self {
+impl From<&DefinitionV2> for DefinitionV3 {
+    fn from(legacy_table_definition: &DefinitionV2) -> Self {
         let mut definition = Self::new(legacy_table_definition.version);
         legacy_table_definition.fields.iter().map(From::from).for_each(|x| definition.fields.push(x));
+        legacy_table_definition.localised_fields.iter().map(From::from).for_each(|x| definition.localised_fields.push(x));
         definition
     }
 }
 
-impl From<&FieldV1> for FieldV2 {
-    fn from(legacy_field: &FieldV1) -> Self {
+impl From<&FieldV2> for FieldV3 {
+    fn from(legacy_field: &FieldV2) -> Self {
         let mut field = Self::default();
         field.name = legacy_field.name.to_owned();
         field.field_type = From::from(&legacy_field.field_type);
@@ -334,22 +359,33 @@ impl From<&FieldV1> for FieldV2 {
         field.is_reference = legacy_field.is_reference.clone();
         field.lookup = legacy_field.lookup.clone();
         field.description = legacy_field.description.to_owned();
+        field.ca_order = legacy_field.ca_order;
         field
     }
 }
 
-impl From<&FieldTypeV1> for FieldTypeV2 {
-    fn from(legacy_field_type: &FieldTypeV1) -> Self {
+impl From<&FieldTypeV2> for FieldTypeV3 {
+    fn from(legacy_field_type: &FieldTypeV2) -> Self {
         match legacy_field_type {
-            FieldTypeV1::Boolean => Self::Boolean,
-            FieldTypeV1::Float => Self::Float,
-            FieldTypeV1::Integer => Self::Integer,
-            FieldTypeV1::LongInteger => Self::LongInteger,
-            FieldTypeV1::StringU8 => Self::StringU8,
-            FieldTypeV1::StringU16 => Self::StringU16,
-            FieldTypeV1::OptionalStringU8 => Self::OptionalStringU8,
-            FieldTypeV1::OptionalStringU16 => Self::OptionalStringU16,
-            FieldTypeV1::Sequence(sequence) => Self::Sequence(From::from(sequence)),
+            FieldTypeV2::Boolean => Self::Boolean,
+            FieldTypeV2::Float => Self::F32,
+            FieldTypeV2::Integer => Self::I32,
+            FieldTypeV2::LongInteger => Self::I64,
+            FieldTypeV2::StringU8 => Self::StringU8,
+            FieldTypeV2::StringU16 => Self::StringU16,
+            FieldTypeV2::OptionalStringU8 => Self::OptionalStringU8,
+            FieldTypeV2::OptionalStringU16 => Self::OptionalStringU16,
+            FieldTypeV2::Sequence(sequence) => Self::SequenceU32(From::from(sequence)),
+        }
+    }
+}
+
+/// Default implementation of `SchemaV3`.
+impl Default for SchemaV2 {
+    fn default() -> Self {
+        Self {
+            version: 2,
+            versioned_files: vec![]
         }
     }
 }

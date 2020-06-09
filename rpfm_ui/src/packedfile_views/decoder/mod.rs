@@ -103,9 +103,10 @@ pub struct PackedFileDecoderView {
     table_view_context_menu_delete: AtomicPtr<QAction>,
 
     bool_button: AtomicPtr<QPushButton>,
-    float_button: AtomicPtr<QPushButton>,
-    integer_button: AtomicPtr<QPushButton>,
-    long_integer_button: AtomicPtr<QPushButton>,
+    f32_button: AtomicPtr<QPushButton>,
+    i16_button: AtomicPtr<QPushButton>,
+    i32_button: AtomicPtr<QPushButton>,
+    i64_button: AtomicPtr<QPushButton>,
     string_u8_button: AtomicPtr<QPushButton>,
     string_u16_button: AtomicPtr<QPushButton>,
     optional_string_u8_button: AtomicPtr<QPushButton>,
@@ -146,18 +147,20 @@ pub struct PackedFileDecoderViewRaw {
     pub table_view_context_menu_delete: MutPtr<QAction>,
 
     pub bool_line_edit: MutPtr<QLineEdit>,
-    pub float_line_edit: MutPtr<QLineEdit>,
-    pub integer_line_edit: MutPtr<QLineEdit>,
-    pub long_integer_line_edit: MutPtr<QLineEdit>,
+    pub f32_line_edit: MutPtr<QLineEdit>,
+    pub i16_line_edit: MutPtr<QLineEdit>,
+    pub i32_line_edit: MutPtr<QLineEdit>,
+    pub i64_line_edit: MutPtr<QLineEdit>,
     pub string_u8_line_edit: MutPtr<QLineEdit>,
     pub string_u16_line_edit: MutPtr<QLineEdit>,
     pub optional_string_u8_line_edit: MutPtr<QLineEdit>,
     pub optional_string_u16_line_edit: MutPtr<QLineEdit>,
 
     pub bool_button: MutPtr<QPushButton>,
-    pub float_button: MutPtr<QPushButton>,
-    pub integer_button: MutPtr<QPushButton>,
-    pub long_integer_button: MutPtr<QPushButton>,
+    pub f32_button: MutPtr<QPushButton>,
+    pub i16_button: MutPtr<QPushButton>,
+    pub i32_button: MutPtr<QPushButton>,
+    pub i64_button: MutPtr<QPushButton>,
     pub string_u8_button: MutPtr<QPushButton>,
     pub string_u16_button: MutPtr<QPushButton>,
     pub optional_string_u8_button: MutPtr<QPushButton>,
@@ -281,58 +284,70 @@ impl PackedFileDecoderView {
 
         // Create the stuff for the decoded fields.
         let bool_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Bool\":"));
-        let float_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Float\":"));
-        let integer_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Integer\":"));
-        let long_integer_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Long Integer\":"));
+        let f32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"F32\":"));
+        let i16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I16\":"));
+        let i32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I32\":"));
+        let i64_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I64\":"));
         let string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U8\":"));
         let string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U16\":"));
         let optional_string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U8\":"));
         let optional_string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U16\":"));
+        let sequence_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Sequence\":"));
 
         let mut bool_line_edit = QLineEdit::new();
-        let mut float_line_edit = QLineEdit::new();
-        let mut integer_line_edit = QLineEdit::new();
-        let mut long_integer_line_edit = QLineEdit::new();
+        let mut f32_line_edit = QLineEdit::new();
+        let mut i16_line_edit = QLineEdit::new();
+        let mut i32_line_edit = QLineEdit::new();
+        let mut i64_line_edit = QLineEdit::new();
         let mut string_u8_line_edit = QLineEdit::new();
         let mut string_u16_line_edit = QLineEdit::new();
         let mut optional_string_u8_line_edit = QLineEdit::new();
         let mut optional_string_u16_line_edit = QLineEdit::new();
+        let mut sequence_line_edit = QLineEdit::new();
 
         let mut bool_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut float_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut integer_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut long_integer_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut f32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut i16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut i32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut i64_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut optional_string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut optional_string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut sequence_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
 
         decoded_fields_layout.add_widget_5a(bool_label.into_ptr(), 0, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(float_label.into_ptr(), 1, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(integer_label.into_ptr(), 2, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(long_integer_label.into_ptr(), 3, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(string_u8_label.into_ptr(), 4, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(string_u16_label.into_ptr(), 5, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(optional_string_u8_label.into_ptr(), 6, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(optional_string_u16_label.into_ptr(), 7, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(f32_label.into_ptr(), 1, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(i16_label.into_ptr(), 2, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(i32_label.into_ptr(), 3, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(i64_label.into_ptr(), 4, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(string_u8_label.into_ptr(), 5, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(string_u16_label.into_ptr(), 6, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(optional_string_u8_label.into_ptr(), 7, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(optional_string_u16_label.into_ptr(), 8, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(sequence_label.into_ptr(), 9, 0, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&mut bool_line_edit, 0, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut float_line_edit, 1, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut integer_line_edit, 2, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut long_integer_line_edit, 3, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u8_line_edit, 4, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u16_line_edit, 5, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_line_edit, 6, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_line_edit, 7, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut f32_line_edit, 1, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i16_line_edit, 2, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i32_line_edit, 3, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i64_line_edit, 4, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u8_line_edit, 5, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u16_line_edit, 6, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_line_edit, 7, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_line_edit, 8, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut sequence_line_edit, 9, 1, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&mut bool_button, 0, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut float_button, 1, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut integer_button, 2, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut long_integer_button, 3, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u8_button, 4, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u16_button, 5, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_button, 6, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_button, 7, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut f32_button, 1, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i16_button, 2, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i32_button, 3, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i64_button, 4, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u8_button, 5, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u16_button, 6, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_button, 7, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_button, 8, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut sequence_button, 9, 2, 1, 1);
 
         layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
 
@@ -436,18 +451,20 @@ impl PackedFileDecoderView {
             table_view_context_menu_delete,
 
             bool_line_edit: bool_line_edit.into_ptr(),
-            float_line_edit: float_line_edit.into_ptr(),
-            integer_line_edit: integer_line_edit.into_ptr(),
-            long_integer_line_edit: long_integer_line_edit.into_ptr(),
+            f32_line_edit: f32_line_edit.into_ptr(),
+            i16_line_edit: i16_line_edit.into_ptr(),
+            i32_line_edit: i32_line_edit.into_ptr(),
+            i64_line_edit: i64_line_edit.into_ptr(),
             string_u8_line_edit: string_u8_line_edit.into_ptr(),
             string_u16_line_edit: string_u16_line_edit.into_ptr(),
             optional_string_u8_line_edit: optional_string_u8_line_edit.into_ptr(),
             optional_string_u16_line_edit: optional_string_u16_line_edit.into_ptr(),
 
             bool_button: bool_button.into_ptr(),
-            float_button: float_button.into_ptr(),
-            integer_button: integer_button.into_ptr(),
-            long_integer_button: long_integer_button.into_ptr(),
+            f32_button: f32_button.into_ptr(),
+            i16_button: i16_button.into_ptr(),
+            i32_button: i32_button.into_ptr(),
+            i64_button: i64_button.into_ptr(),
             string_u8_button: string_u8_button.into_ptr(),
             string_u16_button: string_u16_button.into_ptr(),
             optional_string_u8_button: optional_string_u8_button.into_ptr(),
@@ -497,9 +514,10 @@ impl PackedFileDecoderView {
             table_view_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_delete),
 
             bool_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_button),
-            float_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.float_button),
-            integer_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.integer_button),
-            long_integer_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.long_integer_button),
+            f32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.f32_button),
+            i16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i16_button),
+            i32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i32_button),
+            i64_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i64_button),
             string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u8_button),
             string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u16_button),
             optional_string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_button),
@@ -687,16 +705,20 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.bool_button)
     }
 
-    fn get_mut_ptr_float_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.float_button)
+    fn get_mut_ptr_f32_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.f32_button)
     }
 
-    fn get_mut_ptr_integer_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.integer_button)
+    fn get_mut_ptr_i16_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.i16_button)
     }
 
-    fn get_mut_ptr_long_integer_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.long_integer_button)
+    fn get_mut_ptr_i32_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.i32_button)
+    }
+
+    fn get_mut_ptr_i64_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.i64_button)
     }
 
     fn get_mut_ptr_string_u8_button(&self) -> MutPtr<QPushButton> {
@@ -844,9 +866,10 @@ impl PackedFileDecoderViewRaw {
         }
 
         let decoded_bool = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Boolean, &mut index.clone());
-        let decoded_float = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Float, &mut index.clone());
-        let decoded_integer = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Integer, &mut index.clone());
-        let decoded_long_integer = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::LongInteger, &mut index.clone());
+        let decoded_f32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::F32, &mut index.clone());
+        let decoded_i16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I16, &mut index.clone());
+        let decoded_i32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I32, &mut index.clone());
+        let decoded_i64 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I64, &mut index.clone());
         let decoded_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU8, &mut index.clone());
         let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
         let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
@@ -854,9 +877,10 @@ impl PackedFileDecoderViewRaw {
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
-        self.float_line_edit.set_text(&QString::from_std_str(decoded_float));
-        self.integer_line_edit.set_text(&QString::from_std_str(decoded_integer));
-        self.long_integer_line_edit.set_text(&QString::from_std_str(decoded_long_integer));
+        self.f32_line_edit.set_text(&QString::from_std_str(decoded_f32));
+        self.i16_line_edit.set_text(&QString::from_std_str(decoded_i16));
+        self.i32_line_edit.set_text(&QString::from_std_str(decoded_i32));
+        self.i64_line_edit.set_text(&QString::from_std_str(decoded_i64));
         self.string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u8)));
         self.string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16)));
         self.optional_string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8)));
@@ -990,14 +1014,16 @@ impl PackedFileDecoderViewRaw {
         // Get the type of the data we are going to put into the Table.
         let field_type = match field.field_type {
             FieldType::Boolean => "Bool",
-            FieldType::Float => "Float",
-            FieldType::Integer => "Integer",
-            FieldType::LongInteger => "LongInteger",
+            FieldType::F32 => "F32",
+            FieldType::I16 => "I16",
+            FieldType::I32 => "I32",
+            FieldType::I64 => "I64",
             FieldType::StringU8 => "StringU8",
             FieldType::StringU16 => "StringU16",
             FieldType::OptionalStringU8 => "OptionalStringU8",
             FieldType::OptionalStringU16 => "OptionalStringU16",
-            FieldType::Sequence(_) => "Sequence",
+            FieldType::SequenceU16(_) => "SequenceU16",
+            FieldType::SequenceU32(_) => "SequenceU32",
         };
 
         // Create a new list of StandardItem.
@@ -1072,19 +1098,25 @@ impl PackedFileDecoderViewRaw {
                     Err(_) => "Error".to_owned(),
                 }
             },
-            FieldType::Float => {
+            FieldType::F32 => {
                 match packed_file_data.decode_packedfile_float_f32(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
-            FieldType::Integer => {
+            FieldType::I16 => {
+                match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::I32 => {
                 match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
-            FieldType::LongInteger => {
+            FieldType::I64 => {
                 match packed_file_data.decode_packedfile_integer_i64(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
@@ -1116,9 +1148,16 @@ impl PackedFileDecoderViewRaw {
             },
 
             // TODO: Finish this.
-            FieldType::Sequence(_) => {
-                match packed_file_data.decode_packedfile_optional_string_u16(*index, &mut index) {
-                    Ok(result) => result,
+            FieldType::SequenceU16(_) => {
+                match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+
+            FieldType::SequenceU32(_) => {
+                match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
+                    Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
@@ -1148,14 +1187,16 @@ impl PackedFileDecoderViewRaw {
                 let row_type = self.table_model.index_2a(row, 1);
                 let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
                     "Bool" => FieldType::Boolean,
-                    "Float" => FieldType::Float,
-                    "Integer" => FieldType::Integer,
-                    "LongInteger" => FieldType::LongInteger,
+                    "F32" => FieldType::F32,
+                    "I16" => FieldType::I16,
+                    "I32" => FieldType::I32,
+                    "I64" => FieldType::I64,
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "Sequence" => FieldType::Sequence(Definition::new(-1)),
+                    "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
+                    "SequenceU32" => FieldType::SequenceU32(Definition::new(-1)),
                     _ => unimplemented!()
                 };
 
@@ -1246,14 +1287,16 @@ impl PackedFileDecoderViewRaw {
                 // Get the proper type of the field. If invalid, default to OptionalStringU16.
                 let field_type = match &*field_type {
                     "Bool" => FieldType::Boolean,
-                    "Float" => FieldType::Float,
-                    "Integer" => FieldType::Integer,
-                    "LongInteger" => FieldType::LongInteger,
+                    "F32" => FieldType::F32,
+                    "I16" => FieldType::I16,
+                    "I32" => FieldType::I32,
+                    "I64" => FieldType::I64,
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "Sequence" => FieldType::Sequence(Definition::new(-1)),
+                    "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
+                    "SequenceU32" => FieldType::SequenceU32(Definition::new(-1)),
                     _ => unimplemented!()
                 };
 
@@ -1404,14 +1447,16 @@ unsafe fn configure_table_view(table_view: MutPtr<QTableView>) {
     // The second field should be a combobox.
     let mut list = QStringList::new();
     list.append_q_string(&QString::from_std_str("Bool"));
-    list.append_q_string(&QString::from_std_str("Float"));
-    list.append_q_string(&QString::from_std_str("Integer"));
-    list.append_q_string(&QString::from_std_str("LongInteger"));
+    list.append_q_string(&QString::from_std_str("F32"));
+    list.append_q_string(&QString::from_std_str("I16"));
+    list.append_q_string(&QString::from_std_str("I32"));
+    list.append_q_string(&QString::from_std_str("I64"));
     list.append_q_string(&QString::from_std_str("StringU8"));
     list.append_q_string(&QString::from_std_str("StringU16"));
     list.append_q_string(&QString::from_std_str("OptionalStringU8"));
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
-    list.append_q_string(&QString::from_std_str("Sequence"));
+    list.append_q_string(&QString::from_std_str("SequenceU16"));
+    list.append_q_string(&QString::from_std_str("SequenceU32"));
     new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 1, list.into_ptr().as_ptr(), false, 0);
 
     // Fields Max lenght and CA Order must be numeric.

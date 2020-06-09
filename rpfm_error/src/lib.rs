@@ -372,6 +372,13 @@ pub enum ErrorKind {
     AnimPackDecode(String),
 
     //--------------------------------//
+    // AnimTable Errors
+    //--------------------------------//
+
+    /// Error for when an AnimTable PackedFile fails to decode. Contains the error message.
+    AnimTableDecode(String),
+
+    //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
@@ -713,6 +720,11 @@ impl Display for ErrorKind {
             // AnimPack Errors
             //--------------------------------//
             ErrorKind::AnimPackDecode(cause) => write!(f, "<p>Error while trying to decode the AnimPack PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // AnimTable Errors
+            //--------------------------------//
+            ErrorKind::AnimTableDecode(cause) => write!(f, "<p>Error while trying to decode the AnimTable PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
             // PAK File Errors
