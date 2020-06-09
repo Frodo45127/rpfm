@@ -102,15 +102,18 @@ impl AnimTable {
 
         let mut index = 0;
         let version = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
+        let entry_count = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
 
         // Try to get the table_definition for this table, if exists.
-        let versioned_file = schema.get_ref_versioned_file_animtable();
-        let definition = versioned_file?.get_version(version)?;
+        let versioned_file = schema.get_ref_versioned_file_loc();
+        if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
+        let definition = versioned_file?.get_version(version);
+        if definition.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
+        let definition = definition?;
 
-        // Then try to decode all the entries. Animtables are a bit special. They don't have a ton of rows, but just one, and all the data is
-        // inside nested rows. So we have to pass them 1 as entry count.
+        // Then try to decode all the entries.
         let mut table = Table::new(&definition);
-        table.decode(&packed_file_data, 1 as u32, &mut index, return_incomplete)?;
+        table.decode(&packed_file_data, entry_count as u32, &mut index, return_incomplete)?;
 
         // If we are not in the last byte, it means we didn't parse the entire file, which means this file is corrupt.
         if index != packed_file_data.len() { return Err(ErrorKind::PackedFileSizeIsNotWhatWeExpect(packed_file_data.len(), index).into()) }
