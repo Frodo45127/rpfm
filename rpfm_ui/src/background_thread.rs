@@ -417,12 +417,14 @@ pub fn background_loop() {
                             match packed_file.decode_return_ref() {
                                 Ok(packed_file_data) => {
                                     match packed_file_data {
+                                        DecodedPackedFile::AnimFragment(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_file_list(), From::from(&**packed_file)))),
                                         DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::MatchedCombat(data) => CENTRAL_COMMAND.send_message_rust(Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file)))),
                                         _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),

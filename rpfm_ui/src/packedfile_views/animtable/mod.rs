@@ -79,7 +79,9 @@ impl PackedFileAnimTableView {
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (animtable, packed_file_info) = match response {
-            Response::AnimTablePackedFileInfo((animtable, packed_file_info)) => (animtable, packed_file_info),
+            Response::AnimFragmentPackedFileInfo((animtable, packed_file_info)) => (animtable.to_json(), packed_file_info),
+            Response::AnimTablePackedFileInfo((animtable, packed_file_info)) => (animtable.to_json(), packed_file_info),
+            Response::MatchedCombatPackedFileInfo((animtable, packed_file_info)) => (animtable.to_json(), packed_file_info),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -90,7 +92,7 @@ impl PackedFileAnimTableView {
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
         layout.add_widget_5a(editor, 0, 0, 1, 1);
 
-        set_text_safe(&mut editor, &mut QString::from_std_str(animtable.to_json()), &mut highlighting_mode);
+        set_text_safe(&mut editor, &mut QString::from_std_str(animtable), &mut highlighting_mode);
 
         let packed_file_animtable_view_raw = PackedFileAnimTableViewRaw {editor, path: packed_file_view.get_path_raw() };
         let packed_file_animtable_view_slots = PackedFileAnimTableViewSlots::new(&packed_file_animtable_view_raw, *app_ui, *pack_file_contents_ui, *global_search_ui);

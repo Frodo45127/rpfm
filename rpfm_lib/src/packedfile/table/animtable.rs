@@ -51,7 +51,7 @@ pub struct AnimTable {
 /// Implementation of `AnimTable`.
 impl AnimTable {
 
-    /// This function creates a new empty `AnimTable` .
+    /// This function creates a new empty `AnimTable`.
     pub fn new(definition: &Definition) -> Self {
         Self {
             table: Table::new(definition),
@@ -105,7 +105,7 @@ impl AnimTable {
         let entry_count = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
 
         // Try to get the table_definition for this table, if exists.
-        let versioned_file = schema.get_ref_versioned_file_loc();
+        let versioned_file = schema.get_ref_versioned_file_animtable();
         if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
         let definition = versioned_file?.get_version(version);
         if definition.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }

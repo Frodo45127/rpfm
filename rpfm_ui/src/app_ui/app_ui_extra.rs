@@ -1100,7 +1100,7 @@ impl AppUI {
                         }
 
                         // If the file is an AnimTable PackedFile...
-                        PackedFileType::AnimTable => {
+                        PackedFileType::AnimTable | PackedFileType::AnimFragment | PackedFileType::MatchedCombat => {
                             match PackedFileAnimTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);

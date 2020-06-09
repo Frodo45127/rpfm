@@ -123,6 +123,9 @@ pub struct Schema {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VersionedFile {
 
+    /// It stores a `Vec<Definition>` with the definitions for each version of AnimFragment files decoded.
+    AnimFragment(Vec<Definition>),
+
     /// It stores a `Vec<Definition>` with the definitions for each version of AnomTable files decoded.
     AnimTable(Vec<Definition>),
 
@@ -134,6 +137,9 @@ pub enum VersionedFile {
 
     /// It stores a `Vec<Definition>` with the definitions for each version of Loc files decoded (currently, only version `1`).
     Loc(Vec<Definition>),
+
+    /// It stores a `Vec<Definition>` with the definitions for each version of MatchedCombat files decoded.
+    MatchedCombat(Vec<Definition>),
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
@@ -228,6 +234,27 @@ impl Schema {
         self.version
     }
 
+    /// This function returns a copy of a specific `VersionedFile` of AnimFragment Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimFragment `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_anim_fragment(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_anim_fragment()).cloned().ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of AnimFragment Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimFragment `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_anim_fragment(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_anim_fragment()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of AnimFragment Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimFragment `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_anim_fragment(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_anim_fragment()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
     /// This function returns a copy of a specific `VersionedFile` of AnimTable Type from the provided `Schema`.
     ///
     /// By default, we assume there is only one AnimTable `VersionedFile` in the `Schema`, so we return that one if we find it.
@@ -313,6 +340,26 @@ impl Schema {
         self.versioned_files.par_iter_mut().find_any(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
+    /// This function returns a copy of a specific `VersionedFile` of MatchedCombat Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one MatchedCombat `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_matched_combat(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_matched_combat()).cloned().ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of MatchedCombat Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one MatchedCombat `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_matched_combat(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_matched_combat()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of MatchedCombat Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one MatchedCombat `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_matched_combat(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_matched_combat()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
     /// This function returns a copy of all the `VersionedFile` in the provided `Schema`.
     pub fn get_versioned_file_all(&self) -> Vec<VersionedFile> {
         self.versioned_files.to_vec()
@@ -413,14 +460,22 @@ impl Schema {
     pub fn sort(&mut self) {
         self.versioned_files.sort_by(|a, b| {
             match a {
+                VersionedFile::AnimFragment(_) => {
+                    match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Equal,
+                        _ => Ordering::Less,
+                    }
+                }
                 VersionedFile::AnimTable(_) => {
                     match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Greater,
                         VersionedFile::AnimTable(_) => Ordering::Equal,
                         _ => Ordering::Less,
                     }
                 }
                 VersionedFile::DB(table_name_a, _) => {
                     match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Greater,
                         VersionedFile::AnimTable(_) => Ordering::Greater,
                         VersionedFile::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
                         _ => Ordering::Less,
@@ -428,15 +483,24 @@ impl Schema {
                 }
                 VersionedFile::DepManager(_) => {
                     match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Greater,
                         VersionedFile::AnimTable(_) => Ordering::Greater,
                         VersionedFile::DB(_,_) => Ordering::Greater,
                         VersionedFile::DepManager(_) => Ordering::Equal,
                         VersionedFile::Loc(_) => Ordering::Less,
+                        VersionedFile::MatchedCombat(_) => Ordering::Less,
                     }
                 }
                 VersionedFile::Loc(_) => {
                     match b {
                         VersionedFile::Loc(_) => Ordering::Equal,
+                        VersionedFile::MatchedCombat(_) => Ordering::Less,
+                        _ => Ordering::Greater,
+                    }
+                }
+                VersionedFile::MatchedCombat(_) => {
+                    match b {
+                        VersionedFile::MatchedCombat(_) => Ordering::Equal,
                         _ => Ordering::Greater,
                     }
                 }
@@ -639,6 +703,14 @@ impl Schema {
 /// Implementation of `VersionedFile`.
 impl VersionedFile {
 
+    /// This function returns true if the provided `VersionedFile` is an AnimFragment Definition. Otherwise, it returns false.
+    pub fn is_anim_fragment(&self) -> bool {
+        match *self {
+            VersionedFile::AnimFragment(_) => true,
+            _ => false,
+        }
+    }
+
     /// This function returns true if the provided `VersionedFile` is an AnimTable Definition. Otherwise, it returns false.
     pub fn is_animtable(&self) -> bool {
         match *self {
@@ -671,38 +743,50 @@ impl VersionedFile {
         }
     }
 
+    /// This function returns true if the provided `VersionedFile` is an MatchedCombat Definition. Otherwise, it returns false.
+    pub fn is_matched_combat(&self) -> bool {
+        match *self {
+            VersionedFile::MatchedCombat(_) => true,
+            _ => false,
+        }
+    }
+
     /// This function returns true if both `VersionFile` are conflicting (they're the same, but their definitions may be different).
     pub fn conflict(&self, secondary: &VersionedFile) -> bool {
         match &self {
+            VersionedFile::AnimFragment(_) => secondary.is_anim_fragment(),
             VersionedFile::AnimTable(_) => secondary.is_animtable(),
-            VersionedFile::DB(table_name, _) => match &secondary {
-                VersionedFile::AnimTable( _) => false,
+            VersionedFile::DB(table_name,_) => match &secondary {
                 VersionedFile::DB(secondary_table_name, _) => table_name == secondary_table_name,
-                VersionedFile::DepManager( _) => false,
-                VersionedFile::Loc( _) => false,
+                _ => false,
             },
             VersionedFile::Loc(_) => secondary.is_loc(),
-            VersionedFile::DepManager( _) => secondary.is_dep_manager(),
+            VersionedFile::DepManager(_) => secondary.is_dep_manager(),
+            VersionedFile::MatchedCombat(_) => secondary.is_matched_combat(),
         }
     }
 
     /// This function returns a reference to a specific version of a definition, if it finds it.
     pub fn get_version(&self, version: i32) -> Result<&Definition> {
         match &self {
-            VersionedFile::AnimTable(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::DB(_, versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::DepManager(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::Loc(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
         }
     }
 
     /// This function returns a mutable reference to a specific version of a definition, if it finds it.
     pub fn get_ref_mut_version(&mut self, version: i32) -> Result<&mut Definition> {
         match self {
-            VersionedFile::AnimTable(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::DB(_, versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::DepManager(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::Loc(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
         }
     }
 
@@ -710,29 +794,24 @@ impl VersionedFile {
     /// This function returns the list of the versions in the provided `VersionedFile`.
     pub fn get_version_list(&self) -> &[Definition] {
         match &self {
-            VersionedFile::AnimTable(versions) => versions,
-            VersionedFile::DB(_, versions) => versions,
-            VersionedFile::DepManager(versions) => versions,
-            VersionedFile::Loc(versions) => versions,
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => versions,
         }
     }
 
     /// This function adds the provided version to the provided `VersionedFile`, replacing an existing version if there is a conflict.
     pub fn add_version(&mut self, version: &Definition) {
         match self {
-            VersionedFile::AnimTable(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
-                None => versions.push(version.clone()),
-            }
-            VersionedFile::DB(_, ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
-                None => versions.push(version.clone()),
-            }
-            VersionedFile::DepManager(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
-                None => versions.push(version.clone()),
-            }
-            VersionedFile::Loc(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
+            VersionedFile::AnimFragment(ref mut versions) |
+            VersionedFile::AnimTable(ref mut versions) |
+            VersionedFile::DB(_, ref mut versions) |
+            VersionedFile::DepManager(ref mut versions) |
+            VersionedFile::Loc(ref mut versions) |
+            VersionedFile::MatchedCombat(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
                 Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
                 None => versions.push(version.clone()),
             }
@@ -744,10 +823,12 @@ impl VersionedFile {
     /// If the version doesn't exist, it does nothing.
     pub fn remove_version(&mut self, version: i32) {
         match self {
-            VersionedFile::AnimTable(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
-            VersionedFile::DB(_, versions) =>  if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
-            VersionedFile::DepManager(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
-            VersionedFile::Loc(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
         }
     }
 }

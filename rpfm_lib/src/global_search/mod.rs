@@ -604,10 +604,12 @@ impl GlobalSearch {
         for versioned_file in schema.get_ref_versioned_file_all() {
             let mut matches = vec![];
             match versioned_file {
+                VersionedFile::AnimFragment(definitions) |
                 VersionedFile::AnimTable(definitions) |
                 VersionedFile::DB(_, definitions) |
+                VersionedFile::DepManager(definitions) |
                 VersionedFile::Loc(definitions) |
-                VersionedFile::DepManager(definitions)  => {
+                VersionedFile::MatchedCombat(definitions) => {
 
                     match matching_mode {
                         MatchingMode::Regex(regex) => {
@@ -657,10 +659,12 @@ impl GlobalSearch {
 
             if !matches.is_empty() {
                 let (versioned_file_type, versioned_file_name) = match versioned_file {
+                    VersionedFile::AnimFragment(_) => ("AnimFragment".to_owned(), None),
                     VersionedFile::AnimTable(_) => ("AnimTable".to_owned(), None),
                     VersionedFile::DB(name, _) => ("DB".to_owned(), Some(name.to_owned())),
-                    VersionedFile::Loc(_) => ("Loc".to_owned(), None),
                     VersionedFile::DepManager(_) => ("Dependency Manager".to_owned(), None),
+                    VersionedFile::Loc(_) => ("Loc".to_owned(), None),
+                    VersionedFile::MatchedCombat(_) => ("MatchedCombat".to_owned(), None),
                 };
                 let mut schema_matches = SchemaMatches::new(versioned_file_type, versioned_file_name);
                 schema_matches.matches = matches;

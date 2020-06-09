@@ -30,8 +30,10 @@ use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::schema::*;
 
 pub mod animtable;
+pub mod anim_fragment;
 pub mod db;
 pub mod loc;
+pub mod matched_combat;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs

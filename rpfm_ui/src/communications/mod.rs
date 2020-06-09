@@ -27,7 +27,7 @@ use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::image::Image;
-use rpfm_lib::packedfile::table::{animtable::AnimTable, db::DB, loc::Loc};
+use rpfm_lib::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
@@ -332,6 +332,9 @@ pub enum Response {
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
 
+    /// Response to return `(AnimFragment, PackedFileInfo)`.
+    AnimFragmentPackedFileInfo((AnimFragment, PackedFileInfo)),
+
     /// Response to return `(Vec<String>, PackedFileInfo)`.
     AnimPackPackedFileInfo((Vec<String>, PackedFileInfo)),
 
@@ -352,6 +355,9 @@ pub enum Response {
 
     /// Response to return `(Loc, PackedFileInfo)`.
     LocPackedFileInfo((Loc, PackedFileInfo)),
+
+    /// Response to return `(MatchedCombat, PackedFileInfo)`.
+    MatchedCombatPackedFileInfo((MatchedCombat, PackedFileInfo)),
 
     /// Response to return `(RigidModel, PackedFileInfo)`.
     RigidModelPackedFileInfo((RigidModel, PackedFileInfo)),

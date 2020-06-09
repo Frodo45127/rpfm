@@ -28,7 +28,7 @@ use crate::DEPENDENCY_DATABASE;
 use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
 use crate::packedfile::image::Image;
-use crate::packedfile::table::{animtable::AnimTable, db::DB, loc::Loc};
+use crate::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use crate::packedfile::text::{Text, TextType};
 use crate::packedfile::rigidmodel::RigidModel;
 use crate::packfile::packedfile::{PackedFile, RawPackedFile};
@@ -52,7 +52,7 @@ pub mod text;
 #[derive(PartialEq, Clone, Debug)]
 pub enum DecodedPackedFile {
     Anim,
-    AnimFragment,
+    AnimFragment(AnimFragment),
     AnimPack(AnimPack),
     AnimTable(AnimTable),
     CaVp8(CaVp8),
@@ -60,7 +60,7 @@ pub enum DecodedPackedFile {
     DB(DB),
     Image(Image),
     Loc(Loc),
-    MatchedCombat,
+    MatchedCombat(MatchedCombat),
     RigidModel(RigidModel),
     StarPos,
     Text(Text),
@@ -103,6 +103,18 @@ impl DecodedPackedFile {
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
     pub fn decode(raw_packed_file: &RawPackedFile) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
+
+            PackedFileType::AnimFragment => {
+                let schema = SCHEMA.read().unwrap();
+                match schema.deref() {
+                    Some(schema) => {
+                        let data = raw_packed_file.get_data()?;
+                        let packed_file = AnimFragment::read(&data, &schema, false)?;
+                        Ok(DecodedPackedFile::AnimFragment(packed_file))
+                    }
+                    None => Err(ErrorKind::SchemaNotFound.into()),
+                }
+            }
 
             PackedFileType::AnimPack => {
                 let data = raw_packed_file.get_data()?;
@@ -159,6 +171,18 @@ impl DecodedPackedFile {
                 }
             }
 
+            PackedFileType::MatchedCombat => {
+                let schema = SCHEMA.read().unwrap();
+                match schema.deref() {
+                    Some(schema) => {
+                        let data = raw_packed_file.get_data()?;
+                        let packed_file = MatchedCombat::read(&data, &schema, false)?;
+                        Ok(DecodedPackedFile::MatchedCombat(packed_file))
+                    }
+                    None => Err(ErrorKind::SchemaNotFound.into()),
+                }
+            }
+
             PackedFileType::Text(_) => {
                 let data = raw_packed_file.get_data()?;
                 let mut packed_file = Text::read(&data)?;
@@ -175,6 +199,12 @@ impl DecodedPackedFile {
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
     pub fn decode_no_locks(raw_packed_file: &RawPackedFile, schema: &Schema) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
+
+            PackedFileType::AnimFragment => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = AnimFragment::read(&data, &schema, false)?;
+                Ok(DecodedPackedFile::AnimFragment(packed_file))
+            }
 
             PackedFileType::AnimPack => Self::decode(raw_packed_file),
 
@@ -201,6 +231,12 @@ impl DecodedPackedFile {
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
 
+            PackedFileType::MatchedCombat => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = MatchedCombat::read(&data, &schema, false)?;
+                Ok(DecodedPackedFile::MatchedCombat(packed_file))
+            }
+
             PackedFileType::Text(_) => Self::decode(raw_packed_file),
             _=> Ok(DecodedPackedFile::Unknown)
         }
@@ -211,11 +247,13 @@ impl DecodedPackedFile {
     /// Keep in mind this should only work for PackedFiles with saving support.
     pub fn encode(&self) -> Option<Result<Vec<u8>>> {
         match self {
+            DecodedPackedFile::AnimFragment(data) => Some(data.save()),
             DecodedPackedFile::AnimPack(data) => Some(Ok(data.save())),
             DecodedPackedFile::AnimTable(data) => Some(data.save()),
             DecodedPackedFile::CaVp8(data) => Some(data.save()),
             DecodedPackedFile::DB(data) => Some(data.save()),
             DecodedPackedFile::Loc(data) => Some(data.save()),
+            DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
             DecodedPackedFile::Text(data) => Some(data.save()),
             _=> None,
         }
@@ -292,7 +330,9 @@ impl PackedFileType {
             else if packedfile_name.ends_with(animpack::EXTENSION) { Self::AnimPack }
             else if packedfile_name.ends_with(rigidmodel::EXTENSION) { Self::RigidModel }
             else if packedfile_name.ends_with(ca_vp8::EXTENSION) { Self::CaVp8 }
+            else if packedfile_name.ends_with(table::anim_fragment::EXTENSION) { Self::AnimFragment }
             else if path == table::animtable::PATH { Self::AnimTable }
+            else if path == table::matched_combat::PATH { Self::MatchedCombat }
             else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
                 Self::Text(*text_type)
             }
@@ -322,10 +362,16 @@ impl PackedFileType {
                     if packedfile_name.ends_with(rigidmodel::EXTENSION) {
                         return Self::RigidModel
                     }
+                    else if packedfile_name.ends_with(table::anim_fragment::EXTENSION) {
+                        return Self::AnimFragment;
+                    }
                     else if packedfile_name.ends_with(animpack::EXTENSION) {
                         return Self::AnimPack
                     }
                     else if packed_file.get_path() == table::animtable::PATH {
+                        return Self::AnimTable
+                    }
+                    else if packed_file.get_path() == table::matched_combat::PATH {
                         return Self::AnimTable
                     }
                     else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
@@ -403,7 +449,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
     fn from(packed_file: &DecodedPackedFile) -> Self {
         match packed_file {
             DecodedPackedFile::Anim => PackedFileType::Anim,
-            DecodedPackedFile::AnimFragment => PackedFileType::AnimFragment,
+            DecodedPackedFile::AnimFragment(_) => PackedFileType::AnimFragment,
             DecodedPackedFile::AnimPack(_) => PackedFileType::AnimPack,
             DecodedPackedFile::AnimTable(_) => PackedFileType::AnimTable,
             DecodedPackedFile::CaVp8(_) => PackedFileType::CaVp8,
@@ -411,7 +457,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::DB(_) => PackedFileType::DB,
             DecodedPackedFile::Image(_) => PackedFileType::Image,
             DecodedPackedFile::Loc(_) => PackedFileType::Loc,
-            DecodedPackedFile::MatchedCombat => PackedFileType::MatchedCombat,
+            DecodedPackedFile::MatchedCombat(_) => PackedFileType::MatchedCombat,
             DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
             DecodedPackedFile::StarPos => PackedFileType::StarPos,
             DecodedPackedFile::Text(text) => PackedFileType::Text(text.get_text_type()),
