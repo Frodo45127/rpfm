@@ -153,26 +153,6 @@ impl DB {
         // Get the header of the `DB`.
         let (version, mysterious_byte, uuid, entry_count, mut index) = Self::read_header(&packed_file_data)?;
 
-        // These tables use the not-yet-implemented type "List" in the following versions:
-        // - models_artillery: 0,
-        // - models_artilleries: 0,
-        // - models_building: 0, 3, 7.
-        // - models_naval: 0, 6, 11.
-        // - models_sieges: 2, 3.
-        // So we disable everything for any problematic version of these tables.
-        // TODO: Implement the needed type for these tables.
-        if (name == "models_artillery_tables" && version == 0) ||
-            (name == "models_artilleries_tables" && version == 0) ||
-            (name == "models_building_tables" && (version == 0 ||
-                                                    version == 3 ||
-                                                    version == 7)) ||
-            (name == "models_naval_tables" && (version == 0 ||
-                                                    version == 6 ||
-                                                    version == 11)) ||
-            (name == "models_sieges_tables" && (version == 2 ||
-                                                    version == 3))
-        { return Err(ErrorKind::DBTableContainsListField.into()) }
-
         // Try to get the table_definition for this table, if exists.
         let versioned_file = schema.get_ref_versioned_file_db(&name);
         if versioned_file.is_err() && entry_count == 0 { return Err(ErrorKind::TableEmptyWithNoDefinition.into()) }
