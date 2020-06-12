@@ -701,7 +701,9 @@ impl PackFile {
 
         // Then, if we have a PackFile,... just import all PackedFiles.
         if we_have_packfile {
-            let packed_files = source.get_ref_packed_files_all();
+            let mut packed_files = source.get_packed_files_all();
+            packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
+            let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
             paths = self.add_packed_files(&packed_files, overwrite)?;
         }
 
@@ -710,7 +712,9 @@ impl PackFile {
             let paths_files = path_types.par_iter().filter_map(|x| {
                 if let PathType::File(path) = x { Some(&**path) } else { None }
             }).collect::<Vec<&[String]>>();
-            let packed_files = source.get_ref_packed_files_by_paths(paths_files);
+            let mut packed_files = source.get_packed_files_by_paths(paths_files);
+            packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
+            let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
             paths = self.add_packed_files(&packed_files, overwrite)?;
         }
 
@@ -721,13 +725,16 @@ impl PackFile {
             let paths_files = path_types.par_iter().filter_map(|x| {
                 if let PathType::File(path) = x { Some(&**path) } else { None }
             }).collect::<Vec<&[String]>>();
-            let mut packed_files = source.get_ref_packed_files_by_paths(paths_files);
+            let mut packed_files = source.get_packed_files_by_paths(paths_files);
 
             packed_files.append(&mut path_types.par_iter().filter_map(|x| {
                 if let PathType::Folder(path) = x { Some(&**path) } else { None }
-            }).map(|path| source.get_ref_packed_files_by_path_start(path))
+            }).map(|path| source.get_packed_files_by_path_start(path))
             .flatten()
-            .collect::<Vec<&PackedFile>>());
+            .collect::<Vec<PackedFile>>());
+
+            packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
+            let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
             paths = self.add_packed_files(&packed_files, overwrite)?;
         }
 
