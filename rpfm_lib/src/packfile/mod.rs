@@ -2384,20 +2384,20 @@ impl PackFile {
             else { packed_file_index.decode_packedfile_string_u8_0terminated(index_position, &mut index_position)? };
             let path = path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
 
-            // Once we are done, we create the and add it to the PackedFile list.
+            // Once we are done, we create the PackedFile and add it to the PackedFile list.
             let raw_data = RawPackedFile::read_from_data(
                 path,
                 pack_file_name.to_string(),
                 timestamp,
                 is_compressed,
                 if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(pack_file_decoded.pfh_version) } else { None },
-                PackedFileData::OnDisk(
+                PackedFileData::OnDisk(RawOnDisk::new(
                     pack_file.clone(),
                     data_position,
                     size,
                     is_compressed,
                     if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(pack_file_decoded.pfh_version) } else { None },
-                )
+                ))
             );
 
             let packed_file = PackedFile::new_from_raw(&raw_data);
