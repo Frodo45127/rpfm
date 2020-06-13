@@ -246,6 +246,9 @@ pub enum ErrorKind {
     /// Error for when we replace the binary data of a PackedFile with another data that's not decodeable in the same way as the old data.
     NewDataIsNotDecodeableTheSameWayAsOldDAta,
 
+    /// Error for when the checksum of a PackedFile fails.
+    PackedFileChecksumFailed,
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -657,6 +660,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileCouldNotBeImported(paths) => write!(f, "<p>The following failed to be imported:<ul>{}</ul></p>", paths.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::PackedFileSaveError(path) => write!(f, "<p>The following PackedFile failed to be saved: {}</p>", path.join("/")),
             ErrorKind::PackedFileTypeUnknown => write!(f, "<p>The PackedFile could not be opened.</p>"),
+            ErrorKind::PackedFileChecksumFailed => write!(f, "<p>The PackedFile checksum failed. If you see this, please report it with the actions you did in RPFM before this happened.</p>"),
 
             //--------------------------------//
             // Table Errors
