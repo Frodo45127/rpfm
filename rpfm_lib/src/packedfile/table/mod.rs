@@ -151,6 +151,23 @@ impl DecodedData {
             DecodedData::SequenceU32(_) => if let FieldType::SequenceU32(_) = field_type { true } else { false },
         }
     }
+
+    /// This function prints whatever you have in each variants to a String.
+    pub fn data_to_string(&self) -> String {
+        match self {
+            DecodedData::Boolean(data) => data.to_string(),
+            DecodedData::F32(data) => data.to_string(),
+            DecodedData::I16(data) => data.to_string(),
+            DecodedData::I32(data) => data.to_string(),
+            DecodedData::I64(data) => data.to_string(),
+            DecodedData::StringU8(data) |
+            DecodedData::StringU16(data) |
+            DecodedData::OptionalStringU8(data) |
+            DecodedData::OptionalStringU16(data) => data.to_owned(),
+            DecodedData::SequenceU16(_) => "SequenceU16".to_owned(),
+            DecodedData::SequenceU32(_) => "SequenceU32".to_owned(),
+        }
+    }
 }
 
 //----------------------------------------------------------------//
