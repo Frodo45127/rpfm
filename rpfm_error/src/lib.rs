@@ -382,6 +382,20 @@ pub enum ErrorKind {
     AnimTableDecode(String),
 
     //--------------------------------//
+    // AnimFragment Errors
+    //--------------------------------//
+
+    /// Error for when an AnimFragment PackedFile fails to decode. Contains the error message.
+    AnimFragmentDecode(String),
+
+    //--------------------------------//
+    // MatchedCombat Errors
+    //--------------------------------//
+
+    /// Error for when an MatchedCombat PackedFile fails to decode. Contains the error message.
+    MatchedCombatDecode(String),
+
+    //--------------------------------//
     // PAK File Errors
     //--------------------------------//
 
@@ -729,6 +743,16 @@ impl Display for ErrorKind {
             // AnimTable Errors
             //--------------------------------//
             ErrorKind::AnimTableDecode(cause) => write!(f, "<p>Error while trying to decode the AnimTable PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // AnimFragment Errors
+            //--------------------------------//
+            ErrorKind::AnimFragmentDecode(cause) => write!(f, "<p>Error while trying to decode the AnimFragment PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // MatchedCombat Errors
+            //--------------------------------//
+            ErrorKind::MatchedCombatDecode(cause) => write!(f, "<p>Error while trying to decode the MatchedCombat PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
             // PAK File Errors
