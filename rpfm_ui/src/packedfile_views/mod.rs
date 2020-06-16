@@ -44,6 +44,7 @@ use crate::utils::create_grid_layout;
 use crate::utils::mut_ptr_from_atomic;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
+use self::anim_fragment::{PackedFileAnimFragmentView, slots::PackedFileAnimFragmentViewSlots};
 use self::animpack::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
 use self::animtable::{PackedFileAnimTableView, slots::PackedFileAnimTableViewSlots};
 use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
@@ -55,6 +56,7 @@ use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
 
+pub mod anim_fragment;
 pub mod animpack;
 pub mod animtable;
 pub mod ca_vp8;
@@ -93,6 +95,7 @@ pub enum ViewType {
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
+    AnimFragment(PackedFileAnimFragmentView),
     AnimPack(PackedFileAnimPackView),
     AnimTable(PackedFileAnimTableView),
     CaVp8(PackedFileCaVp8View),
@@ -110,6 +113,7 @@ pub enum View {
 /// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
+    AnimFragment(PackedFileAnimFragmentViewSlots),
     AnimPack(PackedFileAnimPackViewSlots),
     AnimTable(PackedFileAnimTableViewSlots),
     CaVp8(PackedFileCaVp8ViewSlots),
@@ -255,6 +259,12 @@ impl PackedFileView {
                     // Images are read-only.
                     PackedFileType::Image => return Ok(()),
                     PackedFileType::AnimPack => return Ok(()),
+
+                    PackedFileType::AnimFragment => {
+                        if let View::AnimFragment(view) = view {
+                            view.save_data()?
+                        } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                    },
 
                     // These ones are a bit special. We just need to send back the current format of the video.
                     PackedFileType::CaVp8 => {

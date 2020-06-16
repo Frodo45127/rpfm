@@ -79,9 +79,9 @@ mod tips;
 pub mod utils;
 
 // Column default sizes.
-static COLUMN_SIZE_BOOLEAN: i32 = 100;
-static COLUMN_SIZE_NUMBER: i32 = 140;
-static COLUMN_SIZE_STRING: i32 = 350;
+pub static COLUMN_SIZE_BOOLEAN: i32 = 100;
+pub static COLUMN_SIZE_NUMBER: i32 = 140;
+pub static COLUMN_SIZE_STRING: i32 = 350;
 
 static ITEM_HAS_SOURCE_VALUE: i32 = 30;
 static ITEM_SOURCE_VALUE: i32 = 31;
@@ -579,7 +579,7 @@ impl PackedFileTableView {
 
         build_columns(
             packed_file_table_view_raw.table_view_primary,
-            packed_file_table_view_raw.table_view_frozen,
+            Some(packed_file_table_view_raw.table_view_frozen),
             &packed_file_table_view_raw.table_definition.read().unwrap(),
             &packed_file_name
         );
@@ -633,7 +633,7 @@ impl PackedFileTableView {
         // Rebuild the column's stuff.
         build_columns(
             table_view_primary,
-            table_view_frozen,
+            Some(table_view_frozen),
             &self.get_ref_table_definition(),
             &self.table_name
         );

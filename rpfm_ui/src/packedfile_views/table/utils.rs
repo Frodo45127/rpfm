@@ -410,7 +410,7 @@ pub unsafe fn load_data(
 }
 
 /// This function generates a StandardItem for the provided DecodedData.
-unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem> {
+pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem> {
     match *data {
 
         // This one needs a couple of changes before turning it into an item in the table.
@@ -492,7 +492,7 @@ unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandardItem
 /// His intended use is for just after we load/reload the data to the table.
 pub unsafe fn build_columns(
     mut table_view_primary: MutPtr<QTableView>,
-    table_view_frozen: MutPtr<QTableView>,
+    table_view_frozen: Option<MutPtr<QTableView>>,
     definition: &Definition,
     table_name: &str,
 ) {
@@ -532,8 +532,6 @@ pub unsafe fn build_columns(
     // Now the order. If we have a sort order from the schema, we use that one.
     if do_we_have_ca_order {
         let mut header_primary = table_view_primary.horizontal_header();
-        let mut header_frozen = table_view_frozen.horizontal_header();
-
         let mut fields = definition.fields.iter()
             .enumerate()
             .map(|(x, y)| (x, y.ca_order))
@@ -545,7 +543,11 @@ pub unsafe fn build_columns(
             if *ca_order != -1 {
                 let visual_index = header_primary.visual_index(*logical_index as i32);
                 header_primary.move_section(visual_index as i32, new_pos);
-                header_frozen.move_section(visual_index as i32, new_pos);
+
+                if let Some(table_view_frozen) = table_view_frozen {
+                    let mut header_frozen = table_view_frozen.horizontal_header();
+                    header_frozen.move_section(visual_index as i32, new_pos);
+                }
             }
             new_pos += 1;
         }
@@ -554,10 +556,13 @@ pub unsafe fn build_columns(
     // Otherwise, if we have any "Key" field, move it to the beginning.
     else if !keys.is_empty() {
         let mut header_primary = table_view_primary.horizontal_header();
-        let mut header_frozen = table_view_frozen.horizontal_header();
         for (position, column) in keys.iter().enumerate() {
             header_primary.move_section(*column as i32, position as i32);
-            header_frozen.move_section(*column as i32, position as i32);
+
+            if let Some(table_view_frozen) = table_view_frozen {
+                let mut header_frozen = table_view_frozen.horizontal_header();
+                header_frozen.move_section(*column as i32, position as i32);
+            }
         }
     }
 
@@ -568,7 +573,7 @@ pub unsafe fn build_columns(
 }
 
 /// This function sets the tooltip for the provided column header, if the column should have one.
-unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: &mut QStandardItem) {
+pub unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name: &str, item: &mut QStandardItem) {
 
     // If we passed it a table name, build the tooltip based on it. The logic is simple:
     // - If we have a description, we add it to the tooltip.

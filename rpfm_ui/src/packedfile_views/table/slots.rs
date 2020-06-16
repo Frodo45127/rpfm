@@ -396,7 +396,7 @@ impl PackedFileTableViewSlots {
 
                             build_columns(
                                 packed_file_view.table_view_primary,
-                                packed_file_view.table_view_frozen,
+                                Some(packed_file_view.table_view_frozen),
                                 &packed_file_view.get_ref_table_definition(),
                                 &table_name
                             );
