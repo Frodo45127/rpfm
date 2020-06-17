@@ -29,6 +29,7 @@ use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QString;
 use qt_core::Orientation;
+use qt_core::SortOrder;
 
 use cpp_core::CppBox;
 use cpp_core::MutPtr;
@@ -773,5 +774,29 @@ pub unsafe fn check_table_for_error(
                 check_references(column as i32, item, dependency_data);
             }
         }
+    }
+}
+
+/// This function is a generic way to toggle the sort order of a column.
+pub unsafe fn sort_column(table_view: MutPtr<QTableView>, column: i32, column_sort_state: Arc<RwLock<(i32, i8)>>) {
+    let mut needs_cleaning = false;
+    {
+        // We only change the order if it's less than 2. Otherwise, we reset it.
+        let mut sort_data = column_sort_state.write().unwrap();
+        let mut old_order = if sort_data.0 == column { sort_data.1 } else { 0 };
+
+        if old_order < 2 {
+            old_order += 1;
+            if old_order == 0 { *sort_data = (-1, old_order); }
+            else { *sort_data = (column, old_order); }
+        }
+        else {
+            needs_cleaning = true;
+            *sort_data = (-1, -1);
+        }
+    }
+
+    if needs_cleaning {
+        table_view.horizontal_header().set_sort_indicator(-1, SortOrder::AscendingOrder);
     }
 }

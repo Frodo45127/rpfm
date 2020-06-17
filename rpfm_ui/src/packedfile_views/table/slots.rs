@@ -130,26 +130,7 @@ impl PackedFileTableViewSlots {
 
         let sort_order_column_changed = SlotOfIntSortOrder::new(clone!(
             packed_file_view => move |column, _| {
-                let mut needs_cleaning = false;
-                {
-                    // We only change the order if it's less than 2. Otherwise, we reset it.
-                    let mut sort_data = packed_file_view.column_sort_state.write().unwrap();
-                    let mut old_order = if sort_data.0 == column { sort_data.1 } else { 0 };
-
-                    if old_order < 2 {
-                        old_order += 1;
-                        if old_order == 0 { *sort_data = (-1, old_order); }
-                        else { *sort_data = (column, old_order); }
-                    }
-                    else {
-                        needs_cleaning = true;
-                        *sort_data = (-1, -1);
-                    }
-                }
-
-                if needs_cleaning {
-                    packed_file_view.table_view_primary.horizontal_header().set_sort_indicator(-1, SortOrder::AscendingOrder);
-                }
+                sort_column(packed_file_view.table_view_primary, column, packed_file_view.column_sort_state.clone());
             }
         ));
 

@@ -12,10 +12,12 @@
 Module with all the code for managing the view for AnimFragment PackedFiles.
 !*/
 
+use qt_widgets::QAction;
 use qt_widgets::QLineEdit;
 use qt_widgets::QTableView;
 use qt_widgets::QGridLayout;
 use qt_widgets::QLabel;
+use qt_widgets::QMenu;
 use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QListOfQStandardItem;
@@ -29,7 +31,7 @@ use qt_core::QSortFilterProxyModel;
 use cpp_core::MutPtr;
 
 use std::sync::{Arc, RwLock};
-use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{AtomicBool, AtomicPtr};
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
@@ -45,20 +47,23 @@ use rpfm_lib::SETTINGS;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::add_to_q_list_safe;
+use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::packedfile_views::table::{COLUMN_SIZE_BOOLEAN, COLUMN_SIZE_NUMBER, COLUMN_SIZE_STRING};
+use crate::packedfile_views::table::TableOperations;
 use crate::packedfile_views::table::utils::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::mut_ptr_from_atomic;
 
+use self::raw::PackedFileAnimFragmentViewRaw;
 use self::slots::PackedFileAnimFragmentViewSlots;
 
 mod connections;
 pub mod slots;
+mod raw;
 
 /// Fields that are represented via a bitwise number, and how many bits it uses.
 const BITWISE_FIELDS: [(&str, u16); 1] = [
@@ -76,21 +81,47 @@ pub struct PackedFileAnimFragmentView {
     integer_1: AtomicPtr<QLineEdit>,
     integer_2: AtomicPtr<QLineEdit>,
     definition: Arc<RwLock<Definition>>,
-}
 
+    context_menu_add_rows_1: AtomicPtr<QAction>,
+    context_menu_insert_rows_1: AtomicPtr<QAction>,
+    context_menu_delete_rows_1: AtomicPtr<QAction>,
+    context_menu_clone_and_append_1: AtomicPtr<QAction>,
+    context_menu_clone_and_insert_1: AtomicPtr<QAction>,
+    context_menu_copy_1: AtomicPtr<QAction>,
+    context_menu_copy_as_lua_table_1: AtomicPtr<QAction>,
+    context_menu_paste_1: AtomicPtr<QAction>,
+    context_menu_invert_selection_1: AtomicPtr<QAction>,
+    context_menu_reset_selection_1: AtomicPtr<QAction>,
+    context_menu_rewrite_selection_1: AtomicPtr<QAction>,
+    context_menu_undo_1: AtomicPtr<QAction>,
+    context_menu_redo_1: AtomicPtr<QAction>,
+    context_menu_resize_columns_1: AtomicPtr<QAction>,
+    smart_delete_1: AtomicPtr<QAction>,
 
-/// This struct contains the raw version of each pointer in `PackedFileAnimFragmentView`, to be used when building the slots.
-///
-/// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
-/// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileAnimFragmentView`.
-#[derive(Clone)]
-pub struct PackedFileAnimFragmentViewRaw {
-    pub table_1: MutPtr<QTableView>,
-    pub table_2: MutPtr<QTableView>,
-    pub integer_1: MutPtr<QLineEdit>,
-    pub integer_2: MutPtr<QLineEdit>,
-    pub path: Arc<RwLock<Vec<String>>>,
-    pub definition: Arc<RwLock<Definition>>,
+    context_menu_add_rows_2: AtomicPtr<QAction>,
+    context_menu_insert_rows_2: AtomicPtr<QAction>,
+    context_menu_delete_rows_2: AtomicPtr<QAction>,
+    context_menu_clone_and_append_2: AtomicPtr<QAction>,
+    context_menu_clone_and_insert_2: AtomicPtr<QAction>,
+    context_menu_copy_2: AtomicPtr<QAction>,
+    context_menu_copy_as_lua_table_2: AtomicPtr<QAction>,
+    context_menu_paste_2: AtomicPtr<QAction>,
+    context_menu_invert_selection_2: AtomicPtr<QAction>,
+    context_menu_reset_selection_2: AtomicPtr<QAction>,
+    context_menu_rewrite_selection_2: AtomicPtr<QAction>,
+    context_menu_undo_2: AtomicPtr<QAction>,
+    context_menu_redo_2: AtomicPtr<QAction>,
+    context_menu_resize_columns_2: AtomicPtr<QAction>,
+    smart_delete_2: AtomicPtr<QAction>,
+
+    undo_model_1: AtomicPtr<QStandardItemModel>,
+    undo_model_2: AtomicPtr<QStandardItemModel>,
+
+    packed_file_path: Arc<RwLock<Vec<String>>>,
+    history_undo_1: Arc<RwLock<Vec<TableOperations>>>,
+    history_redo_1: Arc<RwLock<Vec<TableOperations>>>,
+    history_undo_2: Arc<RwLock<Vec<TableOperations>>>,
+    history_redo_2: Arc<RwLock<Vec<TableOperations>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -125,18 +156,17 @@ impl PackedFileAnimFragmentView {
         let mut i1_line_edit = QLineEdit::new();
         let mut i2_line_edit = QLineEdit::new();
 
-        let mut table_view_1 = QTableView::new_0a();
-        let mut table_view_2 = QTableView::new_0a();
+        let mut filter_model = QSortFilterProxyModel::new_0a();
+        let model_1 = QStandardItemModel::new_0a().into_ptr();
+        filter_model.set_source_model(model_1);
+        let (mut table_view_1, _) = new_tableview_frozen_safe(&mut packed_file_view.get_mut_widget());
+        set_frozen_data_model_safe(&mut table_view_1, &mut filter_model.into_ptr());
 
-        let mut filter_1 = QSortFilterProxyModel::new_0a();
-        let mut filter_2 = QSortFilterProxyModel::new_0a();
-        let model_1 = QStandardItemModel::new_0a();
-        let model_2 = QStandardItemModel::new_0a();
-        filter_1.set_source_model(model_1.into_ptr());
-        filter_2.set_source_model(model_2.into_ptr());
-
-        table_view_1.set_model(filter_1.into_ptr());
-        table_view_2.set_model(filter_2.into_ptr());
+        let mut filter_model = QSortFilterProxyModel::new_0a();
+        let model_2 = QStandardItemModel::new_0a().into_ptr();
+        filter_model.set_source_model(model_2);
+        let (mut table_view_2, _) = new_tableview_frozen_safe(&mut packed_file_view.get_mut_widget());
+        set_frozen_data_model_safe(&mut table_view_2, &mut filter_model.into_ptr());
 
         layout.add_widget_5a(i1_label.into_ptr(), 0, 0, 1, 1);
         layout.add_widget_5a(i2_label.into_ptr(), 1, 0, 1, 1);
@@ -144,16 +174,146 @@ impl PackedFileAnimFragmentView {
         layout.add_widget_5a(&mut i1_line_edit, 0, 1, 1, 1);
         layout.add_widget_5a(&mut i2_line_edit, 1, 1, 1, 1);
 
-        layout.add_widget_5a(&mut table_view_1, 0, 2, 2, 1);
-        layout.add_widget_5a(&mut table_view_2, 2, 0, 1, 3);
+        layout.add_widget_5a(table_view_1, 0, 2, 2, 1);
+        layout.add_widget_5a(table_view_2, 2, 0, 1, 3);
+
+
+        // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
+        let undo_lock = Arc::new(AtomicBool::new(false));
+        let save_lock = Arc::new(AtomicBool::new(false));
+
+        // Make the last column fill all the available space, if the setting says so.
+        if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
+            table_view_1.horizontal_header().set_stretch_last_section(true);
+            table_view_2.horizontal_header().set_stretch_last_section(true);
+        }
+
+        // Setup tight mode if the setting is enabled.
+        if SETTINGS.read().unwrap().settings_bool["tight_table_mode"] {
+            table_view_1.vertical_header().set_minimum_section_size(22);
+            table_view_1.vertical_header().set_maximum_section_size(22);
+            table_view_1.vertical_header().set_default_section_size(22);
+
+            table_view_2.vertical_header().set_minimum_section_size(22);
+            table_view_2.vertical_header().set_maximum_section_size(22);
+            table_view_2.vertical_header().set_default_section_size(22);
+        }
+
+        // Action to make the delete button delete contents.
+        let smart_delete_1 = QAction::new().into_ptr();
+        let smart_delete_2 = QAction::new().into_ptr();
+
+        // Create the Contextual Menu for the TableView.
+        let context_menu_enabler_1 = QAction::new();
+        let context_menu_enabler_2 = QAction::new();
+        let mut context_menu_1 = QMenu::new().into_ptr();
+        let mut context_menu_2 = QMenu::new().into_ptr();
+
+        let context_menu_add_rows_1 = context_menu_1.add_action_q_string(&qtr("context_menu_add_rows"));
+        let context_menu_insert_rows_1 = context_menu_1.add_action_q_string(&qtr("context_menu_insert_rows"));
+        let context_menu_delete_rows_1 = context_menu_1.add_action_q_string(&qtr("context_menu_delete_rows"));
+        let mut context_menu_clone_submenu_1 = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
+        let context_menu_clone_and_insert_1 = context_menu_clone_submenu_1.add_action_q_string(&qtr("context_menu_clone_and_insert"));
+        let context_menu_clone_and_append_1 = context_menu_clone_submenu_1.add_action_q_string(&qtr("context_menu_clone_and_append"));
+        let mut context_menu_copy_submenu_1 = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
+        let context_menu_copy_1 = context_menu_copy_submenu_1.add_action_q_string(&qtr("context_menu_copy"));
+        let context_menu_copy_as_lua_table_1 = context_menu_copy_submenu_1.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
+        let context_menu_paste_1 = context_menu_1.add_action_q_string(&qtr("context_menu_paste"));
+        let context_menu_rewrite_selection_1 = context_menu_1.add_action_q_string(&qtr("context_menu_rewrite_selection"));
+        let context_menu_invert_selection_1 = context_menu_1.add_action_q_string(&qtr("context_menu_invert_selection"));
+        let context_menu_reset_selection_1 = context_menu_1.add_action_q_string(&qtr("context_menu_reset_selection"));
+        let context_menu_resize_columns_1 = context_menu_1.add_action_q_string(&qtr("context_menu_resize_columns"));
+        let context_menu_undo_1 = context_menu_1.add_action_q_string(&qtr("context_menu_undo"));
+        let context_menu_redo_1 = context_menu_1.add_action_q_string(&qtr("context_menu_redo"));
+
+        let context_menu_add_rows_2 = context_menu_2.add_action_q_string(&qtr("context_menu_add_rows"));
+        let context_menu_insert_rows_2 = context_menu_2.add_action_q_string(&qtr("context_menu_insert_rows"));
+        let context_menu_delete_rows_2 = context_menu_2.add_action_q_string(&qtr("context_menu_delete_rows"));
+        let mut context_menu_clone_submenu_2 = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
+        let context_menu_clone_and_insert_2 = context_menu_clone_submenu_2.add_action_q_string(&qtr("context_menu_clone_and_insert"));
+        let context_menu_clone_and_append_2 = context_menu_clone_submenu_2.add_action_q_string(&qtr("context_menu_clone_and_append"));
+        let mut context_menu_copy_submenu_2 = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
+        let context_menu_copy_2 = context_menu_copy_submenu_2.add_action_q_string(&qtr("context_menu_copy"));
+        let context_menu_copy_as_lua_table_2 = context_menu_copy_submenu_2.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
+        let context_menu_paste_2 = context_menu_2.add_action_q_string(&qtr("context_menu_paste"));
+        let context_menu_rewrite_selection_2 = context_menu_2.add_action_q_string(&qtr("context_menu_rewrite_selection"));
+        let context_menu_invert_selection_2 = context_menu_2.add_action_q_string(&qtr("context_menu_invert_selection"));
+        let context_menu_reset_selection_2 = context_menu_2.add_action_q_string(&qtr("context_menu_reset_selection"));
+        let context_menu_resize_columns_2 = context_menu_2.add_action_q_string(&qtr("context_menu_resize_columns"));
+        let context_menu_undo_2 = context_menu_2.add_action_q_string(&qtr("context_menu_undo"));
+        let context_menu_redo_2 = context_menu_2.add_action_q_string(&qtr("context_menu_redo"));
+
+        // Insert some separators to space the menu, and the paste submenu.
+        context_menu_1.insert_menu(context_menu_paste_1, context_menu_clone_submenu_1.into_ptr());
+        context_menu_1.insert_menu(context_menu_paste_1, context_menu_copy_submenu_1.into_ptr());
+        context_menu_1.insert_separator(context_menu_rewrite_selection_1);
+        context_menu_1.insert_separator(context_menu_undo_1);
+
+        context_menu_2.insert_menu(context_menu_paste_2, context_menu_clone_submenu_2.into_ptr());
+        context_menu_2.insert_menu(context_menu_paste_2, context_menu_copy_submenu_2.into_ptr());
+        context_menu_2.insert_separator(context_menu_rewrite_selection_2);
+        context_menu_2.insert_separator(context_menu_undo_2);
 
         let mut packed_file_anim_fragment_view_raw = PackedFileAnimFragmentViewRaw {
-            table_1: table_view_1.into_ptr(),
-            table_2: table_view_2.into_ptr(),
+            table_1: table_view_1,
+            table_2: table_view_2,
             integer_1: i1_line_edit.into_ptr(),
             integer_2: i2_line_edit.into_ptr(),
             path: packed_file_view.get_path_raw().clone(),
-            definition: Arc::new(RwLock::new(data.get_definition()))
+            definition: Arc::new(RwLock::new(data.get_definition())),
+
+            column_sort_state_1: Arc::new(RwLock::new((-1, 0))),
+            column_sort_state_2: Arc::new(RwLock::new((-1, 0))),
+
+            context_menu_1,
+            context_menu_2,
+
+            context_menu_enabler_1: context_menu_enabler_1.into_ptr(),
+            context_menu_add_rows_1,
+            context_menu_insert_rows_1,
+            context_menu_delete_rows_1,
+            context_menu_clone_and_append_1,
+            context_menu_clone_and_insert_1,
+            context_menu_copy_1,
+            context_menu_copy_as_lua_table_1,
+            context_menu_paste_1,
+            context_menu_invert_selection_1,
+            context_menu_reset_selection_1,
+            context_menu_rewrite_selection_1,
+            context_menu_undo_1,
+            context_menu_redo_1,
+            context_menu_resize_columns_1,
+            smart_delete_1,
+
+            context_menu_enabler_2: context_menu_enabler_2.into_ptr(),
+            context_menu_add_rows_2,
+            context_menu_insert_rows_2,
+            context_menu_delete_rows_2,
+            context_menu_clone_and_append_2,
+            context_menu_clone_and_insert_2,
+            context_menu_copy_2,
+            context_menu_copy_as_lua_table_2,
+            context_menu_paste_2,
+            context_menu_invert_selection_2,
+            context_menu_reset_selection_2,
+            context_menu_rewrite_selection_2,
+            context_menu_undo_2,
+            context_menu_redo_2,
+            context_menu_resize_columns_2,
+            smart_delete_2,
+
+            packed_file_path: packed_file_view.get_path_raw().clone(),
+
+            undo_lock,
+            save_lock,
+
+            undo_model_1: QStandardItemModel::new_0a().into_ptr(),
+            undo_model_2: QStandardItemModel::new_0a().into_ptr(),
+
+            history_undo_1: Arc::new(RwLock::new(vec![])),
+            history_redo_1: Arc::new(RwLock::new(vec![])),
+            history_undo_2: Arc::new(RwLock::new(vec![])),
+            history_redo_2: Arc::new(RwLock::new(vec![])),
         };
 
         let packed_file_anim_fragment_view_slots = PackedFileAnimFragmentViewSlots::new(
@@ -169,9 +329,54 @@ impl PackedFileAnimFragmentView {
             integer_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.integer_1),
             integer_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.integer_2),
             definition: packed_file_anim_fragment_view_raw.definition.clone(),
+
+            context_menu_add_rows_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_add_rows_1),
+            context_menu_insert_rows_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_insert_rows_1),
+            context_menu_delete_rows_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_delete_rows_1),
+            context_menu_clone_and_append_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_append_1),
+            context_menu_clone_and_insert_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_insert_1),
+            context_menu_copy_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_1),
+            context_menu_copy_as_lua_table_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_as_lua_table_1),
+            context_menu_paste_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_paste_1),
+            context_menu_invert_selection_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_invert_selection_1),
+            context_menu_reset_selection_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_reset_selection_1),
+            context_menu_rewrite_selection_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_rewrite_selection_1),
+            context_menu_undo_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_undo_1),
+            context_menu_redo_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_redo_1),
+            context_menu_resize_columns_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_resize_columns_1),
+            smart_delete_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.smart_delete_1),
+
+            context_menu_add_rows_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_add_rows_2),
+            context_menu_insert_rows_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_insert_rows_2),
+            context_menu_delete_rows_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_delete_rows_2),
+            context_menu_clone_and_append_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_append_2),
+            context_menu_clone_and_insert_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_insert_2),
+            context_menu_copy_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_2),
+            context_menu_copy_as_lua_table_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_as_lua_table_2),
+            context_menu_paste_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_paste_2),
+            context_menu_invert_selection_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_invert_selection_2),
+            context_menu_reset_selection_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_reset_selection_2),
+            context_menu_rewrite_selection_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_rewrite_selection_2),
+            context_menu_undo_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_undo_2),
+            context_menu_redo_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_redo_2),
+            context_menu_resize_columns_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_resize_columns_2),
+            smart_delete_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.smart_delete_2),
+
+            undo_model_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.undo_model_1),
+            undo_model_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.undo_model_2),
+
+            packed_file_path: packed_file_view.get_path_raw().clone(),
+            history_undo_1: packed_file_anim_fragment_view_raw.history_undo_1.clone(),
+            history_redo_1: packed_file_anim_fragment_view_raw.history_redo_1.clone(),
+            history_undo_2: packed_file_anim_fragment_view_raw.history_undo_2.clone(),
+            history_redo_2: packed_file_anim_fragment_view_raw.history_redo_2.clone(),
         };
 
         Self::load_data(&mut packed_file_anim_fragment_view_raw, &data)?;
+
+        // Initialize the undo models.
+        update_undo_model(model_1, mut_ptr_from_atomic(&packed_file_anim_fragment_view.undo_model_1));
+        update_undo_model(model_2, mut_ptr_from_atomic(&packed_file_anim_fragment_view.undo_model_2));
 
         connections::set_connections(&packed_file_anim_fragment_view, &packed_file_anim_fragment_view_slots);
         packed_file_view.view = ViewType::Internal(View::AnimFragment(packed_file_anim_fragment_view));
@@ -264,7 +469,6 @@ impl PackedFileAnimFragmentView {
         table.set_table_data(&data)?;
         Ok(DecodedPackedFile::AnimFragment(table))
     }
-
 
     /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
     /// His intended use is for just after we load/reload the data to the table.
@@ -388,5 +592,12 @@ impl PackedFileAnimFragmentView {
             definition.clone()
         }
         else { unimplemented!() }
+    }
+
+    pub fn get_mut_ptr_table_1(&self) -> MutPtr<QTableView> {
+        mut_ptr_from_atomic(&self.table_1)
+    }
+    pub fn get_mut_ptr_table_2(&self) -> MutPtr<QTableView> {
+        mut_ptr_from_atomic(&self.table_2)
     }
 }
