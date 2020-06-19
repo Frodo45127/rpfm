@@ -52,7 +52,6 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::packedfile_views::table::{COLUMN_SIZE_BOOLEAN, COLUMN_SIZE_NUMBER, COLUMN_SIZE_STRING};
-use crate::packedfile_views::table::TableOperations;
 use crate::packedfile_views::table::utils::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::atomic_from_mut_ptr;
@@ -64,6 +63,8 @@ use self::slots::PackedFileAnimFragmentViewSlots;
 mod connections;
 pub mod slots;
 mod raw;
+mod shortcuts;
+mod utils;
 
 /// Fields that are represented via a bitwise number, and how many bits it uses.
 const BITWISE_FIELDS: [(&str, u16); 1] = [
@@ -88,7 +89,6 @@ pub struct PackedFileAnimFragmentView {
     context_menu_clone_and_append_1: AtomicPtr<QAction>,
     context_menu_clone_and_insert_1: AtomicPtr<QAction>,
     context_menu_copy_1: AtomicPtr<QAction>,
-    context_menu_copy_as_lua_table_1: AtomicPtr<QAction>,
     context_menu_paste_1: AtomicPtr<QAction>,
     context_menu_invert_selection_1: AtomicPtr<QAction>,
     context_menu_reset_selection_1: AtomicPtr<QAction>,
@@ -104,7 +104,6 @@ pub struct PackedFileAnimFragmentView {
     context_menu_clone_and_append_2: AtomicPtr<QAction>,
     context_menu_clone_and_insert_2: AtomicPtr<QAction>,
     context_menu_copy_2: AtomicPtr<QAction>,
-    context_menu_copy_as_lua_table_2: AtomicPtr<QAction>,
     context_menu_paste_2: AtomicPtr<QAction>,
     context_menu_invert_selection_2: AtomicPtr<QAction>,
     context_menu_reset_selection_2: AtomicPtr<QAction>,
@@ -117,16 +116,144 @@ pub struct PackedFileAnimFragmentView {
     undo_model_1: AtomicPtr<QStandardItemModel>,
     undo_model_2: AtomicPtr<QStandardItemModel>,
 
-    packed_file_path: Arc<RwLock<Vec<String>>>,
-    history_undo_1: Arc<RwLock<Vec<TableOperations>>>,
-    history_redo_1: Arc<RwLock<Vec<TableOperations>>>,
-    history_undo_2: Arc<RwLock<Vec<TableOperations>>>,
-    history_redo_2: Arc<RwLock<Vec<TableOperations>>>,
+    //packed_file_path: Arc<RwLock<Vec<String>>>,
+    //history_undo_1: Arc<RwLock<Vec<TableOperations>>>,
+    //history_redo_1: Arc<RwLock<Vec<TableOperations>>>,
+    //history_undo_2: Arc<RwLock<Vec<TableOperations>>>,
+    //history_redo_2: Arc<RwLock<Vec<TableOperations>>>,
 }
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
+
+/// Macro to generate all the getters at once.
+macro_rules! getter_generator {
+    (
+        $get_definition:ident,
+        $get_mut_ptr_table:ident,
+        $get_mut_ptr_context_menu_add_rows:ident,
+        $get_mut_ptr_context_menu_insert_rows:ident,
+        $get_mut_ptr_context_menu_delete_rows:ident,
+        $get_mut_ptr_context_menu_clone_and_append:ident,
+        $get_mut_ptr_context_menu_clone_and_insert:ident,
+        $get_mut_ptr_context_menu_copy:ident,
+        $get_mut_ptr_context_menu_paste:ident,
+        $get_mut_ptr_context_menu_invert_selection:ident,
+        $get_mut_ptr_context_menu_reset_selection:ident,
+        $get_mut_ptr_context_menu_rewrite_selection:ident,
+        $get_mut_ptr_context_menu_undo:ident,
+        $get_mut_ptr_context_menu_redo:ident,
+        $get_mut_ptr_context_menu_resize_columns:ident,
+        $get_mut_ptr_smart_delete:ident,
+
+        $table:ident,
+        $column_sort_state:ident,
+        $context_menu:ident,
+        $context_menu_enabler:ident,
+        $context_menu_add_rows:ident,
+        $context_menu_insert_rows:ident,
+        $context_menu_delete_rows:ident,
+        $context_menu_clone_and_append:ident,
+        $context_menu_clone_and_insert:ident,
+        $context_menu_copy:ident,
+        $context_menu_paste:ident,
+        $context_menu_invert_selection:ident,
+        $context_menu_reset_selection:ident,
+        $context_menu_rewrite_selection:ident,
+        $context_menu_undo:ident,
+        $context_menu_redo:ident,
+        $context_menu_resize_columns:ident,
+        $smart_delete:ident,
+
+        $field:expr,
+    ) => {
+
+        /// This function returns a copy of the definition used by the first sequence of this AnimFragment.
+        pub fn $get_definition(&self) -> Definition {
+            let definition = self.definition.read().unwrap();
+            if let FieldType::SequenceU32(definition) = &(*definition).fields[$field].field_type {
+                definition.clone()
+            }
+            else { unimplemented!() }
+        }
+
+        /// This function returns a pointer to the TableView of this table.
+        pub fn $get_mut_ptr_table(&self) -> MutPtr<QTableView> {
+            mut_ptr_from_atomic(&self.$table)
+        }
+
+        /// This function returns a pointer to the add rows action.
+        pub fn $get_mut_ptr_context_menu_add_rows(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_add_rows)
+        }
+
+        /// This function returns a pointer to the insert rows action.
+        pub fn $get_mut_ptr_context_menu_insert_rows(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_insert_rows)
+        }
+
+        /// This function returns a pointer to the delete rows action.
+        pub fn $get_mut_ptr_context_menu_delete_rows(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_delete_rows)
+        }
+
+        /// This function returns a pointer to the clone_and_append action.
+        pub fn $get_mut_ptr_context_menu_clone_and_append(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_clone_and_append)
+        }
+
+        /// This function returns a pointer to the clone_and_insert action.
+        pub fn $get_mut_ptr_context_menu_clone_and_insert(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_clone_and_insert)
+        }
+
+        /// This function returns a pointer to the copy action.
+        pub fn $get_mut_ptr_context_menu_copy(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_copy)
+        }
+
+        /// This function returns a pointer to the paste action.
+        pub fn $get_mut_ptr_context_menu_paste(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_paste)
+        }
+
+        /// This function returns a pointer to the invert selection action.
+        pub fn $get_mut_ptr_context_menu_invert_selection(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_invert_selection)
+        }
+
+        /// This function returns a pointer to the reset selection action.
+        pub fn $get_mut_ptr_context_menu_reset_selection(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_reset_selection)
+        }
+
+        /// This function returns a pointer to the rewrite selection action.
+        pub fn $get_mut_ptr_context_menu_rewrite_selection(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_rewrite_selection)
+        }
+
+        /// This function returns a pointer to the undo action.
+        pub fn $get_mut_ptr_context_menu_undo(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_undo)
+        }
+
+        /// This function returns a pointer to the redo action.
+        pub fn $get_mut_ptr_context_menu_redo(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_redo)
+        }
+
+        /// This function returns a pointer to the smart delete action.
+        pub fn $get_mut_ptr_smart_delete(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$smart_delete)
+        }
+
+        /// This function returns a pointer to the resize columns action.
+        pub fn $get_mut_ptr_context_menu_resize_columns(&self) -> MutPtr<QAction> {
+            mut_ptr_from_atomic(&self.$context_menu_resize_columns)
+        }
+    }
+}
 
 /// Implementation for `PackedFileAnimFragmentView`.
 impl PackedFileAnimFragmentView {
@@ -215,9 +342,7 @@ impl PackedFileAnimFragmentView {
         let mut context_menu_clone_submenu_1 = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
         let context_menu_clone_and_insert_1 = context_menu_clone_submenu_1.add_action_q_string(&qtr("context_menu_clone_and_insert"));
         let context_menu_clone_and_append_1 = context_menu_clone_submenu_1.add_action_q_string(&qtr("context_menu_clone_and_append"));
-        let mut context_menu_copy_submenu_1 = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
-        let context_menu_copy_1 = context_menu_copy_submenu_1.add_action_q_string(&qtr("context_menu_copy"));
-        let context_menu_copy_as_lua_table_1 = context_menu_copy_submenu_1.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
+        let context_menu_copy_1 = context_menu_1.add_action_q_string(&qtr("context_menu_copy"));
         let context_menu_paste_1 = context_menu_1.add_action_q_string(&qtr("context_menu_paste"));
         let context_menu_rewrite_selection_1 = context_menu_1.add_action_q_string(&qtr("context_menu_rewrite_selection"));
         let context_menu_invert_selection_1 = context_menu_1.add_action_q_string(&qtr("context_menu_invert_selection"));
@@ -232,9 +357,7 @@ impl PackedFileAnimFragmentView {
         let mut context_menu_clone_submenu_2 = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
         let context_menu_clone_and_insert_2 = context_menu_clone_submenu_2.add_action_q_string(&qtr("context_menu_clone_and_insert"));
         let context_menu_clone_and_append_2 = context_menu_clone_submenu_2.add_action_q_string(&qtr("context_menu_clone_and_append"));
-        let mut context_menu_copy_submenu_2 = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
-        let context_menu_copy_2 = context_menu_copy_submenu_2.add_action_q_string(&qtr("context_menu_copy"));
-        let context_menu_copy_as_lua_table_2 = context_menu_copy_submenu_2.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
+        let context_menu_copy_2 = context_menu_2.add_action_q_string(&qtr("context_menu_copy"));
         let context_menu_paste_2 = context_menu_2.add_action_q_string(&qtr("context_menu_paste"));
         let context_menu_rewrite_selection_2 = context_menu_2.add_action_q_string(&qtr("context_menu_rewrite_selection"));
         let context_menu_invert_selection_2 = context_menu_2.add_action_q_string(&qtr("context_menu_invert_selection"));
@@ -245,12 +368,10 @@ impl PackedFileAnimFragmentView {
 
         // Insert some separators to space the menu, and the paste submenu.
         context_menu_1.insert_menu(context_menu_paste_1, context_menu_clone_submenu_1.into_ptr());
-        context_menu_1.insert_menu(context_menu_paste_1, context_menu_copy_submenu_1.into_ptr());
         context_menu_1.insert_separator(context_menu_rewrite_selection_1);
         context_menu_1.insert_separator(context_menu_undo_1);
 
         context_menu_2.insert_menu(context_menu_paste_2, context_menu_clone_submenu_2.into_ptr());
-        context_menu_2.insert_menu(context_menu_paste_2, context_menu_copy_submenu_2.into_ptr());
         context_menu_2.insert_separator(context_menu_rewrite_selection_2);
         context_menu_2.insert_separator(context_menu_undo_2);
 
@@ -275,7 +396,6 @@ impl PackedFileAnimFragmentView {
             context_menu_clone_and_append_1,
             context_menu_clone_and_insert_1,
             context_menu_copy_1,
-            context_menu_copy_as_lua_table_1,
             context_menu_paste_1,
             context_menu_invert_selection_1,
             context_menu_reset_selection_1,
@@ -292,7 +412,6 @@ impl PackedFileAnimFragmentView {
             context_menu_clone_and_append_2,
             context_menu_clone_and_insert_2,
             context_menu_copy_2,
-            context_menu_copy_as_lua_table_2,
             context_menu_paste_2,
             context_menu_invert_selection_2,
             context_menu_reset_selection_2,
@@ -323,7 +442,7 @@ impl PackedFileAnimFragmentView {
             *global_search_ui,
         );
 
-        let packed_file_anim_fragment_view = Self {
+        let mut packed_file_anim_fragment_view = Self {
             table_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.table_1),
             table_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.table_2),
             integer_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.integer_1),
@@ -336,7 +455,6 @@ impl PackedFileAnimFragmentView {
             context_menu_clone_and_append_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_append_1),
             context_menu_clone_and_insert_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_insert_1),
             context_menu_copy_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_1),
-            context_menu_copy_as_lua_table_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_as_lua_table_1),
             context_menu_paste_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_paste_1),
             context_menu_invert_selection_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_invert_selection_1),
             context_menu_reset_selection_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_reset_selection_1),
@@ -352,7 +470,6 @@ impl PackedFileAnimFragmentView {
             context_menu_clone_and_append_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_append_2),
             context_menu_clone_and_insert_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_clone_and_insert_2),
             context_menu_copy_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_2),
-            context_menu_copy_as_lua_table_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_copy_as_lua_table_2),
             context_menu_paste_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_paste_2),
             context_menu_invert_selection_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_invert_selection_2),
             context_menu_reset_selection_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.context_menu_reset_selection_2),
@@ -365,11 +482,11 @@ impl PackedFileAnimFragmentView {
             undo_model_1: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.undo_model_1),
             undo_model_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.undo_model_2),
 
-            packed_file_path: packed_file_view.get_path_raw().clone(),
-            history_undo_1: packed_file_anim_fragment_view_raw.history_undo_1.clone(),
-            history_redo_1: packed_file_anim_fragment_view_raw.history_redo_1.clone(),
-            history_undo_2: packed_file_anim_fragment_view_raw.history_undo_2.clone(),
-            history_redo_2: packed_file_anim_fragment_view_raw.history_redo_2.clone(),
+            //packed_file_path: packed_file_view.get_path_raw().clone(),
+            //history_undo_1: packed_file_anim_fragment_view_raw.history_undo_1.clone(),
+            //history_redo_1: packed_file_anim_fragment_view_raw.history_redo_1.clone(),
+            //history_undo_2: packed_file_anim_fragment_view_raw.history_undo_2.clone(),
+            //history_redo_2: packed_file_anim_fragment_view_raw.history_redo_2.clone(),
         };
 
         Self::load_data(&mut packed_file_anim_fragment_view_raw, &data)?;
@@ -379,6 +496,7 @@ impl PackedFileAnimFragmentView {
         update_undo_model(model_2, mut_ptr_from_atomic(&packed_file_anim_fragment_view.undo_model_2));
 
         connections::set_connections(&packed_file_anim_fragment_view, &packed_file_anim_fragment_view_slots);
+        shortcuts::set_shortcuts(&mut packed_file_anim_fragment_view);
         packed_file_view.view = ViewType::Internal(View::AnimFragment(packed_file_anim_fragment_view));
         packed_file_view.packed_file_type = PackedFileType::AnimFragment;
 
@@ -576,28 +694,80 @@ impl PackedFileAnimFragmentView {
         self.definition.read().unwrap().clone()
     }
 
-    /// This function returns a copy of the definition used by the first sequence of this AnimFragment.
-    pub fn get_definition_1(&self) -> Definition {
-        let definition = self.definition.read().unwrap();
-        if let FieldType::SequenceU32(definition) = &(*definition).fields[0].field_type {
-            definition.clone()
-        }
-        else { unimplemented!() }
-    }
+    getter_generator!(
+        get_definition_1,
+        get_mut_ptr_table_1,
+        get_mut_ptr_context_menu_add_rows_1,
+        get_mut_ptr_context_menu_insert_rows_1,
+        get_mut_ptr_context_menu_delete_rows_1,
+        get_mut_ptr_context_menu_clone_and_append_1,
+        get_mut_ptr_context_menu_clone_and_insert_1,
+        get_mut_ptr_context_menu_copy_1,
+        get_mut_ptr_context_menu_paste_1,
+        get_mut_ptr_context_menu_invert_selection_1,
+        get_mut_ptr_context_menu_reset_selection_1,
+        get_mut_ptr_context_menu_rewrite_selection_1,
+        get_mut_ptr_context_menu_undo_1,
+        get_mut_ptr_context_menu_redo_1,
+        get_mut_ptr_context_menu_resize_columns_1,
+        get_mut_ptr_smart_delete_1,
 
-    /// This function returns a copy of the definition used by the second sequence of this AnimFragment.
-    pub fn get_definition_2(&self) -> Definition {
-        let definition = self.definition.read().unwrap();
-        if let FieldType::SequenceU32(definition) = &(*definition).fields[3].field_type {
-            definition.clone()
-        }
-        else { unimplemented!() }
-    }
+        table_1,
+        column_sort_state_1,
+        context_menu_1,
+        context_menu_enabler_1,
+        context_menu_add_rows_1,
+        context_menu_insert_rows_1,
+        context_menu_delete_rows_1,
+        context_menu_clone_and_append_1,
+        context_menu_clone_and_insert_1,
+        context_menu_copy_1,
+        context_menu_paste_1,
+        context_menu_invert_selection_1,
+        context_menu_reset_selection_1,
+        context_menu_rewrite_selection_1,
+        context_menu_undo_1,
+        context_menu_redo_1,
+        context_menu_resize_columns_1,
+        smart_delete_1,
+        0,
+    );
+    getter_generator!(
+        get_definition_2,
+        get_mut_ptr_table_2,
+        get_mut_ptr_context_menu_add_rows_2,
+        get_mut_ptr_context_menu_insert_rows_2,
+        get_mut_ptr_context_menu_delete_rows_2,
+        get_mut_ptr_context_menu_clone_and_append_2,
+        get_mut_ptr_context_menu_clone_and_insert_2,
+        get_mut_ptr_context_menu_copy_2,
+        get_mut_ptr_context_menu_paste_2,
+        get_mut_ptr_context_menu_invert_selection_2,
+        get_mut_ptr_context_menu_reset_selection_2,
+        get_mut_ptr_context_menu_rewrite_selection_2,
+        get_mut_ptr_context_menu_undo_2,
+        get_mut_ptr_context_menu_redo_2,
+        get_mut_ptr_context_menu_resize_columns_2,
+        get_mut_ptr_smart_delete_2,
 
-    pub fn get_mut_ptr_table_1(&self) -> MutPtr<QTableView> {
-        mut_ptr_from_atomic(&self.table_1)
-    }
-    pub fn get_mut_ptr_table_2(&self) -> MutPtr<QTableView> {
-        mut_ptr_from_atomic(&self.table_2)
-    }
+        table_2,
+        column_sort_state_2,
+        context_menu_2,
+        context_menu_enabler_2,
+        context_menu_add_rows_2,
+        context_menu_insert_rows_2,
+        context_menu_delete_rows_2,
+        context_menu_clone_and_append_2,
+        context_menu_clone_and_insert_2,
+        context_menu_copy_2,
+        context_menu_paste_2,
+        context_menu_invert_selection_2,
+        context_menu_reset_selection_2,
+        context_menu_rewrite_selection_2,
+        context_menu_undo_2,
+        context_menu_redo_2,
+        context_menu_resize_columns_2,
+        smart_delete_2,
+        3,
+    );
 }
