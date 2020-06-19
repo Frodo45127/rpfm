@@ -83,8 +83,8 @@ pub static COLUMN_SIZE_BOOLEAN: i32 = 100;
 pub static COLUMN_SIZE_NUMBER: i32 = 140;
 pub static COLUMN_SIZE_STRING: i32 = 350;
 
-static ITEM_HAS_SOURCE_VALUE: i32 = 30;
-static ITEM_SOURCE_VALUE: i32 = 31;
+pub static ITEM_HAS_SOURCE_VALUE: i32 = 30;
+pub static ITEM_SOURCE_VALUE: i32 = 31;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -144,7 +144,7 @@ pub struct PackedFileTableView {
     table_view_primary: AtomicPtr<QTableView>,
     table_view_frozen: AtomicPtr<QTableView>,
     table_model: AtomicPtr<QStandardItemModel>,
-    table_enable_lookups_button: AtomicPtr<QPushButton>,
+    //table_enable_lookups_button: AtomicPtr<QPushButton>,
     filter_case_sensitive_button: AtomicPtr<QPushButton>,
     filter_column_selector: AtomicPtr<QComboBox>,
     filter_line_edit: AtomicPtr<QLineEdit>,
@@ -184,7 +184,6 @@ pub struct PackedFileTableView {
     table_uuid: String,
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
-    packed_file_path: Arc<RwLock<Vec<String>>>,
 
     undo_model: AtomicPtr<QStandardItemModel>,
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
@@ -444,7 +443,7 @@ impl PackedFileTableView {
             table_view_frozen,
             table_filter: filter_model.into_ptr(),
             table_model: model.into_ptr(),
-            table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
+            //table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
             filter_line_edit: row_filter_line_edit.into_ptr(),
             filter_case_sensitive_button: row_filter_case_sensitive_button.into_ptr(),
             filter_column_selector: row_filter_column_selector.into_ptr(),
@@ -511,7 +510,7 @@ impl PackedFileTableView {
             table_view_primary: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_primary),
             table_view_frozen: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_frozen),
             table_model: atomic_from_mut_ptr(packed_file_table_view_raw.table_model),
-            table_enable_lookups_button: atomic_from_mut_ptr(packed_file_table_view_raw.table_enable_lookups_button),
+            //table_enable_lookups_button: atomic_from_mut_ptr(packed_file_table_view_raw.table_enable_lookups_button),
             filter_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.filter_line_edit),
             filter_case_sensitive_button: atomic_from_mut_ptr(packed_file_table_view_raw.filter_case_sensitive_button),
             filter_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.filter_column_selector),
@@ -551,7 +550,6 @@ impl PackedFileTableView {
             table_definition: packed_file_table_view_raw.table_definition.clone(),
             table_name,
             table_uuid,
-            packed_file_path: packed_file_view.get_path_raw().clone(),
 
             undo_model: atomic_from_mut_ptr(packed_file_table_view_raw.undo_model),
             history_undo: packed_file_table_view_raw.history_undo.clone(),
@@ -660,10 +658,10 @@ impl PackedFileTableView {
         mut_ptr_from_atomic(&self.table_model)
     }
 
-    /// This function returns a mutable reference to the `Enable Lookups` Pushbutton.
-    pub fn get_mut_ptr_enable_lookups_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.table_enable_lookups_button)
-    }
+    // This function returns a mutable reference to the `Enable Lookups` Pushbutton.
+    //pub fn get_mut_ptr_enable_lookups_button(&self) -> MutPtr<QPushButton> {
+    //    mut_ptr_from_atomic(&self.table_enable_lookups_button)
+    //}
 
     /// This function returns a pointer to the Primary TableView widget.
     pub fn get_mut_ptr_table_view_primary(&self) -> MutPtr<QTableView> {

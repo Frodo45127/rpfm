@@ -193,7 +193,7 @@ pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStand
 }
 
 /// This function generates a *Default* StandardItem for the provided field.
-unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
+pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
     match field.field_type {
         FieldType::Boolean => {
             let mut item = QStandardItem::new();

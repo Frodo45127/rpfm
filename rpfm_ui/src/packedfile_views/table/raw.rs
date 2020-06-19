@@ -66,7 +66,7 @@ pub struct PackedFileTableViewRaw {
     pub table_view_frozen: MutPtr<QTableView>,
     pub table_filter: MutPtr<QSortFilterProxyModel>,
     pub table_model: MutPtr<QStandardItemModel>,
-    pub table_enable_lookups_button: MutPtr<QPushButton>,
+    //pub table_enable_lookups_button: MutPtr<QPushButton>,
     pub filter_case_sensitive_button: MutPtr<QPushButton>,
     pub filter_column_selector: MutPtr<QComboBox>,
     pub filter_line_edit: MutPtr<QLineEdit>,
@@ -1389,5 +1389,131 @@ impl PackedFileTableViewRaw {
             let new_text = rewrite_sequence_line_edit.text().to_std_string();
             if new_text.is_empty() { None } else { Some((is_math_op.is_checked(), rewrite_sequence_line_edit.text().to_std_string())) }
         } else { None }
+    }
+
+    /// This function takes care of the "Smart Delete" feature for tables.
+    pub unsafe fn smart_delete(&mut self) {
+
+        // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
+        let indexes = self.table_view_primary.selection_model().selection().indexes();
+        let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
+        let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+
+        let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
+        for model_index in &indexes_sorted {
+            if model_index.is_valid() {
+                let row = model_index.row();
+                let column = model_index.column();
+
+                // Check if we have any cell in that row and add/insert the new one.
+                match cells.get_mut(&row) {
+                    Some(row) => row.push(column),
+                    None => { cells.insert(row, vec![column]); },
+                }
+            }
+        }
+
+        let full_rows = cells.iter()
+            .filter(|(_, y)| y.len() as i32 == self.table_model.column_count_0a())
+            .map(|(x, _)| *x)
+            .collect::<Vec<i32>>();
+
+        let individual_cells = cells.iter()
+            .filter(|(_, y)| y.len() as i32 != self.table_model.column_count_0a())
+            .map(|(x, y)| (*x, y.to_vec()))
+            .collect::<Vec<(i32, Vec<i32>)>>();
+
+        // First, we do the editions. This means:
+        // - Checkboxes: unchecked.
+        // - Numbers: 0.
+        // - Strings: empty.
+        let mut editions = 0;
+        for (row, columns) in &individual_cells {
+            for column in columns {
+                let mut item = self.table_model.item_2a(*row, *column);
+                let current_value = item.text().to_std_string();
+                match self.get_ref_table_definition().fields[*column as usize].field_type {
+                    FieldType::Boolean => {
+                        let current_value = item.check_state();
+                        if current_value != CheckState::Unchecked {
+                            item.set_check_state(CheckState::Unchecked);
+                            editions += 1;
+                        }
+                    }
+
+                    FieldType::F32 => {
+                        if !current_value.is_empty() {
+                            item.set_data_2a(&QVariant::from_float(0.0f32), 2);
+                            editions += 1;
+                        }
+                    }
+
+                    FieldType::I16 => {
+                        if !current_value.is_empty() {
+                            item.set_data_2a(&QVariant::from_int(0i32), 2);
+                            editions += 1;
+                        }
+                    }
+
+                    FieldType::I32 => {
+                        if !current_value.is_empty() {
+                            item.set_data_2a(&QVariant::from_int(0i32), 2);
+                            editions += 1;
+                        }
+                    }
+
+                    FieldType::I64 => {
+                        if !current_value.is_empty() {
+                            item.set_data_2a(&QVariant::from_i64(0i64), 2);
+                            editions += 1;
+                        }
+                    }
+
+                    _ => {
+                        if !current_value.is_empty() {
+                            item.set_text(&QString::from_std_str(""));
+                            editions += 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Then, we delete all the fully selected rows.
+        let rows_splitted = super::utils::delete_rows(self.table_model, &full_rows);
+
+        // Then, we have to fix the undo history. For that, we take out all the editions, merge them,
+        // then merge them with the table edition into a carolina.
+        if editions > 0 || !rows_splitted.is_empty() {
+
+            // Update the search stuff, if needed.
+            //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+
+             {
+                let mut changes = vec![];
+                if !rows_splitted.is_empty() {
+                    changes.push(TableOperations::RemoveRows(rows_splitted));
+                }
+
+                let len = self.history_undo.read().unwrap().len();
+                let editions: Vec<((i32, i32), AtomicPtr<QStandardItem>)> = self.history_undo.write().unwrap()
+                    .drain(len - editions..)
+                    .filter_map(|x| if let TableOperations::Editing(y) = x { Some(y) } else { None })
+                    .flatten()
+                    .collect();
+
+                if !editions.is_empty() {
+                    changes.push(TableOperations::Editing(editions));
+                }
+
+                if !changes.is_empty() {
+                    self.history_undo.write().unwrap().push(TableOperations::Carolina(changes));
+                    self.history_redo.write().unwrap().clear();
+                    update_undo_model(self.table_model, self.undo_model);
+                    self.context_menu_update();
+                }
+            }
+        }
     }
 }

@@ -25,12 +25,10 @@ use qt_gui::SlotOfQStandardItem;
 use qt_core::QModelIndex;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
-use qt_core::SortOrder;
 use qt_core::{SlotOfBool, SlotOfInt, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection};
 
 use cpp_core::Ref;
 
-use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 use std::path::PathBuf;
 
@@ -448,129 +446,8 @@ impl PackedFileTableViewSlots {
         let smart_delete = Slot::new(clone!(
             mut pack_file_contents_ui,
             mut packed_file_view => move || {
-
-                // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
-                let indexes = packed_file_view.table_view_primary.selection_model().selection().indexes();
-                let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-                sort_indexes_visually(&mut indexes_sorted, packed_file_view.table_view_primary);
-                let indexes_sorted = get_real_indexes(&indexes_sorted, packed_file_view.table_filter);
-
-                let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
-                for model_index in &indexes_sorted {
-                    if model_index.is_valid() {
-                        let row = model_index.row();
-                        let column = model_index.column();
-
-                        // Check if we have any cell in that row and add/insert the new one.
-                        match cells.get_mut(&row) {
-                            Some(row) => row.push(column),
-                            None => { cells.insert(row, vec![column]); },
-                        }
-                    }
-                }
-
-                let full_rows = cells.iter()
-                    .filter(|(_, y)| y.len() as i32 == packed_file_view.table_model.column_count_0a())
-                    .map(|(x, _)| *x)
-                    .collect::<Vec<i32>>();
-
-                let individual_cells = cells.iter()
-                    .filter(|(_, y)| y.len() as i32 != packed_file_view.table_model.column_count_0a())
-                    .map(|(x, y)| (*x, y.to_vec()))
-                    .collect::<Vec<(i32, Vec<i32>)>>();
-
-                // First, we do the editions. This means:
-                // - Checkboxes: unchecked.
-                // - Numbers: 0.
-                // - Strings: empty.
-                let mut editions = 0;
-                for (row, columns) in &individual_cells {
-                    for column in columns {
-                        let mut item = packed_file_view.table_model.item_2a(*row, *column);
-                        let current_value = item.text().to_std_string();
-                        match packed_file_view.get_ref_table_definition().fields[*column as usize].field_type {
-                            FieldType::Boolean => {
-                                let current_value = item.check_state();
-                                if current_value != CheckState::Unchecked {
-                                    item.set_check_state(CheckState::Unchecked);
-                                    editions += 1;
-                                }
-                            }
-
-                            FieldType::F32 => {
-                                if !current_value.is_empty() {
-                                    item.set_data_2a(&QVariant::from_float(0.0f32), 2);
-                                    editions += 1;
-                                }
-                            }
-
-                            FieldType::I16 => {
-                                if !current_value.is_empty() {
-                                    item.set_data_2a(&QVariant::from_int(0i32), 2);
-                                    editions += 1;
-                                }
-                            }
-
-                            FieldType::I32 => {
-                                if !current_value.is_empty() {
-                                    item.set_data_2a(&QVariant::from_int(0i32), 2);
-                                    editions += 1;
-                                }
-                            }
-
-                            FieldType::I64 => {
-                                if !current_value.is_empty() {
-                                    item.set_data_2a(&QVariant::from_i64(0i64), 2);
-                                    editions += 1;
-                                }
-                            }
-
-                            _ => {
-                                if !current_value.is_empty() {
-                                    item.set_text(&QString::from_std_str(""));
-                                    editions += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Then, we delete all the fully selected rows.
-                let rows_splitted = super::utils::delete_rows(packed_file_view.table_model, &full_rows);
-
-                // Then, we have to fix the undo history. For that, we take out all the editions, merge them,
-                // then merge them with the table edition into a carolina.
-                if editions > 0 || !rows_splitted.is_empty() {
-
-                    // Update the search stuff, if needed.
-                    //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
-
-                     {
-                        let mut changes = vec![];
-                        if !rows_splitted.is_empty() {
-                            changes.push(TableOperations::RemoveRows(rows_splitted));
-                        }
-
-                        let len = packed_file_view.history_undo.read().unwrap().len();
-                        let editions: Vec<((i32, i32), AtomicPtr<QStandardItem>)> = packed_file_view.history_undo.write().unwrap()
-                            .drain(len - editions..)
-                            .filter_map(|x| if let TableOperations::Editing(y) = x { Some(y) } else { None })
-                            .flatten()
-                            .collect();
-
-                        if !editions.is_empty() {
-                            changes.push(TableOperations::Editing(editions));
-                        }
-
-                        if !changes.is_empty() {
-                            packed_file_view.history_undo.write().unwrap().push(TableOperations::Carolina(changes));
-                            packed_file_view.history_redo.write().unwrap().clear();
-                            update_undo_model(packed_file_view.table_model, packed_file_view.undo_model);
-                            packed_file_view.context_menu_update();
-                            set_modified(true, &packed_file_view.packed_file_path.read().unwrap(), &mut app_ui, &mut pack_file_contents_ui);
-                        }
-                    }
-                }
+                packed_file_view.smart_delete();
+                set_modified(true, &packed_file_view.packed_file_path.read().unwrap(), &mut app_ui, &mut pack_file_contents_ui);
             }
         ));
 
