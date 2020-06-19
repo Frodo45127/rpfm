@@ -259,6 +259,8 @@ impl PackedFileView {
                     // Images are read-only.
                     PackedFileType::Image => return Ok(()),
                     PackedFileType::AnimPack => return Ok(()),
+                    PackedFileType::AnimTable => return Ok(()),
+                    PackedFileType::MatchedCombat => return Ok(()),
 
                     PackedFileType::AnimFragment => {
                         if let View::AnimFragment(view) = view {
