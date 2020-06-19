@@ -88,6 +88,9 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `Special Stuff` menu connections.
     //-----------------------------------------------//
+    app_ui.special_stuff_wh2_create_dummy_animpack.triggered().connect(&slots.special_stuff_create_dummy_animpack);
+    app_ui.special_stuff_wh_create_dummy_animpack.triggered().connect(&slots.special_stuff_create_dummy_animpack);
+
     app_ui.special_stuff_wh2_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
     app_ui.special_stuff_wh_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
 

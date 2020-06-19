@@ -1589,7 +1589,7 @@ impl PackFile {
         let mut path = paths[0].to_vec();
         path.pop();
         path.push(name.to_owned());
-        let packed_file = PackedFile::new_from_decoded(&merged_table, path);
+        let packed_file = PackedFile::new_from_decoded(&merged_table, &path);
 
         // If we want to remove the source files, this is the moment.
         if delete_source_paths { paths.iter().for_each(|x| self.remove_packed_file_by_path(x)); }

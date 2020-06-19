@@ -273,6 +273,9 @@ pub enum Command {
 
     /// This command is used to unpack an AnimPack into the current PackFile. Requires the path of the PackedFile to unpack.
     AnimPackUnpack(Vec<String>),
+
+    /// This command is used to create a dummy AnimPack, so the game loads it's anim files from loose files instead of from the big animpack.
+    GenerateDummyAnimPack,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

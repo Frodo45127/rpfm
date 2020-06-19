@@ -154,10 +154,10 @@ impl PackedFile {
     }
 
     /// This function creates a new `PackedFile` from the provided `DecodedPackedFile` and path.
-    pub fn new_from_decoded(data: &DecodedPackedFile, path: Vec<String>) -> Self {
+    pub fn new_from_decoded(data: &DecodedPackedFile, path: &[String]) -> Self {
         Self {
             raw: RawPackedFile {
-                path,
+                path: path.to_owned(),
                 packfile_name: "".to_owned(),
                 timestamp: 0,
                 should_be_compressed: false,
@@ -203,7 +203,7 @@ impl PackedFile {
             _ => DecodedPackedFile::Unknown,
         };
 
-        Ok(Self::new_from_decoded(&data, path))
+        Ok(Self::new_from_decoded(&data, &path))
     }
 
     /// This function returns a reference to the `RawPackedFile` part of a `PackedFile`.

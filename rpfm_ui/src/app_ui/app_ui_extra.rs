@@ -58,7 +58,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, netw
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, animtable::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, rigidmodel::*, table::*, TheOneSlot, text::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, animtable::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -520,12 +520,14 @@ impl AppUI {
                 },
                 KEY_WARHAMMER_2 => {
                     self.change_packfile_type_data_is_compressed.set_enabled(true);
+                    self.special_stuff_wh2_create_dummy_animpack.set_enabled(true);
                     self.special_stuff_wh2_patch_siege_ai.set_enabled(true);
                     self.special_stuff_wh2_optimize_packfile.set_enabled(true);
                     self.special_stuff_wh2_generate_pak_file.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
                     self.change_packfile_type_data_is_compressed.set_enabled(false);
+                    self.special_stuff_wh_create_dummy_animpack.set_enabled(true);
                     self.special_stuff_wh_patch_siege_ai.set_enabled(true);
                     self.special_stuff_wh_optimize_packfile.set_enabled(true);
                     self.special_stuff_wh_generate_pak_file.set_enabled(true);
@@ -573,11 +575,13 @@ impl AppUI {
             self.special_stuff_three_k_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer 2 actions...
+            self.special_stuff_wh2_create_dummy_animpack.set_enabled(false);
             self.special_stuff_wh2_patch_siege_ai.set_enabled(false);
             self.special_stuff_wh2_optimize_packfile.set_enabled(false);
             self.special_stuff_wh2_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer actions...
+            self.special_stuff_wh_create_dummy_animpack.set_enabled(false);
             self.special_stuff_wh_patch_siege_ai.set_enabled(false);
             self.special_stuff_wh_optimize_packfile.set_enabled(false);
             self.special_stuff_wh_generate_pak_file.set_enabled(false);
@@ -1206,7 +1210,7 @@ impl AppUI {
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
                             }
                         }
-
+                        /*
                         // If the file is a RigidModel PackedFile...
                         PackedFileType::RigidModel => {
                             match PackedFileRigidModelView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
@@ -1223,7 +1227,7 @@ impl AppUI {
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
                             }
                         }
-
+                        */
                         // If the file is a Image PackedFile, ignore failures while opening.
                         PackedFileType::Image => {
                             if let Ok((slots, packed_file_info)) = PackedFileImageView::new_view(&mut tab) {

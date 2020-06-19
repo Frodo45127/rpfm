@@ -553,3 +553,6 @@ header_frozen = <b><i>Frozen</i></b>
 file_count = File Count:
 file_paths = File Paths:
 animpack_unpack = Unpack
+
+special_stuff_create_dummy_animpack = Create Dummy AnimPack
+tt_create_dummy_animpack = This action generates a dummy animpack into the PackFile. This dummy animpack can be used to force the game to load custom Anim Tables/Fragments.

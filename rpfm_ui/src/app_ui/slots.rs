@@ -37,6 +37,7 @@ use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
 use rpfm_lib::packfile::{PFHFileType, CompressionState};
+use rpfm_lib::packedfile::animpack;
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SCHEMA;
@@ -118,6 +119,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `Special Stuff` menu slots.
     //-----------------------------------------------//
+    pub special_stuff_create_dummy_animpack: SlotOfBool<'static>,
     pub special_stuff_generate_pak_file: SlotOfBool<'static>,
     pub special_stuff_optimize_packfile: SlotOfBool<'static>,
     pub special_stuff_patch_siege_ai: SlotOfBool<'static>,
@@ -845,6 +847,34 @@ impl AppUISlots {
         // `Special Stuff` menu logic.
         //-----------------------------------------------------//
 
+        // What happens when we trigger the "Create Dummy AnimPack" action.
+        let special_stuff_create_dummy_animpack = SlotOfBool::new(clone!(
+            mut global_search_ui => move |_| {
+
+                // If there is no problem, ere we go.
+                let path = animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+                app_ui.main_window.set_enabled(false);
+                app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
+
+                CENTRAL_COMMAND.send_message_qt(Command::GenerateDummyAnimPack);
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
+                    Response::VecString(response) => {
+                        let response = vec![TreePathType::File(response.to_vec()); 1];
+
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(response.to_vec()));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(response.to_vec()));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(response.to_vec()));
+                    }
+                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+
+                // Re-enable the Main Window.
+                app_ui.main_window.set_enabled(true);
+            }
+        ));
+
         // What happens when we trigger the "Generate Pak File" action.
         let special_stuff_generate_pak_file = SlotOfBool::new(move |_| {
 
@@ -1220,6 +1250,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `Special Stuff` menu slots.
             //-----------------------------------------------//
+            special_stuff_create_dummy_animpack,
             special_stuff_generate_pak_file,
             special_stuff_optimize_packfile,
             special_stuff_patch_siege_ai,

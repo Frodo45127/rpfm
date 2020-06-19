@@ -31,6 +31,8 @@ use crate::packfile::packedfile::PackedFile;
 
 pub const EXTENSION: &str = ".animpack";
 
+pub const DEFAULT_PATH: [&str; 3] = ["animations", "animation_tables", "animation_tables.animpack"];
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -55,6 +57,16 @@ pub struct AnimPacked {
 /// Implementation of `AnimPack`.
 impl AnimPack {
 
+    /// This function creates a valid AnimPack. With `valid` I mean with one file inside. The game crashes otherwise.
+    pub fn new() -> Self {
+        Self {
+            packed_files: vec![AnimPacked {
+                path: vec!["yuri".to_owned(), "zahard".to_owned(), "best".to_owned(), "waifu".to_owned()],
+                data: vec![],
+            }],
+        }
+    }
+
     /// This function creates a `AnimPack` from a `&[u8]`.
     pub fn read(packed_file_data: &[u8]) -> Result<Self> {
         let mut anim_packeds = vec![];
@@ -74,36 +86,6 @@ impl AnimPack {
             });
         }
 
-        /*
-        let n3 = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
-        dbg!(n3);
-        let counter_defs = packed_file_data.decode_packedfile_integer_i16(index, &mut index)?;
-        dbg!(counter_defs);
-        for i in 0..counter_defs {
-
-        let xxx = packed_file_data.decode_packedfile_integer_i16(index, &mut index)?;
-            dbg!(xxx);
-            let s2 = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
-            dbg!(s2);
-            let s3 = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
-            dbg!(s3);
-            let s4 = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
-            dbg!(s4);
-
-            let counter = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
-            dbg!(counter);
-
-            for x in 0..counter {
-                let s1 = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
-                let i1 = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
-                dbg!(s1, i1);
-            }
-        }
-        let s99 = packed_file_data.decode_packedfile_string_u8(index, &mut index)?;
-        dbg!(s99);
-        dbg!(byte_count, index);
-        // AnimTable Decoded.
-*/
         // If we've reached this, we've succesfully decoded the entire AnimPack.
         Ok(Self {
             packed_files: anim_packeds,
