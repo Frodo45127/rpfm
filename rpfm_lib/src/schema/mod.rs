@@ -59,6 +59,7 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use bincode;
 use rayon::prelude::*;
 use reqwest::blocking;
 use ron::de::{from_str, from_reader};
@@ -92,6 +93,8 @@ const SCHEMA_VERSIONS_FILE: &str = "versions.ron";
 
 /// Name of the folder containing all the schemas.
 const SCHEMA_FOLDER: &str = "schemas";
+
+const BINARY_EXTENSION: &str = ".bin";
 
 /// URL of the remote repository's schema folder. Master branch.
 #[allow(dead_code)]
@@ -454,6 +457,31 @@ impl Schema {
         self.sort();
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
+    }
+
+    /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
+    pub fn load_from_binary(schema_file: &str) -> Result<Self> {
+        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
+        file_path.push(schema_file);
+        file_path.set_extension(BINARY_EXTENSION);
+
+        let file = BufReader::new(File::open(&file_path)?);
+        bincode::deserialize_from(file).map_err(From::from)
+    }
+
+    /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
+    pub fn save_to_binary(&mut self, schema_file: &str) -> Result<()> {
+        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
+
+        // Make sure the path exists to avoid problems with updating schemas.
+        DirBuilder::new().recursive(true).create(&file_path)?;
+
+        file_path.push(schema_file);
+        file_path.set_extension(BINARY_EXTENSION);
+        let file = File::create(&file_path)?;
+
+        self.sort();
+        bincode::serialize_into(file, &self).map_err(From::from)
     }
 
     /// This function sorts a `Schema` alphabetically, so the schema diffs are more or less clean.
