@@ -372,7 +372,7 @@ impl PackedFileType {
                         return Self::AnimTable
                     }
                     else if packed_file.get_path() == table::matched_combat::PATH {
-                        return Self::AnimTable
+                        return Self::MatchedCombat
                     }
                     else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
                         return Self::Image

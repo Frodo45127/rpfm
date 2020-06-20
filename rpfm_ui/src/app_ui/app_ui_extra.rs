@@ -1121,7 +1121,7 @@ impl AppUI {
                         }
 
                         // If the file is an AnimTable PackedFile...
-                        PackedFileType::AnimTable | PackedFileType::MatchedCombat => {
+                        PackedFileType::AnimTable => {
                             match PackedFileAnimTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
@@ -1189,6 +1189,25 @@ impl AppUI {
                                     }
                                 },
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
+                            }
+                        }
+
+                        // If the file is a MatchedCombat PackedFile...
+                        PackedFileType::MatchedCombat => {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                                Ok((slots, packed_file_info)) => {
+                                    slot_holder.borrow_mut().push(slots);
+
+                                    // Add the file to the 'Currently open' list and make it visible.
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    let mut open_list = UI_STATE.set_open_packedfiles();
+                                    open_list.push(tab);
+                                    if let Some(packed_file_info) = packed_file_info {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    }
+                                },
+                                Err(error) => return show_dialog(self.main_window, ErrorKind::MatchedCombatDecode(format!("{}", error)), false),
                             }
                         }
 

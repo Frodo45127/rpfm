@@ -32,6 +32,9 @@ pub const PATH: [&str; 3] = [
     "attila_generated.bin"
 ];
 
+/// Size of the header of a MatchedCombat PackedFile.
+pub const HEADER_SIZE: usize = 8;
+
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
 //---------------------------------------------------------------------------//
@@ -122,6 +125,15 @@ impl MatchedCombat {
         Ok(Self {
             table,
         })
+    }
+
+    /// This function tries to read the header of a MatchedCombat PackedFile from raw data.
+    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, u32)> {
+        let mut index = 0;
+        let version = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
+        let entry_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
+
+        Ok((version, entry_count))
     }
 
     pub fn to_json(&self) -> String {

@@ -49,7 +49,7 @@ use std::sync::atomic::{AtomicBool, AtomicPtr};
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::parse_str;
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc};
+use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
@@ -96,6 +96,7 @@ pub enum TableType {
     DependencyManager(Vec<Vec<DecodedData>>),
     DB(DB),
     Loc(Loc),
+    MatchedCombat(MatchedCombat),
 }
 
 /// Enum to know what operation was done while editing tables, so we can revert them with undo.
@@ -215,6 +216,7 @@ impl PackedFileTableView {
         let (table_data, packed_file_info) = match response {
             Response::DBPackedFileInfo((table, packed_file_info)) => (TableType::DB(table), Some(packed_file_info)),
             Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), Some(packed_file_info)),
+            Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => (TableType::MatchedCombat(table), Some(packed_file_info)),
             Response::VecString(table) => (TableType::DependencyManager(table.iter().map(|x| vec![DecodedData::StringU8(x.to_owned()); 1]).collect::<Vec<Vec<DecodedData>>>()), None),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
@@ -228,6 +230,7 @@ impl PackedFileTableView {
             },
             TableType::DB(ref table) => (table.get_definition(), table.get_table_name(), table.get_uuid(), PackedFileType::DB),
             TableType::Loc(ref table) => (table.get_definition(), String::new(), String::new(), PackedFileType::Loc),
+            TableType::MatchedCombat(ref table) => (table.get_definition(), String::new(), String::new(), PackedFileType::MatchedCombat),
         };
 
         // Get the dependency data of this Table.

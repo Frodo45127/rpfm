@@ -55,6 +55,7 @@ use rpfm_lib::common::decoder::*;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::{loc, loc::Loc};
+use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -80,9 +81,10 @@ pub mod shortcuts;
 pub mod slots;
 
 /// List of supported PackedFile Types by the decoder.
-const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 2] = [
+const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 3] = [
     PackedFileType::DB,
     PackedFileType::Loc,
+    PackedFileType::MatchedCombat,
 ];
 
 //-------------------------------------------------------------------------------//
@@ -377,7 +379,7 @@ impl PackedFileDecoderView {
         info_layout.add_widget_5a(&mut packed_file_info_version_decoded_label, 1, 1, 1, 1);
 
         match packed_file_type {
-            PackedFileType::DB | PackedFileType::Loc => {
+            PackedFileType::DB | PackedFileType::Loc | PackedFileType::MatchedCombat => {
                 info_layout.add_widget_5a(packed_file_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
                 info_layout.add_widget_5a(&mut packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
             }
@@ -679,6 +681,12 @@ impl PackedFileDecoderView {
             }
             PackedFileType::Loc => {
                 if let Ok((version, entry_count)) = Loc::read_header(&self.packed_file_data) {
+                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
+                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
+                }
+            }
+            PackedFileType::MatchedCombat => {
+                if let Ok((version, entry_count)) = MatchedCombat::read_header(&self.packed_file_data) {
                     self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
                     self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
                 }
@@ -1230,6 +1238,7 @@ impl PackedFileDecoderViewRaw {
             let versioned_file = match self.packed_file_type {
                 PackedFileType::DB => schema.get_ref_versioned_file_db(&self.packed_file_path[1]),
                 PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
+                PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
                 _ => unimplemented!(),
             };
 
@@ -1342,12 +1351,14 @@ impl PackedFileDecoderViewRaw {
         let version = match self.packed_file_type {
             PackedFileType::DB => DB::read_header(&self.packed_file_data).unwrap().0,
             PackedFileType::Loc => Loc::read_header(&self.packed_file_data).unwrap().0,
+            PackedFileType::MatchedCombat => MatchedCombat::read_header(&self.packed_file_data).unwrap().0,
             _ => unimplemented!(),
         };
 
         let versioned_file = match self.packed_file_type {
             PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&self.packed_file_path[1]),
             PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
+            PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
             _ => unimplemented!(),
         };
 
@@ -1370,6 +1381,7 @@ impl PackedFileDecoderViewRaw {
                 let versioned_file = match self.packed_file_type {
                     PackedFileType::DB => VersionedFile::DB(self.packed_file_path[1].to_owned(), definitions),
                     PackedFileType::Loc => VersionedFile::Loc(definitions),
+                    PackedFileType::MatchedCombat => VersionedFile::MatchedCombat(definitions),
                     PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
                     _ => unimplemented!()
                 };
@@ -1390,6 +1402,7 @@ fn get_header_size(
     match packed_file_type {
         PackedFileType::DB => Ok(DB::read_header(packed_file_data)?.4),
         PackedFileType::Loc => Ok(loc::HEADER_SIZE),
+        PackedFileType::MatchedCombat => Ok(matched_combat::HEADER_SIZE),
         _ => unimplemented!()
     }
 }
@@ -1407,6 +1420,7 @@ fn get_definition(
         let versioned_file = match packed_file_type {
             PackedFileType::DB => schema.get_ref_versioned_file_db(&packed_file_path[1]),
             PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
+            PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
             _ => unimplemented!(),
         };
 
@@ -1415,6 +1429,7 @@ fn get_definition(
             let version = if let Some(version) = version { version } else { match packed_file_type {
                 PackedFileType::DB => DB::read_header(packed_file_data).ok()?.0,
                 PackedFileType::Loc => Loc::read_header(packed_file_data).ok()?.0,
+                PackedFileType::MatchedCombat => MatchedCombat::read_header(packed_file_data).ok()?.0,
                 _ => unimplemented!(),
             }};
 

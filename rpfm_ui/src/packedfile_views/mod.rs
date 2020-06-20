@@ -26,7 +26,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
-use rpfm_lib::packedfile::table::{db::DB, loc::Loc, DecodedData};
+use rpfm_lib::packedfile::table::{db::DB, loc::Loc, DecodedData, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::schema::FieldType;
@@ -252,6 +252,11 @@ impl PackedFileView {
                                 table.set_table_data(&entries)?;
                                 DecodedPackedFile::Loc(table)
                             }
+                            PackedFileType::MatchedCombat => {
+                                let mut table = MatchedCombat::new(&view.get_ref_table_definition());
+                                table.set_table_data(&entries)?;
+                                DecodedPackedFile::MatchedCombat(table)
+                            }
                             _ => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into())
                         }
                     } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
@@ -371,6 +376,17 @@ impl PackedFileView {
                     Response::LocPackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
                             old_table.reload_view(TableType::Loc(table));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => {
+                        if let View::Table(old_table) = view {
+                            old_table.reload_view(TableType::MatchedCombat(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                         }
