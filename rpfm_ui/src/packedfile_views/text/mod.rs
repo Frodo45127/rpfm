@@ -45,6 +45,7 @@ const LUA: &str = "Lua";
 const XML: &str = "XML";
 const PLAIN: &str = "Normal";
 const MARKDOWN: &str = "Markdown";
+const JSON: &str = "JSON";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -100,6 +101,7 @@ impl PackedFileTextView {
             TextType::Xml => QString::from_std_str(XML),
             TextType::Plain => QString::from_std_str(PLAIN),
             TextType::Markdown => QString::from_std_str(MARKDOWN),
+            TextType::Json => QString::from_std_str(JSON),
         };
 
         let mut editor = new_text_editor_safe(&mut packed_file_view.get_mut_widget());
@@ -135,6 +137,7 @@ impl PackedFileTextView {
             TextType::Xml => QString::from_std_str(XML),
             TextType::Plain => QString::from_std_str(PLAIN),
             TextType::Markdown => QString::from_std_str(MARKDOWN),
+            TextType::Json => QString::from_std_str(JSON),
         };
 
         set_text_safe(&mut editor, &mut QString::from_std_str(data.get_ref_contents()), &mut highlighting_mode);

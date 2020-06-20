@@ -31,7 +31,7 @@ const BOM_UTF_8: [u8;3] = [0xEF,0xBB,0xBF];
 const BOM_UTF_16_LE: [u8;2] = [0xFF,0xFE];
 
 /// List of extensions for files this lib can decode as Text PackedFiles, with their respective type.
-pub const EXTENSIONS: [(&str, TextType); 21] = [
+pub const EXTENSIONS: [(&str, TextType); 22] = [
     (".inl", TextType::Cpp),
     (".lua", TextType::Lua),
     (".xml", TextType::Xml),
@@ -53,6 +53,7 @@ pub const EXTENSIONS: [(&str, TextType); 21] = [
     (".txt", TextType::Plain),
     (".htm", TextType::Html),
     (".html", TextType::Html),
+    (".json", TextType::Json),
 ];
 
 //---------------------------------------------------------------------------//
@@ -93,6 +94,7 @@ pub enum TextType {
     Lua,
     Cpp,
     Markdown,
+    Json,
     Plain,
 }
 
