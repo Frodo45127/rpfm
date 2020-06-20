@@ -59,6 +59,7 @@ pub enum DecodedPackedFile {
     CEO,
     DB(DB),
     Image(Image),
+    GroupFormations,
     Loc(Loc),
     MatchedCombat(MatchedCombat),
     RigidModel(RigidModel),
@@ -80,6 +81,7 @@ pub enum PackedFileType {
     CEO,
     DB,
     Image,
+    GroupFormations,
     Loc,
     MatchedCombat,
     RigidModel,
@@ -310,6 +312,7 @@ impl Display for PackedFileType {
             PackedFileType::DB => write!(f, "DB Table"),
             PackedFileType::DependencyPackFilesList => write!(f, "Dependency PackFile List"),
             PackedFileType::Image => write!(f, "Image"),
+            PackedFileType::GroupFormations => write!(f, "Group Formations"),
             PackedFileType::Loc => write!(f, "Loc Table"),
             PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
             PackedFileType::RigidModel => write!(f, "RigidModel"),
@@ -410,6 +413,7 @@ impl PackedFileType {
             Self::DB |
             Self::DependencyPackFilesList |
             Self::Image |
+            Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
             Self::RigidModel |
@@ -434,6 +438,7 @@ impl PackedFileType {
             Self::DB |
             Self::DependencyPackFilesList |
             Self::Image |
+            Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
             Self::RigidModel |
@@ -456,6 +461,7 @@ impl From<&DecodedPackedFile> for PackedFileType {
             DecodedPackedFile::CEO => PackedFileType::CEO,
             DecodedPackedFile::DB(_) => PackedFileType::DB,
             DecodedPackedFile::Image(_) => PackedFileType::Image,
+            DecodedPackedFile::GroupFormations => PackedFileType::GroupFormations,
             DecodedPackedFile::Loc(_) => PackedFileType::Loc,
             DecodedPackedFile::MatchedCombat(_) => PackedFileType::MatchedCombat,
             DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
