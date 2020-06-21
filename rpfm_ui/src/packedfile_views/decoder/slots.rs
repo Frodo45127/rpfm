@@ -9,23 +9,29 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Module with the slots for Text Views.
+Module with the slots for Decoder Views.
 !*/
 
 use qt_widgets::SlotOfQPoint;
+
 use qt_gui::QCursor;
+
+use qt_core::QModelIndex;
 use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, Slot, SlotOfQModelIndexQModelIndexQVectorOfInt};
+
+use cpp_core::Ref;
 
 use bincode::deserialize;
 
 use rpfm_error::ErrorKind;
 
+use rpfm_lib::packedfile::table::matched_combat::MatchedCombat;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::Loc;
 use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::SCHEMA;
-use rpfm_lib::schema::FieldType;
+use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -60,11 +66,14 @@ pub struct PackedFileDecoderViewSlots {
     pub use_this_string_u16: Slot<'static>,
     pub use_this_optional_string_u8: Slot<'static>,
     pub use_this_optional_string_u16: Slot<'static>,
+    pub use_this_sequence_u32: Slot<'static>,
 
     pub table_change_field_type: SlotOfQModelIndexQModelIndexQVectorOfInt<'static>,
 
     pub table_view_context_menu_move_up: SlotOfBool<'static>,
     pub table_view_context_menu_move_down: SlotOfBool<'static>,
+    pub table_view_context_menu_move_left: SlotOfBool<'static>,
+    pub table_view_context_menu_move_right: SlotOfBool<'static>,
     pub table_view_context_menu_delete: SlotOfBool<'static>,
 
     pub table_view_context_menu: SlotOfQPoint<'static>,
@@ -180,12 +189,20 @@ impl PackedFileDecoderViewSlots {
             let _ = view.use_this(FieldType::OptionalStringU16, &mut mutable_data.index.lock().unwrap());
         }));
 
+
+        // Slot to use a sequence u32 value.
+        let use_this_sequence_u32 = Slot::new(clone!(
+            mut mutable_data,
+            mut view => move || {
+            let _ = view.use_this(FieldType::SequenceU32(Definition::new(-1)), &mut mutable_data.index.lock().unwrap());
+        }));
+
         // Slot for when we change the Type of the selected field in the table.
         let table_change_field_type = SlotOfQModelIndexQModelIndexQVectorOfInt::new(clone!(
             mut mutable_data,
             mut view => move |initial_model_index,final_model_index,_| {
-                if initial_model_index.column() == 1 && final_model_index.column() == 1 {
-                    let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap());
+                if initial_model_index.column() == 2 && final_model_index.column() == 2 {
+                    let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
                 }
             }
         ));
@@ -197,20 +214,32 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x).row()).collect::<Vec<i32>>();
+                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
-                rows.sort();
-                rows.dedup();
+                rows.sort_by_key(|x| x.row());
+                rows.dedup_by_key(|x| x.row());
 
-                for row in rows {
-                    if row == 0 { continue; }
+                for child in rows {
+                    let parent = child.parent();
+                    if parent.is_valid() {
+                        if child.row() == 0 { continue; }
+                        else {
+                            let row_data = view.table_model.item_from_index(&parent).take_row(child.row() - 1);
+                            view.table_model.item_from_index(&parent).insert_row_int_q_list_of_q_standard_item(child.row(), &row_data);
+                        }
+
+                    }
                     else {
-                        let row_data = view.table_model.take_row(row - 1);
-                        view.table_model.insert_row_int_q_list_of_q_standard_item(row, &row_data);
+                        if child.row() == 0 { continue; }
+                        else {
+                            let row_data = view.table_model.take_row(child.row() - 1);
+                            view.table_model.insert_row_int_q_list_of_q_standard_item(child.row(), &row_data);
+                        }
                     }
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap());
+                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                view.table_view.expand_all();
             }
         ));
 
@@ -221,22 +250,112 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x).row()).collect::<Vec<i32>>();
+                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
-                rows.sort();
-                rows.dedup();
+                rows.sort_by_key(|x| x.row());
+                rows.dedup_by_key(|x| x.row());
+
                 rows.reverse();
 
-                for row in rows {
-                    let row_count = view.table_model.row_count_0a();
-                    if row == (row_count - 1) { continue; }
+                for child in rows {
+                    let parent = child.parent();
+                    if parent.is_valid() {
+
+                        let row_count = view.table_model.item_from_index(&parent).row_count();
+                        if child.row() == (row_count - 1) { continue; }
+                        else {
+                            let row_data = view.table_model.item_from_index(&parent).take_row(child.row() + 1);
+                            view.table_model.item_from_index(&parent).insert_row_int_q_list_of_q_standard_item(child.row(), &row_data);
+                        }
+
+                    }
                     else {
-                        let row_data = view.table_model.take_row(row + 1);
-                        view.table_model.insert_row_int_q_list_of_q_standard_item(row, &row_data);
+                        let row_count = view.table_model.row_count_0a();
+                        if child.row() == (row_count - 1) { continue; }
+                        else {
+                            let row_data = view.table_model.take_row(child.row() + 1);
+                            view.table_model.insert_row_int_q_list_of_q_standard_item(child.row(), &row_data);
+                        }
                     }
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap());
+                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                view.table_view.expand_all();
+            }
+        ));
+
+        // Slots for the "Move left" contextual action of the TableView.
+        let table_view_context_menu_move_left = SlotOfBool::new(clone!(
+            mut mutable_data,
+            mut view => move |_| {
+
+                let selection = view.table_view.selection_model().selection();
+                let indexes = selection.indexes();
+                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+
+                rows.sort_by_key(|x| x.row());
+                rows.dedup_by_key(|x| x.row());
+
+                for child in rows {
+
+                    // Only move left if we're not yet in the top level.
+                    let parent = child.parent();
+                    if parent.is_valid() {
+                        let row_data = view.table_model.item_from_index(&parent).take_row(child.row());
+                        let big_parent = parent.parent();
+                        if big_parent.is_valid() {
+                            view.table_model.item_from_index(&parent.parent()).insert_row_int_q_list_of_q_standard_item(parent.row() + 1, &row_data);
+
+                        }
+                        else {
+                            view.table_model.insert_row_int_q_list_of_q_standard_item(parent.row() + 1, &row_data);
+                        }
+                    }
+                }
+
+                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                view.table_view.expand_all();
+            }
+        ));
+
+        // Slots for the "Move right" contextual action of the TableView.
+        let table_view_context_menu_move_right = SlotOfBool::new(clone!(
+            mut mutable_data,
+            mut view => move |_| {
+
+                let selection = view.table_view.selection_model().selection();
+                let indexes = selection.indexes();
+                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
+
+                rows.sort_by_key(|x| x.row());
+                rows.dedup_by_key(|x| x.row());
+
+                for child in rows {
+
+                    // Only move right if the one above is in a lower level.
+                    let parent = child.parent();
+                    if child.row() > 0 {
+                        let mut item = if parent.is_valid() {
+                            view.table_model.item_from_index(&parent).child_1a(child.row() - 1)
+                        }
+                        else {
+                            view.table_model.item_1a(child.row() - 1)
+                        };
+
+                        if item.has_children() || view.table_model.item_from_index(&item.index().sibling_at_column(2)).text().to_std_string() == "SequenceU32" {
+                            let row_data = if parent.is_valid() {
+                                view.table_model.item_from_index(&parent).take_row(child.row())
+                            }
+                            else {
+                                view.table_model.take_row(child.row())
+                            };
+                            item.append_row_q_list_of_q_standard_item(&row_data);
+                        }
+                    }
+                }
+
+                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
+                view.table_view.expand_all();
             }
         ));
 
@@ -257,7 +376,7 @@ impl PackedFileDecoderViewSlots {
                     view.table_model.remove_row_1a(row);
                 }
 
-                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap());
+                let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
             }
         ));
 
@@ -275,6 +394,8 @@ impl PackedFileDecoderViewSlots {
                 if !selection.indexes().is_empty() {
                     view.table_view_context_menu_move_up.set_enabled(true);
                     view.table_view_context_menu_move_down.set_enabled(true);
+                    view.table_view_context_menu_move_left.set_enabled(true);
+                    view.table_view_context_menu_move_right.set_enabled(true);
                     view.table_view_context_menu_delete.set_enabled(true);
                 }
 
@@ -282,6 +403,8 @@ impl PackedFileDecoderViewSlots {
                 else {
                     view.table_view_context_menu_move_up.set_enabled(false);
                     view.table_view_context_menu_move_down.set_enabled(false);
+                    view.table_view_context_menu_move_left.set_enabled(false);
+                    view.table_view_context_menu_move_right.set_enabled(false);
                     view.table_view_context_menu_delete.set_enabled(false);
                 }
             }
@@ -354,6 +477,7 @@ impl PackedFileDecoderViewSlots {
                         let versioned_file = match view.packed_file_type {
                             PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
                             PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
+                            PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
                             _ => unimplemented!(),
                         }.unwrap();
 
@@ -381,6 +505,16 @@ impl PackedFileDecoderViewSlots {
                     }
 
                     PackedFileType::Loc => match Loc::read(&view.packed_file_data, &schema, true) {
+                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Err(error) => {
+                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                                let data: Table = deserialize(data).unwrap();
+                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                            }
+                        }
+                    }
+
+                   PackedFileType::MatchedCombat => match MatchedCombat::read(&view.packed_file_data, &schema, true) {
                         Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
@@ -458,11 +592,14 @@ impl PackedFileDecoderViewSlots {
             use_this_string_u16,
             use_this_optional_string_u8,
             use_this_optional_string_u16,
+            use_this_sequence_u32,
 
             table_change_field_type,
 
             table_view_context_menu_move_up,
             table_view_context_menu_move_down,
+            table_view_context_menu_move_left,
+            table_view_context_menu_move_right,
             table_view_context_menu_delete,
 
             table_view_context_menu,

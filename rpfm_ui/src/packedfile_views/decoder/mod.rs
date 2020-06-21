@@ -22,6 +22,7 @@ use qt_widgets::QMenu;
 use qt_widgets::QGridLayout;
 use qt_widgets::QGroupBox;
 use qt_widgets::QTableView;
+use qt_widgets::QTreeView;
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 
@@ -44,8 +45,9 @@ use qt_core::Orientation;
 use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QStringList;
+use qt_core::QModelIndex;
 
-use cpp_core::MutPtr;
+use cpp_core::{CppBox, MutPtr};
 
 use std::sync::{Arc, atomic::AtomicPtr, Mutex};
 
@@ -97,11 +99,13 @@ pub struct PackedFileDecoderView {
     hex_view_raw: AtomicPtr<QTextEdit>,
     hex_view_decoded: AtomicPtr<QTextEdit>,
 
-    table_view: AtomicPtr<QTableView>,
+    table_view: AtomicPtr<QTreeView>,
     table_model: AtomicPtr<QStandardItemModel>,
 
     table_view_context_menu_move_up: AtomicPtr<QAction>,
     table_view_context_menu_move_down: AtomicPtr<QAction>,
+    table_view_context_menu_move_left: AtomicPtr<QAction>,
+    table_view_context_menu_move_right: AtomicPtr<QAction>,
     table_view_context_menu_delete: AtomicPtr<QAction>,
 
     bool_button: AtomicPtr<QPushButton>,
@@ -113,6 +117,7 @@ pub struct PackedFileDecoderView {
     string_u16_button: AtomicPtr<QPushButton>,
     optional_string_u8_button: AtomicPtr<QPushButton>,
     optional_string_u16_button: AtomicPtr<QPushButton>,
+    sequence_u32_button: AtomicPtr<QPushButton>,
 
     packed_file_info_version_decoded_label: AtomicPtr<QLabel>,
     packed_file_info_entry_count_decoded_label: AtomicPtr<QLabel>,
@@ -140,12 +145,14 @@ pub struct PackedFileDecoderViewRaw {
     pub hex_view_raw: MutPtr<QTextEdit>,
     pub hex_view_decoded: MutPtr<QTextEdit>,
 
-    pub table_view: MutPtr<QTableView>,
+    pub table_view: MutPtr<QTreeView>,
     pub table_model: MutPtr<QStandardItemModel>,
 
     pub table_view_context_menu: MutPtr<QMenu>,
     pub table_view_context_menu_move_up: MutPtr<QAction>,
     pub table_view_context_menu_move_down: MutPtr<QAction>,
+    pub table_view_context_menu_move_left: MutPtr<QAction>,
+    pub table_view_context_menu_move_right: MutPtr<QAction>,
     pub table_view_context_menu_delete: MutPtr<QAction>,
 
     pub bool_line_edit: MutPtr<QLineEdit>,
@@ -157,6 +164,7 @@ pub struct PackedFileDecoderViewRaw {
     pub string_u16_line_edit: MutPtr<QLineEdit>,
     pub optional_string_u8_line_edit: MutPtr<QLineEdit>,
     pub optional_string_u16_line_edit: MutPtr<QLineEdit>,
+    pub sequence_u32_line_edit: MutPtr<QLineEdit>,
 
     pub bool_button: MutPtr<QPushButton>,
     pub f32_button: MutPtr<QPushButton>,
@@ -167,6 +175,7 @@ pub struct PackedFileDecoderViewRaw {
     pub string_u16_button: MutPtr<QPushButton>,
     pub optional_string_u8_button: MutPtr<QPushButton>,
     pub optional_string_u16_button: MutPtr<QPushButton>,
+    pub sequence_u32_button: MutPtr<QPushButton>,
 
     pub packed_file_info_version_decoded_label: MutPtr<QLabel>,
     pub packed_file_info_entry_count_decoded_label: MutPtr<QLabel>,
@@ -254,24 +263,28 @@ impl PackedFileDecoderView {
         // Fields Table section.
         //---------------------------------------------//
 
-        let mut table_view = QTableView::new_0a();
+        let mut table_view = QTreeView::new_0a();
         let mut table_model = QStandardItemModel::new_0a();
         table_view.set_model(table_model.as_mut_ptr());
         table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
-        table_view.horizontal_header().set_stretch_last_section(true);
+        //table_view.header().set_stretch_last_section(true);
         table_view.set_alternating_row_colors(true);
 
         // Create the Contextual Menu for the TableView.
         let mut table_view_context_menu = QMenu::new();
 
         // Create the Contextual Menu Actions.
-        let mut table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move &Up"));
-        let mut table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("&Move Down"));
-        let mut table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("&Delete"));
+        let mut table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Up"));
+        let mut table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Down"));
+        let mut table_view_context_menu_move_left = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Left"));
+        let mut table_view_context_menu_move_right = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Right"));
+        let mut table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("Delete"));
 
         // Disable them by default.
         table_view_context_menu_move_up.set_enabled(false);
         table_view_context_menu_move_down.set_enabled(false);
+        table_view_context_menu_move_left.set_enabled(false);
+        table_view_context_menu_move_right.set_enabled(false);
         table_view_context_menu_delete.set_enabled(false);
 
         layout.add_widget_5a(table_view.as_mut_ptr(), 0, 1, 1, 2);
@@ -294,7 +307,7 @@ impl PackedFileDecoderView {
         let string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U16\":"));
         let optional_string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U8\":"));
         let optional_string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U16\":"));
-        let sequence_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Sequence\":"));
+        let sequence_u32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"SequenceU32\":"));
 
         let mut bool_line_edit = QLineEdit::new();
         let mut f32_line_edit = QLineEdit::new();
@@ -305,7 +318,7 @@ impl PackedFileDecoderView {
         let mut string_u16_line_edit = QLineEdit::new();
         let mut optional_string_u8_line_edit = QLineEdit::new();
         let mut optional_string_u16_line_edit = QLineEdit::new();
-        let mut sequence_line_edit = QLineEdit::new();
+        let mut sequence_u32_line_edit = QLineEdit::new();
 
         let mut bool_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut f32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
@@ -316,7 +329,7 @@ impl PackedFileDecoderView {
         let mut string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut optional_string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut optional_string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut sequence_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut sequence_u32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
 
         decoded_fields_layout.add_widget_5a(bool_label.into_ptr(), 0, 0, 1, 1);
         decoded_fields_layout.add_widget_5a(f32_label.into_ptr(), 1, 0, 1, 1);
@@ -327,7 +340,7 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(string_u16_label.into_ptr(), 6, 0, 1, 1);
         decoded_fields_layout.add_widget_5a(optional_string_u8_label.into_ptr(), 7, 0, 1, 1);
         decoded_fields_layout.add_widget_5a(optional_string_u16_label.into_ptr(), 8, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(sequence_label.into_ptr(), 9, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(sequence_u32_label.into_ptr(), 9, 0, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&mut bool_line_edit, 0, 1, 1, 1);
         decoded_fields_layout.add_widget_5a(&mut f32_line_edit, 1, 1, 1, 1);
@@ -338,7 +351,7 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(&mut string_u16_line_edit, 6, 1, 1, 1);
         decoded_fields_layout.add_widget_5a(&mut optional_string_u8_line_edit, 7, 1, 1, 1);
         decoded_fields_layout.add_widget_5a(&mut optional_string_u16_line_edit, 8, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut sequence_line_edit, 9, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut sequence_u32_line_edit, 9, 1, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&mut bool_button, 0, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&mut f32_button, 1, 2, 1, 1);
@@ -349,7 +362,7 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(&mut string_u16_button, 6, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&mut optional_string_u8_button, 7, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&mut optional_string_u16_button, 8, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut sequence_button, 9, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut sequence_u32_button, 9, 2, 1, 1);
 
         layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
 
@@ -450,6 +463,8 @@ impl PackedFileDecoderView {
             table_view_context_menu: table_view_context_menu.into_ptr(),
             table_view_context_menu_move_up,
             table_view_context_menu_move_down,
+            table_view_context_menu_move_left,
+            table_view_context_menu_move_right,
             table_view_context_menu_delete,
 
             bool_line_edit: bool_line_edit.into_ptr(),
@@ -461,6 +476,7 @@ impl PackedFileDecoderView {
             string_u16_line_edit: string_u16_line_edit.into_ptr(),
             optional_string_u8_line_edit: optional_string_u8_line_edit.into_ptr(),
             optional_string_u16_line_edit: optional_string_u16_line_edit.into_ptr(),
+            sequence_u32_line_edit: sequence_u32_line_edit.into_ptr(),
 
             bool_button: bool_button.into_ptr(),
             f32_button: f32_button.into_ptr(),
@@ -471,6 +487,7 @@ impl PackedFileDecoderView {
             string_u16_button: string_u16_button.into_ptr(),
             optional_string_u8_button: optional_string_u8_button.into_ptr(),
             optional_string_u16_button: optional_string_u16_button.into_ptr(),
+            sequence_u32_button: sequence_u32_button.into_ptr(),
 
             packed_file_info_version_decoded_label: packed_file_info_version_decoded_label.into_ptr(),
             packed_file_info_entry_count_decoded_label: packed_file_info_entry_count_decoded_label.into_ptr(),
@@ -513,6 +530,8 @@ impl PackedFileDecoderView {
 
             table_view_context_menu_move_up: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_up),
             table_view_context_menu_move_down: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_down),
+            table_view_context_menu_move_left: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_left),
+            table_view_context_menu_move_right: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_right),
             table_view_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_delete),
 
             bool_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_button),
@@ -524,6 +543,7 @@ impl PackedFileDecoderView {
             string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u16_button),
             optional_string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_button),
             optional_string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u16_button),
+            sequence_u32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.sequence_u32_button),
 
             packed_file_info_version_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_version_decoded_label),
             packed_file_info_entry_count_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_entry_count_decoded_label),
@@ -555,6 +575,7 @@ impl PackedFileDecoderView {
         packed_file_decoder_view.load_packed_file_data()?;
         packed_file_decoder_view_raw.load_versions_list();
         packed_file_decoder_view_raw.update_view(&fields, true, &mut packed_file_decoder_mutable_data.index.lock().unwrap())?;
+        packed_file_decoder_view_raw.update_rows_decoded(&mut 0, None, None)?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
         packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
@@ -745,6 +766,10 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.optional_string_u16_button)
     }
 
+    fn get_mut_ptr_sequence_u32_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.sequence_u32_button)
+    }
+
     fn get_mut_ptr_packed_file_info_version_decoded_label(&self) -> MutPtr<QLabel> {
         mut_ptr_from_atomic(&self.packed_file_info_version_decoded_label)
     }
@@ -757,7 +782,7 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.table_model)
     }
 
-    fn get_mut_ptr_table_view(&self) -> MutPtr<QTableView> {
+    fn get_mut_ptr_table_view(&self) -> MutPtr<QTreeView> {
         mut_ptr_from_atomic(&self.table_view)
     }
 
@@ -771,6 +796,14 @@ impl PackedFileDecoderView {
 
     fn get_mut_ptr_table_view_context_menu_move_down(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.table_view_context_menu_move_down)
+    }
+
+    fn get_mut_ptr_table_view_context_menu_move_left(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_context_menu_move_left)
+    }
+
+    fn get_mut_ptr_table_view_context_menu_move_rigth(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_context_menu_move_right)
     }
 
     fn get_mut_ptr_table_view_context_menu_delete(&self) -> MutPtr<QAction> {
@@ -867,7 +900,7 @@ impl PackedFileDecoderViewRaw {
             // Otherswise, we add each field we got as a row to the table.
             else {
                 for field in field_list {
-                    self.add_field_to_view(&field, &mut index);
+                    self.add_field_to_view(&field, &mut index, is_initial_load, None);
                 }
                 configure_table_view(self.table_view);
             }
@@ -882,6 +915,7 @@ impl PackedFileDecoderViewRaw {
         let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
         let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
         let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU16, &mut index.clone());
+        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::SequenceU32(Definition::new(-1)), &mut index.clone());
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
@@ -893,6 +927,7 @@ impl PackedFileDecoderViewRaw {
         self.string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16)));
         self.optional_string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8)));
         self.optional_string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u16)));
+        self.sequence_u32_line_edit.set_text(&QString::from_std_str(&format!("Sequence of {:?} entries.", decoded_sequence_u32)));
 
         //---------------------------------------------//
         // Raw data cleaning section.
@@ -1010,6 +1045,8 @@ impl PackedFileDecoderViewRaw {
         &mut self,
         field: &Field,
         mut index: &mut usize,
+        is_initial_load: bool,
+        parent: Option<CppBox<QModelIndex>>,
     ) {
 
         // Decode the data from the field.
@@ -1073,6 +1110,11 @@ impl PackedFileDecoderViewRaw {
         let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order)));
         let field_description = QStandardItem::from_q_string(&QString::from_std_str(&field.description));
 
+        let mut field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
+        field_number.set_editable(false);
+
+        // The first one is the row number, to be updated later.
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_number.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_name.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_type.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), decoded_data.into_ptr());
@@ -1087,7 +1129,58 @@ impl PackedFileDecoderViewRaw {
         add_to_q_list_safe(qlist.as_mut_ptr(), field_ca_order.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_description.into_ptr());
 
-        self.table_model.append_row_q_list_of_q_standard_item(&qlist);
+        // If it's the initial load, insert them recursively.
+        if is_initial_load {
+            match parent {
+                Some(ref parent) => self.table_model.item_from_index(parent).append_row_q_list_of_q_standard_item(&qlist),
+                None => self.table_model.append_row_q_list_of_q_standard_item(&qlist),
+            }
+            if let FieldType::SequenceU32(table) = &field.field_type {
+
+                // The new parent is either the last child of the current parent, or the last item in the tree.
+                for field in &table.fields {
+                    let parent = match parent {
+                        Some(ref parent) => {
+                            let item = self.table_model.item_from_index(parent);
+                            let last_item = item.child_1a(item.row_count() - 1);
+                            last_item.index()
+                        },
+                        None => {
+                            let item = self.table_model.invisible_root_item();
+                            let last_item = item.child_1a(item.row_count() - 1);
+                            last_item.index()
+                        }
+                    };
+
+                    self.add_field_to_view(&field, &mut index, is_initial_load, Some(parent));
+                }
+            }
+        }
+
+        // If it's not the initial load, autodetect the deepness level.
+        else {
+            let mut last_item = self.table_model.invisible_root_item();
+            loop {
+                if last_item.row_count() > 0 {
+                    let last_child = last_item.child_1a(last_item.row_count() - 1);
+                    let index = last_child.index().sibling_at_column(2);
+                    if last_child.has_children() || self.table_model.item_from_index(&index).text().to_std_string() == "SequenceU32" {
+                        last_item = last_child;
+                    }
+                    else {
+                        break;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+
+            last_item.append_row_q_list_of_q_standard_item(&qlist);
+
+            // Always expand the new item.
+            self.table_view.expand(last_item.index().as_ref());
+        }
     }
 
     /// This function is the one that takes care of actually decoding the provided data based on the field type.
@@ -1154,15 +1247,12 @@ impl PackedFileDecoderViewRaw {
                     Err(_) => "Error".to_owned(),
                 }
             },
-
-            // TODO: Finish this.
             FieldType::SequenceU16(_) => {
                 match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
-
             FieldType::SequenceU32(_) => {
                 match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
                     Ok(result) => result.to_string(),
@@ -1178,55 +1268,78 @@ impl PackedFileDecoderViewRaw {
     unsafe fn update_rows_decoded(
         &mut self,
         mut index: &mut usize,
+        entries: Option<u32>,
+        model_index: Option<CppBox<QModelIndex>>,
     ) -> Result<()> {
 
-        // Reset the index, because this function effectively resets the decoding state.
-        *index = get_header_size(self.packed_file_type, &self.packed_file_data)?;
-        let mut row = 0;
+        // If it's the first cycle, reset the index.
+        if model_index.is_none() {
+            *index = get_header_size(self.packed_file_type, &self.packed_file_data)?;
+        }
 
         // Loop through all the rows.
-        loop {
+        let entries = if let Some(entries) = entries { entries } else { 1 };
+        for entry in 0..entries {
+            let row_count = if let Some(ref model_index) = model_index {
+                self.table_model.item_from_index(model_index.as_ref()).row_count()
+            } else { self.table_model.row_count_0a() };
 
-            // Get the ModelIndex of the cell we want to update.
-            let model_index = self.table_model.index_2a(row, 2);
-            if model_index.is_valid() {
+            for row in 0..row_count {
 
-                // Get the row's type.
-                let row_type = self.table_model.index_2a(row, 1);
-                let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
-                    "Bool" => FieldType::Boolean,
-                    "F32" => FieldType::F32,
-                    "I16" => FieldType::I16,
-                    "I32" => FieldType::I32,
-                    "I64" => FieldType::I64,
-                    "StringU8" => FieldType::StringU8,
-                    "StringU16" => FieldType::StringU16,
-                    "OptionalStringU8" => FieldType::OptionalStringU8,
-                    "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
-                    "SequenceU32" => FieldType::SequenceU32(Definition::new(-1)),
-                    _ => unimplemented!()
-                };
+                // Get the ModelIndex of the cell we want to update.
+                let model_index = if let Some(ref model_index) = model_index {
+                    self.table_model.item_from_index(model_index.as_ref()).child_1a(row).index()
+                } else { self.table_model.index_2a(row, 0) };
 
-                // Get the decoded data using it's type...
-                let decoded_data = Self::decode_data_by_fieldtype(
-                    &self.packed_file_data,
-                    &field_type,
-                    &mut index
-                );
+                if model_index.is_valid() {
 
-                // Get the item from the "First Row Decoded" column.
-                let mut item = self.table_model.item_from_index(&model_index);
-                item.set_text(&QString::from_std_str(decoded_data));
-                row += 1;
+                    // Get the row's type.
+                    let row_type = model_index.sibling_at_column(2);
+                    let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
+                        "Bool" => FieldType::Boolean,
+                        "F32" => FieldType::F32,
+                        "I16" => FieldType::I16,
+                        "I32" => FieldType::I32,
+                        "I64" => FieldType::I64,
+                        "StringU8" => FieldType::StringU8,
+                        "StringU16" => FieldType::StringU16,
+                        "OptionalStringU8" => FieldType::OptionalStringU8,
+                        "OptionalStringU16" => FieldType::OptionalStringU16,
+                        "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
+                        "SequenceU32" => FieldType::SequenceU32(Definition::new(-1)),
+                        _ => unimplemented!("{}", &*row_type.data_1a(0).to_string().to_std_string())
+                    };
+
+                    // Get the decoded data using it's type...
+                    let decoded_data = Self::decode_data_by_fieldtype(
+                        &self.packed_file_data,
+                        &field_type,
+                        &mut index
+                    );
+
+                    // Get the items from the "Row Number" and "First Row Decoded" columns.
+                    if entry == 0 {
+                        let mut item = self.table_model.item_from_index(&model_index.sibling_at_column(3));
+                        item.set_text(&QString::from_std_str(&decoded_data));
+
+                        let mut item = self.table_model.item_from_index(&model_index.sibling_at_column(0));
+                        item.set_text(&QString::from_std_str(&format!("{}", row + 1)));
+                    }
+
+                    // If it's a sequence,decode also it's internal first row, then move the index to skip the rest.
+                    if let FieldType::SequenceU32(_) = field_type {
+                        self.update_rows_decoded(&mut index, Some(decoded_data.parse::<u32>()?), Some(model_index.sibling_at_column(0)))?;
+                    }
+                }
             }
-
-            // Otherwise, stop the loop.
-            else { break; }
         }
 
         // Update the entire decoder to use the new index.
-        self.update_view(&[], false, &mut index)
+        if model_index.is_none() {
+            self.update_view(&[], false, &mut index)?;
+        }
+
+        Ok(())
     }
 
     /// This function is used to update the list of "Versions" of the currently open table decoded.
@@ -1265,33 +1378,39 @@ impl PackedFileDecoderViewRaw {
         let mut field = Field::default();
         field.field_type = field_type;
 
-        self.add_field_to_view(&field, &mut index);
+        self.add_field_to_view(&field, &mut index, false, None);
         self.update_view(&[], false, &mut index)
     }
 
 
     /// This function gets the data from the decoder's table and returns it, so we can save it to a Definition.
-    pub unsafe fn get_fields_from_view(&self) -> Vec<Field> {
+    pub unsafe fn get_fields_from_view(&self, model_index: Option<CppBox<QModelIndex>>) -> Vec<Field> {
         let mut fields = vec![];
-        let mut row = 0;
+        let row_count = if let Some(ref model_index) = model_index {
+            self.table_model.item_from_index(model_index.as_ref()).row_count()
+        } else { self.table_model.row_count_0a() };
 
-        loop {
+        for row in 0..row_count {
 
-            let model_index = self.table_model.index_2a(row, 0);
+            let model_index = if let Some(ref model_index) = model_index {
+                self.table_model.item_from_index(model_index.as_ref()).child_1a(row).index()
+            } else { self.table_model.index_2a(row, 0) };
+
             if model_index.is_valid() {
 
                 // Get the data from each field of the row...
-                let field_name = self.table_model.item_2a(row, 0).text().to_std_string();
-                let field_type = self.table_model.item_2a(row, 1).text().to_std_string();
-                let field_is_key = self.table_model.item_2a(row, 3).check_state() == CheckState::Checked;
-                let ref_table = self.table_model.item_2a(row, 4).text().to_std_string();
-                let ref_column = self.table_model.item_2a(row, 5).text().to_std_string();
-                let field_default_value = self.table_model.item_2a(row, 7).text().to_std_string();
-                let field_max_length = self.table_model.item_2a(row, 8).text().to_std_string().parse::<i32>().unwrap();
-                let field_is_filename = self.table_model.item_2a(row, 9).check_state() == CheckState::Checked;
-                let field_filename_relative_path = self.table_model.item_2a(row, 10).text().to_std_string();
-                let field_ca_order = self.table_model.item_2a(row, 11).text().to_std_string().parse::<i16>().unwrap();
-                let field_description = self.table_model.item_2a(row, 12).text().to_std_string();
+                let field_name = self.table_model.item_from_index(model_index.sibling_at_column(1).as_ref()).text().to_std_string();
+                let field_type = self.table_model.item_from_index(model_index.sibling_at_column(2).as_ref()).text().to_std_string();
+                let field_is_key = self.table_model.item_from_index(model_index.sibling_at_column(4).as_ref()).check_state() == CheckState::Checked;
+                let ref_table = self.table_model.item_from_index(model_index.sibling_at_column(5).as_ref()).text().to_std_string();
+                let ref_column = self.table_model.item_from_index(model_index.sibling_at_column(6).as_ref()).text().to_std_string();
+                let field_default_value = self.table_model.item_from_index(model_index.sibling_at_column(8).as_ref()).text().to_std_string();
+                let field_lookup = self.table_model.item_from_index(model_index.sibling_at_column(8).as_ref()).text().to_std_string();
+                let field_max_length = self.table_model.item_from_index(model_index.sibling_at_column(9).as_ref()).text().to_std_string().parse::<i32>().unwrap();
+                let field_is_filename = self.table_model.item_from_index(model_index.sibling_at_column(10).as_ref()).check_state() == CheckState::Checked;
+                let field_filename_relative_path = self.table_model.item_from_index(model_index.sibling_at_column(11).as_ref()).text().to_std_string();
+                let field_ca_order = self.table_model.item_from_index(model_index.sibling_at_column(12).as_ref()).text().to_std_string().parse::<i16>().unwrap();
+                let field_description = self.table_model.item_from_index(model_index.sibling_at_column(13).as_ref()).text().to_std_string();
 
                 // Get the proper type of the field. If invalid, default to OptionalStringU16.
                 let field_type = match &*field_type {
@@ -1305,7 +1424,11 @@ impl PackedFileDecoderViewRaw {
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
                     "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
-                    "SequenceU32" => FieldType::SequenceU32(Definition::new(-1)),
+                    "SequenceU32" => FieldType::SequenceU32({
+                        let mut definition = Definition::new(-1);
+                        definition.fields = self.get_fields_from_view(Some(model_index));
+                        definition
+                    }),
                     _ => unimplemented!()
                 };
 
@@ -1313,7 +1436,6 @@ impl PackedFileDecoderViewRaw {
                     Some((ref_table, ref_column))
                 } else { None };
 
-                let field_lookup = self.table_model.item_2a(row, 6).text().to_std_string();
                 let field_lookup = if !field_lookup.is_empty() {
                     Some(field_lookup.split(',').map(|x| x.to_owned()).collect::<Vec<String>>())
                 } else { None };
@@ -1333,11 +1455,7 @@ impl PackedFileDecoderViewRaw {
                         field_ca_order
                     )
                 );
-                row += 1;
             }
-
-            // Otherwise, stop the loop.
-            else { break; }
         }
 
         fields
@@ -1346,7 +1464,7 @@ impl PackedFileDecoderViewRaw {
     /// This function adds the definition currently in the view to a temporal schema, and returns it.
     unsafe fn add_definition_to_schema(&self) -> Schema {
         let mut schema = SCHEMA.read().unwrap().clone().unwrap();
-        let fields = self.get_fields_from_view();
+        let fields = self.get_fields_from_view(None);
 
         let version = match self.packed_file_type {
             PackedFileType::DB => DB::read_header(&self.packed_file_data).unwrap().0,
@@ -1441,23 +1559,24 @@ fn get_definition(
 }
 
 /// This function configures the provided TableView, so it has the right columns and it's resized to the right size.
-unsafe fn configure_table_view(table_view: MutPtr<QTableView>) {
+unsafe fn configure_table_view(table_view: MutPtr<QTreeView>) {
     let mut table_model = table_view.model();
-    table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Name")));
-    table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Type")));
-    table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("First Row Decoded")));
-    table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is key?")));
-    table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Table")));
-    table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Column")));
-    table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Lookup Columns")));
-    table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Default Value")));
-    table_model.set_header_data_3a(8, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Lenght")));
-    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
-    table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
-    table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
-    table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
-    table_view.horizontal_header().set_stretch_last_section(true);
-    table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+    table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Row Number")));
+    table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Name")));
+    table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Type")));
+    table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("First Row Decoded")));
+    table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is key?")));
+    table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Table")));
+    table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Column")));
+    table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Lookup Columns")));
+    table_model.set_header_data_3a(8, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Default Value")));
+    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Lenght")));
+    table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
+    table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
+    table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
+    table_model.set_header_data_3a(13, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
+    table_view.header().set_stretch_last_section(true);
+    table_view.header().resize_sections(ResizeMode::ResizeToContents);
 
     // The second field should be a combobox.
     let mut list = QStringList::new();
@@ -1472,9 +1591,9 @@ unsafe fn configure_table_view(table_view: MutPtr<QTableView>) {
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
     list.append_q_string(&QString::from_std_str("SequenceU16"));
     list.append_q_string(&QString::from_std_str("SequenceU32"));
-    new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 1, list.into_ptr().as_ptr(), false, 0);
+    new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 2, list.into_ptr().as_ptr(), false, 0);
 
     // Fields Max lenght and CA Order must be numeric.
-    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 8, 32);
-    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 11, 16);
+    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 9, 32);
+    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 12, 16);
 }

@@ -36,6 +36,7 @@ pub unsafe fn set_connections(ui: &PackedFileDecoderView, slots: &PackedFileDeco
     ui.get_mut_ptr_string_u16_button().released().connect(&slots.use_this_string_u16);
     ui.get_mut_ptr_optional_string_u8_button().released().connect(&slots.use_this_optional_string_u8);
     ui.get_mut_ptr_optional_string_u16_button().released().connect(&slots.use_this_optional_string_u16);
+    ui.get_mut_ptr_sequence_u32_button().released().connect(&slots.use_this_sequence_u32);
 
     // Signal to sync the selection between both HexViews.
     ui.get_mut_ptr_hex_view_raw().selection_changed().connect(&slots.hex_view_selection_raw_sync);
@@ -45,6 +46,8 @@ pub unsafe fn set_connections(ui: &PackedFileDecoderView, slots: &PackedFileDeco
 
     ui.get_mut_ptr_table_view_context_menu_move_up().triggered().connect(&slots.table_view_context_menu_move_up);
     ui.get_mut_ptr_table_view_context_menu_move_down().triggered().connect(&slots.table_view_context_menu_move_down);
+    ui.get_mut_ptr_table_view_context_menu_move_left().triggered().connect(&slots.table_view_context_menu_move_left);
+    ui.get_mut_ptr_table_view_context_menu_move_rigth().triggered().connect(&slots.table_view_context_menu_move_right);
     ui.get_mut_ptr_table_view_context_menu_delete().triggered().connect(&slots.table_view_context_menu_delete);
 
     ui.get_mut_ptr_table_view().custom_context_menu_requested().connect(&slots.table_view_context_menu);
