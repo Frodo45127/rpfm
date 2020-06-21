@@ -290,7 +290,10 @@ impl Table {
         mut index: &mut usize,
         return_incomplete: bool,
     ) -> Result<()> {
-        self.entries = Vec::with_capacity(entry_count as usize);
+
+        // Do not specify size here, because a badly written definition can end up triggering an OOM crash if we do.
+        //self.entries = Vec::with_capacity(entry_count as usize);
+        self.entries = vec![];
         for row in 0..entry_count {
             let mut decoded_row = Vec::with_capacity(self.definition.fields.len());
             for column in 0..self.definition.fields.len() {
