@@ -55,6 +55,8 @@ use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::common::decoder::*;
 use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};
+use rpfm_lib::packedfile::table::{anim_fragment, anim_fragment::AnimFragment};
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::{loc, loc::Loc};
 use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat};
@@ -83,7 +85,9 @@ pub mod shortcuts;
 pub mod slots;
 
 /// List of supported PackedFile Types by the decoder.
-const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 3] = [
+const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 5] = [
+    PackedFileType::AnimTable,
+    PackedFileType::AnimFragment,
     PackedFileType::DB,
     PackedFileType::Loc,
     PackedFileType::MatchedCombat,
@@ -391,13 +395,8 @@ impl PackedFileDecoderView {
         info_layout.add_widget_5a(packed_file_info_type_decoded_label.into_ptr(), 0, 1, 1, 1);
         info_layout.add_widget_5a(&mut packed_file_info_version_decoded_label, 1, 1, 1, 1);
 
-        match packed_file_type {
-            PackedFileType::DB | PackedFileType::Loc | PackedFileType::MatchedCombat => {
-                info_layout.add_widget_5a(packed_file_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
-                info_layout.add_widget_5a(&mut packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
-            }
-            _ => unimplemented!(),
-        }
+        info_layout.add_widget_5a(packed_file_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
+        info_layout.add_widget_5a(&mut packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
 
         layout.add_widget_5a(info_frame.into_ptr(), 1, 2, 1, 1);
 
@@ -693,27 +692,27 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         // Load the "Info" data to the view.
-        match self.packed_file_type {
+        let (version, entry_count) = match self.packed_file_type {
+            PackedFileType::AnimTable => {
+                if let Ok((version, entry_count)) = AnimTable::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
+            }
+            PackedFileType::AnimFragment => {
+                if let Ok((version, entry_count)) = AnimFragment::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
+            }
             PackedFileType::DB => {
-                if let Ok((version, _, _, entry_count, _)) = DB::read_header(&self.packed_file_data) {
-                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
-                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
-                }
+                if let Ok((version, _, _, entry_count, _)) = DB::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
             }
             PackedFileType::Loc => {
-                if let Ok((version, entry_count)) = Loc::read_header(&self.packed_file_data) {
-                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
-                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
-                }
+                if let Ok((version, entry_count)) = Loc::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
             }
             PackedFileType::MatchedCombat => {
-                if let Ok((version, entry_count)) = MatchedCombat::read_header(&self.packed_file_data) {
-                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
-                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
-                }
+                if let Ok((version, entry_count)) = MatchedCombat::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
             }
             _ => unimplemented!()
-        }
+        };
+
+        self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
+        self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
 
         Ok(())
     }
@@ -1349,6 +1348,8 @@ impl PackedFileDecoderViewRaw {
 
             // Depending on the type, get one version list or another.
             let versioned_file = match self.packed_file_type {
+                PackedFileType::AnimTable => schema.get_ref_versioned_file_animtable(),
+                PackedFileType::AnimFragment => schema.get_ref_versioned_file_anim_fragment(),
                 PackedFileType::DB => schema.get_ref_versioned_file_db(&self.packed_file_path[1]),
                 PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
                 PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
@@ -1467,6 +1468,8 @@ impl PackedFileDecoderViewRaw {
         let fields = self.get_fields_from_view(None);
 
         let version = match self.packed_file_type {
+            PackedFileType::AnimTable => AnimTable::read_header(&self.packed_file_data).unwrap().0,
+            PackedFileType::AnimFragment => AnimFragment::read_header(&self.packed_file_data).unwrap().0,
             PackedFileType::DB => DB::read_header(&self.packed_file_data).unwrap().0,
             PackedFileType::Loc => Loc::read_header(&self.packed_file_data).unwrap().0,
             PackedFileType::MatchedCombat => MatchedCombat::read_header(&self.packed_file_data).unwrap().0,
@@ -1474,6 +1477,8 @@ impl PackedFileDecoderViewRaw {
         };
 
         let versioned_file = match self.packed_file_type {
+            PackedFileType::AnimTable => schema.get_ref_mut_versioned_file_animtable(),
+            PackedFileType::AnimFragment => schema.get_ref_mut_versioned_file_anim_fragment(),
             PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&self.packed_file_path[1]),
             PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
             PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
@@ -1497,6 +1502,8 @@ impl PackedFileDecoderViewRaw {
 
                 let definitions = vec![definition];
                 let versioned_file = match self.packed_file_type {
+                    PackedFileType::AnimTable => VersionedFile::AnimTable(definitions),
+                    PackedFileType::AnimFragment => VersionedFile::AnimFragment(definitions),
                     PackedFileType::DB => VersionedFile::DB(self.packed_file_path[1].to_owned(), definitions),
                     PackedFileType::Loc => VersionedFile::Loc(definitions),
                     PackedFileType::MatchedCombat => VersionedFile::MatchedCombat(definitions),
@@ -1518,6 +1525,8 @@ fn get_header_size(
     packed_file_data: &[u8],
 ) -> Result<usize> {
     match packed_file_type {
+        PackedFileType::AnimTable => Ok(animtable::HEADER_SIZE),
+        PackedFileType::AnimFragment => Ok(anim_fragment::HEADER_SIZE),
         PackedFileType::DB => Ok(DB::read_header(packed_file_data)?.4),
         PackedFileType::Loc => Ok(loc::HEADER_SIZE),
         PackedFileType::MatchedCombat => Ok(matched_combat::HEADER_SIZE),
@@ -1536,6 +1545,8 @@ fn get_definition(
 
         // Depending on the type, get one version list or another.
         let versioned_file = match packed_file_type {
+            PackedFileType::AnimTable => schema.get_ref_versioned_file_animtable(),
+            PackedFileType::AnimFragment => schema.get_ref_versioned_file_anim_fragment(),
             PackedFileType::DB => schema.get_ref_versioned_file_db(&packed_file_path[1]),
             PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
             PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
@@ -1545,6 +1556,8 @@ fn get_definition(
         // And get all the versions of this table, and list them in their TreeView, if we have any.
         if let Ok(versioned_file) = versioned_file {
             let version = if let Some(version) = version { version } else { match packed_file_type {
+                PackedFileType::AnimTable => AnimTable::read_header(packed_file_data).ok()?.0,
+                PackedFileType::AnimFragment => AnimFragment::read_header(packed_file_data).ok()?.0,
                 PackedFileType::DB => DB::read_header(packed_file_data).ok()?.0,
                 PackedFileType::Loc => Loc::read_header(packed_file_data).ok()?.0,
                 PackedFileType::MatchedCombat => MatchedCombat::read_header(packed_file_data).ok()?.0,

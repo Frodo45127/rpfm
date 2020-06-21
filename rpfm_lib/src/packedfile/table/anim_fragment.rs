@@ -24,6 +24,9 @@ use super::Table;
 
 use crate::schema::*;
 
+/// Size of the header of an AnimFragment PackedFile.
+pub const HEADER_SIZE: usize = 0;
+
 /// Extension of AnimFragment PackedFiles.
 pub const EXTENSION: &str = ".frg";
 
@@ -117,6 +120,13 @@ impl AnimFragment {
         Ok(Self {
             table,
         })
+    }
+
+    /// This function tries to read the header of an AnimFragment PackedFile from raw data.
+    pub fn read_header(_packed_file_data: &[u8]) -> Result<(i32, u32)> {
+        let version = 0;
+        let entry_count = 1;
+        Ok((version, entry_count))
     }
 
     pub fn to_json(&self) -> String {

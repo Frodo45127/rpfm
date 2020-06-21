@@ -25,6 +25,9 @@ use super::Table;
 
 use crate::schema::*;
 
+/// Size of the header of a AnimTable PackedFile.
+pub const HEADER_SIZE: usize = 8;
+
 /// Full path of an animation table. This is an special type of bin, so we identify it by his full path.
 pub const PATH: [&str; 3] = [
     "animations",
@@ -102,7 +105,7 @@ impl AnimTable {
 
         let mut index = 0;
         let version = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
-        let entry_count = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
+        let entry_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
 
         // Try to get the table_definition for this table, if exists.
         let versioned_file = schema.get_ref_versioned_file_animtable();
@@ -124,6 +127,14 @@ impl AnimTable {
         })
     }
 
+    /// This function tries to read the header of an AnimTable PackedFile from raw data.
+    pub fn read_header(packed_file_data: &[u8]) -> Result<(i32, u32)> {
+        let mut index = 0;
+        let version = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
+        let entry_count = packed_file_data.decode_packedfile_integer_u32(index, &mut index)?;
+        Ok((version, entry_count))
+    }
+
     pub fn to_json(&self) -> String {
         to_string_pretty(&self).unwrap()
     }
@@ -134,6 +145,7 @@ impl AnimTable {
         // Create the vector to hold them all.
         let mut packed_file: Vec<u8> = vec![];
         packed_file.encode_integer_i32(self.table.definition.version);
+        packed_file.encode_integer_u32(self.table.entries.len() as u32);
         self.table.encode(&mut packed_file)?;
 
         // Return the encoded `PackedFile`.

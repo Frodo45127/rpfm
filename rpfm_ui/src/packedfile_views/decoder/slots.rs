@@ -25,9 +25,11 @@ use bincode::deserialize;
 
 use rpfm_error::ErrorKind;
 
-use rpfm_lib::packedfile::table::matched_combat::MatchedCombat;
+use rpfm_lib::packedfile::table::animtable::AnimTable;
+use rpfm_lib::packedfile::table::anim_fragment::AnimFragment;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::Loc;
+use rpfm_lib::packedfile::table::matched_combat::MatchedCombat;
 use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::SCHEMA;
@@ -475,6 +477,8 @@ impl PackedFileDecoderViewSlots {
 
                     if let Some(ref mut schema) = *SCHEMA.write().unwrap() {
                         let versioned_file = match view.packed_file_type {
+                            PackedFileType::AnimTable => schema.get_ref_mut_versioned_file_animtable(),
+                            PackedFileType::AnimFragment => schema.get_ref_mut_versioned_file_anim_fragment(),
                             PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&view.packed_file_path[1]),
                             PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
                             PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
@@ -494,6 +498,27 @@ impl PackedFileDecoderViewSlots {
                 let schema = view.add_definition_to_schema();
 
                 match view.packed_file_type {
+
+                    PackedFileType::AnimTable => match AnimTable::read(&view.packed_file_data, &schema, true) {
+                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Err(error) => {
+                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                                let data: Table = deserialize(data).unwrap();
+                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                            }
+                        }
+                    }
+
+                    PackedFileType::AnimFragment => match AnimFragment::read(&view.packed_file_data, &schema, true) {
+                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Err(error) => {
+                            if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
+                                let data: Table = deserialize(data).unwrap();
+                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                            }
+                        }
+                    }
+
                     PackedFileType::DB => match DB::read(&view.packed_file_data, &view.packed_file_path[1], &schema, true) {
                         Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
                         Err(error) => {
