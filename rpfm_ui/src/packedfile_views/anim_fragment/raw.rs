@@ -78,7 +78,8 @@ pub struct PackedFileAnimFragmentViewRaw {
     pub table_2: MutPtr<QTableView>,
     pub integer_1: MutPtr<QLineEdit>,
     pub integer_2: MutPtr<QLineEdit>,
-    pub path: Arc<RwLock<Vec<String>>>,
+
+    pub packed_file_path: Arc<RwLock<Vec<String>>>,
     pub definition: Arc<RwLock<Definition>>,
 
     pub column_sort_state_1: Arc<RwLock<(i32, i8)>>,
@@ -126,7 +127,6 @@ pub struct PackedFileAnimFragmentViewRaw {
     pub undo_model_1: MutPtr<QStandardItemModel>,
     pub undo_model_2: MutPtr<QStandardItemModel>,
 
-    pub packed_file_path: Arc<RwLock<Vec<String>>>,
     pub history_undo_1: Arc<RwLock<Vec<TableOperations>>>,
     pub history_redo_1: Arc<RwLock<Vec<TableOperations>>>,
     pub history_undo_2: Arc<RwLock<Vec<TableOperations>>>,

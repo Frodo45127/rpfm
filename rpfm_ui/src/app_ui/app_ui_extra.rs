@@ -1068,7 +1068,7 @@ impl AppUI {
                 }
 
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
-                if is_external && UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *path).is_some() {
+                if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path) {
                     self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, path, true)
                 }
 

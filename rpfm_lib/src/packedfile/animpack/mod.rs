@@ -38,7 +38,7 @@ pub const DEFAULT_PATH: [&str; 3] = ["animations", "animation_tables", "animatio
 //---------------------------------------------------------------------------//
 
 /// This holds an entire AnimPack PackedFile decoded in memory.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnimPack {
     packed_files: Vec<AnimPacked>,
 }
@@ -78,7 +78,7 @@ impl AnimPack {
             let path = packed_file_data.decode_packedfile_string_u8(index, &mut index)?.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
             let byte_count = packed_file_data.decode_packedfile_integer_i32(index, &mut index)?;
             let data = packed_file_data[index..index + byte_count as usize].to_vec();
-            index = index + byte_count as usize;
+            index += byte_count as usize;
 
             anim_packeds.push(AnimPacked {
                 path,
@@ -109,7 +109,7 @@ impl AnimPack {
     /// This function returns the entire list of paths contained within the provided AnimPack.
     pub fn get_file_list(&self) -> Vec<String> {
         self.packed_files.iter()
-            .map(|x| x.path.join("/").to_owned())
+            .map(|x| x.path.join("/"))
             .collect()
     }
 

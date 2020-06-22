@@ -136,7 +136,7 @@ impl PackedFileCaVp8View {
             convert_to_ivf_button: convert_to_ivf_button.into_ptr(),
             current_format: Arc::new(Mutex::new(data.get_format())),
             format_data_label: format_data_label.into_ptr(),
-            path: packed_file_view.get_path_raw().clone()
+            path: packed_file_view.get_path_raw()
         };
 
         let packed_file_ca_vp8_view_slots = PackedFileCaVp8ViewSlots::new(

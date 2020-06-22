@@ -59,7 +59,6 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
-use bincode;
 use rayon::prelude::*;
 use reqwest::blocking;
 use ron::de::{from_str, from_reader};

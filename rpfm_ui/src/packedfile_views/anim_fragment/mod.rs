@@ -380,7 +380,8 @@ impl PackedFileAnimFragmentView {
             table_2: table_view_2,
             integer_1: i1_line_edit.into_ptr(),
             integer_2: i2_line_edit.into_ptr(),
-            path: packed_file_view.get_path_raw().clone(),
+
+            packed_file_path: packed_file_view.get_path_raw(),
             definition: Arc::new(RwLock::new(data.get_definition())),
 
             column_sort_state_1: Arc::new(RwLock::new((-1, 0))),
@@ -420,8 +421,6 @@ impl PackedFileAnimFragmentView {
             context_menu_redo_2,
             context_menu_resize_columns_2,
             smart_delete_2,
-
-            packed_file_path: packed_file_view.get_path_raw().clone(),
 
             undo_lock,
             save_lock,

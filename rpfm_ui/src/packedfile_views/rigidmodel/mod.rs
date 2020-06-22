@@ -79,7 +79,7 @@ impl PackedFileRigidModelView {
 
         let editor = new_text_editor_safe(&mut packed_file_view.get_mut_widget());
 
-        let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor, path: packed_file_view.get_path_raw().clone()};
+        let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor, path: packed_file_view.get_path_raw()};
         let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(&packed_file_rigid_model_view_raw, *app_ui, *global_search_ui, *pack_file_contents_ui);
         let packed_file_rigid_model_view = Self { /*editor: atomic_from_mut_ptr(packed_file_rigid_model_view_raw.editor)*/ };
 

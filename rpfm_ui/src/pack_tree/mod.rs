@@ -284,7 +284,7 @@ impl PackTree for MutPtr<QTreeView> {
         item_status.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
 
         // First looping downwards. -1 because we want to reach the "parent" that will hold the new row, not the row itself.
-        for index in 0..path.len() {
+        for path_item in path {
             for row in 0..item.row_count() {
                 let child = item.child_1a(row);
 
@@ -292,7 +292,7 @@ impl PackTree for MutPtr<QTreeView> {
                 if child.data_1a(ITEM_TYPE).to_int_0a() != ITEM_TYPE_FOLDER { continue }
 
                 // If we found it, we're done.
-                if child.text().to_std_string() == path[index] {
+                if child.text().to_std_string() == *path_item {
 
                     let mut child_status = get_status_item_from_item(child);
                     child_status.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);

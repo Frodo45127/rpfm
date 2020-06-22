@@ -687,7 +687,7 @@ impl AppUISlots {
                                 // Get the destination path for the PackFile with the PackFile name included.
                                 // And copy the PackFile to his destination. If the copy fails, return an error.
                                 game_data_path.push(&mod_name);
-                                if copy(mymod_path, game_data_path.to_path_buf()).is_err() {
+                                if copy(mymod_path, &game_data_path).is_err() {
                                     return show_dialog(app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
                                 }
                             }
@@ -719,7 +719,7 @@ impl AppUISlots {
                                 show_dialog(app_ui.main_window, ErrorKind::MyModNotInstalled, false)
                             }
 
-                            else if remove_file(game_data_path.to_path_buf()).is_err() {
+                            else if remove_file(&game_data_path).is_err() {
                                 return show_dialog(app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
                             }
                         }

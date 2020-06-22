@@ -1260,7 +1260,7 @@ impl PackedFileTableViewRaw {
             if model_index_filtered.is_valid() {
                 selection_model.select_q_model_index_q_flags_selection_flag(
                     &model_index_filtered,
-                    QFlags::from(SelectionFlag::Select | SelectionFlag::Rows)
+                    SelectionFlag::Select | SelectionFlag::Rows
                 );
 
                 self.table_view_primary.scroll_to_2a(
@@ -1332,7 +1332,7 @@ impl PackedFileTableViewRaw {
             if model_index_filtered.is_valid() {
                 selection_model.select_q_model_index_q_flags_selection_flag(
                     &model_index_filtered,
-                    QFlags::from(SelectionFlag::Select | SelectionFlag::Rows)
+                    SelectionFlag::Select | SelectionFlag::Rows
                 );
             }
         }

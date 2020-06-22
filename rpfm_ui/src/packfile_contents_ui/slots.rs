@@ -590,7 +590,7 @@ impl PackFileContentsSlots {
                             // If there is another Extra PackFile already open, close it.
                             {
                                 let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                if let Some(view) = open_packedfiles.iter().find(|x| *x.get_ref_path() == &["extra_packfile.rpfm_reserved".to_owned()]) {
+                                if let Some(view) = open_packedfiles.iter().find(|x| *x.get_ref_path() == ["extra_packfile.rpfm_reserved".to_owned()]) {
                                     let widget = view.get_mut_widget();
                                     let index = app_ui.tab_bar_packed_file.index_of(widget);
 

@@ -473,7 +473,7 @@ impl SettingsUI {
             }
         }
 
-        let language_selected = settings.settings_string["language"].split("_").collect::<Vec<&str>>()[0];
+        let language_selected = settings.settings_string["language"].split('_').collect::<Vec<&str>>()[0];
         for (index, (language,_)) in Locale::get_available_locales().unwrap().iter().enumerate() {
             if *language == language_selected {
                 self.ui_language_combobox.set_current_index(index as i32);

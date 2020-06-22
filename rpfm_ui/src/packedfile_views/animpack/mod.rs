@@ -106,7 +106,7 @@ impl PackedFileAnimPackView {
 
         let packed_file_animpack_view_raw = PackedFileAnimPackViewRaw {
             unpack_button: unpack_button.into_ptr(),
-            path: packed_file_view.get_path_raw().clone()
+            path: packed_file_view.get_path_raw()
         };
 
         let packed_file_animpack_view_slots = PackedFileAnimPackViewSlots::new(

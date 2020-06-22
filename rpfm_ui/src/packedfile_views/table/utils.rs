@@ -82,12 +82,11 @@ pub unsafe fn sort_indexes_visually(indexes_sorted: &mut Vec<Ref<QModelIndex>>, 
     let horizontal_header = table_view.horizontal_header();
     let vertical_header = table_view.vertical_header();
     indexes_sorted.sort_unstable_by(|a, b| {
-        if vertical_header.visual_index(a.row()) == vertical_header.visual_index(b.row()) {
-            if horizontal_header.visual_index(a.column()) < horizontal_header.visual_index(b.column()) { Ordering::Less }
-            else { Ordering::Greater }
+        let cmp = vertical_header.visual_index(a.row()).cmp(&vertical_header.visual_index(b.row()));
+        match cmp {
+            Ordering::Equal => if horizontal_header.visual_index(a.column()) < horizontal_header.visual_index(b.column()) { Ordering::Less } else { Ordering::Greater },
+            _ => cmp,
         }
-        else if vertical_header.visual_index(a.row()) < vertical_header.visual_index(b.row()) { Ordering::Less }
-        else { Ordering::Greater }
     });
 }
 
@@ -99,12 +98,11 @@ pub unsafe fn sort_indexes_by_model(indexes_sorted: &mut Vec<Ref<QModelIndex>>) 
     // This should fix situations like copying a row and getting a different order in the cells,
     // or copying a sorted table and getting a weird order in the copied cells.
     indexes_sorted.sort_unstable_by(|a, b| {
-        if a.row() == b.row() {
-            if a.column() < b.column() { Ordering::Less }
-            else { Ordering::Greater }
+        let cmp = a.row().cmp(&b.row());
+        match cmp {
+            Ordering::Equal => if a.column() < b.column() { Ordering::Less } else { Ordering::Greater },
+            _ => cmp,
         }
-        else if a.row() < b.row() { Ordering::Less }
-        else { Ordering::Greater }
     });
 }
 
@@ -540,18 +538,16 @@ pub unsafe fn build_columns(
             .collect::<Vec<(usize, i16)>>();
         fields.sort_by(|a, b| a.1.cmp(&b.1));
 
-        let mut new_pos = 0;
-        for (logical_index, ca_order) in &fields {
+        for (new_pos, (logical_index, ca_order)) in fields.iter().enumerate() {
             if *ca_order != -1 {
                 let visual_index = header_primary.visual_index(*logical_index as i32);
-                header_primary.move_section(visual_index as i32, new_pos);
+                header_primary.move_section(visual_index as i32, new_pos as i32);
 
                 if let Some(table_view_frozen) = table_view_frozen {
                     let mut header_frozen = table_view_frozen.horizontal_header();
-                    header_frozen.move_section(visual_index as i32, new_pos);
+                    header_frozen.move_section(visual_index as i32, new_pos as i32);
                 }
             }
-            new_pos += 1;
         }
     }
 

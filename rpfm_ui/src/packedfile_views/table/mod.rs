@@ -492,7 +492,7 @@ impl PackedFileTableView {
 
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
-            packed_file_path: packed_file_view.get_path_raw().clone(),
+            packed_file_path: packed_file_view.get_path_raw(),
 
             undo_lock,
             save_lock,

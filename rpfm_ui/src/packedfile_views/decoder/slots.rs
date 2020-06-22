@@ -231,12 +231,10 @@ impl PackedFileDecoderViewSlots {
                         }
 
                     }
+                    else if child.row() == 0 { continue; }
                     else {
-                        if child.row() == 0 { continue; }
-                        else {
-                            let row_data = view.table_model.take_row(child.row() - 1);
-                            view.table_model.insert_row_int_q_list_of_q_standard_item(child.row(), &row_data);
-                        }
+                        let row_data = view.table_model.take_row(child.row() - 1);
+                        view.table_model.insert_row_int_q_list_of_q_standard_item(child.row(), &row_data);
                     }
                 }
 

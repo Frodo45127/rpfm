@@ -22,7 +22,6 @@ use std::sync::{Arc, RwLock};
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::animtable::AnimTable;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::app_ui::AppUI;
@@ -34,7 +33,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
 use crate::QString;
 use crate::utils::atomic_from_mut_ptr;
-use crate::utils::mut_ptr_from_atomic;
+
 use self::slots::PackedFileAnimTableViewSlots;
 
 pub mod slots;
@@ -79,9 +78,7 @@ impl PackedFileAnimTableView {
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (animtable, packed_file_info) = match response {
-            Response::AnimFragmentPackedFileInfo((animtable, packed_file_info)) => (animtable.to_json(), packed_file_info),
             Response::AnimTablePackedFileInfo((animtable, packed_file_info)) => (animtable.to_json(), packed_file_info),
-            Response::MatchedCombatPackedFileInfo((animtable, packed_file_info)) => (animtable.to_json(), packed_file_info),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
@@ -103,18 +100,6 @@ impl PackedFileAnimTableView {
 
         // Return success.
         Ok((TheOneSlot::AnimTable(packed_file_animtable_view_slots), packed_file_info))
-    }
-
-    /// This function returns a pointer to the editor widget.
-    pub fn get_mut_editor(&self) -> MutPtr<QWidget> {
-        mut_ptr_from_atomic(&self.editor)
-    }
-
-    /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: &AnimTable) {
-        let mut editor = mut_ptr_from_atomic(&self.editor);
-        let mut highlighting_mode = QString::from_std_str(JSON);
-        set_text_safe(&mut editor, &mut QString::from_std_str(data.to_json()), &mut highlighting_mode);
     }
 }
 
