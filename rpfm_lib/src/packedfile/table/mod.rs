@@ -409,6 +409,101 @@ impl Table {
         Ok(())
     }
 
+    /// This function returns a new empty row for the provided definition.
+    pub fn get_new_row(definition: &Definition) -> Vec<DecodedData> {
+        definition.fields.iter()
+            .map(|field|
+                match field.field_type {
+                    FieldType::Boolean => {
+                        if let Some(default_value) = &field.default_value {
+                            if default_value.to_lowercase() == "true" {
+                                DecodedData::Boolean(true)
+                            } else {
+                                DecodedData::Boolean(false)
+                            }
+                        } else {
+                            DecodedData::Boolean(false)
+                        }
+                    }
+                    FieldType::F32 => {
+                        if let Some(default_value) = &field.default_value {
+                            if let Ok(default_value) = default_value.parse::<f32>() {
+                                DecodedData::F32(default_value)
+                            } else {
+                                DecodedData::F32(0.0)
+                            }
+                        } else {
+                            DecodedData::F32(0.0)
+                        }
+                    },
+                    FieldType::I16 => {
+                        if let Some(default_value) = &field.default_value {
+                            if let Ok(default_value) = default_value.parse::<i16>() {
+                                DecodedData::I16(default_value)
+                            } else {
+                                DecodedData::I16(0)
+                            }
+                        } else {
+                            DecodedData::I16(0)
+                        }
+                    },
+                    FieldType::I32 => {
+                        if let Some(default_value) = &field.default_value {
+                            if let Ok(default_value) = default_value.parse::<i32>() {
+                                DecodedData::I32(default_value)
+                            } else {
+                                DecodedData::I32(0)
+                            }
+                        } else {
+                            DecodedData::I32(0)
+                        }
+                    },
+                    FieldType::I64 => {
+                        if let Some(default_value) = &field.default_value {
+                            if let Ok(default_value) = default_value.parse::<i64>() {
+                                DecodedData::I64(default_value)
+                            } else {
+                                DecodedData::I64(0)
+                            }
+                        } else {
+                            DecodedData::I64(0)
+                        }
+                    },
+                    FieldType::StringU8 => {
+                        if let Some(default_value) = &field.default_value {
+                            DecodedData::StringU8(default_value.to_owned())
+                        } else {
+                            DecodedData::StringU8(String::new())
+                        }
+                    }
+                    FieldType::StringU16 => {
+                        if let Some(default_value) = &field.default_value {
+                            DecodedData::StringU16(default_value.to_owned())
+                        } else {
+                            DecodedData::StringU16(String::new())
+                        }
+                    }
+                    FieldType::OptionalStringU8 => {
+                        if let Some(default_value) = &field.default_value {
+                            DecodedData::OptionalStringU8(default_value.to_owned())
+                        } else {
+                            DecodedData::OptionalStringU8(String::new())
+                        }
+                    }
+                    FieldType::OptionalStringU16 => {
+                        if let Some(default_value) = &field.default_value {
+                            DecodedData::OptionalStringU16(default_value.to_owned())
+                        } else {
+                            DecodedData::OptionalStringU16(String::new())
+                        }
+                    },
+                    FieldType::SequenceU16(ref definition) => DecodedData::SequenceU16(Table::new(&definition)),
+                    FieldType::SequenceU32(ref definition) => DecodedData::SequenceU32(Table::new(&definition))
+                }
+            ).collect()
+
+    }
+
     //----------------------------------------------------------------//
     // TSV Functions for PackedFiles.
     //----------------------------------------------------------------//

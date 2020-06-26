@@ -556,3 +556,7 @@ animpack_unpack = Unpack
 
 special_stuff_create_dummy_animpack = Create Dummy AnimPack
 tt_create_dummy_animpack = This action generates a dummy animpack into the PackFile. This dummy animpack can be used to force the game to load custom Anim Tables/Fragments.
+
+load_template = Load Template
+load_templates_dialog_title = Load Template
+load_templates_dialog_accept = Load Template

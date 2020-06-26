@@ -859,6 +859,15 @@ pub fn background_loop() {
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
+
+            // When we want to apply a template over the open PackFile...
+            Command::ApplyTemplate(mut template, params) => {
+                match template.apply_template(&params, &mut pack_file_decoded) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }

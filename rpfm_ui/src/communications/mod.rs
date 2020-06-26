@@ -35,6 +35,7 @@ use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::versions::APIResponseSchema;
 use rpfm_lib::schema::{Definition, Schema};
 use rpfm_lib::settings::*;
+use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
 use crate::packedfile_views::table::TableType;
@@ -276,6 +277,9 @@ pub enum Command {
 
     /// This command is used to create a dummy AnimPack, so the game loads it's anim files from loose files instead of from the big animpack.
     GenerateDummyAnimPack,
+
+    /// This command is used to load a template into the currently open PackFile.
+    ApplyTemplate(Template, Vec<String>)
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

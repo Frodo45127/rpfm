@@ -538,7 +538,10 @@ pub enum ErrorKind {
     LaunchNotSupportedForThisGame,
 
     /// Error for when we cannot open RPFM's config folder.
-    ConfigFolderCouldNotBeOpened
+    ConfigFolderCouldNotBeOpened,
+
+    /// Error for when we have a broken path in a template.
+    InvalidPathsInTemplate
 }
 
 /// Implementation of `Error`.
@@ -822,6 +825,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileNotDecodeableWithDecoder => write!(f, "<p>This PackedFile cannot be decoded using the PackedFile Decoder.</p>"),
             ErrorKind::LaunchNotSupportedForThisGame => write!(f, "<p>The currently selected game cannot be launched from Steam.</p>"),
             ErrorKind::ConfigFolderCouldNotBeOpened => write!(f, "<p>RPFM's config folder couldn't be open (maybe it doesn't exists?).</p>"),
+            ErrorKind::InvalidPathsInTemplate => write!(f, "<p>An empty/invalid path has been detected when processing the template. This can be caused by a bad template or by an empty parameter.<p>"),
         }
     }
 }

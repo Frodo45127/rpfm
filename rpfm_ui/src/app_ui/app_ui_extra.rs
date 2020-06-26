@@ -24,6 +24,7 @@ use qt_widgets::QLineEdit;
 use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QPushButton;
 use qt_widgets::QTreeView;
+use qt_widgets::QLabel;
 
 use qt_gui::QStandardItemModel;
 use qt_core::QFlags;
@@ -40,7 +41,7 @@ use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
 
-use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths};
+use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths, get_game_selected_template_definitions_paths};
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
@@ -50,6 +51,7 @@ use rpfm_lib::schema::{versions::APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::template::Template;
 
 use super::AppUI;
 use super::NewPackedFile;
@@ -110,6 +112,18 @@ impl AppUI {
             1, // By default, select yes.
             self.main_window,
         ).exec() == 3
+    }
+
+    /// This function updates the backend of all open PackedFiles with their view's data.
+    pub unsafe fn back_to_back_end_all(&mut self,
+        global_search_ui: GlobalSearchUI,
+        mut pack_file_contents_ui: PackFileContentsUI,
+    ) -> Result<()> {
+
+        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+            packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
+        }
+        Ok(())
     }
 
     /// This function deletes all the widgets corresponding to opened PackedFiles.
@@ -625,10 +639,12 @@ impl AppUI {
     pub unsafe fn build_open_from_submenus(mut self, mut pack_file_contents_ui: PackFileContentsUI, mut global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotOfBool<'static>> {
         let mut packfile_open_from_content = self.packfile_open_from_content;
         let mut packfile_open_from_data = self.packfile_open_from_data;
+        let mut packfile_load_template = self.packfile_load_template;
 
         // First, we clear both menus, so we can rebuild them properly.
         packfile_open_from_content.clear();
         packfile_open_from_data.clear();
+        packfile_load_template.clear();
 
         // And we create the slots.
         let mut open_from_slots = vec![];
@@ -691,9 +707,72 @@ impl AppUI {
             }
         }
 
+        // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
+        let mut template_paths = get_game_selected_template_definitions_paths();
+        if let Some(ref mut paths) = template_paths {
+            paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+            for path in paths {
+
+                // That means our file is a valid PackFile and it needs to be added to the menu.
+                let template_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                let template_load_action = packfile_load_template.add_action_q_string(&QString::from_std_str(&template_name));
+
+                // Create the slot for that action.
+                let slot_load_template = SlotOfBool::new(clone!(
+                    template_name => move |_| {
+                        match Template::load(&template_name) {
+                            Ok(template) => {
+                                if let Some(params) = self.load_template_dialog(&template) {
+                                    match self.back_to_back_end_all(global_search_ui, pack_file_contents_ui) {
+                                        Ok(_) => {
+                                            CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, params));
+                                            let response = CENTRAL_COMMAND.recv_message_qt_try();
+                                            match response {
+                                                Response::VecVecString(packed_file_paths) => {
+                                                    let paths = packed_file_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
+                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+                                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                                                    UI_STATE.set_is_modified(true, &mut self, &mut pack_file_contents_ui);
+
+                                                    // Update the global search stuff, if needed.
+                                                    global_search_ui.search_on_path(&mut pack_file_contents_ui, paths.iter().map(From::from).collect());
+
+                                                    // Try to reload all open files which data we altered, and close those that failed.
+                                                    let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                                                    packed_file_paths.iter().for_each(|path| {
+                                                        if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                                                            if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
+                                                                self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false);
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                                Response::Error(error) => show_dialog(self.main_window, error, false),
+
+                                                // In ANY other situation, it's a message problem.
+                                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                                            }
+                                        }
+                                        Err(error) => show_dialog(self.main_window, error, false),
+                                    }
+
+                                }
+                            }
+                            Err(error) => show_dialog(self.main_window, error, false),
+                        }
+                    }
+                ));
+
+                // Connect the slot and store it.
+                template_load_action.triggered().connect(&slot_load_template);
+                open_from_slots.push(slot_load_template);
+            }
+        }
+
         // Only if the submenu has items, we enable it.
         packfile_open_from_content.menu_action().set_visible(!packfile_open_from_content.actions().is_empty());
         packfile_open_from_data.menu_action().set_visible(!packfile_open_from_data.actions().is_empty());
+        packfile_load_template.menu_action().set_visible(!packfile_load_template.actions().is_empty());
 
         // Return the slots.
         open_from_slots
@@ -1836,6 +1915,47 @@ impl AppUI {
             let text = name.text().to_std_string();
             let delete_source_tables = delete_source_tables.is_checked();
             if !text.is_empty() { Some((text, delete_source_tables)) }
+            else { None }
+        }
+
+        // Otherwise, return None.
+        else { None }
+    }
+
+    /// This function creates the entire "Load Template" dialog. It returns a vector with the stuff set in it.
+    pub unsafe fn load_template_dialog(&self, template: &Template) -> Option<Vec<String>> {
+
+        let mut dialog = QDialog::new_1a(self.main_window).into_ptr();
+        dialog.set_window_title(&qtr("load_templates_dialog_title"));
+        dialog.set_modal(true);
+
+        // Create the main Grid.
+        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
+        let author_label = QLabel::from_q_string(&QString::from_std_str("By: ".to_owned() + &template.author));
+        let description_label = QLabel::from_q_string(&QString::from_std_str(&template.description));
+        main_grid.add_widget_5a(author_label.into_ptr(), 0,  0, 1, 2);
+        main_grid.add_widget_5a(description_label.into_ptr(), 1 , 0, 1, 2);
+
+        let mut param_widgets = vec![];
+        for (row, param) in template.params.iter().enumerate() {
+            let param_label = QLabel::from_q_string(&QString::from_std_str(&param.0));
+            let mut param_widget = QLineEdit::new();
+            param_widget.set_placeholder_text(&QString::from_std_str(&param.0));
+            main_grid.add_widget_5a(param_label.into_ptr(), row as i32 + 2, 0, 1, 1);
+            main_grid.add_widget_5a(&mut param_widget, row as i32 + 2, 1, 1, 1);
+            param_widgets.push(param_widget.into_ptr());
+        }
+
+        let mut accept_button = QPushButton::from_q_string(&qtr("load_templates_dialog_accept"));
+        main_grid.add_widget_5a(&mut accept_button, 99, 0, 1, 2);
+
+        // What happens when we hit the "Load Template" button.
+        accept_button.released().connect(dialog.slot_accept());
+
+        // Execute the dialog.
+        if dialog.exec() == 1 {
+            let data = param_widgets.iter().map(|x| x.text().to_std_string()).collect::<Vec<String>>();
+            if !data.is_empty() { Some(data) }
             else { None }
         }
 

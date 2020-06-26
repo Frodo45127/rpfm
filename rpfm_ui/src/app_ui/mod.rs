@@ -124,6 +124,7 @@ pub struct AppUI {
     pub packfile_open_from_data: MutPtr<QMenu>,
     pub packfile_change_packfile_type: MutPtr<QMenu>,
     pub packfile_load_all_ca_packfiles: MutPtr<QAction>,
+    pub packfile_load_template: MutPtr<QMenu>,
     pub packfile_preferences: MutPtr<QAction>,
     pub packfile_quit: MutPtr<QAction>,
 
@@ -360,6 +361,7 @@ impl AppUI {
         let packfile_menu_open_from_data = QMenu::from_q_string(&qtr("open_from_data")).into_ptr();
         let mut packfile_menu_change_packfile_type = QMenu::from_q_string(&qtr("change_packfile_type")).into_ptr();
         let packfile_load_all_ca_packfiles = menu_bar_packfile.add_action_q_string(&qtr("load_all_ca_packfiles"));
+        let packfile_menu_load_template = QMenu::from_q_string(&qtr("load_template")).into_ptr();
         let packfile_preferences = menu_bar_packfile.add_action_q_string(&qtr("preferences"));
         let packfile_quit = menu_bar_packfile.add_action_q_string(&qtr("quit"));
 
@@ -370,6 +372,7 @@ impl AppUI {
         menu_bar_packfile.insert_separator(packfile_menu_open_from_content.menu_action());
         menu_bar_packfile.insert_separator(packfile_preferences);
         menu_bar_packfile.insert_menu(packfile_preferences, packfile_menu_change_packfile_type);
+        menu_bar_packfile.insert_menu(packfile_preferences, packfile_menu_load_template);
         menu_bar_packfile.insert_separator(packfile_preferences);
 
         // `Change PackFile Type` submenu.
@@ -631,6 +634,7 @@ impl AppUI {
             packfile_open_from_data: packfile_menu_open_from_data,
             packfile_change_packfile_type: packfile_menu_change_packfile_type,
             packfile_load_all_ca_packfiles,
+            packfile_load_template: packfile_menu_load_template,
             packfile_preferences,
             packfile_quit,
 

@@ -168,6 +168,14 @@ impl PackedFile {
         }
     }
 
+    /// This function creates a new `PackedFile` from the provided path on disk and path on a PackFile.
+    pub fn new_from_file(path: &Path, packed_file_path: &[String]) -> Result<Self> {
+        Ok(Self {
+            raw: RawPackedFile::read_from_path(path, packed_file_path.to_vec())?,
+            decoded: DecodedPackedFile::Unknown,
+        })
+    }
+
     /// This function creates a new empty `PackedFile` of the provided type and path.
     pub fn new_from_type_and_path(
         packed_file_type: PackedFileType,
