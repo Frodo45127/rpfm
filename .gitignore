@@ -50,3 +50,6 @@ table_state.json
 # New RPFM Config files. This one shouldn't be added either.
 settings.ron
 shortcuts.ron
+
+# This one is a separate repo.
+/templates/
