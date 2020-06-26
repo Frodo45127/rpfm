@@ -1931,6 +1931,9 @@ impl AppUI {
 
         // Create the main Grid.
         let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
+        main_grid.set_contents_margins_4a(4, 0, 4, 4);
+        main_grid.set_spacing(4);
+
         let author_label = QLabel::from_q_string(&QString::from_std_str("By: ".to_owned() + &template.author));
         let description_label = QLabel::from_q_string(&QString::from_std_str(&template.description));
         main_grid.add_widget_5a(author_label.into_ptr(), 0,  0, 1, 2);
