@@ -280,7 +280,7 @@ tt_context_menu_open_notes = Open the PackFile's Notes in a secondary view, with
 tt_filter_autoexpand_matches_button = Auto-Expand matches. NOTE: Filtering with all matches expanded in a big PackFile (+10k files, like data.pack) can hang the program for a while. You have been warned.
 tt_filter_case_sensitive_button = Enable/Disable case sensitive filtering for the TreeView.
 
-packedfile_noneditable_sequence = Non-editable Sequence
+packedfile_editable_sequence = Editable Sequence
 
 ### Rename Dialogues
 
@@ -560,3 +560,6 @@ tt_create_dummy_animpack = This action generates a dummy animpack into the PackF
 load_template = Load Template
 load_templates_dialog_title = Load Template
 load_templates_dialog_accept = Load Template
+
+nested_table_title = Nested Table
+nested_table_accept = Accept

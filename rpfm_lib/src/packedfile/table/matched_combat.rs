@@ -153,3 +153,12 @@ impl MatchedCombat {
         Ok(packed_file)
     }
 }
+
+/// Implementation to create a `MatchedCombat` from a `Table`.
+impl From<Table> for MatchedCombat {
+    fn from(table: Table) -> Self {
+        Self {
+            table,
+        }
+    }
+}

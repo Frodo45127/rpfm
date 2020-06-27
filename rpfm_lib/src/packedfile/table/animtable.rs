@@ -152,3 +152,12 @@ impl AnimTable {
         Ok(packed_file)
     }
 }
+
+/// Implementation to create an `AnimTable` from a `Table`.
+impl From<Table> for AnimTable {
+    fn from(table: Table) -> Self {
+        Self {
+            table,
+        }
+    }
+}

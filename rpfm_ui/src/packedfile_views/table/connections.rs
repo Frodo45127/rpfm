@@ -65,4 +65,6 @@ pub unsafe fn set_connections(ui: &PackedFileTableView, slots: &PackedFileTableV
     ui.get_mut_ptr_search_replace_current_button().released().connect(&slots.search_replace_current);
     ui.get_mut_ptr_search_replace_all_button().released().connect(&slots.search_replace_all);
     ui.get_mut_ptr_search_close_button().released().connect(&slots.search_close);
+
+    ui.get_mut_ptr_table_view_primary().double_clicked().connect(&slots.open_subtable);
 }

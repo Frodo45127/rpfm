@@ -49,7 +49,7 @@ use std::sync::atomic::{AtomicBool, AtomicPtr};
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::parse_str;
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::{DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat};
+use rpfm_lib::packedfile::table::{animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
@@ -75,6 +75,7 @@ mod connections;
 pub mod slots;
 mod raw;
 mod shortcuts;
+mod subtable;
 mod tips;
 pub mod utils;
 
@@ -85,6 +86,8 @@ pub static COLUMN_SIZE_STRING: i32 = 350;
 
 pub static ITEM_HAS_SOURCE_VALUE: i32 = 30;
 pub static ITEM_SOURCE_VALUE: i32 = 31;
+pub static ITEM_IS_SEQUENCE: i32 = 35;
+pub static ITEM_SEQUENCE_DATA: i32 = 36;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -93,6 +96,7 @@ pub static ITEM_SOURCE_VALUE: i32 = 31;
 /// This enum is used to distinguish between the different types of tables we can decode.
 #[derive(Clone, Debug)]
 pub enum TableType {
+    AnimTable(AnimTable),
     DependencyManager(Vec<Vec<DecodedData>>),
     DB(DB),
     Loc(Loc),
@@ -214,6 +218,7 @@ impl PackedFileTableView {
 
         let response = CENTRAL_COMMAND.recv_message_qt();
         let (table_data, packed_file_info) = match response {
+            Response::AnimTablePackedFileInfo((table, packed_file_info)) => (TableType::AnimTable(table), Some(packed_file_info)),
             Response::DBPackedFileInfo((table, packed_file_info)) => (TableType::DB(table), Some(packed_file_info)),
             Response::LocPackedFileInfo((table, packed_file_info)) => (TableType::Loc(table), Some(packed_file_info)),
             Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => (TableType::MatchedCombat(table), Some(packed_file_info)),
@@ -231,6 +236,7 @@ impl PackedFileTableView {
             TableType::DB(ref table) => (table.get_definition(), table.get_table_name(), table.get_uuid(), PackedFileType::DB),
             TableType::Loc(ref table) => (table.get_definition(), String::new(), String::new(), PackedFileType::Loc),
             TableType::MatchedCombat(ref table) => (table.get_definition(), String::new(), String::new(), PackedFileType::MatchedCombat),
+            TableType::AnimTable(ref table) => (table.get_definition(), String::new(), String::new(), PackedFileType::AnimTable),
         };
 
         // Get the dependency data of this Table.

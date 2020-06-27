@@ -25,18 +25,21 @@ use qt_gui::SlotOfQStandardItem;
 use qt_core::QModelIndex;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
-use qt_core::{SlotOfBool, SlotOfInt, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection};
+use qt_core::{SlotOfBool, SlotOfInt, Slot, SlotOfQString, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
 
 use cpp_core::Ref;
 
 use std::sync::atomic::Ordering;
 use std::path::PathBuf;
 
+use rpfm_lib::packedfile::table::Table;
+
 use crate::app_ui::AppUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::table::PackedFileTableViewRaw;
+use crate::packedfile_views::table::subtable::SubTableView;
 use crate::packedfile_views::utils::*;
 use crate::pack_tree::*;
 use crate::utils::atomic_from_mut_ptr;
@@ -87,6 +90,7 @@ pub struct PackedFileTableViewSlots {
     pub search_replace_current: Slot<'static>,
     pub search_replace_all: Slot<'static>,
     pub search_close: Slot<'static>,
+    pub open_subtable: SlotOfQModelIndex<'static>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -153,8 +157,9 @@ impl PackedFileTableViewSlots {
                 if !packed_file_view.undo_lock.load(Ordering::SeqCst) {
                     let item_old = packed_file_view.undo_model.item_2a(item.row(), item.column());
 
-                    // Only trigger this if the values are actually different. Checkable cells are tricky.
-                    if item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state() {
+                    // Only trigger this if the values are actually different. Checkable cells are tricky. Nested cells an go to hell.
+                    if (item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state()) ||
+                        item_old.data_1a(ITEM_IS_SEQUENCE).to_bool() && 0 != item_old.data_1a(ITEM_SEQUENCE_DATA).to_string().compare_q_string(&item.data_1a(ITEM_SEQUENCE_DATA).to_string()) {
                         let mut edition = Vec::with_capacity(1);
                         edition.push(((item.row(), item.column()), atomic_from_mut_ptr((&*item_old).clone())));
                         let operation = TableOperations::Editing(edition);
@@ -535,6 +540,22 @@ impl PackedFileTableViewSlots {
             }
         ));
 
+        let open_subtable = SlotOfQModelIndex::new(clone!(
+            mut packed_file_view => move |model_index| {
+                if model_index.data_1a(ITEM_IS_SEQUENCE).to_bool() {
+                    let data = model_index.data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string();
+                    let table: Table = serde_json::from_str(&data).unwrap();
+                    if let Some(new_data) = SubTableView::show(packed_file_view.table_view_primary, &table) {
+                        packed_file_view.table_filter.set_data_3a(
+                            model_index,
+                            &QVariant::from_q_string(&QString::from_std_str(new_data)),
+                            ITEM_SEQUENCE_DATA
+                        );
+                    }
+                }
+            }
+        ));
+
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
             filter_line_edit,
@@ -573,6 +594,7 @@ impl PackedFileTableViewSlots {
             search_replace_current,
             search_replace_all,
             search_close,
+            open_subtable,
         }
     }
 }

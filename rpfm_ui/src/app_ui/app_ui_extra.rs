@@ -60,7 +60,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, netw
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, animtable::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, table::*, TheOneSlot, text::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, table::*, TheOneSlot, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -1201,7 +1201,7 @@ impl AppUI {
 
                         // If the file is an AnimTable PackedFile...
                         PackedFileType::AnimTable => {
-                            match PackedFileAnimTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1210,7 +1210,9 @@ impl AppUI {
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
-                                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    if let Some(packed_file_info) = packed_file_info {
+                                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                                    }
                                 },
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::AnimTableDecode(format!("{}", error)), false),
                             }

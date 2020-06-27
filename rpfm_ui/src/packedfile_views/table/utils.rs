@@ -40,6 +40,7 @@ use std::cmp::Ordering;
 use std::sync::RwLock;
 use std::sync::atomic::AtomicPtr;
 
+use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::schema::{Definition, Field, FieldType};
 use rpfm_lib::SETTINGS;
 
@@ -197,80 +198,126 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             let mut item = QStandardItem::new();
             item.set_editable(false);
             item.set_checkable(true);
-            if let Some(default_value) = &field.default_value {
-                if default_value.to_lowercase() == "true" {
-                    item.set_check_state(CheckState::Checked);
-                } else {
-                    item.set_check_state(CheckState::Unchecked);
-                }
-            } else {
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+
+            let check_state = if let Some(default_value) = &field.default_value {
+                if default_value.to_lowercase() == "true" { true }
+                else { false }
+            } else { false };
+
+            if check_state {
+                item.set_check_state(CheckState::Checked);
+                item.set_data_2a(&QVariant::from_bool(true), ITEM_SOURCE_VALUE);
+                item.set_tool_tip(&QString::from_std_str(&tre("original_data", &["True"])));
+            }
+            else {
                 item.set_check_state(CheckState::Unchecked);
+                item.set_data_2a(&QVariant::from_bool(false), ITEM_SOURCE_VALUE);
+                item.set_tool_tip(&QString::from_std_str(&tre("original_data", &["False"])));
             }
             item
         }
         FieldType::F32 => {
             let mut item = QStandardItem::new();
-            if let Some(default_value) = &field.default_value {
+            let data = if let Some(default_value) = &field.default_value {
                 if let Ok(default_value) = default_value.parse::<f32>() {
-                    item.set_data_2a(&QVariant::from_float(default_value), 2);
+                    default_value
                 } else {
-                    item.set_data_2a(&QVariant::from_float(0.0f32), 2);
+                    0.0f32
                 }
             } else {
-                item.set_data_2a(&QVariant::from_float(0.0f32), 2);
-            }
+                0.0f32
+            };
+
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_float(data), 2);
             item
         },
         FieldType::I16 => {
             let mut item = QStandardItem::new();
-            if let Some(default_value) = &field.default_value {
+            let data = if let Some(default_value) = &field.default_value {
                 if let Ok(default_value) = default_value.parse::<i16>() {
-                    item.set_data_2a(&QVariant::from_int(default_value as i32), 2);
+                    default_value as i32
                 } else {
-                    item.set_data_2a(&QVariant::from_int(0i32), 2);
+                    0 as i32
                 }
             } else {
-                item.set_data_2a(&QVariant::from_int(0i32), 2);
-            }
+                0 as i32
+            };
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_int(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_int(data), 2);
             item
         },
         FieldType::I32 => {
             let mut item = QStandardItem::new();
-            if let Some(default_value) = &field.default_value {
+            let data = if let Some(default_value) = &field.default_value {
                 if let Ok(default_value) = default_value.parse::<i32>() {
-                    item.set_data_2a(&QVariant::from_int(default_value), 2);
+                    default_value
                 } else {
-                    item.set_data_2a(&QVariant::from_int(0i32), 2);
+                    0i32
                 }
             } else {
-                item.set_data_2a(&QVariant::from_int(0i32), 2);
-            }
+                0i32
+            };
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_int(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_int(data), 2);
             item
         },
         FieldType::I64 => {
             let mut item = QStandardItem::new();
-            if let Some(default_value) = &field.default_value {
+            let data = if let Some(default_value) = &field.default_value {
                 if let Ok(default_value) = default_value.parse::<i64>() {
-                    item.set_data_2a(&QVariant::from_i64(default_value), 2);
+                    default_value
                 } else {
-                    item.set_data_2a(&QVariant::from_i64(0i64), 2);
+                    0i64
                 }
             } else {
-                item.set_data_2a(&QVariant::from_i64(0i64), 2);
-            }
+                0i64
+            };
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_i64(data), ITEM_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_i64(data), 2);
             item
         },
         FieldType::StringU8 |
         FieldType::StringU16 |
         FieldType::OptionalStringU8 |
         FieldType::OptionalStringU16 => {
-            if let Some(default_value) = &field.default_value {
-                QStandardItem::from_q_string(&QString::from_std_str(default_value))
+            let text = if let Some(default_value) = &field.default_value {
+                default_value.to_owned()
             } else {
-                QStandardItem::from_q_string(&QString::new())
-            }
+                String::new()
+            };
+            let mut item = QStandardItem::from_q_string(&QString::from_std_str(&text));
+            item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&text])));
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&text)), ITEM_SOURCE_VALUE);
+            item
         },
-        FieldType::SequenceU16(_) | FieldType::SequenceU32(_)  => QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence")),
+
+        FieldType::SequenceU16(ref definition) | FieldType::SequenceU32(ref definition)  => {
+            let table = serde_json::to_string(&Table::new(&definition)).unwrap();
+            let mut item = QStandardItem::new();
+
+            item.set_text(&qtr("packedfile_editable_sequence"));
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(&table)), ITEM_SEQUENCE_DATA);
+            item
+        }
     }
 }
 
@@ -365,6 +412,7 @@ pub unsafe fn load_data(
 
     // Set the right data, depending on the table type you get.
     let data = match data {
+        TableType::AnimTable(data) => &*data.get_ref_table_data(),
         TableType::DependencyManager(data) => &data,
         TableType::DB(data) => &*data.get_ref_table_data(),
         TableType::Loc(data) => data.get_ref_table_data(),
@@ -405,7 +453,7 @@ pub unsafe fn load_data(
         table_view_primary,
         table_view_frozen,
         definition,
-        &dependency_data.read().unwrap()
+        &dependency_data.read().unwrap(),
     )
 }
 
@@ -417,6 +465,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
         DecodedData::Boolean(ref data) => {
             let mut item = QStandardItem::new();
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_editable(false);
@@ -441,6 +490,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             let mut item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_float(data), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_float(data), 2);
             item
@@ -449,6 +499,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             let mut item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_int(*data as i32), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_int(*data as i32), 2);
             item
@@ -457,6 +508,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             let mut item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_int(*data), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_int(*data), 2);
             item
@@ -465,6 +517,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             let mut item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_i64(*data), ITEM_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_i64(*data), 2);
             item
@@ -477,12 +530,17 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             let mut item = QStandardItem::from_q_string(&QString::from_std_str(data));
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_q_string(&QString::from_std_str(data)), ITEM_SOURCE_VALUE);
             item
         },
-        DecodedData::SequenceU16(_) | DecodedData::SequenceU32(_) => {
-            let mut item = QStandardItem::from_q_string(&qtr("packedfile_noneditable_sequence"));
+        DecodedData::SequenceU16(ref table) | DecodedData::SequenceU32(ref table) => {
+            let table = QString::from_std_str(&serde_json::to_string(&table).unwrap());
+            let mut item = QStandardItem::from_q_string(&qtr("packedfile_editable_sequence"));
             item.set_editable(false);
+            item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
+            item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
+            item.set_data_2a(&QVariant::from_q_string(&table), ITEM_SEQUENCE_DATA);
             item
         }
     }
@@ -796,4 +854,44 @@ pub unsafe fn sort_column(table_view: MutPtr<QTableView>, column: i32, column_so
     if needs_cleaning {
         table_view.horizontal_header().set_sort_indicator(-1, SortOrder::AscendingOrder);
     }
+}
+
+/// This function is used to build a table struct with the data of a TableView and it's definition.
+pub unsafe fn get_table_from_view(model: MutPtr<QStandardItemModel>, definition: &Definition) -> Result<Table> {
+    let mut entries = vec![];
+
+    for row in 0..model.row_count_0a() {
+        let mut new_row: Vec<DecodedData> = vec![];
+        for (column, field) in definition.fields.iter().enumerate() {
+
+            // Create a new Item.
+            let item = match field.field_type {
+
+                // This one needs a couple of changes before turning it into an item in the table.
+                FieldType::Boolean => DecodedData::Boolean(model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked),
+
+                // Numbers need parsing, and this can fail.
+                FieldType::F32 => DecodedData::F32(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),
+                FieldType::I16 => DecodedData::I16(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a() as i16),
+                FieldType::I32 => DecodedData::I32(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
+                FieldType::I64 => DecodedData::I64(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
+
+                // All these are just normal Strings.
+                FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+                FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
+
+                // Sequences in the UI are not yet supported.
+                FieldType::SequenceU16(_) => DecodedData::SequenceU16(serde_json::from_str(&model.item_2a(row as i32, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
+                FieldType::SequenceU32(_) => DecodedData::SequenceU32(serde_json::from_str(&model.item_2a(row as i32, column as i32).data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string()).unwrap()),
+            };
+            new_row.push(item);
+        }
+        entries.push(new_row);
+    }
+
+    let mut table = Table::new(definition);
+    table.set_table_data(&entries)?;
+    Ok(table)
 }

@@ -46,7 +46,6 @@ pub mod matched_combat;
 pub struct Table {
 
     /// A copy of the `Definition` this table uses, so we don't have to check the schema everywhere.
-    #[serde(skip_serializing)]
     definition: Definition,
 
     /// The decoded entries of the table. This list is a Vec(rows) of a Vec(fields of a row) of DecodedData (decoded field).
