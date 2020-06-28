@@ -630,7 +630,9 @@ impl PackFileContentsSlots {
                         // Remove all the deleted PackedFiles from the cache.
                         for item in &items {
                             match item {
-                                TreePathType::File(path) => app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false),
+                                TreePathType::File(path) => if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false) {
+                                    show_dialog(app_ui.main_window, error, false);
+                                }
                                 TreePathType::Folder(path) => {
                                     let mut paths_to_remove = vec![];
                                     {
@@ -643,11 +645,15 @@ impl PackFileContentsSlots {
                                     }
 
                                     for path in paths_to_remove {
-                                        app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
+                                        if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false) {
+                                            show_dialog(app_ui.main_window, error, false);
+                                        }
                                     }
 
                                 }
-                                TreePathType::PackFile => app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder),
+                                TreePathType::PackFile => if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder) {
+                                    show_dialog(app_ui.main_window, error, false);
+                                }
                                 TreePathType::None => unreachable!(),
                             }
                         }

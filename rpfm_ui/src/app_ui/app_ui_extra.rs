@@ -115,6 +115,7 @@ impl AppUI {
     }
 
     /// This function updates the backend of all open PackedFiles with their view's data.
+    #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn back_to_back_end_all(&mut self,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
@@ -127,16 +128,15 @@ impl AppUI {
     }
 
     /// This function deletes all the widgets corresponding to opened PackedFiles.
+    #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn purge_them_all(&mut self,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
-    ) {
+    ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-
-            // TODO: This should report an error.
-            let _ = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
+            packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
             if index != -1 {
@@ -156,24 +156,25 @@ impl AppUI {
 
         // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
         UI_STATE.set_packfile_contents_read_only(false);
+
+        Ok(())
     }
 
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
+    #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn purge_that_one_specifically(&mut self,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
         path: &[String],
         save_before_deleting: bool
-    ) {
+    ) -> Result<()> {
 
         // Black magic to remove widgets.
         let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path);
         if let Some(position) = position {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
                 if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
-
-                    // TODO: This should report an error.
-                    let _ = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
+                    packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
                 }
                 let mut widget = packed_file_view.get_mut_widget();
                 let index = self.tab_bar_packed_file.index_of(widget);
@@ -214,6 +215,8 @@ impl AppUI {
                 }
             }
         }
+
+        Ok(())
     }
 
     /// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending on the situation.
@@ -228,8 +231,8 @@ impl AppUI {
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Result<()> {
 
-        // Destroy whatever it's in the PackedFile's view, to avoid data corruption.
-        self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder);
+        // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
+        let _ = self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder);
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         self.main_window.set_enabled(false);
@@ -367,10 +370,6 @@ impl AppUI {
 
                 UI_STATE.set_is_modified(false, self, pack_file_contents_ui);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
-                //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
-
-                // Show the "Tips".
-                //display_help_tips(&app_ui);
             }
 
             // If we got an error...
@@ -402,8 +401,8 @@ impl AppUI {
         let mut result = Ok(());
         self.main_window.set_enabled(false);
 
-        // First, we need to save all open `PackedFiles` to the backend.
-        UI_STATE.get_open_packedfiles().iter().try_for_each(|packed_file| packed_file.save(self, *global_search_ui, pack_file_contents_ui))?;
+        // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
+        self.back_to_back_end_all(*global_search_ui, *pack_file_contents_ui)?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -742,7 +741,9 @@ impl AppUI {
                                                     packed_file_paths.iter().for_each(|path| {
                                                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                                                             if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
-                                                                self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false);
+                                                                if let Err(error) = self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false) {
+                                                                    show_dialog(self.main_window, error, false);
+                                                                }
                                                             }
                                                         }
                                                     });
@@ -1148,7 +1149,9 @@ impl AppUI {
 
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
                 if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path) {
-                    self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, path, true)
+                    if let Err(error) = self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, path, true) {
+                        show_dialog(self.main_window, error, false);
+                    }
                 }
 
                 let mut tab = PackedFileView::default();
