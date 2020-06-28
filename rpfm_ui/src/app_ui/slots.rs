@@ -25,12 +25,14 @@ use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::QUrl;
 
+
 use std::cell::RefCell;
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
+
 use rpfm_lib::common::*;
 use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
@@ -145,6 +147,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub packed_file_hide: SlotOfInt<'static>,
     pub packed_file_update: SlotOfInt<'static>,
+    pub packed_file_unpreview: SlotOfInt<'static>,
 }
 
 pub struct AppUITempSlots {
@@ -1196,6 +1199,26 @@ impl AppUISlots {
                     break;
                 }
             }
+
+            // We also have to check for colliding packedfile names, so we can use their full path instead.
+            app_ui.update_views_names();
+        });
+
+        let packed_file_unpreview = SlotOfInt::new(move |index| {
+            if index == -1 { return; }
+
+            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                let widget = packed_file_view.get_mut_widget();
+                if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                    if packed_file_view.get_is_preview() {
+                        packed_file_view.set_is_preview(false);
+
+                        let name = packed_file_view.get_ref_path().last().unwrap().to_owned();
+                        app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+                    }
+                    break;
+                }
+            }
         });
 
         // And here... we return all the slots.
@@ -1275,7 +1298,8 @@ impl AppUISlots {
             // `PackedFileView` slots.
             //-----------------------------------------------//
             packed_file_hide,
-            packed_file_update
+            packed_file_update,
+            packed_file_unpreview
 		}
 	}
 }

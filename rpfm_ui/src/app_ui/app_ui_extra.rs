@@ -27,6 +27,7 @@ use qt_widgets::QTreeView;
 use qt_widgets::QLabel;
 
 use qt_gui::QStandardItemModel;
+
 use qt_core::QFlags;
 use qt_core::QRegExp;
 use qt_core::{SlotOfBool, SlotOfQString};
@@ -35,6 +36,7 @@ use qt_core::QSortFilterProxyModel;
 use cpp_core::MutPtr;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -1139,10 +1141,8 @@ impl AppUI {
                             self.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(""));
                         }
 
-                        let name = if tab_widget.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
-                        let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
-                        self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
                         self.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                        self.update_views_names();
                         return;
                     }
                 }
@@ -1158,7 +1158,6 @@ impl AppUI {
                 let tab_widget = tab.get_mut_widget();
                 if !is_external {
                     tab.set_is_preview(is_preview);
-                    let name = if tab.get_is_preview() { format!("{} (Preview)", path.last().unwrap()) } else { path.last().unwrap().to_owned() };
                     let icon_type = IconType::File(path.to_vec());
                     let icon = icon_type.get_icon_from_path();
 
@@ -1175,12 +1174,13 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
+
                                 Err(error) => return show_dialog(self.main_window, ErrorKind::AnimFragmentDecode(format!("{}", error)), false),
                             }
                         }
@@ -1192,7 +1192,7 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -1209,7 +1209,7 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -1228,7 +1228,7 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -1245,7 +1245,7 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -1264,7 +1264,7 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -1283,7 +1283,7 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -1302,7 +1302,7 @@ impl AppUI {
                                     slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                     self.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
@@ -1337,7 +1337,7 @@ impl AppUI {
                                 slot_holder.borrow_mut().push(slots);
 
                                 // Add the file to the 'Currently open' list and make it visible.
-                                self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                                 self.tab_bar_packed_file.set_current_widget(tab_widget);
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.push(tab);
@@ -1355,7 +1355,6 @@ impl AppUI {
 
                 // If it's external, we just create a view with just one button: "Stop Watching External File".
                 else {
-                    let name = path.last().unwrap().to_owned();
                     let icon_type = IconType::File(path.to_vec());
                     let icon = icon_type.get_icon_from_path();
                     let path = Rc::new(RefCell::new(path.to_vec()));
@@ -1365,7 +1364,7 @@ impl AppUI {
                             slot_holder.borrow_mut().push(slots);
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                            self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
                             self.tab_bar_packed_file.set_current_widget(tab_widget);
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
@@ -1375,6 +1374,8 @@ impl AppUI {
                 }
             }
         }
+
+        self.update_views_names();
     }
 
     /// This function is used to open the PackedFile Decoder.
@@ -1969,5 +1970,42 @@ impl AppUI {
 
         // Otherwise, return None.
         else { None }
+    }
+
+    /// Update the PackedFileView names, to ensure we have no collisions.
+    pub unsafe fn update_views_names(&mut self) {
+
+        // We also have to check for colliding packedfile names, so we can use their full path instead.
+        let mut names = HashMap::new();
+        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+            let widget = packed_file_view.get_mut_widget();
+            if self.tab_bar_packed_file.index_of(widget) != -1 {
+                let name = packed_file_view.get_ref_path().last().unwrap().to_owned();
+                match names.get_mut(&name) {
+                    Some(name) => *name += 1,
+                    None => { names.insert(name, 1); },
+                }
+            }
+        }
+
+        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+            let widget = packed_file_view.get_mut_widget();
+            let widget_name = packed_file_view.get_ref_path().last().unwrap().to_owned();
+
+            if let Some(count) = names.get(&widget_name) {
+                let mut name = if count > &1 {
+                    packed_file_view.get_ref_path().join("/")
+                } else {
+                    widget_name
+                };
+
+                if packed_file_view.get_is_preview() {
+                    name.push_str(" (Preview)");
+                }
+
+                let index = self.tab_bar_packed_file.index_of(widget);
+                self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+            }
+        }
     }
 }
