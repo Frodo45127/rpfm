@@ -597,7 +597,8 @@ impl PackFileContentsSlots {
                                     app_ui.tab_bar_packed_file.remove_tab(index);
                                 }
                             }
-                            app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &["extra_packfile.rpfm_reserved".to_owned()], false);
+
+                            let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &["extra_packfile.rpfm_reserved".to_owned()], false);
 
                             app_ui.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
                             app_ui.tab_bar_packed_file.set_current_widget(tab_widget);
@@ -645,15 +646,11 @@ impl PackFileContentsSlots {
                                     }
 
                                     for path in paths_to_remove {
-                                        if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false) {
-                                            show_dialog(app_ui.main_window, error, false);
-                                        }
+                                        let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
                                     }
 
                                 }
-                                TreePathType::PackFile => if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder) {
-                                    show_dialog(app_ui.main_window, error, false);
-                                }
+                                TreePathType::PackFile => { let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false); },
                                 TreePathType::None => unreachable!(),
                             }
                         }
@@ -981,7 +978,9 @@ impl PackFileContentsSlots {
                     }
 
                     for path in paths_to_close {
-                        app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, true);
+                        if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, true) {
+                            return show_dialog(app_ui.main_window, error, false);
+                        }
                     }
 
                     CENTRAL_COMMAND.send_message_qt(Command::MergeTables(selected_paths.to_vec(), name, delete_source_files));
@@ -1021,7 +1020,9 @@ impl PackFileContentsSlots {
                 TreePathType::File(_) => {
 
                     // First, if the PackedFile is open, save it.
-                    app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                    if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, true) {
+                        return show_dialog(app_ui.main_window, error, false);
+                    }
 
                     let path_type: PathType = From::from(item_type);
                     CENTRAL_COMMAND.send_message_qt(Command::UpdateTable(path_type.clone()));

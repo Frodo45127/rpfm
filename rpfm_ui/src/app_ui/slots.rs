@@ -227,7 +227,7 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(false);
 
                     // Close any open PackedFile and clear the global search pannel.
-                    app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false);
                     global_search_ui.clear();
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
@@ -325,7 +325,7 @@ impl AppUISlots {
 
                 // Destroy whatever it's in the PackedFile's views and clear the global search UI.
                 global_search_ui.clear();
-                app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
                 let response = CENTRAL_COMMAND.recv_message_qt();
@@ -537,7 +537,7 @@ impl AppUISlots {
                     mymod_path.push(&full_mod_name);
 
                     // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                    app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false);
                     global_search_ui.clear();
 
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
@@ -857,7 +857,7 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 let path = animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>();
                 app_ui.main_window.set_enabled(false);
-                app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
+                let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::GenerateDummyAnimPack);
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -965,7 +965,11 @@ impl AppUISlots {
 
                 // If there is no problem, ere we go.
                 app_ui.main_window.set_enabled(false);
-                app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+
+                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, true) {
+                    return show_dialog(app_ui.main_window, error, false);
+                }
+
                 global_search_ui.clear();
 
                 CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
@@ -992,7 +996,11 @@ impl AppUISlots {
 
                 // Ask the background loop to patch the PackFile, and wait for a response.
                 app_ui.main_window.set_enabled(false);
-                app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder);
+
+                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, true) {
+                    return show_dialog(app_ui.main_window, error, false);
+                }
+
                 global_search_ui.clear();
 
                 CENTRAL_COMMAND.send_message_qt(Command::PatchSiegeAI);
@@ -1162,7 +1170,7 @@ impl AppUISlots {
             }
 
             if !purge_on_delete.is_empty() {
-                app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
+                let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
             }
         });
 

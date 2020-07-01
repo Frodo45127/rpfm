@@ -42,9 +42,6 @@ use qt_core::QVariant;
 use cpp_core::MutPtr;
 use cpp_core::Ptr;
 
-use std::rc::Rc;
-use std::cell::RefCell;
-
 use rpfm_error::ErrorKind;
 
 use rpfm_lib::packfile::PathType;
@@ -56,7 +53,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::{add_to_q_list_safe, new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{TheOneSlot, View, ViewType};
+use crate::packedfile_views::{View, ViewType};
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::QString;
 use crate::utils::{create_grid_layout, show_dialog};
@@ -504,7 +501,7 @@ impl GlobalSearchUI {
     }
 
     /// This function replace the currently selected match with the provided text.
-    pub unsafe fn replace_current(&mut self, pack_file_contents_ui: &mut PackFileContentsUI) {
+    pub unsafe fn replace_current(&mut self, app_ui: &mut AppUI, pack_file_contents_ui: &mut PackFileContentsUI) {
 
         let mut global_search = UI_STATE.get_global_search();
         global_search.pattern = self.global_search_search_line_edit.text().to_std_string();
@@ -548,7 +545,9 @@ impl GlobalSearchUI {
                     };
 
                     if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| *x.get_ref_path() == path) {
-                        let _ = packed_file_view.reload(&path, pack_file_contents_ui);
+                        if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
+                            show_dialog(app_ui.main_window, error, false);
+                        }
                     }
 
                     // Set them as modified in the UI.
@@ -559,10 +558,13 @@ impl GlobalSearchUI {
     }
 
     /// This function replace all the matches in the current search with the provided text.
-    pub unsafe fn replace_all(&mut self, app_ui: &mut AppUI, pack_file_contents_ui: &mut PackFileContentsUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) {
+    pub unsafe fn replace_all(&mut self, app_ui: &mut AppUI, pack_file_contents_ui: &mut PackFileContentsUI) {
 
         // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
-        app_ui.purge_them_all(*self, *pack_file_contents_ui, slot_holder);
+        if let Err(error) = app_ui.back_to_back_end_all(*self, *pack_file_contents_ui) {
+            return show_dialog(app_ui.main_window, error, false);
+        }
+
         self.search(pack_file_contents_ui);
 
         let mut global_search = UI_STATE.get_global_search();
@@ -599,6 +601,15 @@ impl GlobalSearchUI {
             Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
                 UI_STATE.set_global_search(&global_search);
                 self.search(pack_file_contents_ui);
+
+                for path in packed_files_info.iter().map(|x| &x.path) {
+                    if let Some(packed_file_view) = UI_STATE.set_open_packedfiles().iter_mut().find(|x| &*x.get_ref_path() == path) {
+                        if let Err(error) = packed_file_view.reload(&path, pack_file_contents_ui) {
+                            show_dialog(app_ui.main_window, error, false);
+                        }
+                    }
+                }
+
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
             },
             _ => unimplemented!()

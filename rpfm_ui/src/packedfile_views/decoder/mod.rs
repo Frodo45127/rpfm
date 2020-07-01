@@ -93,6 +93,8 @@ const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 5] = [
     PackedFileType::MatchedCombat,
 ];
 
+pub const DECODER_EXTENSION: &str = "-rpfm-decoder";
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
@@ -578,6 +580,11 @@ impl PackedFileDecoderView {
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
         packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
+
+        // Update the path so the decoder is identified as a separate file.
+        let mut path = packed_file_view.get_path();
+        *path.last_mut().unwrap() = path.last().unwrap().to_owned() + DECODER_EXTENSION;
+        packed_file_view.set_path(&path);
 
         // Return success.
         Ok(TheOneSlot::Decoder(packed_file_decoder_view_slots))

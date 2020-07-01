@@ -70,7 +70,12 @@ impl PackFileExtraViewSlots {
                             // If any of the PackedFiles was already open (and we overwote them) remove his view.
                             for path in &paths_ok {
                                 if let PathType::File(path) = path {
-                                    app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
+                                    let mut open_packedfiles = UI_STATE.set_open_packedfiles();
+                                    if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
+                                        if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
+                                            let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false);
+                                        }
+                                    }
                                 }
                             }
 

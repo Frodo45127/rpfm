@@ -134,11 +134,14 @@ impl AppUI {
     pub unsafe fn purge_them_all(&mut self,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        save_before_deleting: bool,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
+            if save_before_deleting && packed_file_view.get_path() != ["extra_packfile.rpfm_reserved".to_owned()] {
+                packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
+            }
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
             if index != -1 {
@@ -234,7 +237,7 @@ impl AppUI {
     ) -> Result<()> {
 
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
-        let _ = self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder);
+        let _ = self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder, false);
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         self.main_window.set_enabled(false);
@@ -1397,7 +1400,7 @@ impl AppUI {
             let item_type = if selected_items.len() == 1 { &mut selected_items[0] } else { return };
             if let TreePathType::File(ref mut path) = item_type {
                 let mut fake_path = path.to_vec();
-                *fake_path.last_mut().unwrap() = format!("{}-rpfm-decoder", fake_path.last_mut().unwrap());
+                *fake_path.last_mut().unwrap() = fake_path.last().unwrap().to_owned() + DECODER_EXTENSION;
 
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
@@ -1453,6 +1456,8 @@ impl AppUI {
                 }
             }
         }
+
+        self.update_views_names();
     }
 
     /// This function is used to open the dependency manager.
@@ -1510,6 +1515,8 @@ impl AppUI {
                 Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }
         }
+
+        self.update_views_names();
     }
 
     /// This function is used to open the notes embebed into a PackFile.
@@ -1567,6 +1574,8 @@ impl AppUI {
                 Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }
         }
+
+        self.update_views_names();
     }
 
     /// This function is the one that takes care of the creation of different PackedFiles.

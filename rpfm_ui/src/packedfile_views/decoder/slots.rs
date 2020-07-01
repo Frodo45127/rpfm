@@ -48,6 +48,7 @@ use super::get_definition;
 use super::get_header_size;
 use super::PackedFileDecoderViewRaw;
 use super::PackedFileDecoderMutableData;
+use super::DECODER_EXTENSION;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -573,18 +574,20 @@ impl PackedFileDecoderViewSlots {
                     if open_path.len() > 2 &&
                         open_path[0] == view.packed_file_path[0] &&
                         open_path[1] == view.packed_file_path[1] &&
-                        !open_path[2].ends_with("-rpfm-decoder") {
+                        !open_path[2].ends_with(DECODER_EXTENSION) {
                         packed_files_to_save.push(open_path.to_vec());
                     }
                 }
 
                 for path in &packed_files_to_save {
-                    app_ui.purge_that_one_specifically(
+                    if let Err(error) = app_ui.purge_that_one_specifically(
                         global_search_ui,
                         pack_file_contents_ui,
                         path,
                         true,
-                    );
+                    ) {
+                        show_dialog(view.table_view, error, false);
+                    }
                 }
 
                 CENTRAL_COMMAND.send_message_qt(Command::CleanCache(packed_files_to_save));
