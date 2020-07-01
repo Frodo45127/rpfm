@@ -173,7 +173,7 @@ macro_rules! getter_generator {
         /// This function returns a copy of the definition used by the first sequence of this AnimFragment.
         pub fn $get_definition(&self) -> Definition {
             let definition = self.definition.read().unwrap();
-            if let FieldType::SequenceU32(definition) = &(*definition).fields[$field].field_type {
+            if let FieldType::SequenceU32(definition) = &(*definition).fields[$field].get_ref_field_type() {
                 definition.clone()
             }
             else { unimplemented!() }
@@ -557,7 +557,7 @@ impl PackedFileAnimFragmentView {
         for (column, field) in entry.iter().enumerate() {
 
             // If the column in question is a bitwise field, split it in as many columns as needed.
-            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[column].name) {
+            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[column].get_name()) {
                 let data = if let DecodedData::I32(data) = field { data } else { unimplemented!() };
                 for index in 0..*amount {
                     let item = get_item_from_decoded_data(&DecodedData::Boolean(data & (1 << index) != 0));
@@ -613,17 +613,17 @@ impl PackedFileAnimFragmentView {
         let mut index = 0;
         for (iteration, field) in definition.fields.iter().enumerate() {
 
-            let columns = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[iteration].name) { *amount } else { 1 };
+            let columns = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[iteration].get_name()) { *amount } else { 1 };
 
             for column in 0..columns {
-                let name = if columns > 1 { format!("{}_{}", field.name, column + 1) } else { field.name.to_owned() };
+                let name = if columns > 1 { format!("{}_{}", field.get_name(), column + 1) } else { field.get_name().to_owned() };
                 let name = clean_column_names(&name);
                 let mut item = QStandardItem::from_q_string(&QString::from_std_str(&name));
                 set_column_tooltip(&schema, &field, "", &mut item);
                 model.set_horizontal_header_item(index as i32, item.into_ptr());
 
                 // Depending on his type, set one width or another.
-                match field.field_type {
+                match field.get_ref_field_type() {
                     FieldType::Boolean => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_BOOLEAN),
                     FieldType::F32 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
                     FieldType::I16 => table_view_primary.set_column_width(index as i32, COLUMN_SIZE_NUMBER),
@@ -655,7 +655,7 @@ impl PackedFileAnimFragmentView {
             for (index, field) in definition.fields.iter().enumerate() {
 
                 // Create a new Item.
-                let item = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[index].name) {
+                let item = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[index].get_name()) {
                     let mut data = 0;
                     for iteration in 0..*amount {
                         if model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked {
@@ -667,7 +667,7 @@ impl PackedFileAnimFragmentView {
                 }
 
                 else {
-                    let data = match field.field_type {
+                    let data = match field.get_ref_field_type() {
 
                         // This one needs a couple of changes before turning it into an item in the table.
                         FieldType::Boolean => DecodedData::Boolean(model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked),

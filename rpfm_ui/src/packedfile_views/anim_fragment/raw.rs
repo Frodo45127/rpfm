@@ -183,7 +183,7 @@ macro_rules! raw_generator {
         /// This function returns a copy of the definition used by the first sequence of this AnimFragment.
         pub fn $get_definition(&self) -> Definition {
             let definition = self.definition.read().unwrap();
-            if let FieldType::SequenceU32(definition) = &(*definition).fields[$field].field_type {
+            if let FieldType::SequenceU32(definition) = &(*definition).fields[$field].get_ref_field_type() {
                 definition.clone()
             }
             else { unimplemented!() }
@@ -359,9 +359,9 @@ macro_rules! raw_generator {
                             let definition = self.$get_definition();
                             let field_types = definition.fields.iter()
                                 .map(|x|
-                                    if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.name) {
+                                    if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                         vec![FieldType::Boolean; *amount as usize]
-                                    } else { vec![x.field_type.clone(); 1] }
+                                    } else { vec![x.get_field_type(); 1] }
                                 )
                                 .flatten()
                                 .collect::<Vec<FieldType>>();
@@ -589,9 +589,9 @@ macro_rules! raw_generator {
                         let definition = self.$get_definition();
                         let field_types = definition.fields.iter()
                             .map(|x|
-                                if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.name) {
+                                if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                     vec![FieldType::Boolean; *amount as usize]
-                                } else { vec![x.field_type.clone(); 1] }
+                                } else { vec![x.get_field_type(); 1] }
                             )
                             .flatten()
                             .collect::<Vec<FieldType>>();
@@ -712,9 +712,9 @@ macro_rules! raw_generator {
                         let definition = self.$get_definition();
                         let field_types = definition.fields.iter()
                             .map(|x|
-                                if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.name) {
+                                if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                     vec![FieldType::Boolean; *amount as usize]
-                                } else { vec![x.field_type.clone(); 1] }
+                                } else { vec![x.get_field_type(); 1] }
                             )
                             .flatten()
                             .collect::<Vec<FieldType>>();
@@ -840,9 +840,9 @@ macro_rules! raw_generator {
 
                     let fields = self.$get_definition().fields.iter()
                         .map(|x|
-                            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.name) {
+                            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                 let mut fields = vec![Field::default(); *amount as usize];
-                                fields.iter_mut().for_each(|x| x.field_type = FieldType::Boolean);
+                                fields.iter_mut().for_each(|x| *x.get_ref_mut_field_type() = FieldType::Boolean);
                                 fields
                             } else { vec![x.clone(); 1] }
                         )
@@ -851,7 +851,7 @@ macro_rules! raw_generator {
                     if let Some(field) = fields.get(real_column as usize) {
 
                         // Check if, according to the definition, we have a valid value for the type.
-                        let is_valid_data = match field.field_type {
+                        let is_valid_data = match field.get_ref_field_type() {
                             FieldType::Boolean => !(text.to_lowercase() != "true" && text.to_lowercase() != "false" && text != &"1" && text != &"0"),
                             FieldType::F32 => text.parse::<f32>().is_ok(),
                             FieldType::I16 => text.parse::<i16>().is_ok(),
@@ -903,9 +903,9 @@ macro_rules! raw_generator {
             let mut changed_cells = 0;
             let fields = self.$get_definition().fields.iter()
                 .map(|x|
-                    if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.name) {
+                    if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                         let mut fields = vec![Field::default(); *amount as usize];
-                        fields.iter_mut().for_each(|x| x.field_type = FieldType::Boolean);
+                        fields.iter_mut().for_each(|x| *x.get_ref_mut_field_type() = FieldType::Boolean);
                         fields
                     } else { vec![x.clone(); 1] }
                 )
@@ -915,7 +915,7 @@ macro_rules! raw_generator {
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = model.data_1a(real_cell).to_string().to_std_string();
-                match fields[real_cell.column() as usize].field_type {
+                match fields[real_cell.column() as usize].get_ref_field_type() {
 
                     FieldType::Boolean => {
                         let current_value = model.item_from_index(real_cell).check_state();
@@ -1382,9 +1382,9 @@ macro_rules! raw_generator {
                     let current_value = item.text().to_std_string();
                     let field_types = self.$get_definition().fields.iter()
                         .map(|x|
-                            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.name) {
+                            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                 vec![FieldType::Boolean; *amount as usize]
-                            } else { vec![x.field_type.clone(); 1] }
+                            } else { vec![x.get_field_type(); 1] }
                         )
                         .flatten()
                         .collect::<Vec<FieldType>>();

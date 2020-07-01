@@ -1058,12 +1058,12 @@ impl PackedFileDecoderViewRaw {
         // Decode the data from the field.
         let decoded_data = Self::decode_data_by_fieldtype(
             &self.packed_file_data,
-            &field.field_type,
+            field.get_ref_field_type(),
             &mut index
         );
 
         // Get the type of the data we are going to put into the Table.
-        let field_type = match field.field_type {
+        let field_type = match field.get_ref_field_type() {
             FieldType::Boolean => "Bool",
             FieldType::F32 => "F32",
             FieldType::I16 => "I16",
@@ -1081,40 +1081,40 @@ impl PackedFileDecoderViewRaw {
         let mut qlist = QListOfQStandardItem::new();
 
         // Create the items of the new row.
-        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.name));
+        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.get_name()));
         let field_type = QStandardItem::from_q_string(&QString::from_std_str(field_type));
         let mut field_is_key = QStandardItem::new();
         field_is_key.set_editable(false);
         field_is_key.set_checkable(true);
-        field_is_key.set_check_state(if field.is_key { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_key.set_check_state(if field.get_is_key() { CheckState::Checked } else { CheckState::Unchecked });
 
-        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.is_reference {
+        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.get_is_reference() {
             (QStandardItem::from_q_string(&QString::from_std_str(&reference.0)), QStandardItem::from_q_string(&QString::from_std_str(&reference.1)))
         } else { (QStandardItem::new(), QStandardItem::new()) };
 
-        let field_lookup_columns = if let Some(ref columns) = field.lookup {
+        let field_lookup_columns = if let Some(ref columns) = field.get_lookup() {
             QStandardItem::from_q_string(&QString::from_std_str(columns.join(", ")))
         } else { QStandardItem::new() };
 
         let mut decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
         decoded_data.set_editable(false);
 
-        let field_default_value = if let Some(ref default_value) = field.default_value {
+        let field_default_value = if let Some(ref default_value) = field.get_default_value() {
             QStandardItem::from_q_string(&QString::from_std_str(&default_value))
         } else { QStandardItem::new() };
 
-        let field_max_length = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.max_length)));
+        let field_max_length = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_max_length())));
         let mut field_is_filename = QStandardItem::new();
         field_is_filename.set_editable(false);
         field_is_filename.set_checkable(true);
-        field_is_filename.set_check_state(if field.is_filename { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_filename.set_check_state(if field.get_is_filename() { CheckState::Checked } else { CheckState::Unchecked });
 
-        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path {
+        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.get_filename_relative_path() {
             QStandardItem::from_q_string(&QString::from_std_str(&filename_relative_path))
         } else { QStandardItem::new() };
 
-        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order)));
-        let field_description = QStandardItem::from_q_string(&QString::from_std_str(&field.description));
+        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_ca_order())));
+        let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.get_description()));
 
         let mut field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
         field_number.set_editable(false);
@@ -1141,7 +1141,7 @@ impl PackedFileDecoderViewRaw {
                 Some(ref parent) => self.table_model.item_from_index(parent).append_row_q_list_of_q_standard_item(&qlist),
                 None => self.table_model.append_row_q_list_of_q_standard_item(&qlist),
             }
-            if let FieldType::SequenceU32(table) = &field.field_type {
+            if let FieldType::SequenceU32(table) = field.get_ref_field_type() {
 
                 // The new parent is either the last child of the current parent, or the last item in the tree.
                 for field in &table.fields {
@@ -1384,7 +1384,7 @@ impl PackedFileDecoderViewRaw {
         mut index: &mut usize,
     ) -> Result<()> {
         let mut field = Field::default();
-        field.field_type = field_type;
+        *field.get_ref_mut_field_type() = field_type;
 
         self.add_field_to_view(&field, &mut index, false, None);
         self.update_view(&[], false, &mut index)

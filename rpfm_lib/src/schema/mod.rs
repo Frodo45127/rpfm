@@ -158,7 +158,7 @@ pub struct Definition {
     pub fields: Vec<Field>,
 
     /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
-    pub localised_fields: Vec<Field>,
+    localised_fields: Vec<Field>,
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
@@ -166,37 +166,37 @@ pub struct Definition {
 pub struct Field {
 
     /// Name of the field. Should contain no spaces, using `_` instead.
-    pub name: String,
+    name: String,
 
     /// Type of the field.
-    pub field_type: FieldType,
+    field_type: FieldType,
 
     /// `True` if the field is a `Key` field of a table. `False` otherwise.
-    pub is_key: bool,
+    is_key: bool,
 
     /// The default value of the field.
-    pub default_value: Option<String>,
+    default_value: Option<String>,
 
     /// The max allowed lenght for the data in the field.
-    pub max_length: i32,
+    max_length: i32,
 
     /// If the field's data corresponds to a filename.
-    pub is_filename: bool,
+    is_filename: bool,
 
     /// Path where the file in the data of the field can be, if it's restricted to one path.
-    pub filename_relative_path: Option<String>,
+    filename_relative_path: Option<String>,
 
     /// `Some(referenced_table, referenced_column)` if the field is referencing another table/column. `None` otherwise.
-    pub is_reference: Option<(String, String)>,
+    is_reference: Option<(String, String)>,
 
     /// `Some(referenced_columns)` if the field is using another column/s from the referenced table for lookup values.
-    pub lookup: Option<Vec<String>>,
+    lookup: Option<Vec<String>>,
 
     /// Aclarative description of what the field is for.
-    pub description: String,
+    description: String,
 
     /// Visual position in CA's Table. `-1` means we don't know its position.
-    pub ca_order: i16,
+    ca_order: i16,
 }
 
 /// This enum defines every type of field the lib can encode/decode.
@@ -1285,6 +1285,72 @@ impl Field {
             ca_order
         }
     }
+
+    /// Getter for the `name` field.
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    /// Getter for the `field_type` field.
+    pub fn get_field_type(&self) -> FieldType {
+        self.field_type.clone()
+    }
+
+    /// Getter for a reference of the `field_type` field.
+    pub fn get_ref_field_type(&self) -> &FieldType {
+        &self.field_type
+    }
+
+    /// Getter for a mutable reference of the `field_type` field.
+    pub fn get_ref_mut_field_type(&mut self) -> &mut FieldType {
+        &mut self.field_type
+    }
+
+    /// Getter for the `is_key` field.
+    pub fn get_is_key(&self) -> bool {
+        self.is_key
+    }
+
+    /// Getter for the `default_value` field.
+    pub fn get_default_value(&self) -> &Option<String> {
+        &self.default_value
+    }
+
+    /// Getter for the `max_length` field.
+    pub fn get_max_length(&self) -> i32 {
+        self.max_length
+    }
+
+    /// Getter for the `is_filename` field.
+    pub fn get_is_filename(&self) -> bool {
+        self.is_filename
+    }
+
+    /// Getter for the `filename_relative_path` field.
+    pub fn get_filename_relative_path(&self) -> &Option<String> {
+        &self.filename_relative_path
+    }
+
+    /// Getter for the `is_reference` field.
+    pub fn get_is_reference(&self) -> &Option<(String, String)>{
+        &self.is_reference
+    }
+
+    /// Getter for the `lookup` field.
+    pub fn get_lookup(&self) -> &Option<Vec<String>> {
+        &self.lookup
+    }
+
+    /// Getter for the `description` field.
+    pub fn get_description(&self) -> &str {
+        &self.description
+    }
+
+    /// Getter for the `ca_order` field.
+    pub fn get_ca_order(&self) -> i16 {
+        self.ca_order
+    }
+
 }
 
 /// Default implementation of `Schema`.

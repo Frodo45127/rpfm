@@ -188,7 +188,7 @@ impl PackedFileTableViewSlots {
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
                     let column = item.column();
-                    if packed_file_view.get_ref_table_definition().fields[column as usize].is_reference.is_some() {
+                    if packed_file_view.get_ref_table_definition().fields[column as usize].get_is_reference().is_some() {
                         check_references(column, item, &packed_file_view.dependency_data.read().unwrap());
                     }
                 }
@@ -476,7 +476,7 @@ impl PackedFileTableViewSlots {
         let mut freeze_columns = vec![];
         let mut fields = packed_file_view.get_ref_table_definition().fields.iter()
             .enumerate()
-            .map(|(x, y)| (x as i32, y.ca_order))
+            .map(|(x, y)| (x as i32, y.get_ca_order()))
             .collect::<Vec<(i32, i16)>>();
         fields.sort_by(|(_, a), (_, b)| a.cmp(&b));
         let ca_order = fields.iter().map(|x| x.0).collect::<Vec<i32>>();

@@ -31,7 +31,7 @@ pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStand
     for field in &table_definition.fields {
 
         // If the column in question is a bitwise field, split it in as many columns as needed.
-        if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == field.name) {
+        if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == field.get_name()) {
             for _ in 0..*amount {
                 let item = get_item_from_decoded_data(&DecodedData::Boolean(false));
                 add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());

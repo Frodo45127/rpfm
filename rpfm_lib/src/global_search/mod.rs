@@ -615,11 +615,11 @@ impl GlobalSearch {
                         MatchingMode::Regex(regex) => {
                             for definition in definitions {
                                 for (index, field) in definition.fields.iter().enumerate() {
-                                    if regex.is_match(&field.name) {
+                                    if regex.is_match(&field.get_name()) {
                                         matches.push(SchemaMatch::new(
                                             definition.version,
                                             index as u32,
-                                            field.name.to_owned()
+                                            field.get_name().to_owned()
                                         ));
                                     }
                                 }
@@ -632,21 +632,21 @@ impl GlobalSearch {
                             for definition in definitions {
                                 for (index, field) in definition.fields.iter().enumerate() {
                                     if self.case_sensitive {
-                                        if field.name.contains(&pattern) {
+                                        if field.get_name().contains(&pattern) {
                                             matches.push(SchemaMatch::new(
                                                 definition.version,
                                                 index as u32,
-                                                field.name.to_owned()
+                                                field.get_name().to_owned()
                                             ));
                                         }
                                     }
                                     else {
-                                        let name = field.name.to_lowercase();
+                                        let name = field.get_name().to_lowercase();
                                         if name.contains(&pattern) {
                                             matches.push(SchemaMatch::new(
                                                 definition.version,
                                                 index as u32,
-                                                field.name.to_owned()
+                                                field.get_name().to_owned()
                                             ));
                                         }
                                     }
@@ -687,7 +687,7 @@ impl GlobalSearch {
         match matching_mode {
             MatchingMode::Regex(regex) => {
                 if regex.is_match(&text) {
-                    let column_name = &definition.fields[column_number as usize].name;
+                    let column_name = &definition.fields[column_number as usize].get_name();
                     matches.push(TableMatch::new(&column_name, column_number, row_number, text));
                 }
             }
@@ -695,7 +695,7 @@ impl GlobalSearch {
             MatchingMode::Pattern => {
                 if self.case_sensitive {
                     if text.contains(&self.pattern) {
-                        let column_name = &definition.fields[column_number as usize].name;
+                        let column_name = &definition.fields[column_number as usize].get_name();
                         matches.push(TableMatch::new(column_name, column_number, row_number, text));
                     }
                 }
@@ -703,7 +703,7 @@ impl GlobalSearch {
                     let pattern = self.pattern.to_lowercase();
                     let text = text.to_lowercase();
                     if text.contains(&pattern) {
-                        let column_name = &definition.fields[column_number as usize].name;
+                        let column_name = &definition.fields[column_number as usize].get_name();
                         matches.push(TableMatch::new(column_name, column_number, row_number, &text));
                     }
                 }

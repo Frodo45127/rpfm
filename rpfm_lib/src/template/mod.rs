@@ -150,8 +150,8 @@ impl Template {
                     for row in &db.default_data {
                         let mut new_row = Table::get_new_row(table.get_ref_definition());
                         for (index, field) in table.get_ref_definition().fields.iter().enumerate() {
-                            if let Some((_, new_data)) = row.iter().find(|x| x.0 == field.name) {
-                                new_row[index] = match field.field_type {
+                            if let Some((_, new_data)) = row.iter().find(|x| x.0 == field.get_name()) {
+                                new_row[index] = match field.get_ref_field_type() {
                                     FieldType::Boolean => {
                                         let value = new_data.to_lowercase();
                                         if value == "true" || value == "1" { DecodedData::Boolean(true) }
@@ -199,8 +199,8 @@ impl Template {
                     for row in &loc.default_data {
                         let mut new_row = Table::get_new_row(table.get_ref_definition());
                         for (index, field) in table.get_ref_definition().fields.iter().enumerate() {
-                            if let Some((_, new_data)) = row.iter().find(|x| x.0 == field.name) {
-                                new_row[index] = match field.field_type {
+                            if let Some((_, new_data)) = row.iter().find(|x| x.0 == field.get_name()) {
+                                new_row[index] = match field.get_ref_field_type() {
                                     FieldType::Boolean => {
                                         let value = new_data.to_lowercase();
                                         if value == "true" || value == "1" { DecodedData::Boolean(true) }

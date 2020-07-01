@@ -338,7 +338,7 @@ pub unsafe fn load_data(
                 let mut item = get_item_from_decoded_data(field);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.fields[index].is_reference.is_some() {
+                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.fields[index].get_is_reference().is_some() {
                     check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap());
                 }
 
