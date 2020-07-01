@@ -183,7 +183,7 @@ macro_rules! raw_generator {
         /// This function returns a copy of the definition used by the first sequence of this AnimFragment.
         pub fn $get_definition(&self) -> Definition {
             let definition = self.definition.read().unwrap();
-            if let FieldType::SequenceU32(definition) = &(*definition).fields[$field].get_ref_field_type() {
+            if let FieldType::SequenceU32(definition) = &(*definition).get_ref_fields()[$field].get_ref_field_type() {
                 definition.clone()
             }
             else { unimplemented!() }
@@ -357,7 +357,7 @@ macro_rules! raw_generator {
 
                         let field_type = {
                             let definition = self.$get_definition();
-                            let field_types = definition.fields.iter()
+                            let field_types = definition.get_ref_fields().iter()
                                 .map(|x|
                                     if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                         vec![FieldType::Boolean; *amount as usize]
@@ -587,7 +587,7 @@ macro_rules! raw_generator {
                     let current_value = item.text().to_std_string();
                     let field_type = {
                         let definition = self.$get_definition();
-                        let field_types = definition.fields.iter()
+                        let field_types = definition.get_ref_fields().iter()
                             .map(|x|
                                 if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                     vec![FieldType::Boolean; *amount as usize]
@@ -710,7 +710,7 @@ macro_rules! raw_generator {
                     let current_value = item.text().to_std_string();
                     let field_type = {
                         let definition = self.$get_definition();
-                        let field_types = definition.fields.iter()
+                        let field_types = definition.get_ref_fields().iter()
                             .map(|x|
                                 if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                     vec![FieldType::Boolean; *amount as usize]
@@ -838,7 +838,7 @@ macro_rules! raw_generator {
                     let real_column = horizontal_header.logical_index(visual_column);
                     let mut real_row = vertical_header.logical_index(visual_row);
 
-                    let fields = self.$get_definition().fields.iter()
+                    let fields = self.$get_definition().get_ref_fields().iter()
                         .map(|x|
                             if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                 let mut fields = vec![Field::default(); *amount as usize];
@@ -901,7 +901,7 @@ macro_rules! raw_generator {
 
             // Now we do the real pass, changing data if needed.
             let mut changed_cells = 0;
-            let fields = self.$get_definition().fields.iter()
+            let fields = self.$get_definition().get_ref_fields().iter()
                 .map(|x|
                     if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                         let mut fields = vec![Field::default(); *amount as usize];
@@ -1380,7 +1380,7 @@ macro_rules! raw_generator {
                 for column in columns {
                     let mut item = model.item_2a(*row, *column);
                     let current_value = item.text().to_std_string();
-                    let field_types = self.$get_definition().fields.iter()
+                    let field_types = self.$get_definition().get_ref_fields().iter()
                         .map(|x|
                             if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|y| y.0 == x.get_name()) {
                                 vec![FieldType::Boolean; *amount as usize]

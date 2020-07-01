@@ -570,7 +570,7 @@ impl PackedFileDecoderView {
         );
 
         let fields = if let Some(definition) = definition {
-            definition.fields.to_vec()
+            definition.get_ref_fields().to_vec()
         } else { vec![] };
 
         packed_file_decoder_view.load_packed_file_data()?;
@@ -1144,7 +1144,7 @@ impl PackedFileDecoderViewRaw {
             if let FieldType::SequenceU32(table) = field.get_ref_field_type() {
 
                 // The new parent is either the last child of the current parent, or the last item in the tree.
-                for field in &table.fields {
+                for field in table.get_ref_fields() {
                     let parent = match parent {
                         Some(ref parent) => {
                             let item = self.table_model.item_from_index(parent);
@@ -1365,7 +1365,7 @@ impl PackedFileDecoderViewRaw {
 
             // And get all the versions of this table, and list them in their TreeView, if we have any.
             if let Ok(versioned_file) = versioned_file {
-                versioned_file.get_version_list().iter().map(|x| x.version).for_each(|version| {
+                versioned_file.get_version_list().iter().map(|x| x.get_version()).for_each(|version| {
                     let item = QStandardItem::from_q_string(&QString::from_std_str(format!("{}", version)));
                     self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
                 });
@@ -1434,7 +1434,7 @@ impl PackedFileDecoderViewRaw {
                     "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
                     "SequenceU32" => FieldType::SequenceU32({
                         let mut definition = Definition::new(-1);
-                        definition.fields = self.get_fields_from_view(Some(model_index));
+                        *definition.get_ref_mut_fields() = self.get_fields_from_view(Some(model_index));
                         definition
                     }),
                     _ => unimplemented!()
@@ -1495,17 +1495,17 @@ impl PackedFileDecoderViewRaw {
         match versioned_file {
             Ok(versioned_file) => {
                 match versioned_file.get_ref_mut_version(version) {
-                    Ok(definition) => definition.fields = fields,
+                    Ok(definition) => *definition.get_ref_mut_fields() = fields,
                     Err(_) => {
                         let mut definition = Definition::new(version);
-                        definition.fields = fields;
+                        *definition.get_ref_mut_fields() = fields;
                         versioned_file.add_version(&definition);
                     }
                 }
             }
             Err(_) => {
                 let mut definition = Definition::new(version);
-                definition.fields = fields;
+                *definition.get_ref_mut_fields() = fields;
 
                 let definitions = vec![definition];
                 let versioned_file = match self.packed_file_type {

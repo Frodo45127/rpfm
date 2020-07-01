@@ -164,7 +164,7 @@ impl Loc {
         packed_file.encode_integer_u16(BYTEORDER_MARK);
         packed_file.encode_string_u8(PACKED_FILE_TYPE);
         packed_file.push(0);
-        packed_file.encode_integer_i32(self.table.definition.version);
+        packed_file.encode_integer_i32(self.table.definition.get_version());
         packed_file.encode_integer_u32(self.table.entries.len() as u32);
 
         // Encode the data.
@@ -187,7 +187,7 @@ impl Loc {
 
         // To do it faster, make a freaking big table with all the vanilla entries together.
         let vanilla_table = vanilla_tables.iter()
-            .filter(|x| x.get_ref_definition().version == definition.version)
+            .filter(|x| x.get_ref_definition().get_version() == definition.get_version())
             .map(|x| x.get_ref_table_data())
             .flatten();
 

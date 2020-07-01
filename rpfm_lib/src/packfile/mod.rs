@@ -1557,9 +1557,9 @@ impl PackFile {
         // If we have db tables, get their newest definition, update all the tables to that definition if needed,
         // and then merge all their data in one table.
         let merged_table = if !db_files.is_empty() {
-            let db_files = if db_files.iter().all(|x| x.get_definition().version == db_files[0].get_definition().version) { db_files }
+            let db_files = if db_files.iter().all(|x| x.get_definition().get_version() == db_files[0].get_definition().get_version()) { db_files }
             else {
-                let definition = db_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.version).unwrap();
+                let definition = db_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.get_version()).unwrap();
                 for table in &mut db_files { table.set_definition(&definition); }
                 db_files
             };
@@ -1572,9 +1572,9 @@ impl PackFile {
 
         // Same thing for locs.
         else if !loc_files.is_empty() {
-            let loc_files = if loc_files.iter().all(|x| x.get_definition().version == loc_files[0].get_definition().version) { loc_files }
+            let loc_files = if loc_files.iter().all(|x| x.get_definition().get_version() == loc_files[0].get_definition().get_version()) { loc_files }
             else {
-                let definition = loc_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.version).unwrap();
+                let definition = loc_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.get_version()).unwrap();
                 for table in &mut loc_files { table.set_definition(&definition); }
                 loc_files
             };

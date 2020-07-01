@@ -279,7 +279,7 @@ impl PackedFileTableView {
 
         row_filter_column_selector.set_model(row_filter_column_list);
 
-        let mut fields = table_definition.fields.to_vec();
+        let mut fields = table_definition.get_ref_fields().to_vec();
         fields.sort_by(|a, b| a.get_ca_order().cmp(&b.get_ca_order()));
         for field in &fields {
             let name = clean_column_names(&field.get_name());
@@ -651,7 +651,7 @@ impl PackedFileTableView {
         filter_column_selector.clear();
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
-        for column in &self.table_definition.read().unwrap().fields {
+        for column in self.table_definition.read().unwrap().get_ref_fields() {
             let name = QString::from_std_str(&utils::clean_column_names(&column.get_name()));
             filter_column_selector.add_item_q_string(&name);
             search_column_selector.add_item_q_string(&name);
@@ -942,7 +942,7 @@ impl TableSearch {
     ) {
 
         // First, check the column type. Boolean columns need special logic, as they cannot be matched by string.
-        let is_bool = definition.fields[column as usize].get_ref_field_type() == &FieldType::Boolean;
+        let is_bool = definition.get_ref_fields()[column as usize].get_ref_field_type() == &FieldType::Boolean;
         let mut matches_unprocessed = if is_bool {
             match parse_str(&self.pattern.to_std_string()) {
                 Ok(boolean) => {
@@ -1155,7 +1155,7 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.get_ref_table_definition().fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.get_ref_table_definition().get_ref_fields().len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
@@ -1178,7 +1178,7 @@ impl TableSearch {
             table_search.column = {
                 let column = parent.search_column_selector.current_text().to_std_string().replace(' ', "_").to_lowercase();
                 if column == "*_(all_columns)" { None }
-                else { Some(parent.get_ref_table_definition().fields.iter().position(|x| x.get_name() == column).unwrap() as i32) }
+                else { Some(parent.get_ref_table_definition().get_ref_fields().iter().position(|x| x.get_name() == column).unwrap() as i32) }
             };
 
             let mut flags = if table_search.regex {
@@ -1193,7 +1193,7 @@ impl TableSearch {
 
             let columns_to_search = match table_search.column {
                 Some(column) => vec![column],
-                None => (0..parent.get_ref_table_definition().fields.len()).map(|x| x as i32).collect::<Vec<i32>>(),
+                None => (0..parent.get_ref_table_definition().get_ref_fields().len()).map(|x| x as i32).collect::<Vec<i32>>(),
             };
 
             for column in &columns_to_search {
@@ -1242,7 +1242,7 @@ impl TableSearch {
                 if model_index.is_valid() {
                     item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
 
-                    if parent.get_ref_table_definition().fields[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
+                    if parent.get_ref_table_definition().get_ref_fields()[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
                         replaced_text = text_replace;
                     }
                     else {
@@ -1251,7 +1251,7 @@ impl TableSearch {
                     }
 
                     // We need to do an extra check to ensure the new text can be in the field.
-                    match parent.get_ref_table_definition().fields[model_index.column() as usize].get_ref_field_type() {
+                    match parent.get_ref_table_definition().get_ref_fields()[model_index.column() as usize].get_ref_field_type() {
                         FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1263,7 +1263,7 @@ impl TableSearch {
             } else { return }
 
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
-            match parent.get_ref_table_definition().fields[item.column() as usize].get_ref_field_type() {
+            match parent.get_ref_table_definition().get_ref_fields()[item.column() as usize].get_ref_field_type() {
                 FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                 FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                 FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),
@@ -1309,7 +1309,7 @@ impl TableSearch {
                     // If the position is still valid (not required, but just in case)...
                     if model_index.is_valid() {
                         let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                        let original_text = match parent.get_ref_table_definition().fields[model_index.column() as usize].get_ref_field_type() {
+                        let original_text = match parent.get_ref_table_definition().get_ref_fields()[model_index.column() as usize].get_ref_field_type() {
                             FieldType::Boolean => item.data_0a().to_bool().to_string(),
                             FieldType::F32 => item.data_0a().to_float_0a().to_string(),
                             FieldType::I16 => item.data_0a().to_int_0a().to_string(),
@@ -1318,7 +1318,7 @@ impl TableSearch {
                             _ => item.text().to_std_string(),
                         };
 
-                        let replaced_text = if parent.get_ref_table_definition().fields[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
+                        let replaced_text = if parent.get_ref_table_definition().get_ref_fields()[model_index.column() as usize].get_ref_field_type() == &FieldType::Boolean {
                             text_replace.to_owned()
                         }
                         else {
@@ -1332,7 +1332,7 @@ impl TableSearch {
                         }
 
                         // We need to do an extra check to ensure the new text can be in the field.
-                        match parent.get_ref_table_definition().fields[model_index.column() as usize].get_ref_field_type() {
+                        match parent.get_ref_table_definition().get_ref_fields()[model_index.column() as usize].get_ref_field_type() {
                             FieldType::Boolean => if parse_str(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
@@ -1349,7 +1349,7 @@ impl TableSearch {
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             for (model_index, replaced_text) in &positions_and_texts {
                 let mut item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
-                match parent.get_ref_table_definition().fields[item.column() as usize].get_ref_field_type() {
+                match parent.get_ref_table_definition().get_ref_fields()[item.column() as usize].get_ref_field_type() {
                     FieldType::Boolean => item.set_check_state(if parse_str(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
                     FieldType::I16 => item.set_data_2a(&QVariant::from_int(replaced_text.parse::<i16>().unwrap().into()), 2),

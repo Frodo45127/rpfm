@@ -152,10 +152,10 @@ pub struct Definition {
     /// - `-1`: for fake `Definition`, used for dependency resolving stuff.
     /// - `0`: for unversioned PackedFiles.
     /// - `1+`: for versioned PackedFiles.
-    pub version: i32,
+    version: i32,
 
     /// This is a collection of all `Field`s the PackedFile uses, in the order it uses them.
-    pub fields: Vec<Field>,
+    fields: Vec<Field>,
 
     /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
     localised_fields: Vec<Field>,
@@ -870,6 +870,21 @@ impl Definition {
             localised_fields: vec![],
             fields: vec![],
         }
+    }
+
+    /// This function returns the version of the provided definition.
+    pub fn get_version(&self) -> i32 {
+        self.version
+    }
+
+    /// This function returns a reference to the list of fields in the definition.
+    pub fn get_ref_fields(&self) -> &[Field] {
+        &self.fields
+    }
+
+    /// This function returns a mutable reference to the list of fields in the definition.
+    pub fn get_ref_mut_fields(&mut self) -> &mut Vec<Field> {
+        &mut self.fields
     }
 
     /// This function returns the reference and lookup data of a definition.

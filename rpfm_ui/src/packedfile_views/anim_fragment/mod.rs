@@ -173,7 +173,7 @@ macro_rules! getter_generator {
         /// This function returns a copy of the definition used by the first sequence of this AnimFragment.
         pub fn $get_definition(&self) -> Definition {
             let definition = self.definition.read().unwrap();
-            if let FieldType::SequenceU32(definition) = &(*definition).fields[$field].get_ref_field_type() {
+            if let FieldType::SequenceU32(definition) = &(*definition).get_ref_fields()[$field].get_ref_field_type() {
                 definition.clone()
             }
             else { unimplemented!() }
@@ -557,7 +557,7 @@ impl PackedFileAnimFragmentView {
         for (column, field) in entry.iter().enumerate() {
 
             // If the column in question is a bitwise field, split it in as many columns as needed.
-            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[column].get_name()) {
+            if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.get_ref_fields()[column].get_name()) {
                 let data = if let DecodedData::I32(data) = field { data } else { unimplemented!() };
                 for index in 0..*amount {
                     let item = get_item_from_decoded_data(&DecodedData::Boolean(data & (1 << index) != 0));
@@ -611,9 +611,9 @@ impl PackedFileAnimFragmentView {
 
         // For each column, clean their name and set their width and tooltip.
         let mut index = 0;
-        for (iteration, field) in definition.fields.iter().enumerate() {
+        for (iteration, field) in definition.get_ref_fields().iter().enumerate() {
 
-            let columns = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[iteration].get_name()) { *amount } else { 1 };
+            let columns = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.get_ref_fields()[iteration].get_name()) { *amount } else { 1 };
 
             for column in 0..columns {
                 let name = if columns > 1 { format!("{}_{}", field.get_name(), column + 1) } else { field.get_name().to_owned() };
@@ -652,10 +652,10 @@ impl PackedFileAnimFragmentView {
         for row in 0..model.row_count_0a() {
             let mut new_row: Vec<DecodedData> = vec![];
             let mut column = 0;
-            for (index, field) in definition.fields.iter().enumerate() {
+            for (index, field) in definition.get_ref_fields().iter().enumerate() {
 
                 // Create a new Item.
-                let item = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.fields[index].get_name()) {
+                let item = if let Some((_, amount)) = BITWISE_FIELDS.iter().find(|x| x.0 == definition.get_ref_fields()[index].get_name()) {
                     let mut data = 0;
                     for iteration in 0..*amount {
                         if model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked {

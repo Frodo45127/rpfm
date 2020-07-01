@@ -149,7 +149,7 @@ impl Template {
                     let mut data = table.get_table_data();
                     for row in &db.default_data {
                         let mut new_row = Table::get_new_row(table.get_ref_definition());
-                        for (index, field) in table.get_ref_definition().fields.iter().enumerate() {
+                        for (index, field) in table.get_ref_definition().get_ref_fields().iter().enumerate() {
                             if let Some((_, new_data)) = row.iter().find(|x| x.0 == field.get_name()) {
                                 new_row[index] = match field.get_ref_field_type() {
                                     FieldType::Boolean => {
@@ -198,7 +198,7 @@ impl Template {
                     let mut data = table.get_table_data();
                     for row in &loc.default_data {
                         let mut new_row = Table::get_new_row(table.get_ref_definition());
-                        for (index, field) in table.get_ref_definition().fields.iter().enumerate() {
+                        for (index, field) in table.get_ref_definition().get_ref_fields().iter().enumerate() {
                             if let Some((_, new_data)) = row.iter().find(|x| x.0 == field.get_name()) {
                                 new_row[index] = match field.get_ref_field_type() {
                                     FieldType::Boolean => {

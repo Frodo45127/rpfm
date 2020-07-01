@@ -273,13 +273,13 @@ impl DecodedPackedFile {
                         .filter_map(|x| x.decode_return_ref_no_locks(&schema).ok())
                         .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })
                         .filter(|x| x.name == data.name)
-                        .max_by(|x, y| x.get_ref_definition().version.cmp(&y.get_ref_definition().version)) {
+                        .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
 
                         let definition_new = vanilla_db.get_definition();
                         let definition_old = data.get_definition();
                         if definition_old != definition_new {
                             data.set_definition(&definition_new);
-                            Ok((definition_old.version, definition_new.version))
+                            Ok((definition_old.get_version(), definition_new.get_version()))
                         }
                         else {
                             Err(ErrorKind::NoDefinitionUpdateAvailable.into())

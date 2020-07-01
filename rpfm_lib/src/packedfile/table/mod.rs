@@ -217,15 +217,15 @@ impl Table {
         // It's simple: we compare both schemas, and get the original and final positions of each column.
         // If a row is new, his original position is -1. If has been removed, his final position is -1.
         let mut positions: Vec<(i32, i32)> = vec![];
-        for (new_pos, new_field) in new_definition.fields.iter().enumerate() {
-            if let Some(old_pos) = self.definition.fields.iter().position(|x| x.get_name() == new_field.get_name()) {
+        for (new_pos, new_field) in new_definition.get_ref_fields().iter().enumerate() {
+            if let Some(old_pos) = self.definition.get_ref_fields().iter().position(|x| x.get_name() == new_field.get_name()) {
                 positions.push((old_pos as i32, new_pos as i32))
             } else { positions.push((-1, new_pos as i32)); }
         }
 
         // Then, for each field in the old definition, check if exists in the new one.
-        for (old_pos, old_field) in self.definition.fields.iter().enumerate() {
-            if !new_definition.fields.iter().any(|x| x.get_name() == old_field.get_name()) { positions.push((old_pos as i32, -1)); }
+        for (old_pos, old_field) in self.definition.get_ref_fields().iter().enumerate() {
+            if !new_definition.get_ref_fields().iter().any(|x| x.get_name() == old_field.get_name()) { positions.push((old_pos as i32, -1)); }
         }
 
         // We sort the columns by their destination.
@@ -242,7 +242,7 @@ impl Table {
 
                 // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
                 else if *old_pos == -1 {
-                    entry.push(DecodedData::default(&new_definition.fields[*new_pos as usize].get_ref_field_type()));
+                    entry.push(DecodedData::default(&new_definition.get_ref_fields()[*new_pos as usize].get_ref_field_type()));
                 }
 
                 // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.
@@ -265,12 +265,12 @@ impl Table {
         for row in data {
 
             // First, we need to make sure all rows we have are exactly what we expect.
-            if row.len() != self.definition.fields.len() { return Err(ErrorKind::TableRowWrongFieldCount(self.definition.fields.len() as u32, row.len() as u32).into()) }
+            if row.len() != self.definition.get_ref_fields().len() { return Err(ErrorKind::TableRowWrongFieldCount(self.definition.get_ref_fields().len() as u32, row.len() as u32).into()) }
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
-                if !DecodedData::is_field_type_correct(cell, self.definition.fields[index].get_ref_field_type()) {
-                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.fields[index].get_ref_field_type())).into())
+                if !DecodedData::is_field_type_correct(cell, self.definition.get_ref_fields()[index].get_ref_field_type()) {
+                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.get_ref_fields()[index].get_ref_field_type())).into())
                 }
             }
         }
@@ -294,9 +294,9 @@ impl Table {
         //self.entries = Vec::with_capacity(entry_count as usize);
         self.entries = vec![];
         for row in 0..entry_count {
-            let mut decoded_row = Vec::with_capacity(self.definition.fields.len());
-            for column in 0..self.definition.fields.len() {
-                let decoded_cell = match &self.definition.fields[column].get_ref_field_type() {
+            let mut decoded_row = Vec::with_capacity(self.definition.get_ref_fields().len());
+            for column in 0..self.definition.get_ref_fields().len() {
+                let decoded_cell = match &self.definition.get_ref_fields()[column].get_ref_field_type() {
                     FieldType::Boolean => {
                         if let Ok(data) = data.decode_packedfile_bool(*index, &mut index) { Ok(DecodedData::Boolean(data)) }
                         else { Err(ErrorKind::HelperDecodingEncodingError(format!("<p>Error trying to decode the <i><b>Row {}, Cell {}</b></i> as a <b><i>Boolean</b></i> value: the value is not a boolean, or there are insufficient bytes left to decode it as a boolean value.</p>", row + 1, column + 1))) }
@@ -366,7 +366,7 @@ impl Table {
 
     /// This function encodes all the fields of a table to raw bytes.
     fn encode(&self, mut packed_file: &mut Vec<u8>) -> Result<()> {
-        let fields = &self.definition.fields;
+        let fields = &self.definition.get_ref_fields();
         for row in &self.entries {
 
             // First, we need to make sure all rows we're going to encode are exactly what we expect.
@@ -410,7 +410,7 @@ impl Table {
 
     /// This function returns a new empty row for the provided definition.
     pub fn get_new_row(definition: &Definition) -> Vec<DecodedData> {
-        definition.fields.iter()
+        definition.get_ref_fields().iter()
             .map(|field|
                 match field.get_ref_field_type() {
                     FieldType::Boolean => {
@@ -533,7 +533,7 @@ impl Table {
                 // If it doesn't match with the name we provided, return an error.
                 if row == 0 {
                     if record.get(0).unwrap_or("error") != name { return Err(ErrorKind::ImportTSVWrongTypeTable.into()); }
-                    if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != definition.version {
+                    if record.get(1).unwrap_or("-1").parse::<i32>().map_err(|_| Error::from(ErrorKind::ImportTSVInvalidVersion))? != definition.get_version() {
                         return Err(ErrorKind::ImportTSVWrongVersion.into());
                     }
                 }
@@ -542,10 +542,10 @@ impl Table {
                 else if row == 1 { continue }
 
                 // Then read the rest of the rows as a normal TSV.
-                else if record.len() == definition.fields.len() {
+                else if record.len() == definition.get_ref_fields().len() {
                     let mut entry = vec![];
                     for (column, field) in record.iter().enumerate() {
-                        match definition.fields[column].get_ref_field_type() {
+                        match definition.get_ref_fields()[column].get_ref_field_type() {
                             FieldType::Boolean => {
                                 let value = field.to_lowercase();
                                 if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
@@ -619,10 +619,10 @@ impl Table {
                 if row == 0 { continue }
 
                 // Then read the rest of the rows as a normal TSV.
-                else if record.len() == definition.fields.len() {
+                else if record.len() == definition.get_ref_fields().len() {
                     let mut entry = vec![];
                     for (column, field) in record.iter().enumerate() {
-                        match definition.fields[column].get_ref_field_type() {
+                        match definition.get_ref_fields()[column].get_ref_field_type() {
                             FieldType::Boolean => {
                                 let value = field.to_lowercase();
                                 if value == "true" || value == "1" { entry.push(DecodedData::Boolean(true)); }
@@ -688,8 +688,8 @@ impl Table {
             .from_writer(vec![]);
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
-        writer.serialize((table_name, self.definition.version))?;
-        writer.serialize(self.definition.fields.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
+        writer.serialize((table_name, self.definition.get_version()))?;
+        writer.serialize(self.definition.get_ref_fields().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
         for entry in &self.entries { writer.serialize(&entry)?; }
@@ -724,11 +724,11 @@ impl Table {
         file.read_to_end(&mut data)?;
 
         let (table_type, version, entries) = if let Ok(data) = loc::Loc::read(&data, schema, false) {
-            (loc::TSV_NAME_LOC, data.get_definition().version, data.get_table_data())
+            (loc::TSV_NAME_LOC, data.get_definition().get_version(), data.get_table_data())
         }
         else {
             let table_type = source_path.parent().unwrap().file_name().unwrap().to_str().unwrap();
-            if let Ok(data) = db::DB::read(&data, table_type, schema, false) { (table_type, data.get_definition().version, data.get_table_data()) }
+            if let Ok(data) = db::DB::read(&data, table_type, schema, false) { (table_type, data.get_definition().get_version(), data.get_table_data()) }
             else { return Err(ErrorKind::ImportTSVWrongTypeTable.into()) }
         };
 
@@ -737,7 +737,7 @@ impl Table {
 
         // We serialize the info of the table (name and version) in the first line, and the column names in the second one.
         writer.serialize((&table_type, version))?;
-        writer.serialize(definition.fields.iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
+        writer.serialize(definition.get_ref_fields().iter().map(|x| x.get_name().to_owned()).collect::<Vec<String>>())?;
 
         // Then we serialize each entry in the DB Table.
         for entry in entries { writer.serialize(&entry)?; }
@@ -773,7 +773,7 @@ impl From<&RawTable> for Table {
 
                 // Some games (Thrones, Attila, Rome 2 and Shogun 2) may have missing fields when said field is empty.
                 // To compensate it, if we don't find a field from the definition in the table, we add it empty.
-                for field_def in &table.definition.fields {
+                for field_def in table.definition.get_ref_fields() {
                     let mut exists = false;
                     for field in &row.fields {
                         if field_def.get_name() == field.field_name {

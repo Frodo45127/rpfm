@@ -184,7 +184,7 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
 /// This function returns a new default row.
 pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStandardItem> {
     let mut qlist = QListOfQStandardItem::new();
-    for field in &table_definition.fields {
+    for field in table_definition.get_ref_fields() {
         let item = get_default_item_from_field(field);
         add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
     }
@@ -429,7 +429,7 @@ pub unsafe fn load_data(
                 let mut item = get_item_from_decoded_data(field);
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.fields[index].get_is_reference().is_some() {
+                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.get_ref_fields()[index].get_is_reference().is_some() {
                     check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap());
                 }
 
@@ -561,7 +561,7 @@ pub unsafe fn build_columns(
     let mut keys = vec![];
 
     // For each column, clean their name and set their width and tooltip.
-    for (index, field) in definition.fields.iter().enumerate() {
+    for (index, field) in definition.get_ref_fields().iter().enumerate() {
 
         let name = clean_column_names(&field.get_name());
         let mut item = QStandardItem::from_q_string(&QString::from_std_str(&name));
@@ -590,7 +590,7 @@ pub unsafe fn build_columns(
     // Now the order. If we have a sort order from the schema, we use that one.
     if do_we_have_ca_order {
         let mut header_primary = table_view_primary.horizontal_header();
-        let mut fields = definition.fields.iter()
+        let mut fields = definition.get_ref_fields().iter()
             .enumerate()
             .map(|(x, y)| (x, y.get_ca_order()))
             .collect::<Vec<(usize, i16)>>();
@@ -655,7 +655,7 @@ pub unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_n
                     if let VersionedFile::DB(ref_table_name, ref_definition) = versioned_file {
                         let mut found = false;
                         for ref_version in ref_definition {
-                            for ref_field in &ref_version.fields {
+                            for ref_field in ref_version.get_ref_fields() {
                                 if let Some((ref_ref_table, ref_ref_field)) = ref_field.get_is_reference() {
                                     if ref_ref_table == short_table_name && ref_ref_field == field.get_name() {
                                         found = true;
@@ -769,7 +769,7 @@ pub unsafe fn setup_item_delegates(
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
 ) {
     let enable_lookups = false; //table_enable_lookups_button.is_checked();
-    for (column, field) in definition.fields.iter().enumerate() {
+    for (column, field) in definition.get_ref_fields().iter().enumerate() {
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
         if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() {
@@ -822,7 +822,7 @@ pub unsafe fn check_table_for_error(
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
 ) {
     let _blocker = QSignalBlocker::from_q_object(model.static_upcast_mut::<QObject>());
-    for (column, field) in definition.fields.iter().enumerate() {
+    for (column, field) in definition.get_ref_fields().iter().enumerate() {
         if field.get_is_reference().is_some() {
             for row in 0..model.row_count_0a() {
                 let item = model.item_2a(row, column as i32);
@@ -862,7 +862,7 @@ pub unsafe fn get_table_from_view(model: MutPtr<QStandardItemModel>, definition:
 
     for row in 0..model.row_count_0a() {
         let mut new_row: Vec<DecodedData> = vec![];
-        for (column, field) in definition.fields.iter().enumerate() {
+        for (column, field) in definition.get_ref_fields().iter().enumerate() {
 
             // Create a new Item.
             let item = match field.get_ref_field_type() {

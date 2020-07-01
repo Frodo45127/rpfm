@@ -508,7 +508,7 @@ pub fn background_loop() {
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     match schema.get_ref_last_definition_db(&table_name) {
-                        Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.version)),
+                        Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.get_version())),
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     }
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }

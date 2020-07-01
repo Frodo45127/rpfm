@@ -144,7 +144,7 @@ impl AnimTable {
 
         // Create the vector to hold them all.
         let mut packed_file: Vec<u8> = vec![];
-        packed_file.encode_integer_i32(self.table.definition.version);
+        packed_file.encode_integer_i32(self.table.definition.get_version());
         packed_file.encode_integer_u32(self.table.entries.len() as u32);
         self.table.encode(&mut packed_file)?;
 
