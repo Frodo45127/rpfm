@@ -44,3 +44,46 @@ pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStand
     }
     qlist
 }
+
+/// This function takes care of loading the data into the AnimFragment View.
+pub unsafe fn load_data(
+    mut integer_1: MutPtr<QLineEdit>,
+    mut integer_2: MutPtr<QLineEdit>,
+    table_1: MutPtr<QTableView>,
+    table_2: MutPtr<QTableView>,
+    original_data: &AnimFragment
+) -> Result<()> {
+    match original_data.get_table_data().get(0) {
+        Some(data) => {
+            integer_1.set_text(&QString::from_std_str(&data[1].data_to_string()));
+            integer_2.set_text(&QString::from_std_str(&data[2].data_to_string()));
+
+            let filter: MutPtr<QSortFilterProxyModel> = table_1.model().static_downcast_mut();
+            let table_model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+            if let Some(data) = data.get(0) {
+                if let DecodedData::SequenceU32(data) = data {
+                    let definition = data.get_definition();
+                    for entry in data.get_table_data(){
+                        PackedFileAnimFragmentView::load_entry(table_model, &entry, &definition);
+                    }
+                    PackedFileAnimFragmentView::build_columns(table_1, &data.get_definition());
+                }
+            }
+
+            let filter: MutPtr<QSortFilterProxyModel> = table_2.model().static_downcast_mut();
+            let table_model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+            if let Some(data) = data.get(3) {
+                if let DecodedData::SequenceU32(data) = data {
+                    let definition = data.get_definition();
+                    for entry in data.get_table_data(){
+                        PackedFileAnimFragmentView::load_entry(table_model, &entry, &definition);
+                    }
+                    PackedFileAnimFragmentView::build_columns(table_2, &data.get_definition());
+                }
+            }
+
+            Ok(())
+        }
+        None => Err(ErrorKind::Generic.into()),
+    }
+}

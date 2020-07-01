@@ -51,7 +51,7 @@ use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
-use crate::packedfile_views::table::{COLUMN_SIZE_BOOLEAN, COLUMN_SIZE_NUMBER, COLUMN_SIZE_STRING};
+use crate::packedfile_views::table::{COLUMN_SIZE_BOOLEAN, COLUMN_SIZE_NUMBER, COLUMN_SIZE_STRING, TableOperations};
 use crate::packedfile_views::table::utils::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::atomic_from_mut_ptr;
@@ -59,6 +59,7 @@ use crate::utils::mut_ptr_from_atomic;
 
 use self::raw::PackedFileAnimFragmentViewRaw;
 use self::slots::PackedFileAnimFragmentViewSlots;
+use self::utils::load_data;
 
 mod connections;
 pub mod slots;
@@ -117,10 +118,10 @@ pub struct PackedFileAnimFragmentView {
     undo_model_2: AtomicPtr<QStandardItemModel>,
 
     //packed_file_path: Arc<RwLock<Vec<String>>>,
-    //history_undo_1: Arc<RwLock<Vec<TableOperations>>>,
-    //history_redo_1: Arc<RwLock<Vec<TableOperations>>>,
-    //history_undo_2: Arc<RwLock<Vec<TableOperations>>>,
-    //history_redo_2: Arc<RwLock<Vec<TableOperations>>>,
+    history_undo_1: Arc<RwLock<Vec<TableOperations>>>,
+    history_redo_1: Arc<RwLock<Vec<TableOperations>>>,
+    history_undo_2: Arc<RwLock<Vec<TableOperations>>>,
+    history_redo_2: Arc<RwLock<Vec<TableOperations>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -375,7 +376,7 @@ impl PackedFileAnimFragmentView {
         context_menu_2.insert_separator(context_menu_rewrite_selection_2);
         context_menu_2.insert_separator(context_menu_undo_2);
 
-        let mut packed_file_anim_fragment_view_raw = PackedFileAnimFragmentViewRaw {
+        let packed_file_anim_fragment_view_raw = PackedFileAnimFragmentViewRaw {
             table_1: table_view_1,
             table_2: table_view_2,
             integer_1: i1_line_edit.into_ptr(),
@@ -482,13 +483,19 @@ impl PackedFileAnimFragmentView {
             undo_model_2: atomic_from_mut_ptr(packed_file_anim_fragment_view_raw.undo_model_2),
 
             //packed_file_path: packed_file_view.get_path_raw().clone(),
-            //history_undo_1: packed_file_anim_fragment_view_raw.history_undo_1.clone(),
-            //history_redo_1: packed_file_anim_fragment_view_raw.history_redo_1.clone(),
-            //history_undo_2: packed_file_anim_fragment_view_raw.history_undo_2.clone(),
-            //history_redo_2: packed_file_anim_fragment_view_raw.history_redo_2.clone(),
+            history_undo_1: packed_file_anim_fragment_view_raw.history_undo_1.clone(),
+            history_redo_1: packed_file_anim_fragment_view_raw.history_redo_1.clone(),
+            history_undo_2: packed_file_anim_fragment_view_raw.history_undo_2.clone(),
+            history_redo_2: packed_file_anim_fragment_view_raw.history_redo_2.clone(),
         };
 
-        Self::load_data(&mut packed_file_anim_fragment_view_raw, &data)?;
+        load_data(
+            packed_file_anim_fragment_view_raw.integer_1,
+            packed_file_anim_fragment_view_raw.integer_2,
+            packed_file_anim_fragment_view_raw.table_1,
+            packed_file_anim_fragment_view_raw.table_2,
+            &data
+        )?;
 
         // Initialize the undo models.
         update_undo_model(model_1, mut_ptr_from_atomic(&packed_file_anim_fragment_view.undo_model_1));
@@ -502,41 +509,46 @@ impl PackedFileAnimFragmentView {
         Ok((TheOneSlot::AnimFragment(packed_file_anim_fragment_view_slots), packed_file_info))
     }
 
-    /// This function takes care of loading the data into the AnimFragment View.
-    pub unsafe fn load_data(ui: &mut PackedFileAnimFragmentViewRaw, bdata: &AnimFragment) -> Result<()> {
-        match bdata.get_table_data().get(0) {
-            Some(data) => {
-                ui.integer_1.set_text(&QString::from_std_str(&data[1].data_to_string()));
-                ui.integer_2.set_text(&QString::from_std_str(&data[2].data_to_string()));
+    /// Function to reload the data of the view without having to delete the view itself.
+    pub unsafe fn reload_view(&mut self, data: AnimFragment) -> Result<()> {
+        let integer_1 = mut_ptr_from_atomic(&self.integer_1);
+        let integer_2 = mut_ptr_from_atomic(&self.integer_2);
+        let table_1 = mut_ptr_from_atomic(&self.table_1);
+        let table_2 = mut_ptr_from_atomic(&self.table_2);
+        let undo_model_1 = mut_ptr_from_atomic(&self.undo_model_1);
+        let undo_model_2 = mut_ptr_from_atomic(&self.undo_model_2);
 
-                let filter: MutPtr<QSortFilterProxyModel> = ui.table_1.model().static_downcast_mut();
-                let table_model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
-                if let Some(data) = data.get(0) {
-                    if let DecodedData::SequenceU32(data) = data {
-                        let definition = data.get_definition();
-                        for entry in data.get_table_data(){
-                            Self::load_entry(table_model, &entry, &definition);
-                        }
-                        Self::build_columns(ui.table_1, &data.get_definition());
-                    }
-                }
+        // Update the stored definition.
+        let definition = data.get_definition();
+        *self.definition.write().unwrap() = definition;
 
-                let filter: MutPtr<QSortFilterProxyModel> = ui.table_2.model().static_downcast_mut();
-                let table_model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
-                if let Some(data) = data.get(3) {
-                    if let DecodedData::SequenceU32(data) = data {
-                        let definition = data.get_definition();
-                        for entry in data.get_table_data(){
-                            Self::load_entry(table_model, &entry, &definition);
-                        }
-                        Self::build_columns(ui.table_2, &data.get_definition());
-                    }
-                }
+        let filter: MutPtr<QSortFilterProxyModel> = table_1.model().static_downcast_mut();
+        let model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
 
-                Ok(())
-            }
-            None => Err(ErrorKind::Generic.into()),
-        }
+        // Load the data to the Table. For some reason, if we do this after setting the titles of
+        // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
+        load_data(
+            integer_1,
+            integer_2,
+            table_1,
+            table_2,
+            &data
+        )?;
+
+        // Reset the undo model and the undo/redo history.
+        update_undo_model(model, undo_model_1);
+        update_undo_model(model, undo_model_2);
+
+        self.history_undo_1.write().unwrap().clear();
+        self.history_undo_2.write().unwrap().clear();
+        self.history_redo_1.write().unwrap().clear();
+        self.history_redo_2.write().unwrap().clear();
+
+        // Reset this setting so the last column gets resized properly.
+        table_1.horizontal_header().set_stretch_last_section(!SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"]);
+        table_2.horizontal_header().set_stretch_last_section(SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"]);
+
+        Ok(())
     }
 
     /// This function takes care of loading each entry's data into the provided model.

@@ -26,7 +26,6 @@ use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
-
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::app_ui::AppUI;
@@ -49,6 +48,9 @@ pub mod slots;
 
 /// This struct contains the view of an AnimPack PackedFile.
 pub struct PackedFileAnimPackView {
+    file_count_data_label: AtomicPtr<QLabel>,
+    file_list_data_text: AtomicPtr<QPlainTextEdit>,
+
     unpack_button: AtomicPtr<QPushButton>,
 }
 
@@ -91,8 +93,9 @@ impl PackedFileAnimPackView {
         let file_count_label = QLabel::from_q_string(&qtr("file_count"));
         let file_list_label = QLabel::from_q_string(&qtr("file_paths"));
 
-        let file_count_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{}", data.len())));
-        let file_list_data_text = QPlainTextEdit::from_q_string(&QString::from_std_str(format!("{:#?}", data)));
+        let mut file_count_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{}", data.len())));
+        let mut file_list_data_text = QPlainTextEdit::from_q_string(&QString::from_std_str(format!("{:#?}", data)));
+        file_list_data_text.set_read_only(true);
 
         let mut unpack_button = QPushButton::from_q_string(&qtr("animpack_unpack"));
 
@@ -101,8 +104,8 @@ impl PackedFileAnimPackView {
         layout.add_widget_5a(file_count_label.into_ptr(), 2, 0, 1, 1);
         layout.add_widget_5a(file_list_label.into_ptr(), 3, 0, 1, 1);
 
-        layout.add_widget_5a(file_count_data_label.into_ptr(), 2, 1, 1, 1);
-        layout.add_widget_5a(file_list_data_text.into_ptr(), 3, 1, 1, 1);
+        layout.add_widget_5a(&mut file_count_data_label, 2, 1, 1, 1);
+        layout.add_widget_5a(&mut file_list_data_text, 3, 1, 1, 1);
 
         let packed_file_animpack_view_raw = PackedFileAnimPackViewRaw {
             unpack_button: unpack_button.into_ptr(),
@@ -117,6 +120,9 @@ impl PackedFileAnimPackView {
         );
 
         let packed_file_animpack_view = Self {
+            file_count_data_label: atomic_from_mut_ptr(file_count_data_label.into_ptr()),
+            file_list_data_text: atomic_from_mut_ptr(file_list_data_text.into_ptr()),
+
             unpack_button: atomic_from_mut_ptr(packed_file_animpack_view_raw.unpack_button),
         };
 
@@ -125,6 +131,22 @@ impl PackedFileAnimPackView {
         packed_file_view.packed_file_type = PackedFileType::AnimPack;
 
         Ok((TheOneSlot::AnimPack(packed_file_animpack_view_slots), packed_file_info))
+    }
+
+    /// Function to reload the data of the view without having to delete the view itself.
+    pub unsafe fn reload_view(&mut self, data: &[String]) {
+        self.get_mut_ptr_file_count_data_label().set_text(&QString::from_std_str(format!("{}", data.len())));
+        self.get_mut_ptr_file_list_data_text().set_plain_text(&QString::from_std_str(format!("{:#?}", data)));
+    }
+
+    /// This function returns a pointer to the file count label.
+    pub fn get_mut_ptr_file_count_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.file_count_data_label)
+    }
+
+    /// This function returns a pointer to the file list view.
+    pub fn get_mut_ptr_file_list_data_text(&self) -> MutPtr<QPlainTextEdit> {
+        mut_ptr_from_atomic(&self.file_list_data_text)
     }
 
     /// This function returns a pointer to the `Unpack` button.
