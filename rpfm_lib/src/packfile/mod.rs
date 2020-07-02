@@ -1104,7 +1104,7 @@ impl PackFile {
                 // Finish the path and try to save the file to disk.
                 current_path.push(&file_name);
                 let mut file = BufWriter::new(File::create(&current_path)?);
-                if file.write_all(&packed_file.get_ref_raw().get_data()?).is_err() {
+                if file.write_all(&packed_file.get_raw_data()?).is_err() {
                     return Err(ErrorKind::ExtractError(path.to_vec()).into());
                 }
                 Ok(())
@@ -2408,11 +2408,11 @@ impl PackFile {
                 ))
             );
 
-            let packed_file = PackedFile::new_from_raw(&raw_data);
+            let mut packed_file = PackedFile::new_from_raw(&raw_data);
 
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
             if packed_file.get_path() == ["notes.rpfm_reserved"] {
-                if let Ok(data) = packed_file.get_ref_raw().get_data() {
+                if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
                     if let Ok(data) = data.decode_string_u8(0, data.len()) {
                         pack_file_decoded.notes = Some(data);
                     }
