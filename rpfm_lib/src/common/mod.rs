@@ -209,6 +209,17 @@ pub fn get_game_selected_template_definitions_paths() -> Option<Vec<PathBuf>> {
             None => continue,
         }
     }
+
+    if let Ok(definitions_path) = get_custom_template_definitions_path() {
+        if let Ok(json_paths) = get_files_from_subdir(&definitions_path) {
+            for path in &json_paths {
+                match path.extension() {
+                    Some(extension) => if extension == "json" { paths.push(path.to_path_buf()); }
+                    None => continue,
+                }
+            }
+        }
+    }
     Some(paths)
 }
 
@@ -243,6 +254,21 @@ pub fn get_template_assets_path() -> Result<PathBuf> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     Ok(get_config_path()?.join(template::TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::ASSETS_FOLDER))
 }
+
+/// This function returns the custom template definition path.
+#[allow(dead_code)]
+pub fn get_custom_template_definitions_path() -> Result<PathBuf> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
+    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::DEFINITIONS_FOLDER))
+}
+
+/// This function returns the custom template assets path.
+#[allow(dead_code)]
+pub fn get_custom_template_assets_path() -> Result<PathBuf> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
+    Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::ASSETS_FOLDER))
+}
+
 
 /// This function parses strings to booleans, properly.
 pub fn parse_str(string: &str) -> Result<bool> {

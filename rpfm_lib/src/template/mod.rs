@@ -37,6 +37,7 @@ use crate::schema::FieldType;
 pub const TEMPLATE_FOLDER: &str = "templates";
 pub const DEFINITIONS_FOLDER: &str = "definitions";
 pub const ASSETS_FOLDER: &str = "assets";
+pub const CUSTOM_TEMPLATE_FOLDER: &str = "templates_custom";
 
 pub const TEMPLATE_REPO: &str = "https://github.com/Frodo45127/rpfm-templates";
 pub const REMOTE: &str = "origin";
@@ -259,11 +260,21 @@ impl Template {
 
     /// This function loads a `Template` to memory.
     pub fn load(template: &str) -> Result<Self> {
-        let mut file_path = get_template_definitions_path()?;
+        let mut file_path = get_custom_template_definitions_path()?;
         file_path.push(template);
 
-        let file = BufReader::new(File::open(&file_path)?);
-        from_reader(file).map_err(From::from)
+        if file_path.exists() {
+            let file = BufReader::new(File::open(&file_path)?);
+            from_reader(file).map_err(From::from)
+        }
+
+        else {
+            let mut file_path = get_template_definitions_path()?;
+            file_path.push(template);
+
+            let file = BufReader::new(File::open(&file_path)?);
+            from_reader(file).map_err(From::from)
+        }
     }
 
     /// This function saves a `Template` from memory to a file in the `template/` folder.
