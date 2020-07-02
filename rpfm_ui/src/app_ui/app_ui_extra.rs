@@ -66,6 +66,7 @@ use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder:
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
+use crate::ui::GameSelectedIcons;
 use crate::utils::{create_grid_layout, show_dialog};
 
 //-------------------------------------------------------------------------------//
@@ -162,6 +163,9 @@ impl AppUI {
         // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
         UI_STATE.set_packfile_contents_read_only(false);
 
+        // Update the background icon.
+        GameSelectedIcons::set_game_selected_icon(self);
+
         Ok(())
     }
 
@@ -220,6 +224,9 @@ impl AppUI {
                 }
             }
         }
+
+        // Update the background icon.
+        GameSelectedIcons::set_game_selected_icon(self);
 
         Ok(())
     }

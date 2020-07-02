@@ -1190,6 +1190,9 @@ impl AppUISlots {
             if !purge_on_delete.is_empty() {
                 let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
             }
+
+            // Update the background icon.
+            GameSelectedIcons::set_game_selected_icon(&mut app_ui);
         });
 
         let packed_file_update = SlotOfInt::new(move |index| {
@@ -1228,6 +1231,9 @@ impl AppUISlots {
 
             // We also have to check for colliding packedfile names, so we can use their full path instead.
             app_ui.update_views_names();
+
+            // Update the background icon.
+            GameSelectedIcons::set_game_selected_icon(&mut app_ui);
         });
 
         let packed_file_unpreview = SlotOfInt::new(move |index| {
