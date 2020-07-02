@@ -224,6 +224,12 @@ pub fn get_game_selected_template_assets_paths() -> Option<Vec<PathBuf>> {
     Some(paths)
 }
 
+/// This function returns the template assets path.
+#[allow(dead_code)]
+pub fn get_template_base_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join(template::TEMPLATE_FOLDER))
+}
+
 /// This function returns the template definition path.
 #[allow(dead_code)]
 pub fn get_template_definitions_path() -> Result<PathBuf> {

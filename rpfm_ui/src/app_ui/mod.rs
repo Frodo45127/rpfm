@@ -244,6 +244,7 @@ pub struct AppUI {
     pub about_patreon_link: MutPtr<QAction>,
     pub about_check_updates: MutPtr<QAction>,
     pub about_check_schema_updates: MutPtr<QAction>,
+    pub about_update_templates: MutPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // "Debug" menu.
@@ -576,6 +577,7 @@ impl AppUI {
         let about_patreon_link = menu_bar_about.add_action_q_string(&qtr("about_patreon_link"));
         let about_check_updates = menu_bar_about.add_action_q_string(&qtr("about_check_updates"));
         let about_check_schema_updates = menu_bar_about.add_action_q_string(&qtr("about_check_schema_updates"));
+        let about_update_templates = menu_bar_about.add_action_q_string(&qtr("about_update_templates"));
 
         //-----------------------------------------------//
         // `Debug` Menu.
@@ -754,6 +756,7 @@ impl AppUI {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
+            about_update_templates,
 
             //-------------------------------------------------------------------------------//
             // "Debug" menu.

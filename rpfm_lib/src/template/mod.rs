@@ -14,6 +14,8 @@ Module with all the code to deal with mod templates.
 Templates are a way of bootstraping mods.
 !*/
 
+use git2::Repository;
+
 use serde_json::de::from_reader;
 use serde_derive::{Serialize, Deserialize};
 
@@ -35,6 +37,10 @@ use crate::schema::FieldType;
 pub const TEMPLATE_FOLDER: &str = "templates";
 pub const DEFINITIONS_FOLDER: &str = "definitions";
 pub const ASSETS_FOLDER: &str = "assets";
+
+pub const TEMPLATE_REPO: &str = "https://github.com/Frodo45127/rpfm-templates";
+pub const REMOTE: &str = "origin";
+pub const BRANCH: &str = "master";
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -271,5 +277,42 @@ impl Template {
         let mut file = File::create(&file_path)?;
         file.write_all(serde_json::to_string_pretty(&self)?.as_bytes())?;
         Ok(())
+    }
+
+    /// This function downloads the latest revision of the template repository.
+    pub fn update() -> Result<()> {
+        let template_path = get_template_base_path()?;
+        let repo = match Repository::open(&template_path) {
+            Ok(repo) => repo,
+            Err(_) => {
+                DirBuilder::new().recursive(true).create(&template_path)?;
+                match Repository::clone(TEMPLATE_REPO, &template_path) {
+                    Ok(repo) => repo,
+                    Err(_) => return Err(ErrorKind::DownloadTemplatesError.into()),
+                }
+            }
+        };
+
+        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
+        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+
+        if analysis.0.is_up_to_date() {
+            Err(ErrorKind::AlreadyUpdatedTemplatesError.into())
+        }
+
+        else if analysis.0.is_fast_forward() {
+            let refname = format!("refs/heads/{}", BRANCH);
+            let mut reference = repo.find_reference(&refname)?;
+            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
+            repo.set_head(&refname)?;
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).map_err(From::from)
+        }
+
+        else {
+            Err(ErrorKind::DownloadTemplatesError.into())
+        }
     }
 }

@@ -39,6 +39,7 @@ use rpfm_lib::schema::{*, versions::*};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
@@ -864,6 +865,14 @@ pub fn background_loop() {
             Command::ApplyTemplate(mut template, params) => {
                 match template.apply_template(&params, &mut pack_file_decoded) {
                     Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to update the templates..
+            Command::UpdateTemplates => {
+                match Template::update() {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }

@@ -279,7 +279,10 @@ pub enum Command {
     GenerateDummyAnimPack,
 
     /// This command is used to load a template into the currently open PackFile.
-    ApplyTemplate(Template, Vec<String>)
+    ApplyTemplate(Template, Vec<String>),
+
+    /// This command is used to update the templates.
+    UpdateTemplates,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

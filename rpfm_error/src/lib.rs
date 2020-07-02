@@ -504,6 +504,9 @@ pub enum ErrorKind {
     /// Error to returning non-html errors.
     NoHTMLError(String),
 
+    /// Error for just passing a message along.
+    GeneticHTMLError(String),
+
     /// Error for when we're trying add/rename/whatever a file with a reserved path.
     ReservedFiles,
 
@@ -541,7 +544,13 @@ pub enum ErrorKind {
     ConfigFolderCouldNotBeOpened,
 
     /// Error for when we have a broken path in a template.
-    InvalidPathsInTemplate
+    InvalidPathsInTemplate,
+
+    /// Error for when RPFM fails to download templates.
+    DownloadTemplatesError,
+
+    /// Error for when RPFM already has the latest templates downloaded.
+    AlreadyUpdatedTemplatesError,
 }
 
 /// Implementation of `Error`.
@@ -813,6 +822,7 @@ impl Display for ErrorKind {
             //-----------------------------------------------------//
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::NoHTMLError(error) => write!(f,"{}", error),
+            ErrorKind::GeneticHTMLError(error) => write!(f,"{}", error),
             ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
             ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
@@ -826,6 +836,8 @@ impl Display for ErrorKind {
             ErrorKind::LaunchNotSupportedForThisGame => write!(f, "<p>The currently selected game cannot be launched from Steam.</p>"),
             ErrorKind::ConfigFolderCouldNotBeOpened => write!(f, "<p>RPFM's config folder couldn't be open (maybe it doesn't exists?).</p>"),
             ErrorKind::InvalidPathsInTemplate => write!(f, "<p>An empty/invalid path has been detected when processing the template. This can be caused by a bad template or by an empty parameter.<p>"),
+            ErrorKind::DownloadTemplatesError => write!(f, "<p>Failed to download the latest templates.<p>"),
+            ErrorKind::AlreadyUpdatedTemplatesError => write!(f, "<p>Templates already up-to-date.<p>"),
         }
     }
 }
@@ -973,10 +985,16 @@ impl From<ParseIntError> for Error {
     }
 }
 
-
 /// Implementation to create an `Error` from a `SetLoggerError`.
 impl From<SetLoggerError> for Error {
     fn from(_: SetLoggerError) -> Self {
         Self::from(ErrorKind::InitializingLoggerError)
+    }
+}
+
+/// Implementation to create an `Error` from a `git2::Error`.
+impl From<git2::Error> for Error {
+    fn from(error: git2::Error) -> Self {
+        Self::from(ErrorKind::GeneticHTMLError(error.message().to_string()))
     }
 }

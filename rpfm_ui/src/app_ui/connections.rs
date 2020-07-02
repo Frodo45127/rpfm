@@ -121,6 +121,7 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     app_ui.about_patreon_link.triggered().connect(&slots.about_patreon_link);
     app_ui.about_check_updates.triggered().connect(&slots.about_check_updates);
     app_ui.about_check_schema_updates.triggered().connect(&slots.about_check_schema_updates);
+    app_ui.about_update_templates.triggered().connect(&slots.about_update_templates);
 
     //-----------------------------------------------//
     // `Debug` menu connections.

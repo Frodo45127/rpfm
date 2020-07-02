@@ -135,6 +135,7 @@ pub struct AppUISlots {
     pub about_patreon_link: SlotOfBool<'static>,
     pub about_check_updates: SlotOfBool<'static>,
     pub about_check_schema_updates: SlotOfBool<'static>,
+    pub about_update_templates: SlotOfBool<'static>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -1088,6 +1089,23 @@ impl AppUISlots {
         // What happens when we trigger the "Check Schema Update" action.
         let about_check_schema_updates = SlotOfBool::new(move |_| { app_ui.check_schema_updates(true); });
 
+        // What happens when we trigger the "Update Templates" action.
+        let about_update_templates = SlotOfBool::new(move |_| {
+                app_ui.main_window.set_enabled(false);
+
+                CENTRAL_COMMAND.send_message_qt(Command::UpdateTemplates);
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                match response {
+                    Response::Success => show_dialog(app_ui.main_window, tr("uodate_templates_success"), true),
+                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+
+                // Re-enable the Main Window.
+                app_ui.main_window.set_enabled(true);
+            }
+        );
+
         // What happens when we trigger the "Update from AssKit" action.
         let debug_update_current_schema_from_asskit = SlotOfBool::new(move |_| {
 
@@ -1295,6 +1313,7 @@ impl AppUISlots {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
+            about_update_templates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.

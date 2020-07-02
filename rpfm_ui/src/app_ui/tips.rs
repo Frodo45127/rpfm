@@ -106,4 +106,5 @@ pub unsafe fn set_tips(app_ui: &mut AppUI) {
     app_ui.about_patreon_link.set_status_tip(&qtr("tt_about_patreon_link"));
     app_ui.about_check_updates.set_status_tip(&qtr("tt_about_check_updates"));
     app_ui.about_check_schema_updates.set_status_tip(&qtr("tt_about_check_schema_updates"));
+    app_ui.about_update_templates.set_status_tip(&qtr("tt_uodate_templates"));
 }

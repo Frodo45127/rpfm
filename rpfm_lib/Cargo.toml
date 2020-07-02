@@ -43,6 +43,9 @@ bincode = "^1.1"
 csv = "^1.1"
 ron = "^0.5"
 
+# Git support.
+git2 = "^0.13"
+
 # Compression support.
 xz2 = "^0.1"
 
