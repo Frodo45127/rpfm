@@ -130,7 +130,7 @@ impl Template {
         // If ANY of the paths has an empty item, stop.
         if self.dbs.iter().any(|x| x.name.is_empty()) ||
             self.locs.iter().any(|x| x.name.is_empty()) ||
-            self.assets.iter().any(|x| x.packed_file_path.contains("//") || x.packed_file_path.ends_with("/")) {
+            self.assets.iter().any(|x| x.packed_file_path.contains("//") || x.packed_file_path.ends_with('/')) {
             return Err(ErrorKind::InvalidPathsInTemplate.into());
         }
 

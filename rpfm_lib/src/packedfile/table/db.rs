@@ -331,7 +331,7 @@ impl DB {
 
                         // Then, we get the lookup data.
                         for column in ref_lookup_columns {
-                            if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| &x.get_name() == column) {
+                            if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| x.get_name() == column) {
                                 match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -390,7 +390,7 @@ impl DB {
 
                 // Then, we get the lookup data.
                 for column in ref_lookup_columns {
-                    if let Some(index) = table.get_definition().get_ref_fields().iter().position(|x| &x.get_name() == column) {
+                    if let Some(index) = table.get_definition().get_ref_fields().iter().position(|x| x.get_name() == column) {
                         match row[index] {
                             DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                             DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -451,7 +451,7 @@ impl DB {
 
                         // Then, we get the lookup data.
                         for column in ref_lookup_columns {
-                            if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| &x.get_name() == column) {
+                            if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| x.get_name() == column) {
                                 match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),

@@ -202,8 +202,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
 
             let check_state = if let Some(default_value) = field.get_default_value() {
-                if default_value.to_lowercase() == "true" { true }
-                else { false }
+                default_value.to_lowercase() == "true"
             } else { false };
 
             if check_state {
