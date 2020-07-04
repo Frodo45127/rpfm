@@ -567,3 +567,6 @@ nested_table_accept = Accept
 about_update_templates = Update Templates
 uodate_templates_success = Templates updated correctly.
 tt_uodate_templates = This command attemps to update your templates.
+
+integer_1 = Unknown integer 1:
+integer_2 = Unknown integer 2:

@@ -278,8 +278,8 @@ impl PackedFileAnimFragmentView {
 
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
 
-        let i1_label = QLabel::from_q_string(&qtr("integer1"));
-        let i2_label = QLabel::from_q_string(&qtr("integer2"));
+        let i1_label = QLabel::from_q_string(&qtr("integer_1"));
+        let i2_label = QLabel::from_q_string(&qtr("integer_2"));
 
         let mut i1_line_edit = QLineEdit::new();
         let mut i2_line_edit = QLineEdit::new();

@@ -99,13 +99,15 @@ impl PackedFileAnimPackView {
 
         let mut unpack_button = QPushButton::from_q_string(&qtr("animpack_unpack"));
 
-        layout.add_widget_5a(&mut unpack_button, 0, 1, 1, 1);
+        layout.add_widget_5a(&mut unpack_button, 0, 0, 1, 2);
 
         layout.add_widget_5a(file_count_label.into_ptr(), 2, 0, 1, 1);
         layout.add_widget_5a(file_list_label.into_ptr(), 3, 0, 1, 1);
 
         layout.add_widget_5a(&mut file_count_data_label, 2, 1, 1, 1);
-        layout.add_widget_5a(&mut file_list_data_text, 3, 1, 1, 1);
+        layout.add_widget_5a(&mut file_list_data_text, 4, 0, 1, 2);
+
+        layout.set_column_stretch(1, 10);
 
         let packed_file_animpack_view_raw = PackedFileAnimPackViewRaw {
             unpack_button: unpack_button.into_ptr(),
