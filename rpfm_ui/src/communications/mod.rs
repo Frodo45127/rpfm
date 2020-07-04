@@ -206,6 +206,12 @@ pub enum Command {
     /// This command is used when we want to extract one or more PackedFiles from a PackFile. It contains the PathTypes to extract and the extraction path.
     ExtractPackedFiles(Vec<PathType>, PathBuf),
 
+    /// This command is used during the "MyMod Export" function, when every PackedFile is exported from the opened PackFile. Pass the PathBuf for the MyMod folder
+    ExportMyMod(PathBuf),
+
+    /// This command is used during the "MyMod Import" function, which adds the entirety of the MyMod folder into the PackFile, with respect to the .rpfm-ignore file. Pass the PathBuf for the MyMod folder
+    //ImportMyMod(PathBuf),
+
     /// This command is used when we want to rename one or more PackedFiles in a PackFile. It contains a Vec with their original PathType and their new name.
     RenamePackedFiles(Vec<(PathType, String)>),
 

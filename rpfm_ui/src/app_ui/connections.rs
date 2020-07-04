@@ -56,6 +56,9 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.mymod_open_mymod_folder.triggered().connect(&slots.mymod_open_mymod_folder);
     app_ui.mymod_new.triggered().connect(&slots.mymod_new);
     app_ui.mymod_delete_selected.triggered().connect(&slots.mymod_delete_selected);
+    app_ui.mymod_export.triggered().connect(&slots.mymod_export);
+    app_ui.mymod_import.triggered().connect(&slots.mymod_import);
+    app_ui.mymod_rpfm_ignore.triggered().connect(&slots.mymod_rpfm_ignore);
 
     //-----------------------------------------------//
     // `View` menu connections.

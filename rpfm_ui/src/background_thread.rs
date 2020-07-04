@@ -469,6 +469,19 @@ pub fn background_loop() {
                         None => CENTRAL_COMMAND.send_message_rust(Response::Text(note)),
                     }
                 }
+
+                // Check if we're trying to open the rpfm_ignore file
+                else if path == ["rpfm_ignore.rpfm_reserved".to_owned()] {
+                    let mut rpfm_ignore_txt = Text::new();
+                    rpfm_ignore_txt.set_text_type(TextType::Markdown);
+                    /*match pack_file_decoded.get_rpfm_ignore() {
+                        Some(rpfm_ignore) => {
+                            rpfm_ignore_txt.set_contents(rpfm_ignore);
+                            CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt));
+                        }
+                        None => CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt)),
+                    }*/
+                }
                 else {
 
                     // Find the PackedFile we want and send back the response.
@@ -523,6 +536,33 @@ pub fn background_loop() {
                 match pack_file_decoded.extract_packed_files_by_type(&item_types, &path) {
                     Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::String(tre("files_extracted_success", &[&result.to_string()]))),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // Export every PackedFile, with respect to the .rpfm-ignore file
+            Command::ExportMyMod(mymod_folder) => {
+                // first, read the .rpfm-ignore file?
+                /*let rpfm_ignore_contents = match pack_file_decoded.get_rpfm_ignore() {
+                    Some(rpfm_ignore) => {
+                        rpfm_ignore
+                        //rpfm_ignore_txt.set_contents(rpfm_ignore);
+                        //CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt));
+                    }
+                    None => {}//CENTRAL_COMMAND.send_message_rust(Response::Text(rpfm_ignore_txt)),
+                };*/
+
+                // grab all packed files in the packfile
+                let packed_file_vec = pack_file_decoded.get_packed_files_all();
+
+                // loop through all packed files
+                for mut packed_file in packed_file_vec {
+                    //let packed_file = &packed_file_vec[i];
+
+                    // TODO make sure the packed file is propa to export, re: rpfm-ignore
+                    match packed_file.extract_packed_file(&mymod_folder) {
+                        Ok(_result) => {},
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                    }
                 }
             }
 

@@ -96,6 +96,7 @@ pub struct AppUISlots {
     pub mymod_delete_selected: QBox<SlotOfBool>,
     pub mymod_import: QBox<SlotOfBool>,
     pub mymod_export: QBox<SlotOfBool>,
+    pub mymod_rpfm_ignore: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `View` menu slots.
@@ -707,7 +708,7 @@ impl AppUISlots {
             let response = CENTRAL_COMMAND.recv_message_qt();
 
             // translate the response to the path
-            let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+            let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
             // we can safely assume the pack is not in the /data path and can be added safely, so next we get the /data path
             if let Some(mut game_data_path) = get_game_selected_data_path() {
@@ -728,52 +729,7 @@ impl AppUISlots {
                     }
                 }
             }
-
-            /* legacy
-
-                // Depending on our current "Mode", we choose what to do.
-                match UI_STATE.get_operational_mode() {
-
-                    // If we have a "MyMod" selected, and everything we need it's configured,
-                    // copy the PackFile to the data folder of the selected game.
-                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
-                        let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
-                        if let Some(ref mymods_base_path) = mymods_base_path {
-                            if let Some(mut mymod_install_path) = get_mymod_install_path() {
-
-                                // We get the "MyMod"s PackFile path.
-                                let mut mymod_path = mymods_base_path.to_path_buf();
-                                mymod_path.push(&game_folder_name);
-                                mymod_path.push(&mod_name);
-
-                                if !mymod_path.is_file() {
-                                    return show_dialog(&app_ui.main_window, ErrorKind::MyModPackFileDoesntExist, false);
-                                }
-
-                                if !mymod_install_path.is_dir() {
-                                    return show_dialog(&app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
-                                }
-
-                                // Get the destination path for the PackFile with the PackFile name included.
-                                // And copy the PackFile to his destination. If the copy fails, return an error.
-                                mymod_install_path.push(&mod_name);
-                                if copy(mymod_path, &mymod_install_path).is_err() {
-                                    return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(mymod_install_path), false);
-                                }
-                            }
-                            else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false) }
-                        }
-                        else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
-                    }
-
-                    // If we have no "MyMod" selected, return an error.
-                    OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
-                }
-            */
-            }
-
-
-        ));
+        }));
 
         // This slot is used for the "Uninstall PackFile" action.
         let packfile_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
@@ -785,7 +741,7 @@ impl AppUISlots {
             let response = CENTRAL_COMMAND.recv_message_qt();
 
             // translate the response to the path
-            let mut pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
+            let pack_path = if let Response::PathBuf(pack_path) = response { pack_path } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) };
 
             // we can safely assume the pack is not in the /data path and can be added safely, so next we get the /data path
             if let Some(mut game_data_path) = get_game_selected_data_path() {
@@ -806,45 +762,209 @@ impl AppUISlots {
                     }
                 }
             }
+        }));
 
-            /* TODO disbabled for now
+        /*
+        let contextual_menu_add_folder = SlotOfBool::new(move |_| {
 
-                // Depending on our current "Mode", we choose what to do.
+                // Create the FileDialog to get the folder/s to add and configure it.
+                let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                    app_ui.main_window,
+                    &qtr("context_menu_add_folders"),
+                );
+                file_dialog.set_file_mode(FileMode::Directory);
                 match UI_STATE.get_operational_mode() {
 
-                    // If we have a "MyMod" selected, and everything we need it's configured,
-                    // try to delete the PackFile (if exists) from the data folder of the selected game.
-                    OperationalMode::MyMod(_, ref mod_name) => {
-                        if let Some(mut mymod_install_path) = get_mymod_install_path() {
-                            mymod_install_path.push(&mod_name);
+                    // If we have a "MyMod" selected...
+                    OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
 
-                            if !mymod_install_path.is_file() {
-                                show_dialog(&app_ui.main_window, ErrorKind::MyModNotInstalled, false)
+                        // In theory, if we reach this line this should always exist. In theory I should be rich.
+                        let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
+                        if let Some(ref mymods_base_path) = mymods_base_path {
+
+                            // We get the assets folder of our mod (without .pack extension).
+                            let mut assets_folder = mymods_base_path.to_path_buf();
+                            assets_folder.push(&game_folder_name);
+                            assets_folder.push(Path::new(&mod_name).file_stem().unwrap().to_string_lossy().as_ref().to_owned());
+                            file_dialog.set_directory_q_string(&QString::from_std_str(assets_folder.to_string_lossy().to_owned()));
+
+                            // We check that path exists, and create it if it doesn't.
+                            if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
+                                return show_dialog(app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
                             }
 
-                            else if remove_file(&mymod_install_path).is_err() {
-                                return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_install_path; 1]), false);
+                            // Run it and expect a response (1 => Accept, 0 => Cancel).
+                            if file_dialog.exec() == 1 {
+
+                                // Get the Paths of the folders we want to add.
+                                let mut folder_paths: Vec<PathBuf> = vec![];
+                                let paths_qt = file_dialog.selected_files();
+                                for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                                // Get the Paths of the files inside the folders we want to add.
+                                let mut paths: Vec<PathBuf> = vec![];
+                                for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
+
+                                // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
+                                let paths_packedfile = if paths[0].starts_with(&assets_folder) {
+                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                    for path in &paths {
+                                        let filtered_path = path.strip_prefix(&assets_folder).unwrap();
+                                        paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                                    }
+                                    paths_packedfile
+                                }
+
+                                // Otherwise, they are added like normal files.
+                                else {
+                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                                    for path in &paths { paths_packedfile.append(&mut <MutPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
+                                    paths_packedfile
+                                };
+
+                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &paths, &paths_packedfile);
                             }
                         }
-                        else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
+
+                        // If there is no "MyMod" path configured, report it.
+                        else { show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
                     }
 
-                   // If we have no "MyMod" selected, return an error.
-                    OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                    // If it's in "Normal" mode, we just get the paths of the files inside them and add those files.
+                    OperationalMode::Normal => {
+
+                        // Run it and expect a response (1 => Accept, 0 => Cancel).
+                        if file_dialog.exec() == 1 {
+
+                            // Get the Paths of the folders we want to add.
+                            let mut folder_paths: Vec<PathBuf> = vec![];
+                            let paths_qt = file_dialog.selected_files();
+                            for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
+
+                            // Get the Paths of the files inside the folders we want to add.
+                            let ui_base_path: Vec<String> = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
+                        }
+                    }
                 }
-                */
             }
-
-
-        ));
+        );*/
 
         let mymod_import = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
+            //println!("1");
+            match UI_STATE.get_operational_mode() {
 
+                // If we have a "MyMod" selected...
+                OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                    if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+
+                        // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
+                        let mut mod_name = mod_name.to_owned();
+                        mod_name.pop();
+                        mod_name.pop();
+                        mod_name.pop();
+                        mod_name.pop();
+                        mod_name.pop();
+
+                        let mut base_assets_folder = mymods_base_path.to_path_buf();
+                        base_assets_folder.push(&game_folder_name);
+                        base_assets_folder.push(&mod_name);
+
+                        let mut assets_folder = mymods_base_path.to_path_buf();
+                        assets_folder.push(&game_folder_name);
+                        assets_folder.push(&mod_name);
+
+                        //println!("{}", assets_folder.to_string_lossy());
+
+                        let mut folder_paths: Vec<PathBuf> = vec![];
+                        folder_paths.push(assets_folder);
+                        //folder_paths
+
+                        let mut paths: Vec<PathBuf> = vec![];
+
+                        // TODO get this to read the rpfm_ignore file and filter stuff out
+
+                        for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
+
+                        let mut paths_packedfile: Vec<Vec<String>> = vec![];
+                        for path in &paths {
+                            let filtered_path = path.strip_prefix(&base_assets_folder).unwrap();
+                            paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
+                        }
+
+                        //pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &paths, &paths_packedfile);
+                    }
+
+                    // If there is no MyMod path configured, report it.
+                    else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true); }
+                }
+                OperationalMode::Normal => {
+                    // issue!
+                    // TODO better error?
+                    return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true);
+                }
+            };
+
+            //println!("out");
+
+            //let ui_base_path: Vec<String> = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
+
+            //println!("out 2");
+
+
+
+            //pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &import_path, &[ui_base_path]);
+
+            //pack_file_contents_ui.add_packed_files_from_folders(&mut app_ui, &mut global_search_ui, &import_path, &[ui_base_path]);
+
+            //println!("out 3");
+
+            //CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder())
         }));
 
         let mymod_export = SlotOfBool::new(&app_ui.main_window, clone!(app_ui => move |_| {
+            let extraction_path = match UI_STATE.get_operational_mode() {
 
+                // In MyMod mode we extract directly to the folder of the selected MyMod, keeping the folder structure.
+                OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
+                    if let Some(ref mymods_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+
+                        // We get the assets folder of our mod (without .pack extension). This mess removes the .pack.
+                        let mut mod_name = mod_name.to_owned();
+                        mod_name.pop();
+                        mod_name.pop();
+                        mod_name.pop();
+                        mod_name.pop();
+                        mod_name.pop();
+
+                        let mut assets_folder = mymods_base_path.to_path_buf();
+                        assets_folder.push(&game_folder_name);
+                        assets_folder.push(&mod_name);
+                        assets_folder
+                    }
+
+                    // If there is no MyMod path configured, report it.
+                    else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true); }
+                }
+
+                // If not MyMod, call an issue. Shouldn't get here, theoretically!
+                OperationalMode::Normal => {
+                    // issue!
+                    // TODO better error?
+                    return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true);
+                }
+            };
+
+            //show_debug_dialog(&format!("{}", extraction_path.to_string_lossy()));
+
+            // call the ExportMyMod command, which needs the folder onto which to extract all PackedFiles!
+            CENTRAL_COMMAND.send_message_qt(Command::ExportMyMod(extraction_path));
         }));
+
+        let mymod_rpfm_ignore = SlotOfBool::new(&app_ui.main_window, clone!(
+            global_search_ui => move |_| {
+                //app_ui.open_rpfm_ignore(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+            }
+        ));
 
         //-----------------------------------------------//
         // `View` menu logic.
@@ -1482,6 +1602,7 @@ impl AppUISlots {
             mymod_delete_selected,
             mymod_import,
             mymod_export,
+            mymod_rpfm_ignore,
 
             //-----------------------------------------------//
             // `View` menu slots.
