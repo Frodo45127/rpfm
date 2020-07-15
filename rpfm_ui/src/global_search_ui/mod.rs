@@ -658,7 +658,8 @@ impl GlobalSearchUI {
 
                             // In case of tables, we have to get the logical row/column of the match and select it.
                             ViewType::Internal(view) => if let View::Table(view) = view {
-                                let mut table_view = view.get_mut_ptr_table_view_primary();
+                                let table_view = view.get_ref_table();
+                                let mut table_view = table_view.get_mut_ptr_table_view_primary();
                                 let table_filter: MutPtr<QSortFilterProxyModel> = table_view.model().static_downcast_mut();
                                 let table_model: MutPtr<QStandardItemModel> = table_filter.source_model().static_downcast_mut();
                                 let mut table_selection_model = table_view.selection_model();

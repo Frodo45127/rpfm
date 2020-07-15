@@ -38,7 +38,7 @@ use rpfm_lib::settings::*;
 use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
-use crate::packedfile_views::table::TableType;
+use crate::views::table::TableType;
 use crate::ui_state::shortcuts::Shortcuts;
 use self::network::*;
 

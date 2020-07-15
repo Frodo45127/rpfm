@@ -49,6 +49,7 @@ use qt_core::QModelIndex;
 
 use cpp_core::{CppBox, MutPtr};
 
+use std::collections::BTreeMap;
 use std::sync::{Arc, atomic::AtomicPtr, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
@@ -1115,9 +1116,14 @@ impl PackedFileDecoderViewRaw {
 
         let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_ca_order())));
         let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.get_description()));
+        let field_enum_values = QStandardItem::from_q_string(&QString::from_std_str(field.get_enum_values_to_string()));
+
+        let mut field_is_bitwise = QStandardItem::new();
+        field_is_bitwise.set_data_2a(&QVariant::from_int(field.get_is_bitwise()), 2);
 
         let mut field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
         field_number.set_editable(false);
+
 
         // The first one is the row number, to be updated later.
         add_to_q_list_safe(qlist.as_mut_ptr(), field_number.into_ptr());
@@ -1134,6 +1140,8 @@ impl PackedFileDecoderViewRaw {
         add_to_q_list_safe(qlist.as_mut_ptr(), field_filename_relative_path.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_ca_order.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_description.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_is_bitwise.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_enum_values.into_ptr());
 
         // If it's the initial load, insert them recursively.
         if is_initial_load {
@@ -1419,6 +1427,26 @@ impl PackedFileDecoderViewRaw {
                 let field_filename_relative_path = self.table_model.item_from_index(model_index.sibling_at_column(11).as_ref()).text().to_std_string();
                 let field_ca_order = self.table_model.item_from_index(model_index.sibling_at_column(12).as_ref()).text().to_std_string().parse::<i16>().unwrap();
                 let field_description = self.table_model.item_from_index(model_index.sibling_at_column(13).as_ref()).text().to_std_string();
+                let field_is_bitwise = self.table_model.item_from_index(model_index.sibling_at_column(14).as_ref()).text().to_std_string().parse::<i32>().unwrap();
+
+                let mut field_enum_values = BTreeMap::new();
+                let enmu_types = self.table_model.item_from_index(model_index.sibling_at_column(15).as_ref())
+                    .text()
+                    .to_std_string()
+                    .split(';')
+                    .map(|x| x.to_owned())
+                    .collect::<Vec<String>>();
+
+                for enum_type in &enmu_types {
+                    let enum_values = enum_type.split(',').collect::<Vec<&str>>();
+
+                    if enum_values.len() == 2 {
+                        if let Ok(enum_index) = enum_values[0].parse::<i32>() {
+                            let enum_name = enum_values[1];
+                            field_enum_values.insert(enum_index, enum_name.to_owned());
+                        }
+                    }
+                }
 
                 // Get the proper type of the field. If invalid, default to OptionalStringU16.
                 let field_type = match &*field_type {
@@ -1460,7 +1488,9 @@ impl PackedFileDecoderViewRaw {
                         field_is_reference,
                         field_lookup,
                         field_description,
-                        field_ca_order
+                        field_ca_order,
+                        field_is_bitwise,
+                        field_enum_values
                     )
                 );
             }
@@ -1595,6 +1625,8 @@ unsafe fn configure_table_view(table_view: MutPtr<QTreeView>) {
     table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
     table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
     table_model.set_header_data_3a(13, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
+    table_model.set_header_data_3a(14, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Bitwise Fields")));
+    table_model.set_header_data_3a(15, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Enum Data")));
     table_view.header().set_stretch_last_section(true);
     table_view.header().resize_sections(ResizeMode::ResizeToContents);
 

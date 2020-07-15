@@ -45,8 +45,8 @@ use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::tre;
-use crate::packedfile_views::table::TableType;
 use crate::RPFM_PATH;
+use crate::views::table::TableType;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///

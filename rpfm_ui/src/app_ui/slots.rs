@@ -54,7 +54,6 @@ use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
 use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
 use crate::packedfile_views::{TheOneSlot, View, ViewType};
-use crate::packedfile_views::table::utils::{check_table_for_error, get_reference_data, setup_item_delegates};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
@@ -62,6 +61,7 @@ use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
 use crate::utils::show_dialog;
 use crate::VERSION;
+use crate::views::table::utils::{check_table_for_error, get_reference_data, setup_item_delegates};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -1205,6 +1205,7 @@ impl AppUISlots {
 
                         // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
                         if let View::Table(table) = view {
+                            let table = table.get_ref_table();
                             if let Ok(data) = get_reference_data(&table.get_ref_table_definition()) {
                                 table.set_dependency_data(&data);
 

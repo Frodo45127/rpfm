@@ -106,6 +106,7 @@ mod settings_ui;
 mod ui;
 mod ui_state;
 mod utils;
+mod views;
 
 // Statics, so we don't need to pass them everywhere to use them.
 lazy_static! {

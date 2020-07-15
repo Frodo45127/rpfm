@@ -35,12 +35,13 @@ use crate::ffi::get_text_safe;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::table::utils::get_table_from_view;
+use crate::views::table::utils::get_table_from_view;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::mut_ptr_from_atomic;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
+use crate::views::table::TableType;
 
 use self::anim_fragment::{PackedFileAnimFragmentView, slots::PackedFileAnimFragmentViewSlots};
 use self::animpack::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
@@ -48,7 +49,7 @@ use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
 use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::external::{PackedFileExternalView, slots::PackedFileExternalViewSlots};
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
-use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots, TableType};
+use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
 //use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
@@ -206,14 +207,19 @@ impl PackedFileView {
                     PackedFileType::Loc |
                     PackedFileType::MatchedCombat => if let View::Table(view) = view {
 
-                        let new_table = get_table_from_view(view.get_mut_ptr_table_model(), &view.get_ref_table_definition())?;
+                        let new_table = get_table_from_view(view.get_ref_table().get_mut_ptr_table_model(), &view.get_ref_table().get_ref_table_definition())?;
                         match self.packed_file_type {
                             PackedFileType::AnimTable => {
                                 let table = AnimTable::from(new_table);
                                 DecodedPackedFile::AnimTable(table)
                             }
+
                             PackedFileType::DB => {
-                                let mut table = DB::new(view.get_ref_table_name(), Some(view.get_ref_table_uuid()), &view.get_ref_table_definition());
+
+                                // If this crashes, it's a bug somewhere else.
+                                let table_name = view.get_ref_table().get_ref_table_name().as_ref().unwrap();
+                                let table_uuid = view.get_ref_table().get_ref_table_uuid().as_ref().map(|x| &**x);
+                                let mut table = DB::new(&table_name, table_uuid, &view.get_ref_table().get_ref_table_definition());
                                 table.set_table_data(new_table.get_ref_table_data())?;
                                 DecodedPackedFile::DB(table)
                             }
@@ -261,7 +267,7 @@ impl PackedFileView {
                     // These ones are like very reduced tables.
                     PackedFileType::DependencyPackFilesList => if let View::Table(view) = view {
                         let mut entries = vec![];
-                        let model = view.get_mut_ptr_table_model();
+                        let model = view.get_ref_table().get_mut_ptr_table_model();
                         for row in 0..model.row_count_0a() {
                             let item = model.item_1a(row as i32).text().to_std_string();
                             entries.push(item);
@@ -328,6 +334,7 @@ impl PackedFileView {
                 let response = CENTRAL_COMMAND.recv_message_qt();
 
                 match response {
+
                     Response::AnimFragmentPackedFileInfo((fragment, packed_file_info)) => {
                         if let View::AnimFragment(old_fragment) = view {
                             if old_fragment.reload_view(fragment).is_err() {
@@ -354,6 +361,7 @@ impl PackedFileView {
 
                     Response::AnimTablePackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
+                            let old_table = old_table.get_ref_mut_table();
                             old_table.reload_view(TableType::AnimTable(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
@@ -376,6 +384,7 @@ impl PackedFileView {
 
                     Response::DBPackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
+                            let old_table = old_table.get_ref_mut_table();
                             old_table.reload_view(TableType::DB(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
@@ -397,6 +406,7 @@ impl PackedFileView {
 
                     Response::LocPackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
+                            let old_table = old_table.get_ref_mut_table();
                             old_table.reload_view(TableType::Loc(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
@@ -408,6 +418,7 @@ impl PackedFileView {
 
                     Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
+                            let old_table = old_table.get_ref_mut_table();
                             old_table.reload_view(TableType::MatchedCombat(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
