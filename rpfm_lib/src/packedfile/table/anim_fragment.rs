@@ -144,3 +144,12 @@ impl AnimFragment {
         Ok(packed_file)
     }
 }
+
+/// Implementation to create a `AnimFragment` from a `Table`.
+impl From<Table> for AnimFragment {
+    fn from(table: Table) -> Self {
+        Self {
+            table,
+        }
+    }
+}

@@ -34,6 +34,8 @@ The basic structure of an `Schema` is:
                         lookup: None,
                         description: "",
                         ca_order: -1,
+                        is_bitwise: 0,
+                        enum_values: {},
                     ),
                     (
                         name: "value",
@@ -47,6 +49,8 @@ The basic structure of an `Schema` is:
                         lookup: None,
                         description: "",
                         ca_order: -1,
+                        is_bitwise: 0,
+                        enum_values: {},
                     ),
                 ],
                 localised_fields: [],
@@ -59,6 +63,7 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use itertools::Itertools;
 use rayon::prelude::*;
 use reqwest::blocking;
 use ron::de::{from_str, from_reader};
@@ -197,6 +202,12 @@ pub struct Field {
 
     /// Visual position in CA's Table. `-1` means we don't know its position.
     ca_order: i16,
+
+    /// Variable to tell if this column is a bitwise column (spanned accross multiple columns) or not. Only applicable to numeric fields.
+    is_bitwise: i32,
+
+    /// Variable that specifies the "Enum" values for each value in this field.
+    enum_values: BTreeMap<i32, String>
 }
 
 /// This enum defines every type of field the lib can encode/decode.
@@ -896,6 +907,20 @@ impl Definition {
             .collect()
     }
 
+    /// This function returns the list of fields a table contains, after it has been expanded/changed due to the attributes of each field.
+    pub fn get_fields_processed(&self) -> Vec<Field> {
+        self.get_ref_fields().iter()
+            .map(|x|
+                if x.get_is_bitwise() > 1 {
+                    let mut field = x.clone();
+                    field.set_field_type(FieldType::Boolean);
+                    vec![field; x.get_is_bitwise() as usize]
+                } else { vec![x.clone(); 1] }
+            )
+            .flatten()
+            .collect::<Vec<Field>>()
+    }
+
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
     ///
     /// Not all data is updated though, only:
@@ -1285,6 +1310,8 @@ impl Field {
         lookup: Option<Vec<String>>,
         description: String,
         ca_order: i16,
+        is_bitwise: i32,
+        enum_values: BTreeMap<i32, String>
     ) -> Self {
         Self {
             name,
@@ -1297,13 +1324,20 @@ impl Field {
             is_reference,
             lookup,
             description,
-            ca_order
+            ca_order,
+            is_bitwise,
+            enum_values
         }
     }
 
     /// Getter for the `name` field.
     pub fn get_name(&self) -> &str {
         &self.name
+    }
+
+    /// Setter for the `field_type` field.
+    pub fn set_field_type(&mut self, field_type: FieldType) {
+        self.field_type = field_type;
     }
 
     /// Getter for the `field_type` field.
@@ -1366,6 +1400,20 @@ impl Field {
         self.ca_order
     }
 
+    /// Getter for the `is_bitwise` field.
+    pub fn get_is_bitwise(&self) -> i32 {
+        self.is_bitwise
+    }
+
+    /// Getter for the `enum_values` field.
+    pub fn get_enum_values(&self) -> &BTreeMap<i32, String> {
+        &self.enum_values
+    }
+
+    /// Getter for the `enum_values` field in a string format.
+    pub fn get_enum_values_to_string(&self) -> String {
+        self.enum_values.iter().map(|(x, y)| format!("{},{}", x, y)).join(";")
+    }
 }
 
 /// Default implementation of `Schema`.
@@ -1392,7 +1440,9 @@ impl Default for Field {
             is_reference: None,
             lookup: None,
             description: String::from(""),
-            ca_order: -1
+            ca_order: -1,
+            is_bitwise: 0,
+            enum_values: BTreeMap::new(),
         }
     }
 }
