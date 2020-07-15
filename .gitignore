@@ -53,3 +53,6 @@ shortcuts.ron
 
 # This one is a separate repo.
 /templates/
+
+# This one is a separate thing, not tracked.
+/templates_custom/
