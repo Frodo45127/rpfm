@@ -98,8 +98,8 @@ impl PackedFileAnimFragmentView {
 
         let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
 
-        let mut i1_label = QLabel::from_q_string(&QString::from_std_str(data.get_ref_definition().get_ref_fields()[1].get_name()));
-        let mut i2_label = QLabel::from_q_string(&QString::from_std_str(data.get_ref_definition().get_ref_fields()[2].get_name()));
+        let mut i1_label = QLabel::from_q_string(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[1].get_name()));
+        let mut i2_label = QLabel::from_q_string(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[2].get_name()));
 
         let mut i1_line_edit = QLineEdit::from_q_string(&QString::from_std_str(&data.get_ref_table_data()[0][1].data_to_string()));
         let mut i2_line_edit = QLineEdit::from_q_string(&QString::from_std_str(&data.get_ref_table_data()[0][2].data_to_string()));
@@ -185,8 +185,8 @@ impl PackedFileAnimFragmentView {
     pub unsafe fn load_data(&mut self, original_data: &AnimFragment) -> Result<()> {
         match original_data.get_table_data().get(0) {
             Some(data) => {
-                mut_ptr_from_atomic(&self.integer_label_1).set_text(&QString::from_std_str(original_data.get_ref_definition().get_ref_fields()[1].get_name()));
-                mut_ptr_from_atomic(&self.integer_label_2).set_text(&QString::from_std_str(original_data.get_ref_definition().get_ref_fields()[2].get_name()));
+                mut_ptr_from_atomic(&self.integer_label_1).set_text(&QString::from_std_str(original_data.get_ref_definition().get_fields_processed()[1].get_name()));
+                mut_ptr_from_atomic(&self.integer_label_2).set_text(&QString::from_std_str(original_data.get_ref_definition().get_fields_processed()[2].get_name()));
 
                 mut_ptr_from_atomic(&self.integer_1).set_text(&QString::from_std_str(&data[1].data_to_string()));
                 mut_ptr_from_atomic(&self.integer_2).set_text(&QString::from_std_str(&data[2].data_to_string()));

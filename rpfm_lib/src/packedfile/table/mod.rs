@@ -217,15 +217,15 @@ impl Table {
         // It's simple: we compare both schemas, and get the original and final positions of each column.
         // If a row is new, his original position is -1. If has been removed, his final position is -1.
         let mut positions: Vec<(i32, i32)> = vec![];
-        for (new_pos, new_field) in new_definition.get_ref_fields().iter().enumerate() {
-            if let Some(old_pos) = self.definition.get_ref_fields().iter().position(|x| x.get_name() == new_field.get_name()) {
+        for (new_pos, new_field) in new_definition.get_fields_processed().iter().enumerate() {
+            if let Some(old_pos) = self.definition.get_fields_processed().iter().position(|x| x.get_name() == new_field.get_name()) {
                 positions.push((old_pos as i32, new_pos as i32))
             } else { positions.push((-1, new_pos as i32)); }
         }
 
         // Then, for each field in the old definition, check if exists in the new one.
-        for (old_pos, old_field) in self.definition.get_ref_fields().iter().enumerate() {
-            if !new_definition.get_ref_fields().iter().any(|x| x.get_name() == old_field.get_name()) { positions.push((old_pos as i32, -1)); }
+        for (old_pos, old_field) in self.definition.get_fields_processed().iter().enumerate() {
+            if !new_definition.get_fields_processed().iter().any(|x| x.get_name() == old_field.get_name()) { positions.push((old_pos as i32, -1)); }
         }
 
         // We sort the columns by their destination.
@@ -242,7 +242,7 @@ impl Table {
 
                 // If the old position is -1, it means we got a new column. We need to get his type and create a `Default` field with it.
                 else if *old_pos == -1 {
-                    entry.push(DecodedData::default(&new_definition.get_ref_fields()[*new_pos as usize].get_ref_field_type()));
+                    entry.push(DecodedData::default(&new_definition.get_fields_processed()[*new_pos as usize].get_ref_field_type()));
                 }
 
                 // Otherwise, we got a moved column. Grab his field from the old data and put it in his new place.
@@ -265,12 +265,12 @@ impl Table {
         for row in data {
 
             // First, we need to make sure all rows we have are exactly what we expect.
-            if row.len() != self.definition.get_ref_fields().len() { return Err(ErrorKind::TableRowWrongFieldCount(self.definition.get_ref_fields().len() as u32, row.len() as u32).into()) }
+            if row.len() != self.definition.get_fields_processed().len() { return Err(ErrorKind::TableRowWrongFieldCount(self.definition.get_fields_processed().len() as u32, row.len() as u32).into()) }
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
-                if !cell.is_field_type_correct(self.definition.get_ref_fields()[index].get_ref_field_type()) {
-                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.get_ref_fields()[index].get_ref_field_type())).into())
+                if !cell.is_field_type_correct(self.definition.get_fields_processed()[index].get_ref_field_type()) {
+                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.get_fields_processed()[index].get_ref_field_type())).into())
                 }
             }
         }

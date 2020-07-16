@@ -614,7 +614,7 @@ impl GlobalSearch {
                     match matching_mode {
                         MatchingMode::Regex(regex) => {
                             for definition in definitions {
-                                for (index, field) in definition.get_ref_fields().iter().enumerate() {
+                                for (index, field) in definition.get_fields_processed().iter().enumerate() {
                                     if regex.is_match(&field.get_name()) {
                                         matches.push(SchemaMatch::new(
                                             definition.get_version(),
@@ -630,7 +630,7 @@ impl GlobalSearch {
                         MatchingMode::Pattern => {
                             let pattern = if self.case_sensitive { self.pattern.to_owned() } else { self.pattern.to_lowercase() };
                             for definition in definitions {
-                                for (index, field) in definition.get_ref_fields().iter().enumerate() {
+                                for (index, field) in definition.get_fields_processed().iter().enumerate() {
                                     if self.case_sensitive {
                                         if field.get_name().contains(&pattern) {
                                             matches.push(SchemaMatch::new(
@@ -687,7 +687,7 @@ impl GlobalSearch {
         match matching_mode {
             MatchingMode::Regex(regex) => {
                 if regex.is_match(&text) {
-                    let column_name = &definition.get_ref_fields()[column_number as usize].get_name();
+                    let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
                     matches.push(TableMatch::new(&column_name, column_number, row_number, text));
                 }
             }
@@ -695,7 +695,7 @@ impl GlobalSearch {
             MatchingMode::Pattern => {
                 if self.case_sensitive {
                     if text.contains(&self.pattern) {
-                        let column_name = &definition.get_ref_fields()[column_number as usize].get_name();
+                        let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
                         matches.push(TableMatch::new(column_name, column_number, row_number, text));
                     }
                 }
@@ -703,7 +703,7 @@ impl GlobalSearch {
                     let pattern = self.pattern.to_lowercase();
                     let text = text.to_lowercase();
                     if text.contains(&pattern) {
-                        let column_name = &definition.get_ref_fields()[column_number as usize].get_name();
+                        let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
                         matches.push(TableMatch::new(column_name, column_number, row_number, &text));
                     }
                 }

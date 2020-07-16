@@ -314,7 +314,7 @@ impl DB {
                         let mut lookup_data = vec![];
 
                         // First, we get the reference data.
-                        if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| x.get_name() == ref_column) {
+                        if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
                             match row[index] {
                                 DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
@@ -331,7 +331,7 @@ impl DB {
 
                         // Then, we get the lookup data.
                         for column in ref_lookup_columns {
-                            if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| x.get_name() == column) {
+                            if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
                                 match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -373,7 +373,7 @@ impl DB {
                 let mut lookup_data = vec![];
 
                 // First, we get the reference data.
-                if let Some(index) = table.get_definition().get_ref_fields().iter().position(|x| x.get_name() == ref_column) {
+                if let Some(index) = table.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
                     match row[index] {
                         DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
                         DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
@@ -390,7 +390,7 @@ impl DB {
 
                 // Then, we get the lookup data.
                 for column in ref_lookup_columns {
-                    if let Some(index) = table.get_definition().get_ref_fields().iter().position(|x| x.get_name() == column) {
+                    if let Some(index) = table.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
                         match row[index] {
                             DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                             DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -434,7 +434,7 @@ impl DB {
                         let mut lookup_data = vec![];
 
                         // First, we get the reference data.
-                        if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| x.get_name() == ref_column) {
+                        if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == ref_column) {
                             match row[index] {
                                 DecodedData::Boolean(ref entry) => reference_data = format!("{}", entry),
                                 DecodedData::F32(ref entry) => reference_data = format!("{}", entry),
@@ -451,7 +451,7 @@ impl DB {
 
                         // Then, we get the lookup data.
                         for column in ref_lookup_columns {
-                            if let Some(index) = db.get_definition().get_ref_fields().iter().position(|x| x.get_name() == column) {
+                            if let Some(index) = db.get_definition().get_fields_processed().iter().position(|x| x.get_name() == column) {
                                 match row[index] {
                                     DecodedData::Boolean(ref entry) => lookup_data.push(format!("{}", entry)),
                                     DecodedData::F32(ref entry) => lookup_data.push(format!("{}", entry)),
@@ -487,7 +487,7 @@ impl DB {
         files_to_ignore: &[Vec<String>]
     ) -> BTreeMap<i32, BTreeMap<String, String>> {
         let mut data = BTreeMap::new();
-        for (column, field) in table_definition.get_ref_fields().iter().enumerate() {
+        for (column, field) in table_definition.get_fields_processed().iter().enumerate() {
             if let Some((ref ref_table, ref ref_column)) = field.get_is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
 

@@ -912,9 +912,12 @@ impl Definition {
         self.get_ref_fields().iter()
             .map(|x|
                 if x.get_is_bitwise() > 1 {
-                    let mut field = x.clone();
-                    field.set_field_type(FieldType::Boolean);
-                    vec![field; x.get_is_bitwise() as usize]
+                    let mut fields = vec![x.clone(); x.get_is_bitwise() as usize];
+                    fields.iter_mut().enumerate().for_each(|(index, field)| {
+                        field.set_name(&format!("{}_{}", field.get_name(), index + 1));
+                        field.set_field_type(FieldType::Boolean);
+                    });
+                    fields
                 } else { vec![x.clone(); 1] }
             )
             .flatten()
@@ -1328,6 +1331,11 @@ impl Field {
             is_bitwise,
             enum_values
         }
+    }
+
+    /// Setter for the `name` field.
+    pub fn set_name(&mut self, name: &str) {
+        self.name = name.to_owned();
     }
 
     /// Getter for the `name` field.
