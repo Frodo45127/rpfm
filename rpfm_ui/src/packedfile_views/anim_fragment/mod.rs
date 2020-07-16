@@ -162,7 +162,8 @@ impl PackedFileAnimFragmentView {
         packed_file_view.packed_file_type = PackedFileType::AnimFragment;
 
         let slots = PackedFileAnimFragmentViewSlots {
-            table_slots: vec![table_view_slots_1, table_view_slots_2],
+            table_1_slots: table_view_slots_1,
+            table_2_slots: table_view_slots_2,
         };
 
         // Return success.
