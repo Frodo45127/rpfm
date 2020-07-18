@@ -1094,7 +1094,7 @@ impl PackedFileDecoderViewRaw {
         } else { (QStandardItem::new(), QStandardItem::new()) };
 
         let field_lookup_columns = if let Some(ref columns) = field.get_lookup() {
-            QStandardItem::from_q_string(&QString::from_std_str(columns.join(", ")))
+            QStandardItem::from_q_string(&QString::from_std_str(columns.join(",")))
         } else { QStandardItem::new() };
 
         let mut decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
@@ -1420,8 +1420,8 @@ impl PackedFileDecoderViewRaw {
                 let field_is_key = self.table_model.item_from_index(model_index.sibling_at_column(4).as_ref()).check_state() == CheckState::Checked;
                 let ref_table = self.table_model.item_from_index(model_index.sibling_at_column(5).as_ref()).text().to_std_string();
                 let ref_column = self.table_model.item_from_index(model_index.sibling_at_column(6).as_ref()).text().to_std_string();
+                let field_lookup = self.table_model.item_from_index(model_index.sibling_at_column(7).as_ref()).text().to_std_string();
                 let field_default_value = self.table_model.item_from_index(model_index.sibling_at_column(8).as_ref()).text().to_std_string();
-                let field_lookup = self.table_model.item_from_index(model_index.sibling_at_column(8).as_ref()).text().to_std_string();
                 let field_max_length = self.table_model.item_from_index(model_index.sibling_at_column(9).as_ref()).text().to_std_string().parse::<i32>().unwrap();
                 let field_is_filename = self.table_model.item_from_index(model_index.sibling_at_column(10).as_ref()).check_state() == CheckState::Checked;
                 let field_filename_relative_path = self.table_model.item_from_index(model_index.sibling_at_column(11).as_ref()).text().to_std_string();
