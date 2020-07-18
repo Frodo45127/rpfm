@@ -269,9 +269,8 @@ pub fn get_custom_template_assets_path() -> Result<PathBuf> {
     Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::ASSETS_FOLDER))
 }
 
-
 /// This function parses strings to booleans, properly.
-pub fn parse_str(string: &str) -> Result<bool> {
+pub fn parse_str_as_bool(string: &str) -> Result<bool> {
     let str_lower_case = string.to_lowercase();
     if str_lower_case == "true" || str_lower_case == "1" {
         Ok(true)

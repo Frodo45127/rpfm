@@ -774,13 +774,18 @@ pub unsafe fn setup_item_delegates(
     for (column, field) in definition.get_fields_processed().iter().enumerate() {
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
-        if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() {
+        if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() || !field.get_enum_values().is_empty() {
+            let mut list = QStringList::new();
             if let Some(data) = dependency_data.get(&(column as i32)) {
-                let mut list = QStringList::new();
                 data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
-                new_combobox_item_delegate_safe(&mut table_view_primary, column as i32, list.as_ptr(), true, field.get_max_length());
-                new_combobox_item_delegate_safe(&mut table_view_frozen, column as i32, list.as_ptr(), true, field.get_max_length());
             }
+
+            if !field.get_enum_values().is_empty() {
+                field.get_enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+            }
+
+            new_combobox_item_delegate_safe(&mut table_view_primary, column as i32, list.as_ptr(), true, field.get_max_length());
+            new_combobox_item_delegate_safe(&mut table_view_frozen, column as i32, list.as_ptr(), true, field.get_max_length());
         }
 
         else {

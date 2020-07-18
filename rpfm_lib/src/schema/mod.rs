@@ -918,10 +918,34 @@ impl Definition {
                         field.set_field_type(FieldType::Boolean);
                     });
                     fields
-                } else { vec![x.clone(); 1] }
+                }
+
+                else if !x.get_enum_values().is_empty() {
+                    let mut field = x.clone();
+                    field.set_field_type(FieldType::StringU8);
+                    vec![field; 1]
+                }
+
+                else { vec![x.clone(); 1] }
+
+
             )
             .flatten()
             .collect::<Vec<Field>>()
+    }
+
+    pub fn get_original_field_from_processed(&self, index: usize) -> Field {
+        let fields = self.get_ref_fields();
+        let processed = self.get_fields_processed();
+
+        let field_processed = &processed[index];
+        let name = if field_processed.get_is_bitwise() > 1 {
+            let mut name = field_processed.get_name().to_owned();
+            name.drain(..name.rfind('_').unwrap()).collect::<String>()
+        }
+        else {field_processed.get_name().to_owned() };
+
+        return fields.iter().find(|x| x.get_name() == name).unwrap().clone()
     }
 
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
@@ -1416,6 +1440,12 @@ impl Field {
     /// Getter for the `enum_values` field.
     pub fn get_enum_values(&self) -> &BTreeMap<i32, String> {
         &self.enum_values
+    }
+
+    /// Getter for the `enum_values` field, in an option.
+    pub fn get_enum_values_to_option(&self) -> Option<BTreeMap<i32, String>> {
+        if self.enum_values.is_empty() { None }
+        else { Some(self.enum_values.clone()) }
     }
 
     /// Getter for the `enum_values` field in a string format.

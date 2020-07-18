@@ -18,6 +18,7 @@ use bincode::serialize;
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use serde_derive::{Serialize, Deserialize};
 
+use std::collections::BTreeMap;
 use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -26,7 +27,7 @@ use std::path::PathBuf;
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::assembly_kit::table_data::RawTable;
-use crate::common::{decoder::Decoder, encoder::Encoder};
+use crate::common::{decoder::Decoder, encoder::Encoder, parse_str_as_bool};
 use crate::schema::*;
 
 pub mod animtable;
@@ -135,19 +136,151 @@ impl DecodedData {
     }
 
     /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
-    pub fn is_field_type_correct(&self, field_type: &FieldType) -> bool {
+    pub fn is_field_type_correct(&self, field_type: &FieldType, enum_values: Option<BTreeMap<i32, String>>) -> bool {
         match self {
             DecodedData::Boolean(_) => field_type == &FieldType::Boolean,
             DecodedData::F32(_) => field_type == &FieldType::F32,
             DecodedData::I16(_) => field_type == &FieldType::I16,
             DecodedData::I32(_) => field_type == &FieldType::I32,
             DecodedData::I64(_) => field_type == &FieldType::I64,
-            DecodedData::StringU8(_) => field_type == &FieldType::StringU8,
-            DecodedData::StringU16(_) => field_type == &FieldType::StringU16,
-            DecodedData::OptionalStringU8(_) => field_type == &FieldType::OptionalStringU8,
-            DecodedData::OptionalStringU16(_) => field_type == &FieldType::OptionalStringU16,
+            DecodedData::StringU8(ref data) |
+            DecodedData::StringU16(ref data) |
+            DecodedData::OptionalStringU8(ref data) |
+            DecodedData::OptionalStringU16(ref data) => {
+                match enum_values {
+                    Some(values) => {
+                        match values.iter().find(|(_, y)| **y == data.to_lowercase()) {
+                            Some((_, _)) => match field_type {
+                                FieldType::I16 |
+                                FieldType::I32 |
+                                FieldType::I64 => true,
+                                _ => false
+                            }
+
+                            // In this case, the encoding logic will take care of the checks.
+                            None => true,
+                        }
+                    }
+
+                    None => match self {
+                        DecodedData::StringU8(_) => field_type == &FieldType::StringU8,
+                        DecodedData::StringU16(_) => field_type == &FieldType::StringU16,
+                        DecodedData::OptionalStringU8(_) => field_type == &FieldType::OptionalStringU8,
+                        DecodedData::OptionalStringU16(_) => field_type == &FieldType::OptionalStringU16,
+                        _ => unimplemented!()
+                    }
+                }
+            }
+
             DecodedData::SequenceU16(_) => if let FieldType::SequenceU16(_) = field_type { true } else { false },
             DecodedData::SequenceU32(_) => if let FieldType::SequenceU32(_) = field_type { true } else { false },
+        }
+    }
+
+    /// This function tries to convert the provided data to the provided fieldtype. This can fail in so many ways you should always check the result.
+    ///
+    /// NOTE: If you pass the same type as it already has, this becomes an expensive way of cloning.
+    pub fn convert_between_types(&self, new_field_type: &FieldType) -> Result<Self> {
+        match self {
+            Self::Boolean(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(self.clone()),
+                FieldType::F32 => Ok(Self::F32(if *data { 1.0 } else { 0.0 })),
+                FieldType::I16 => Ok(Self::I16(if *data { 1 } else { 0 })),
+                FieldType::I32 => Ok(Self::I32(if *data { 1 } else { 0 })),
+                FieldType::I64 => Ok(Self::I64(if *data { 1 } else { 0 })),
+                FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::F32(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(Self::Boolean(data > &1.0)),
+                FieldType::F32 => Ok(self.clone()),
+                FieldType::I16 => Ok(Self::I16(*data as i16)),
+                FieldType::I32 => Ok(Self::I32(*data as i32)),
+                FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::I16(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(Self::Boolean(data > &1)),
+                FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::I16 => Ok(self.clone()),
+                FieldType::I32 => Ok(Self::I32(*data as i32)),
+                FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::I32(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(Self::Boolean(data > &1)),
+                FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::I16 => Ok(Self::I16(*data as i16)),
+                FieldType::I32 => Ok(self.clone()),
+                FieldType::I64 => Ok(Self::I64(*data as i64)),
+                FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::I64(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(Self::Boolean(data > &1)),
+                FieldType::F32 => Ok(Self::F32(*data as f32)),
+                FieldType::I16 => Ok(Self::I16(*data as i16)),
+                FieldType::I32 => Ok(Self::I32(*data as i32)),
+                FieldType::I64 => Ok(self.clone()),
+                FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::StringU8(ref data) |
+            Self::StringU16(ref data) |
+            Self::OptionalStringU8(ref data) |
+            Self::OptionalStringU16(ref data) => match new_field_type {
+                FieldType::Boolean => Ok(Self::Boolean(parse_str_as_bool(data)?)),
+                FieldType::F32 => Ok(Self::F32(data.parse::<f32>()?)),
+                FieldType::I16 => Ok(Self::I16(data.parse::<i16>()?)),
+                FieldType::I32 => Ok(Self::I32(data.parse::<i32>()?)),
+                FieldType::I64 => Ok(Self::I64(data.parse::<i64>()?)),
+                FieldType::StringU8 => Ok(Self::StringU8(data.to_string())),
+                FieldType::StringU16 => Ok(Self::StringU16(data.to_string())),
+                FieldType::OptionalStringU8 => Ok(Self::OptionalStringU8(data.to_string())),
+                FieldType::OptionalStringU16 => Ok(Self::OptionalStringU16(data.to_string())),
+                FieldType::SequenceU16(_) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(_) => Err(ErrorKind::Generic.into()),
+            }
+            /*
+            Self::SequenceU16(ref data) => match new_field_type {
+                FieldType::SequenceU16(ref definition) => Ok(self.clone()),
+                FieldType::SequenceU32(ref definition) => Err(ErrorKind::Generic.into()),
+                _ => Err(ErrorKind::Generic.into()),
+            }
+
+            Self::SequenceU32(ref data) => match new_field_type {
+                FieldType::SequenceU16(ref definition) => Err(ErrorKind::Generic.into()),
+                FieldType::SequenceU32(ref definition) => Ok(self.clone()),
+                _ => Err(ErrorKind::Generic.into()),
+            }*/
+            _ => Err(ErrorKind::Generic.into()),
         }
     }
 
@@ -265,12 +398,15 @@ impl Table {
         for row in data {
 
             // First, we need to make sure all rows we have are exactly what we expect.
-            if row.len() != self.definition.get_fields_processed().len() { return Err(ErrorKind::TableRowWrongFieldCount(self.definition.get_fields_processed().len() as u32, row.len() as u32).into()) }
+            let fields_processed = self.definition.get_fields_processed();
+
+            if row.len() != fields_processed.len() { return Err(ErrorKind::TableRowWrongFieldCount(fields_processed.len() as u32, row.len() as u32).into()) }
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
-                if !cell.is_field_type_correct(self.definition.get_fields_processed()[index].get_ref_field_type()) {
-                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", self.definition.get_fields_processed()[index].get_ref_field_type())).into())
+                let field = self.definition.get_original_field_from_processed(index);
+                if !cell.is_field_type_correct(field.get_ref_field_type(), field.get_enum_values_to_option()) {
+                    return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", field.get_ref_field_type())).into())
                 }
             }
         }
@@ -363,11 +499,25 @@ impl Table {
                                 DecodedData::I32(ref data) => *data as i64,
                                 DecodedData::I64(ref data) => *data,
                                 _ => return Err(ErrorKind::Generic.into())
-
                             };
 
                             for bitwise_column in 0..field.get_is_bitwise() {
                                 decoded_row.push(DecodedData::Boolean(data & (1 << bitwise_column) != 0));
+                            }
+                        }
+
+                        // If the field has enum values, we turn it into a string. Same as before, only for integer types.
+                        else if !field.get_enum_values().is_empty() {
+                            let data = match data {
+                                DecodedData::I16(ref data) => *data as i32,
+                                DecodedData::I32(ref data) => *data,
+                                DecodedData::I64(ref data) => *data as i32,
+                                _ => return Err(ErrorKind::Generic.into())
+                            };
+
+                            match field.get_enum_values().get(&data) {
+                                Some(data) => decoded_row.push(DecodedData::StringU8(data.to_owned())),
+                                None => decoded_row.push(DecodedData::StringU8(data.to_string()))
                             }
                         }
 
@@ -423,21 +573,60 @@ impl Table {
                 else {
 
                     // Next, we need to ensure each file is of the type we expected.
-                    if !row[data_column].is_field_type_correct(field.get_ref_field_type()) {
+                    if !row[data_column].is_field_type_correct(field.get_ref_field_type(), field.get_enum_values_to_option()) {
                         return Err(ErrorKind::TableWrongFieldType(format!("{}", row[data_column]), format!("{}", field.get_ref_field_type())).into())
                     }
 
-                    // If there are no problems, encode the data.
                     match row[data_column] {
                         DecodedData::Boolean(data) => packed_file.encode_bool(data),
                         DecodedData::F32(data) => packed_file.encode_float_f32(data),
                         DecodedData::I16(data) => packed_file.encode_integer_i16(data),
                         DecodedData::I32(data) => packed_file.encode_integer_i32(data),
                         DecodedData::I64(data) => packed_file.encode_integer_i64(data),
-                        DecodedData::StringU8(ref data) => packed_file.encode_packedfile_string_u8(&Self::unescape_special_chars(&data)),
-                        DecodedData::StringU16(ref data) => packed_file.encode_packedfile_string_u16(&Self::unescape_special_chars(&data)),
-                        DecodedData::OptionalStringU8(ref data) => packed_file.encode_packedfile_optional_string_u8(&Self::unescape_special_chars(&data)),
-                        DecodedData::OptionalStringU16(ref data) => packed_file.encode_packedfile_optional_string_u16(&Self::unescape_special_chars(&data)),
+                        DecodedData::StringU8(ref data) |
+                        DecodedData::StringU16(ref data) |
+                        DecodedData::OptionalStringU8(ref data) |
+                        DecodedData::OptionalStringU16(ref data) => {
+
+                            // If the field has enum values, try to match them. If the matching fails, try to just encode them.
+                            // If that fails, put a default value on that cell.
+                            let values = field.get_enum_values();
+                            if !values.is_empty() {
+                                let data = match values.iter().find(|(_, y)| **y == data.to_lowercase()) {
+                                    Some((x, _)) => {
+                                        match field.get_field_type() {
+                                            FieldType::I16 => DecodedData::I16(*x as i16),
+                                            FieldType::I32 => DecodedData::I32(*x),
+                                            FieldType::I64 => DecodedData::I64(*x as i64),
+                                            _ => return Err(ErrorKind::TableWrongFieldType(format!("{}", row[data_column]), format!("{}", field.get_ref_field_type())).into())
+                                        }
+                                    }
+                                    None => match row[data_column].convert_between_types(field.get_ref_field_type()) {
+                                        Ok(data) => data,
+                                        Err(_) => DecodedData::default(field.get_ref_field_type())
+                                    }
+                                };
+
+                                // If there are no problems, encode the data.
+                                match data {
+                                    DecodedData::I16(data) => packed_file.encode_integer_i16(data),
+                                    DecodedData::I32(data) => packed_file.encode_integer_i32(data),
+                                    DecodedData::I64(data) => packed_file.encode_integer_i64(data),
+                                    _ => return Err(ErrorKind::TableWrongFieldType(format!("{}", row[data_column]), format!("{}", field.get_ref_field_type())).into())
+                                }
+                            }
+                            else {
+
+                                // If there are no problems, encode the data.
+                                match row[data_column] {
+                                    DecodedData::StringU8(ref data) => packed_file.encode_packedfile_string_u8(&Self::unescape_special_chars(&data)),
+                                    DecodedData::StringU16(ref data) => packed_file.encode_packedfile_string_u16(&Self::unescape_special_chars(&data)),
+                                    DecodedData::OptionalStringU8(ref data) => packed_file.encode_packedfile_optional_string_u8(&Self::unescape_special_chars(&data)),
+                                    DecodedData::OptionalStringU16(ref data) => packed_file.encode_packedfile_optional_string_u16(&Self::unescape_special_chars(&data)),
+                                    _ => return Err(ErrorKind::TableWrongFieldType(format!("{}", row[data_column]), format!("{}", field.get_ref_field_type())).into())
+                                }
+                            }
+                        }
                         DecodedData::SequenceU16(ref data) => {
                             if let FieldType::SequenceU16(_) = fields[data_column].get_ref_field_type() {
                                 packed_file.encode_integer_u16(data.entries.len() as u16);
