@@ -149,7 +149,7 @@ impl DecodedData {
             DecodedData::OptionalStringU16(ref data) => {
                 match enum_values {
                     Some(values) => {
-                        match values.iter().find(|(_, y)| **y == data.to_lowercase()) {
+                        match values.iter().find(|(_, y)| y.to_lowercase() == data.to_lowercase()) {
                             Some((_, _)) => match field_type {
                                 FieldType::I16 |
                                 FieldType::I32 |
@@ -592,7 +592,7 @@ impl Table {
                             // If that fails, put a default value on that cell.
                             let values = field.get_enum_values();
                             if !values.is_empty() {
-                                let data = match values.iter().find(|(_, y)| **y == data.to_lowercase()) {
+                                let data = match values.iter().find(|(_, y)| y.to_lowercase() == data.to_lowercase()) {
                                     Some((x, _)) => {
                                         match field.get_field_type() {
                                             FieldType::I16 => DecodedData::I16(*x as i16),
