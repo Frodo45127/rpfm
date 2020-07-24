@@ -907,6 +907,11 @@ impl Definition {
             .collect()
     }
 
+    /// This function returns the localised fields of the provided definition
+    pub fn get_localised_fields(&self) -> &[Field] {
+        &self.localised_fields
+    }
+
     /// This function returns the list of fields a table contains, after it has been expanded/changed due to the attributes of each field.
     pub fn get_fields_processed(&self) -> Vec<Field> {
         self.get_ref_fields().iter()
