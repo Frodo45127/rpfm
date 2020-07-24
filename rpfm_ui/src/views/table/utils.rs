@@ -647,7 +647,7 @@ pub unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_n
 
         else {
             let mut referenced_columns = if let Some(ref schema) = schema {
-                let short_table_name = table_name.split_at(table_name.len() - 7).0;
+                let short_table_name = if table_name.ends_with("_tables") { table_name.split_at(table_name.len() - 7).0 } else { table_name };
                 let mut columns = vec![];
 
                 // We get all the db definitions from the schema, then iterate all of them to find what tables reference our own.

@@ -31,7 +31,7 @@ use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::common::get_game_selected_pak_file;
 use crate::GAME_SELECTED;
 use crate::games::*;
-use crate::packedfile::DecodedPackedFile;
+use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::*;
@@ -91,6 +91,11 @@ impl DB {
     /// This function returns a copy of the name of this DB Table.
     pub fn get_table_name(&self) -> String {
         self.name.to_owned()
+    }
+
+    /// This function returns a copy of the name of this DB Table, without the "_tables" suffix.
+    pub fn get_table_name_without_tables(&self) -> String {
+        self.name.to_owned().drain(..self.name.len() - 7).collect()
     }
 
     /// This function returns a reference of the name of this DB Table.
