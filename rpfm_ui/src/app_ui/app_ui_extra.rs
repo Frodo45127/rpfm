@@ -44,7 +44,6 @@ use std::rc::Rc;
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_packfiles_paths, get_game_selected_data_packfiles_paths, get_game_selected_template_definitions_paths};
-use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
 use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
