@@ -19,6 +19,7 @@ use indexmap::IndexMap;
 use crate::packfile::PFHVersion;
 
 // Display Name for all the Supported Games.
+pub const DISPLAY_NAME_TROY: &str = "Troy";
 pub const DISPLAY_NAME_THREE_KINGDOMS: &str = "Three Kingdoms";
 pub const DISPLAY_NAME_WARHAMMER_2: &str = "Warhammer 2";
 pub const DISPLAY_NAME_WARHAMMER: &str = "Warhammer";
@@ -31,6 +32,7 @@ pub const DISPLAY_NAME_EMPIRE: &str = "Empire";
 pub const DISPLAY_NAME_ARENA: &str = "Arena";
 
 // Key for all the supported games.
+pub const KEY_TROY: &str = "troy";
 pub const KEY_THREE_KINGDOMS: &str = "three_kingdoms";
 pub const KEY_WARHAMMER_2: &str = "warhammer_2";
 pub const KEY_WARHAMMER: &str = "warhammer";
@@ -89,6 +91,36 @@ pub struct GameInfo {
 /// This function returns a `SupportedGames` struct with the list of all games supported by this lib inside.
 pub fn get_supported_games_list() -> SupportedGames {
     let mut list = SupportedGames::new();
+
+    // Troy
+    list.insert(KEY_TROY, GameInfo {
+        display_name: DISPLAY_NAME_TROY,
+        pfh_version: vec![PFHVersion::PFH5],
+        schema: "schema_troy.ron".to_owned(),
+        db_packs: vec!["database.pack".to_owned()],
+        loc_packs: vec![
+            "local_en.pack".to_owned(),     // English
+            "local_br.pack".to_owned(),     // Brazilian
+            "local_cz.pack".to_owned(),     // Czech
+            "local_ge.pack".to_owned(),     // German
+            "local_sp.pack".to_owned(),     // Spanish
+            "local_fr.pack".to_owned(),     // French
+            "local_it.pack".to_owned(),     // Italian
+            "local_kr.pack".to_owned(),     // Korean
+            "local_pl.pack".to_owned(),     // Polish
+            "local_ru.pack".to_owned(),     // Russian
+            "local_tr.pack".to_owned(),     // Turkish
+            "local_cn.pack".to_owned(),     // Simplified Chinese
+            "local_zh.pack".to_owned(),     // Traditional Chinese
+        ],
+        steam_id: None,
+        raw_db_version: 2,
+        pak_file: Some("troy.pak".to_owned()),
+        ca_types_file: None,
+        supports_editing: true,
+        game_selected_icon: "gs_troy.png".to_owned(),
+        game_selected_big_icon: "gs_big_troy.png".to_owned(),
+    });
 
     // Three Kingdoms
     list.insert(KEY_THREE_KINGDOMS, GameInfo {

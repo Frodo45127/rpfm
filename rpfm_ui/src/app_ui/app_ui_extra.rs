@@ -53,6 +53,7 @@ use rpfm_lib::schema::{versions::APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::settings::MYMOD_BASE_PATH;
 use rpfm_lib::template::Template;
 
 use super::AppUI;
@@ -295,6 +296,7 @@ impl AppUI {
                     // NOTE: Arena should never be here.
                     // Change the Game Selected in the UI.
                     match game_folder {
+                        KEY_TROY => self.game_selected_troy.trigger(),
                         KEY_THREE_KINGDOMS => self.game_selected_three_kingdoms.trigger(),
                         KEY_WARHAMMER_2 => self.game_selected_warhammer_2.trigger(),
                         KEY_WARHAMMER => self.game_selected_warhammer.trigger(),
@@ -329,6 +331,7 @@ impl AppUI {
                             // Otherwise, it's from Three Kingdoms or Warhammer 2.
                             else {
                                 match &*game_selected {
+                                    KEY_TROY => self.game_selected_troy.trigger(),
                                     KEY_THREE_KINGDOMS => self.game_selected_three_kingdoms.trigger(),
                                     KEY_WARHAMMER_2 => self.game_selected_warhammer_2.trigger(),
                                     _ => {
@@ -516,7 +519,7 @@ impl AppUI {
             self.packfile_save_packfile_as.set_enabled(enable);
 
             // If there is a "MyMod" path set in the settings...
-            if let Some(ref path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+            if let Some(ref path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
 
                 // And it's a valid directory, enable the "New MyMod" button.
                 if path.is_dir() { self.mymod_new.set_enabled(true); }
@@ -538,6 +541,11 @@ impl AppUI {
 
             // Check the Game Selected and enable the actions corresponding to out game.
             match &**GAME_SELECTED.read().unwrap() {
+                KEY_TROY => {
+                    self.change_packfile_type_data_is_compressed.set_enabled(true);
+                    self.special_stuff_troy_optimize_packfile.set_enabled(true);
+                    self.special_stuff_troy_generate_pak_file.set_enabled(true);
+                },
                 KEY_THREE_KINGDOMS => {
                     self.change_packfile_type_data_is_compressed.set_enabled(true);
                     self.special_stuff_three_k_optimize_packfile.set_enabled(true);
@@ -595,6 +603,10 @@ impl AppUI {
             // Universal Actions.
             self.change_packfile_type_data_is_compressed.set_enabled(false);
 
+            // Disable Troy actions...
+            self.special_stuff_troy_optimize_packfile.set_enabled(false);
+            self.special_stuff_troy_generate_pak_file.set_enabled(false);
+
             // Disable Three Kingdoms actions...
             self.special_stuff_three_k_optimize_packfile.set_enabled(false);
             self.special_stuff_three_k_generate_pak_file.set_enabled(false);
@@ -636,6 +648,7 @@ impl AppUI {
 
         // The assembly kit thing should only be available for Rome 2 and later games.
         match &**GAME_SELECTED.read().unwrap() {
+            KEY_TROY |
             KEY_THREE_KINGDOMS |
             KEY_WARHAMMER_2 |
             KEY_WARHAMMER |
@@ -796,6 +809,7 @@ impl AppUI {
     pub unsafe fn build_open_mymod_submenus(mut self, mut pack_file_contents_ui: PackFileContentsUI, mut global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotOfBool<'static>> {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
+        self.mymod_open_troy.menu_action().set_visible(false);
         self.mymod_open_three_kingdoms.menu_action().set_visible(false);
         self.mymod_open_warhammer_2.menu_action().set_visible(false);
         self.mymod_open_warhammer.menu_action().set_visible(false);
@@ -806,6 +820,7 @@ impl AppUI {
         self.mymod_open_napoleon.menu_action().set_visible(false);
         self.mymod_open_empire.menu_action().set_visible(false);
 
+        self.mymod_open_troy.clear();
         self.mymod_open_three_kingdoms.clear();
         self.mymod_open_warhammer_2.clear();
         self.mymod_open_warhammer.clear();
@@ -820,7 +835,7 @@ impl AppUI {
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
         let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing).map(|(folder_name,_)| *folder_name).collect::<Vec<&str>>();
-        if let Some(ref mymod_base_path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+        if let Some(ref mymod_base_path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
             if let Ok(game_folder_list) = mymod_base_path.read_dir() {
                 for game_folder in game_folder_list {
                     if let Ok(game_folder) = game_folder {
@@ -829,6 +844,7 @@ impl AppUI {
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
                         if game_folder.path().is_dir() && supported_folders.contains(&&*game_folder_name) {
                             let mut game_submenu = match &*game_folder_name {
+                                KEY_TROY => self.mymod_open_troy,
                                 KEY_THREE_KINGDOMS => self.mymod_open_three_kingdoms,
                                 KEY_WARHAMMER_2 => self.mymod_open_warhammer_2,
                                 KEY_WARHAMMER => self.mymod_open_warhammer,

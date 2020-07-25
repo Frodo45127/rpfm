@@ -61,16 +61,17 @@ pub mod slots;
 pub mod tips;
 
 // Display name, adapted to support Pnemonics.
-const GAME_SELECTED_THREE_KINGDOMS: &str = "Three &Kingdoms";
-const GAME_SELECTED_WARHAMMER_2: &str = "&Warhammer 2";
-const GAME_SELECTED_WARHAMMER: &str = "War&hammer";
-const GAME_SELECTED_THRONES_OF_BRITANNIA: &str = "&Thrones of Britannia";
-const GAME_SELECTED_ATTILA: &str = "&Attila";
-const GAME_SELECTED_ROME_2: &str = "R&ome 2";
-const GAME_SELECTED_SHOGUN_2: &str = "&Shogun 2";
-const GAME_SELECTED_NAPOLEON: &str = "&Napoleon";
-const GAME_SELECTED_EMPIRE: &str = "&Empire";
-const GAME_SELECTED_ARENA: &str = "A&rena";
+const GAME_SELECTED_TROY: &str = "Troy";
+const GAME_SELECTED_THREE_KINGDOMS: &str = "Three Kingdoms";
+const GAME_SELECTED_WARHAMMER_2: &str = "Warhammer 2";
+const GAME_SELECTED_WARHAMMER: &str = "Warhammer";
+const GAME_SELECTED_THRONES_OF_BRITANNIA: &str = "Thrones of Britannia";
+const GAME_SELECTED_ATTILA: &str = "Attila";
+const GAME_SELECTED_ROME_2: &str = "Rome 2";
+const GAME_SELECTED_SHOGUN_2: &str = "Shogun 2";
+const GAME_SELECTED_NAPOLEON: &str = "Napoleon";
+const GAME_SELECTED_EMPIRE: &str = "Empire";
+const GAME_SELECTED_ARENA: &str = "Arena";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -155,6 +156,7 @@ pub struct AppUI {
     pub mymod_install: MutPtr<QAction>,
     pub mymod_uninstall: MutPtr<QAction>,
 
+    pub mymod_open_troy: MutPtr<QMenu>,
     pub mymod_open_three_kingdoms: MutPtr<QMenu>,
     pub mymod_open_warhammer_2: MutPtr<QMenu>,
     pub mymod_open_warhammer: MutPtr<QMenu>,
@@ -180,6 +182,7 @@ pub struct AppUI {
     pub game_selected_open_game_assembly_kit_folder: MutPtr<QAction>,
     pub game_selected_open_config_folder: MutPtr<QAction>,
 
+    pub game_selected_troy: MutPtr<QAction>,
     pub game_selected_three_kingdoms: MutPtr<QAction>,
     pub game_selected_warhammer_2: MutPtr<QAction>,
     pub game_selected_warhammer: MutPtr<QAction>,
@@ -196,6 +199,10 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // `Special Stuff` menu.
     //-------------------------------------------------------------------------------//
+
+    // Troy actions.
+    pub special_stuff_troy_generate_pak_file: MutPtr<QAction>,
+    pub special_stuff_troy_optimize_packfile: MutPtr<QAction>,
 
     // Three Kingdoms actions.
     pub special_stuff_three_k_generate_pak_file: MutPtr<QAction>,
@@ -434,6 +441,7 @@ impl AppUI {
 
         menu_bar_mymod.add_separator();
 
+        let mymod_open_troy = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
         let mymod_open_three_kingdoms = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
         let mymod_open_warhammer_2 = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
         let mymod_open_warhammer = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
@@ -452,6 +460,7 @@ impl AppUI {
         mymod_install.set_enabled(false);
         mymod_uninstall.set_enabled(false);
 
+        mymod_open_troy.menu_action().set_visible(false);
         mymod_open_three_kingdoms.menu_action().set_visible(false);
         mymod_open_warhammer_2.menu_action().set_visible(false);
         mymod_open_warhammer.menu_action().set_visible(false);
@@ -481,6 +490,7 @@ impl AppUI {
         let game_selected_open_game_assembly_kit_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_game_assembly_kit_folder"));
         let game_selected_open_config_folder = menu_bar_game_selected.add_action_q_string(&qtr("game_selected_open_config_folder"));
 
+        let mut game_selected_troy = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
         let mut game_selected_three_kingdoms = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
         let mut game_selected_warhammer_2 = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
         let mut game_selected_warhammer = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
@@ -492,6 +502,7 @@ impl AppUI {
         let mut game_selected_empire = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
         let mut game_selected_arena = menu_bar_game_selected.add_action_q_string(&QString::from_std_str(GAME_SELECTED_ARENA));
 
+        game_selected_troy.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get(KEY_TROY).unwrap().game_selected_icon))).as_ref());
         game_selected_three_kingdoms.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_icon))).as_ref());
         game_selected_warhammer_2.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_icon))).as_ref());
         game_selected_warhammer.set_icon(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}", ASSETS_PATH.to_string_lossy().to_string(), SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_icon))).as_ref());
@@ -506,8 +517,9 @@ impl AppUI {
         let mut game_selected_group = QActionGroup::new(menu_bar_game_selected);
 
         // Configure the `Game Selected` Menu.
-        menu_bar_game_selected.insert_separator(game_selected_three_kingdoms);
+        menu_bar_game_selected.insert_separator(game_selected_troy);
         menu_bar_game_selected.insert_separator(game_selected_arena);
+        game_selected_group.add_action_q_action(game_selected_troy);
         game_selected_group.add_action_q_action(game_selected_three_kingdoms);
         game_selected_group.add_action_q_action(game_selected_warhammer_2);
         game_selected_group.add_action_q_action(game_selected_warhammer);
@@ -518,6 +530,7 @@ impl AppUI {
         game_selected_group.add_action_q_action(game_selected_napoleon);
         game_selected_group.add_action_q_action(game_selected_empire);
         game_selected_group.add_action_q_action(game_selected_arena);
+        game_selected_troy.set_checkable(true);
         game_selected_three_kingdoms.set_checkable(true);
         game_selected_warhammer_2.set_checkable(true);
         game_selected_warhammer.set_checkable(true);
@@ -534,6 +547,7 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `Special Stuff` menu with submenus.
+        let mut menu_troy = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_TROY));
         let mut menu_three_kingdoms = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_THREE_KINGDOMS));
         let mut menu_warhammer_2 = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER_2));
         let mut menu_warhammer = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_WARHAMMER));
@@ -545,6 +559,8 @@ impl AppUI {
         let mut menu_empire = menu_bar_special_stuff.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
         // Populate the `Special Stuff` submenus.
+        let special_stuff_troy_generate_pak_file = menu_troy.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
+        let special_stuff_troy_optimize_packfile = menu_troy.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_three_k_generate_pak_file = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
         let special_stuff_three_k_optimize_packfile = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_wh2_create_dummy_animpack = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_create_dummy_animpack"));
@@ -667,6 +683,7 @@ impl AppUI {
             mymod_install,
             mymod_uninstall,
 
+            mymod_open_troy,
             mymod_open_three_kingdoms,
             mymod_open_warhammer_2,
             mymod_open_warhammer,
@@ -692,6 +709,7 @@ impl AppUI {
             game_selected_open_game_assembly_kit_folder,
             game_selected_open_config_folder,
 
+            game_selected_troy,
             game_selected_three_kingdoms,
             game_selected_warhammer_2,
             game_selected_warhammer,
@@ -708,6 +726,10 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             // "Special Stuff" menu.
             //-------------------------------------------------------------------------------//
+
+            // Troy actions.
+            special_stuff_troy_generate_pak_file,
+            special_stuff_troy_optimize_packfile,
 
             // Three Kingdoms actions.
             special_stuff_three_k_generate_pak_file,

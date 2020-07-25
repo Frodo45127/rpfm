@@ -80,6 +80,7 @@ pub struct Slots {
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
 pub struct GameSelectedIcons {
+    pub troy: (AtomicPtr<QIcon>, String),
     pub three_kingdoms: (AtomicPtr<QIcon>, String),
     pub warhammer_2: (AtomicPtr<QIcon>, String),
     pub warhammer: (AtomicPtr<QIcon>, String),
@@ -127,6 +128,7 @@ impl UI {
         UI_STATE.set_operational_mode(&mut app_ui, None);
 
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
+            KEY_TROY => app_ui.game_selected_troy.trigger(),
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
             KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
@@ -217,6 +219,7 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub unsafe fn new() -> Self {
         Self {
+            troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_TROY).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_TROY).unwrap().game_selected_big_icon)),
             three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_big_icon)),
             warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_big_icon)),
             warhammer: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_big_icon)),
@@ -233,6 +236,7 @@ impl GameSelectedIcons {
     /// This function sets the main window icon according to the currently selected game.
     pub unsafe fn set_game_selected_icon(app_ui: &mut AppUI) {
         let (icon, big_icon) = match &**GAME_SELECTED.read().unwrap() {
+            KEY_TROY => &GAME_SELECTED_ICONS.troy,
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
             KEY_WARHAMMER_2 => &GAME_SELECTED_ICONS.warhammer_2,
             KEY_WARHAMMER => &GAME_SELECTED_ICONS.warhammer,

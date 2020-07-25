@@ -356,6 +356,7 @@ impl AppUISlots {
 
                         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                         match &*game_selected {
+                            KEY_TROY => app_ui.game_selected_troy.trigger(),
                             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
                             KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
@@ -501,6 +502,7 @@ impl AppUISlots {
                     // Change the Game Selected to match the one we chose for the new "MyMod".
                     // NOTE: Arena should not be on this list.
                     match &*mod_game {
+                        KEY_TROY => app_ui.game_selected_troy.trigger(),
                         KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                         KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
                         KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
