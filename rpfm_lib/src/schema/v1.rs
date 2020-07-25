@@ -224,7 +224,7 @@ impl SchemaV1 {
 
     pub fn update() {
         println!("Importing schemas from V1 to V2");
-        let mut legacy_schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV2>>();
+        let mut legacy_schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV2>>();
         println!("Amount of SchemasV1: {:?}", legacy_schemas.len());
         legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
             if let Some(file_name) = SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true) {

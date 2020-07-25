@@ -15,7 +15,7 @@ This module defines the list of games this lib support for any `Game-Specific` f
 You should have no business here, except for supporting a new game.
 !*/
 
-use std::collections::BTreeMap;
+use indexmap::IndexMap;
 use crate::packfile::PFHVersion;
 
 // Display Name for all the Supported Games.
@@ -43,7 +43,7 @@ pub const KEY_EMPIRE: &str = "empire";
 pub const KEY_ARENA: &str = "arena";
 
 /// This struct represents the list of games supported by this lib.
-pub type SupportedGames = BTreeMap<&'static str, GameInfo>;
+pub type SupportedGames = IndexMap<&'static str, GameInfo>;
 
 /// This struct holds all the info needed for a game to be "supported" by RPFM features.
 #[derive(Clone, Debug)]

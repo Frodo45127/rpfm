@@ -135,8 +135,8 @@ impl SchemaV0 {
 
     pub fn update() {
         println!("Importing schemas from V0 to V1");
-        let legacy_schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
-        let mut schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), SchemaV1::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, y)) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
+        let legacy_schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
+        let mut schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), SchemaV1::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, y)) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
         println!("Amount of Schemas V0: {:?}", legacy_schemas.len());
         println!("Amount of schemas V1: {:?}", schemas.len());
         if !schemas.is_empty() {
