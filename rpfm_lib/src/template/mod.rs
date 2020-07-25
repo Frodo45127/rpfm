@@ -143,7 +143,7 @@ impl Template {
 
                 // First, the db tables.
                 for db in &self.dbs {
-                    let path = vec!["db".to_owned(), db.table.to_owned() + "_tables", db.name.to_owned()];
+                    let path = vec!["db".to_owned(), db.table.to_owned(), db.name.to_owned()];
 
                     let mut table = if let Some(packed_file) = pack_file.get_ref_mut_packed_file_by_path(&path) {
                         if let Ok(table) = packed_file.decode_return_ref_no_locks(&schema) {
