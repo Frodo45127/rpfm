@@ -254,12 +254,13 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 fn main() {
 
     // Log the crashes so the user can send them himself.
-    if !cfg!(debug_assertions) && CrashReport::init().is_err() || CombinedLogger::init(
+    if !cfg!(debug_assertions) && CrashReport::init().is_err() {
+        CombinedLogger::init(
             vec![
                 TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed).ok_or_else(|| Error::from(ErrorKind::InitializingLoggerError)).unwrap(),
                 WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm_ui.log")).unwrap()),
             ]
-        ).is_err() {
+        );
         info!("Starting...");
         println!("Failed to initialize logging code.");
     }

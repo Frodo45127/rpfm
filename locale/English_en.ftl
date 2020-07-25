@@ -173,6 +173,7 @@ tt_game_selected_open_game_data_folder = Tries to open the currently selected ga
 tt_game_selected_open_game_assembly_kit_folder = Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.
 tt_game_selected_open_config_folder = Tries to open RPFM's config folder, where the config/schemas/ctd reports are.
 
+tt_game_selected_troy = Sets 'TW:Troy' as 'Game Selected'.
 tt_game_selected_three_kingdoms = Sets 'TW:Three Kingdoms' as 'Game Selected'.
 tt_game_selected_warhammer_2 = Sets 'TW:Warhammer 2' as 'Game Selected'.
 tt_game_selected_warhammer = Sets 'TW:Warhammer' as 'Game Selected'.
