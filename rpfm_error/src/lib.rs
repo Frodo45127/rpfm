@@ -206,6 +206,28 @@ pub enum ErrorKind {
     /// Error for when the PackFile size doesn't match what we expect. Contains both, the real size and the expected size.
     PackFileSizeIsNotWhatWeExpect(u64, u64),
 
+    //--------------------------------//
+    // Schema Errors
+    //--------------------------------//
+
+    /// Error for when we don't have schema files and we couldn't download them.
+    SchemaNotFoundAndNotDownloaded,
+
+    /// Error for when we don't have an `Schema` to use.
+    SchemaNotFound,
+
+    /// Error for when we don't have a `VersionedFile` for a PackedFile.
+    SchemaVersionedFileNotFound,
+
+    /// Error for when we don't have a `Definition` for a specific version of a `VersionedFile`.
+    SchemaDefinitionNotFound,
+
+    /// Error for when we don't have schema updates available.
+    NoSchemaUpdatesAvailable,
+
+    /// Error for when there was an error while downloading the updated schemas.
+    SchemaUpdateError,
+
     //-----------------------------------------------------//
     //                PackedFile Errors
     //-----------------------------------------------------//
@@ -286,18 +308,6 @@ pub enum ErrorKind {
 
     /// Error for when we can't find a vanilla version of a table to compare with.
     NoTableInGameFilesToCompare,
-
-    /// Error for when we don't have schema files and we couldn't download them.
-    SchemaNotFoundAndNotDownloaded,
-
-    /// Error for when we don't have an `Schema` to use.
-    SchemaNotFound,
-
-    /// Error for when we don't have a `VersionedFile` for a PackedFile.
-    SchemaVersionedFileNotFound,
-
-    /// Error for when we don't have a `Definition` for a specific version of a `VersionedFile`.
-    SchemaDefinitionNotFound,
 
     //--------------------------------//
     // RigidModel Errors
@@ -680,6 +690,16 @@ impl Display for ErrorKind {
             ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta => write!(f, "<p>The PackedFile you added is not the same type as the one you had before. So... the view showing it will get closed.</p>"),
 
             //-----------------------------------------------------//
+            //                Schema Errors
+            //-----------------------------------------------------//
+            ErrorKind::SchemaNotFoundAndNotDownloaded => write!(f, "<p>There is no Schema file to load on the disk, and the tries to download one have failed.</p>"),
+            ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
+            ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),
+            ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),
+            ErrorKind::NoSchemaUpdatesAvailable => write!(f, "<p>No schema updates available</p>"),
+            ErrorKind::SchemaUpdateError => write!(f, "<p>There was an error while downloading the schemas. Please, try again later.</p>"),
+
+            //-----------------------------------------------------//
             //                PackedFile Errors
             //-----------------------------------------------------//
             ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
@@ -712,10 +732,6 @@ impl Display for ErrorKind {
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::NoDefinitionUpdateAvailable => write!(f, "<p>This table already has the newer definition available.</p>"),
             ErrorKind::NoTableInGameFilesToCompare => write!(f, "<p>This table cannot be found in the Game Files, so it cannot be automatically updated (yet).</p>"),
-            ErrorKind::SchemaNotFoundAndNotDownloaded => write!(f, "<p>There is no Schema file to load on the disk, and the tries to download one have failed.</p>"),
-            ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
-            ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),
-            ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),
 
             //--------------------------------//
             // RigidModel Errors

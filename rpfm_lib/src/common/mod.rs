@@ -22,6 +22,7 @@ use std::fs::{File, read_dir};
 use std::path::{Path, PathBuf};
 
 use crate::template;
+use crate::schema;
 use crate::config::get_config_path;
 use crate::GAME_SELECTED;
 use crate::{SETTINGS, SUPPORTED_GAMES};
@@ -267,6 +268,12 @@ pub fn get_custom_template_definitions_path() -> Result<PathBuf> {
 pub fn get_custom_template_assets_path() -> Result<PathBuf> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
     Ok(get_config_path()?.join(template::CUSTOM_TEMPLATE_FOLDER.to_owned() + "/" + game_selected + "/" + template::ASSETS_FOLDER))
+}
+
+/// This function returns the schema path.
+#[allow(dead_code)]
+pub fn get_schemas_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join(schema::SCHEMA_FOLDER))
 }
 
 /// This function parses strings to booleans, properly.

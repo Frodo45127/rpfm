@@ -16,7 +16,7 @@ Basically, this does the network checks of the program.
 
 use restson::RestClient;
 
-use rpfm_lib::schema::versions::*;
+use rpfm_lib::schema::Schema;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, network::LastestRelease, network::APIResponse, THREADS_COMMUNICATION_ERROR};
@@ -111,7 +111,7 @@ pub fn network_loop() {
 
             // When we want to check if there is a schema's update available...
             Command::CheckSchemaUpdates => {
-                match VersionsFile::check_update() {
+                match Schema::check_update() {
                     Ok(response) => CENTRAL_COMMAND.send_message_network_to_qt(Response::APIResponseSchema(response)),
                     Err(error) => CENTRAL_COMMAND.send_message_network_to_qt(Response::Error(error)),
                 }

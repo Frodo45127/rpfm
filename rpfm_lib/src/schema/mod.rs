@@ -63,10 +63,10 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use git2::Repository;
 use itertools::Itertools;
 use rayon::prelude::*;
-use reqwest::blocking;
-use ron::de::{from_str, from_reader};
+use ron::de::from_reader;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
@@ -74,39 +74,31 @@ use std::collections::BTreeMap;
 use std::cmp::Ordering;
 use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Write};
 
 use rpfm_error::{ErrorKind, Result};
 
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
+use crate::common::get_schemas_path;
 use crate::DEPENDENCY_DATABASE;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
 use crate::packedfile::table::db::DB;
-use self::versions::VersionsFile;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v2;
 pub(crate) mod v1;
 pub(crate) mod v0;
-pub mod versions;
-
-/// Name of the schema versions file.
-const SCHEMA_VERSIONS_FILE: &str = "versions.ron";
 
 /// Name of the folder containing all the schemas.
-const SCHEMA_FOLDER: &str = "schemas";
+pub const SCHEMA_FOLDER: &str = "schemas";
 
 const BINARY_EXTENSION: &str = ".bin";
 
-/// URL of the remote repository's schema folder. Master branch.
-#[allow(dead_code)]
-const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
-
-/// URL of the remote repository's schema folder. Develop branch.
-#[allow(dead_code)]
-const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/";
+pub const SCHEMA_REPO: &str = "https://github.com/Frodo45127/rpfm-schemas";
+pub const REMOTE: &str = "origin";
+pub const BRANCH: &str = "master";
 
 /// Current structural version of the Schema, for compatibility purpouses.
 const CURRENT_STRUCTURAL_VERSION: u16 = 3;
@@ -224,6 +216,14 @@ pub enum FieldType {
     OptionalStringU16,
     SequenceU16(Definition),
     SequenceU32(Definition)
+}
+
+/// This enum controls the possible responses from the server when asking if there is a new Schema update.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum APIResponseSchema {
+    NewUpdate,
+    NoUpdate,
+    NoLocalFiles,
 }
 
 //---------------------------------------------------------------------------//
@@ -563,171 +563,6 @@ impl Schema {
         Ok(())
     }
 
-    /// This function generates a diff between the local schema files and the remote ones and drops it in the config folder.
-    ///
-    /// If it detects that you're using the git repo (debug), it adds the diff to the proper place in the docs_src folder instead.
-    pub fn generate_schema_diff() -> Result<()> {
-
-        // To avoid doing a lot of useless checking, we only check for schemas with different version.
-        let local_schema_versions: VersionsFile = from_reader(BufReader::new(File::open(get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE))?))?;
-        let current_schema_versions: VersionsFile = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.text()?)?;
-        let mut schemas_to_update = vec![];
-
-        // If the game's schema is not in the repo (when adding a new game's support) skip it.
-        for (game, version_local) in local_schema_versions.get() {
-            let version_current = if let Some(version_current) = current_schema_versions.get().get(game) { version_current } else { continue };
-            if version_local != version_current { schemas_to_update.push((game.to_owned(), version_local)); }
-        }
-
-        for (game_name, game) in SUPPORTED_GAMES.iter() {
-
-            // Skip all the games with an unchanged version.
-            let schema_name = &game.schema;
-            let mut schema_version = 0;
-            let mut skip_it = true;
-            for (schema_to_update, schema_version_to_update) in &mut schemas_to_update {
-                if schema_to_update == schema_name {
-                    skip_it = false;
-                    schema_version = **schema_version_to_update;
-                    break;
-                }
-            }
-            if skip_it { continue; }
-
-            // For this, first we get both schemas. Then, compare them table by table looking for differences.
-            // Uncomment and tweak the commented schema_current to test against a local schema.
-            let schema_local = Schema::load(schema_name).unwrap();
-            //let schema_current = Schema::load("schema_att.ron").unwrap();
-            let schema_current: Schema = from_reader(blocking::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, schema_name))?)?;
-
-            // Lists to store the different types of differences.
-            let mut diff = String::new();
-            let mut new_tables = vec![];
-            let mut new_versions: Vec<String> = vec![];
-            let mut new_corrections: Vec<String> = vec![];
-
-            // For each table, we need to check EVERY possible difference.
-            for table_local in schema_local.versioned_files.iter().filter(|x| x.is_db()) {
-                if let VersionedFile::DB(name_local, versions_local) = table_local {
-                    match schema_current.get_ref_versioned_file_db(name_local) {
-
-                        // If we find it, we have to check if it has changes. If it has them, then we analize them.
-                        Ok(table_current) => {
-                            if let VersionedFile::DB(_, versions_current) = table_current {
-                                if table_local != table_current {
-                                    for version_local in versions_local {
-                                        match versions_current.iter().find(|x| x.version == version_local.version) {
-
-                                            // If the version has been found, it's a correction for a current version. So we check every
-                                            // field for references.
-                                            Some(version_current) => version_local.get_pretty_diff(&version_current, &name_local, &mut new_corrections),
-
-                                            // If the version hasn't been found, is a new version. We have to compare it with
-                                            // the old one and get his changes.
-                                            None => {
-
-                                                // If we have more versions, get the highest one before the one we have. Tables are automatically
-                                                // sorted on save, so we can just get the first one of the current list.
-                                                if versions_local.len() > 1 {
-                                                    let old_version = &versions_current[0];
-                                                    version_local.get_pretty_diff(&old_version, &name_local, &mut new_versions);
-                                                }
-                                            },
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // If the table hasn't been found, it's a new table we decoded.
-                        Err(_) => new_tables.push(name_local.to_owned()),
-                    }
-                }
-            }
-
-            // Here we put together all the differences.
-            for (index, table) in new_tables.iter().enumerate() {
-                if index == 0 {
-                    diff.push_str("- **New tables decoded**:\n");
-                }
-                diff.push_str(&format!("  - *{}*.", table));
-                diff.push_str("\n");
-
-                if index == new_tables.len() - 1 {
-                    diff.push_str("\n");
-                }
-            }
-
-            for (index, version) in new_versions.iter().enumerate() {
-                if index == 0 {
-                    diff.push_str("- **Updated Tables**:\n");
-                }
-                diff.push_str(version);
-                diff.push_str("\n");
-
-                if index == new_versions.len() - 1 {
-                    diff.push_str("\n");
-                }
-            }
-
-            for (index, correction) in new_corrections.iter().enumerate() {
-                if index == 0 {
-                    diff.push_str("- **Fixed Tables**:\n");
-                }
-                diff.push_str(correction);
-                diff.push_str("\n");
-
-                if index == new_corrections.len() - 1 {
-                    diff.push_str("\n");
-                }
-            }
-
-            // If it's not empty, save it. Otherwise, we just ignore it.
-            if !diff.is_empty() {
-
-                // If we are in debug mode, save it to his proper file in the docs.
-                if cfg!(debug_assertions) {
-                    let mut docs_path = std::env::current_dir().unwrap().to_path_buf();
-                    docs_path.push("docs_src");
-                    docs_path.push("changelogs_tables");
-                    docs_path.push(game_name);
-                    docs_path.push(&format!("{:03}.md", schema_version));
-
-                    let mut docs_changelog_path = docs_path.to_path_buf();
-                    docs_changelog_path.pop();
-                    docs_changelog_path.push("changelog.md");
-
-                    // Fix the text so it has the MarkDown title before writing it.
-                    diff.insert_str(0, &format!("# {:03}\n\nIt contains the following changes:\n\n", schema_version));
-                    let mut file = File::create(docs_path)?;
-                    file.write_all(diff.as_bytes())?;
-
-                    // Now, we have to add the file with includes to his respective changelog.
-                    let mut base_file = String::new();
-                    BufReader::new(File::open(&docs_changelog_path)?).read_to_string(&mut base_file)?;
-                    let include_index_line = base_file.find("-----------------------------------").unwrap();
-                    let include_data_line = base_file.rfind("-----------------------------------").unwrap();
-                    base_file.insert_str(include_data_line + 35, &format!("\n{{{{ #include {:03}.md }}}}", schema_version));
-                    base_file.insert_str(include_index_line + 35, &format!("\n- [{:03}](#{:03})", schema_version, schema_version));
-                    let mut file = File::create(docs_changelog_path)?;
-                    file.write_all(base_file.as_bytes())?;
-                }
-
-                // Otherwise, save it to a file in RPFM's folder.
-                else {
-                    let mut changes_path = get_config_path()?.to_path_buf();
-                    changes_path.push(&format!("changelog_{}.txt", schema_name));
-                    let mut file = File::create(changes_path)?;
-                    file.write_all(diff.as_bytes())?;
-                }
-
-            }
-        }
-
-        // If everything worked, return success.
-        Ok(())
-    }
-
     /// This function allow us to update all Schemas from any legacy version into the current one.
     ///
     /// NOTE FOR DEV: If you make a new Schema Version, add its update function here.
@@ -735,6 +570,76 @@ impl Schema {
         v0::SchemaV0::update();
         v1::SchemaV1::update();
         v2::SchemaV2::update();
+    }
+
+    /// This function checks if there is a new schema update in the schema repo.
+    pub fn check_update() -> Result<APIResponseSchema> {
+
+        let schema_path = get_schemas_path()?;
+        let repo = match Repository::open(&schema_path) {
+            Ok(repo) => repo,
+
+            // If this fails, it means we either we don´t have the schemas downloaded, or we have the old ones downloaded.
+            Err(_) => return Ok(APIResponseSchema::NoLocalFiles),
+        };
+
+        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
+        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+
+        if analysis.0.is_up_to_date() {
+            Ok(APIResponseSchema::NoUpdate)
+        }
+
+        else if analysis.0.is_fast_forward() {
+            Ok(APIResponseSchema::NewUpdate)
+        }
+
+        else {
+            Err(ErrorKind::SchemaUpdateError.into())
+        }
+    }
+
+    /// This function downloads the latest revision of the schema repository.
+    pub fn update_schema_repo() -> Result<()> {
+        let schema_path = get_schemas_path()?;
+        let repo = match Repository::open(&schema_path) {
+            Ok(repo) => repo,
+            Err(_) => {
+
+                // Make sure we remnove the folder if exists.
+                std::fs::remove_dir_all(&schema_path)?;
+                DirBuilder::new().recursive(true).create(&schema_path)?;
+                match Repository::clone(SCHEMA_REPO, &schema_path) {
+                    Ok(_) => return Ok(()),
+                    Err(_) => return Err(ErrorKind::SchemaUpdateError.into()),
+                }
+            }
+        };
+
+        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
+        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+
+        if analysis.0.is_up_to_date() {
+            Err(ErrorKind::NoSchemaUpdatesAvailable.into())
+        }
+
+        else if analysis.0.is_fast_forward() {
+            let refname = format!("refs/heads/{}", BRANCH);
+            let mut reference = repo.find_reference(&refname)?;
+            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
+            repo.set_head(&refname)?;
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).map_err(From::from)
+        }
+
+        else {
+            Err(ErrorKind::SchemaUpdateError.into())
+        }
     }
 }
 
@@ -1026,208 +931,7 @@ impl Definition {
             self.localised_fields = fields;
         }
     }
-/*
-    /// This function creates a new `Definition` from an imported definition from the Assembly Kit.
-    ///
-    /// Note that this imports the loc fields (they need to be removed manually later) and it doesn't
-    /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: &RawDefinition, version: i32, table_name: &str) -> Self {
-        let mut fields = vec![];
-        for (position, field) in imported_table_definition.fields.iter().enumerate() {
 
-            // First, we need to disable a number of known fields that are not in the final tables. We
-            // check if the current field is one of them, and ignore it if it's.
-            // TODO: Get this list directly from the Assembly Kit.
-            if field.name == "game_expansion_key" || // This one exists in one of the advices tables.
-                field.name == "localised_text" ||
-                field.name == "localised_name" ||
-                field.name == "localised_tooltip" ||
-                field.name == "description" ||
-                field.name == "objectives_team_1" ||
-                field.name == "objectives_team_2" ||
-                field.name == "short_description_text" ||
-                field.name == "historical_description_text" ||
-                field.name == "strengths_weaknesses_text" ||
-                field.name == "onscreen" ||
-                field.name == "onscreen_text" ||
-                field.name == "onscreen_name" ||
-                field.name == "onscreen_description" ||
-                field.name == "on_screen_name" ||
-                field.name == "on_screen_description" ||
-                field.name == "on_screen_target" {
-                continue;
-            }
-            let field_name = field.name.to_owned();
-            let field_is_key = field.primary_key == "1";
-            let field_is_reference = if field.column_source_table != None {
-                Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
-            }
-            else {None};
-
-            let field_type = match &*field.field_type {
-                "yesno" => FieldType::Boolean,
-                "single" | "decimal" | "double" => FieldType::Float,
-                "autonumber" => FieldType::LongInteger, // Not always true, but better than nothing.
-                "integer" => {
-
-                    // In Warhammer 2 these tables are wrong in the definition schema.
-                    if table_name.starts_with("_kv") {
-                        FieldType::Float
-                    }
-                    else {
-                        FieldType::Integer
-                    }
-                },
-                "text" => {
-
-                    // Key fields are ALWAYS REQUIRED. This fixes it's detection.
-                    if field.name == "key" {
-                        FieldType::StringU8
-                    }
-                    else {
-                        match &*field.required {
-                            "1" => {
-                                // In Warhammer 2 this table has his "value" field broken.
-                                if table_name == "_kv_winds_of_magic_params_tables" && field.name == "value" {
-                                    FieldType::Float
-                                }
-                                else {
-                                    FieldType::StringU8
-                                }
-                            },
-                            "0" => FieldType::OptionalStringU8,
-
-                            // If we reach this point, we set it to OptionalStringU16. Not because it is it
-                            // (we don't have a way to distinguish String types) but to know what fields
-                            // reach this point.
-                            _ => FieldType::OptionalStringU16,
-                        }
-                    }
-                }
-                // If we reach this point, we set it to StringU16. Not because it is it
-                // (we don't have a way to distinguish String types) but to know what fields
-                // reach this point.
-                _ => FieldType::StringU16,
-
-            };
-
-            let field_description = match field.field_description {
-                Some(ref description) => description.to_owned(),
-                None => String::new(),
-            };
-
-            let new_field = Field::new(
-                field_name,
-                field_type,
-                field_is_key,
-                None,
-                0,
-                false,
-                None,
-                field_is_reference,
-                None,
-                field_description,
-                position as i16
-            );
-            fields.push(new_field);
-        }
-
-        Self {
-            version,
-            localised_fields: vec![],
-            fields,
-        }
-    }
-
-    /// This function creates a new fake `Definition` from an imported definition from the Assembly Kit.
-    ///
-    /// For use with the raw table processing.
-    pub fn new_fake_from_assembly_kit(imported_table_definition: &RawDefinition, table_name: &str) -> Definition {
-        let mut fields = vec![];
-        for (position, field) in imported_table_definition.fields.iter().enumerate() {
-
-            let field_name = field.name.to_owned();
-            let field_is_key = field.primary_key == "1";
-            let field_is_reference = if field.column_source_table != None {
-                Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
-            }
-            else {None};
-
-            let field_type = match &*field.field_type {
-                "yesno" => FieldType::Boolean,
-                "single" | "decimal" | "double" => FieldType::Float,
-                "autonumber" => FieldType::LongInteger, // Not always true, but better than nothing.
-                "integer" => {
-
-                    // In Warhammer 2 these tables are wrong in the definition schema.
-                    if table_name.starts_with("_kv") {
-                        FieldType::Float
-                    }
-                    else {
-                        FieldType::Integer
-                    }
-                },
-                "text" => {
-
-                    // Key fields are ALWAYS REQUIRED. This fixes it's detection.
-                    if field.name == "key" {
-                        FieldType::StringU8
-                    }
-                    else {
-                        match &*field.required {
-                            "1" => {
-                                // In Warhammer 2 this table has his "value" field broken.
-                                if table_name == "_kv_winds_of_magic_params_tables" && field.name == "value" {
-                                    FieldType::Float
-                                }
-                                else {
-                                    FieldType::StringU8
-                                }
-                            },
-                            "0" => FieldType::OptionalStringU8,
-
-                            // If we reach this point, we set it to OptionalStringU16. Not because it is it
-                            // (we don't have a way to distinguish String types) but to know what fields
-                            // reach this point.
-                            _ => FieldType::OptionalStringU16,
-                        }
-                    }
-                }
-                // If we reach this point, we set it to StringU16. Not because it is it
-                // (we don't have a way to distinguish String types) but to know what fields
-                // reach this point.
-                _ => FieldType::StringU16,
-
-            };
-
-            let field_description = match field.field_description {
-                Some(ref description) => description.to_owned(),
-                None => String::new(),
-            };
-
-            let new_field = Field::new(
-                field_name,
-                field_type,
-                field_is_key,
-                None,
-                0,
-                false,
-                None,
-                field_is_reference,
-                None,
-                field_description,
-                position as i16
-            );
-            fields.push(new_field);
-        }
-
-        Definition {
-            version: -1,
-            localised_fields: vec![],
-            fields,
-        }
-    }
-*/
     /// This function generates a MarkDown-encoded diff of two versions of an specific table and adds it to the provided changes list.
     pub fn get_pretty_diff(
         &self,

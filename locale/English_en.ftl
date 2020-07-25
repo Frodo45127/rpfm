@@ -481,11 +481,10 @@ api_response_success_no_update = <h4>No new updates available</h4> <p>More luck 
 api_response_success_unknown_version = <h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>
 api_response_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
 
-api_response_schema_success_no_update = <h4>No new schema updates available</h4> <p>More luck next time :)</p>
-api_response_schema_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
+schema_no_update = <h4>No new schema updates available</h4> <p>More luck next time :)</p>
+schema_new_update = <h4>New schema update available</h4> <p>Do you want to update the schemas?</p>
 
-schema_update_0 = <h4>New schema update available</h4> <table>
-schema_update_1 = <p>Do you want to update the schemas?</p>
+api_response_schema_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
 schema_update_success = <h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>
 
 files_extracted_success = {"{"}{"}"} files extracted. No errors detected.

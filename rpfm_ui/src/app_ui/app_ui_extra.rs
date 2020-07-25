@@ -49,7 +49,7 @@ use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
 use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
 use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
-use rpfm_lib::schema::{versions::APIResponseSchema, VersionedFile};
+use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
@@ -991,36 +991,21 @@ impl AppUI {
             // When we get a response, act depending on the kind of response we got.
             let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
             let message = match response_thread {
+
                 Response::APIResponseSchema(ref response) => {
                     match response {
-                        APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
+                        APIResponseSchema::NewUpdate => {
                             update_button.set_enabled(true);
-
-                            // Build a table with each one of the remote schemas to show what ones got updated.
-                            let mut message = tr("schema_update_0");
-                            for (remote_schema_name, remote_schema_version) in remote_versions.get() {
-                                message.push_str("<tr>");
-                                message.push_str(&format!("<td>{}:</td>", remote_schema_name));
-
-                                // If the game exist in the local version, show both versions.
-                                let game_name = SUPPORTED_GAMES.iter().find(|x| &x.1.schema == remote_schema_name).unwrap().0;
-                                if let Some(local_schema_version) = local_versions.get().get(remote_schema_name) {
-                                    message.push_str(&format!("<td>{lsv} => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, lsv = local_schema_version, rsv = remote_schema_version));
-                                } else { message.push_str(&format!("<td>0 => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, rsv = remote_schema_version)); }
-
-                                message.push_str("</tr>");
-                            }
-                            message.push_str("</table>");
-                            message.push_str(&tr("schema_update_1"));
-                            message
+                            qtr("schema_new_update")
                         }
-
-                        APIResponseSchema::SuccessNoLocalUpdate => {
+                        APIResponseSchema::NoUpdate => {
+                            update_button.set_enabled(false);
+                            qtr("schema_no_update")
+                        }
+                        APIResponseSchema::NoLocalFiles => {
                             update_button.set_enabled(true);
-                            tr("update_no_local_schema")
-                        },
-                        APIResponseSchema::SuccessNoUpdate => tr("api_response_schema_success_no_update"),
-                        APIResponseSchema::Error => tr("api_response_schema_error")
+                            qtr("update_no_local_schema")
+                        }
                     }
                 }
 
@@ -1029,25 +1014,18 @@ impl AppUI {
             };
 
             // If we hit "Update", try to update the schemas.
-            dialog.set_text(&QString::from_std_str(message));
+            dialog.set_text(&message);
             if dialog.exec() == 0 {
-                if let Response::APIResponseSchema(ref response) = response_thread {
-                    match response {
-                        APIResponseSchema::SuccessNewUpdate(_,_) | APIResponseSchema::SuccessNoLocalUpdate => {
-                            CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
+                CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
 
-                            dialog.show();
-                            dialog.set_text(&qtr("update_in_prog"));
-                            update_button.set_enabled(false);
+                dialog.show();
+                dialog.set_text(&qtr("update_in_prog"));
+                update_button.set_enabled(false);
 
-                            match CENTRAL_COMMAND.recv_message_qt_try() {
-                                Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
-                                Response::Error(error) => show_dialog(self.main_window, error, false),
-                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
-                            }
-                        }
-                        _ => return
-                    }
+                match CENTRAL_COMMAND.recv_message_qt_try() {
+                    Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
+                    Response::Error(error) => show_dialog(self.main_window, error, false),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
                 }
             }
         }
@@ -1056,42 +1034,28 @@ impl AppUI {
         else {
             let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
             let message = match response_thread {
+
                 Response::APIResponseSchema(ref response) => {
                     match response {
-                        APIResponseSchema::SuccessNewUpdate(ref local_versions, ref remote_versions) => {
-
-                            // Build a table with each one of the remote schemas to show what ones got updated.
-                            let mut message = tr("schema_update_0");
-                            for (remote_schema_name, remote_schema_version) in remote_versions.get() {
-                                message.push_str("<tr>");
-                                message.push_str(&format!("<td>{}:</td>", remote_schema_name));
-
-                                // If the game exist in the local version, show both versions.
-                                let game_name = SUPPORTED_GAMES.iter().find(|x| &x.1.schema == remote_schema_name).unwrap().0;
-                                if let Some(local_schema_version) = local_versions.get().get(remote_schema_name) {
-                                    message.push_str(&format!("<td>{lsv} => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, lsv = local_schema_version, rsv = remote_schema_version));
-                                } else { message.push_str(&format!("<td>0 => <a href='{base_url}changelogs_tables/{game_name}/changelog.html#{rsv:03}'>{rsv}</a></td>",base_url = DOCS_BASE_URL.to_owned(), game_name = game_name, rsv = remote_schema_version)); }
-
-                                message.push_str("</tr>");
-                            }
-                            message.push_str("</table>");
-                            message.push_str(&tr("schema_update_1"));
-                            message
+                        APIResponseSchema::NewUpdate => {
+                            qtr("schema_new_update")
                         }
-                        APIResponseSchema::SuccessNoLocalUpdate => {
-                            tr("update_no_local_schema")
+                        APIResponseSchema::NoUpdate => return,
+                        APIResponseSchema::NoLocalFiles => {
+                            qtr("update_no_local_schema")
                         }
-                        _ => return
                     }
                 }
-                _ => return
+
+                Response::Error(_) => return,
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
             };
 
             // Create the dialog to show the response.
             let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
                 q_message_box::Icon::Information,
                 &qtr("update_schema_checker"),
-                &QString::from_std_str(message),
+                &message,
                 QFlags::from(q_message_box::StandardButton::Close),
                 self.main_window,
             );
@@ -1101,24 +1065,16 @@ impl AppUI {
 
             // If we hit "Update", try to update the schemas.
             if dialog.exec() == 0 {
-                if let Response::APIResponseSchema(response) = response_thread {
-                    match response {
-                        APIResponseSchema::SuccessNewUpdate(_,_) | APIResponseSchema::SuccessNoLocalUpdate => {
+                CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
 
-                            CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
+                dialog.show();
+                dialog.set_text(&qtr("update_in_prog"));
+                update_button.set_enabled(false);
 
-                            dialog.show();
-                            dialog.set_text(&qtr("update_in_prog"));
-                            update_button.set_enabled(false);
-
-                            match CENTRAL_COMMAND.recv_message_qt_try() {
-                                Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
-                                Response::Error(error) => show_dialog(self.main_window, error, false),
-                                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                            }
-                        }
-                        _ => return
-                    }
+                match CENTRAL_COMMAND.recv_message_qt_try() {
+                    Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
+                    Response::Error(error) => show_dialog(self.main_window, error, false),
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
                 }
             }
         }

@@ -56,3 +56,6 @@ shortcuts.ron
 
 # This one is a separate thing, not tracked.
 /templates_custom/
+
+# Thos one is another separate thing, not tracked.
+/schemas/

@@ -32,8 +32,7 @@ use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
-use rpfm_lib::schema::versions::APIResponseSchema;
-use rpfm_lib::schema::{Definition, Schema};
+use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
 use rpfm_lib::settings::*;
 use rpfm_lib::template::Template;
 
@@ -253,9 +252,6 @@ pub enum Command {
 
     /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
     CleanCache(Vec<Vec<String>>),
-
-    /// This command is used to generate a pretty diff of a schema, against the last remote version of the same schema.
-    GenerateSchemaDiff,
 
     /// This command is used to export a table as TSV. Requires the internal and destination paths for the PackedFile.
     ExportTSV((Vec<String>, PathBuf)),

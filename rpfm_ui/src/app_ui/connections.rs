@@ -127,7 +127,6 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     // `Debug` menu connections.
     //-----------------------------------------------//
     app_ui.debug_update_current_schema_from_asskit.triggered().connect(&slots.debug_update_current_schema_from_asskit);
-    app_ui.debug_generate_schema_diff.triggered().connect(&slots.debug_generate_schema_diff);
 
     //-----------------------------------------------//
     // `PackedFileView` connections.

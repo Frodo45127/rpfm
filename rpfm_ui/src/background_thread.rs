@@ -35,7 +35,7 @@ use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags};
-use rpfm_lib::schema::{*, versions::*};
+use rpfm_lib::schema::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
@@ -307,14 +307,6 @@ pub fn background_loop() {
 
             // In case we want to check if there is a Schema loaded...
             Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
-
-            // When we want to update our schemas...
-            Command::UpdateSchemas => {
-                match VersionsFile::update() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
 
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {
@@ -619,14 +611,6 @@ pub fn background_loop() {
                 packed_files.iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
             }
 
-            // In case we want to generate an schema diff...
-            Command::GenerateSchemaDiff => {
-                match Schema::generate_schema_diff() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
             // In case we want to export a PackedFile as a TSV file...
             Command::ExportTSV((internal_path, external_path)) => {
                 match pack_file_decoded.get_ref_mut_packed_file_by_path(&internal_path) {
@@ -872,6 +856,14 @@ pub fn background_loop() {
             // When we want to update the templates..
             Command::UpdateTemplates => {
                 match Template::update() {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to update our schemas...
+            Command::UpdateSchemas => {
+                match Schema::update_schema_repo() {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }

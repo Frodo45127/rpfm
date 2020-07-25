@@ -141,7 +141,6 @@ pub struct AppUISlots {
     // `Debug` menu slots.
     //-----------------------------------------------//
     pub debug_update_current_schema_from_asskit: SlotOfBool<'static>,
-    pub debug_generate_schema_diff: SlotOfBool<'static>,
 
     //-----------------------------------------------//
     // `PackedFileView` slots.
@@ -1148,22 +1147,6 @@ impl AppUISlots {
             }
         );
 
-
-        // Slot for the "Generate Schema Diff" button.
-        let debug_generate_schema_diff = SlotOfBool::new(move |_| {
-                app_ui.main_window.set_enabled(false);
-                CENTRAL_COMMAND.send_message_qt(Command::GenerateSchemaDiff);
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
-                match response {
-                    Response::Success => show_dialog(app_ui.main_window, tr("generate_schema_diff_success"), true),
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
-
-                app_ui.main_window.set_enabled(true);
-            }
-        );
-
         //-----------------------------------------------//
         // `PackedFileView` logic.
         //-----------------------------------------------//
@@ -1329,7 +1312,6 @@ impl AppUISlots {
             // `Debug` menu slots.
             //-----------------------------------------------//
             debug_update_current_schema_from_asskit,
-            debug_generate_schema_diff,
 
             //-----------------------------------------------//
             // `PackedFileView` slots.
