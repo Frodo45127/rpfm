@@ -610,7 +610,7 @@ impl Schema {
             Err(_) => {
 
                 // Make sure we remnove the folder if exists.
-                std::fs::remove_dir_all(&schema_path)?;
+                let _ = std::fs::remove_dir_all(&schema_path);
                 DirBuilder::new().recursive(true).create(&schema_path)?;
                 match Repository::clone(SCHEMA_REPO, &schema_path) {
                     Ok(_) => return Ok(()),
