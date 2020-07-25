@@ -113,7 +113,7 @@ pub struct TableViewRaw {
     pub dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
     pub table_definition: Arc<RwLock<Definition>>,
     pub packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
-    pub packed_file_type: Arc<RwLock<PackedFileType>>,
+    pub packed_file_type: Arc<PackedFileType>,
 
     pub save_lock: Arc<AtomicBool>,
     pub undo_lock: Arc<AtomicBool>,

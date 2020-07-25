@@ -376,21 +376,41 @@ pub unsafe fn check_references(
     column: i32,
     mut item: MutPtr<QStandardItem>,
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
+    table_type: PackedFileType,
 ) {
-    // First, check if we have dependency data for that column.
-    if let Some(ref_data) = dependency_data.get(&column) {
-        let text = item.text().to_std_string();
+    match table_type {
+        PackedFileType::DB => {
 
-        // Then, check if the data we have is in the ref data list.
-        if ref_data.is_empty() {
-            item.set_foreground(&QBrush::from_q_color(get_color_no_ref_data().as_ref().unwrap()));
+            // First, check if we have dependency data for that column.
+            if let Some(ref_data) = dependency_data.get(&column) {
+                let text = item.text().to_std_string();
+
+                // Then, check if the data we have is in the ref data list.
+                if ref_data.is_empty() {
+                    item.set_foreground(&QBrush::from_q_color(get_color_no_ref_data().as_ref().unwrap()));
+                }
+                else if ref_data.contains_key(&text) {
+                    item.set_foreground(&QBrush::from_q_color(get_color_correct_key().as_ref().unwrap()));
+                }
+                else {
+                    item.set_foreground(&QBrush::from_q_color(get_color_wrong_key().as_ref().unwrap()));
+                }
+            }
         }
-        else if ref_data.contains_key(&text) {
-            item.set_foreground(&QBrush::from_q_color(get_color_correct_key().as_ref().unwrap()));
+        PackedFileType::DependencyPackFilesList => {
+            let packfile = item.text().to_std_string();
+
+            // We paint it depending on if it's a valid PackFile or not.
+            if !packfile.is_empty() && packfile.ends_with(".pack") && !packfile.contains(' ') {
+                item.set_foreground(&QBrush::from_q_color(get_color_correct_key().as_ref().unwrap()));
+            }
+            else {
+                item.set_foreground(&QBrush::from_q_color(get_color_wrong_key().as_ref().unwrap()))
+            }
         }
-        else {
-            item.set_foreground(&QBrush::from_q_color(get_color_wrong_key().as_ref().unwrap()));
-        }
+
+        // TBD.
+        _ => {}
     }
 }
 
@@ -411,13 +431,13 @@ pub unsafe fn load_data(
     table_model.clear();
 
     // Set the right data, depending on the table type you get.
-    let data = match data {
-        TableType::AnimFragment(data) => &*data.get_ref_table_data(),
-        TableType::AnimTable(data) => &*data.get_ref_table_data(),
-        TableType::DependencyManager(data) => &data,
-        TableType::DB(data) => &*data.get_ref_table_data(),
-        TableType::Loc(data) => data.get_ref_table_data(),
-        TableType::MatchedCombat(data) => data.get_ref_table_data(),
+    let (data, packed_file_type) = match data {
+        TableType::AnimFragment(data) => (data.get_ref_table_data(), PackedFileType::AnimFragment),
+        TableType::AnimTable(data) => (data.get_ref_table_data(), PackedFileType::AnimTable),
+        TableType::DependencyManager(data) => (&**data, PackedFileType::DependencyPackFilesList),
+        TableType::DB(data) => (data.get_ref_table_data(), PackedFileType::DB),
+        TableType::Loc(data) => (data.get_ref_table_data(), PackedFileType::Loc),
+        TableType::MatchedCombat(data) => (data.get_ref_table_data(), PackedFileType::MatchedCombat),
     };
 
     if !data.is_empty() {
@@ -429,9 +449,20 @@ pub unsafe fn load_data(
             for (index, field) in entry.iter().enumerate() {
                 let mut item = get_item_from_decoded_data(field);
 
-                // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.get_fields_processed()[index].get_is_reference().is_some() {
-                    check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap());
+                match packed_file_type {
+                    PackedFileType::DB => {
+
+                        // If we have the dependency stuff enabled, check if it's a valid reference.
+                        if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.get_fields_processed()[index].get_is_reference().is_some() {
+                            check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap(), packed_file_type);
+                        }
+                    }
+
+                    PackedFileType::DependencyPackFilesList => {
+                        check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap(), packed_file_type);
+                    }
+
+                    _ => {}
                 }
 
                 add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
@@ -823,19 +854,34 @@ pub unsafe fn setup_item_delegates(
 }
 
 /// This function checks an entire table for errors.
-pub unsafe fn check_table_for_error(
+pub unsafe fn check_table_for_errors(
     model: MutPtr<QStandardItemModel>,
     definition: &Definition,
-    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
+    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
+    packed_file_type: PackedFileType,
 ) {
     let _blocker = QSignalBlocker::from_q_object(model.static_upcast_mut::<QObject>());
-    for (column, field) in definition.get_fields_processed().iter().enumerate() {
-        if field.get_is_reference().is_some() {
-            for row in 0..model.row_count_0a() {
-                let item = model.item_2a(row, column as i32);
-                check_references(column as i32, item, dependency_data);
+    match packed_file_type {
+        PackedFileType::DB => {
+            for (column, field) in definition.get_fields_processed().iter().enumerate() {
+                if field.get_is_reference().is_some() {
+                    for row in 0..model.row_count_0a() {
+                        let item = model.item_2a(row, column as i32);
+                        check_references(column as i32, item, dependency_data, packed_file_type);
+                    }
+                }
             }
         }
+
+        PackedFileType::DependencyPackFilesList => {
+            for row in 0..model.row_count_0a() {
+                let item = model.item_2a(row, 0);
+                check_references(0, item, dependency_data, packed_file_type);
+            }
+        }
+
+        // TBD.
+        _ => {}
     }
 }
 

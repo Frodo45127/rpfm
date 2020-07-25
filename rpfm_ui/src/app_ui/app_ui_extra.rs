@@ -1993,34 +1993,39 @@ impl AppUI {
 
         // We also have to check for colliding packedfile names, so we can use their full path instead.
         let mut names = HashMap::new();
-        for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+        let open_packedfiles = UI_STATE.get_open_packedfiles();
+        for packed_file_view in open_packedfiles.iter() {
             let widget = packed_file_view.get_mut_widget();
             if self.tab_bar_packed_file.index_of(widget) != -1 {
-                let name = packed_file_view.get_ref_path().last().unwrap().to_owned();
-                match names.get_mut(&name) {
-                    Some(name) => *name += 1,
-                    None => { names.insert(name, 1); },
+
+                // If there is no path, is a dependency manager.
+                let path = packed_file_view.get_ref_path();
+                if let Some(name) = path.last() {
+                    match names.get_mut(name) {
+                        Some(name) => *name += 1,
+                        None => { names.insert(name.to_owned(), 1); },
+                    }
                 }
             }
         }
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             let widget = packed_file_view.get_mut_widget();
-            let widget_name = packed_file_view.get_ref_path().last().unwrap().to_owned();
+            if let Some(widget_name) = packed_file_view.get_ref_path().last() {
+                if let Some(count) = names.get(widget_name) {
+                    let mut name = if count > &1 {
+                        packed_file_view.get_ref_path().join("/")
+                    } else {
+                        widget_name.to_owned()
+                    };
 
-            if let Some(count) = names.get(&widget_name) {
-                let mut name = if count > &1 {
-                    packed_file_view.get_ref_path().join("/")
-                } else {
-                    widget_name
-                };
+                    if packed_file_view.get_is_preview() {
+                        name.push_str(" (Preview)");
+                    }
 
-                if packed_file_view.get_is_preview() {
-                    name.push_str(" (Preview)");
+                    let index = self.tab_bar_packed_file.index_of(widget);
+                    self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
                 }
-
-                let index = self.tab_bar_packed_file.index_of(widget);
-                self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
             }
         }
     }

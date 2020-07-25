@@ -31,7 +31,7 @@ use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::common::get_game_selected_pak_file;
 use crate::GAME_SELECTED;
 use crate::games::*;
-use crate::packedfile::{DecodedPackedFile, PackedFileType};
+use crate::packedfile::DecodedPackedFile;
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::*;

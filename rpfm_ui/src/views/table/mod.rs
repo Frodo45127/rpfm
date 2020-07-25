@@ -187,6 +187,7 @@ pub struct TableView {
     table_name: Option<String>,
     table_uuid: Option<String>,
     packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
+    packed_file_type: Arc<PackedFileType>,
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
 
@@ -486,7 +487,7 @@ impl TableView {
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
             packed_file_path: packed_file_path.clone(),
-            packed_file_type: Arc::new(RwLock::new(packed_file_type)),
+            packed_file_type: Arc::new(packed_file_type),
 
             undo_lock,
             save_lock,
@@ -547,6 +548,7 @@ impl TableView {
             table_name,
             table_uuid,
             packed_file_path: packed_file_path.clone(),
+            packed_file_type: packed_file_table_view_raw.packed_file_type.clone(),
             dependency_data: packed_file_table_view_raw.dependency_data.clone(),
             table_definition: packed_file_table_view_raw.table_definition.clone(),
 
@@ -852,6 +854,11 @@ impl TableView {
             Some(ref path) => Some(path.read().unwrap().clone()),
             None => None,
         }
+    }
+
+    /// This function returns the PackedFileType of this table.
+    pub fn get_packed_file_type(&self) -> PackedFileType {
+        *self.packed_file_type
     }
 }
 

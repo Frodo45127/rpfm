@@ -189,15 +189,20 @@ impl TableViewSlots {
                 }
 
                 // If we have the dependency stuff enabled, check if it's a valid reference.
-                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
-                    let column = item.column();
-                    if view.get_ref_table_definition().get_fields_processed()[column as usize].get_is_reference().is_some() {
-                        check_references(column, item, &view.dependency_data.read().unwrap());
+                let column = item.column();
+                match *view.packed_file_type {
+                    PackedFileType::DB => {
+                        if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+                            if view.get_ref_table_definition().get_fields_processed()[column as usize].get_is_reference().is_some() {
+                                check_references(column, item, &view.dependency_data.read().unwrap(), *view.packed_file_type);
+                            }
+                        }
                     }
+                    PackedFileType::DependencyPackFilesList => {
+                        check_references(column, item, &view.dependency_data.read().unwrap(), *view.packed_file_type);
+                    }
+                    _ => {}
                 }
-
-                // If we are editing the Dependency Manager, check for PackFile errors too.
-                //if let TableType::DependencyManager(_) = *table_type.borrow() { Self::check_dependency_packfile_errors(model); }
             }
         ));
 
@@ -573,7 +578,7 @@ impl TableViewSlots {
                 if model_index.data_1a(ITEM_IS_SEQUENCE).to_bool() {
                     let data = model_index.data_1a(ITEM_SEQUENCE_DATA).to_string().to_std_string();
                     let table: Table = serde_json::from_str(&data).unwrap();
-                    let table_data = match *view.packed_file_type.read().unwrap() {
+                    let table_data = match *view.packed_file_type {
                         PackedFileType::DB => TableType::DB(From::from(table)),
                         PackedFileType::Loc => TableType::Loc(From::from(table)),
                         PackedFileType::MatchedCombat => TableType::MatchedCombat(From::from(table)),

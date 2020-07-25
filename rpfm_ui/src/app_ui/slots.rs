@@ -61,7 +61,7 @@ use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
 use crate::utils::show_dialog;
 use crate::VERSION;
-use crate::views::table::utils::{check_table_for_error, get_reference_data, setup_item_delegates};
+use crate::views::table::utils::{check_table_for_errors, get_reference_data, setup_item_delegates};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -1217,10 +1217,11 @@ impl AppUISlots {
                                 );
 
                                 if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
-                                    check_table_for_error(
+                                    check_table_for_errors(
                                         table.get_mut_ptr_table_model(),
                                         &table.get_ref_table_definition(),
-                                        &data
+                                        &data,
+                                        table.get_packed_file_type()
                                     );
                                 }
                             }
