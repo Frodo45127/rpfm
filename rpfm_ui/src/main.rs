@@ -38,6 +38,7 @@ use qt_gui::q_font_database::SystemFont;
 use qt_core::QString;
 
 use lazy_static::lazy_static;
+use log::info;
 use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
 
 use std::cell::RefCell;
