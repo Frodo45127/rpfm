@@ -366,9 +366,13 @@ shortcut_section_action = Section/Action
 
 settings_title = Preferences
 
-settings_paths_title = Paths
+settings_game_paths_title = Game Paths
+settings_extra_paths_title = Extra Paths
 settings_paths_mymod = MyMod's Folder
-settings_paths_mymod_ph = This is the folder where you want to store all \"MyMod\" related files.
+settings_paths_mymod_ph = This is the folder where you want to store all "MyMod" related files.
+
+settings_paths_zip = 7Zip Exe's Path
+settings_paths_zip_ph = This is the full path to 7Zip's executable.
 
 settings_game_label = TW: {"{"}{"}"} Folder
 settings_game_line_ph = This is the folder where you have {"{"}{"}"} installed, where the .exe is.
@@ -387,6 +391,7 @@ settings_ui_table_remember_table_state_permanently_label = Remember Table State 
 settings_ui_window_start_maximized_label = Start Maximized:
 settings_ui_window_hide_background_icon = Hide Background Game Selected Icon:
 
+settings_select_file = Select File
 settings_select_folder = Select Folder
 
 settings_extra_title = Extra Settings

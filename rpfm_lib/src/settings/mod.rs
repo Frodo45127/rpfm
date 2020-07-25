@@ -34,6 +34,12 @@ use crate::config::get_config_path;
 /// Name of the settings file.
 const SETTINGS_FILE: &str = "settings.ron";
 
+/// Key of the 7Zip path in the settings";
+pub const ZIP_PATH: &str = "7zip_path";
+
+/// Key of the MyMod path in the settings";
+pub const MYMOD_BASE_PATH: &str = "mymods_base_path";
+
 /// This struct hold every setting of the lib and of RPFM_UI/CLI.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Settings {
@@ -52,7 +58,8 @@ impl Settings {
         let mut paths = BTreeMap::new();
         let mut settings_string = BTreeMap::new();
         let mut settings_bool = BTreeMap::new();
-        paths.insert("mymods_base_path".to_owned(), None);
+        paths.insert(MYMOD_BASE_PATH.to_owned(), None);
+        paths.insert(ZIP_PATH.to_owned(), None);
         for (folder_name, _) in SUPPORTED_GAMES.iter() {
             paths.insert((*folder_name).to_string(), None);
         }

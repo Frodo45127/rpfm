@@ -495,6 +495,13 @@ pub enum ErrorKind {
     AssemblyKitTableTableIgnored,
 
     //-----------------------------------------------------//
+    //                  7-Zip Errors
+    //-----------------------------------------------------//
+
+    /// Error for when 7-zip is not found in the specified path.
+    ZipFolderNotFound,
+
+    //-----------------------------------------------------//
     //                  Common Errors
     //-----------------------------------------------------//
 
@@ -816,6 +823,11 @@ impl Display for ErrorKind {
             ErrorKind::AssemblyKitLocalisableFieldsNotFound => write!(f, "<p>The `Localisable Fields` file hasn't been found.</p>"),
             ErrorKind::AssemblyKitUnsupportedVersion(version) => write!(f, "<p>Operations over the Assembly Kit of version {} are not currently supported.</p>", version),
             ErrorKind::AssemblyKitTableTableIgnored => write!(f, "<p>One of the Assembly Kit Tables you tried to decode has been blacklisted due to issues.</p>"),
+
+            //-----------------------------------------------------//
+            //                  7-Zip Errors
+            //-----------------------------------------------------//
+            ErrorKind::ZipFolderNotFound => write!(f, "<p>7Zip path not found, or the 7Zip path you put in the settings is wrong.</p>"),
 
             //-----------------------------------------------------//
             //                  Common Errors

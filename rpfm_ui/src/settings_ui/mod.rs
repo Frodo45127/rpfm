@@ -36,7 +36,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use rpfm_lib::SUPPORTED_GAMES;
-use rpfm_lib::settings::Settings;
+use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
 
 use crate::AppUI;
 use crate::{Locale, locale::{qtr, qtre}};
@@ -64,6 +64,9 @@ pub struct SettingsUI {
     //-------------------------------------------------------------------------------//
     // `Path` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
+    pub paths_zip_label: MutPtr<QLabel>,
+    pub paths_zip_line_edit: MutPtr<QLineEdit>,
+    pub paths_zip_button: MutPtr<QPushButton>,
     pub paths_mymod_label: MutPtr<QLabel>,
     pub paths_mymod_line_edit: MutPtr<QLineEdit>,
     pub paths_mymod_button: MutPtr<QPushButton>,
@@ -166,21 +169,11 @@ impl SettingsUI {
         main_grid.set_spacing(4);
 
         //-----------------------------------------------//
-        // `Paths` Frame.
+        // `Game Paths` Frame.
         //-----------------------------------------------//
-        let paths_frame = QGroupBox::from_q_string(&qtr("settings_paths_title")).into_ptr();
+        let paths_frame = QGroupBox::from_q_string(&qtr("settings_game_paths_title")).into_ptr();
         let mut paths_grid = create_grid_layout(paths_frame.static_upcast_mut());
         paths_grid.set_contents_margins_4a(4, 0, 4, 0);
-
-        // Create the MyMod's path stuff,
-        let mut paths_mymod_label = QLabel::from_q_string(&qtr("settings_paths_mymod"));
-        let mut paths_mymod_line_edit = QLineEdit::new();
-        let mut paths_mymod_button = QPushButton::from_q_string(&QString::from_std_str("..."));
-        paths_mymod_line_edit.set_placeholder_text(&qtr("settings_paths_mymod_ph"));
-
-        paths_grid.add_widget_5a(&mut paths_mymod_label, 0, 0, 1, 1);
-        paths_grid.add_widget_5a(&mut paths_mymod_line_edit, 0, 1, 1, 1);
-        paths_grid.add_widget_5a(&mut paths_mymod_button, 0, 2, 1, 1);
 
         // We automatically add a Label/LineEdit/Button for each game we support.
         let mut paths_games_labels = BTreeMap::new();
@@ -203,6 +196,36 @@ impl SettingsUI {
         }
 
         main_grid.add_widget_5a(paths_frame, 0, 0, 1, 2);
+
+        //-----------------------------------------------//
+        // `Extra Paths` Frame.
+        //-----------------------------------------------//
+
+        let extra_paths_frame = QGroupBox::from_q_string(&qtr("settings_extra_paths_title")).into_ptr();
+        let mut paths_grid = create_grid_layout(extra_paths_frame.static_upcast_mut());
+        paths_grid.set_contents_margins_4a(4, 0, 4, 0);
+
+        // Create the MyMod's path stuff.
+        let mut paths_mymod_label = QLabel::from_q_string(&qtr("settings_paths_mymod"));
+        let mut paths_mymod_line_edit = QLineEdit::new();
+        let mut paths_mymod_button = QPushButton::from_q_string(&QString::from_std_str("..."));
+        paths_mymod_line_edit.set_placeholder_text(&qtr("settings_paths_mymod_ph"));
+
+        paths_grid.add_widget_5a(&mut paths_mymod_label, 0, 0, 1, 1);
+        paths_grid.add_widget_5a(&mut paths_mymod_line_edit, 0, 1, 1, 1);
+        paths_grid.add_widget_5a(&mut paths_mymod_button, 0, 2, 1, 1);
+
+        // Create the 7Zip path stuff.
+        let mut paths_zip_label = QLabel::from_q_string(&qtr("settings_paths_zip"));
+        let mut paths_zip_line_edit = QLineEdit::new();
+        let mut paths_zip_button = QPushButton::from_q_string(&QString::from_std_str("..."));
+        paths_zip_line_edit.set_placeholder_text(&qtr("settings_paths_zip_ph"));
+
+        paths_grid.add_widget_5a(&mut paths_zip_label, 1, 0, 1, 1);
+        paths_grid.add_widget_5a(&mut paths_zip_line_edit, 1, 1, 1, 1);
+        paths_grid.add_widget_5a(&mut paths_zip_button, 1, 2, 1, 1);
+
+        main_grid.add_widget_5a(extra_paths_frame, 1, 0, 1, 2);
 
         //-----------------------------------------------//
         // `UI` Frame.
@@ -274,7 +297,7 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&mut ui_table_tight_table_mode_checkbox, 3, 1, 1, 1);
 
         ui_grid.add_widget_5a(ui_table_view_frame, 99, 0, 1, 2);
-        main_grid.add_widget_5a(ui_frame, 1, 0, 2, 1);
+        main_grid.add_widget_5a(ui_frame, 2, 0, 2, 1);
 
         //-----------------------------------------------//
         // `Extra` Frame.
@@ -333,7 +356,7 @@ impl SettingsUI {
         extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_label, 7, 0, 1, 1);
         extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_checkbox, 7, 1, 1, 1);
 
-        main_grid.add_widget_5a(extra_frame, 1, 1, 1, 1);
+        main_grid.add_widget_5a(extra_frame, 2, 1, 1, 1);
 
         //-----------------------------------------------//
         // `Debug` Frame.
@@ -356,7 +379,7 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&mut debug_enable_debug_menu_label, 1, 0, 1, 1);
         debug_grid.add_widget_5a(&mut debug_enable_debug_menu_checkbox, 1, 1, 1, 1);
 
-        main_grid.add_widget_5a(debug_frame, 2, 1, 1, 1);
+        main_grid.add_widget_5a(debug_frame, 3, 1, 1, 1);
 
         //-----------------------------------------------//
         // `ButtonBox` Button Box.
@@ -373,7 +396,7 @@ impl SettingsUI {
         let button_box_cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let button_box_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
 
-        main_grid.add_widget_5a(button_box.into_ptr(), 3, 0, 1, 2);
+        main_grid.add_widget_5a(button_box.into_ptr(), 4, 0, 1, 2);
 
         // Now, we build the `SettingsUI` struct and return it.
         Self {
@@ -386,6 +409,9 @@ impl SettingsUI {
             //-------------------------------------------------------------------------------//
             // `Path` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
+            paths_zip_label: paths_zip_label.into_ptr(),
+            paths_zip_line_edit: paths_zip_line_edit.into_ptr(),
+            paths_zip_button: paths_zip_button.into_ptr(),
             paths_mymod_label: paths_mymod_label.into_ptr(),
             paths_mymod_line_edit: paths_mymod_line_edit.into_ptr(),
             paths_mymod_button: paths_mymod_button.into_ptr(),
@@ -457,8 +483,9 @@ impl SettingsUI {
     /// This function loads the data from the provided `Settings` into our `SettingsUI`.
     pub unsafe fn load(&mut self, settings: &Settings) {
 
-        // Load the MyMod Path, if exists.
-        self.paths_mymod_line_edit.set_text(&QString::from_std_str(settings.paths["mymods_base_path"].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
+        // Load the MyMod and 7Zip paths, if exists.
+        self.paths_mymod_line_edit.set_text(&QString::from_std_str(settings.paths[MYMOD_BASE_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
+        self.paths_mymod_line_edit.set_text(&QString::from_std_str(settings.paths[ZIP_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter_mut() {
@@ -512,7 +539,10 @@ impl SettingsUI {
 
         // Only if we have a valid directory, we save it. Otherwise we wipe it out.
         let mymod_new_path = PathBuf::from(self.paths_mymod_line_edit.text().to_std_string());
-        settings.paths.insert("mymods_base_path".to_owned(), if mymod_new_path.is_dir() { Some(mymod_new_path) } else { None });
+        settings.paths.insert(MYMOD_BASE_PATH.to_owned(), if mymod_new_path.is_dir() { Some(mymod_new_path) } else { None });
+
+        let zip_new_path = PathBuf::from(self.paths_zip_line_edit.text().to_std_string());
+        settings.paths.insert(ZIP_PATH.to_owned(), if zip_new_path.is_dir() { Some(zip_new_path) } else { None });
 
         // For each entry, we check if it's a valid directory and save it into Settings.
         for (key, line_edit) in self.paths_games_line_edits.iter() {
@@ -566,22 +596,30 @@ impl SettingsUI {
 
     /// This function updates the path you have for the provided game (or mymod, if you pass it `None`)
     /// with the one you select in a `FileDialog`.
-    unsafe fn update_entry_path(&self, game: Option<&str>) {
-
-        // Create the `FileDialog` and configure it.
-        let mut file_dialog = QFileDialog::from_q_widget_q_string(
-            self.dialog,
-            &qtr("settings_select_folder"),
-        );
-        file_dialog.set_file_mode(FileMode::Directory);
-        file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
+        unsafe fn update_entry_path(&self, game: &str) {
 
         // We check if we have a game or not. If we have it, update the `LineEdit` for that game.
         // If we don't, update the `LineEdit` for `MyMod`s path.
-        let mut line_edit = match game {
-            Some(game) => *self.paths_games_line_edits.get(game).unwrap(),
-            None => self.paths_mymod_line_edit,
+        let (mut line_edit, is_file) = match self.paths_games_line_edits.get(game) {
+            Some(line_edit) => (*line_edit, false),
+            None => match game {
+                MYMOD_BASE_PATH => (self.paths_mymod_line_edit, false),
+                ZIP_PATH => (self.paths_zip_line_edit, true),
+                _ => return,
+            }
         };
+
+        // Cresate the `FileDialog` and configure it.
+        let title = if is_file { qtr("settings_select_file") } else { qtr("settings_select_folder") };
+        let mut file_dialog = QFileDialog::from_q_widget_q_string(
+            self.dialog,
+            &title,
+        );
+
+        if !is_file {
+            file_dialog.set_file_mode(FileMode::Directory);
+            file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
+        }
 
         // Get the old Path, if exists.
         let old_path = line_edit.text().to_std_string();
