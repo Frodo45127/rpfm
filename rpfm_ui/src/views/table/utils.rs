@@ -968,6 +968,7 @@ pub unsafe fn open_subtable(
 
     let mut main_grid = create_grid_layout(dialog.as_mut_ptr().static_upcast_mut());
     let mut main_widget = QWidget::new_0a();
+    let mut widget_grid = create_grid_layout(main_widget.as_mut_ptr());
     let mut accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
 
     let (table_view, _slots) = TableView::new_view(main_widget.as_mut_ptr(), app_ui, global_search_ui, pack_file_contents_ui, table_data, None).unwrap();
