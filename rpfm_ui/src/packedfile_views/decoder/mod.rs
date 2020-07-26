@@ -898,7 +898,7 @@ impl PackedFileDecoderViewRaw {
             // If the table is empty, we just load a fake row, so the column headers are created properly.
             if field_list.is_empty() {
                 let mut qlist = QListOfQStandardItem::new();
-                (0..12).for_each(|_| add_to_q_list_safe(qlist.as_mut_ptr(), QStandardItem::new().into_ptr()));
+                (0..16).for_each(|_| add_to_q_list_safe(qlist.as_mut_ptr(), QStandardItem::new().into_ptr()));
                 self.table_model.append_row_q_list_of_q_standard_item(&qlist);
                 configure_table_view(self.table_view);
                 self.table_model.remove_rows_2a(0, 1);
