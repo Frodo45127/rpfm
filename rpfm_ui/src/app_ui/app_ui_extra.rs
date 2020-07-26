@@ -178,12 +178,14 @@ impl AppUI {
         save_before_deleting: bool
     ) -> Result<()> {
 
+        let mut did_it_worked = Ok(());
+
         // Black magic to remove widgets.
         let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path);
         if let Some(position) = position {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
                 if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
-                    packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
+                    let did_it_worked = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
                 }
                 let mut widget = packed_file_view.get_mut_widget();
                 let index = self.tab_bar_packed_file.index_of(widget);
@@ -228,7 +230,7 @@ impl AppUI {
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(self);
 
-        Ok(())
+        did_it_worked
     }
 
     /// This function opens the PackFile at the provided Path, and sets all the stuff needed, depending on the situation.
