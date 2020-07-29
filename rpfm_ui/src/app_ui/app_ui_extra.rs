@@ -185,7 +185,7 @@ impl AppUI {
         if let Some(position) = position {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
                 if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
-                    let did_it_worked = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
+                    did_it_worked = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
                 }
                 let mut widget = packed_file_view.get_mut_widget();
                 let index = self.tab_bar_packed_file.index_of(widget);
