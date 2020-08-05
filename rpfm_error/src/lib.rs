@@ -568,6 +568,9 @@ pub enum ErrorKind {
 
     /// Error for when RPFM already has the latest templates downloaded.
     AlreadyUpdatedTemplatesError,
+
+    /// Error for when RPFM cannot find an extra PackFile in memory.
+    CannotFindExtraPackFile(PathBuf),
 }
 
 /// Implementation of `Error`.
@@ -866,6 +869,7 @@ impl Display for ErrorKind {
             ErrorKind::InvalidPathsInTemplate => write!(f, "<p>An empty/invalid path has been detected when processing the template. This can be caused by a bad template or by an empty parameter.<p>"),
             ErrorKind::DownloadTemplatesError => write!(f, "<p>Failed to download the latest templates.<p>"),
             ErrorKind::AlreadyUpdatedTemplatesError => write!(f, "<p>Templates already up-to-date.<p>"),
+            ErrorKind::CannotFindExtraPackFile(path) => write!(f, "<p>Cannot find extra PackFile with path: {:?}.<p>", path),
         }
     }
 }

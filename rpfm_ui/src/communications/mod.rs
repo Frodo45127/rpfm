@@ -75,8 +75,8 @@ pub enum Command {
     /// This command is used when we want to reset the open `PackFile` to his original state.
     ResetPackFile,
 
-    /// This command is used when we want to reset the extra `PackFile` (the one used for `Add from PackFile`) to his original state.
-    ResetPackFileExtra,
+    /// This command is used when we want to remove from memory the extra packfile with the provided path.
+    RemovePackFileExtra(PathBuf),
 
     /// This command is used when we want to create a new `PackFile`.
     NewPackFile,
@@ -96,8 +96,8 @@ pub enum Command {
     /// This command is used when we want to get the data used to build the `TreeView`.
     GetPackFileDataForTreeView,
 
-    /// Same as the one before, but for the extra `PackFile`.
-    GetPackFileExtraDataForTreeView,
+    /// Same as the one before, but for the extra `PackFile`. It requires the pathbuf of the PackFile.
+    GetPackFileExtraDataForTreeView(PathBuf),
 
     /// This command is used to open one or more `PackFiles`. It requires the paths of the `PackFiles`.
     OpenPackFiles(Vec<PathBuf>),
@@ -181,7 +181,7 @@ pub enum Command {
     SavePackedFileFromView(Vec<String>, DecodedPackedFile),
 
     /// This command is used when we want to add a PackedFile from one PackFile into another.
-    AddPackedFilesFromPackFile(Vec<PathType>),
+    AddPackedFilesFromPackFile((PathBuf, Vec<PathType>)),
 
     /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
     DeletePackedFiles(Vec<PathType>),

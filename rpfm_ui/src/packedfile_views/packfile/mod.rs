@@ -31,7 +31,7 @@ use qt_core::QSortFilterProxyModel;
 use cpp_core::MutPtr;
 
 use std::path::PathBuf;
-use std::sync::atomic::AtomicPtr;
+use std::sync::{Arc, RwLock, atomic::AtomicPtr};
 
 use rpfm_error::Result;
 
@@ -73,8 +73,9 @@ pub struct PackFileExtraView {
 ///
 /// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackFileExtraView`.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct PackFileExtraViewRaw {
+    pack_file_path: Arc<RwLock<PathBuf>>,
     tree_view: MutPtr<QTreeView>,
     tree_model_filter: MutPtr<QSortFilterProxyModel>,
 
@@ -105,7 +106,7 @@ impl PackFileExtraView {
         // Load the extra PackFile to memory.
         // Ignore the response, we don't need it yet.
         // TODO: Use this data to populate tooltips.
-        CENTRAL_COMMAND.send_message_qt(Command::OpenPackFileExtra(pack_file_path));
+        CENTRAL_COMMAND.send_message_qt(Command::OpenPackFileExtra(pack_file_path.to_path_buf()));
         let response = CENTRAL_COMMAND.recv_message_qt();
         match response {
             Response::PackFileInfo(_) => {},
@@ -125,7 +126,7 @@ impl PackFileExtraView {
         tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
         tree_view.set_expands_on_double_click(false);
         //tree_view.set_context_menu_policy(ContextMenuPolicy::Custom);
-        tree_view.update_treeview(true, TreeViewOperation::Build(true));
+        tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.to_path_buf())));
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let mut filter_line_edit = QLineEdit::new();
@@ -150,6 +151,7 @@ impl PackFileExtraView {
 
         // Build the slots and set up the shortcuts/connections/tip.
         let raw = PackFileExtraViewRaw{
+            pack_file_path: Arc::new(RwLock::new(pack_file_path)),
             tree_view,
             tree_model_filter,
 
@@ -161,7 +163,7 @@ impl PackFileExtraView {
             collapse_all,
         };
 
-        let slots = PackFileExtraViewSlots::new(*app_ui, *pack_file_contents_ui, *global_search_ui, raw);
+        let slots = PackFileExtraViewSlots::new(*app_ui, *pack_file_contents_ui, *global_search_ui, raw.clone());
         let mut view = Self {
             tree_view: atomic_from_mut_ptr(raw.tree_view),
 
@@ -258,5 +260,10 @@ impl PackFileExtraViewRaw {
     /// This function returns a mutable reference to the `Case Sensitive` Button.
     pub fn get_mut_ptr_case_sensitive_button(&self) -> MutPtr<QPushButton> {
         self.filter_case_sensitive_button
+    }
+
+    /// This function returns a copy of this PackFile's real path.
+    pub fn get_pack_file_path(&self) -> PathBuf {
+        self.pack_file_path.read().unwrap().to_path_buf()
     }
 }

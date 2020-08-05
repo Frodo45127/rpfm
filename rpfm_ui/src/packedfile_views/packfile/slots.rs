@@ -53,7 +53,8 @@ impl PackFileExtraViewSlots {
     pub unsafe fn new(mut app_ui: AppUI, mut pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, mut pack_file_view: PackFileExtraViewRaw) -> Self {
 
         // When we want to import the selected PackedFile...
-        let import = SlotOfQModelIndex::new(move |_| {
+        let import = SlotOfQModelIndex::new(clone!(
+            mut pack_file_view => move |_| {
 
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = pack_file_view.tree_view.selection_model().selection();
@@ -62,7 +63,7 @@ impl PackFileExtraViewSlots {
 
                     // Ask the Background Thread to move the files, and send him the path.
                     app_ui.main_window.set_enabled(false);
-                    CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromPackFile(item_types));
+                    CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromPackFile((pack_file_view.get_pack_file_path(), item_types)));
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
                         Response::VecPathType(paths_ok) => {
@@ -118,21 +119,21 @@ impl PackFileExtraViewSlots {
                     pack_file_view.tree_view.set_focus_0a();
                 }
             }
-        );
+        ));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
-        let filter_change_text = SlotOfQString::new(move |_| {
+        let filter_change_text = SlotOfQString::new(clone!(pack_file_view => move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
-        });
-        let filter_change_autoexpand_matches = SlotOfBool::new(move |_| {
+        }));
+        let filter_change_autoexpand_matches = SlotOfBool::new(clone!(pack_file_view => move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
-        });
-        let filter_change_case_sensitive = SlotOfBool::new(move |_| {
+        }));
+        let filter_change_case_sensitive = SlotOfBool::new(clone!(pack_file_view => move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
-        });
+        }));
 
         // Actions without buttons for the TreeView.
-        let expand_all = Slot::new(move || { pack_file_view.tree_view.expand_all(); });
+        let expand_all = Slot::new(clone!(mut pack_file_view => move || { pack_file_view.tree_view.expand_all(); }));
         let collapse_all = Slot::new(move || { pack_file_view.tree_view.collapse_all(); });
 
         // Return the slots, so we can keep them alive for the duration of the view.

@@ -77,8 +77,12 @@ const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";
 const DEFENSIVE_HILL_HINT: &[u8; 18] = b"AIH_DEFENSIVE_HILL";
 const SIEGE_AREA_NODE_HINT: &[u8; 19] = b"AIH_SIEGE_AREA_NODE";
 
+pub const RESERVED_NAME_EXTRA_PACKFILE: &str = "extra_packfile.rpfm_reserved";
+pub const RESERVED_NAME_SETTINGS: &str = "settings.rpfm_reserved";
+pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
+
 /// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special porpouses.
-pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = ["extra_packfile.rpfm_reserved", "settings.rpfm_reserved", "notes.rpfm_reserved"];
+pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
 
 /// These are the types the PackFiles can have.
 const FILE_TYPE_BOOT: u32 = 0;

@@ -59,9 +59,9 @@ pub fn background_loop() {
 
     // We need two PackFiles:
     // - `pack_file_decoded`: This one will hold our opened PackFile.
-    // - `pack_file_decoded_extra`: This one will hold the PackFile opened for the `add_from_packfile` feature.
+    // - `pack_files_decoded_extra`: This one will hold the PackFiles opened for the `add_from_packfile` feature, using their paths as keys.
     let mut pack_file_decoded = PackFile::new();
-    let mut pack_file_decoded_extra = PackFile::new();
+    let mut pack_files_decoded_extra = BTreeMap::new();
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -76,8 +76,8 @@ pub fn background_loop() {
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
 
-            // In case we want to reset the Secondary PackFile to his original state (dummy)...
-            Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
+            // In case we want to remove a Secondary Packfile from memory...
+            Command::RemovePackFileExtra(path) => { pack_files_decoded_extra.remove(&path); },
 
             // In case we want to create a "New PackFile"...
             Command::NewPackFile => {
@@ -99,12 +99,15 @@ pub fn background_loop() {
 
             // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
             Command::OpenPackFileExtra(path) => {
-                match PackFile::open_packfiles(&[path], true, false, true) {
-                     Ok(pack_file) => {
-                        pack_file_decoded_extra = pack_file;
-                        CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded_extra)));
+                match pack_files_decoded_extra.get(&path) {
+                    Some(pack_file) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(pack_file))),
+                    None => match PackFile::open_packfiles(&[path.to_path_buf()], true, false, true) {
+                         Ok(pack_file) => {
+                            CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file)));
+                            pack_files_decoded_extra.insert(path.to_path_buf(), pack_file);
+                        }
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     }
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 
@@ -164,14 +167,16 @@ pub fn background_loop() {
             }
 
             // In case we want to get the data of a Secondary PackFile needed to form the TreeView...
-            Command::GetPackFileExtraDataForTreeView => {
+            Command::GetPackFileExtraDataForTreeView(path) => {
 
                 // Get the name and the PackedFile list, and serialize it.
-                CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
-                    From::from(&pack_file_decoded_extra),
-                    pack_file_decoded_extra.get_packed_files_all_info(),
-
-                )));
+                match pack_files_decoded_extra.get(&path) {
+                    Some(pack_file) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
+                        From::from(pack_file),
+                        pack_file.get_packed_files_all_info(),
+                    ))),
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::CannotFindExtraPackFile(path).into())),
+                }
             }
 
             // In case we want to get the info of one PackedFile from the TreeView.
@@ -379,13 +384,17 @@ pub fn background_loop() {
             }
 
             // In case we want to move stuff from one PackFile to another...
-            Command::AddPackedFilesFromPackFile(paths) => {
+            Command::AddPackedFilesFromPackFile((pack_file_path, paths)) => {
 
-                // Try to add the PackedFile to the main PackFile.
-                match pack_file_decoded.add_from_packfile(&pack_file_decoded_extra, &paths, true) {
-                    Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                match pack_files_decoded_extra.get(&pack_file_path) {
 
+                    // Try to add the PackedFile to the main PackFile.
+                    Some(pack_file) => match pack_file_decoded.add_from_packfile(&pack_file, &paths, true) {
+                        Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::CannotFindExtraPackFile(pack_file_path).into())),
                 }
             }
 

@@ -38,7 +38,7 @@ use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
-use rpfm_lib::packfile::{PFHFileType, CompressionState};
+use rpfm_lib::packfile::{PFHFileType, CompressionState, RESERVED_NAME_EXTRA_PACKFILE};
 use rpfm_lib::packedfile::animpack;
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
@@ -247,7 +247,7 @@ impl AppUISlots {
                     app_ui.change_packfile_type_data_is_compressed.set_checked(false);
 
                     // Update the TreeView.
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
 
                     // Re-enable the Main Window.
                     app_ui.main_window.set_enabled(true);
@@ -351,7 +351,7 @@ impl AppUISlots {
                         app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                         // Update the TreeView.
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
 
                         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                         match &*game_selected {
@@ -547,7 +547,7 @@ impl AppUISlots {
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
                         Response::PackFileInfo(pack_file_info) => {
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
                             let mut packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                             packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                             packfile_item.set_text(&QString::from_std_str(&full_mod_name));
@@ -1160,9 +1160,9 @@ impl AppUISlots {
                 let widget = packed_file_view.get_mut_widget();
                 if app_ui.tab_bar_packed_file.index_of(widget) == index {
                     tab_index = index;
-                    if !path.is_empty() && path.starts_with(&["extra_packfile.rpfm_reserved".to_owned()]) {
+                    if !path.is_empty() && path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
                         purge_on_delete = path.to_vec();
-                        CENTRAL_COMMAND.send_message_qt(Command::ResetPackFileExtra);
+                        CENTRAL_COMMAND.send_message_qt(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
                     }
                     break;
                 }
@@ -1172,6 +1172,7 @@ impl AppUISlots {
                 app_ui.tab_bar_packed_file.remove_tab(tab_index);
             }
 
+            // This is for cleaning up open PackFiles.
             if !purge_on_delete.is_empty() {
                 let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
             }

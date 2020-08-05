@@ -47,7 +47,7 @@ use rpfm_lib::common::{get_game_selected_data_path, get_game_selected_content_pa
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
 use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
-use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion};
+use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -140,7 +140,7 @@ impl AppUI {
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            if save_before_deleting && packed_file_view.get_path() != ["extra_packfile.rpfm_reserved".to_owned()] {
+            if save_before_deleting && !packed_file_view.get_path().starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
                 packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
             }
             let mut widget = packed_file_view.get_mut_widget();
@@ -184,7 +184,9 @@ impl AppUI {
         let position = UI_STATE.get_open_packedfiles().iter().position(|x| *x.get_ref_path() == path);
         if let Some(position) = position {
             if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().get(position) {
-                if save_before_deleting && path != ["extra_packfile.rpfm_reserved".to_owned()] {
+
+                // Do not try saving PackFiles.
+                if save_before_deleting && !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
                     did_it_worked = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
                 }
                 let mut widget = packed_file_view.get_mut_widget();
@@ -199,7 +201,7 @@ impl AppUI {
 
             if !path.is_empty() {
                 UI_STATE.set_open_packedfiles().remove(position);
-                if path != ["extra_packfile.rpfm_reserved".to_owned()] {
+                if !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
 
                     // We check if there are more tables open. This is because we cannot change the GameSelected
                     // when there is a PackedFile using his Schema.
@@ -283,7 +285,7 @@ impl AppUI {
                 self.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                 // Update the TreeView.
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(false));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
 
                 // Re-enable the Main Window.
                 self.main_window.set_enabled(true);

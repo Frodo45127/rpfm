@@ -34,7 +34,7 @@ use rpfm_error::ErrorKind;
 use rpfm_lib::common::get_files_from_subdir;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::text::TextType;
-use rpfm_lib::packfile::PathType;
+use rpfm_lib::packfile::{PathType, RESERVED_NAME_EXTRA_PACKFILE};
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
@@ -576,35 +576,44 @@ impl PackFileContentsSlots {
                     let path = PathBuf::from(path_str.to_owned());
                     app_ui.main_window.set_enabled(false);
 
+                    let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str.to_owned()];
+
+                    // Close all preview views except the file we're opening.
+                    for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                        let open_path = packed_file_view.get_ref_path();
+                        let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                        if *open_path != fake_path && packed_file_view.get_is_preview() && index != -1 {
+                            app_ui.tab_bar_packed_file.remove_tab(index);
+                        }
+                    }
+
+                    // If the PackFile is already open, or it's hidden, we show it/focus it, instead of opening it again.
+                    if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == fake_path) {
+                        let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+
+                        if index == -1 {
+                            let icon_type = IconType::PackFile(true);
+                            let icon = icon_type.get_icon_from_path();
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(&path_str));
+                        }
+
+                        app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                        return;
+                    }
+
                     let mut tab = PackedFileView::default();
+                    let icon_type = IconType::PackFile(false);
+                    let icon = icon_type.get_icon_from_path();
+                    tab.set_is_preview(false);
+                    tab.set_path(&fake_path);
+
                     match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, &global_search_ui, path) {
                         Ok(slots) => {
                             slot_holder.borrow_mut().push(slots);
 
-                            // Add the file to the 'Currently open' list and make it visible.
-                            let tab_widget = tab.get_mut_widget();
-                            let name = path_str;
-                            let icon_type = IconType::PackFile(false);
-                            let icon = icon_type.get_icon_from_path();
-
-                            // If there is another Extra PackFile already open, close it.
-                            {
-                                let open_packedfiles = UI_STATE.set_open_packedfiles();
-                                if let Some(view) = open_packedfiles.iter().find(|x| *x.get_ref_path() == ["extra_packfile.rpfm_reserved".to_owned()]) {
-                                    let widget = view.get_mut_widget();
-                                    let index = app_ui.tab_bar_packed_file.index_of(widget);
-
-                                    app_ui.tab_bar_packed_file.remove_tab(index);
-                                }
-                            }
-
-                            let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &["extra_packfile.rpfm_reserved".to_owned()], false);
-
-                            app_ui.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
-                            app_ui.tab_bar_packed_file.set_current_widget(tab_widget);
-                            let mut open_list = UI_STATE.set_open_packedfiles();
-                            tab.set_path(&["extra_packfile.rpfm_reserved".to_owned()]);
-                            open_list.push(tab);
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path_str));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                            UI_STATE.set_open_packedfiles().push(tab);
                         }
                         Err(error) => show_dialog(app_ui.main_window, error, false),
                     }
