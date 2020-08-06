@@ -367,14 +367,22 @@ impl PackedFileDecoderViewSlots {
 
                 let selection = view.table_view.selection_model().selection();
                 let indexes = selection.indexes();
-                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x).row()).collect::<Vec<i32>>();
+                let mut rows = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
 
-                rows.sort();
-                rows.dedup();
+                rows.sort_by_key(|x| x.row());
+                rows.dedup_by_key(|x| x.row());
                 rows.reverse();
 
-                for row in rows {
-                    view.table_model.remove_row_1a(row);
+                for child in rows {
+
+                    // Only move right if the one above is in a lower level.
+                    let parent = child.parent();
+                    if child.parent().is_valid() {
+                        view.table_model.item_from_index(&parent).child_1a(child.row());
+                    }
+                    else {
+                        view.table_model.remove_row_1a(child.row());
+                    }
                 }
 
                 let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
