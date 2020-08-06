@@ -1293,10 +1293,14 @@ impl PackedFileDecoderViewRaw {
 
         // Loop through all the rows.
         let entries = if let Some(entries) = entries { entries } else { 1 };
+        let row_count = if let Some(ref model_index) = model_index {
+            self.table_model.item_from_index(model_index.as_ref()).row_count()
+        } else { self.table_model.row_count_0a() };
+
         for entry in 0..entries {
-            let row_count = if let Some(ref model_index) = model_index {
-                self.table_model.item_from_index(model_index.as_ref()).row_count()
-            } else { self.table_model.row_count_0a() };
+            if row_count == 0 {
+                break;
+            }
 
             for row in 0..row_count {
 
