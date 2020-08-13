@@ -16,7 +16,7 @@ Basically, this does the network checks of the program.
 
 use restson::RestClient;
 
-use rpfm_lib::schema::versions::*;
+use rpfm_lib::schema::Schema;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, network::LastestRelease, network::APIResponse, THREADS_COMMUNICATION_ERROR};
@@ -58,7 +58,7 @@ pub fn network_loop() {
                         // We only compare the numbers here (X.X.X), so we have to remove everything else.
                         let mut last_version = last_release.name.to_owned();
                         last_version.remove(0);
-                        last_version.split_off(5);
+                        last_version.truncate(5);
 
                         // Get the version numbers from our version and from the latest released version, so we can compare them.
                         let first = (last_version.chars().next().unwrap_or('0').to_digit(10).unwrap_or(0), current_version.chars().next().unwrap_or('0').to_digit(10).unwrap_or(0));
@@ -111,7 +111,7 @@ pub fn network_loop() {
 
             // When we want to check if there is a schema's update available...
             Command::CheckSchemaUpdates => {
-                match VersionsFile::check_update() {
+                match Schema::check_update() {
                     Ok(response) => CENTRAL_COMMAND.send_message_network_to_qt(Response::APIResponseSchema(response)),
                     Err(error) => CENTRAL_COMMAND.send_message_network_to_qt(Response::Error(error)),
                 }

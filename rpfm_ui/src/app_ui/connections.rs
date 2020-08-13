@@ -74,6 +74,7 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     app_ui.game_selected_open_game_assembly_kit_folder.triggered().connect(&slots.game_selected_open_game_assembly_kit_folder);
     app_ui.game_selected_open_config_folder.triggered().connect(&slots.game_selected_open_config_folder);
 
+    app_ui.game_selected_troy.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_three_kingdoms.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_warhammer_2.triggered().connect(&slots.change_game_selected);
     app_ui.game_selected_warhammer.triggered().connect(&slots.change_game_selected);
@@ -88,9 +89,13 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `Special Stuff` menu connections.
     //-----------------------------------------------//
+    app_ui.special_stuff_wh2_create_dummy_animpack.triggered().connect(&slots.special_stuff_create_dummy_animpack);
+    app_ui.special_stuff_wh_create_dummy_animpack.triggered().connect(&slots.special_stuff_create_dummy_animpack);
+
     app_ui.special_stuff_wh2_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
     app_ui.special_stuff_wh_patch_siege_ai.triggered().connect(&slots.special_stuff_patch_siege_ai);
 
+    app_ui.special_stuff_troy_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_three_k_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_wh2_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_wh_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
@@ -101,6 +106,7 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     app_ui.special_stuff_nap_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
     app_ui.special_stuff_emp_optimize_packfile.triggered().connect(&slots.special_stuff_optimize_packfile);
 
+    app_ui.special_stuff_troy_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
     app_ui.special_stuff_three_k_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
     app_ui.special_stuff_wh2_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
     app_ui.special_stuff_wh_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
@@ -118,16 +124,17 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     app_ui.about_patreon_link.triggered().connect(&slots.about_patreon_link);
     app_ui.about_check_updates.triggered().connect(&slots.about_check_updates);
     app_ui.about_check_schema_updates.triggered().connect(&slots.about_check_schema_updates);
+    app_ui.about_update_templates.triggered().connect(&slots.about_update_templates);
 
     //-----------------------------------------------//
     // `Debug` menu connections.
     //-----------------------------------------------//
     app_ui.debug_update_current_schema_from_asskit.triggered().connect(&slots.debug_update_current_schema_from_asskit);
-    app_ui.debug_generate_schema_diff.triggered().connect(&slots.debug_generate_schema_diff);
 
     //-----------------------------------------------//
     // `PackedFileView` connections.
     //-----------------------------------------------//
     app_ui.tab_bar_packed_file.tab_close_requested().connect(&slots.packed_file_hide);
     app_ui.tab_bar_packed_file.current_changed().connect(&slots.packed_file_update);
+    app_ui.tab_bar_packed_file.tab_bar_double_clicked().connect(&slots.packed_file_unpreview);
 }

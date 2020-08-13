@@ -80,6 +80,7 @@ pub struct Slots {
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
 pub struct GameSelectedIcons {
+    pub troy: (AtomicPtr<QIcon>, String),
     pub three_kingdoms: (AtomicPtr<QIcon>, String),
     pub warhammer_2: (AtomicPtr<QIcon>, String),
     pub warhammer: (AtomicPtr<QIcon>, String),
@@ -109,7 +110,7 @@ impl UI {
         let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui, global_search_ui, &slot_holder)));
         let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, &app_temp_slots, &slot_holder);
         let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui, global_search_ui, slot_holder);
-        let global_search_slots = GlobalSearchSlots::new(app_ui, global_search_ui, pack_file_contents_ui, &slot_holder);
+        let global_search_slots = GlobalSearchSlots::new(app_ui, global_search_ui, pack_file_contents_ui);
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&mut app_ui);
@@ -127,6 +128,7 @@ impl UI {
         UI_STATE.set_operational_mode(&mut app_ui, None);
 
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
+            KEY_TROY => app_ui.game_selected_troy.trigger(),
             KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
             KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
             KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
@@ -217,6 +219,7 @@ impl GameSelectedIcons {
     /// This function loads to memory the icons of all the supported games.
     pub unsafe fn new() -> Self {
         Self {
+            troy: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_TROY).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_TROY).unwrap().game_selected_big_icon)),
             three_kingdoms: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_THREE_KINGDOMS).unwrap().game_selected_big_icon)),
             warhammer_2: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER_2).unwrap().game_selected_big_icon)),
             warhammer: (atomic_from_cpp_box(QIcon::from_q_string(&QString::from_std_str(format!("{}/img/{}",ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_icon)))), format!("{}/img/{}", ASSETS_PATH.to_string_lossy(), SUPPORTED_GAMES.get(KEY_WARHAMMER).unwrap().game_selected_big_icon)),
@@ -233,6 +236,7 @@ impl GameSelectedIcons {
     /// This function sets the main window icon according to the currently selected game.
     pub unsafe fn set_game_selected_icon(app_ui: &mut AppUI) {
         let (icon, big_icon) = match &**GAME_SELECTED.read().unwrap() {
+            KEY_TROY => &GAME_SELECTED_ICONS.troy,
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
             KEY_WARHAMMER_2 => &GAME_SELECTED_ICONS.warhammer_2,
             KEY_WARHAMMER => &GAME_SELECTED_ICONS.warhammer,
@@ -246,11 +250,11 @@ impl GameSelectedIcons {
             _ => unimplemented!(),
         };
         app_ui.main_window.set_window_icon(ref_from_atomic(&*icon));
- 
+
         // Fix due to windows paths.
         let big_icon = if cfg!(target_os = "windows") {  big_icon.replace("\\", "/") } else { big_icon.to_owned() };
 
-        if !SETTINGS.read().unwrap().settings_bool["hide_background_icon"] {
+        if !SETTINGS.read().unwrap().settings_bool["hide_background_icon"] && app_ui.tab_bar_packed_file.count() == 0 {
 
             // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?
             let border =  if cfg!(target_os = "windows") { "border: 0px solid #754EF9;" } else { "" };

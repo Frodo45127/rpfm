@@ -1,7 +1,7 @@
 #include "spinbox_item_delegate.h"
 #include "limits.h"
 #include <QDebug>
-#include <QTableView>
+#include <QAbstractItemView>
 #include <QSpinBox>
 #include <QLineEdit>
 
@@ -9,7 +9,7 @@
 // We have to pass it the integer type (16, 32 or 64) too for later checks.
 extern "C" void new_spinbox_item_delegate(QObject *parent, const int column, const int integer_type, const bool is_optional) {
     QSpinBoxItemDelegate* delegate = new QSpinBoxItemDelegate(parent, integer_type, is_optional);
-    dynamic_cast<QTableView*>(parent)->setItemDelegateForColumn(column, delegate);
+    dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of QSpinBoxItemDelegate. We use it to store the integer type of the value in the delegate.

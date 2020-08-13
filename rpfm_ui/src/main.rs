@@ -38,15 +38,20 @@ use qt_gui::q_font_database::SystemFont;
 use qt_core::QString;
 
 use lazy_static::lazy_static;
+use log::info;
+use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
 
 use std::cell::RefCell;
+use std::fs::File;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
 use std::thread;
 
 use rpfm_error::ctd::CrashReport;
-use rpfm_lib::config::init_config_path;
+use rpfm_error::{Error, ErrorKind};
+
+use rpfm_lib::config::{init_config_path, get_config_path};
 use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
@@ -106,6 +111,7 @@ mod settings_ui;
 mod ui;
 mod ui_state;
 mod utils;
+mod views;
 
 // Statics, so we don't need to pass them everywhere to use them.
 lazy_static! {
@@ -249,6 +255,13 @@ fn main() {
 
     // Log the crashes so the user can send them himself.
     if !cfg!(debug_assertions) && CrashReport::init().is_err() {
+        let _ = CombinedLogger::init(
+            vec![
+                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed).ok_or_else(|| Error::from(ErrorKind::InitializingLoggerError)).unwrap(),
+                WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm_ui.log")).unwrap()),
+            ]
+        );
+        info!("Starting...");
         println!("Failed to initialize logging code.");
     }
 

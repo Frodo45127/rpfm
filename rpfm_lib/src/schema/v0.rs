@@ -63,10 +63,10 @@ use rpfm_error::Result;
 
 use crate::config::get_config_path;
 use crate::SUPPORTED_GAMES;
-use crate::schema::Schema;
 use crate::schema::SCHEMA_FOLDER;
 
 use super::v1::*;
+use super::v2::*;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -135,8 +135,8 @@ impl SchemaV0 {
 
     pub fn update() {
         println!("Importing schemas from V0 to V1");
-        let legacy_schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
-        let mut schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), SchemaV1::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, y)) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
+        let legacy_schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
+        let mut schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), SchemaV1::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, y)) } else { None }).collect::<BTreeMap<String, SchemaV1>>();
         println!("Amount of Schemas V0: {:?}", legacy_schemas.len());
         println!("Amount of schemas V1: {:?}", schemas.len());
         if !schemas.is_empty() {
@@ -153,7 +153,7 @@ impl SchemaV0 {
         }
         else {
             println!("No Schema V1 found. Trying updating to Schema V2 directly.");
-            let mut legacy_schemas = legacy_schemas.par_iter().map(|(x, y)| ((*x).to_owned(), From::from(y))).collect::<BTreeMap<String, Schema>>();
+            let mut legacy_schemas = legacy_schemas.par_iter().map(|(x, y)| ((*x).to_owned(), From::from(y))).collect::<BTreeMap<String, SchemaV2>>();
             println!("Amount of SchemasV2: {:?}", legacy_schemas.len());
             legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
                 if let Some(file_name) = SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true) {

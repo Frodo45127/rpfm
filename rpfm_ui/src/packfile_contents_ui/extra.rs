@@ -80,7 +80,7 @@ impl PackFileContentsUI {
                 paths_packedfile.iter().for_each(|path| {
                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                         if packed_file_view.reload(path, self).is_err() {
-                            app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                            let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
                         }
                     }
                 });
@@ -116,7 +116,7 @@ impl PackFileContentsUI {
                     if let PathType::File(path) = path {
                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                             if packed_file_view.reload(path, self).is_err() {
-                                app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                                let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
                             }
                         }
                     }

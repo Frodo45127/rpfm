@@ -25,15 +25,17 @@ use std::ops::Deref;
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::DEPENDENCY_DATABASE;
+use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
 use crate::packedfile::image::Image;
-use crate::packedfile::table::{db::DB, loc::Loc};
+use crate::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use crate::packedfile::text::{Text, TextType};
 use crate::packedfile::rigidmodel::RigidModel;
 use crate::packfile::packedfile::{PackedFile, RawPackedFile};
 use crate::schema::Schema;
 use crate::SCHEMA;
 
+pub mod animpack;
 pub mod ca_vp8;
 pub mod image;
 pub mod rigidmodel;
@@ -50,15 +52,16 @@ pub mod text;
 #[derive(PartialEq, Clone, Debug)]
 pub enum DecodedPackedFile {
     Anim,
-    AnimFragment,
-    AnimPack,
-    AnimTable,
+    AnimFragment(AnimFragment),
+    AnimPack(AnimPack),
+    AnimTable(AnimTable),
     CaVp8(CaVp8),
     CEO,
     DB(DB),
     Image(Image),
+    GroupFormations,
     Loc(Loc),
-    MatchedCombat,
+    MatchedCombat(MatchedCombat),
     RigidModel(RigidModel),
     StarPos,
     Text(Text),
@@ -78,6 +81,7 @@ pub enum PackedFileType {
     CEO,
     DB,
     Image,
+    GroupFormations,
     Loc,
     MatchedCombat,
     RigidModel,
@@ -99,8 +103,38 @@ pub enum PackedFileType {
 impl DecodedPackedFile {
 
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
-    pub fn decode(raw_packed_file: &RawPackedFile) -> Result<Self> {
+    pub fn decode(raw_packed_file: &mut RawPackedFile) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
+
+            PackedFileType::AnimFragment => {
+                let schema = SCHEMA.read().unwrap();
+                match schema.deref() {
+                    Some(schema) => {
+                        let data = raw_packed_file.get_data_and_keep_it()?;
+                        let packed_file = AnimFragment::read(&data, &schema, false)?;
+                        Ok(DecodedPackedFile::AnimFragment(packed_file))
+                    }
+                    None => Err(ErrorKind::SchemaNotFound.into()),
+                }
+            }
+
+            PackedFileType::AnimPack => {
+                let data = raw_packed_file.get_data()?;
+                let packed_file = AnimPack::read(&data)?;
+                Ok(DecodedPackedFile::AnimPack(packed_file))
+            }
+
+            PackedFileType::AnimTable => {
+                let schema = SCHEMA.read().unwrap();
+                match schema.deref() {
+                    Some(schema) => {
+                        let data = raw_packed_file.get_data_and_keep_it()?;
+                        let packed_file = AnimTable::read(&data, &schema, false)?;
+                        Ok(DecodedPackedFile::AnimTable(packed_file))
+                    }
+                    None => Err(ErrorKind::SchemaNotFound.into()),
+                }
+            }
 
             PackedFileType::CaVp8 => {
                 let data = raw_packed_file.get_data()?;
@@ -112,9 +146,9 @@ impl DecodedPackedFile {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
+                        let data = raw_packed_file.get_data_and_keep_it()?;
                         let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                        let data = raw_packed_file.get_data()?;
-                        let packed_file = DB::read(&data, name, &schema, false)?;
+                        let packed_file = DB::read(&data, &name, &schema, false)?;
                         Ok(DecodedPackedFile::DB(packed_file))
                     }
                     None => Err(ErrorKind::SchemaNotFound.into()),
@@ -122,7 +156,7 @@ impl DecodedPackedFile {
             }
 
             PackedFileType::Image => {
-                let data = raw_packed_file.get_data()?;
+                let data = raw_packed_file.get_data_and_keep_it()?;
                 let packed_file = Image::read(&data)?;
                 Ok(DecodedPackedFile::Image(packed_file))
             }
@@ -131,7 +165,7 @@ impl DecodedPackedFile {
                 let schema = SCHEMA.read().unwrap();
                 match schema.deref() {
                     Some(schema) => {
-                        let data = raw_packed_file.get_data()?;
+                        let data = raw_packed_file.get_data_and_keep_it()?;
                         let packed_file = Loc::read(&data, &schema, false)?;
                         Ok(DecodedPackedFile::Loc(packed_file))
                     }
@@ -139,8 +173,20 @@ impl DecodedPackedFile {
                 }
             }
 
+            PackedFileType::MatchedCombat => {
+                let schema = SCHEMA.read().unwrap();
+                match schema.deref() {
+                    Some(schema) => {
+                        let data = raw_packed_file.get_data_and_keep_it()?;
+                        let packed_file = MatchedCombat::read(&data, &schema, false)?;
+                        Ok(DecodedPackedFile::MatchedCombat(packed_file))
+                    }
+                    None => Err(ErrorKind::SchemaNotFound.into()),
+                }
+            }
+
             PackedFileType::Text(_) => {
-                let data = raw_packed_file.get_data()?;
+                let data = raw_packed_file.get_data_and_keep_it()?;
                 let mut packed_file = Text::read(&data)?;
                 let packed_file_type = PackedFileType::get_packed_file_type(raw_packed_file.get_path());
                 if let PackedFileType::Text(text_type) = packed_file_type {
@@ -153,42 +199,47 @@ impl DecodedPackedFile {
     }
 
     /// This function decodes a `RawPackedFile` into a `DecodedPackedFile`, returning it.
-    pub fn decode_no_locks(raw_packed_file: &RawPackedFile, schema: &Schema) -> Result<Self> {
+    pub fn decode_no_locks(raw_packed_file: &mut RawPackedFile, schema: &Schema) -> Result<Self> {
         match PackedFileType::get_packed_file_type(raw_packed_file.get_path()) {
-            PackedFileType::CaVp8 => {
-                let data = raw_packed_file.get_data()?;
-                let packed_file = CaVp8::read(data)?;
-                Ok(DecodedPackedFile::CaVp8(packed_file))
+
+            PackedFileType::AnimFragment => {
+                let data = raw_packed_file.get_data_and_keep_it()?;
+                let packed_file = AnimFragment::read(&data, &schema, false)?;
+                Ok(DecodedPackedFile::AnimFragment(packed_file))
             }
 
+            PackedFileType::AnimPack => Self::decode(raw_packed_file),
+
+            PackedFileType::AnimTable => {
+                let data = raw_packed_file.get_data_and_keep_it()?;
+                let packed_file = AnimTable::read(&data, &schema, false)?;
+                Ok(DecodedPackedFile::AnimTable(packed_file))
+            }
+
+            PackedFileType::CaVp8 => Self::decode(raw_packed_file),
+
             PackedFileType::DB => {
+                let data = raw_packed_file.get_data_and_keep_it()?;
                 let name = raw_packed_file.get_path().get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
-                let data = raw_packed_file.get_data()?;
-                let packed_file = DB::read(&data, name, &schema, false)?;
+                let packed_file = DB::read(&data, &name, &schema, false)?;
                 Ok(DecodedPackedFile::DB(packed_file))
             }
 
-            PackedFileType::Image => {
-                let data = raw_packed_file.get_data()?;
-                let packed_file = Text::read(&data)?;
-                Ok(DecodedPackedFile::Text(packed_file))
-            }
+            PackedFileType::Image => Self::decode(raw_packed_file),
 
             PackedFileType::Loc => {
-                let data = raw_packed_file.get_data()?;
+                let data = raw_packed_file.get_data_and_keep_it()?;
                 let packed_file = Loc::read(&data, &schema, false)?;
                 Ok(DecodedPackedFile::Loc(packed_file))
             }
 
-            PackedFileType::Text(_) => {
-                let data = raw_packed_file.get_data()?;
-                let mut packed_file = Text::read(&data)?;
-                let packed_file_type = PackedFileType::get_packed_file_type(raw_packed_file.get_path());
-                if let PackedFileType::Text(text_type) = packed_file_type {
-                    packed_file.set_text_type(text_type);
-                }
-                Ok(DecodedPackedFile::Text(packed_file))
+            PackedFileType::MatchedCombat => {
+                let data = raw_packed_file.get_data_and_keep_it()?;
+                let packed_file = MatchedCombat::read(&data, &schema, false)?;
+                Ok(DecodedPackedFile::MatchedCombat(packed_file))
             }
+
+            PackedFileType::Text(_) => Self::decode(raw_packed_file),
             _=> Ok(DecodedPackedFile::Unknown)
         }
     }
@@ -198,9 +249,13 @@ impl DecodedPackedFile {
     /// Keep in mind this should only work for PackedFiles with saving support.
     pub fn encode(&self) -> Option<Result<Vec<u8>>> {
         match self {
+            DecodedPackedFile::AnimFragment(data) => Some(data.save()),
+            DecodedPackedFile::AnimPack(data) => Some(Ok(data.save())),
+            DecodedPackedFile::AnimTable(data) => Some(data.save()),
             DecodedPackedFile::CaVp8(data) => Some(data.save()),
             DecodedPackedFile::DB(data) => Some(data.save()),
             DecodedPackedFile::Loc(data) => Some(data.save()),
+            DecodedPackedFile::MatchedCombat(data) => Some(data.save()),
             DecodedPackedFile::Text(data) => Some(data.save()),
             _=> None,
         }
@@ -218,13 +273,13 @@ impl DecodedPackedFile {
                         .filter_map(|x| x.decode_return_ref_no_locks(&schema).ok())
                         .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })
                         .filter(|x| x.name == data.name)
-                        .max_by(|x, y| x.get_ref_definition().version.cmp(&y.get_ref_definition().version)) {
+                        .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
 
                         let definition_new = vanilla_db.get_definition();
                         let definition_old = data.get_definition();
                         if definition_old != definition_new {
                             data.set_definition(&definition_new);
-                            Ok((definition_old.version, definition_new.version))
+                            Ok((definition_old.get_version(), definition_new.get_version()))
                         }
                         else {
                             Err(ErrorKind::NoDefinitionUpdateAvailable.into())
@@ -257,6 +312,7 @@ impl Display for PackedFileType {
             PackedFileType::DB => write!(f, "DB Table"),
             PackedFileType::DependencyPackFilesList => write!(f, "Dependency PackFile List"),
             PackedFileType::Image => write!(f, "Image"),
+            PackedFileType::GroupFormations => write!(f, "Group Formations"),
             PackedFileType::Loc => write!(f, "Loc Table"),
             PackedFileType::MatchedCombat => write!(f, "Matched Combat"),
             PackedFileType::RigidModel => write!(f, "RigidModel"),
@@ -273,35 +329,53 @@ impl PackedFileType {
     /// This function returns the type of the `PackedFile` at the provided path based on the path itself.
     pub fn get_packed_file_type(path: &[String]) -> Self {
         if let Some(packedfile_name) = path.last() {
-            if packedfile_name.ends_with(table::loc::EXTENSION) { PackedFileType::Loc }
-            else if packedfile_name.ends_with(rigidmodel::EXTENSION) { PackedFileType::RigidModel }
-            else if packedfile_name.ends_with(ca_vp8::EXTENSION) { PackedFileType::CaVp8 }
+            if packedfile_name.ends_with(table::loc::EXTENSION) { Self::Loc }
+            else if packedfile_name.ends_with(animpack::EXTENSION) { Self::AnimPack }
+            else if packedfile_name.ends_with(rigidmodel::EXTENSION) { Self::RigidModel }
+            else if packedfile_name.ends_with(ca_vp8::EXTENSION) { Self::CaVp8 }
+            else if packedfile_name.ends_with(table::anim_fragment::EXTENSION) { Self::AnimFragment }
+            else if path == table::animtable::PATH { Self::AnimTable }
+            else if path == table::matched_combat::PATH { Self::MatchedCombat }
             else if let Some((_, text_type)) = text::EXTENSIONS.iter().find(|(x, _)| packedfile_name.ends_with(x)) {
-                PackedFileType::Text(*text_type)
+                Self::Text(*text_type)
             }
 
             else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
-                PackedFileType::Image
+                Self::Image
             }
 
             // If it's in the "db" folder, it's a DB PackedFile (or you put something were it shouldn't be).
-            else if path[0].to_lowercase() == "db" { PackedFileType::DB }
+            else if path[0].to_lowercase() == "db" { Self::DB }
 
             // Otherwise, we don't have a decoder for that PackedFile... yet.
-            else { PackedFileType::Unknown }
+            else { Self::Unknown }
         }
 
         // If we didn't got a name, it means something broke. Return none.
-        else { PackedFileType::Unknown }
+        else { Self::Unknown }
     }
 
     /// This function returns the type of the provided `PackedFile` based on the data it contains.
+    ///
+    /// Note that his one is tricky, and we only check the data in a few packedfiles. In the rest, we check their extension.
     pub fn get_packed_file_type_by_data(packed_file: &PackedFile) -> Self {
         match packed_file.get_raw_data() {
             Ok(data) => {
                 if let Some(packedfile_name) = packed_file.get_path().last() {
                     if packedfile_name.ends_with(rigidmodel::EXTENSION) {
                         return Self::RigidModel
+                    }
+                    else if packedfile_name.ends_with(table::anim_fragment::EXTENSION) {
+                        return Self::AnimFragment;
+                    }
+                    else if packedfile_name.ends_with(animpack::EXTENSION) {
+                        return Self::AnimPack
+                    }
+                    else if packed_file.get_path() == table::animtable::PATH {
+                        return Self::AnimTable
+                    }
+                    else if packed_file.get_path() == table::matched_combat::PATH {
+                        return Self::MatchedCombat
                     }
                     else if image::EXTENSIONS.iter().any(|x| packedfile_name.ends_with(x)) {
                         return Self::Image
@@ -310,7 +384,6 @@ impl PackedFileType {
                         if Text::read(&data).is_ok() {
                             return Self::Text(*text_type)
                         }
-
                     }
 
                     if Loc::is_loc(&data) { Self::Loc }
@@ -340,6 +413,7 @@ impl PackedFileType {
             Self::DB |
             Self::DependencyPackFilesList |
             Self::Image |
+            Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
             Self::RigidModel |
@@ -364,6 +438,7 @@ impl PackedFileType {
             Self::DB |
             Self::DependencyPackFilesList |
             Self::Image |
+            Self::GroupFormations |
             Self::Loc |
             Self::MatchedCombat |
             Self::RigidModel |
@@ -379,15 +454,16 @@ impl From<&DecodedPackedFile> for PackedFileType {
     fn from(packed_file: &DecodedPackedFile) -> Self {
         match packed_file {
             DecodedPackedFile::Anim => PackedFileType::Anim,
-            DecodedPackedFile::AnimFragment => PackedFileType::AnimFragment,
-            DecodedPackedFile::AnimPack => PackedFileType::AnimPack,
-            DecodedPackedFile::AnimTable => PackedFileType::AnimTable,
+            DecodedPackedFile::AnimFragment(_) => PackedFileType::AnimFragment,
+            DecodedPackedFile::AnimPack(_) => PackedFileType::AnimPack,
+            DecodedPackedFile::AnimTable(_) => PackedFileType::AnimTable,
             DecodedPackedFile::CaVp8(_) => PackedFileType::CaVp8,
             DecodedPackedFile::CEO => PackedFileType::CEO,
             DecodedPackedFile::DB(_) => PackedFileType::DB,
             DecodedPackedFile::Image(_) => PackedFileType::Image,
+            DecodedPackedFile::GroupFormations => PackedFileType::GroupFormations,
             DecodedPackedFile::Loc(_) => PackedFileType::Loc,
-            DecodedPackedFile::MatchedCombat => PackedFileType::MatchedCombat,
+            DecodedPackedFile::MatchedCombat(_) => PackedFileType::MatchedCombat,
             DecodedPackedFile::RigidModel(_) => PackedFileType::RigidModel,
             DecodedPackedFile::StarPos => PackedFileType::StarPos,
             DecodedPackedFile::Text(text) => PackedFileType::Text(text.get_text_type()),

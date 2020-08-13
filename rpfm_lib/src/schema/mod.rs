@@ -16,7 +16,7 @@ This module contains all the code related with the schemas used by this lib to d
 The basic structure of an `Schema` is:
 ```rust
 (
-    version: 2,
+    version: 3,
     versioned_files: [
         DB("_kv_battle_ai_ability_usage_variables_tables", [
             (
@@ -34,10 +34,12 @@ The basic structure of an `Schema` is:
                         lookup: None,
                         description: "",
                         ca_order: -1,
+                        is_bitwise: 0,
+                        enum_values: {},
                     ),
                     (
                         name: "value",
-                        field_type: Float,
+                        field_type: F32,
                         is_key: false,
                         default_value: None,
                         max_length: 0,
@@ -47,6 +49,8 @@ The basic structure of an `Schema` is:
                         lookup: None,
                         description: "",
                         ca_order: -1,
+                        is_bitwise: 0,
+                        enum_values: {},
                     ),
                 ],
                 localised_fields: [],
@@ -59,9 +63,10 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
+use git2::Repository;
+use itertools::Itertools;
 use rayon::prelude::*;
-use reqwest::blocking;
-use ron::de::{from_str, from_reader};
+use ron::de::from_reader;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
@@ -69,39 +74,34 @@ use std::collections::BTreeMap;
 use std::cmp::Ordering;
 use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
-use std::io::{BufReader, Read, Write};
+use std::io::{BufReader, Write};
 
 use rpfm_error::{ErrorKind, Result};
 
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
+use crate::common::get_schemas_path;
 use crate::DEPENDENCY_DATABASE;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
 use crate::packedfile::table::db::DB;
-use self::versions::VersionsFile;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
+pub(crate) mod v2;
 pub(crate) mod v1;
 pub(crate) mod v0;
-pub mod versions;
-
-/// Name of the schema versions file.
-const SCHEMA_VERSIONS_FILE: &str = "versions.ron";
 
 /// Name of the folder containing all the schemas.
-const SCHEMA_FOLDER: &str = "schemas";
+pub const SCHEMA_FOLDER: &str = "schemas";
 
-/// URL of the remote repository's schema folder. Master branch.
-#[allow(dead_code)]
-const SCHEMA_UPDATE_URL_MASTER: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/master/schemas/";
+const BINARY_EXTENSION: &str = ".bin";
 
-/// URL of the remote repository's schema folder. Develop branch.
-#[allow(dead_code)]
-const SCHEMA_UPDATE_URL_DEVELOP: &str = "https://raw.githubusercontent.com/Frodo45127/rpfm/develop/schemas/";
+pub const SCHEMA_REPO: &str = "https://github.com/Frodo45127/rpfm-schemas";
+pub const REMOTE: &str = "origin";
+pub const BRANCH: &str = "master";
 
 /// Current structural version of the Schema, for compatibility purpouses.
-const CURRENT_STRUCTURAL_VERSION: u16 = 2;
+const CURRENT_STRUCTURAL_VERSION: u16 = 3;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -122,6 +122,12 @@ pub struct Schema {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum VersionedFile {
 
+    /// It stores a `Vec<Definition>` with the definitions for each version of AnimFragment files decoded.
+    AnimFragment(Vec<Definition>),
+
+    /// It stores a `Vec<Definition>` with the definitions for each version of AnomTable files decoded.
+    AnimTable(Vec<Definition>),
+
     /// It stores the name of the table, and a `Vec<Definition>` with the definitions for each version of that table decoded.
     DB(String, Vec<Definition>),
 
@@ -130,6 +136,9 @@ pub enum VersionedFile {
 
     /// It stores a `Vec<Definition>` with the definitions for each version of Loc files decoded (currently, only version `1`).
     Loc(Vec<Definition>),
+
+    /// It stores a `Vec<Definition>` with the definitions for each version of MatchedCombat files decoded.
+    MatchedCombat(Vec<Definition>),
 }
 
 /// This struct contains all the data needed to decode a specific version of a versioned PackedFile.
@@ -140,13 +149,13 @@ pub struct Definition {
     /// - `-1`: for fake `Definition`, used for dependency resolving stuff.
     /// - `0`: for unversioned PackedFiles.
     /// - `1+`: for versioned PackedFiles.
-    pub version: i32,
+    version: i32,
 
     /// This is a collection of all `Field`s the PackedFile uses, in the order it uses them.
-    pub fields: Vec<Field>,
+    fields: Vec<Field>,
 
     /// This is a list of all the fields from this definition that are moved to a Loc PackedFile on exporting.
-    pub localised_fields: Vec<Field>,
+    localised_fields: Vec<Field>,
 }
 
 /// This struct holds all the relevant data do properly decode a field from a versioned PackedFile.
@@ -154,51 +163,67 @@ pub struct Definition {
 pub struct Field {
 
     /// Name of the field. Should contain no spaces, using `_` instead.
-    pub name: String,
+    name: String,
 
     /// Type of the field.
-    pub field_type: FieldType,
+    field_type: FieldType,
 
     /// `True` if the field is a `Key` field of a table. `False` otherwise.
-    pub is_key: bool,
+    is_key: bool,
 
     /// The default value of the field.
-    pub default_value: Option<String>,
+    default_value: Option<String>,
 
     /// The max allowed lenght for the data in the field.
-    pub max_length: i32,
+    max_length: i32,
 
     /// If the field's data corresponds to a filename.
-    pub is_filename: bool,
+    is_filename: bool,
 
     /// Path where the file in the data of the field can be, if it's restricted to one path.
-    pub filename_relative_path: Option<String>,
+    filename_relative_path: Option<String>,
 
     /// `Some(referenced_table, referenced_column)` if the field is referencing another table/column. `None` otherwise.
-    pub is_reference: Option<(String, String)>,
+    is_reference: Option<(String, String)>,
 
     /// `Some(referenced_columns)` if the field is using another column/s from the referenced table for lookup values.
-    pub lookup: Option<Vec<String>>,
+    lookup: Option<Vec<String>>,
 
     /// Aclarative description of what the field is for.
-    pub description: String,
+    description: String,
 
     /// Visual position in CA's Table. `-1` means we don't know its position.
-    pub ca_order: i16,
+    ca_order: i16,
+
+    /// Variable to tell if this column is a bitwise column (spanned accross multiple columns) or not. Only applicable to numeric fields.
+    is_bitwise: i32,
+
+    /// Variable that specifies the "Enum" values for each value in this field.
+    enum_values: BTreeMap<i32, String>
 }
 
 /// This enum defines every type of field the lib can encode/decode.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum FieldType {
     Boolean,
-    Float,
-    Integer,
-    LongInteger,
+    F32,
+    I16,
+    I32,
+    I64,
     StringU8,
     StringU16,
     OptionalStringU8,
     OptionalStringU16,
-    Sequence(Definition)
+    SequenceU16(Definition),
+    SequenceU32(Definition)
+}
+
+/// This enum controls the possible responses from the server when asking if there is a new Schema update.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum APIResponseSchema {
+    NewUpdate,
+    NoUpdate,
+    NoLocalFiles,
 }
 
 //---------------------------------------------------------------------------//
@@ -220,6 +245,48 @@ impl Schema {
     /// This function returns the structural version of the provided Schema.
     pub fn get_version(&self) -> u16 {
         self.version
+    }
+
+    /// This function returns a copy of a specific `VersionedFile` of AnimFragment Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimFragment `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_anim_fragment(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_anim_fragment()).cloned().ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of AnimFragment Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimFragment `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_anim_fragment(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_anim_fragment()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of AnimFragment Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimFragment `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_anim_fragment(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_anim_fragment()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a copy of a specific `VersionedFile` of AnimTable Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimTable `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_animtable(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_animtable()).cloned().ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of AnimTable Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimTable `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_animtable(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_animtable()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of AnimTable Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one AnimTable `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_animtable(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_animtable()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
     /// This function returns a copy of a specific `VersionedFile` of DB Type from the provided `Schema`.
@@ -286,6 +353,26 @@ impl Schema {
         self.versioned_files.par_iter_mut().find_any(|x| x.is_loc()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
     }
 
+    /// This function returns a copy of a specific `VersionedFile` of MatchedCombat Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one MatchedCombat `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_versioned_file_matched_combat(&self) -> Result<VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_matched_combat()).cloned().ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a reference to a specific `VersionedFile` of MatchedCombat Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one MatchedCombat `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_versioned_file_matched_combat(&self) -> Result<&VersionedFile> {
+        self.versioned_files.par_iter().find_any(|x| x.is_matched_combat()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
+
+    /// This function returns a mutable reference to a specific `VersionedFile` of MatchedCombat Type from the provided `Schema`.
+    ///
+    /// By default, we assume there is only one MatchedCombat `VersionedFile` in the `Schema`, so we return that one if we find it.
+    pub fn get_ref_mut_versioned_file_matched_combat(&mut self) -> Result<&mut VersionedFile> {
+        self.versioned_files.par_iter_mut().find_any(|x| x.is_matched_combat()).ok_or_else(|| From::from(ErrorKind::SchemaVersionedFileNotFound))
+    }
     /// This function returns a copy of all the `VersionedFile` in the provided `Schema`.
     pub fn get_versioned_file_all(&self) -> Vec<VersionedFile> {
         self.versioned_files.to_vec()
@@ -382,26 +469,76 @@ impl Schema {
         Ok(())
     }
 
+    /// This function loads a `Schema` to memory from a file in the `schemas/` folder.
+    pub fn load_from_binary(schema_file: &str) -> Result<Self> {
+        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
+        file_path.push(schema_file);
+        file_path.set_extension(BINARY_EXTENSION);
+
+        let file = BufReader::new(File::open(&file_path)?);
+        bincode::deserialize_from(file).map_err(From::from)
+    }
+
+    /// This function saves a `Schema` from memory to a file in the `schemas/` folder.
+    pub fn save_to_binary(&mut self, schema_file: &str) -> Result<()> {
+        let mut file_path = get_config_path()?.join(SCHEMA_FOLDER);
+
+        // Make sure the path exists to avoid problems with updating schemas.
+        DirBuilder::new().recursive(true).create(&file_path)?;
+
+        file_path.push(schema_file);
+        file_path.set_extension(BINARY_EXTENSION);
+        let file = File::create(&file_path)?;
+
+        self.sort();
+        bincode::serialize_into(file, &self).map_err(From::from)
+    }
+
     /// This function sorts a `Schema` alphabetically, so the schema diffs are more or less clean.
     pub fn sort(&mut self) {
         self.versioned_files.sort_by(|a, b| {
             match a {
+                VersionedFile::AnimFragment(_) => {
+                    match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Equal,
+                        _ => Ordering::Less,
+                    }
+                }
+                VersionedFile::AnimTable(_) => {
+                    match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Greater,
+                        VersionedFile::AnimTable(_) => Ordering::Equal,
+                        _ => Ordering::Less,
+                    }
+                }
                 VersionedFile::DB(table_name_a, _) => {
                     match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Greater,
+                        VersionedFile::AnimTable(_) => Ordering::Greater,
                         VersionedFile::DB(table_name_b, _) => table_name_a.cmp(&table_name_b),
                         _ => Ordering::Less,
                     }
                 }
                 VersionedFile::DepManager(_) => {
                     match b {
+                        VersionedFile::AnimFragment(_) => Ordering::Greater,
+                        VersionedFile::AnimTable(_) => Ordering::Greater,
                         VersionedFile::DB(_,_) => Ordering::Greater,
                         VersionedFile::DepManager(_) => Ordering::Equal,
                         VersionedFile::Loc(_) => Ordering::Less,
+                        VersionedFile::MatchedCombat(_) => Ordering::Less,
                     }
                 }
                 VersionedFile::Loc(_) => {
                     match b {
                         VersionedFile::Loc(_) => Ordering::Equal,
+                        VersionedFile::MatchedCombat(_) => Ordering::Less,
+                        _ => Ordering::Greater,
+                    }
+                }
+                VersionedFile::MatchedCombat(_) => {
+                    match b {
+                        VersionedFile::MatchedCombat(_) => Ordering::Equal,
                         _ => Ordering::Greater,
                     }
                 }
@@ -426,182 +563,104 @@ impl Schema {
         Ok(())
     }
 
-    /// This function generates a diff between the local schema files and the remote ones and drops it in the config folder.
-    ///
-    /// If it detects that you're using the git repo (debug), it adds the diff to the proper place in the docs_src folder instead.
-    pub fn generate_schema_diff() -> Result<()> {
-
-        // To avoid doing a lot of useless checking, we only check for schemas with different version.
-        let local_schema_versions: VersionsFile = from_reader(BufReader::new(File::open(get_config_path()?.join(SCHEMA_FOLDER).join(SCHEMA_VERSIONS_FILE))?))?;
-        let current_schema_versions: VersionsFile = from_str(&blocking::get(&format!("{}{}", SCHEMA_UPDATE_URL_MASTER, SCHEMA_VERSIONS_FILE))?.text()?)?;
-        let mut schemas_to_update = vec![];
-
-        // If the game's schema is not in the repo (when adding a new game's support) skip it.
-        for (game, version_local) in local_schema_versions.get() {
-            let version_current = if let Some(version_current) = current_schema_versions.get().get(game) { version_current } else { continue };
-            if version_local != version_current { schemas_to_update.push((game.to_owned(), version_local)); }
-        }
-
-        for (game_name, game) in SUPPORTED_GAMES.iter() {
-
-            // Skip all the games with an unchanged version.
-            let schema_name = &game.schema;
-            let mut schema_version = 0;
-            let mut skip_it = true;
-            for (schema_to_update, schema_version_to_update) in &mut schemas_to_update {
-                if schema_to_update == schema_name {
-                    skip_it = false;
-                    schema_version = **schema_version_to_update;
-                    break;
-                }
-            }
-            if skip_it { continue; }
-
-            // For this, first we get both schemas. Then, compare them table by table looking for differences.
-            // Uncomment and tweak the commented schema_current to test against a local schema.
-            let schema_local = Schema::load(schema_name).unwrap();
-            //let schema_current = Schema::load("schema_att.ron").unwrap();
-            let schema_current: Schema = from_reader(blocking::get(&format!("{}/{}", SCHEMA_UPDATE_URL_MASTER, schema_name))?)?;
-
-            // Lists to store the different types of differences.
-            let mut diff = String::new();
-            let mut new_tables = vec![];
-            let mut new_versions: Vec<String> = vec![];
-            let mut new_corrections: Vec<String> = vec![];
-
-            // For each table, we need to check EVERY possible difference.
-            for table_local in schema_local.versioned_files.iter().filter(|x| x.is_db()) {
-                if let VersionedFile::DB(name_local, versions_local) = table_local {
-                    match schema_current.get_ref_versioned_file_db(name_local) {
-
-                        // If we find it, we have to check if it has changes. If it has them, then we analize them.
-                        Ok(table_current) => {
-                            if let VersionedFile::DB(_, versions_current) = table_current {
-                                if table_local != table_current {
-                                    for version_local in versions_local {
-                                        match versions_current.iter().find(|x| x.version == version_local.version) {
-
-                                            // If the version has been found, it's a correction for a current version. So we check every
-                                            // field for references.
-                                            Some(version_current) => version_local.get_pretty_diff(&version_current, &name_local, &mut new_corrections),
-
-                                            // If the version hasn't been found, is a new version. We have to compare it with
-                                            // the old one and get his changes.
-                                            None => {
-
-                                                // If we have more versions, get the highest one before the one we have. Tables are automatically
-                                                // sorted on save, so we can just get the first one of the current list.
-                                                if versions_local.len() > 1 {
-                                                    let old_version = &versions_current[0];
-                                                    version_local.get_pretty_diff(&old_version, &name_local, &mut new_versions);
-                                                }
-                                            },
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // If the table hasn't been found, it's a new table we decoded.
-                        Err(_) => new_tables.push(name_local.to_owned()),
-                    }
-                }
-            }
-
-            // Here we put together all the differences.
-            for (index, table) in new_tables.iter().enumerate() {
-                if index == 0 {
-                    diff.push_str("- **New tables decoded**:\n");
-                }
-                diff.push_str(&format!("  - *{}*.", table));
-                diff.push_str("\n");
-
-                if index == new_tables.len() - 1 {
-                    diff.push_str("\n");
-                }
-            }
-
-            for (index, version) in new_versions.iter().enumerate() {
-                if index == 0 {
-                    diff.push_str("- **Updated Tables**:\n");
-                }
-                diff.push_str(version);
-                diff.push_str("\n");
-
-                if index == new_versions.len() - 1 {
-                    diff.push_str("\n");
-                }
-            }
-
-            for (index, correction) in new_corrections.iter().enumerate() {
-                if index == 0 {
-                    diff.push_str("- **Fixed Tables**:\n");
-                }
-                diff.push_str(correction);
-                diff.push_str("\n");
-
-                if index == new_corrections.len() - 1 {
-                    diff.push_str("\n");
-                }
-            }
-
-            // If it's not empty, save it. Otherwise, we just ignore it.
-            if !diff.is_empty() {
-
-                // If we are in debug mode, save it to his proper file in the docs.
-                if cfg!(debug_assertions) {
-                    let mut docs_path = std::env::current_dir().unwrap().to_path_buf();
-                    docs_path.push("docs_src");
-                    docs_path.push("changelogs_tables");
-                    docs_path.push(game_name);
-                    docs_path.push(&format!("{:03}.md", schema_version));
-
-                    let mut docs_changelog_path = docs_path.to_path_buf();
-                    docs_changelog_path.pop();
-                    docs_changelog_path.push("changelog.md");
-
-                    // Fix the text so it has the MarkDown title before writing it.
-                    diff.insert_str(0, &format!("# {:03}\n\nIt contains the following changes:\n\n", schema_version));
-                    let mut file = File::create(docs_path)?;
-                    file.write_all(diff.as_bytes())?;
-
-                    // Now, we have to add the file with includes to his respective changelog.
-                    let mut base_file = String::new();
-                    BufReader::new(File::open(&docs_changelog_path)?).read_to_string(&mut base_file)?;
-                    let include_index_line = base_file.find("-----------------------------------").unwrap();
-                    let include_data_line = base_file.rfind("-----------------------------------").unwrap();
-                    base_file.insert_str(include_data_line + 35, &format!("\n{{{{ #include {:03}.md }}}}", schema_version));
-                    base_file.insert_str(include_index_line + 35, &format!("\n- [{:03}](#{:03})", schema_version, schema_version));
-                    let mut file = File::create(docs_changelog_path)?;
-                    file.write_all(base_file.as_bytes())?;
-                }
-
-                // Otherwise, save it to a file in RPFM's folder.
-                else {
-                    let mut changes_path = get_config_path()?.to_path_buf();
-                    changes_path.push(&format!("changelog_{}.txt", schema_name));
-                    let mut file = File::create(changes_path)?;
-                    file.write_all(diff.as_bytes())?;
-                }
-
-            }
-        }
-
-        // If everything worked, return success.
-        Ok(())
-    }
-
     /// This function allow us to update all Schemas from any legacy version into the current one.
     ///
     /// NOTE FOR DEV: If you make a new Schema Version, add its update function here.
     pub fn update() {
         v0::SchemaV0::update();
         v1::SchemaV1::update();
+        v2::SchemaV2::update();
+    }
+
+    /// This function checks if there is a new schema update in the schema repo.
+    pub fn check_update() -> Result<APIResponseSchema> {
+
+        let schema_path = get_schemas_path()?;
+        let repo = match Repository::open(&schema_path) {
+            Ok(repo) => repo,
+
+            // If this fails, it means we either we don´t have the schemas downloaded, or we have the old ones downloaded.
+            Err(_) => return Ok(APIResponseSchema::NoLocalFiles),
+        };
+
+        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
+        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+
+        if analysis.0.is_up_to_date() {
+            Ok(APIResponseSchema::NoUpdate)
+        }
+
+        else if analysis.0.is_fast_forward() {
+            Ok(APIResponseSchema::NewUpdate)
+        }
+
+        else {
+            Err(ErrorKind::SchemaUpdateError.into())
+        }
+    }
+
+    /// This function downloads the latest revision of the schema repository.
+    pub fn update_schema_repo() -> Result<()> {
+        let schema_path = get_schemas_path()?;
+        let repo = match Repository::open(&schema_path) {
+            Ok(repo) => repo,
+            Err(_) => {
+
+                // Make sure we remnove the folder if exists.
+                let _ = std::fs::remove_dir_all(&schema_path);
+                DirBuilder::new().recursive(true).create(&schema_path)?;
+                match Repository::clone(SCHEMA_REPO, &schema_path) {
+                    Ok(_) => return Ok(()),
+                    Err(_) => return Err(ErrorKind::SchemaUpdateError.into()),
+                }
+            }
+        };
+
+        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
+        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+
+        if analysis.0.is_up_to_date() {
+            Err(ErrorKind::NoSchemaUpdatesAvailable.into())
+        }
+
+        else if analysis.0.is_fast_forward() {
+            let refname = format!("refs/heads/{}", BRANCH);
+            let mut reference = repo.find_reference(&refname)?;
+            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
+            repo.set_head(&refname)?;
+            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).map_err(From::from)
+        }
+
+        else {
+            Err(ErrorKind::SchemaUpdateError.into())
+        }
     }
 }
 
 /// Implementation of `VersionedFile`.
 impl VersionedFile {
+
+    /// This function returns true if the provided `VersionedFile` is an AnimFragment Definition. Otherwise, it returns false.
+    pub fn is_anim_fragment(&self) -> bool {
+        match *self {
+            VersionedFile::AnimFragment(_) => true,
+            _ => false,
+        }
+    }
+
+    /// This function returns true if the provided `VersionedFile` is an AnimTable Definition. Otherwise, it returns false.
+    pub fn is_animtable(&self) -> bool {
+        match *self {
+            VersionedFile::AnimTable(_) => true,
+            _ => false,
+        }
+    }
 
     /// This function returns true if the provided `VersionedFile` is a DB Definition. Otherwise, it returns false.
     pub fn is_db(&self) -> bool {
@@ -627,34 +686,50 @@ impl VersionedFile {
         }
     }
 
+    /// This function returns true if the provided `VersionedFile` is an MatchedCombat Definition. Otherwise, it returns false.
+    pub fn is_matched_combat(&self) -> bool {
+        match *self {
+            VersionedFile::MatchedCombat(_) => true,
+            _ => false,
+        }
+    }
+
     /// This function returns true if both `VersionFile` are conflicting (they're the same, but their definitions may be different).
     pub fn conflict(&self, secondary: &VersionedFile) -> bool {
         match &self {
-            VersionedFile::DB(table_name, _) => match &secondary {
+            VersionedFile::AnimFragment(_) => secondary.is_anim_fragment(),
+            VersionedFile::AnimTable(_) => secondary.is_animtable(),
+            VersionedFile::DB(table_name,_) => match &secondary {
                 VersionedFile::DB(secondary_table_name, _) => table_name == secondary_table_name,
-                VersionedFile::DepManager( _) => false,
-                VersionedFile::Loc( _) => false,
+                _ => false,
             },
             VersionedFile::Loc(_) => secondary.is_loc(),
-            VersionedFile::DepManager( _) => secondary.is_dep_manager(),
+            VersionedFile::DepManager(_) => secondary.is_dep_manager(),
+            VersionedFile::MatchedCombat(_) => secondary.is_matched_combat(),
         }
     }
 
     /// This function returns a reference to a specific version of a definition, if it finds it.
     pub fn get_version(&self, version: i32) -> Result<&Definition> {
         match &self {
-            VersionedFile::DB(_, versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::DepManager(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::Loc(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => versions.iter().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
         }
     }
 
     /// This function returns a mutable reference to a specific version of a definition, if it finds it.
     pub fn get_ref_mut_version(&mut self, version: i32) -> Result<&mut Definition> {
         match self {
-            VersionedFile::DB(_, versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::DepManager(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
-            VersionedFile::Loc(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => versions.iter_mut().find(|x| x.version == version).ok_or_else(|| From::from(ErrorKind::SchemaDefinitionNotFound)),
         }
     }
 
@@ -662,24 +737,24 @@ impl VersionedFile {
     /// This function returns the list of the versions in the provided `VersionedFile`.
     pub fn get_version_list(&self) -> &[Definition] {
         match &self {
-            VersionedFile::DB(_, versions) => versions,
-            VersionedFile::DepManager(versions) => versions,
-            VersionedFile::Loc(versions) => versions,
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => versions,
         }
     }
 
     /// This function adds the provided version to the provided `VersionedFile`, replacing an existing version if there is a conflict.
     pub fn add_version(&mut self, version: &Definition) {
         match self {
-            VersionedFile::DB(_, ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
-                None => versions.push(version.clone()),
-            }
-            VersionedFile::DepManager(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
-                Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
-                None => versions.push(version.clone()),
-            }
-            VersionedFile::Loc(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
+            VersionedFile::AnimFragment(ref mut versions) |
+            VersionedFile::AnimTable(ref mut versions) |
+            VersionedFile::DB(_, ref mut versions) |
+            VersionedFile::DepManager(ref mut versions) |
+            VersionedFile::Loc(ref mut versions) |
+            VersionedFile::MatchedCombat(ref mut versions) => match versions.iter().position(|x| x.version == version.version) {
                 Some(position) => { versions.splice(position..=position, [version].iter().cloned().cloned()); },
                 None => versions.push(version.clone()),
             }
@@ -691,9 +766,12 @@ impl VersionedFile {
     /// If the version doesn't exist, it does nothing.
     pub fn remove_version(&mut self, version: i32) {
         match self {
-            VersionedFile::DB(_, versions) =>  if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
-            VersionedFile::DepManager(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
-            VersionedFile::Loc(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
+            VersionedFile::AnimFragment(versions) |
+            VersionedFile::AnimTable(versions) |
+            VersionedFile::DB(_, versions) |
+            VersionedFile::DepManager(versions) |
+            VersionedFile::Loc(versions) |
+            VersionedFile::MatchedCombat(versions) => if let Some(position) = versions.iter_mut().position(|x| x.version == version) { versions.remove(position); }
         }
     }
 }
@@ -710,6 +788,21 @@ impl Definition {
         }
     }
 
+    /// This function returns the version of the provided definition.
+    pub fn get_version(&self) -> i32 {
+        self.version
+    }
+
+    /// This function returns a reference to the list of fields in the definition.
+    pub fn get_ref_fields(&self) -> &[Field] {
+        &self.fields
+    }
+
+    /// This function returns a mutable reference to the list of fields in the definition.
+    pub fn get_ref_mut_fields(&mut self) -> &mut Vec<Field> {
+        &mut self.fields
+    }
+
     /// This function returns the reference and lookup data of a definition.
     pub fn get_reference_data(&self) -> BTreeMap<i32, (String, String, Option<Vec<String>>)> {
         self.fields.iter()
@@ -717,6 +810,52 @@ impl Definition {
             .filter(|x| x.1.is_reference.is_some())
             .map(|x| (x.0 as i32, (x.1.is_reference.clone().unwrap().0, x.1.is_reference.clone().unwrap().1, x.1.lookup.clone())))
             .collect()
+    }
+
+    /// This function returns the localised fields of the provided definition
+    pub fn get_localised_fields(&self) -> &[Field] {
+        &self.localised_fields
+    }
+
+    /// This function returns the list of fields a table contains, after it has been expanded/changed due to the attributes of each field.
+    pub fn get_fields_processed(&self) -> Vec<Field> {
+        self.get_ref_fields().iter()
+            .map(|x|
+                if x.get_is_bitwise() > 1 {
+                    let mut fields = vec![x.clone(); x.get_is_bitwise() as usize];
+                    fields.iter_mut().enumerate().for_each(|(index, field)| {
+                        field.set_name(&format!("{}_{}", field.get_name(), index + 1));
+                        field.set_field_type(FieldType::Boolean);
+                    });
+                    fields
+                }
+
+                else if !x.get_enum_values().is_empty() {
+                    let mut field = x.clone();
+                    field.set_field_type(FieldType::StringU8);
+                    vec![field; 1]
+                }
+
+                else { vec![x.clone(); 1] }
+
+
+            )
+            .flatten()
+            .collect::<Vec<Field>>()
+    }
+
+    pub fn get_original_field_from_processed(&self, index: usize) -> Field {
+        let fields = self.get_ref_fields();
+        let processed = self.get_fields_processed();
+
+        let field_processed = &processed[index];
+        let name = if field_processed.get_is_bitwise() > 1 {
+            let mut name = field_processed.get_name().to_owned();
+            name.drain(..name.rfind('_').unwrap()).collect::<String>()
+        }
+        else {field_processed.get_name().to_owned() };
+
+        return fields.iter().find(|x| x.get_name() == name).unwrap().clone()
     }
 
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.
@@ -792,208 +931,7 @@ impl Definition {
             self.localised_fields = fields;
         }
     }
-/*
-    /// This function creates a new `Definition` from an imported definition from the Assembly Kit.
-    ///
-    /// Note that this imports the loc fields (they need to be removed manually later) and it doesn't
-    /// import the version (this... I think I can do some trick for it).
-    pub fn new_from_assembly_kit(imported_table_definition: &RawDefinition, version: i32, table_name: &str) -> Self {
-        let mut fields = vec![];
-        for (position, field) in imported_table_definition.fields.iter().enumerate() {
 
-            // First, we need to disable a number of known fields that are not in the final tables. We
-            // check if the current field is one of them, and ignore it if it's.
-            // TODO: Get this list directly from the Assembly Kit.
-            if field.name == "game_expansion_key" || // This one exists in one of the advices tables.
-                field.name == "localised_text" ||
-                field.name == "localised_name" ||
-                field.name == "localised_tooltip" ||
-                field.name == "description" ||
-                field.name == "objectives_team_1" ||
-                field.name == "objectives_team_2" ||
-                field.name == "short_description_text" ||
-                field.name == "historical_description_text" ||
-                field.name == "strengths_weaknesses_text" ||
-                field.name == "onscreen" ||
-                field.name == "onscreen_text" ||
-                field.name == "onscreen_name" ||
-                field.name == "onscreen_description" ||
-                field.name == "on_screen_name" ||
-                field.name == "on_screen_description" ||
-                field.name == "on_screen_target" {
-                continue;
-            }
-            let field_name = field.name.to_owned();
-            let field_is_key = field.primary_key == "1";
-            let field_is_reference = if field.column_source_table != None {
-                Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
-            }
-            else {None};
-
-            let field_type = match &*field.field_type {
-                "yesno" => FieldType::Boolean,
-                "single" | "decimal" | "double" => FieldType::Float,
-                "autonumber" => FieldType::LongInteger, // Not always true, but better than nothing.
-                "integer" => {
-
-                    // In Warhammer 2 these tables are wrong in the definition schema.
-                    if table_name.starts_with("_kv") {
-                        FieldType::Float
-                    }
-                    else {
-                        FieldType::Integer
-                    }
-                },
-                "text" => {
-
-                    // Key fields are ALWAYS REQUIRED. This fixes it's detection.
-                    if field.name == "key" {
-                        FieldType::StringU8
-                    }
-                    else {
-                        match &*field.required {
-                            "1" => {
-                                // In Warhammer 2 this table has his "value" field broken.
-                                if table_name == "_kv_winds_of_magic_params_tables" && field.name == "value" {
-                                    FieldType::Float
-                                }
-                                else {
-                                    FieldType::StringU8
-                                }
-                            },
-                            "0" => FieldType::OptionalStringU8,
-
-                            // If we reach this point, we set it to OptionalStringU16. Not because it is it
-                            // (we don't have a way to distinguish String types) but to know what fields
-                            // reach this point.
-                            _ => FieldType::OptionalStringU16,
-                        }
-                    }
-                }
-                // If we reach this point, we set it to StringU16. Not because it is it
-                // (we don't have a way to distinguish String types) but to know what fields
-                // reach this point.
-                _ => FieldType::StringU16,
-
-            };
-
-            let field_description = match field.field_description {
-                Some(ref description) => description.to_owned(),
-                None => String::new(),
-            };
-
-            let new_field = Field::new(
-                field_name,
-                field_type,
-                field_is_key,
-                None,
-                0,
-                false,
-                None,
-                field_is_reference,
-                None,
-                field_description,
-                position as i16
-            );
-            fields.push(new_field);
-        }
-
-        Self {
-            version,
-            localised_fields: vec![],
-            fields,
-        }
-    }
-
-    /// This function creates a new fake `Definition` from an imported definition from the Assembly Kit.
-    ///
-    /// For use with the raw table processing.
-    pub fn new_fake_from_assembly_kit(imported_table_definition: &RawDefinition, table_name: &str) -> Definition {
-        let mut fields = vec![];
-        for (position, field) in imported_table_definition.fields.iter().enumerate() {
-
-            let field_name = field.name.to_owned();
-            let field_is_key = field.primary_key == "1";
-            let field_is_reference = if field.column_source_table != None {
-                Some((field.column_source_table.clone().unwrap().to_owned(), field.column_source_column.clone().unwrap()[0].to_owned()))
-            }
-            else {None};
-
-            let field_type = match &*field.field_type {
-                "yesno" => FieldType::Boolean,
-                "single" | "decimal" | "double" => FieldType::Float,
-                "autonumber" => FieldType::LongInteger, // Not always true, but better than nothing.
-                "integer" => {
-
-                    // In Warhammer 2 these tables are wrong in the definition schema.
-                    if table_name.starts_with("_kv") {
-                        FieldType::Float
-                    }
-                    else {
-                        FieldType::Integer
-                    }
-                },
-                "text" => {
-
-                    // Key fields are ALWAYS REQUIRED. This fixes it's detection.
-                    if field.name == "key" {
-                        FieldType::StringU8
-                    }
-                    else {
-                        match &*field.required {
-                            "1" => {
-                                // In Warhammer 2 this table has his "value" field broken.
-                                if table_name == "_kv_winds_of_magic_params_tables" && field.name == "value" {
-                                    FieldType::Float
-                                }
-                                else {
-                                    FieldType::StringU8
-                                }
-                            },
-                            "0" => FieldType::OptionalStringU8,
-
-                            // If we reach this point, we set it to OptionalStringU16. Not because it is it
-                            // (we don't have a way to distinguish String types) but to know what fields
-                            // reach this point.
-                            _ => FieldType::OptionalStringU16,
-                        }
-                    }
-                }
-                // If we reach this point, we set it to StringU16. Not because it is it
-                // (we don't have a way to distinguish String types) but to know what fields
-                // reach this point.
-                _ => FieldType::StringU16,
-
-            };
-
-            let field_description = match field.field_description {
-                Some(ref description) => description.to_owned(),
-                None => String::new(),
-            };
-
-            let new_field = Field::new(
-                field_name,
-                field_type,
-                field_is_key,
-                None,
-                0,
-                false,
-                None,
-                field_is_reference,
-                None,
-                field_description,
-                position as i16
-            );
-            fields.push(new_field);
-        }
-
-        Definition {
-            version: -1,
-            localised_fields: vec![],
-            fields,
-        }
-    }
-*/
     /// This function generates a MarkDown-encoded diff of two versions of an specific table and adds it to the provided changes list.
     pub fn get_pretty_diff(
         &self,
@@ -1108,6 +1046,8 @@ impl Field {
         lookup: Option<Vec<String>>,
         description: String,
         ca_order: i16,
+        is_bitwise: i32,
+        enum_values: BTreeMap<i32, String>
     ) -> Self {
         Self {
             name,
@@ -1120,8 +1060,106 @@ impl Field {
             is_reference,
             lookup,
             description,
-            ca_order
+            ca_order,
+            is_bitwise,
+            enum_values
         }
+    }
+
+    /// Setter for the `name` field.
+    pub fn set_name(&mut self, name: &str) {
+        self.name = name.to_owned();
+    }
+
+    /// Getter for the `name` field.
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    /// Setter for the `field_type` field.
+    pub fn set_field_type(&mut self, field_type: FieldType) {
+        self.field_type = field_type;
+    }
+
+    /// Getter for the `field_type` field.
+    pub fn get_field_type(&self) -> FieldType {
+        self.field_type.clone()
+    }
+
+    /// Getter for a reference of the `field_type` field.
+    pub fn get_ref_field_type(&self) -> &FieldType {
+        &self.field_type
+    }
+
+    /// Getter for a mutable reference of the `field_type` field.
+    pub fn get_ref_mut_field_type(&mut self) -> &mut FieldType {
+        &mut self.field_type
+    }
+
+    /// Getter for the `is_key` field.
+    pub fn get_is_key(&self) -> bool {
+        self.is_key
+    }
+
+    /// Getter for the `default_value` field.
+    pub fn get_default_value(&self) -> &Option<String> {
+        &self.default_value
+    }
+
+    /// Getter for the `max_length` field.
+    pub fn get_max_length(&self) -> i32 {
+        self.max_length
+    }
+
+    /// Getter for the `is_filename` field.
+    pub fn get_is_filename(&self) -> bool {
+        self.is_filename
+    }
+
+    /// Getter for the `filename_relative_path` field.
+    pub fn get_filename_relative_path(&self) -> &Option<String> {
+        &self.filename_relative_path
+    }
+
+    /// Getter for the `is_reference` field.
+    pub fn get_is_reference(&self) -> &Option<(String, String)>{
+        &self.is_reference
+    }
+
+    /// Getter for the `lookup` field.
+    pub fn get_lookup(&self) -> &Option<Vec<String>> {
+        &self.lookup
+    }
+
+    /// Getter for the `description` field.
+    pub fn get_description(&self) -> &str {
+        &self.description
+    }
+
+    /// Getter for the `ca_order` field.
+    pub fn get_ca_order(&self) -> i16 {
+        self.ca_order
+    }
+
+    /// Getter for the `is_bitwise` field.
+    pub fn get_is_bitwise(&self) -> i32 {
+        self.is_bitwise
+    }
+
+    /// Getter for the `enum_values` field.
+    pub fn get_enum_values(&self) -> &BTreeMap<i32, String> {
+        &self.enum_values
+    }
+
+    /// Getter for the `enum_values` field, in an option.
+    pub fn get_enum_values_to_option(&self) -> Option<BTreeMap<i32, String>> {
+        if self.enum_values.is_empty() { None }
+        else { Some(self.enum_values.clone()) }
+    }
+
+    /// Getter for the `enum_values` field in a string format.
+    pub fn get_enum_values_to_string(&self) -> String {
+        self.enum_values.iter().map(|(x, y)| format!("{},{}", x, y)).join(";")
     }
 }
 
@@ -1149,7 +1187,9 @@ impl Default for Field {
             is_reference: None,
             lookup: None,
             description: String::from(""),
-            ca_order: -1
+            ca_order: -1,
+            is_bitwise: 0,
+            enum_values: BTreeMap::new(),
         }
     }
 }
@@ -1159,14 +1199,16 @@ impl Display for FieldType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FieldType::Boolean => write!(f, "Boolean"),
-            FieldType::Float => write!(f, "Float"),
-            FieldType::Integer => write!(f, "Integer"),
-            FieldType::LongInteger => write!(f, "Long Integer"),
+            FieldType::F32 => write!(f, "F32"),
+            FieldType::I16 => write!(f, "I16"),
+            FieldType::I32 => write!(f, "I32"),
+            FieldType::I64 => write!(f, "I64"),
             FieldType::StringU8 => write!(f, "StringU8"),
             FieldType::StringU16 => write!(f, "StringU16"),
             FieldType::OptionalStringU8 => write!(f, "OptionalStringU8"),
             FieldType::OptionalStringU16 => write!(f, "OptionalStringU16"),
-            FieldType::Sequence(sequence) => write!(f, "Sequence of: {:#?}", sequence),
+            FieldType::SequenceU16(sequence) => write!(f, "SequenceU16 of: {:#?}", sequence),
+            FieldType::SequenceU32(sequence) => write!(f, "SequenceU32 of: {:#?}", sequence),
         }
     }
 }
@@ -1186,9 +1228,10 @@ impl From<&RawField> for Field {
     fn from(raw_field: &RawField) -> Self {
         let field_type = match &*raw_field.field_type {
             "Boolean" => FieldType::Boolean,
-            "Float" => FieldType::Float,
-            "Integer" => FieldType::Integer,
-            "LongInteger" => FieldType::LongInteger,
+            "F32" => FieldType::F32,
+            "I16" => FieldType::I16,
+            "I32" => FieldType::I32,
+            "I64" => FieldType::I64,
             "StringU8" => FieldType::StringU8,
             "StringU16" => FieldType::StringU16,
             "OptionalStringU8" => FieldType::OptionalStringU8,

@@ -27,17 +27,17 @@ use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::image::Image;
-use rpfm_lib::packedfile::table::{db::DB, loc::Loc};
+use rpfm_lib::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
-use rpfm_lib::schema::versions::APIResponseSchema;
-use rpfm_lib::schema::{Definition, Schema};
+use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
 use rpfm_lib::settings::*;
+use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
-use crate::packedfile_views::table::TableType;
+use crate::views::table::TableType;
 use crate::ui_state::shortcuts::Shortcuts;
 use self::network::*;
 
@@ -75,8 +75,8 @@ pub enum Command {
     /// This command is used when we want to reset the open `PackFile` to his original state.
     ResetPackFile,
 
-    /// This command is used when we want to reset the extra `PackFile` (the one used for `Add from PackFile`) to his original state.
-    ResetPackFileExtra,
+    /// This command is used when we want to remove from memory the extra packfile with the provided path.
+    RemovePackFileExtra(PathBuf),
 
     /// This command is used when we want to create a new `PackFile`.
     NewPackFile,
@@ -96,8 +96,8 @@ pub enum Command {
     /// This command is used when we want to get the data used to build the `TreeView`.
     GetPackFileDataForTreeView,
 
-    /// Same as the one before, but for the extra `PackFile`.
-    GetPackFileExtraDataForTreeView,
+    /// Same as the one before, but for the extra `PackFile`. It requires the pathbuf of the PackFile.
+    GetPackFileExtraDataForTreeView(PathBuf),
 
     /// This command is used to open one or more `PackFiles`. It requires the paths of the `PackFiles`.
     OpenPackFiles(Vec<PathBuf>),
@@ -181,7 +181,7 @@ pub enum Command {
     SavePackedFileFromView(Vec<String>, DecodedPackedFile),
 
     /// This command is used when we want to add a PackedFile from one PackFile into another.
-    AddPackedFilesFromPackFile(Vec<PathType>),
+    AddPackedFilesFromPackFile((PathBuf, Vec<PathType>)),
 
     /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
     DeletePackedFiles(Vec<PathType>),
@@ -253,9 +253,6 @@ pub enum Command {
     /// This command is used to save to encoded data the cache of the provided paths, and then clean up the cache.
     CleanCache(Vec<Vec<String>>),
 
-    /// This command is used to generate a pretty diff of a schema, against the last remote version of the same schema.
-    GenerateSchemaDiff,
-
     /// This command is used to export a table as TSV. Requires the internal and destination paths for the PackedFile.
     ExportTSV((Vec<String>, PathBuf)),
 
@@ -270,6 +267,18 @@ pub enum Command {
 
     /// This command is used to save a PackedFile from an external program. Requires both, internal and external paths of the PackedFile.
     SavePackedFileFromExternalView((Vec<String>, PathBuf)),
+
+    /// This command is used to unpack an AnimPack into the current PackFile. Requires the path of the PackedFile to unpack.
+    AnimPackUnpack(Vec<String>),
+
+    /// This command is used to create a dummy AnimPack, so the game loads it's anim files from loose files instead of from the big animpack.
+    GenerateDummyAnimPack,
+
+    /// This command is used to load a template into the currently open PackFile.
+    ApplyTemplate(Template, Vec<String>),
+
+    /// This command is used to update the templates.
+    UpdateTemplates,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -329,6 +338,15 @@ pub enum Response {
     /// Response to return `APIResponseSchema`.
     APIResponseSchema(APIResponseSchema),
 
+    /// Response to return `(AnimFragment, PackedFileInfo)`.
+    AnimFragmentPackedFileInfo((AnimFragment, PackedFileInfo)),
+
+    /// Response to return `(Vec<String>, PackedFileInfo)`.
+    AnimPackPackedFileInfo((Vec<String>, PackedFileInfo)),
+
+    /// Response to return `(AnimTable, PackedFileInfo)`.
+    AnimTablePackedFileInfo((AnimTable, PackedFileInfo)),
+
     /// Response to return `(CaVp8, PackedFileInfo)`.
     CaVp8PackedFileInfo((CaVp8, PackedFileInfo)),
 
@@ -343,6 +361,9 @@ pub enum Response {
 
     /// Response to return `(Loc, PackedFileInfo)`.
     LocPackedFileInfo((Loc, PackedFileInfo)),
+
+    /// Response to return `(MatchedCombat, PackedFileInfo)`.
+    MatchedCombatPackedFileInfo((MatchedCombat, PackedFileInfo)),
 
     /// Response to return `(RigidModel, PackedFileInfo)`.
     RigidModelPackedFileInfo((RigidModel, PackedFileInfo)),

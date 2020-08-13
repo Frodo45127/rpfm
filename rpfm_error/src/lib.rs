@@ -206,6 +206,28 @@ pub enum ErrorKind {
     /// Error for when the PackFile size doesn't match what we expect. Contains both, the real size and the expected size.
     PackFileSizeIsNotWhatWeExpect(u64, u64),
 
+    //--------------------------------//
+    // Schema Errors
+    //--------------------------------//
+
+    /// Error for when we don't have schema files and we couldn't download them.
+    SchemaNotFoundAndNotDownloaded,
+
+    /// Error for when we don't have an `Schema` to use.
+    SchemaNotFound,
+
+    /// Error for when we don't have a `VersionedFile` for a PackedFile.
+    SchemaVersionedFileNotFound,
+
+    /// Error for when we don't have a `Definition` for a specific version of a `VersionedFile`.
+    SchemaDefinitionNotFound,
+
+    /// Error for when we don't have schema updates available.
+    NoSchemaUpdatesAvailable,
+
+    /// Error for when there was an error while downloading the updated schemas.
+    SchemaUpdateError,
+
     //-----------------------------------------------------//
     //                PackedFile Errors
     //-----------------------------------------------------//
@@ -246,6 +268,9 @@ pub enum ErrorKind {
     /// Error for when we replace the binary data of a PackedFile with another data that's not decodeable in the same way as the old data.
     NewDataIsNotDecodeableTheSameWayAsOldDAta,
 
+    /// Error for when the checksum of a PackedFile fails.
+    PackedFileChecksumFailed,
+
     //--------------------------------//
     // Table Errors
     //--------------------------------//
@@ -283,18 +308,6 @@ pub enum ErrorKind {
 
     /// Error for when we can't find a vanilla version of a table to compare with.
     NoTableInGameFilesToCompare,
-
-    /// Error for when we don't have schema files and we couldn't download them.
-    SchemaNotFoundAndNotDownloaded,
-
-    /// Error for when we don't have an `Schema` to use.
-    SchemaNotFound,
-
-    /// Error for when we don't have a `VersionedFile` for a PackedFile.
-    SchemaVersionedFileNotFound,
-
-    /// Error for when we don't have a `Definition` for a specific version of a `VersionedFile`.
-    SchemaDefinitionNotFound,
 
     //--------------------------------//
     // RigidModel Errors
@@ -363,6 +376,34 @@ pub enum ErrorKind {
 
     /// Error for when a CaVp8 PackedFile fails to decode. Contains the error message.
     CaVp8Decode(String),
+
+    //--------------------------------//
+    // AnimPack Errors
+    //--------------------------------//
+
+    /// Error for when an AnimPack PackedFile fails to decode. Contains the error message.
+    AnimPackDecode(String),
+
+    //--------------------------------//
+    // AnimTable Errors
+    //--------------------------------//
+
+    /// Error for when an AnimTable PackedFile fails to decode. Contains the error message.
+    AnimTableDecode(String),
+
+    //--------------------------------//
+    // AnimFragment Errors
+    //--------------------------------//
+
+    /// Error for when an AnimFragment PackedFile fails to decode. Contains the error message.
+    AnimFragmentDecode(String),
+
+    //--------------------------------//
+    // MatchedCombat Errors
+    //--------------------------------//
+
+    /// Error for when an MatchedCombat PackedFile fails to decode. Contains the error message.
+    MatchedCombatDecode(String),
 
     //--------------------------------//
     // PAK File Errors
@@ -464,6 +505,13 @@ pub enum ErrorKind {
     AssemblyKitTableTableIgnored,
 
     //-----------------------------------------------------//
+    //                  7-Zip Errors
+    //-----------------------------------------------------//
+
+    /// Error for when 7-zip is not found in the specified path.
+    ZipFolderNotFound,
+
+    //-----------------------------------------------------//
     //                  Common Errors
     //-----------------------------------------------------//
 
@@ -472,6 +520,9 @@ pub enum ErrorKind {
 
     /// Error to returning non-html errors.
     NoHTMLError(String),
+
+    /// Error for just passing a message along.
+    GeneticHTMLError(String),
 
     /// Error for when we're trying add/rename/whatever a file with a reserved path.
     ReservedFiles,
@@ -507,7 +558,19 @@ pub enum ErrorKind {
     LaunchNotSupportedForThisGame,
 
     /// Error for when we cannot open RPFM's config folder.
-    ConfigFolderCouldNotBeOpened
+    ConfigFolderCouldNotBeOpened,
+
+    /// Error for when we have a broken path in a template.
+    InvalidPathsInTemplate,
+
+    /// Error for when RPFM fails to download templates.
+    DownloadTemplatesError,
+
+    /// Error for when RPFM already has the latest templates downloaded.
+    AlreadyUpdatedTemplatesError,
+
+    /// Error for when RPFM cannot find an extra PackFile in memory.
+    CannotFindExtraPackFile(PathBuf),
 }
 
 /// Implementation of `Error`.
@@ -630,6 +693,16 @@ impl Display for ErrorKind {
             ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta => write!(f, "<p>The PackedFile you added is not the same type as the one you had before. So... the view showing it will get closed.</p>"),
 
             //-----------------------------------------------------//
+            //                Schema Errors
+            //-----------------------------------------------------//
+            ErrorKind::SchemaNotFoundAndNotDownloaded => write!(f, "<p>There is no Schema file to load on the disk, and the tries to download one have failed.</p>"),
+            ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
+            ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),
+            ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),
+            ErrorKind::NoSchemaUpdatesAvailable => write!(f, "<p>No schema updates available</p>"),
+            ErrorKind::SchemaUpdateError => write!(f, "<p>There was an error while downloading the schemas. Please, try again later.</p>"),
+
+            //-----------------------------------------------------//
             //                PackedFile Errors
             //-----------------------------------------------------//
             ErrorKind::PackedFileNotFound => write!(f, "<p>This PackedFile no longer exists in the PackFile.</p>"),
@@ -643,6 +716,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileCouldNotBeImported(paths) => write!(f, "<p>The following failed to be imported:<ul>{}</ul></p>", paths.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::PackedFileSaveError(path) => write!(f, "<p>The following PackedFile failed to be saved: {}</p>", path.join("/")),
             ErrorKind::PackedFileTypeUnknown => write!(f, "<p>The PackedFile could not be opened.</p>"),
+            ErrorKind::PackedFileChecksumFailed => write!(f, "<p>The PackedFile checksum failed. If you see this, please report it with the actions you did in RPFM before this happened.</p>"),
 
             //--------------------------------//
             // Table Errors
@@ -661,10 +735,6 @@ impl Display for ErrorKind {
             ErrorKind::DBMissingReferences(references) => write!(f, "<p>The currently open PackFile has reference errors in the following tables:<ul>{}</ul></p>", references.iter().map(|x| format!("<li>{}<li>", x)).collect::<String>()),
             ErrorKind::NoDefinitionUpdateAvailable => write!(f, "<p>This table already has the newer definition available.</p>"),
             ErrorKind::NoTableInGameFilesToCompare => write!(f, "<p>This table cannot be found in the Game Files, so it cannot be automatically updated (yet).</p>"),
-            ErrorKind::SchemaNotFoundAndNotDownloaded => write!(f, "<p>There is no Schema file to load on the disk, and the tries to download one have failed.</p>"),
-            ErrorKind::SchemaNotFound => write!(f, "<p>There is no Schema for the Game Selected.</p>"),
-            ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),
-            ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),
 
             //--------------------------------//
             // RigidModel Errors
@@ -701,6 +771,26 @@ impl Display for ErrorKind {
             // CA_VP8 Errors
             //--------------------------------//
             ErrorKind::CaVp8Decode(cause) => write!(f, "<p>Error while trying to decode the CaVp8 PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // AnimPack Errors
+            //--------------------------------//
+            ErrorKind::AnimPackDecode(cause) => write!(f, "<p>Error while trying to decode the AnimPack PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // AnimTable Errors
+            //--------------------------------//
+            ErrorKind::AnimTableDecode(cause) => write!(f, "<p>Error while trying to decode the AnimTable PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // AnimFragment Errors
+            //--------------------------------//
+            ErrorKind::AnimFragmentDecode(cause) => write!(f, "<p>Error while trying to decode the AnimFragment PackedFile:</p><p>{}</p>", cause),
+
+            //--------------------------------//
+            // MatchedCombat Errors
+            //--------------------------------//
+            ErrorKind::MatchedCombatDecode(cause) => write!(f, "<p>Error while trying to decode the MatchedCombat PackedFile:</p><p>{}</p>", cause),
 
             //--------------------------------//
             // PAK File Errors
@@ -754,10 +844,16 @@ impl Display for ErrorKind {
             ErrorKind::AssemblyKitTableTableIgnored => write!(f, "<p>One of the Assembly Kit Tables you tried to decode has been blacklisted due to issues.</p>"),
 
             //-----------------------------------------------------//
+            //                  7-Zip Errors
+            //-----------------------------------------------------//
+            ErrorKind::ZipFolderNotFound => write!(f, "<p>7Zip path not found, or the 7Zip path you put in the settings is wrong.</p>"),
+
+            //-----------------------------------------------------//
             //                  Common Errors
             //-----------------------------------------------------//
             ErrorKind::Generic => write!(f, "<p>Generic error. You should never read this.</p>"),
             ErrorKind::NoHTMLError(error) => write!(f,"{}", error),
+            ErrorKind::GeneticHTMLError(error) => write!(f,"{}", error),
             ErrorKind::ReservedFiles => write!(f, "<p>One or more of the files you're trying to add/create/rename to have a reserved name. Those names are reserved for internal use in RPFM. Please, try again with another name.</p>"),
             ErrorKind::NonExistantFile => write!(f, "<p>The file you tried to... use doesn't exist. This is a bug, because if everything worked propetly, you'll never see this message.</p>"),
             ErrorKind::InvalidFilesForMerging => write!(f, "<p>The files you selected are not all LOCs, neither DB Tables of the same type and version.</p>"),
@@ -770,6 +866,10 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileNotDecodeableWithDecoder => write!(f, "<p>This PackedFile cannot be decoded using the PackedFile Decoder.</p>"),
             ErrorKind::LaunchNotSupportedForThisGame => write!(f, "<p>The currently selected game cannot be launched from Steam.</p>"),
             ErrorKind::ConfigFolderCouldNotBeOpened => write!(f, "<p>RPFM's config folder couldn't be open (maybe it doesn't exists?).</p>"),
+            ErrorKind::InvalidPathsInTemplate => write!(f, "<p>An empty/invalid path has been detected when processing the template. This can be caused by a bad template or by an empty parameter.<p>"),
+            ErrorKind::DownloadTemplatesError => write!(f, "<p>Failed to download the latest templates.<p>"),
+            ErrorKind::AlreadyUpdatedTemplatesError => write!(f, "<p>Templates already up-to-date.<p>"),
+            ErrorKind::CannotFindExtraPackFile(path) => write!(f, "<p>Cannot find extra PackFile with path: {:?}.<p>", path),
         }
     }
 }
@@ -917,10 +1017,16 @@ impl From<ParseIntError> for Error {
     }
 }
 
-
 /// Implementation to create an `Error` from a `SetLoggerError`.
 impl From<SetLoggerError> for Error {
     fn from(_: SetLoggerError) -> Self {
         Self::from(ErrorKind::InitializingLoggerError)
+    }
+}
+
+/// Implementation to create an `Error` from a `git2::Error`.
+impl From<git2::Error> for Error {
+    fn from(error: git2::Error) -> Self {
+        Self::from(ErrorKind::GeneticHTMLError(error.message().to_string()))
     }
 }

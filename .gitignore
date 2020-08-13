@@ -42,6 +42,9 @@ missing_table_definitions.txt
 # Old crash logs.
 rpfm.log
 
+# New UI logs.
+rpfm_ui.log
+
 # Old RPFM Config files. These should not be added.
 settings.json
 shortcuts.json
@@ -50,3 +53,16 @@ table_state.json
 # New RPFM Config files. This one shouldn't be added either.
 settings.ron
 shortcuts.ron
+
+# This one is a separate repo.
+/templates/
+
+# This one is a separate thing, not tracked.
+/templates_custom/
+
+# This one is another separate thing, not tracked.
+/schemas/
+
+# Subclasses lib compilation files.
+/rpfm_ui/qt_subclasses/Makefile.*
+/rpfm_ui/qt_subclasses/qt_subclasses.pro.*

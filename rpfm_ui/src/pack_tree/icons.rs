@@ -119,6 +119,7 @@ impl IconType {
                         TextType::Cpp => &TREEVIEW_ICONS.text_generic,
                         TextType::Plain => &TREEVIEW_ICONS.text_txt,
                         TextType::Markdown => &TREEVIEW_ICONS.text_txt,
+                        TextType::Json => &TREEVIEW_ICONS.text_txt,
                     }
                 }
 
@@ -173,6 +174,7 @@ impl IconType {
                         TextType::Cpp => &TREEVIEW_ICONS.text_generic,
                         TextType::Plain => &TREEVIEW_ICONS.text_txt,
                         TextType::Markdown => &TREEVIEW_ICONS.text_txt,
+                        TextType::Json => &TREEVIEW_ICONS.text_txt,
                     }
                 }
 

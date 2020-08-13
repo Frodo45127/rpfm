@@ -11,7 +11,7 @@
 use log::info;
 
 use rpfm_error::Result;
-use rpfm_lib::schema::versions::VersionsFile;
+use rpfm_lib::schema::Schema;
 
 use crate::config::Config;
 
@@ -24,7 +24,7 @@ pub fn update(config: &Config) -> Result<()> {
 		info!("Updating schemas.");
 	}
 
-	let result = VersionsFile::update();
+	let result = Schema::update_schema_repo();
     if config.verbosity_level > 0 {
         info!("Schemas updated.");
     }

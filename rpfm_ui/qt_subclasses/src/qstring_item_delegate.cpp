@@ -1,11 +1,11 @@
 #include "qstring_item_delegate.h"
-#include <QTableView>
+#include <QAbstractItemView>
 #include <QLineEdit>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QStringItemDelegate.
 extern "C" void new_qstring_item_delegate(QObject *parent, const int column, const int max_lenght) {
     QStringItemDelegate* delegate = new QStringItemDelegate(parent, max_lenght);
-    dynamic_cast<QTableView*>(parent)->setItemDelegateForColumn(column, delegate);
+    dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QStringItemDelegate. We use it to store the max lenght allowed for the delegate.

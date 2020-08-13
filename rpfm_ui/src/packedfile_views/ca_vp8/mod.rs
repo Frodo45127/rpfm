@@ -25,7 +25,7 @@ use std::sync::atomic::AtomicPtr;
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
+use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
 
 use crate::app_ui::AppUI;
@@ -48,6 +48,14 @@ pub mod slots;
 
 /// This struct contains the view of an CA_VP8 PackedFile.
 pub struct PackedFileCaVp8View {
+    format_data_label: AtomicPtr<QLabel>,
+    version_data_label: AtomicPtr<QLabel>,
+    codec_four_cc_data_label: AtomicPtr<QLabel>,
+    width_data_label: AtomicPtr<QLabel>,
+    height_data_label: AtomicPtr<QLabel>,
+    num_frames_data_label: AtomicPtr<QLabel>,
+    framerate_data_label: AtomicPtr<QLabel>,
+
     convert_to_camv_button: AtomicPtr<QPushButton>,
     convert_to_ivf_button: AtomicPtr<QPushButton>,
     current_format: Arc<Mutex<SupportedFormats>>,
@@ -102,12 +110,12 @@ impl PackedFileCaVp8View {
         let framerate_label = QLabel::from_q_string(&qtr("framerate"));
 
         let mut format_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_format())));
-        let version_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_version())));
-        let codec_four_cc_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_ref_codec_four_cc())));
-        let width_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_width())));
-        let height_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_height())));
-        let num_frames_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_num_frames())));
-        let framerate_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_framerate())));
+        let mut version_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_version())));
+        let mut codec_four_cc_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_ref_codec_four_cc())));
+        let mut width_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_width())));
+        let mut height_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_height())));
+        let mut num_frames_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_num_frames())));
+        let mut framerate_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{:?}", data.get_framerate())));
 
         let mut convert_to_camv_button = QPushButton::from_q_string(&qtr("convert_to_camv"));
         let mut convert_to_ivf_button = QPushButton::from_q_string(&qtr("convert_to_ivf"));
@@ -124,19 +132,19 @@ impl PackedFileCaVp8View {
         layout.add_widget_5a(framerate_label.into_ptr(), 13, 0, 1, 1);
 
         layout.add_widget_5a(&mut format_data_label, 2, 1, 1, 1);
-        layout.add_widget_5a(version_data_label.into_ptr(), 3, 1, 1, 1);
-        layout.add_widget_5a(codec_four_cc_data_label.into_ptr(), 5, 1, 1, 1);
-        layout.add_widget_5a(width_data_label.into_ptr(), 6, 1, 1, 1);
-        layout.add_widget_5a(height_data_label.into_ptr(), 7, 1, 1, 1);
-        layout.add_widget_5a(num_frames_data_label.into_ptr(), 9, 1, 1, 1);
-        layout.add_widget_5a(framerate_data_label.into_ptr(), 13, 1, 1, 1);
+        layout.add_widget_5a(&mut version_data_label, 3, 1, 1, 1);
+        layout.add_widget_5a(&mut codec_four_cc_data_label, 5, 1, 1, 1);
+        layout.add_widget_5a(&mut width_data_label, 6, 1, 1, 1);
+        layout.add_widget_5a(&mut height_data_label, 7, 1, 1, 1);
+        layout.add_widget_5a(&mut num_frames_data_label, 9, 1, 1, 1);
+        layout.add_widget_5a(&mut framerate_data_label, 13, 1, 1, 1);
 
         let packed_file_ca_vp8_view_raw = PackedFileCaVp8ViewRaw {
             convert_to_camv_button: convert_to_camv_button.into_ptr(),
             convert_to_ivf_button: convert_to_ivf_button.into_ptr(),
             current_format: Arc::new(Mutex::new(data.get_format())),
             format_data_label: format_data_label.into_ptr(),
-            path: packed_file_view.get_path_raw().clone()
+            path: packed_file_view.get_path_raw()
         };
 
         let packed_file_ca_vp8_view_slots = PackedFileCaVp8ViewSlots::new(
@@ -147,6 +155,14 @@ impl PackedFileCaVp8View {
         );
 
         let packed_file_ca_vp8_view = Self {
+            format_data_label: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.format_data_label),
+            version_data_label: atomic_from_mut_ptr(version_data_label.into_ptr()),
+            codec_four_cc_data_label: atomic_from_mut_ptr(codec_four_cc_data_label.into_ptr()),
+            width_data_label: atomic_from_mut_ptr(width_data_label.into_ptr()),
+            height_data_label: atomic_from_mut_ptr(height_data_label.into_ptr()),
+            num_frames_data_label: atomic_from_mut_ptr(num_frames_data_label.into_ptr()),
+            framerate_data_label: atomic_from_mut_ptr(framerate_data_label.into_ptr()),
+
             convert_to_camv_button: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.convert_to_camv_button),
             convert_to_ivf_button: atomic_from_mut_ptr(packed_file_ca_vp8_view_raw.convert_to_ivf_button),
             current_format: packed_file_ca_vp8_view_raw.current_format,
@@ -159,9 +175,55 @@ impl PackedFileCaVp8View {
         Ok((TheOneSlot::CaVp8(packed_file_ca_vp8_view_slots), packed_file_info))
     }
 
+    /// Function to reload the data of the view without having to delete the view itself.
+    pub unsafe fn reload_view(&mut self, data: &CaVp8) {
+        self.get_mut_ptr_format_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_format())));
+        self.get_mut_ptr_version_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_version())));
+        self.get_mut_ptr_codec_four_cc_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_ref_codec_four_cc())));
+        self.get_mut_ptr_width_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_width())));
+        self.get_mut_ptr_height_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_height())));
+        self.get_mut_ptr_num_frames_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_num_frames())));
+        self.get_mut_ptr_framerate_data_label().set_text(&QString::from_std_str(format!("{:?}", data.get_framerate())));
+    }
+
     /// This function returns a copy of the format the video is currently on.
     pub fn get_current_format(&self) -> SupportedFormats {
         *self.current_format.lock().unwrap()
+    }
+
+    /// This function returns a pointer to the format_data Label.
+    pub fn get_mut_ptr_format_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.format_data_label)
+    }
+
+    /// This function returns a pointer to the version_data Label.
+    pub fn get_mut_ptr_version_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.version_data_label)
+    }
+
+    /// This function returns a pointer to the codec_four_cc_data Label.
+    pub fn get_mut_ptr_codec_four_cc_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.codec_four_cc_data_label)
+    }
+
+    /// This function returns a pointer to the width_data Label.
+    pub fn get_mut_ptr_width_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.width_data_label)
+    }
+
+    /// This function returns a pointer to the height_data Label.
+    pub fn get_mut_ptr_height_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.height_data_label)
+    }
+
+    /// This function returns a pointer to the num_frames_data Label.
+    pub fn get_mut_ptr_num_frames_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.num_frames_data_label)
+    }
+
+    /// This function returns a pointer to the framerate_data Label.
+    pub fn get_mut_ptr_framerate_data_label(&self) -> MutPtr<QLabel> {
+        mut_ptr_from_atomic(&self.framerate_data_label)
     }
 
     /// This function returns a pointer to the `Convert to CAMV` button.

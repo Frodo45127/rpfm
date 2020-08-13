@@ -16,8 +16,6 @@ This module contains the code to manage the views and actions of each decodeable
 
 use qt_widgets::QWidget;
 
-use qt_core::CheckState;
-
 use cpp_core::MutPtr;
 
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
@@ -26,39 +24,44 @@ use std::sync::{Arc, RwLock, RwLockReadGuard};
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
-use rpfm_lib::packedfile::table::{db::DB, loc::Loc, DecodedData};
+use rpfm_lib::packedfile::table::{animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packfile::PathType;
-use rpfm_lib::schema::FieldType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::get_text_safe;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::QString;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::views::table::utils::get_table_from_view;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::mut_ptr_from_atomic;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
+use crate::views::table::TableType;
+
+use self::anim_fragment::{PackedFileAnimFragmentView, slots::PackedFileAnimFragmentViewSlots};
+use self::animpack::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
 use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
 use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
 use self::external::{PackedFileExternalView, slots::PackedFileExternalViewSlots};
 use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
-use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots, TableType};
+use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
 use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
 use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
-use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
+//use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
 
+pub mod anim_fragment;
+pub mod animpack;
 pub mod ca_vp8;
 pub mod decoder;
 pub mod external;
 pub mod image;
 pub mod packfile;
-pub mod rigidmodel;
+//pub mod rigidmodel;
 pub mod table;
 pub mod text;
 
@@ -89,11 +92,13 @@ pub enum ViewType {
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
+    AnimFragment(PackedFileAnimFragmentView),
+    AnimPack(PackedFileAnimPackView),
     CaVp8(PackedFileCaVp8View),
     Decoder(PackedFileDecoderView),
     Image(PackedFileImageView),
     PackFile(PackFileExtraView),
-    RigidModel(PackedFileRigidModelView),
+    //RigidModel(PackedFileRigidModelView),
     Table(PackedFileTableView),
     Text(PackedFileTextView),
     None,
@@ -104,12 +109,14 @@ pub enum View {
 /// One slot to bring them all
 /// and in the darkness bind them.
 pub enum TheOneSlot {
+    AnimFragment(PackedFileAnimFragmentViewSlots),
+    AnimPack(PackedFileAnimPackViewSlots),
     CaVp8(PackedFileCaVp8ViewSlots),
     Decoder(PackedFileDecoderViewSlots),
     External(PackedFileExternalViewSlots),
     Image(PackedFileImageViewSlots),
     PackFile(PackFileExtraViewSlots),
-    RigidModel(PackedFileRigidModelViewSlots),
+    //RigidModel(PackedFileRigidModelViewSlots),
     Table(PackedFileTableViewSlots),
     Text(PackedFileTextViewSlots),
 }
@@ -195,49 +202,34 @@ impl PackedFileView {
                 // This is a two-step process. First, we take the data from the view into a `DecodedPackedFile` format.
                 // Then, we send that `DecodedPackedFile` to the backend to replace the older one. We need no response.
                 let data = match self.packed_file_type {
-                    PackedFileType::DB | PackedFileType::Loc => if let View::Table(view) = view {
+                    PackedFileType::AnimTable |
+                    PackedFileType::DB |
+                    PackedFileType::Loc |
+                    PackedFileType::MatchedCombat => if let View::Table(view) = view {
 
-                        let mut entries = vec![];
-                        let model = view.get_mut_ptr_table_model();
-                        for row in 0..model.row_count_0a() {
-                            let mut new_row: Vec<DecodedData> = vec![];
-                            for (column, field) in view.get_ref_table_definition().fields.iter().enumerate() {
-
-                                // Create a new Item.
-                                let item = match field.field_type {
-
-                                    // This one needs a couple of changes before turning it into an item in the table.
-                                    FieldType::Boolean => DecodedData::Boolean(model.item_2a(row as i32, column as i32).check_state() == CheckState::Checked),
-
-                                    // Numbers need parsing, and this can fail.
-                                    FieldType::Float => DecodedData::Float(model.item_2a(row as i32, column as i32).data_1a(2).to_float_0a()),
-                                    FieldType::Integer => DecodedData::Integer(model.item_2a(row as i32, column as i32).data_1a(2).to_int_0a()),
-                                    FieldType::LongInteger => DecodedData::LongInteger(model.item_2a(row as i32, column as i32).data_1a(2).to_long_long_0a()),
-
-                                    // All these are just normal Strings.
-                                    FieldType::StringU8 => DecodedData::StringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
-                                    FieldType::StringU16 => DecodedData::StringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
-                                    FieldType::OptionalStringU8 => DecodedData::OptionalStringU8(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
-                                    FieldType::OptionalStringU16 => DecodedData::OptionalStringU16(QString::to_std_string(&model.item_2a(row as i32, column as i32).text())),
-
-                                    // Sequences in the UI are not yet supported.
-                                    FieldType::Sequence(_) => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()),
-                                };
-                                new_row.push(item);
-                            }
-                            entries.push(new_row);
-                        }
-
+                        let new_table = get_table_from_view(view.get_ref_table().get_mut_ptr_table_model(), &view.get_ref_table().get_ref_table_definition())?;
                         match self.packed_file_type {
+                            PackedFileType::AnimTable => {
+                                let table = AnimTable::from(new_table);
+                                DecodedPackedFile::AnimTable(table)
+                            }
+
                             PackedFileType::DB => {
-                                let mut table = DB::new(view.get_ref_table_name(), Some(view.get_ref_table_uuid()), &view.get_ref_table_definition());
-                                table.set_table_data(&entries)?;
+
+                                // If this crashes, it's a bug somewhere else.
+                                let table_name = view.get_ref_table().get_ref_table_name().as_ref().unwrap();
+                                let table_uuid = view.get_ref_table().get_ref_table_uuid().as_ref().map(|x| &**x);
+                                let mut table = DB::new(&table_name, table_uuid, &view.get_ref_table().get_ref_table_definition());
+                                table.set_table_data(new_table.get_ref_table_data())?;
                                 DecodedPackedFile::DB(table)
                             }
                             PackedFileType::Loc => {
-                                let mut table = Loc::new(&view.get_ref_table_definition());
-                                table.set_table_data(&entries)?;
+                                let table = Loc::from(new_table);
                                 DecodedPackedFile::Loc(table)
+                            }
+                            PackedFileType::MatchedCombat => {
+                                let table = MatchedCombat::from(new_table);
+                                DecodedPackedFile::MatchedCombat(table)
                             }
                             _ => return Err(ErrorKind::PackedFileSaveError(self.get_path()).into())
                         }
@@ -245,6 +237,13 @@ impl PackedFileView {
 
                     // Images are read-only.
                     PackedFileType::Image => return Ok(()),
+                    PackedFileType::AnimPack => return Ok(()),
+
+                    PackedFileType::AnimFragment => {
+                        if let View::AnimFragment(view) = view {
+                            view.save_data()?
+                        } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                    },
 
                     // These ones are a bit special. We just need to send back the current format of the video.
                     PackedFileType::CaVp8 => {
@@ -268,7 +267,7 @@ impl PackedFileView {
                     // These ones are like very reduced tables.
                     PackedFileType::DependencyPackFilesList => if let View::Table(view) = view {
                         let mut entries = vec![];
-                        let model = view.get_mut_ptr_table_model();
+                        let model = view.get_ref_table().get_mut_ptr_table_model();
                         for row in 0..model.row_count_0a() {
                             let item = model.item_1a(row as i32).text().to_std_string();
                             entries.push(item);
@@ -335,9 +334,12 @@ impl PackedFileView {
                 let response = CENTRAL_COMMAND.recv_message_qt();
 
                 match response {
-                    Response::DBPackedFileInfo((table, packed_file_info)) => {
-                        if let View::Table(old_table) = view {
-                            old_table.reload_view(TableType::DB(table));
+
+                    Response::AnimFragmentPackedFileInfo((fragment, packed_file_info)) => {
+                        if let View::AnimFragment(old_fragment) = view {
+                            if old_fragment.reload_view(fragment).is_err() {
+                                return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                            }
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                         }
@@ -346,9 +348,44 @@ impl PackedFileView {
                         }
                     },
 
-                    Response::LocPackedFileInfo((table, packed_file_info)) => {
+                    Response::AnimPackPackedFileInfo((anim_pack, packed_file_info)) => {
+                        if let View::AnimPack(old_anim_pack) = view {
+                            old_anim_pack.reload_view(&anim_pack);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::AnimTablePackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
-                            old_table.reload_view(TableType::Loc(table));
+                            let old_table = old_table.get_ref_mut_table();
+                            old_table.reload_view(TableType::AnimTable(table));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::CaVp8PackedFileInfo((ca_vp8, packed_file_info)) => {
+                        if let View::CaVp8(old_ca_vp8) = view {
+                            old_ca_vp8.reload_view(&ca_vp8);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::DBPackedFileInfo((table, packed_file_info)) => {
+                        if let View::Table(old_table) = view {
+                            let old_table = old_table.get_ref_mut_table();
+                            old_table.reload_view(TableType::DB(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                         }
@@ -360,6 +397,29 @@ impl PackedFileView {
                     Response::ImagePackedFileInfo((image, packed_file_info)) => {
                         if let View::Image(old_image) = view {
                             old_image.reload_view(&image);
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::LocPackedFileInfo((table, packed_file_info)) => {
+                        if let View::Table(old_table) = view {
+                            let old_table = old_table.get_ref_mut_table();
+                            old_table.reload_view(TableType::Loc(table));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
+
+                        }
+                        else {
+                            return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
+                        }
+                    },
+
+                    Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => {
+                        if let View::Table(old_table) = view {
+                            let old_table = old_table.get_ref_mut_table();
+                            old_table.reload_view(TableType::MatchedCombat(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                         }
@@ -378,6 +438,7 @@ impl PackedFileView {
                             return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
                         }
                     },
+
                     Response::Error(error) => return Err(error),
                     Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),

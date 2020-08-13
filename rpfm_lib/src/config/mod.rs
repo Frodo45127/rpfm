@@ -41,10 +41,14 @@ pub fn init_config_path() -> Result<()> {
 			let config_path = proj_dirs.config_dir();
 			let error_path = config_path.to_path_buf().join("error");
 			let schemas_path = config_path.to_path_buf().join("schemas");
+            let templates_path = config_path.to_path_buf().join("templates");
+            let templates_custom_path = config_path.to_path_buf().join("templates_custom");
 
 	        DirBuilder::new().recursive(true).create(&config_path)?;
 	        DirBuilder::new().recursive(true).create(&error_path)?;
 	        DirBuilder::new().recursive(true).create(&schemas_path)?;
+            DirBuilder::new().recursive(true).create(&templates_path)?;
+            DirBuilder::new().recursive(true).create(&templates_custom_path)?;
 	        Ok(())
 		},
 		None => Err(ErrorKind::IOFolderCannotBeOpened.into())

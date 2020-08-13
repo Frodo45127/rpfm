@@ -30,21 +30,23 @@ use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::*;
+use rpfm_lib::packedfile::animpack::AnimPack;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
 use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags};
-use rpfm_lib::schema::{*, versions::*};
+use rpfm_lib::schema::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
+use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::tre;
-use crate::packedfile_views::table::TableType;
 use crate::RPFM_PATH;
+use crate::views::table::TableType;
 
 /// This is the background loop that's going to be executed in a parallel thread to the UI. No UI or "Unsafe" stuff here.
 ///
@@ -57,9 +59,9 @@ pub fn background_loop() {
 
     // We need two PackFiles:
     // - `pack_file_decoded`: This one will hold our opened PackFile.
-    // - `pack_file_decoded_extra`: This one will hold the PackFile opened for the `add_from_packfile` feature.
+    // - `pack_files_decoded_extra`: This one will hold the PackFiles opened for the `add_from_packfile` feature, using their paths as keys.
     let mut pack_file_decoded = PackFile::new();
-    let mut pack_file_decoded_extra = PackFile::new();
+    let mut pack_files_decoded_extra = BTreeMap::new();
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -74,8 +76,8 @@ pub fn background_loop() {
             // In case we want to reset the PackFile to his original state (dummy)...
             Command::ResetPackFile => pack_file_decoded = PackFile::new(),
 
-            // In case we want to reset the Secondary PackFile to his original state (dummy)...
-            Command::ResetPackFileExtra => pack_file_decoded_extra = PackFile::new(),
+            // In case we want to remove a Secondary Packfile from memory...
+            Command::RemovePackFileExtra(path) => { pack_files_decoded_extra.remove(&path); },
 
             // In case we want to create a "New PackFile"...
             Command::NewPackFile => {
@@ -97,12 +99,15 @@ pub fn background_loop() {
 
             // In case we want to "Open an Extra PackFile" (for "Add from PackFile")...
             Command::OpenPackFileExtra(path) => {
-                match PackFile::open_packfiles(&[path], true, false, true) {
-                     Ok(pack_file) => {
-                        pack_file_decoded_extra = pack_file;
-                        CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded_extra)));
+                match pack_files_decoded_extra.get(&path) {
+                    Some(pack_file) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(pack_file))),
+                    None => match PackFile::open_packfiles(&[path.to_path_buf()], true, false, true) {
+                         Ok(pack_file) => {
+                            CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file)));
+                            pack_files_decoded_extra.insert(path.to_path_buf(), pack_file);
+                        }
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     }
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 
@@ -162,14 +167,16 @@ pub fn background_loop() {
             }
 
             // In case we want to get the data of a Secondary PackFile needed to form the TreeView...
-            Command::GetPackFileExtraDataForTreeView => {
+            Command::GetPackFileExtraDataForTreeView(path) => {
 
                 // Get the name and the PackedFile list, and serialize it.
-                CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
-                    From::from(&pack_file_decoded_extra),
-                    pack_file_decoded_extra.get_packed_files_all_info(),
-
-                )));
+                match pack_files_decoded_extra.get(&path) {
+                    Some(pack_file) => CENTRAL_COMMAND.send_message_rust(Response::PackFileInfoVecPackedFileInfo((
+                        From::from(pack_file),
+                        pack_file.get_packed_files_all_info(),
+                    ))),
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::CannotFindExtraPackFile(path).into())),
+                }
             }
 
             // In case we want to get the info of one PackedFile from the TreeView.
@@ -306,14 +313,6 @@ pub fn background_loop() {
             // In case we want to check if there is a Schema loaded...
             Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
 
-            // When we want to update our schemas...
-            Command::UpdateSchemas => {
-                match VersionsFile::update() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
             // In case we want to create a PackedFile from scratch...
             Command::NewPackedFile(path, new_packed_file) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
@@ -350,7 +349,7 @@ pub fn background_loop() {
                             DecodedPackedFile::Text(packed_file)
                         },
                     };
-                    let packed_file = PackedFile::new_from_decoded(&decoded, path);
+                    let packed_file = PackedFile::new_from_decoded(&decoded, &path);
                     match pack_file_decoded.add_packed_file(&packed_file, false) {
                         Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
@@ -385,13 +384,17 @@ pub fn background_loop() {
             }
 
             // In case we want to move stuff from one PackFile to another...
-            Command::AddPackedFilesFromPackFile(paths) => {
+            Command::AddPackedFilesFromPackFile((pack_file_path, paths)) => {
 
-                // Try to add the PackedFile to the main PackFile.
-                match pack_file_decoded.add_from_packfile(&pack_file_decoded_extra, &paths, true) {
-                    Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                match pack_files_decoded_extra.get(&pack_file_path) {
 
+                    // Try to add the PackedFile to the main PackFile.
+                    Some(pack_file) => match pack_file_decoded.add_from_packfile(&pack_file, &paths, true) {
+                        Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
+                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::CannotFindExtraPackFile(pack_file_path).into())),
                 }
             }
 
@@ -415,12 +418,16 @@ pub fn background_loop() {
                     match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                         Some(ref mut packed_file) => {
                             match packed_file.decode_return_ref() {
-                                Ok(rigid_model) => {
-                                    match rigid_model {
+                                Ok(packed_file_data) => {
+                                    match packed_file_data {
+                                        DecodedPackedFile::AnimFragment(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_file_list(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Image(image) => CENTRAL_COMMAND.send_message_rust(Response::ImagePackedFileInfo((image.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Loc(table) => CENTRAL_COMMAND.send_message_rust(Response::LocPackedFileInfo((table.clone(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::MatchedCombat(data) => CENTRAL_COMMAND.send_message_rust(Response::MatchedCombatPackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::RigidModel(rigid_model) => CENTRAL_COMMAND.send_message_rust(Response::RigidModelPackedFileInfo((rigid_model.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::Text(text) => CENTRAL_COMMAND.send_message_rust(Response::TextPackedFileInfo((text.clone(), From::from(&**packed_file)))),
                                         _ => CENTRAL_COMMAND.send_message_rust(Response::Unknown),
@@ -503,7 +510,7 @@ pub fn background_loop() {
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
                     match schema.get_ref_last_definition_db(&table_name) {
-                        Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.version)),
+                        Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.get_version())),
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     }
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
@@ -611,14 +618,6 @@ pub fn background_loop() {
             Command::CleanCache(paths) => {
                 let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect::<Vec<&[String]>>());
                 packed_files.iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
-            }
-
-            // In case we want to generate an schema diff...
-            Command::GenerateSchemaDiff => {
-                match Schema::generate_schema_diff() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
             }
 
             // In case we want to export a PackedFile as a TSV file...
@@ -819,6 +818,63 @@ pub fn background_loop() {
                         }
                     }
                     None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                }
+            }
+
+            // When we want to unpack an AnimPack...
+            Command::AnimPackUnpack(path) => {
+                let data = match pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
+                    Some(ref mut packed_file) => {
+                        match packed_file.decode_return_ref() {
+                            Ok(packed_file_data) => {
+                                match packed_file_data {
+                                    DecodedPackedFile::AnimPack(data) => data.clone(),
+                                    _ => { CENTRAL_COMMAND.send_message_rust(Response::Unknown); continue },
+                                }
+                            }
+                            Err(error) => { CENTRAL_COMMAND.send_message_rust(Response::Error(error)); continue },
+                        }
+                    }
+                    None => { CENTRAL_COMMAND.send_message_rust(Response::Error(Error::from(ErrorKind::PackedFileNotFound))); continue },
+                };
+
+                match data.unpack(&mut pack_file_decoded) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to generate a dummy AnimPack...
+            Command::GenerateDummyAnimPack => {
+                let anim_pack = DecodedPackedFile::AnimPack(AnimPack::new());
+                let packed_file = PackedFile::new_from_decoded(&anim_pack, &animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>());
+                match pack_file_decoded.add_packed_file(&packed_file, true) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecString(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to apply a template over the open PackFile...
+            Command::ApplyTemplate(mut template, params) => {
+                match template.apply_template(&params, &mut pack_file_decoded) {
+                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to update the templates..
+            Command::UpdateTemplates => {
+                match Template::update() {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to update our schemas...
+            Command::UpdateSchemas => {
+                match Schema::update_schema_repo() {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 

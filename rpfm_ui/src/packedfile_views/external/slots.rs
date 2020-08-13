@@ -23,6 +23,7 @@ use std::rc::Rc;
 use crate::app_ui::AppUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -52,7 +53,9 @@ impl PackedFileExternalViewSlots {
         // Slot to close the open view.
         let stop_watching = Slot::new(clone!(
             packed_file_path => move || {
-                app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &packed_file_path.borrow(), true);
+                if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &packed_file_path.borrow(), true) {
+                    show_dialog(app_ui.main_window, error, false);
+                }
             }
         ));
 

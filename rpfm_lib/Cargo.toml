@@ -1,6 +1,6 @@
 [package]
 name = "rpfm_lib"
-version = "2.0.2"
+version = "2.1.0"
 build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "RPFM Lib, where all the magic happens."
@@ -17,6 +17,7 @@ rpfm_error = { path = "../rpfm_error" }
 # Configuration support.
 directories = "^2.0"
 lazy_static = "^1.2"
+indexmap = "^1.5"
 
 # Decoding/Encoding support.
 itertools = "^0.9"
@@ -42,6 +43,9 @@ serde-xml-rs = "^0.4"
 bincode = "^1.1"
 csv = "^1.1"
 ron = "^0.5"
+
+# Git support.
+git2 = "^0.13"
 
 # Compression support.
 xz2 = "^0.1"

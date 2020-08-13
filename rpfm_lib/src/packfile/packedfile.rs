@@ -17,6 +17,8 @@ meaning the code that takes care of loading/writing their data from/to disk.
 You'll rarely have to touch anything here.
 !*/
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::io::prelude::*;
 use std::io::{BufReader, Read, SeekFrom};
 use std::fs::File;
@@ -24,6 +26,7 @@ use std::sync::{Arc, Mutex};
 
 use rpfm_error::Error;
 
+use crate::packedfile::animpack::AnimPacked;
 use crate::packfile::*;
 use crate::packfile::compression::decompress_data;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
@@ -72,9 +75,23 @@ pub enum PackedFileData {
     /// The data is loaded to memory and the variant holds the data and info about the current state of the data (data, is_compressed, is_encrypted).
     OnMemory(Vec<u8>, bool, Option<PFHVersion>),
 
-    /// The data is not loaded to memory and the variant holds the info needed to get the data loaded to memory on demand
-    /// (reader of the file, position of the start of the data, size of the data, is_compressed, is_encrypted).
-    OnDisk(Arc<Mutex<BufReader<File>>>, u64, u32, bool, Option<PFHVersion>),
+    /// The data is not loaded to memory and the variant holds the info needed to get the data loaded to memory on demand.
+    OnDisk(RawOnDisk),
+}
+
+/// This struct contains the stuff needed to read the data of a particular PackedFile from disk.
+#[derive(Clone, Debug)]
+pub struct RawOnDisk {
+
+    /// Reader over the PackFile containing the PackedFile.
+    reader: Arc<Mutex<BufReader<File>>>,
+    start: u64,
+    size: u32,
+    is_compressed: bool,
+    is_encrypted: Option<PFHVersion>,
+
+    /// Hash of the PackedFile's data, to ensure we don't grab the wrong data.
+    hash: Arc<Mutex<u64>>,
 }
 
 /// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
@@ -137,10 +154,10 @@ impl PackedFile {
     }
 
     /// This function creates a new `PackedFile` from the provided `DecodedPackedFile` and path.
-    pub fn new_from_decoded(data: &DecodedPackedFile, path: Vec<String>) -> Self {
+    pub fn new_from_decoded(data: &DecodedPackedFile, path: &[String]) -> Self {
         Self {
             raw: RawPackedFile {
-                path,
+                path: path.to_owned(),
                 packfile_name: "".to_owned(),
                 timestamp: 0,
                 should_be_compressed: false,
@@ -149,6 +166,14 @@ impl PackedFile {
             },
             decoded: data.clone(),
         }
+    }
+
+    /// This function creates a new `PackedFile` from the provided path on disk and path on a PackFile.
+    pub fn new_from_file(path: &Path, packed_file_path: &[String]) -> Result<Self> {
+        Ok(Self {
+            raw: RawPackedFile::read_from_path(path, packed_file_path.to_vec())?,
+            decoded: DecodedPackedFile::Unknown,
+        })
     }
 
     /// This function creates a new empty `PackedFile` of the provided type and path.
@@ -186,7 +211,7 @@ impl PackedFile {
             _ => DecodedPackedFile::Unknown,
         };
 
-        Ok(Self::new_from_decoded(&data, path))
+        Ok(Self::new_from_decoded(&data, &path))
     }
 
     /// This function returns a reference to the `RawPackedFile` part of a `PackedFile`.
@@ -237,7 +262,7 @@ impl PackedFile {
     /// This function tries to decode a `RawPackedFile` into a `DecodedPackedFile`, storing the results in the `Packedfile`.
     pub fn decode(&mut self) -> Result<()> {
         if self.decoded == DecodedPackedFile::Unknown {
-            self.decoded = DecodedPackedFile::decode(&self.raw)?;
+            self.decoded = DecodedPackedFile::decode(&mut self.raw)?;
         }
         Ok(())
     }
@@ -247,7 +272,7 @@ impl PackedFile {
     /// This variant doesn't re-unlock the schema, so you can use it for batch decoding.
     pub fn decode_no_locks(&mut self, schema: &Schema) -> Result<()> {
         if self.decoded == DecodedPackedFile::Unknown {
-            self.decoded = DecodedPackedFile::decode_no_locks(&self.raw, schema)?;
+            self.decoded = DecodedPackedFile::decode_no_locks(&mut self.raw, schema)?;
         }
         Ok(())
     }
@@ -258,7 +283,7 @@ impl PackedFile {
     /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
     pub fn decode_return_ref(&mut self) -> Result<&DecodedPackedFile> {
         if self.decoded == DecodedPackedFile::Unknown {
-            self.decoded = DecodedPackedFile::decode(&self.raw)?;
+            self.decoded = DecodedPackedFile::decode(&mut self.raw)?;
         }
         Ok(&self.decoded)
     }
@@ -269,7 +294,7 @@ impl PackedFile {
     /// This takes into account cached decoding so, if it has already been decoded, it doesn't decode it again.
     pub fn decode_return_ref_mut(&mut self) -> Result<&mut DecodedPackedFile> {
         if self.decoded == DecodedPackedFile::Unknown {
-            self.decoded = DecodedPackedFile::decode(&self.raw)?;
+            self.decoded = DecodedPackedFile::decode(&mut self.raw)?;
         }
         Ok(&mut self.decoded)
     }
@@ -280,7 +305,7 @@ impl PackedFile {
     /// This variant doesn't lock the Schema. This means is faster if you're decoding `PackedFiles` in batches.
     pub fn decode_return_ref_no_locks(&mut self, schema: &Schema) -> Result<&DecodedPackedFile> {
         if self.decoded == DecodedPackedFile::Unknown {
-            self.decoded = DecodedPackedFile::decode_no_locks(&self.raw, schema)?;
+            self.decoded = DecodedPackedFile::decode_no_locks(&mut self.raw, schema)?;
         }
         Ok(&self.decoded)
     }
@@ -291,7 +316,7 @@ impl PackedFile {
     /// This variant doesn't lock the Schema. This means is faster if you're decoding `PackedFiles` in batches.
     pub fn decode_return_ref_mut_no_locks(&mut self, schema: &Schema) -> Result<&mut DecodedPackedFile> {
         if self.decoded == DecodedPackedFile::Unknown {
-            self.decoded = DecodedPackedFile::decode_no_locks(&self.raw, schema)?;
+            self.decoded = DecodedPackedFile::decode_no_locks(&mut self.raw, schema)?;
         }
         Ok(&mut self.decoded)
     }
@@ -304,7 +329,7 @@ impl PackedFile {
         if self.decoded != DecodedPackedFile::Unknown {
             self.encode_and_clean_cache()?;
         }
-        DecodedPackedFile::decode(&self.raw)
+        DecodedPackedFile::decode(&mut self.raw)
     }
 
     /// This function tries to encode a `DecodedPackedFile` into a `RawPackedFile`, storing the results in the `Packedfile`.
@@ -351,6 +376,11 @@ impl PackedFile {
     /// This function returns the data of a PackedFile.
     pub fn get_raw_data(&self) -> Result<Vec<u8>> {
         self.raw.get_data()
+    }
+
+    /// This function returns the data of a PackedFile.
+    pub fn get_raw_data_and_keep_it(&mut self) -> Result<Vec<u8>> {
+        self.raw.get_data_and_keep_it()
     }
 
     /// This function returns the data of a PackedFile, making sure we clear the cache before it.
@@ -451,11 +481,8 @@ impl RawPackedFile {
 
     /// This function loads the data of a `RawPackedFile` to memory, if it isn't loaded already.
     pub fn load_data(&mut self) -> Result<()> {
-        let data_on_memory = if let PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) = self.data {
-            let mut data = vec![0; size as usize];
-            file.lock().unwrap().seek(SeekFrom::Start(position))?;
-            file.lock().unwrap().read_exact(&mut data)?;
-            PackedFileData::OnMemory(data, is_compressed, is_encrypted)
+        let data_on_memory = if let PackedFileData::OnDisk(ref raw_on_disk) = self.data {
+            PackedFileData::OnMemory(raw_on_disk.read()?, raw_on_disk.get_compression_state(), raw_on_disk.get_encryption())
         } else { return Ok(()) };
 
         self.data = data_on_memory;
@@ -470,11 +497,8 @@ impl RawPackedFile {
             PackedFileData::OnMemory(ref data, _, _) => {
                 Ok(data.to_vec())
             },
-            PackedFileData::OnDisk(ref file, position, size, _, _) => {
-                let mut data = vec![0; size as usize];
-                file.lock().unwrap().seek(SeekFrom::Start(position))?;
-                file.lock().unwrap().read_exact(&mut data)?;
-                Ok(data)
+            PackedFileData::OnDisk(ref raw_on_disk) => {
+                raw_on_disk.read()
             }
         }
     }
@@ -490,12 +514,10 @@ impl RawPackedFile {
                 if is_compressed { data = decompress_data(&data)?; }
                 Ok(data)
             },
-            PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) => {
-                let mut data = vec![0; size as usize];
-                file.lock().unwrap().seek(SeekFrom::Start(position))?;
-                file.lock().unwrap().read_exact(&mut data)?;
-                if is_encrypted.is_some() { data = decrypt_packed_file(&data); }
-                if is_compressed { Ok(decompress_data(&data)?) }
+            PackedFileData::OnDisk(ref raw_on_disk) => {
+                let mut data = raw_on_disk.read()?;
+                if raw_on_disk.get_encryption_state() { data = decrypt_packed_file(&data); }
+                if raw_on_disk.get_compression_state() { decompress_data(&data) }
                 else { Ok(data) }
             }
         }
@@ -513,12 +535,10 @@ impl RawPackedFile {
                 *is_encrypted = None;
                 return Ok(data.to_vec())
             },
-            PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) => {
-                let mut data = vec![0; size as usize];
-                file.lock().unwrap().seek(SeekFrom::Start(position))?;
-                file.lock().unwrap().read_exact(&mut data)?;
-                if is_encrypted.is_some() { data = decrypt_packed_file(&data); }
-                if is_compressed { decompress_data(&data)? }
+            PackedFileData::OnDisk(ref raw_on_disk) => {
+                let mut data = raw_on_disk.read()?;
+                if raw_on_disk.get_encryption_state() { data = decrypt_packed_file(&data); }
+                if raw_on_disk.get_compression_state() { decompress_data(&data)? }
                 else { data }
             }
         };
@@ -540,12 +560,10 @@ impl RawPackedFile {
                 *is_encrypted = None;
                 return Ok(data)
             },
-            PackedFileData::OnDisk(ref file, position, size, is_compressed, is_encrypted) => {
-                let mut data = vec![0; size as usize];
-                file.lock().unwrap().seek(SeekFrom::Start(position))?;
-                file.lock().unwrap().read_exact(&mut data)?;
-                if is_encrypted.is_some() { data = decrypt_packed_file(&data); }
-                if is_compressed { decompress_data(&data)? }
+            PackedFileData::OnDisk(ref raw_on_disk) => {
+                let mut data = raw_on_disk.read()?;
+                if raw_on_disk.get_encryption_state() { data = decrypt_packed_file(&data); }
+                if raw_on_disk.get_compression_state() { decompress_data(&data)? }
                 else { data }
             }
         };
@@ -562,7 +580,7 @@ impl RawPackedFile {
             PackedFileData::OnMemory(ref mut data, ref mut is_compressed, ref mut is_encrypted) => {
                 Ok((&self.path, data, is_compressed, is_encrypted, &mut self.should_be_compressed, &mut self.should_be_encrypted))
             },
-            PackedFileData::OnDisk(_, _, _, _, _) => {
+            PackedFileData::OnDisk(_) => {
                 Err(ErrorKind::PackedFileDataIsNotInMemory.into())
             }
         }
@@ -577,7 +595,7 @@ impl RawPackedFile {
     pub fn get_size(&self) -> u32 {
         match self.data {
             PackedFileData::OnMemory(ref data, _, _) => data.len() as u32,
-            PackedFileData::OnDisk(_, _, size, _, _) => size,
+            PackedFileData::OnDisk(ref raw_on_disk) => raw_on_disk.get_size(),
         }
     }
 
@@ -585,7 +603,7 @@ impl RawPackedFile {
     pub fn get_compression_state(&self) -> bool {
         match self.data {
             PackedFileData::OnMemory(_, state, _) => state,
-            PackedFileData::OnDisk(_, _, _, state, _) => state,
+            PackedFileData::OnDisk(ref raw_on_disk) => raw_on_disk.get_compression_state(),
         }
     }
 
@@ -613,7 +631,7 @@ impl RawPackedFile {
     pub fn get_encryption_state(&self) -> bool {
         match self.data {
             PackedFileData::OnMemory(_, _, state) => state.is_some(),
-            PackedFileData::OnDisk(_, _, _, _, state) => state.is_some(),
+            PackedFileData::OnDisk(ref raw_on_disk) => raw_on_disk.get_encryption_state(),
         }
     }
 
@@ -656,6 +674,73 @@ impl RawPackedFile {
     }
 }
 
+/// Implementation of RawOnDisk.
+impl RawOnDisk {
+
+    /// This function creates a new RawOnDisk.
+    pub fn new(
+        reader: Arc<Mutex<BufReader<File>>>,
+        start: u64,
+        size: u32,
+        is_compressed: bool,
+        is_encrypted: Option<PFHVersion>,
+    ) -> Self {
+        Self {
+            reader,
+            start,
+            size,
+            is_compressed,
+            is_encrypted,
+            hash: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    /// This function tries to read and return the raw data of the PackedFile.
+    pub fn read(&self) -> Result<Vec<u8>> {
+        let mut data = vec![0; self.size as usize];
+        let mut file = self.reader.lock().unwrap();
+        file.seek(SeekFrom::Start(self.start))?;
+        file.read_exact(&mut data)?;
+
+        let mut current_hash = self.hash.lock().unwrap();
+        let mut hasher = DefaultHasher::new();
+        data.hash(&mut hasher);
+        let new_hash = hasher.finish();
+
+        // If we have no hash, it's the first read. Hash it.
+        if *current_hash == 0 {
+            *current_hash = new_hash;
+        }
+
+
+        // Otherwise, check its hash to ensure we're not fucking up the PackFile.
+        else if *current_hash != new_hash {
+            return Err(ErrorKind::PackedFileChecksumFailed.into());
+        }
+        Ok(data)
+    }
+
+    /// This function returns the size of the PackedFile.
+    pub fn get_size(&self) -> u32 {
+        self.size
+    }
+
+    /// This function returns if the PackedFile is compressed or not.
+    pub fn get_compression_state(&self) -> bool {
+        self.is_compressed
+    }
+
+    /// This function returns if the PackedFile is encrypted or not.
+    pub fn get_encryption_state(&self) -> bool {
+        self.is_encrypted.is_some()
+    }
+
+    /// This function returns the encryption info of the PackedFile.
+    pub fn get_encryption(&self) -> Option<PFHVersion> {
+        self.is_encrypted
+    }
+}
+
 /// Implementation of `PartialEq` for `PackedFileData`.
 impl PartialEq for PackedFileData {
     fn eq(&self, other: &PackedFileData) -> bool {
@@ -686,5 +771,14 @@ impl From<&PackedFile> for PackedFileInfo {
             is_cached,
             cached_type,
         }
+    }
+}
+
+/// Implementation to create a `PackedFile` from a `AnimPacked`.
+impl From<&AnimPacked> for PackedFile {
+    fn from(anim_packed: &AnimPacked) -> Self {
+        let mut packed_file = Self::new(anim_packed.get_ref_path().to_owned(), String::new());
+        packed_file.set_raw_data(anim_packed.get_ref_data());
+        packed_file
     }
 }

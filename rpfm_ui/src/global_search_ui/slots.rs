@@ -21,12 +21,8 @@ use qt_core::{SlotOfBool, SlotOfQModelIndex, Slot, SlotOfQString};
 
 use regex::Regex;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use crate::app_ui::AppUI;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::TheOneSlot;
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 //-------------------------------------------------------------------------------//
@@ -59,8 +55,7 @@ impl GlobalSearchSlots {
 	pub unsafe fn new(
         mut app_ui: AppUI,
         mut global_search_ui: GlobalSearchUI,
-        pack_file_contents_ui: PackFileContentsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        pack_file_contents_ui: PackFileContentsUI
     ) -> Self {
 
         // What happens when we trigger the "Global Search" action.
@@ -76,14 +71,13 @@ impl GlobalSearchSlots {
         // What happens when we trigger the "Replace Current" action.
         let global_search_replace_current = Slot::new(clone!(
             mut pack_file_contents_ui => move || {
-            global_search_ui.replace_current(&mut pack_file_contents_ui);
+            global_search_ui.replace_current(&mut app_ui, &mut pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Replace All" action.
         let global_search_replace_all = Slot::new(clone!(
-            mut pack_file_contents_ui,
-            mut slot_holder => move || {
-            global_search_ui.replace_all(&mut app_ui, &mut pack_file_contents_ui, &slot_holder);
+            mut pack_file_contents_ui => move || {
+            global_search_ui.replace_all(&mut app_ui, &mut pack_file_contents_ui);
         }));
 
         // What happens when we trigger the "Check Regex" action.

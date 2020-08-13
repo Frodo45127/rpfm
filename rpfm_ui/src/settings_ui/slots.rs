@@ -24,7 +24,7 @@ use cpp_core::MutPtr;
 
 use std::collections::BTreeMap;
 
-use rpfm_lib::settings::Settings;
+use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
@@ -44,6 +44,7 @@ use crate::utils::show_dialog;
 pub struct SettingsUISlots {
     pub restore_default: Slot<'static>,
     pub select_mymod_path: Slot<'static>,
+    pub select_zip_path: Slot<'static>,
     pub select_game_paths: BTreeMap<String, Slot<'static>>,
     pub shortcuts: Slot<'static>,
     pub text_editor: Slot<'static>,
@@ -69,7 +70,13 @@ impl SettingsUISlots {
         // What happens when we hit the "..." button for MyMods.
         let select_mymod_path = Slot::new(clone!(
             ui => move || {
-            ui.update_entry_path(None);
+            ui.update_entry_path(MYMOD_BASE_PATH);
+        }));
+
+        // What happens when we hit the "..." button for 7Zip.
+        let select_zip_path = Slot::new(clone!(
+            ui => move || {
+            ui.update_entry_path(ZIP_PATH);
         }));
 
         // What happens when we hit any of the "..." buttons for the games.
@@ -80,7 +87,7 @@ impl SettingsUISlots {
                 Slot::new(clone!(
                     key,
                     ui => move || {
-                    ui.update_entry_path(Some(&key));
+                    ui.update_entry_path(&key);
                 }))
             );
         }
@@ -119,6 +126,7 @@ impl SettingsUISlots {
 		Self {
             restore_default,
             select_mymod_path,
+            select_zip_path,
             select_game_paths,
             shortcuts,
             text_editor,

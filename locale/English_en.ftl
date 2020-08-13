@@ -173,6 +173,7 @@ tt_game_selected_open_game_data_folder = Tries to open the currently selected ga
 tt_game_selected_open_game_assembly_kit_folder = Tries to open the currently selected game's Assembly Kit folder (if exists) in the default file manager.
 tt_game_selected_open_config_folder = Tries to open RPFM's config folder, where the config/schemas/ctd reports are.
 
+tt_game_selected_troy = Sets 'TW:Troy' as 'Game Selected'.
 tt_game_selected_three_kingdoms = Sets 'TW:Three Kingdoms' as 'Game Selected'.
 tt_game_selected_warhammer_2 = Sets 'TW:Warhammer 2' as 'Game Selected'.
 tt_game_selected_warhammer = Sets 'TW:Warhammer' as 'Game Selected'.
@@ -280,7 +281,7 @@ tt_context_menu_open_notes = Open the PackFile's Notes in a secondary view, with
 tt_filter_autoexpand_matches_button = Auto-Expand matches. NOTE: Filtering with all matches expanded in a big PackFile (+10k files, like data.pack) can hang the program for a while. You have been warned.
 tt_filter_case_sensitive_button = Enable/Disable case sensitive filtering for the TreeView.
 
-packedfile_noneditable_sequence = Non-editable Sequence
+packedfile_editable_sequence = Editable Sequence
 
 ### Rename Dialogues
 
@@ -366,9 +367,13 @@ shortcut_section_action = Section/Action
 
 settings_title = Preferences
 
-settings_paths_title = Paths
+settings_game_paths_title = Game Paths
+settings_extra_paths_title = Extra Paths
 settings_paths_mymod = MyMod's Folder
-settings_paths_mymod_ph = This is the folder where you want to store all \"MyMod\" related files.
+settings_paths_mymod_ph = This is the folder where you want to store all "MyMod" related files.
+
+settings_paths_zip = 7Zip Exe's Path
+settings_paths_zip_ph = This is the full path to 7Zip's executable.
 
 settings_game_label = TW: {"{"}{"}"} Folder
 settings_game_line_ph = This is the folder where you have {"{"}{"}"} installed, where the .exe is.
@@ -387,6 +392,7 @@ settings_ui_table_remember_table_state_permanently_label = Remember Table State 
 settings_ui_window_start_maximized_label = Start Maximized:
 settings_ui_window_hide_background_icon = Hide Background Game Selected Icon:
 
+settings_select_file = Select File
 settings_select_folder = Select Folder
 
 settings_extra_title = Extra Settings
@@ -476,11 +482,10 @@ api_response_success_no_update = <h4>No new updates available</h4> <p>More luck 
 api_response_success_unknown_version = <h4>Error while checking new updates</h4> <p>There has been a problem when getting the lastest released version number, or the current version number. That means I fucked up the last release title. If you see this, please report it here:\n<a href=\"https://github.com/Frodo45127/rpfm/issues\">https://github.com/Frodo45127/rpfm/issues</a></p>
 api_response_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
 
-api_response_schema_success_no_update = <h4>No new schema updates available</h4> <p>More luck next time :)</p>
-api_response_schema_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
+schema_no_update = <h4>No new schema updates available</h4> <p>More luck next time :)</p>
+schema_new_update = <h4>New schema update available</h4> <p>Do you want to update the schemas?</p>
 
-schema_update_0 = <h4>New schema update available</h4> <table>
-schema_update_1 = <p>Do you want to update the schemas?</p>
+api_response_schema_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
 schema_update_success = <h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>
 
 files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
@@ -549,3 +554,24 @@ context_menu_redo = &Redo
 header_column = <b><i>Column Name</i></b>
 header_hidden = <b><i>Hidden</i></b>
 header_frozen = <b><i>Frozen</i></b>
+
+file_count = File Count:
+file_paths = File Paths:
+animpack_unpack = Unpack
+
+special_stuff_create_dummy_animpack = Create Dummy AnimPack
+tt_create_dummy_animpack = This action generates a dummy animpack into the PackFile. This dummy animpack can be used to force the game to load custom Anim Tables/Fragments.
+
+load_template = Load Template
+load_templates_dialog_title = Load Template
+load_templates_dialog_accept = Load Template
+
+nested_table_title = Nested Table
+nested_table_accept = Accept
+
+about_update_templates = Update Templates
+uodate_templates_success = Templates updated correctly.
+tt_uodate_templates = This command attemps to update your templates.
+
+integer_1 = Unknown integer 1:
+integer_2 = Unknown integer 2:

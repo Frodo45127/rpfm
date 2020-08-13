@@ -173,8 +173,8 @@ pub trait PackTree {
 #[derive(Clone, Debug)]
 pub enum TreeViewOperation {
 
-    /// Build the entire `TreeView` from nothing. Requires a bool: `true` if the `PackFile` is editable, `false` if it isn't.
-    Build(bool),
+    /// Build the entire `TreeView` from nothing. Requires an option: Some<PathBuf> if the `PackFile` is not editable, `None` if it is.
+    Build(Option<PathBuf>),
 
     /// Add one or more files/folders to the `TreeView`. Requires a `Vec<TreePathType>` to add to the `TreeView`.
     Add(Vec<TreePathType>),
@@ -284,7 +284,7 @@ impl PackTree for MutPtr<QTreeView> {
         item_status.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
 
         // First looping downwards. -1 because we want to reach the "parent" that will hold the new row, not the row itself.
-        for index in 0..path.len() {
+        for path_item in path {
             for row in 0..item.row_count() {
                 let child = item.child_1a(row);
 
@@ -292,7 +292,7 @@ impl PackTree for MutPtr<QTreeView> {
                 if child.data_1a(ITEM_TYPE).to_int_0a() != ITEM_TYPE_FOLDER { continue }
 
                 // If we found it, we're done.
-                if child.text().to_std_string() == path[index] {
+                if child.text().to_std_string() == *path_item {
 
                     let mut child_status = get_status_item_from_item(child);
                     child_status.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
@@ -770,10 +770,10 @@ impl PackTree for MutPtr<QTreeView> {
         match operation {
 
             // If we want to build a new TreeView...
-            TreeViewOperation::Build(is_extra_packfile) => {
+            TreeViewOperation::Build(extra_packfile_path) => {
 
                 // Depending on the PackFile we want to build the TreeView with, we ask for his data.
-                if is_extra_packfile { CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView); }
+                if let Some(ref path) = extra_packfile_path { CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView(path.to_path_buf())); }
                 else { CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView); }
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 let (pack_file_data, packed_files_data) = if let Response::PackFileInfoVecPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
@@ -794,7 +794,7 @@ impl PackTree for MutPtr<QTreeView> {
                 state_item.set_editable(false);
                 let flags = ItemFlag::from(state_item.flags().to_int() & ItemFlag::ItemIsSelectable.to_int());
                 state_item.set_flags(QFlags::from(flags));
-                let icon_type = IconType::PackFile(is_extra_packfile);
+                let icon_type = IconType::PackFile(extra_packfile_path.is_some());
                 icon_type.set_icon_to_item_safe(&mut big_parent);
 
                 // We sort the paths with this horrific monster I don't want to touch ever again, using the following format:
@@ -1278,7 +1278,7 @@ impl PackTree for MutPtr<QTreeView> {
                             }
                         }
 
-                        TreePathType::PackFile => self.update_treeview(true, TreeViewOperation::Build(false)),
+                        TreePathType::PackFile => self.update_treeview(true, TreeViewOperation::Build(None)),
 
                         // If we don't have anything selected, we do nothing.
                         _ => {},

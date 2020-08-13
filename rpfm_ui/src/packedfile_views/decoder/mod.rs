@@ -22,6 +22,7 @@ use qt_widgets::QMenu;
 use qt_widgets::QGridLayout;
 use qt_widgets::QGroupBox;
 use qt_widgets::QTableView;
+use qt_widgets::QTreeView;
 use qt_widgets::QPushButton;
 use qt_widgets::QTextEdit;
 
@@ -44,17 +45,22 @@ use qt_core::Orientation;
 use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QStringList;
+use qt_core::QModelIndex;
 
-use cpp_core::MutPtr;
+use cpp_core::{CppBox, MutPtr};
 
+use std::collections::BTreeMap;
 use std::sync::{Arc, atomic::AtomicPtr, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::common::decoder::*;
 use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};
+use rpfm_lib::packedfile::table::{anim_fragment, anim_fragment::AnimFragment};
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::{loc, loc::Loc};
+use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat};
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -80,10 +86,15 @@ pub mod shortcuts;
 pub mod slots;
 
 /// List of supported PackedFile Types by the decoder.
-const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 2] = [
+const SUPPORTED_PACKED_FILE_TYPES: [PackedFileType; 5] = [
+    PackedFileType::AnimTable,
+    PackedFileType::AnimFragment,
     PackedFileType::DB,
     PackedFileType::Loc,
+    PackedFileType::MatchedCombat,
 ];
+
+pub const DECODER_EXTENSION: &str = "-rpfm-decoder";
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -95,21 +106,25 @@ pub struct PackedFileDecoderView {
     hex_view_raw: AtomicPtr<QTextEdit>,
     hex_view_decoded: AtomicPtr<QTextEdit>,
 
-    table_view: AtomicPtr<QTableView>,
+    table_view: AtomicPtr<QTreeView>,
     table_model: AtomicPtr<QStandardItemModel>,
 
     table_view_context_menu_move_up: AtomicPtr<QAction>,
     table_view_context_menu_move_down: AtomicPtr<QAction>,
+    table_view_context_menu_move_left: AtomicPtr<QAction>,
+    table_view_context_menu_move_right: AtomicPtr<QAction>,
     table_view_context_menu_delete: AtomicPtr<QAction>,
 
     bool_button: AtomicPtr<QPushButton>,
-    float_button: AtomicPtr<QPushButton>,
-    integer_button: AtomicPtr<QPushButton>,
-    long_integer_button: AtomicPtr<QPushButton>,
+    f32_button: AtomicPtr<QPushButton>,
+    i16_button: AtomicPtr<QPushButton>,
+    i32_button: AtomicPtr<QPushButton>,
+    i64_button: AtomicPtr<QPushButton>,
     string_u8_button: AtomicPtr<QPushButton>,
     string_u16_button: AtomicPtr<QPushButton>,
     optional_string_u8_button: AtomicPtr<QPushButton>,
     optional_string_u16_button: AtomicPtr<QPushButton>,
+    sequence_u32_button: AtomicPtr<QPushButton>,
 
     packed_file_info_version_decoded_label: AtomicPtr<QLabel>,
     packed_file_info_entry_count_decoded_label: AtomicPtr<QLabel>,
@@ -137,31 +152,37 @@ pub struct PackedFileDecoderViewRaw {
     pub hex_view_raw: MutPtr<QTextEdit>,
     pub hex_view_decoded: MutPtr<QTextEdit>,
 
-    pub table_view: MutPtr<QTableView>,
+    pub table_view: MutPtr<QTreeView>,
     pub table_model: MutPtr<QStandardItemModel>,
 
     pub table_view_context_menu: MutPtr<QMenu>,
     pub table_view_context_menu_move_up: MutPtr<QAction>,
     pub table_view_context_menu_move_down: MutPtr<QAction>,
+    pub table_view_context_menu_move_left: MutPtr<QAction>,
+    pub table_view_context_menu_move_right: MutPtr<QAction>,
     pub table_view_context_menu_delete: MutPtr<QAction>,
 
     pub bool_line_edit: MutPtr<QLineEdit>,
-    pub float_line_edit: MutPtr<QLineEdit>,
-    pub integer_line_edit: MutPtr<QLineEdit>,
-    pub long_integer_line_edit: MutPtr<QLineEdit>,
+    pub f32_line_edit: MutPtr<QLineEdit>,
+    pub i16_line_edit: MutPtr<QLineEdit>,
+    pub i32_line_edit: MutPtr<QLineEdit>,
+    pub i64_line_edit: MutPtr<QLineEdit>,
     pub string_u8_line_edit: MutPtr<QLineEdit>,
     pub string_u16_line_edit: MutPtr<QLineEdit>,
     pub optional_string_u8_line_edit: MutPtr<QLineEdit>,
     pub optional_string_u16_line_edit: MutPtr<QLineEdit>,
+    pub sequence_u32_line_edit: MutPtr<QLineEdit>,
 
     pub bool_button: MutPtr<QPushButton>,
-    pub float_button: MutPtr<QPushButton>,
-    pub integer_button: MutPtr<QPushButton>,
-    pub long_integer_button: MutPtr<QPushButton>,
+    pub f32_button: MutPtr<QPushButton>,
+    pub i16_button: MutPtr<QPushButton>,
+    pub i32_button: MutPtr<QPushButton>,
+    pub i64_button: MutPtr<QPushButton>,
     pub string_u8_button: MutPtr<QPushButton>,
     pub string_u16_button: MutPtr<QPushButton>,
     pub optional_string_u8_button: MutPtr<QPushButton>,
     pub optional_string_u16_button: MutPtr<QPushButton>,
+    pub sequence_u32_button: MutPtr<QPushButton>,
 
     pub packed_file_info_version_decoded_label: MutPtr<QLabel>,
     pub packed_file_info_entry_count_decoded_label: MutPtr<QLabel>,
@@ -249,24 +270,28 @@ impl PackedFileDecoderView {
         // Fields Table section.
         //---------------------------------------------//
 
-        let mut table_view = QTableView::new_0a();
+        let mut table_view = QTreeView::new_0a();
         let mut table_model = QStandardItemModel::new_0a();
         table_view.set_model(table_model.as_mut_ptr());
         table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
-        table_view.horizontal_header().set_stretch_last_section(true);
+        //table_view.header().set_stretch_last_section(true);
         table_view.set_alternating_row_colors(true);
 
         // Create the Contextual Menu for the TableView.
         let mut table_view_context_menu = QMenu::new();
 
         // Create the Contextual Menu Actions.
-        let mut table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move &Up"));
-        let mut table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("&Move Down"));
-        let mut table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("&Delete"));
+        let mut table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Up"));
+        let mut table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Down"));
+        let mut table_view_context_menu_move_left = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Left"));
+        let mut table_view_context_menu_move_right = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Right"));
+        let mut table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("Delete"));
 
         // Disable them by default.
         table_view_context_menu_move_up.set_enabled(false);
         table_view_context_menu_move_down.set_enabled(false);
+        table_view_context_menu_move_left.set_enabled(false);
+        table_view_context_menu_move_right.set_enabled(false);
         table_view_context_menu_delete.set_enabled(false);
 
         layout.add_widget_5a(table_view.as_mut_ptr(), 0, 1, 1, 2);
@@ -281,58 +306,70 @@ impl PackedFileDecoderView {
 
         // Create the stuff for the decoded fields.
         let bool_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Bool\":"));
-        let float_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Float\":"));
-        let integer_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Integer\":"));
-        let long_integer_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Long Integer\":"));
+        let f32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"F32\":"));
+        let i16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I16\":"));
+        let i32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I32\":"));
+        let i64_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I64\":"));
         let string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U8\":"));
         let string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U16\":"));
         let optional_string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U8\":"));
         let optional_string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U16\":"));
+        let sequence_u32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"SequenceU32\":"));
 
         let mut bool_line_edit = QLineEdit::new();
-        let mut float_line_edit = QLineEdit::new();
-        let mut integer_line_edit = QLineEdit::new();
-        let mut long_integer_line_edit = QLineEdit::new();
+        let mut f32_line_edit = QLineEdit::new();
+        let mut i16_line_edit = QLineEdit::new();
+        let mut i32_line_edit = QLineEdit::new();
+        let mut i64_line_edit = QLineEdit::new();
         let mut string_u8_line_edit = QLineEdit::new();
         let mut string_u16_line_edit = QLineEdit::new();
         let mut optional_string_u8_line_edit = QLineEdit::new();
         let mut optional_string_u16_line_edit = QLineEdit::new();
+        let mut sequence_u32_line_edit = QLineEdit::new();
 
         let mut bool_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut float_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut integer_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut long_integer_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut f32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut i16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut i32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut i64_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut optional_string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
         let mut optional_string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let mut sequence_u32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
 
         decoded_fields_layout.add_widget_5a(bool_label.into_ptr(), 0, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(float_label.into_ptr(), 1, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(integer_label.into_ptr(), 2, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(long_integer_label.into_ptr(), 3, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(string_u8_label.into_ptr(), 4, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(string_u16_label.into_ptr(), 5, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(optional_string_u8_label.into_ptr(), 6, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(optional_string_u16_label.into_ptr(), 7, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(f32_label.into_ptr(), 1, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(i16_label.into_ptr(), 2, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(i32_label.into_ptr(), 3, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(i64_label.into_ptr(), 4, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(string_u8_label.into_ptr(), 5, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(string_u16_label.into_ptr(), 6, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(optional_string_u8_label.into_ptr(), 7, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(optional_string_u16_label.into_ptr(), 8, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(sequence_u32_label.into_ptr(), 9, 0, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&mut bool_line_edit, 0, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut float_line_edit, 1, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut integer_line_edit, 2, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut long_integer_line_edit, 3, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u8_line_edit, 4, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u16_line_edit, 5, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_line_edit, 6, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_line_edit, 7, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut f32_line_edit, 1, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i16_line_edit, 2, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i32_line_edit, 3, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i64_line_edit, 4, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u8_line_edit, 5, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u16_line_edit, 6, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_line_edit, 7, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_line_edit, 8, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut sequence_u32_line_edit, 9, 1, 1, 1);
 
         decoded_fields_layout.add_widget_5a(&mut bool_button, 0, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut float_button, 1, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut integer_button, 2, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut long_integer_button, 3, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u8_button, 4, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u16_button, 5, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_button, 6, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_button, 7, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut f32_button, 1, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i16_button, 2, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i32_button, 3, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut i64_button, 4, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u8_button, 5, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut string_u16_button, 6, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_button, 7, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_button, 8, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&mut sequence_u32_button, 9, 2, 1, 1);
 
         layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
 
@@ -361,13 +398,8 @@ impl PackedFileDecoderView {
         info_layout.add_widget_5a(packed_file_info_type_decoded_label.into_ptr(), 0, 1, 1, 1);
         info_layout.add_widget_5a(&mut packed_file_info_version_decoded_label, 1, 1, 1, 1);
 
-        match packed_file_type {
-            PackedFileType::DB | PackedFileType::Loc => {
-                info_layout.add_widget_5a(packed_file_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
-                info_layout.add_widget_5a(&mut packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
-            }
-            _ => unimplemented!(),
-        }
+        info_layout.add_widget_5a(packed_file_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
+        info_layout.add_widget_5a(&mut packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
 
         layout.add_widget_5a(info_frame.into_ptr(), 1, 2, 1, 1);
 
@@ -433,25 +465,31 @@ impl PackedFileDecoderView {
             table_view_context_menu: table_view_context_menu.into_ptr(),
             table_view_context_menu_move_up,
             table_view_context_menu_move_down,
+            table_view_context_menu_move_left,
+            table_view_context_menu_move_right,
             table_view_context_menu_delete,
 
             bool_line_edit: bool_line_edit.into_ptr(),
-            float_line_edit: float_line_edit.into_ptr(),
-            integer_line_edit: integer_line_edit.into_ptr(),
-            long_integer_line_edit: long_integer_line_edit.into_ptr(),
+            f32_line_edit: f32_line_edit.into_ptr(),
+            i16_line_edit: i16_line_edit.into_ptr(),
+            i32_line_edit: i32_line_edit.into_ptr(),
+            i64_line_edit: i64_line_edit.into_ptr(),
             string_u8_line_edit: string_u8_line_edit.into_ptr(),
             string_u16_line_edit: string_u16_line_edit.into_ptr(),
             optional_string_u8_line_edit: optional_string_u8_line_edit.into_ptr(),
             optional_string_u16_line_edit: optional_string_u16_line_edit.into_ptr(),
+            sequence_u32_line_edit: sequence_u32_line_edit.into_ptr(),
 
             bool_button: bool_button.into_ptr(),
-            float_button: float_button.into_ptr(),
-            integer_button: integer_button.into_ptr(),
-            long_integer_button: long_integer_button.into_ptr(),
+            f32_button: f32_button.into_ptr(),
+            i16_button: i16_button.into_ptr(),
+            i32_button: i32_button.into_ptr(),
+            i64_button: i64_button.into_ptr(),
             string_u8_button: string_u8_button.into_ptr(),
             string_u16_button: string_u16_button.into_ptr(),
             optional_string_u8_button: optional_string_u8_button.into_ptr(),
             optional_string_u16_button: optional_string_u16_button.into_ptr(),
+            sequence_u32_button: sequence_u32_button.into_ptr(),
 
             packed_file_info_version_decoded_label: packed_file_info_version_decoded_label.into_ptr(),
             packed_file_info_entry_count_decoded_label: packed_file_info_entry_count_decoded_label.into_ptr(),
@@ -494,16 +532,20 @@ impl PackedFileDecoderView {
 
             table_view_context_menu_move_up: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_up),
             table_view_context_menu_move_down: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_down),
+            table_view_context_menu_move_left: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_left),
+            table_view_context_menu_move_right: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_right),
             table_view_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_delete),
 
             bool_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_button),
-            float_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.float_button),
-            integer_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.integer_button),
-            long_integer_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.long_integer_button),
+            f32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.f32_button),
+            i16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i16_button),
+            i32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i32_button),
+            i64_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i64_button),
             string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u8_button),
             string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u16_button),
             optional_string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_button),
             optional_string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u16_button),
+            sequence_u32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.sequence_u32_button),
 
             packed_file_info_version_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_version_decoded_label),
             packed_file_info_entry_count_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_entry_count_decoded_label),
@@ -529,15 +571,21 @@ impl PackedFileDecoderView {
         );
 
         let fields = if let Some(definition) = definition {
-            definition.fields.to_vec()
+            definition.get_ref_fields().to_vec()
         } else { vec![] };
 
         packed_file_decoder_view.load_packed_file_data()?;
         packed_file_decoder_view_raw.load_versions_list();
         packed_file_decoder_view_raw.update_view(&fields, true, &mut packed_file_decoder_mutable_data.index.lock().unwrap())?;
+        packed_file_decoder_view_raw.update_rows_decoded(&mut 0, None, None)?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
         shortcuts::set_shortcuts(&mut packed_file_decoder_view);
         packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
+
+        // Update the path so the decoder is identified as a separate file.
+        let mut path = packed_file_view.get_path();
+        *path.last_mut().unwrap() = path.last().unwrap().to_owned() + DECODER_EXTENSION;
+        packed_file_view.set_path(&path);
 
         // Return success.
         Ok(TheOneSlot::Decoder(packed_file_decoder_view_slots))
@@ -652,21 +700,27 @@ impl PackedFileDecoderView {
         //---------------------------------------------//
 
         // Load the "Info" data to the view.
-        match self.packed_file_type {
+        let (version, entry_count) = match self.packed_file_type {
+            PackedFileType::AnimTable => {
+                if let Ok((version, entry_count)) = AnimTable::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
+            }
+            PackedFileType::AnimFragment => {
+                if let Ok((version, entry_count)) = AnimFragment::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
+            }
             PackedFileType::DB => {
-                if let Ok((version, _, _, entry_count, _)) = DB::read_header(&self.packed_file_data) {
-                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
-                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
-                }
+                if let Ok((version, _, _, entry_count, _)) = DB::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
             }
             PackedFileType::Loc => {
-                if let Ok((version, entry_count)) = Loc::read_header(&self.packed_file_data) {
-                    self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
-                    self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
-                }
+                if let Ok((version, entry_count)) = Loc::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
+            }
+            PackedFileType::MatchedCombat => {
+                if let Ok((version, entry_count)) = MatchedCombat::read_header(&self.packed_file_data) { (version, entry_count ) } else { unimplemented!() }
             }
             _ => unimplemented!()
-        }
+        };
+
+        self.get_mut_ptr_packed_file_info_version_decoded_label().set_text(&QString::from_std_str(format!("{}", version)));
+        self.get_mut_ptr_packed_file_info_entry_count_decoded_label().set_text(&QString::from_std_str(format!("{}", entry_count)));
 
         Ok(())
     }
@@ -687,16 +741,20 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.bool_button)
     }
 
-    fn get_mut_ptr_float_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.float_button)
+    fn get_mut_ptr_f32_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.f32_button)
     }
 
-    fn get_mut_ptr_integer_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.integer_button)
+    fn get_mut_ptr_i16_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.i16_button)
     }
 
-    fn get_mut_ptr_long_integer_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.long_integer_button)
+    fn get_mut_ptr_i32_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.i32_button)
+    }
+
+    fn get_mut_ptr_i64_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.i64_button)
     }
 
     fn get_mut_ptr_string_u8_button(&self) -> MutPtr<QPushButton> {
@@ -715,6 +773,10 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.optional_string_u16_button)
     }
 
+    fn get_mut_ptr_sequence_u32_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.sequence_u32_button)
+    }
+
     fn get_mut_ptr_packed_file_info_version_decoded_label(&self) -> MutPtr<QLabel> {
         mut_ptr_from_atomic(&self.packed_file_info_version_decoded_label)
     }
@@ -727,7 +789,7 @@ impl PackedFileDecoderView {
         mut_ptr_from_atomic(&self.table_model)
     }
 
-    fn get_mut_ptr_table_view(&self) -> MutPtr<QTableView> {
+    fn get_mut_ptr_table_view(&self) -> MutPtr<QTreeView> {
         mut_ptr_from_atomic(&self.table_view)
     }
 
@@ -741,6 +803,14 @@ impl PackedFileDecoderView {
 
     fn get_mut_ptr_table_view_context_menu_move_down(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.table_view_context_menu_move_down)
+    }
+
+    fn get_mut_ptr_table_view_context_menu_move_left(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_context_menu_move_left)
+    }
+
+    fn get_mut_ptr_table_view_context_menu_move_rigth(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.table_view_context_menu_move_right)
     }
 
     fn get_mut_ptr_table_view_context_menu_delete(&self) -> MutPtr<QAction> {
@@ -828,7 +898,7 @@ impl PackedFileDecoderViewRaw {
             // If the table is empty, we just load a fake row, so the column headers are created properly.
             if field_list.is_empty() {
                 let mut qlist = QListOfQStandardItem::new();
-                (0..12).for_each(|_| add_to_q_list_safe(qlist.as_mut_ptr(), QStandardItem::new().into_ptr()));
+                (0..16).for_each(|_| add_to_q_list_safe(qlist.as_mut_ptr(), QStandardItem::new().into_ptr()));
                 self.table_model.append_row_q_list_of_q_standard_item(&qlist);
                 configure_table_view(self.table_view);
                 self.table_model.remove_rows_2a(0, 1);
@@ -837,30 +907,34 @@ impl PackedFileDecoderViewRaw {
             // Otherswise, we add each field we got as a row to the table.
             else {
                 for field in field_list {
-                    self.add_field_to_view(&field, &mut index);
+                    self.add_field_to_view(&field, &mut index, is_initial_load, None);
                 }
                 configure_table_view(self.table_view);
             }
         }
 
         let decoded_bool = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Boolean, &mut index.clone());
-        let decoded_float = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Float, &mut index.clone());
-        let decoded_integer = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::Integer, &mut index.clone());
-        let decoded_long_integer = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::LongInteger, &mut index.clone());
+        let decoded_f32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::F32, &mut index.clone());
+        let decoded_i16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I16, &mut index.clone());
+        let decoded_i32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I32, &mut index.clone());
+        let decoded_i64 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::I64, &mut index.clone());
         let decoded_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU8, &mut index.clone());
         let decoded_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::StringU16, &mut index.clone());
         let decoded_optional_string_u8 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU8, &mut index.clone());
         let decoded_optional_string_u16 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::OptionalStringU16, &mut index.clone());
+        let decoded_sequence_u32 = Self::decode_data_by_fieldtype(&self.packed_file_data, &FieldType::SequenceU32(Definition::new(-1)), &mut index.clone());
 
         // We update all the decoded entries here.
         self.bool_line_edit.set_text(&QString::from_std_str(decoded_bool));
-        self.float_line_edit.set_text(&QString::from_std_str(decoded_float));
-        self.integer_line_edit.set_text(&QString::from_std_str(decoded_integer));
-        self.long_integer_line_edit.set_text(&QString::from_std_str(decoded_long_integer));
+        self.f32_line_edit.set_text(&QString::from_std_str(decoded_f32));
+        self.i16_line_edit.set_text(&QString::from_std_str(decoded_i16));
+        self.i32_line_edit.set_text(&QString::from_std_str(decoded_i32));
+        self.i64_line_edit.set_text(&QString::from_std_str(decoded_i64));
         self.string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u8)));
         self.string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_string_u16)));
         self.optional_string_u8_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u8)));
         self.optional_string_u16_line_edit.set_text(&QString::from_std_str(&format!("{:?}", decoded_optional_string_u16)));
+        self.sequence_u32_line_edit.set_text(&QString::from_std_str(&format!("Sequence of {:?} entries.", decoded_sequence_u32)));
 
         //---------------------------------------------//
         // Raw data cleaning section.
@@ -978,67 +1052,81 @@ impl PackedFileDecoderViewRaw {
         &mut self,
         field: &Field,
         mut index: &mut usize,
+        is_initial_load: bool,
+        parent: Option<CppBox<QModelIndex>>,
     ) {
 
         // Decode the data from the field.
         let decoded_data = Self::decode_data_by_fieldtype(
             &self.packed_file_data,
-            &field.field_type,
+            field.get_ref_field_type(),
             &mut index
         );
 
         // Get the type of the data we are going to put into the Table.
-        let field_type = match field.field_type {
+        let field_type = match field.get_ref_field_type() {
             FieldType::Boolean => "Bool",
-            FieldType::Float => "Float",
-            FieldType::Integer => "Integer",
-            FieldType::LongInteger => "LongInteger",
+            FieldType::F32 => "F32",
+            FieldType::I16 => "I16",
+            FieldType::I32 => "I32",
+            FieldType::I64 => "I64",
             FieldType::StringU8 => "StringU8",
             FieldType::StringU16 => "StringU16",
             FieldType::OptionalStringU8 => "OptionalStringU8",
             FieldType::OptionalStringU16 => "OptionalStringU16",
-            FieldType::Sequence(_) => "Sequence",
+            FieldType::SequenceU16(_) => "SequenceU16",
+            FieldType::SequenceU32(_) => "SequenceU32",
         };
 
         // Create a new list of StandardItem.
         let mut qlist = QListOfQStandardItem::new();
 
         // Create the items of the new row.
-        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.name));
+        let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.get_name()));
         let field_type = QStandardItem::from_q_string(&QString::from_std_str(field_type));
         let mut field_is_key = QStandardItem::new();
         field_is_key.set_editable(false);
         field_is_key.set_checkable(true);
-        field_is_key.set_check_state(if field.is_key { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_key.set_check_state(if field.get_is_key() { CheckState::Checked } else { CheckState::Unchecked });
 
-        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.is_reference {
+        let (field_reference_table, field_reference_field) = if let Some(ref reference) = field.get_is_reference() {
             (QStandardItem::from_q_string(&QString::from_std_str(&reference.0)), QStandardItem::from_q_string(&QString::from_std_str(&reference.1)))
         } else { (QStandardItem::new(), QStandardItem::new()) };
 
-        let field_lookup_columns = if let Some(ref columns) = field.lookup {
-            QStandardItem::from_q_string(&QString::from_std_str(columns.join(", ")))
+        let field_lookup_columns = if let Some(ref columns) = field.get_lookup() {
+            QStandardItem::from_q_string(&QString::from_std_str(columns.join(",")))
         } else { QStandardItem::new() };
 
         let mut decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
         decoded_data.set_editable(false);
 
-        let field_default_value = if let Some(ref default_value) = field.default_value {
+        let field_default_value = if let Some(ref default_value) = field.get_default_value() {
             QStandardItem::from_q_string(&QString::from_std_str(&default_value))
         } else { QStandardItem::new() };
 
-        let field_max_length = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.max_length)));
+        let field_max_length = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_max_length())));
         let mut field_is_filename = QStandardItem::new();
         field_is_filename.set_editable(false);
         field_is_filename.set_checkable(true);
-        field_is_filename.set_check_state(if field.is_filename { CheckState::Checked } else { CheckState::Unchecked });
+        field_is_filename.set_check_state(if field.get_is_filename() { CheckState::Checked } else { CheckState::Unchecked });
 
-        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.filename_relative_path {
+        let field_filename_relative_path = if let Some(ref filename_relative_path) = field.get_filename_relative_path() {
             QStandardItem::from_q_string(&QString::from_std_str(&filename_relative_path))
         } else { QStandardItem::new() };
 
-        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.ca_order)));
-        let field_description = QStandardItem::from_q_string(&QString::from_std_str(&field.description));
+        let field_ca_order = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_ca_order())));
+        let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.get_description()));
+        let field_enum_values = QStandardItem::from_q_string(&QString::from_std_str(field.get_enum_values_to_string()));
 
+        let mut field_is_bitwise = QStandardItem::new();
+        field_is_bitwise.set_data_2a(&QVariant::from_int(field.get_is_bitwise()), 2);
+
+        let mut field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
+        field_number.set_editable(false);
+
+
+        // The first one is the row number, to be updated later.
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_number.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_name.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_type.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), decoded_data.into_ptr());
@@ -1052,8 +1140,61 @@ impl PackedFileDecoderViewRaw {
         add_to_q_list_safe(qlist.as_mut_ptr(), field_filename_relative_path.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_ca_order.into_ptr());
         add_to_q_list_safe(qlist.as_mut_ptr(), field_description.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_is_bitwise.into_ptr());
+        add_to_q_list_safe(qlist.as_mut_ptr(), field_enum_values.into_ptr());
 
-        self.table_model.append_row_q_list_of_q_standard_item(&qlist);
+        // If it's the initial load, insert them recursively.
+        if is_initial_load {
+            match parent {
+                Some(ref parent) => self.table_model.item_from_index(parent).append_row_q_list_of_q_standard_item(&qlist),
+                None => self.table_model.append_row_q_list_of_q_standard_item(&qlist),
+            }
+            if let FieldType::SequenceU32(table) = field.get_ref_field_type() {
+
+                // The new parent is either the last child of the current parent, or the last item in the tree.
+                for field in table.get_ref_fields() {
+                    let parent = match parent {
+                        Some(ref parent) => {
+                            let item = self.table_model.item_from_index(parent);
+                            let last_item = item.child_1a(item.row_count() - 1);
+                            last_item.index()
+                        },
+                        None => {
+                            let item = self.table_model.invisible_root_item();
+                            let last_item = item.child_1a(item.row_count() - 1);
+                            last_item.index()
+                        }
+                    };
+
+                    self.add_field_to_view(&field, &mut index, is_initial_load, Some(parent));
+                }
+            }
+        }
+
+        // If it's not the initial load, autodetect the deepness level.
+        else {
+            let mut last_item = self.table_model.invisible_root_item();
+            loop {
+                if last_item.row_count() > 0 {
+                    let last_child = last_item.child_1a(last_item.row_count() - 1);
+                    let index = last_child.index().sibling_at_column(2);
+                    if last_child.has_children() || self.table_model.item_from_index(&index).text().to_std_string() == "SequenceU32" {
+                        last_item = last_child;
+                    }
+                    else {
+                        break;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+
+            last_item.append_row_q_list_of_q_standard_item(&qlist);
+
+            // Always expand the new item.
+            self.table_view.expand(last_item.index().as_ref());
+        }
     }
 
     /// This function is the one that takes care of actually decoding the provided data based on the field type.
@@ -1072,19 +1213,25 @@ impl PackedFileDecoderViewRaw {
                     Err(_) => "Error".to_owned(),
                 }
             },
-            FieldType::Float => {
+            FieldType::F32 => {
                 match packed_file_data.decode_packedfile_float_f32(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
-            FieldType::Integer => {
+            FieldType::I16 => {
+                match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::I32 => {
                 match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
-            FieldType::LongInteger => {
+            FieldType::I64 => {
                 match packed_file_data.decode_packedfile_integer_i64(*index, &mut index) {
                     Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
@@ -1114,11 +1261,15 @@ impl PackedFileDecoderViewRaw {
                     Err(_) => "Error".to_owned(),
                 }
             },
-
-            // TODO: Finish this.
-            FieldType::Sequence(_) => {
-                match packed_file_data.decode_packedfile_optional_string_u16(*index, &mut index) {
-                    Ok(result) => result,
+            FieldType::SequenceU16(_) => {
+                match packed_file_data.decode_packedfile_integer_i16(*index, &mut index) {
+                    Ok(result) => result.to_string(),
+                    Err(_) => "Error".to_owned(),
+                }
+            },
+            FieldType::SequenceU32(_) => {
+                match packed_file_data.decode_packedfile_integer_i32(*index, &mut index) {
+                    Ok(result) => result.to_string(),
                     Err(_) => "Error".to_owned(),
                 }
             },
@@ -1131,53 +1282,82 @@ impl PackedFileDecoderViewRaw {
     unsafe fn update_rows_decoded(
         &mut self,
         mut index: &mut usize,
+        entries: Option<u32>,
+        model_index: Option<CppBox<QModelIndex>>,
     ) -> Result<()> {
 
-        // Reset the index, because this function effectively resets the decoding state.
-        *index = get_header_size(self.packed_file_type, &self.packed_file_data)?;
-        let mut row = 0;
+        // If it's the first cycle, reset the index.
+        if model_index.is_none() {
+            *index = get_header_size(self.packed_file_type, &self.packed_file_data)?;
+        }
 
         // Loop through all the rows.
-        loop {
+        let entries = if let Some(entries) = entries { entries } else { 1 };
+        let row_count = if let Some(ref model_index) = model_index {
+            self.table_model.item_from_index(model_index.as_ref()).row_count()
+        } else { self.table_model.row_count_0a() };
 
-            // Get the ModelIndex of the cell we want to update.
-            let model_index = self.table_model.index_2a(row, 2);
-            if model_index.is_valid() {
-
-                // Get the row's type.
-                let row_type = self.table_model.index_2a(row, 1);
-                let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
-                    "Bool" => FieldType::Boolean,
-                    "Float" => FieldType::Float,
-                    "Integer" => FieldType::Integer,
-                    "LongInteger" => FieldType::LongInteger,
-                    "StringU8" => FieldType::StringU8,
-                    "StringU16" => FieldType::StringU16,
-                    "OptionalStringU8" => FieldType::OptionalStringU8,
-                    "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "Sequence" => FieldType::Sequence(Definition::new(-1)),
-                    _ => unimplemented!()
-                };
-
-                // Get the decoded data using it's type...
-                let decoded_data = Self::decode_data_by_fieldtype(
-                    &self.packed_file_data,
-                    &field_type,
-                    &mut index
-                );
-
-                // Get the item from the "First Row Decoded" column.
-                let mut item = self.table_model.item_from_index(&model_index);
-                item.set_text(&QString::from_std_str(decoded_data));
-                row += 1;
+        for entry in 0..entries {
+            if row_count == 0 {
+                break;
             }
 
-            // Otherwise, stop the loop.
-            else { break; }
+            for row in 0..row_count {
+
+                // Get the ModelIndex of the cell we want to update.
+                let model_index = if let Some(ref model_index) = model_index {
+                    self.table_model.item_from_index(model_index.as_ref()).child_1a(row).index()
+                } else { self.table_model.index_2a(row, 0) };
+
+                if model_index.is_valid() {
+
+                    // Get the row's type.
+                    let row_type = model_index.sibling_at_column(2);
+                    let field_type = match &*row_type.data_1a(0).to_string().to_std_string() {
+                        "Bool" => FieldType::Boolean,
+                        "F32" => FieldType::F32,
+                        "I16" => FieldType::I16,
+                        "I32" => FieldType::I32,
+                        "I64" => FieldType::I64,
+                        "StringU8" => FieldType::StringU8,
+                        "StringU16" => FieldType::StringU16,
+                        "OptionalStringU8" => FieldType::OptionalStringU8,
+                        "OptionalStringU16" => FieldType::OptionalStringU16,
+                        "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
+                        "SequenceU32" => FieldType::SequenceU32(Definition::new(-1)),
+                        _ => unimplemented!("{}", &*row_type.data_1a(0).to_string().to_std_string())
+                    };
+
+                    // Get the decoded data using it's type...
+                    let decoded_data = Self::decode_data_by_fieldtype(
+                        &self.packed_file_data,
+                        &field_type,
+                        &mut index
+                    );
+
+                    // Get the items from the "Row Number" and "First Row Decoded" columns.
+                    if entry == 0 {
+                        let mut item = self.table_model.item_from_index(&model_index.sibling_at_column(3));
+                        item.set_text(&QString::from_std_str(&decoded_data));
+
+                        let mut item = self.table_model.item_from_index(&model_index.sibling_at_column(0));
+                        item.set_text(&QString::from_std_str(&format!("{}", row + 1)));
+                    }
+
+                    // If it's a sequence,decode also it's internal first row, then move the index to skip the rest.
+                    if let FieldType::SequenceU32(_) = field_type {
+                        self.update_rows_decoded(&mut index, Some(decoded_data.parse::<u32>()?), Some(model_index.sibling_at_column(0)))?;
+                    }
+                }
+            }
         }
 
         // Update the entire decoder to use the new index.
-        self.update_view(&[], false, &mut index)
+        if model_index.is_none() {
+            self.update_view(&[], false, &mut index)?;
+        }
+
+        Ok(())
     }
 
     /// This function is used to update the list of "Versions" of the currently open table decoded.
@@ -1187,14 +1367,17 @@ impl PackedFileDecoderViewRaw {
 
             // Depending on the type, get one version list or another.
             let versioned_file = match self.packed_file_type {
+                PackedFileType::AnimTable => schema.get_ref_versioned_file_animtable(),
+                PackedFileType::AnimFragment => schema.get_ref_versioned_file_anim_fragment(),
                 PackedFileType::DB => schema.get_ref_versioned_file_db(&self.packed_file_path[1]),
                 PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
+                PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
                 _ => unimplemented!(),
             };
 
             // And get all the versions of this table, and list them in their TreeView, if we have any.
             if let Ok(versioned_file) = versioned_file {
-                versioned_file.get_version_list().iter().map(|x| x.version).for_each(|version| {
+                versioned_file.get_version_list().iter().map(|x| x.get_version()).for_each(|version| {
                     let item = QStandardItem::from_q_string(&QString::from_std_str(format!("{}", version)));
                     self.table_model_old_versions.append_row_q_standard_item(item.into_ptr());
                 });
@@ -1213,47 +1396,79 @@ impl PackedFileDecoderViewRaw {
         mut index: &mut usize,
     ) -> Result<()> {
         let mut field = Field::default();
-        field.field_type = field_type;
+        *field.get_ref_mut_field_type() = field_type;
 
-        self.add_field_to_view(&field, &mut index);
+        self.add_field_to_view(&field, &mut index, false, None);
         self.update_view(&[], false, &mut index)
     }
 
 
     /// This function gets the data from the decoder's table and returns it, so we can save it to a Definition.
-    pub unsafe fn get_fields_from_view(&self) -> Vec<Field> {
+    pub unsafe fn get_fields_from_view(&self, model_index: Option<CppBox<QModelIndex>>) -> Vec<Field> {
         let mut fields = vec![];
-        let mut row = 0;
+        let row_count = if let Some(ref model_index) = model_index {
+            self.table_model.item_from_index(model_index.as_ref()).row_count()
+        } else { self.table_model.row_count_0a() };
 
-        loop {
+        for row in 0..row_count {
 
-            let model_index = self.table_model.index_2a(row, 0);
+            let model_index = if let Some(ref model_index) = model_index {
+                self.table_model.item_from_index(model_index.as_ref()).child_1a(row).index()
+            } else { self.table_model.index_2a(row, 0) };
+
             if model_index.is_valid() {
 
                 // Get the data from each field of the row...
-                let field_name = self.table_model.item_2a(row, 0).text().to_std_string();
-                let field_type = self.table_model.item_2a(row, 1).text().to_std_string();
-                let field_is_key = self.table_model.item_2a(row, 3).check_state() == CheckState::Checked;
-                let ref_table = self.table_model.item_2a(row, 4).text().to_std_string();
-                let ref_column = self.table_model.item_2a(row, 5).text().to_std_string();
-                let field_default_value = self.table_model.item_2a(row, 7).text().to_std_string();
-                let field_max_length = self.table_model.item_2a(row, 8).text().to_std_string().parse::<i32>().unwrap();
-                let field_is_filename = self.table_model.item_2a(row, 9).check_state() == CheckState::Checked;
-                let field_filename_relative_path = self.table_model.item_2a(row, 10).text().to_std_string();
-                let field_ca_order = self.table_model.item_2a(row, 11).text().to_std_string().parse::<i16>().unwrap();
-                let field_description = self.table_model.item_2a(row, 12).text().to_std_string();
+                let field_name = self.table_model.item_from_index(model_index.sibling_at_column(1).as_ref()).text().to_std_string();
+                let field_type = self.table_model.item_from_index(model_index.sibling_at_column(2).as_ref()).text().to_std_string();
+                let field_is_key = self.table_model.item_from_index(model_index.sibling_at_column(4).as_ref()).check_state() == CheckState::Checked;
+                let ref_table = self.table_model.item_from_index(model_index.sibling_at_column(5).as_ref()).text().to_std_string();
+                let ref_column = self.table_model.item_from_index(model_index.sibling_at_column(6).as_ref()).text().to_std_string();
+                let field_lookup = self.table_model.item_from_index(model_index.sibling_at_column(7).as_ref()).text().to_std_string();
+                let field_default_value = self.table_model.item_from_index(model_index.sibling_at_column(8).as_ref()).text().to_std_string();
+                let field_max_length = self.table_model.item_from_index(model_index.sibling_at_column(9).as_ref()).text().to_std_string().parse::<i32>().unwrap();
+                let field_is_filename = self.table_model.item_from_index(model_index.sibling_at_column(10).as_ref()).check_state() == CheckState::Checked;
+                let field_filename_relative_path = self.table_model.item_from_index(model_index.sibling_at_column(11).as_ref()).text().to_std_string();
+                let field_ca_order = self.table_model.item_from_index(model_index.sibling_at_column(12).as_ref()).text().to_std_string().parse::<i16>().unwrap();
+                let field_description = self.table_model.item_from_index(model_index.sibling_at_column(13).as_ref()).text().to_std_string();
+                let field_is_bitwise = self.table_model.item_from_index(model_index.sibling_at_column(14).as_ref()).text().to_std_string().parse::<i32>().unwrap();
+
+                let mut field_enum_values = BTreeMap::new();
+                let enmu_types = self.table_model.item_from_index(model_index.sibling_at_column(15).as_ref())
+                    .text()
+                    .to_std_string()
+                    .split(';')
+                    .map(|x| x.to_owned())
+                    .collect::<Vec<String>>();
+
+                for enum_type in &enmu_types {
+                    let enum_values = enum_type.split(',').collect::<Vec<&str>>();
+
+                    if enum_values.len() == 2 {
+                        if let Ok(enum_index) = enum_values[0].parse::<i32>() {
+                            let enum_name = enum_values[1];
+                            field_enum_values.insert(enum_index, enum_name.to_owned());
+                        }
+                    }
+                }
 
                 // Get the proper type of the field. If invalid, default to OptionalStringU16.
                 let field_type = match &*field_type {
                     "Bool" => FieldType::Boolean,
-                    "Float" => FieldType::Float,
-                    "Integer" => FieldType::Integer,
-                    "LongInteger" => FieldType::LongInteger,
+                    "F32" => FieldType::F32,
+                    "I16" => FieldType::I16,
+                    "I32" => FieldType::I32,
+                    "I64" => FieldType::I64,
                     "StringU8" => FieldType::StringU8,
                     "StringU16" => FieldType::StringU16,
                     "OptionalStringU8" => FieldType::OptionalStringU8,
                     "OptionalStringU16" => FieldType::OptionalStringU16,
-                    "Sequence" => FieldType::Sequence(Definition::new(-1)),
+                    "SequenceU16" => FieldType::SequenceU16(Definition::new(-1)),
+                    "SequenceU32" => FieldType::SequenceU32({
+                        let mut definition = Definition::new(-1);
+                        *definition.get_ref_mut_fields() = self.get_fields_from_view(Some(model_index));
+                        definition
+                    }),
                     _ => unimplemented!()
                 };
 
@@ -1261,7 +1476,6 @@ impl PackedFileDecoderViewRaw {
                     Some((ref_table, ref_column))
                 } else { None };
 
-                let field_lookup = self.table_model.item_2a(row, 6).text().to_std_string();
                 let field_lookup = if !field_lookup.is_empty() {
                     Some(field_lookup.split(',').map(|x| x.to_owned()).collect::<Vec<String>>())
                 } else { None };
@@ -1278,14 +1492,12 @@ impl PackedFileDecoderViewRaw {
                         field_is_reference,
                         field_lookup,
                         field_description,
-                        field_ca_order
+                        field_ca_order,
+                        field_is_bitwise,
+                        field_enum_values
                     )
                 );
-                row += 1;
             }
-
-            // Otherwise, stop the loop.
-            else { break; }
         }
 
         fields
@@ -1294,39 +1506,48 @@ impl PackedFileDecoderViewRaw {
     /// This function adds the definition currently in the view to a temporal schema, and returns it.
     unsafe fn add_definition_to_schema(&self) -> Schema {
         let mut schema = SCHEMA.read().unwrap().clone().unwrap();
-        let fields = self.get_fields_from_view();
+        let fields = self.get_fields_from_view(None);
 
         let version = match self.packed_file_type {
+            PackedFileType::AnimTable => AnimTable::read_header(&self.packed_file_data).unwrap().0,
+            PackedFileType::AnimFragment => AnimFragment::read_header(&self.packed_file_data).unwrap().0,
             PackedFileType::DB => DB::read_header(&self.packed_file_data).unwrap().0,
             PackedFileType::Loc => Loc::read_header(&self.packed_file_data).unwrap().0,
+            PackedFileType::MatchedCombat => MatchedCombat::read_header(&self.packed_file_data).unwrap().0,
             _ => unimplemented!(),
         };
 
         let versioned_file = match self.packed_file_type {
+            PackedFileType::AnimTable => schema.get_ref_mut_versioned_file_animtable(),
+            PackedFileType::AnimFragment => schema.get_ref_mut_versioned_file_anim_fragment(),
             PackedFileType::DB => schema.get_ref_mut_versioned_file_db(&self.packed_file_path[1]),
             PackedFileType::Loc => schema.get_ref_mut_versioned_file_loc(),
+            PackedFileType::MatchedCombat => schema.get_ref_mut_versioned_file_matched_combat(),
             _ => unimplemented!(),
         };
 
         match versioned_file {
             Ok(versioned_file) => {
                 match versioned_file.get_ref_mut_version(version) {
-                    Ok(definition) => definition.fields = fields,
+                    Ok(definition) => *definition.get_ref_mut_fields() = fields,
                     Err(_) => {
                         let mut definition = Definition::new(version);
-                        definition.fields = fields;
+                        *definition.get_ref_mut_fields() = fields;
                         versioned_file.add_version(&definition);
                     }
                 }
             }
             Err(_) => {
                 let mut definition = Definition::new(version);
-                definition.fields = fields;
+                *definition.get_ref_mut_fields() = fields;
 
                 let definitions = vec![definition];
                 let versioned_file = match self.packed_file_type {
+                    PackedFileType::AnimTable => VersionedFile::AnimTable(definitions),
+                    PackedFileType::AnimFragment => VersionedFile::AnimFragment(definitions),
                     PackedFileType::DB => VersionedFile::DB(self.packed_file_path[1].to_owned(), definitions),
                     PackedFileType::Loc => VersionedFile::Loc(definitions),
+                    PackedFileType::MatchedCombat => VersionedFile::MatchedCombat(definitions),
                     PackedFileType::DependencyPackFilesList => VersionedFile::DepManager(definitions),
                     _ => unimplemented!()
                 };
@@ -1345,8 +1566,11 @@ fn get_header_size(
     packed_file_data: &[u8],
 ) -> Result<usize> {
     match packed_file_type {
+        PackedFileType::AnimTable => Ok(animtable::HEADER_SIZE),
+        PackedFileType::AnimFragment => Ok(anim_fragment::HEADER_SIZE),
         PackedFileType::DB => Ok(DB::read_header(packed_file_data)?.4),
         PackedFileType::Loc => Ok(loc::HEADER_SIZE),
+        PackedFileType::MatchedCombat => Ok(matched_combat::HEADER_SIZE),
         _ => unimplemented!()
     }
 }
@@ -1362,16 +1586,22 @@ fn get_definition(
 
         // Depending on the type, get one version list or another.
         let versioned_file = match packed_file_type {
+            PackedFileType::AnimTable => schema.get_ref_versioned_file_animtable(),
+            PackedFileType::AnimFragment => schema.get_ref_versioned_file_anim_fragment(),
             PackedFileType::DB => schema.get_ref_versioned_file_db(&packed_file_path[1]),
             PackedFileType::Loc => schema.get_ref_versioned_file_loc(),
+            PackedFileType::MatchedCombat => schema.get_ref_versioned_file_matched_combat(),
             _ => unimplemented!(),
         };
 
         // And get all the versions of this table, and list them in their TreeView, if we have any.
         if let Ok(versioned_file) = versioned_file {
             let version = if let Some(version) = version { version } else { match packed_file_type {
+                PackedFileType::AnimTable => AnimTable::read_header(packed_file_data).ok()?.0,
+                PackedFileType::AnimFragment => AnimFragment::read_header(packed_file_data).ok()?.0,
                 PackedFileType::DB => DB::read_header(packed_file_data).ok()?.0,
                 PackedFileType::Loc => Loc::read_header(packed_file_data).ok()?.0,
+                PackedFileType::MatchedCombat => MatchedCombat::read_header(packed_file_data).ok()?.0,
                 _ => unimplemented!(),
             }};
 
@@ -1383,38 +1613,43 @@ fn get_definition(
 }
 
 /// This function configures the provided TableView, so it has the right columns and it's resized to the right size.
-unsafe fn configure_table_view(table_view: MutPtr<QTableView>) {
+unsafe fn configure_table_view(table_view: MutPtr<QTreeView>) {
     let mut table_model = table_view.model();
-    table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Name")));
-    table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Type")));
-    table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("First Row Decoded")));
-    table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is key?")));
-    table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Table")));
-    table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Column")));
-    table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Lookup Columns")));
-    table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Default Value")));
-    table_model.set_header_data_3a(8, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Lenght")));
-    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
-    table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
-    table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
-    table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
-    table_view.horizontal_header().set_stretch_last_section(true);
-    table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+    table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Row Number")));
+    table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Name")));
+    table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Type")));
+    table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("First Row Decoded")));
+    table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is key?")));
+    table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Table")));
+    table_model.set_header_data_3a(6, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Ref. to Column")));
+    table_model.set_header_data_3a(7, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Lookup Columns")));
+    table_model.set_header_data_3a(8, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Default Value")));
+    table_model.set_header_data_3a(9, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Max Lenght")));
+    table_model.set_header_data_3a(10, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Is Filename")));
+    table_model.set_header_data_3a(11, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Filename Relative Path")));
+    table_model.set_header_data_3a(12, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("CA Order")));
+    table_model.set_header_data_3a(13, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Description")));
+    table_model.set_header_data_3a(14, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Bitwise Fields")));
+    table_model.set_header_data_3a(15, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Enum Data")));
+    table_view.header().set_stretch_last_section(true);
+    table_view.header().resize_sections(ResizeMode::ResizeToContents);
 
     // The second field should be a combobox.
     let mut list = QStringList::new();
     list.append_q_string(&QString::from_std_str("Bool"));
-    list.append_q_string(&QString::from_std_str("Float"));
-    list.append_q_string(&QString::from_std_str("Integer"));
-    list.append_q_string(&QString::from_std_str("LongInteger"));
+    list.append_q_string(&QString::from_std_str("F32"));
+    list.append_q_string(&QString::from_std_str("I16"));
+    list.append_q_string(&QString::from_std_str("I32"));
+    list.append_q_string(&QString::from_std_str("I64"));
     list.append_q_string(&QString::from_std_str("StringU8"));
     list.append_q_string(&QString::from_std_str("StringU16"));
     list.append_q_string(&QString::from_std_str("OptionalStringU8"));
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
-    list.append_q_string(&QString::from_std_str("Sequence"));
-    new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 1, list.into_ptr().as_ptr(), false, 0);
+    list.append_q_string(&QString::from_std_str("SequenceU16"));
+    list.append_q_string(&QString::from_std_str("SequenceU32"));
+    new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 2, list.into_ptr().as_ptr(), false, 0);
 
     // Fields Max lenght and CA Order must be numeric.
-    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 8, 32);
-    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 11, 16);
+    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 9, 32);
+    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 12, 16);
 }

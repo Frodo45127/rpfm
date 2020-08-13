@@ -41,6 +41,7 @@ SOURCES += \
     src/treeview_filter.cpp
 
 INCLUDEPATH += include
+INCLUDEPATH += C:\CraftRoot\include
 
 HEADERS += \
     include/qt_subclasses_global.h \

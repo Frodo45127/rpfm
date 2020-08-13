@@ -434,17 +434,22 @@ impl GlobalSearch {
                         self.replace_match(&mut string, matching_mode);
                         *field = &string == "true";
                     }
-                    DecodedData::Float(ref mut field) => {
+                    DecodedData::F32(ref mut field) => {
                         let mut string = field.to_string();
                         self.replace_match(&mut string, matching_mode);
                         *field = string.parse::<f32>()?;
                     }
-                    DecodedData::Integer(ref mut field) => {
+                    DecodedData::I16(ref mut field) => {
+                        let mut string = field.to_string();
+                        self.replace_match(&mut string, matching_mode);
+                        *field = string.parse::<i16>()?;
+                    }
+                    DecodedData::I32(ref mut field) => {
                         let mut string = field.to_string();
                         self.replace_match(&mut string, matching_mode);
                         *field = string.parse::<i32>()?;
                     }
-                    DecodedData::LongInteger(ref mut field) => {
+                    DecodedData::I64(ref mut field) => {
                         let mut string = field.to_string();
                         self.replace_match(&mut string, matching_mode);
                         *field = string.parse::<i64>()?;
@@ -453,7 +458,7 @@ impl GlobalSearch {
                     DecodedData::StringU16(ref mut field) |
                     DecodedData::OptionalStringU8(ref mut field) |
                     DecodedData::OptionalStringU16(ref mut field) => self.replace_match(field, matching_mode),
-                    DecodedData::Sequence(_) => return Err(ErrorKind::Generic.into()),
+                    DecodedData::SequenceU16(_) | DecodedData::SequenceU32(_) => return Err(ErrorKind::Generic.into()),
                 }
 
                 if !changed_files.contains(&match_table.path) {
@@ -492,15 +497,16 @@ impl GlobalSearch {
                         let text = if *data { "true" } else { "false" };
                         self.match_decoded_data(text, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64);
                     }
-                    DecodedData::Float(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::Integer(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::LongInteger(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::F32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::I16(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::I32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::I64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
 
                     DecodedData::StringU8(ref data) |
                     DecodedData::StringU16(ref data) |
                     DecodedData::OptionalStringU8(ref data) |
                     DecodedData::OptionalStringU16(ref data) => self.match_decoded_data(data, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::Sequence(_) => continue,
+                    DecodedData::SequenceU16(_) | DecodedData::SequenceU32(_) => continue,
                 }
             }
         }
@@ -519,15 +525,16 @@ impl GlobalSearch {
                         let text = if *data { "true" } else { "false" };
                         self.match_decoded_data(text, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64);
                     }
-                    DecodedData::Float(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::Integer(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::LongInteger(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::F32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::I16(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::I32(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
+                    DecodedData::I64(ref data) => self.match_decoded_data(&data.to_string(), matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
 
                     DecodedData::StringU8(ref data) |
                     DecodedData::StringU16(ref data) |
                     DecodedData::OptionalStringU8(ref data) |
                     DecodedData::OptionalStringU16(ref data) => self.match_decoded_data(data, matching_mode, &mut matches.matches, table_data.get_ref_definition(), column_number as u32, row_number as i64),
-                    DecodedData::Sequence(_) => continue,
+                    DecodedData::SequenceU16(_) | DecodedData::SequenceU32(_) => continue,
                 }
             }
         }
@@ -597,19 +604,22 @@ impl GlobalSearch {
         for versioned_file in schema.get_ref_versioned_file_all() {
             let mut matches = vec![];
             match versioned_file {
+                VersionedFile::AnimFragment(definitions) |
+                VersionedFile::AnimTable(definitions) |
                 VersionedFile::DB(_, definitions) |
+                VersionedFile::DepManager(definitions) |
                 VersionedFile::Loc(definitions) |
-                VersionedFile::DepManager(definitions)  => {
+                VersionedFile::MatchedCombat(definitions) => {
 
                     match matching_mode {
                         MatchingMode::Regex(regex) => {
                             for definition in definitions {
-                                for (index, field) in definition.fields.iter().enumerate() {
-                                    if regex.is_match(&field.name) {
+                                for (index, field) in definition.get_fields_processed().iter().enumerate() {
+                                    if regex.is_match(&field.get_name()) {
                                         matches.push(SchemaMatch::new(
-                                            definition.version,
+                                            definition.get_version(),
                                             index as u32,
-                                            field.name.to_owned()
+                                            field.get_name().to_owned()
                                         ));
                                     }
                                 }
@@ -620,23 +630,23 @@ impl GlobalSearch {
                         MatchingMode::Pattern => {
                             let pattern = if self.case_sensitive { self.pattern.to_owned() } else { self.pattern.to_lowercase() };
                             for definition in definitions {
-                                for (index, field) in definition.fields.iter().enumerate() {
+                                for (index, field) in definition.get_fields_processed().iter().enumerate() {
                                     if self.case_sensitive {
-                                        if field.name.contains(&pattern) {
+                                        if field.get_name().contains(&pattern) {
                                             matches.push(SchemaMatch::new(
-                                                definition.version,
+                                                definition.get_version(),
                                                 index as u32,
-                                                field.name.to_owned()
+                                                field.get_name().to_owned()
                                             ));
                                         }
                                     }
                                     else {
-                                        let name = field.name.to_lowercase();
+                                        let name = field.get_name().to_lowercase();
                                         if name.contains(&pattern) {
                                             matches.push(SchemaMatch::new(
-                                                definition.version,
+                                                definition.get_version(),
                                                 index as u32,
-                                                field.name.to_owned()
+                                                field.get_name().to_owned()
                                             ));
                                         }
                                     }
@@ -649,9 +659,12 @@ impl GlobalSearch {
 
             if !matches.is_empty() {
                 let (versioned_file_type, versioned_file_name) = match versioned_file {
+                    VersionedFile::AnimFragment(_) => ("AnimFragment".to_owned(), None),
+                    VersionedFile::AnimTable(_) => ("AnimTable".to_owned(), None),
                     VersionedFile::DB(name, _) => ("DB".to_owned(), Some(name.to_owned())),
-                    VersionedFile::Loc(_) => ("Loc".to_owned(), None),
                     VersionedFile::DepManager(_) => ("Dependency Manager".to_owned(), None),
+                    VersionedFile::Loc(_) => ("Loc".to_owned(), None),
+                    VersionedFile::MatchedCombat(_) => ("MatchedCombat".to_owned(), None),
                 };
                 let mut schema_matches = SchemaMatches::new(versioned_file_type, versioned_file_name);
                 schema_matches.matches = matches;
@@ -674,7 +687,7 @@ impl GlobalSearch {
         match matching_mode {
             MatchingMode::Regex(regex) => {
                 if regex.is_match(&text) {
-                    let column_name = &definition.fields[column_number as usize].name;
+                    let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
                     matches.push(TableMatch::new(&column_name, column_number, row_number, text));
                 }
             }
@@ -682,7 +695,7 @@ impl GlobalSearch {
             MatchingMode::Pattern => {
                 if self.case_sensitive {
                     if text.contains(&self.pattern) {
-                        let column_name = &definition.fields[column_number as usize].name;
+                        let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
                         matches.push(TableMatch::new(column_name, column_number, row_number, text));
                     }
                 }
@@ -690,7 +703,7 @@ impl GlobalSearch {
                     let pattern = self.pattern.to_lowercase();
                     let text = text.to_lowercase();
                     if text.contains(&pattern) {
-                        let column_name = &definition.fields[column_number as usize].name;
+                        let column_name = &definition.get_fields_processed()[column_number as usize].get_name().to_owned();
                         matches.push(TableMatch::new(column_name, column_number, row_number, &text));
                     }
                 }

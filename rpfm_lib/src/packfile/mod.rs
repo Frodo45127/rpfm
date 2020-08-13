@@ -77,8 +77,12 @@ const FORT_PERIMETER_HINT: &[u8; 18] = b"AIH_FORT_PERIMETER";
 const DEFENSIVE_HILL_HINT: &[u8; 18] = b"AIH_DEFENSIVE_HILL";
 const SIEGE_AREA_NODE_HINT: &[u8; 19] = b"AIH_SIEGE_AREA_NODE";
 
+pub const RESERVED_NAME_EXTRA_PACKFILE: &str = "extra_packfile.rpfm_reserved";
+pub const RESERVED_NAME_SETTINGS: &str = "settings.rpfm_reserved";
+pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
+
 /// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special porpouses.
-pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = ["extra_packfile.rpfm_reserved", "settings.rpfm_reserved", "notes.rpfm_reserved"];
+pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
 
 /// These are the types the PackFiles can have.
 const FILE_TYPE_BOOT: u32 = 0;
@@ -701,7 +705,9 @@ impl PackFile {
 
         // Then, if we have a PackFile,... just import all PackedFiles.
         if we_have_packfile {
-            let packed_files = source.get_ref_packed_files_all();
+            let mut packed_files = source.get_packed_files_all();
+            packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
+            let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
             paths = self.add_packed_files(&packed_files, overwrite)?;
         }
 
@@ -710,7 +716,9 @@ impl PackFile {
             let paths_files = path_types.par_iter().filter_map(|x| {
                 if let PathType::File(path) = x { Some(&**path) } else { None }
             }).collect::<Vec<&[String]>>();
-            let packed_files = source.get_ref_packed_files_by_paths(paths_files);
+            let mut packed_files = source.get_packed_files_by_paths(paths_files);
+            packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
+            let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
             paths = self.add_packed_files(&packed_files, overwrite)?;
         }
 
@@ -721,13 +729,16 @@ impl PackFile {
             let paths_files = path_types.par_iter().filter_map(|x| {
                 if let PathType::File(path) = x { Some(&**path) } else { None }
             }).collect::<Vec<&[String]>>();
-            let mut packed_files = source.get_ref_packed_files_by_paths(paths_files);
+            let mut packed_files = source.get_packed_files_by_paths(paths_files);
 
             packed_files.append(&mut path_types.par_iter().filter_map(|x| {
                 if let PathType::Folder(path) = x { Some(&**path) } else { None }
-            }).map(|path| source.get_ref_packed_files_by_path_start(path))
+            }).map(|path| source.get_packed_files_by_path_start(path))
             .flatten()
-            .collect::<Vec<&PackedFile>>());
+            .collect::<Vec<PackedFile>>());
+
+            packed_files.par_iter_mut().try_for_each(|x| x.encode())?;
+            let packed_files = packed_files.par_iter().map(|x|&*x).collect::<Vec<&PackedFile>>();
             paths = self.add_packed_files(&packed_files, overwrite)?;
         }
 
@@ -1097,7 +1108,7 @@ impl PackFile {
                 // Finish the path and try to save the file to disk.
                 current_path.push(&file_name);
                 let mut file = BufWriter::new(File::create(&current_path)?);
-                if file.write_all(&packed_file.get_ref_raw().get_data()?).is_err() {
+                if file.write_all(&packed_file.get_raw_data()?).is_err() {
                     return Err(ErrorKind::ExtractError(path.to_vec()).into());
                 }
                 Ok(())
@@ -1475,9 +1486,10 @@ impl PackFile {
                                 for (column, dependency_data) in &dependency_data {
                                     let field_data = match row[*column as usize] {
                                         DecodedData::Boolean(ref entry) => entry.to_string(),
-                                        DecodedData::Float(ref entry) => entry.to_string(),
-                                        DecodedData::Integer(ref entry) => entry.to_string(),
-                                        DecodedData::LongInteger(ref entry) => entry.to_string(),
+                                        DecodedData::F32(ref entry) => entry.to_string(),
+                                        DecodedData::I16(ref entry) => entry.to_string(),
+                                        DecodedData::I32(ref entry) => entry.to_string(),
+                                        DecodedData::I64(ref entry) => entry.to_string(),
                                         DecodedData::StringU8(ref entry) |
                                         DecodedData::StringU16(ref entry) |
                                         DecodedData::OptionalStringU8(ref entry) |
@@ -1549,9 +1561,9 @@ impl PackFile {
         // If we have db tables, get their newest definition, update all the tables to that definition if needed,
         // and then merge all their data in one table.
         let merged_table = if !db_files.is_empty() {
-            let db_files = if db_files.iter().all(|x| x.get_definition().version == db_files[0].get_definition().version) { db_files }
+            let db_files = if db_files.iter().all(|x| x.get_definition().get_version() == db_files[0].get_definition().get_version()) { db_files }
             else {
-                let definition = db_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.version).unwrap();
+                let definition = db_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.get_version()).unwrap();
                 for table in &mut db_files { table.set_definition(&definition); }
                 db_files
             };
@@ -1564,9 +1576,9 @@ impl PackFile {
 
         // Same thing for locs.
         else if !loc_files.is_empty() {
-            let loc_files = if loc_files.iter().all(|x| x.get_definition().version == loc_files[0].get_definition().version) { loc_files }
+            let loc_files = if loc_files.iter().all(|x| x.get_definition().get_version() == loc_files[0].get_definition().get_version()) { loc_files }
             else {
-                let definition = loc_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.version).unwrap();
+                let definition = loc_files.iter().map(|x| x.get_definition()).max_by_key(|x| x.get_version()).unwrap();
                 for table in &mut loc_files { table.set_definition(&definition); }
                 loc_files
             };
@@ -1581,7 +1593,7 @@ impl PackFile {
         let mut path = paths[0].to_vec();
         path.pop();
         path.push(name.to_owned());
-        let packed_file = PackedFile::new_from_decoded(&merged_table, path);
+        let packed_file = PackedFile::new_from_decoded(&merged_table, &path);
 
         // If we want to remove the source files, this is the moment.
         if delete_source_paths { paths.iter().for_each(|x| self.remove_packed_file_by_path(x)); }
@@ -2384,27 +2396,27 @@ impl PackFile {
             else { packed_file_index.decode_packedfile_string_u8_0terminated(index_position, &mut index_position)? };
             let path = path.split('\\').map(|x| x.to_owned()).collect::<Vec<String>>();
 
-            // Once we are done, we create the and add it to the PackedFile list.
+            // Once we are done, we create the PackedFile and add it to the PackedFile list.
             let raw_data = RawPackedFile::read_from_data(
                 path,
                 pack_file_name.to_string(),
                 timestamp,
                 is_compressed,
                 if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(pack_file_decoded.pfh_version) } else { None },
-                PackedFileData::OnDisk(
+                PackedFileData::OnDisk(RawOnDisk::new(
                     pack_file.clone(),
                     data_position,
                     size,
                     is_compressed,
                     if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA) { Some(pack_file_decoded.pfh_version) } else { None },
-                )
+                ))
             );
 
-            let packed_file = PackedFile::new_from_raw(&raw_data);
+            let mut packed_file = PackedFile::new_from_raw(&raw_data);
 
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
             if packed_file.get_path() == ["notes.rpfm_reserved"] {
-                if let Ok(data) = packed_file.get_ref_raw().get_data() {
+                if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
                     if let Ok(data) = data.decode_string_u8(0, data.len()) {
                         pack_file_decoded.notes = Some(data);
                     }

@@ -1,13 +1,13 @@
 #include "doublespinbox_item_delegate.h"
 #include "float.h"
 #include <QDebug>
-#include <QTableView>
+#include <QAbstractItemView>
 #include <QDoubleSpinBox>
 
 // Function to be called from any other language. This assing to the provided column of the provided TableView a QDoubleSpinBoxItemDelegate.
 extern "C" void new_doublespinbox_item_delegate(QObject *parent, const int column) {
     QDoubleSpinBoxItemDelegate* delegate = new QDoubleSpinBoxItemDelegate(parent);
-    dynamic_cast<QTableView*>(parent)->setItemDelegateForColumn(column, delegate);
+    dynamic_cast<QAbstractItemView*>(parent)->setItemDelegateForColumn(column, delegate);
 }
 
 // Constructor of the QDoubleSpinBoxItemDelegate. Empty, as we don't need to do anything special with it.

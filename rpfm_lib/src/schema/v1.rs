@@ -68,9 +68,10 @@ use std::io::{BufReader, Write};
 use rpfm_error::Result;
 
 use crate::config::get_config_path;
-use crate::schema::*;
 use crate::schema::SCHEMA_FOLDER;
 use crate::SUPPORTED_GAMES;
+
+use super::v2::*;
 
 //---------------------------------------------------------------------------//
 //                              Enum & Structs
@@ -223,12 +224,12 @@ impl SchemaV1 {
 
     pub fn update() {
         println!("Importing schemas from V1 to V2");
-        let mut legacy_schemas = SUPPORTED_GAMES.par_iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, Schema>>();
+        let mut legacy_schemas = SUPPORTED_GAMES.iter().map(|(x, y)| ((*x).to_owned(), Self::load(&y.schema))).filter_map(|(x, y)| if let Ok(y) = y { Some((x, From::from(&y))) } else { None }).collect::<BTreeMap<String, SchemaV2>>();
         println!("Amount of SchemasV1: {:?}", legacy_schemas.len());
         legacy_schemas.par_iter_mut().for_each(|(game, legacy_schema)| {
             if let Some(file_name) = SUPPORTED_GAMES.iter().filter_map(|(x, y)| if x == game { Some(y.schema.to_owned()) } else { None }).find(|_| true) {
                 if legacy_schema.save(&file_name).is_ok() {
-                    println!("SchemaV1 for game {} updated to Schema.", game);
+                    println!("SchemaV1 for game {} updated to SchemaV2.", game);
                 }
             }
         });
@@ -294,7 +295,7 @@ impl Default for FieldV1 {
 }
 
 
-impl From<&SchemaV1> for Schema {
+impl From<&SchemaV1> for SchemaV2 {
     fn from(legacy_schema: &SchemaV1) -> Self {
         let mut schema = Self::default();
         legacy_schema.0.iter().map(From::from).for_each(|x| schema.versioned_files.push(x));
@@ -302,7 +303,7 @@ impl From<&SchemaV1> for Schema {
     }
 }
 
-impl From<&VersionedFileV1> for VersionedFile {
+impl From<&VersionedFileV1> for VersionedFileV2 {
     fn from(legacy_table_definitions: &VersionedFileV1) -> Self {
         match legacy_table_definitions {
             VersionedFileV1::DB(name, definitions) => Self::DB(name.to_string(), definitions.iter().map(From::from).collect()),
@@ -312,7 +313,7 @@ impl From<&VersionedFileV1> for VersionedFile {
     }
 }
 
-impl From<&DefinitionV1> for Definition {
+impl From<&DefinitionV1> for DefinitionV2 {
     fn from(legacy_table_definition: &DefinitionV1) -> Self {
         let mut definition = Self::new(legacy_table_definition.version);
         legacy_table_definition.fields.iter().map(From::from).for_each(|x| definition.fields.push(x));
@@ -320,7 +321,7 @@ impl From<&DefinitionV1> for Definition {
     }
 }
 
-impl From<&FieldV1> for Field {
+impl From<&FieldV1> for FieldV2 {
     fn from(legacy_field: &FieldV1) -> Self {
         let mut field = Self::default();
         field.name = legacy_field.name.to_owned();
@@ -337,7 +338,7 @@ impl From<&FieldV1> for Field {
     }
 }
 
-impl From<&FieldTypeV1> for FieldType {
+impl From<&FieldTypeV1> for FieldTypeV2 {
     fn from(legacy_field_type: &FieldTypeV1) -> Self {
         match legacy_field_type {
             FieldTypeV1::Boolean => Self::Boolean,

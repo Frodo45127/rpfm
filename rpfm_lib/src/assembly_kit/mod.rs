@@ -139,9 +139,9 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                                 let mut vanilla_tables = packfile_db.get_packed_files_by_path_start(&["db".to_owned(), table_name.to_owned()]);
                                 if !vanilla_tables.is_empty() {
                                     let vanilla_table = &mut vanilla_tables[0];
-                                    if let Ok(vanilla_table_data) = vanilla_table.get_raw_data() {
+                                    if let Ok(vanilla_table_data) = vanilla_table.get_raw_data_and_keep_it() {
                                         if let Ok((version, _, _, _, _)) = DB::read_header(&vanilla_table_data) {
-                                            if let Some(ref mut definition) = definitions.iter_mut().find(|x| x.version == version) {
+                                            if let Some(ref mut definition) = definitions.iter_mut().find(|x| x.get_version() == version) {
                                                 definition.update_from_raw_definition(&raw_definition);
                                                 if let Some(ref raw_localisable_fields) = raw_localisable_fields {
                                                     definition.update_from_raw_localisable_fields(&raw_definition, &raw_localisable_fields.fields)
