@@ -36,6 +36,7 @@ Check the building instructions here: [https://frodo45127.github.io/rpfm/chapter
 - ***Trolldemorted*** (From Github): He is who made all the research and code to get Arena PackFiles (and music PackedFiles in Rome 2 and Attila) decrypted and readable.
 - ***Jake Armitage*** (From Discord): He made the icons used by RPFM since version 2.0.0.
 - ***John Sirett*** (From Gitlab): He made the original version of the CA_VP8 converter in python, which I used as a base for the converter in RPFM.
+- ***Marthenil*** (From Discord): He managed to get most of the AnimXXX files decoded, and give some sense to what I saw when doing the same.
 
 #### Special Thanks to:
 - ***The guys that made PFM***: Most of the decoding stuff would have been very hard to work out without the PFM source code. So many thanks for make the PFM open source!
