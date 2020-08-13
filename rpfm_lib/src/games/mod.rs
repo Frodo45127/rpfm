@@ -97,7 +97,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         display_name: DISPLAY_NAME_TROY,
         pfh_version: vec![PFHVersion::PFH5],
         schema: "schema_troy.ron".to_owned(),
-        db_packs: vec!["database.pack".to_owned()],
+        db_packs: vec!["data.pack".to_owned()],
         loc_packs: vec![
             "local_en.pack".to_owned(),     // English
             "local_br.pack".to_owned(),     // Brazilian
