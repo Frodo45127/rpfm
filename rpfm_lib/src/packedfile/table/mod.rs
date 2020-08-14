@@ -404,7 +404,7 @@ impl Table {
             for (index, cell) in row.iter().enumerate() {
 
                 // Next, we need to ensure each file is of the type we expected.
-                let field = self.definition.get_original_field_from_processed(index);
+                let field = if let Some(field) = fields_processed.get(index) { field } else { return Err(ErrorKind::Generic.into()) };
                 if !cell.is_field_type_correct(field.get_ref_field_type(), field.get_enum_values_to_option()) {
                     return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", field.get_ref_field_type())).into())
                 }
