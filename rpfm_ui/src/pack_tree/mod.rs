@@ -826,8 +826,13 @@ impl PackTree for MutPtr<QTreeView> {
                                 index += 1;
                                 continue;
                             }
+
+                            // Otherwise, it means you got 2 files with the same name in the same PackFile, and I would like to know how the hell did you did it.
+                            else {
+                                return Ordering::Equal
+                            }
                         }
-                        // If both options have different name,...
+
                         // If both are the same type (both have children, or none have them), doesn't matter if
                         // they are files or folder. Just compare them to see what one it's first.
                         else if (index == (a.len() - 1) && index == (b.len() - 1)) ||
