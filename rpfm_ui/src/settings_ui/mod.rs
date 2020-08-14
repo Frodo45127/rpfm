@@ -485,7 +485,7 @@ impl SettingsUI {
 
         // Load the MyMod and 7Zip paths, if exists.
         self.paths_mymod_line_edit.set_text(&QString::from_std_str(settings.paths[MYMOD_BASE_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
-        self.paths_mymod_line_edit.set_text(&QString::from_std_str(settings.paths[ZIP_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
+        self.paths_zip_line_edit.set_text(&QString::from_std_str(settings.paths[ZIP_PATH].clone().unwrap_or_else(PathBuf::new).to_string_lossy()));
 
         // Load the Game Paths, if they exists.
         for (key, path) in self.paths_games_line_edits.iter_mut() {
@@ -542,7 +542,7 @@ impl SettingsUI {
         settings.paths.insert(MYMOD_BASE_PATH.to_owned(), if mymod_new_path.is_dir() { Some(mymod_new_path) } else { None });
 
         let zip_new_path = PathBuf::from(self.paths_zip_line_edit.text().to_std_string());
-        settings.paths.insert(ZIP_PATH.to_owned(), if zip_new_path.is_dir() { Some(zip_new_path) } else { None });
+        settings.paths.insert(ZIP_PATH.to_owned(), if zip_new_path.is_file() { Some(zip_new_path) } else { None });
 
         // For each entry, we check if it's a valid directory and save it into Settings.
         for (key, line_edit) in self.paths_games_line_edits.iter() {
@@ -596,7 +596,7 @@ impl SettingsUI {
 
     /// This function updates the path you have for the provided game (or mymod, if you pass it `None`)
     /// with the one you select in a `FileDialog`.
-        unsafe fn update_entry_path(&self, game: &str) {
+    unsafe fn update_entry_path(&self, game: &str) {
 
         // We check if we have a game or not. If we have it, update the `LineEdit` for that game.
         // If we don't, update the `LineEdit` for `MyMod`s path.
