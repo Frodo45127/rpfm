@@ -23,8 +23,9 @@
 	- [CA_VP8](./chapter_4_5.md)
 - [DB Decoder](./chapter_5.md)
 	- [DB Types](./chapter_5_1.md)
+- [Templates](./chapter_6_0.md)
 - [Extras](./chapter_appendix.md)
-- [Compilation Instructions](./chapter_6.md)
+- [Compilation Instructions](./chapter_comp.md)
 
 ------------------------------------------
 - [Changelogs](./changelogs.md)

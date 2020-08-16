@@ -15,6 +15,7 @@ And some more... *specific* ones:
 - `Open From Data…/xxx.pack`: Open the selected PackFile from the *Data* folder of the game. Requires the game's path to be configured.
 - `Load All CA PackFiles`: Creates a fake PackFile in memory and tries to load into it all the data from every Vanilla PackFile of the game. Keep in mind that this takes a while.
 - `Change PackFile Type`: Allows you to change the open PackFile's Type and configure some options for it.
+- `Load Template`: Allows you to load a template into the open PackFile.
 
 About the **PackFile Types**, it's what the game uses to *load in order* all the data of the game. There are the following types, in *the order the game will load them*:
 - `Boot`: Used by *boot.pack*. Not useful for modding. First to load.
