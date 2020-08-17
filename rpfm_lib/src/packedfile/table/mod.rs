@@ -136,42 +136,17 @@ impl DecodedData {
     }
 
     /// This functions checks if the type of an specific `DecodedData` is the one it should have, according to the provided `FieldType`.
-    pub fn is_field_type_correct(&self, field_type: &FieldType, enum_values: Option<BTreeMap<i32, String>>) -> bool {
+    pub fn is_field_type_correct(&self, field_type: &FieldType) -> bool {
         match self {
             DecodedData::Boolean(_) => field_type == &FieldType::Boolean,
             DecodedData::F32(_) => field_type == &FieldType::F32,
             DecodedData::I16(_) => field_type == &FieldType::I16,
             DecodedData::I32(_) => field_type == &FieldType::I32,
             DecodedData::I64(_) => field_type == &FieldType::I64,
-            DecodedData::StringU8(ref data) |
-            DecodedData::StringU16(ref data) |
-            DecodedData::OptionalStringU8(ref data) |
-            DecodedData::OptionalStringU16(ref data) => {
-                match enum_values {
-                    Some(values) => {
-                        match values.iter().find(|(_, y)| y.to_lowercase() == data.to_lowercase()) {
-                            Some((_, _)) => match field_type {
-                                FieldType::I16 |
-                                FieldType::I32 |
-                                FieldType::I64 => true,
-                                _ => false
-                            }
-
-                            // In this case, the encoding logic will take care of the checks.
-                            None => true,
-                        }
-                    }
-
-                    None => match self {
-                        DecodedData::StringU8(_) => field_type == &FieldType::StringU8,
-                        DecodedData::StringU16(_) => field_type == &FieldType::StringU16,
-                        DecodedData::OptionalStringU8(_) => field_type == &FieldType::OptionalStringU8,
-                        DecodedData::OptionalStringU16(_) => field_type == &FieldType::OptionalStringU16,
-                        _ => unimplemented!()
-                    }
-                }
-            }
-
+            DecodedData::StringU8(_) => field_type == &FieldType::StringU8,
+            DecodedData::StringU16(_) => field_type == &FieldType::StringU16,
+            DecodedData::OptionalStringU8(_) => field_type == &FieldType::OptionalStringU8,
+            DecodedData::OptionalStringU16(_) => field_type == &FieldType::OptionalStringU16,
             DecodedData::SequenceU16(_) => if let FieldType::SequenceU16(_) = field_type { true } else { false },
             DecodedData::SequenceU32(_) => if let FieldType::SequenceU32(_) = field_type { true } else { false },
         }
@@ -405,7 +380,7 @@ impl Table {
 
                 // Next, we need to ensure each file is of the type we expected.
                 let field = if let Some(field) = fields_processed.get(index) { field } else { return Err(ErrorKind::Generic.into()) };
-                if !cell.is_field_type_correct(field.get_ref_field_type(), field.get_enum_values_to_option()) {
+                if !cell.is_field_type_correct(field.get_ref_field_type()) {
                     return Err(ErrorKind::TableWrongFieldType(format!("{}", cell), format!("{}", field.get_ref_field_type())).into())
                 }
             }
@@ -571,11 +546,6 @@ impl Table {
                 }
 
                 else {
-
-                    // Next, we need to ensure each file is of the type we expected.
-                    if !row[data_column].is_field_type_correct(field.get_ref_field_type(), field.get_enum_values_to_option()) {
-                        return Err(ErrorKind::TableWrongFieldType(format!("{}", row[data_column]), format!("{}", field.get_ref_field_type())).into())
-                    }
 
                     match row[data_column] {
                         DecodedData::Boolean(data) => packed_file.encode_bool(data),
