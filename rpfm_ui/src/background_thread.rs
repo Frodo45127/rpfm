@@ -846,10 +846,15 @@ pub fn background_loop() {
 
             // When we want to generate a dummy AnimPack...
             Command::GenerateDummyAnimPack => {
-                let anim_pack = DecodedPackedFile::AnimPack(AnimPack::new());
-                let packed_file = PackedFile::new_from_decoded(&anim_pack, &animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>());
-                match pack_file_decoded.add_packed_file(&packed_file, true) {
-                    Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecString(result)),
+                match AnimPack::repack_anim_table(&mut pack_file_decoded) {
+                    Ok(anim_pack) => {
+                        let anim_pack = DecodedPackedFile::AnimPack(anim_pack);
+                        let packed_file = PackedFile::new_from_decoded(&anim_pack, &animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>());
+                        match pack_file_decoded.add_packed_file(&packed_file, true) {
+                            Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecString(result)),
+                            Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                        }
+                    }
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }

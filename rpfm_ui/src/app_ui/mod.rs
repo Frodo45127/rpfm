@@ -209,13 +209,13 @@ pub struct AppUI {
     pub special_stuff_three_k_optimize_packfile: MutPtr<QAction>,
 
     // Warhammer 2's actions.
-    pub special_stuff_wh2_create_dummy_animpack: MutPtr<QAction>,
+    pub special_stuff_wh2_repack_animtable: MutPtr<QAction>,
     pub special_stuff_wh2_generate_pak_file: MutPtr<QAction>,
     pub special_stuff_wh2_optimize_packfile: MutPtr<QAction>,
     pub special_stuff_wh2_patch_siege_ai: MutPtr<QAction>,
 
     // Warhammer's actions.
-    pub special_stuff_wh_create_dummy_animpack: MutPtr<QAction>,
+    pub special_stuff_wh_repack_animtable: MutPtr<QAction>,
     pub special_stuff_wh_generate_pak_file: MutPtr<QAction>,
     pub special_stuff_wh_optimize_packfile: MutPtr<QAction>,
     pub special_stuff_wh_patch_siege_ai: MutPtr<QAction>,
@@ -562,11 +562,11 @@ impl AppUI {
         let special_stuff_troy_optimize_packfile = menu_troy.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_three_k_generate_pak_file = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
         let special_stuff_three_k_optimize_packfile = menu_three_kingdoms.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
-        let special_stuff_wh2_create_dummy_animpack = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_create_dummy_animpack"));
+        let special_stuff_wh2_repack_animtable = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_repack_animtable"));
         let special_stuff_wh2_generate_pak_file = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
         let special_stuff_wh2_optimize_packfile = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_wh2_patch_siege_ai = menu_warhammer_2.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
-        let special_stuff_wh_create_dummy_animpack = menu_warhammer.add_action_q_string(&qtr("special_stuff_create_dummy_animpack"));
+        let special_stuff_wh_repack_animtable = menu_warhammer.add_action_q_string(&qtr("special_stuff_repack_animtable"));
         let special_stuff_wh_generate_pak_file = menu_warhammer.add_action_q_string(&qtr("special_stuff_generate_pak_file"));
         let special_stuff_wh_optimize_packfile = menu_warhammer.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
         let special_stuff_wh_patch_siege_ai = menu_warhammer.add_action_q_string(&qtr("special_stuff_patch_siege_ai"));
@@ -734,13 +734,13 @@ impl AppUI {
             special_stuff_three_k_optimize_packfile,
 
             // Warhammer 2's actions.
-            special_stuff_wh2_create_dummy_animpack,
+            special_stuff_wh2_repack_animtable,
             special_stuff_wh2_generate_pak_file,
             special_stuff_wh2_optimize_packfile,
             special_stuff_wh2_patch_siege_ai,
 
             // Warhammer's actions.
-            special_stuff_wh_create_dummy_animpack,
+            special_stuff_wh_repack_animtable,
             special_stuff_wh_generate_pak_file,
             special_stuff_wh_optimize_packfile,
             special_stuff_wh_patch_siege_ai,

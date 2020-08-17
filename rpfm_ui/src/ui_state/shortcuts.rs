@@ -64,7 +64,7 @@ const SHORTCUTS_MENU_BAR_GAME_SELECTED: [(&str, &str); 4] = [
 
 /// List of shortcuts for the `Special Stuff` Menu.
 const SHORTCUTS_MENU_BAR_SPECIAL_STUFF: [(&str, &str); 4] = [
-    ("create_dummy_animpack", ""),
+    ("repack_animtable", ""),
     ("generate_pak", ""),
     ("optimize_packfile", ""),
     ("patch_siege_ai", ""),

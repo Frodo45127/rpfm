@@ -23,11 +23,12 @@ AnimPack's structure is very simple:
 
 use serde_derive::{Serialize, Deserialize};
 
-use rpfm_error::Result;
+use rpfm_error::{ErrorKind, Result};
 
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
+use crate::packedfile::table::animtable;
 
 pub const EXTENSION: &str = ".animpack";
 
@@ -57,13 +58,19 @@ pub struct AnimPacked {
 /// Implementation of `AnimPack`.
 impl AnimPack {
 
-    /// This function creates a valid AnimPack. With `valid` I mean with one file inside. The game crashes otherwise.
-    pub fn new() -> Self {
-        Self {
-            packed_files: vec![AnimPacked {
-                path: vec!["yuri".to_owned(), "zahard".to_owned(), "best".to_owned(), "waifu".to_owned()],
-                data: vec![],
-            }],
+    /// This function creates a valid AnimPack. With `valid` I mean with the animtable inside. The game crashes otherwise.
+    pub fn repack_anim_table(pack_file: &mut PackFile) -> Result<Self> {
+        let path = animtable::PATH.iter().map(|x| (*x).to_owned()).collect::<Vec<String>>();
+        match pack_file.get_ref_mut_packed_file_by_path(&path) {
+            Some(ref mut anim_table) => {
+                Ok(Self {
+                    packed_files: vec![AnimPacked {
+                        path,
+                        data: anim_table.encode_and_return()?.get_raw_data()?.to_vec(),
+                    }],
+                })
+            }
+            None => Err(ErrorKind::NoAnimTableInPackFile.into())
         }
     }
 

@@ -556,14 +556,14 @@ impl AppUI {
                 },
                 KEY_WARHAMMER_2 => {
                     self.change_packfile_type_data_is_compressed.set_enabled(true);
-                    self.special_stuff_wh2_create_dummy_animpack.set_enabled(true);
+                    self.special_stuff_wh2_repack_animtable.set_enabled(true);
                     self.special_stuff_wh2_patch_siege_ai.set_enabled(true);
                     self.special_stuff_wh2_optimize_packfile.set_enabled(true);
                     self.special_stuff_wh2_generate_pak_file.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
                     self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_wh_create_dummy_animpack.set_enabled(true);
+                    self.special_stuff_wh_repack_animtable.set_enabled(true);
                     self.special_stuff_wh_patch_siege_ai.set_enabled(true);
                     self.special_stuff_wh_optimize_packfile.set_enabled(true);
                     self.special_stuff_wh_generate_pak_file.set_enabled(true);
@@ -615,13 +615,13 @@ impl AppUI {
             self.special_stuff_three_k_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer 2 actions...
-            self.special_stuff_wh2_create_dummy_animpack.set_enabled(false);
+            self.special_stuff_wh2_repack_animtable.set_enabled(false);
             self.special_stuff_wh2_patch_siege_ai.set_enabled(false);
             self.special_stuff_wh2_optimize_packfile.set_enabled(false);
             self.special_stuff_wh2_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer actions...
-            self.special_stuff_wh_create_dummy_animpack.set_enabled(false);
+            self.special_stuff_wh_repack_animtable.set_enabled(false);
             self.special_stuff_wh_patch_siege_ai.set_enabled(false);
             self.special_stuff_wh_optimize_packfile.set_enabled(false);
             self.special_stuff_wh_generate_pak_file.set_enabled(false);

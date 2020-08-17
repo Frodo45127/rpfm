@@ -121,7 +121,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     // `Special Stuff` menu slots.
     //-----------------------------------------------//
-    pub special_stuff_create_dummy_animpack: SlotOfBool<'static>,
+    pub special_stuff_repack_animtable: SlotOfBool<'static>,
     pub special_stuff_generate_pak_file: SlotOfBool<'static>,
     pub special_stuff_optimize_packfile: SlotOfBool<'static>,
     pub special_stuff_patch_siege_ai: SlotOfBool<'static>,
@@ -853,7 +853,7 @@ impl AppUISlots {
         //-----------------------------------------------------//
 
         // What happens when we trigger the "Create Dummy AnimPack" action.
-        let special_stuff_create_dummy_animpack = SlotOfBool::new(clone!(
+        let special_stuff_repack_animtable = SlotOfBool::new(clone!(
             mut global_search_ui => move |_| {
 
                 // If there is no problem, ere we go.
@@ -1293,7 +1293,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `Special Stuff` menu slots.
             //-----------------------------------------------//
-            special_stuff_create_dummy_animpack,
+            special_stuff_repack_animtable,
             special_stuff_generate_pak_file,
             special_stuff_optimize_packfile,
             special_stuff_patch_siege_ai,

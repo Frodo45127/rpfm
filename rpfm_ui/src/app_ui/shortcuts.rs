@@ -56,12 +56,12 @@ pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
     app_ui.special_stuff_three_k_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
     app_ui.special_stuff_three_k_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
 
-    app_ui.special_stuff_wh2_create_dummy_animpack.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["create_dummy_animpack"])));
+    app_ui.special_stuff_wh2_repack_animtable.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["repack_animtable"])));
     app_ui.special_stuff_wh2_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
     app_ui.special_stuff_wh2_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
     app_ui.special_stuff_wh2_patch_siege_ai.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["patch_siege_ai"])));
 
-    app_ui.special_stuff_wh_create_dummy_animpack.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["create_dummy_animpack"])));
+    app_ui.special_stuff_wh_repack_animtable.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["repack_animtable"])));
     app_ui.special_stuff_wh_generate_pak_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["generate_pak"])));
     app_ui.special_stuff_wh_optimize_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["optimize_packfile"])));
     app_ui.special_stuff_wh_patch_siege_ai.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.menu_bar_special_stuff["patch_siege_ai"])));
@@ -112,12 +112,12 @@ pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
     app_ui.special_stuff_three_k_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.special_stuff_three_k_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
-    app_ui.special_stuff_wh2_create_dummy_animpack.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_wh2_repack_animtable.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.special_stuff_wh2_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.special_stuff_wh2_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.special_stuff_wh2_patch_siege_ai.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
-    app_ui.special_stuff_wh_create_dummy_animpack.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.special_stuff_wh_repack_animtable.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.special_stuff_wh_generate_pak_file.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.special_stuff_wh_optimize_packfile.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.special_stuff_wh_patch_siege_ai.set_shortcut_context(ShortcutContext::ApplicationShortcut);
