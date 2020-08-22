@@ -54,11 +54,12 @@ use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::MYMOD_BASE_PATH;
 use rpfm_lib::template::Template;
+use rpfm_lib::updater::APIResponse;
 
 use super::AppUI;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR, network::APIResponse};
+use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
@@ -906,64 +907,70 @@ impl AppUI {
     pub unsafe fn check_updates(&self, use_dialog: bool) {
         CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckUpdates);
 
-        // If we want to use a Dialog to show the full searching process (clicking in the
-        // menu button) we show the dialog, then change its text.
+        let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            q_message_box::Icon::Information,
+            &qtr("update_checker"),
+            &qtr("update_searching"),
+            QFlags::from(q_message_box::StandardButton::Close),
+            self.main_window,
+        );
+
+        let mut update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+        update_button.set_enabled(false);
+
+        dialog.set_modal(true);
         if use_dialog {
-            let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-                q_message_box::Icon::Information,
-                &qtr("update_checker"),
-                &qtr("update_searching"),
-                QFlags::from(q_message_box::StandardButton::Close),
-                self.main_window,
-            );
-
-            dialog.set_modal(true);
             dialog.show();
-
-            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
-            let message = match response {
-                Response::APIResponse(response) => {
-                    match response {
-                        APIResponse::SuccessNewUpdate(last_release) => qtre("api_response_success_new_update", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
-                        APIResponse::SuccessNewUpdateHotfix(last_release) => qtre("api_response_success_new_update_hotfix", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
-                        APIResponse::SuccessNoUpdate => qtr("api_response_success_no_update"),
-                        APIResponse::SuccessUnknownVersion => qtr("api_response_success_unknown_version"),
-                        APIResponse::Error => qtr("api_response_error"),
-                    }
-                }
-
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            };
-
-            dialog.set_text(&message);
-            dialog.exec();
         }
 
-        // Otherwise, we just wait until we got a response, and only then (and only in case of new update)... we show a dialog.
-        else {
-            let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
-            let message = match response {
-                Response::APIResponse(response) => {
-                    match response {
-                        APIResponse::SuccessNewUpdate(last_release) => qtre("api_response_success_new_update", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
-                        APIResponse::SuccessNewUpdateHotfix(last_release) => qtre("api_response_success_new_update_hotfix", &[&last_release.name, &last_release.html_url, &last_release.html_url]),
-                        _ => return,
+        let response = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+        let message = match response {
+            Response::APIResponse(response) => {
+                match response {
+                    APIResponse::SuccessNewStableUpdate(last_release) => {
+                        update_button.set_enabled(true);
+                        qtre("api_response_success_new_stable_update", &[&last_release])
+                    }
+                    APIResponse::SuccessNewBetaUpdate(last_release) => {
+                        update_button.set_enabled(true);
+                        qtre("api_response_success_new_beta_update", &[&last_release])
+                    }
+                    APIResponse::SuccessNewUpdateHotfix(last_release) => {
+                        update_button.set_enabled(true);
+                        qtre("api_response_success_new_update_hotfix", &[&last_release])
+                    }
+                    APIResponse::SuccessNoUpdate => {
+                        if !use_dialog { return; }
+                        qtr("api_response_success_no_update")
+                    }
+                    APIResponse::SuccessUnknownVersion => {
+                        if !use_dialog { return; }
+                        qtr("api_response_success_unknown_version")
+                    }
+                    APIResponse::Error => {
+                        if !use_dialog { return; }
+                        qtr("api_response_error")
                     }
                 }
+            }
 
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        };
+
+        dialog.set_text(&message);
+        if dialog.exec() == 0 {
+            CENTRAL_COMMAND.send_message_qt(Command::UpdateMainProgram);
+
+            dialog.show();
+            dialog.set_text(&qtr("update_in_prog"));
+            update_button.set_enabled(false);
+
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            match response {
+                Response::Success => show_dialog(self.main_window, tr("update_success_main_program"), true),
+                Response::Error(error) => show_dialog(self.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            };
-
-            let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-                q_message_box::Icon::Information,
-                &qtr("update_checker"),
-                &message,
-                QFlags::from(q_message_box::StandardButton::Close),
-                self.main_window,
-            );
-
-            dialog.set_modal(true);
-            dialog.exec();
+            }
         }
     }
 

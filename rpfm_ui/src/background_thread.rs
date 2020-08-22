@@ -883,6 +883,14 @@ pub fn background_loop() {
                 }
             }
 
+            // When we want to update our program...
+            Command::UpdateMainProgram => {
+                match rpfm_lib::updater::update_main_program() {
+                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }

@@ -24,10 +24,6 @@ bincode = "^1.1"
 # Date conversion support.
 chrono = "^0.4"
 
-# Support for checking/downloading schemas.
-restson = "^0.6"
-reqwest = { version = "^0.10", features = ["blocking", "json"] }
-
 # Support for Regex operations.
 regex = "^1"
 

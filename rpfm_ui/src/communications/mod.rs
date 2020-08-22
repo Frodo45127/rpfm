@@ -35,13 +35,11 @@ use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
 use rpfm_lib::settings::*;
 use rpfm_lib::template::Template;
+use rpfm_lib::updater::APIResponse;
 
 use crate::app_ui::NewPackedFile;
 use crate::views::table::TableType;
 use crate::ui_state::shortcuts::Shortcuts;
-use self::network::*;
-
-pub mod network;
 
 /// This const is the standard message in case of message communication error. If this happens, crash the program.
 pub const THREADS_COMMUNICATION_ERROR: &str = "Error in thread communication system. Response received: ";
@@ -279,6 +277,9 @@ pub enum Command {
 
     /// This command is used to update the templates.
     UpdateTemplates,
+
+    /// This command is used to update the program to the last version available, if possible.
+    UpdateMainProgram,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

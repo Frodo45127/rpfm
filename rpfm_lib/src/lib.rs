@@ -40,6 +40,7 @@ pub mod packfile;
 pub mod schema;
 pub mod settings;
 pub mod template;
+pub mod updater;
 
 // Statics, so we don't need to pass them everywhere to use them.
 lazy_static! {

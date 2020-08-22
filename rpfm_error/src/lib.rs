@@ -574,6 +574,12 @@ pub enum ErrorKind {
 
     /// Error for when RPFM cannot find an animtable in the currently open PackFile.
     NoAnimTableInPackFile,
+
+    /// Error for when we fail at finding a download for an architecture when autoupdating.
+    NoUpdateForYourArchitecture,
+
+    /// Error for when we fail at extracting the update file.
+    ErrorExtractingUpdate,
 }
 
 /// Implementation of `Error`.
@@ -874,6 +880,8 @@ impl Display for ErrorKind {
             ErrorKind::AlreadyUpdatedTemplatesError => write!(f, "<p>Templates already up-to-date.<p>"),
             ErrorKind::CannotFindExtraPackFile(path) => write!(f, "<p>Cannot find extra PackFile with path: {:?}.<p>", path),
             ErrorKind::NoAnimTableInPackFile => write!(f, "<p>No AnimTable found in the PackFile.<p>"),
+            ErrorKind::NoUpdateForYourArchitecture => write!(f, "<p>No download available for your architecture.<p>"),
+            ErrorKind::ErrorExtractingUpdate => write!(f, "<p>There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so... try again later.<p>"),
         }
     }
 }
@@ -923,13 +931,6 @@ impl From<io::Error> for Error {
 //------------------------------------------------------------//
 //   Implementations for external types for the From Trait
 //------------------------------------------------------------//
-
-/// Implementation to create an `Error` from a `reqwest::Error`.
-impl From<reqwest::Error> for Error {
-    fn from(_: reqwest::Error) -> Self {
-        Self::from(ErrorKind::NetworkGeneric)
-    }
-}
 
 /// Implementation to create an `Error` from a `serde_json::Error`.
 impl From<serde_json::Error> for Error {
@@ -1032,5 +1033,12 @@ impl From<SetLoggerError> for Error {
 impl From<git2::Error> for Error {
     fn from(error: git2::Error) -> Self {
         Self::from(ErrorKind::GeneticHTMLError(error.message().to_string()))
+    }
+}
+
+/// Implementation to create an `Error` from a `self_update::errors::Error`.
+impl From<self_update::errors::Error> for Error {
+    fn from(error: self_update::errors::Error) -> Self {
+        Self::from(ErrorKind::GeneticHTMLError(error.to_string()))
     }
 }

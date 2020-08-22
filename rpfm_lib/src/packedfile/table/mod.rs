@@ -18,7 +18,6 @@ use bincode::serialize;
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::BTreeMap;
 use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};

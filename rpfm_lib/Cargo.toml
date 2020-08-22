@@ -33,7 +33,7 @@ uuid = { version = "^0.8", features = ["v4"] }
 chrono = "^0.4"
 
 # Update support.
-reqwest = { version = "^0.10", features = ["blocking", "json"] }
+reqwest = "^0.10"
 
 # Serialization support.
 serde = "^1.0"
@@ -58,3 +58,9 @@ half = "^1.4"
 
 # Fractions support
 fraction = "^0.6"
+
+# AutoUpdater Support
+self_update = { version = "^0.19", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
+tempfile = "^3.1"
+zip-extract = "^0.1"
+

@@ -37,6 +37,7 @@ use std::path::{Path, PathBuf};
 
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
+use rpfm_lib::updater::{BETA, STABLE, get_update_channel, UpdateChannel};
 
 use crate::AppUI;
 use crate::{Locale, locale::{qtr, qtre}};
@@ -99,6 +100,7 @@ pub struct SettingsUI {
     // `Extra` section of the `Settings` dialog.
     //-------------------------------------------------------------------------------//
     pub extra_global_default_game_label: MutPtr<QLabel>,
+    pub extra_network_update_channel_label: MutPtr<QLabel>,
     pub extra_network_check_updates_on_start_label: MutPtr<QLabel>,
     pub extra_network_check_schema_updates_on_start_label: MutPtr<QLabel>,
     pub extra_packfile_allow_editing_of_ca_packfiles_label: MutPtr<QLabel>,
@@ -108,6 +110,7 @@ pub struct SettingsUI {
     pub extra_disable_uuid_regeneration_on_db_tables_label: MutPtr<QLabel>,
 
     pub extra_global_default_game_combobox: MutPtr<QComboBox>,
+    pub extra_network_update_channel_combobox: MutPtr<QComboBox>,
     pub extra_network_check_updates_on_start_checkbox: MutPtr<QCheckBox>,
     pub extra_network_check_schema_updates_on_start_checkbox: MutPtr<QCheckBox>,
     pub extra_packfile_allow_editing_of_ca_packfiles_checkbox: MutPtr<QCheckBox>,
@@ -316,6 +319,7 @@ impl SettingsUI {
         for (_, game) in SUPPORTED_GAMES.iter() { extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name)); }
 
         // Create the aditional Labels/CheckBoxes.
+        let mut extra_update_channel_label = QLabel::from_q_string(&qtr("settings_update_channel"));
         let mut extra_network_check_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_updates_on_start"));
         let mut extra_network_check_schema_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_schema_updates_on_start"));
         let mut extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string(&qtr("settings_allow_editing_of_ca_packfiles"));
@@ -324,6 +328,7 @@ impl SettingsUI {
         let mut extra_packfile_use_lazy_loading_label = QLabel::from_q_string(&qtr("settings_use_lazy_loading"));
         let mut extra_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string(&qtr("settings_disable_uuid_regeneration_tables"));
 
+        let mut extra_update_channel_combobox = QComboBox::new_0a();
         let mut extra_network_check_updates_on_start_checkbox = QCheckBox::new();
         let mut extra_network_check_schema_updates_on_start_checkbox = QCheckBox::new();
         let mut extra_packfile_allow_editing_of_ca_packfiles_checkbox = QCheckBox::new();
@@ -332,29 +337,35 @@ impl SettingsUI {
         let mut extra_packfile_use_lazy_loading_checkbox = QCheckBox::new();
         let mut extra_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::new();
 
+        extra_update_channel_combobox.add_item_q_string(&QString::from_std_str(STABLE));
+        extra_update_channel_combobox.add_item_q_string(&QString::from_std_str(BETA));
+
         extra_grid.add_widget_5a(&mut extra_global_default_game_label, 0, 0, 1, 1);
         extra_grid.add_widget_5a(&mut extra_global_default_game_combobox, 0, 1, 1, 1);
 
-        extra_grid.add_widget_5a(&mut extra_network_check_updates_on_start_label, 1, 0, 1, 1);
-        extra_grid.add_widget_5a(&mut extra_network_check_updates_on_start_checkbox, 1, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_update_channel_label, 1, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_update_channel_combobox, 1, 1, 1, 1);
 
-        extra_grid.add_widget_5a(&mut extra_network_check_schema_updates_on_start_label, 2, 0, 1, 1);
-        extra_grid.add_widget_5a(&mut extra_network_check_schema_updates_on_start_checkbox, 2, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_network_check_updates_on_start_label, 2, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_network_check_updates_on_start_checkbox, 2, 1, 1, 1);
 
-        extra_grid.add_widget_5a(&mut extra_packfile_allow_editing_of_ca_packfiles_label, 3, 0, 1, 1);
-        extra_grid.add_widget_5a(&mut extra_packfile_allow_editing_of_ca_packfiles_checkbox, 3, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_network_check_schema_updates_on_start_label, 3, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_network_check_schema_updates_on_start_checkbox, 3, 1, 1, 1);
 
-        extra_grid.add_widget_5a(&mut extra_packfile_optimize_not_renamed_packedfiles_label, 4, 0, 1, 1);
-        extra_grid.add_widget_5a(&mut extra_packfile_optimize_not_renamed_packedfiles_checkbox, 4, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_allow_editing_of_ca_packfiles_label, 4, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_allow_editing_of_ca_packfiles_checkbox, 4, 1, 1, 1);
 
-        extra_grid.add_widget_5a(&mut extra_packfile_use_dependency_checker_label, 5, 0, 1, 1);
-        extra_grid.add_widget_5a(&mut extra_packfile_use_dependency_checker_checkbox, 5, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_optimize_not_renamed_packedfiles_label, 5, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_optimize_not_renamed_packedfiles_checkbox, 5, 1, 1, 1);
 
-        extra_grid.add_widget_5a(&mut extra_packfile_use_lazy_loading_label, 6, 0, 1, 1);
-        extra_grid.add_widget_5a(&mut extra_packfile_use_lazy_loading_checkbox, 6, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_use_dependency_checker_label, 6, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_use_dependency_checker_checkbox, 6, 1, 1, 1);
 
-        extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_label, 7, 0, 1, 1);
-        extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_checkbox, 7, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_use_lazy_loading_label, 7, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_use_lazy_loading_checkbox, 7, 1, 1, 1);
+
+        extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_label, 8, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_checkbox, 8, 1, 1, 1);
 
         main_grid.add_widget_5a(extra_frame, 2, 1, 1, 1);
 
@@ -444,6 +455,7 @@ impl SettingsUI {
             // `Extra` section of the `Settings` dialog.
             //-------------------------------------------------------------------------------//
             extra_global_default_game_label: extra_global_default_game_label.into_ptr(),
+            extra_network_update_channel_label: extra_update_channel_label.into_ptr(),
             extra_network_check_updates_on_start_label: extra_network_check_updates_on_start_label.into_ptr(),
             extra_network_check_schema_updates_on_start_label: extra_network_check_schema_updates_on_start_label.into_ptr(),
             extra_packfile_allow_editing_of_ca_packfiles_label: extra_packfile_allow_editing_of_ca_packfiles_label.into_ptr(),
@@ -453,6 +465,7 @@ impl SettingsUI {
             extra_disable_uuid_regeneration_on_db_tables_label: extra_disable_uuid_regeneration_on_db_tables_label.into_ptr(),
 
             extra_global_default_game_combobox: extra_global_default_game_combobox.into_ptr(),
+            extra_network_update_channel_combobox: extra_update_channel_combobox.into_ptr(),
             extra_network_check_updates_on_start_checkbox: extra_network_check_updates_on_start_checkbox.into_ptr(),
             extra_network_check_schema_updates_on_start_checkbox: extra_network_check_schema_updates_on_start_checkbox.into_ptr(),
             extra_packfile_allow_editing_of_ca_packfiles_checkbox: extra_packfile_allow_editing_of_ca_packfiles_checkbox.into_ptr(),
@@ -504,6 +517,13 @@ impl SettingsUI {
         for (index, (language,_)) in Locale::get_available_locales().unwrap().iter().enumerate() {
             if *language == language_selected {
                 self.ui_language_combobox.set_current_index(index as i32);
+                break;
+            }
+        }
+
+        for (index, update_channel_name) in [UpdateChannel::Stable, UpdateChannel::Beta].iter().enumerate() {
+            if update_channel_name == &get_update_channel() {
+                self.extra_network_update_channel_combobox.set_current_index(index as i32);
                 break;
             }
         }
@@ -563,6 +583,9 @@ impl SettingsUI {
             let file_name = format!("{}_{}", language, locale.language);
             settings.settings_string.insert("language".to_owned(), file_name);
         }
+
+        let update_channel = self.extra_network_update_channel_combobox.current_text().to_std_string();
+        settings.settings_string.insert("update_channel".to_owned(), update_channel);
 
         let current_font = QGuiApplication::font();
         settings.settings_string.insert("font_name".to_owned(), current_font.family().to_std_string());
