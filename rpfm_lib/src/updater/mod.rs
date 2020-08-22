@@ -27,7 +27,7 @@ use crate::SETTINGS;
 
 const UPDATE_EXTENSION: &str = "zip";
 const REPO_OWNER: &str = "Frodo45127";
-const REPO_NAME: &str = "rpfm_test_updater";
+const REPO_NAME: &str = "rpfm";
 
 const UPDATE_FOLDER_PREFIX: &str = "updates";
 
