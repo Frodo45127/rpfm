@@ -1,4 +1,4 @@
-![rpfm](https://user-images.githubusercontent.com/15714929/83181698-89717f00-a125-11ea-9dc7-088984cce6a8.png)
+![rpfm](https://user-images.githubusercontent.com/15714929/90964588-3d36a080-e4c2-11ea-90fe-03168986b41a.png)
 # Rusted PackFile Manager
 ***Rusted PackFile Manager*** (RPFM) is a... reimplementation in Rust and ***~~GTK3~~ Qt5*** of ***PackFile Manager*** (PFM), one of the best modding tools for Total War Games.
 
