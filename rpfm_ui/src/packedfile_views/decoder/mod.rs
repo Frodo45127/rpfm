@@ -71,6 +71,7 @@ use crate::communications::*;
 use crate::ffi::add_to_q_list_safe;
 use crate::ffi::new_combobox_item_delegate_safe;
 use crate::ffi::new_spinbox_item_delegate_safe;
+use crate::ffi::new_qstring_item_delegate_safe;
 use crate::FONT_MONOSPACE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -1652,4 +1653,5 @@ unsafe fn configure_table_view(table_view: MutPtr<QTreeView>) {
     // Fields Max lenght and CA Order must be numeric.
     new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 9, 32);
     new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 12, 16);
+    new_qstring_item_delegate_safe(&mut table_view.static_upcast_mut(), 15, 65535);
 }
