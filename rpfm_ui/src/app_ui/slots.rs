@@ -59,7 +59,7 @@ use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
 use crate::ui::GameSelectedIcons;
 use crate::{ui_state::op_mode::OperationalMode, UI_STATE};
-use crate::utils::show_dialog;
+use crate::utils::{log_to_status_bar, show_dialog};
 use crate::VERSION;
 use crate::views::table::utils::{check_table_for_errors, get_reference_data, setup_item_delegates};
 
@@ -148,6 +148,11 @@ pub struct AppUISlots {
     pub packed_file_hide: SlotOfInt<'static>,
     pub packed_file_update: SlotOfInt<'static>,
     pub packed_file_unpreview: SlotOfInt<'static>,
+
+    //-----------------------------------------------//
+    // `Generic` slots.
+    //-----------------------------------------------//
+    pub pack_file_backup_autosave: Slot<'static>,
 }
 
 pub struct AppUITempSlots {
@@ -222,6 +227,10 @@ impl AppUISlots {
 
                     // Tell the Background Thread to create a new PackFile.
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
+
+                    // Reset the autosave timer.
+                    app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
+                    app_ui.timer_backup_autosave.start_0a();
 
                     // Disable the main window, so the user can't interrupt the process or iterfere with it.
                     app_ui.main_window.set_enabled(false);
@@ -319,6 +328,10 @@ impl AppUISlots {
             // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
             // and open them all together, skipping mods.
             if app_ui.are_you_sure(false) {
+
+                // Reset the autosave timer.
+                app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
+                app_ui.timer_backup_autosave.start_0a();
 
                 // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
                 app_ui.main_window.set_enabled(false);
@@ -541,6 +554,10 @@ impl AppUISlots {
                     // Destroy whatever it's in the PackedFile's views and clear the global search UI.
                     let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false);
                     global_search_ui.clear();
+
+                    // Reset the autosave timer.
+                    app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
+                    app_ui.timer_backup_autosave.start_0a();
 
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
                     CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
@@ -1241,6 +1258,24 @@ impl AppUISlots {
             }
         });
 
+        // Autosave slot.
+        let pack_file_backup_autosave = Slot::new(move || {
+            CENTRAL_COMMAND.send_message_qt(Command::TriggerBackupAutosave);
+            log_to_status_bar("Autosaving....");
+            app_ui.main_window.set_enabled(false);
+            let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
+            match response {
+                Response::Success => log_to_status_bar("Autosaved"),
+                Response::Error(error) => log_to_status_bar(&error.to_terminal()),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+            app_ui.main_window.set_enabled(true);
+
+            // Reset the timer.
+            app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
+            app_ui.timer_backup_autosave.start_0a();
+        });
+
         // And here... we return all the slots.
 		Self {
 
@@ -1319,7 +1354,12 @@ impl AppUISlots {
             //-----------------------------------------------//
             packed_file_hide,
             packed_file_update,
-            packed_file_unpreview
+            packed_file_unpreview,
+
+            //-----------------------------------------------//
+            // `Generic` slots.
+            //-----------------------------------------------//
+            pack_file_backup_autosave
 		}
 	}
 }

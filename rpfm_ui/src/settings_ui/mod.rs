@@ -20,6 +20,7 @@ use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOpt
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
+use qt_widgets::QSpinBox;
 use qt_widgets::QPushButton;
 use qt_widgets::QWidget;
 
@@ -108,6 +109,7 @@ pub struct SettingsUI {
     pub extra_packfile_use_dependency_checker_label: MutPtr<QLabel>,
     pub extra_packfile_use_lazy_loading_label: MutPtr<QLabel>,
     pub extra_disable_uuid_regeneration_on_db_tables_label: MutPtr<QLabel>,
+    pub extra_packfile_autosave_interval_label: MutPtr<QLabel>,
 
     pub extra_global_default_game_combobox: MutPtr<QComboBox>,
     pub extra_network_update_channel_combobox: MutPtr<QComboBox>,
@@ -118,6 +120,7 @@ pub struct SettingsUI {
     pub extra_packfile_use_dependency_checker_checkbox: MutPtr<QCheckBox>,
     pub extra_packfile_use_lazy_loading_checkbox: MutPtr<QCheckBox>,
     pub extra_disable_uuid_regeneration_on_db_tables_checkbox: MutPtr<QCheckBox>,
+    pub extra_packfile_autosave_interval_spinbox: MutPtr<QSpinBox>,
 
     //-------------------------------------------------------------------------------//
     // `Debug` section of the `Settings` dialog.
@@ -300,7 +303,7 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&mut ui_table_tight_table_mode_checkbox, 3, 1, 1, 1);
 
         ui_grid.add_widget_5a(ui_table_view_frame, 99, 0, 1, 2);
-        main_grid.add_widget_5a(ui_frame, 2, 0, 2, 1);
+        main_grid.add_widget_5a(ui_frame, 2, 0, 1, 1);
 
         //-----------------------------------------------//
         // `Extra` Frame.
@@ -327,6 +330,7 @@ impl SettingsUI {
         let mut extra_packfile_use_dependency_checker_label = QLabel::from_q_string(&qtr("settings_use_dependency_checker"));
         let mut extra_packfile_use_lazy_loading_label = QLabel::from_q_string(&qtr("settings_use_lazy_loading"));
         let mut extra_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string(&qtr("settings_disable_uuid_regeneration_tables"));
+        let mut extra_packfile_autosave_interval_label = QLabel::from_q_string(&qtr("settings_autosave_interval"));
 
         let mut extra_update_channel_combobox = QComboBox::new_0a();
         let mut extra_network_check_updates_on_start_checkbox = QCheckBox::new();
@@ -336,6 +340,7 @@ impl SettingsUI {
         let mut extra_packfile_use_dependency_checker_checkbox = QCheckBox::new();
         let mut extra_packfile_use_lazy_loading_checkbox = QCheckBox::new();
         let mut extra_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::new();
+        let mut extra_packfile_autosave_interval_spinbox = QSpinBox::new_0a();
 
         extra_update_channel_combobox.add_item_q_string(&QString::from_std_str(STABLE));
         extra_update_channel_combobox.add_item_q_string(&QString::from_std_str(BETA));
@@ -367,7 +372,10 @@ impl SettingsUI {
         extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_label, 8, 0, 1, 1);
         extra_grid.add_widget_5a(&mut extra_disable_uuid_regeneration_on_db_tables_checkbox, 8, 1, 1, 1);
 
-        main_grid.add_widget_5a(extra_frame, 2, 1, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_autosave_interval_label, 9, 0, 1, 1);
+        extra_grid.add_widget_5a(&mut extra_packfile_autosave_interval_spinbox, 9, 1, 1, 1);
+
+        main_grid.add_widget_5a(extra_frame, 2, 1, 2, 1);
 
         //-----------------------------------------------//
         // `Debug` Frame.
@@ -390,7 +398,7 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&mut debug_enable_debug_menu_label, 1, 0, 1, 1);
         debug_grid.add_widget_5a(&mut debug_enable_debug_menu_checkbox, 1, 1, 1, 1);
 
-        main_grid.add_widget_5a(debug_frame, 3, 1, 1, 1);
+        main_grid.add_widget_5a(debug_frame, 3, 0, 1, 1);
 
         //-----------------------------------------------//
         // `ButtonBox` Button Box.
@@ -463,6 +471,7 @@ impl SettingsUI {
             extra_packfile_use_dependency_checker_label: extra_packfile_use_dependency_checker_label.into_ptr(),
             extra_packfile_use_lazy_loading_label: extra_packfile_use_lazy_loading_label.into_ptr(),
             extra_disable_uuid_regeneration_on_db_tables_label: extra_disable_uuid_regeneration_on_db_tables_label.into_ptr(),
+            extra_packfile_autosave_interval_label: extra_packfile_autosave_interval_label.into_ptr(),
 
             extra_global_default_game_combobox: extra_global_default_game_combobox.into_ptr(),
             extra_network_update_channel_combobox: extra_update_channel_combobox.into_ptr(),
@@ -473,6 +482,7 @@ impl SettingsUI {
             extra_packfile_use_dependency_checker_checkbox: extra_packfile_use_dependency_checker_checkbox.into_ptr(),
             extra_packfile_use_lazy_loading_checkbox: extra_packfile_use_lazy_loading_checkbox.into_ptr(),
             extra_disable_uuid_regeneration_on_db_tables_checkbox: extra_disable_uuid_regeneration_on_db_tables_checkbox.into_ptr(),
+            extra_packfile_autosave_interval_spinbox: extra_packfile_autosave_interval_spinbox.into_ptr(),
 
             //-------------------------------------------------------------------------------//
             // `Debug` section of the `Settings` dialog.
@@ -545,6 +555,7 @@ impl SettingsUI {
         self.extra_packfile_use_dependency_checker_checkbox.set_checked(settings.settings_bool["use_dependency_checker"]);
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(settings.settings_bool["use_lazy_loading"]);
         self.extra_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(settings.settings_bool["disable_uuid_regeneration_on_db_tables"]);
+        self.extra_packfile_autosave_interval_spinbox.set_value(settings.settings_string["autosave_interval"].parse::<i32>().unwrap_or(10));
 
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
@@ -608,6 +619,7 @@ impl SettingsUI {
         settings.settings_bool.insert("use_dependency_checker".to_owned(), self.extra_packfile_use_dependency_checker_checkbox.is_checked());
         settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_packfile_use_lazy_loading_checkbox.is_checked());
         settings.settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), self.extra_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
+        settings.settings_string.insert("autosave_interval".to_owned(), self.extra_packfile_autosave_interval_spinbox.value().to_string());
 
         // Get the Debug Settings.
         settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.is_checked());

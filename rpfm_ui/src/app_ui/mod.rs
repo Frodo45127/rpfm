@@ -34,6 +34,7 @@ use qt_gui::QIcon;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QFlags;
+use qt_core::QTimer;
 use qt_core::CaseSensitivity;
 use qt_core::QString;
 use qt_core::WindowType;
@@ -257,6 +258,11 @@ pub struct AppUI {
     // "Debug" menu.
     //-------------------------------------------------------------------------------//
     pub debug_update_current_schema_from_asskit: MutPtr<QAction>,
+
+    //-------------------------------------------------------------------------------//
+    // "Extra stuff" menu.
+    //-------------------------------------------------------------------------------//
+    pub timer_backup_autosave: MutPtr<QTimer>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -601,7 +607,14 @@ impl AppUI {
         // Populate the `Debug` menu.
         let debug_update_current_schema_from_asskit = menu_bar_debug.add_action_q_string(&qtr("update_current_schema_from_asskit"));
 
+        //-------------------------------------------------------------------------------//
+        // "Extra stuff" menu.
+        //-------------------------------------------------------------------------------//
+        let mut timer_backup_autosave = QTimer::new_0a().into_ptr();
+        timer_backup_autosave.set_single_shot(true);
+
         command_palette_widget.hide();
+
 
         // Create ***Da monsta***.
         AppUI {
@@ -782,6 +795,11 @@ impl AppUI {
             // "Debug" menu.
             //-------------------------------------------------------------------------------//
             debug_update_current_schema_from_asskit,
+
+            //-------------------------------------------------------------------------------//
+            // "Extra stuff" menu.
+            //-------------------------------------------------------------------------------//
+            timer_backup_autosave,
         }
     }
 }

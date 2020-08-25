@@ -579,3 +579,4 @@ integer_2 = Unknown integer 2:
 
 settings_update_channel = Update Channel
 update_success_main_program = <h4>RPFM updated correctly!</h4> <p>Please, restart the program for the changes to apply.</p>
+settings_autosave_interval = Autosave Interval (min)

@@ -26,6 +26,7 @@ use std::path::PathBuf;
 
 use rpfm_error::{Error, ErrorKind};
 use rpfm_lib::assembly_kit::*;
+use rpfm_lib::common::*;
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
@@ -43,7 +44,7 @@ use rpfm_lib::template::Template;
 
 use crate::app_ui::NewPackedFile;
 use crate::CENTRAL_COMMAND;
-use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::communications::{Command, Notification, Response, THREADS_COMMUNICATION_ERROR};
 use crate::locale::tre;
 use crate::RPFM_PATH;
 use crate::views::table::TableType;
@@ -888,6 +889,22 @@ pub fn background_loop() {
                 match rpfm_lib::updater::update_main_program() {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // When we want to update our program...
+            Command::TriggerBackupAutosave => {
+                match get_oldest_file_in_folder(&get_backup_autosave_path().unwrap()) {
+                    Ok(file) => match file {
+                        Some(file) => {
+                            match pack_file_decoded.clone().save(Some(file)) {
+                                Ok(_) => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Done),
+                                Err(error) => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Error(Error::from(ErrorKind::SavePackFileGeneric(error.to_string())))),
+                            }
+                        }
+                        None => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Error(Error::from(ErrorKind::SavePackFileGeneric("No autosave files found.".to_owned())))),
+                    }
+                    Err(_) => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Error(Error::from(ErrorKind::SavePackFileGeneric("No autosave files found.".to_string())))),
                 }
             }
 

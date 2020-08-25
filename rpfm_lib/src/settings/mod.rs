@@ -69,6 +69,7 @@ impl Settings {
         settings_string.insert("default_game".to_owned(), KEY_THREE_KINGDOMS.to_owned());
         settings_string.insert("language".to_owned(), "English_en".to_owned());
         settings_string.insert("update_channel".to_owned(), STABLE.to_owned());
+        settings_string.insert("autosave_interval".to_owned(), "10".to_owned());
         settings_string.insert("font_name".to_owned(), "".to_owned());
         settings_string.insert("font_size".to_owned(), "".to_owned());
 

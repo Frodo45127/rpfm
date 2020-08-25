@@ -17,7 +17,7 @@ Many things depend on being able to read and write files in that folder, so alwa
 
 use directories::ProjectDirs;
 
-use std::fs::DirBuilder;
+use std::fs::{DirBuilder, File};
 use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
@@ -39,16 +39,27 @@ pub fn init_config_path() -> Result<()> {
 	match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
 		Some(proj_dirs) => {
 			let config_path = proj_dirs.config_dir();
+            let autosaves_path = config_path.to_path_buf().join("autosaves");
 			let error_path = config_path.to_path_buf().join("error");
 			let schemas_path = config_path.to_path_buf().join("schemas");
             let templates_path = config_path.to_path_buf().join("templates");
             let templates_custom_path = config_path.to_path_buf().join("templates_custom");
 
-	        DirBuilder::new().recursive(true).create(&config_path)?;
+	        DirBuilder::new().recursive(true).create(&autosaves_path)?;
+            DirBuilder::new().recursive(true).create(&config_path)?;
 	        DirBuilder::new().recursive(true).create(&error_path)?;
 	        DirBuilder::new().recursive(true).create(&schemas_path)?;
             DirBuilder::new().recursive(true).create(&templates_path)?;
             DirBuilder::new().recursive(true).create(&templates_custom_path)?;
+
+            // Init autosave files if they're not yet initialized.
+            (1..=25).into_iter().for_each(|x| {
+                let path = autosaves_path.join(format!("autosave_{:02?}.pack", x));
+                if !path.is_file() {
+                    let _ = File::create(path);
+                }
+            });
+
 	        Ok(())
 		},
 		None => Err(ErrorKind::IOFolderCannotBeOpened.into())
@@ -59,10 +70,8 @@ pub fn init_config_path() -> Result<()> {
 ///
 /// Note: On `Debug´ mode this project is the project from where you execute one of RPFM's programs, which should be the root of the repo.
 pub fn get_config_path() -> Result<PathBuf> {
-	if cfg!(debug_assertions) { std::env::current_dir().map_err(From::from) } else {
-		match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
-			Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
-			None => Err(ErrorKind::IOFolderCannotBeOpened.into())
-		}
+	match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
+		Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
+		None => Err(ErrorKind::IOFolderCannotBeOpened.into())
 	}
 }

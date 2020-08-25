@@ -84,6 +84,20 @@ pub fn get_last_modified_time_from_file(file: &File) -> i64 {
     last_modified_time.naive_utc().timestamp()
 }
 
+/// This function gets the oldest modified file in a folder and return it.
+#[allow(dead_code)]
+pub fn get_oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>> {
+    let mut files = get_files_from_subdir(current_path)?;
+    files.sort();
+    files.sort_by(|a, b| {
+        let a = File::open(a).unwrap();
+        let b = File::open(b).unwrap();
+        get_last_modified_time_from_file(&a).cmp(&get_last_modified_time_from_file(&b))
+    });
+
+    Ok(files.get(0).cloned())
+}
+
 /// This function gets the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_data_path() -> Option<PathBuf> {
@@ -274,6 +288,12 @@ pub fn get_custom_template_assets_path() -> Result<PathBuf> {
 #[allow(dead_code)]
 pub fn get_schemas_path() -> Result<PathBuf> {
     Ok(get_config_path()?.join(schema::SCHEMA_FOLDER))
+}
+
+/// This function returns the autosave path.
+#[allow(dead_code)]
+pub fn get_backup_autosave_path() -> Result<PathBuf> {
+    Ok(get_config_path()?.join("autosaves"))
 }
 
 /// This function parses strings to booleans, properly.
