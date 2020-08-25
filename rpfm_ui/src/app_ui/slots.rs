@@ -1261,11 +1261,11 @@ impl AppUISlots {
         // Autosave slot.
         let pack_file_backup_autosave = Slot::new(move || {
             CENTRAL_COMMAND.send_message_qt(Command::TriggerBackupAutosave);
-            log_to_status_bar("Autosaving....");
+            log_to_status_bar(&tr("autosaving"));
             app_ui.main_window.set_enabled(false);
             let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
             match response {
-                Response::Success => log_to_status_bar("Autosaved"),
+                Response::Success => log_to_status_bar(&tr("autosaved")),
                 Response::Error(error) => log_to_status_bar(&error.to_terminal()),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
