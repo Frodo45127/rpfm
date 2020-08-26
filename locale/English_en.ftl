@@ -583,3 +583,4 @@ update_success_main_program = <h4>RPFM updated correctly!</h4> <p>Please, restar
 settings_autosave_interval = Autosave Interval (min)
 autosaving = Autosaving...
 autosaved = Autosaved
+error_autosave_non_editable = This PackFile cannot be autosaved.

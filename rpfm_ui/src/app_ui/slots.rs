@@ -1266,7 +1266,9 @@ impl AppUISlots {
             let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
             match response {
                 Response::Success => log_to_status_bar(&tr("autosaved")),
-                Response::Error(error) => log_to_status_bar(&error.to_terminal()),
+                Response::Error(error) => if error.kind() == &ErrorKind::PackFileIsNonEditable {
+                    log_to_status_bar(&tr("error_autosave_non_editable"))
+                } else { log_to_status_bar(&error.to_terminal()) },
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
             app_ui.main_window.set_enabled(true);
