@@ -942,6 +942,10 @@ impl AppUI {
                 }
             }
 
+            Response::Error(_) => {
+                if !use_dialog { return; }
+                qtr("api_response_error")
+            }
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
 
