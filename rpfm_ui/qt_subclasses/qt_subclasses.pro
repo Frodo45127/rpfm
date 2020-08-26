@@ -28,6 +28,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    src/q_main_window_custom.cpp \
     src/packed_file_model.cpp \
     src/q_list_of_q_standard_item.cpp \
     src/qstring_item_delegate.cpp \
@@ -55,7 +56,8 @@ HEADERS += \
     include/qstring_item_delegate.h \
     include/q_list_of_q_standard_item.h \
     include/packed_file_model.h \
-    include/resizable_label.h
+    include/resizable_label.h \
+    include/q_main_window_custom.h
 
 release:DESTDIR = release
 release:OBJECTS_DIR = release/.obj

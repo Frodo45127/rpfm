@@ -60,6 +60,7 @@ use super::AppUI;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
@@ -99,23 +100,7 @@ impl AppUI {
     ///
     /// If you are trying to delete the open MyMod, pass it true.
     pub unsafe fn are_you_sure(&self, is_delete_my_mod: bool) -> bool {
-        let title = qtr("rpfm_title");
-        let message = if is_delete_my_mod { qtr("delete_mymod_0") }
-        else if UI_STATE.get_is_modified() { qtr("delete_mymod_1") }
-
-        // In any other situation... just return true and forget about the dialog.
-        else { return true };
-
-        // Create the dialog and run it (Yes => 3, No => 4).
-        QMessageBox::from_2_q_string_icon3_int_q_widget(
-            &title,
-            &message,
-            q_message_box::Icon::Warning,
-            65536, // No
-            16384, // Yes
-            1, // By default, select yes.
-            self.main_window,
-        ).exec() == 3
+        are_you_sure(self.main_window.as_mut_raw_ptr(), is_delete_my_mod)
     }
 
     /// This function updates the backend of all open PackedFiles with their view's data.

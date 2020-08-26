@@ -49,6 +49,8 @@ use rpfm_lib::packedfile::text::TextType;
 use rpfm_lib::SETTINGS;
 use rpfm_lib::SUPPORTED_GAMES;
 
+use crate::ffi::are_you_sure;
+use crate::ffi::new_q_main_window_custom_safe;
 use crate::ffi::new_tableview_command_palette_safe;
 use crate::locale::qtr;
 use crate::ASSETS_PATH;
@@ -290,7 +292,7 @@ impl AppUI {
     pub unsafe fn new() -> Self {
 
         // Initialize and configure the main window.
-        let mut main_window = QMainWindow::new_0a().into_ptr();
+        let mut main_window = new_q_main_window_custom_safe(are_you_sure);
         let widget = QWidget::new_0a().into_ptr();
         let mut layout = create_grid_layout(widget);
         main_window.set_central_widget(widget);

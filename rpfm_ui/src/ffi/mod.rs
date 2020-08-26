@@ -13,6 +13,8 @@ Module containing the ffi functions used for custom widgets.
 !*/
 
 use qt_widgets::QLabel;
+use qt_widgets::QMainWindow;
+use qt_widgets::{QMessageBox, q_message_box};
 use qt_widgets::QTableView;
 use qt_widgets::QWidget;
 
@@ -30,6 +32,9 @@ use qt_core::QStringList;
 
 use cpp_core::MutPtr;
 use cpp_core::Ptr;
+
+use crate::locale::qtr;
+use crate::UI_STATE;
 
 /// This function replaces the default editor widget for reference columns with a combobox, so you can select the reference data.
 extern "C" { fn new_combobox_item_delegate(table_view: *mut QObject, column: i32, list: *const QStringList, is_editable: bool, max_lenght: i32); }
@@ -77,6 +82,12 @@ pub fn new_packed_file_model_safe() -> MutPtr<QStandardItemModel> {
 extern "C" { fn new_tableview_command_palette() -> *mut QTableView; }
 pub fn new_tableview_command_palette_safe() -> MutPtr<QTableView> {
     unsafe { MutPtr::from_raw(new_tableview_command_palette()) }
+}
+
+/// This function allow us to create a custom window.
+extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> *mut QMainWindow; }
+pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> MutPtr<QMainWindow> {
+    unsafe { MutPtr::from_raw(new_q_main_window_custom(are_you_sure)) }
 }
 
 /// This function allow us to append items to QListOfQStandardItem.
@@ -153,4 +164,30 @@ pub fn new_resizable_label_safe(parent: &mut QWidget, pixmap: &mut QPixmap) -> M
 extern "C" { fn set_pixmap_on_resizable_label(label: *mut QLabel, pixmap: *mut QPixmap); }
 pub fn set_pixmap_on_resizable_label_safe(label: &mut QLabel, pixmap: &mut QPixmap) {
     unsafe { set_pixmap_on_resizable_label(label, pixmap); }
+}
+
+
+//---------------------------------------------------------------------------//
+// Special functions.
+//---------------------------------------------------------------------------//
+
+/// This function allow us to create a dialog when trying to close the main window.
+pub extern fn are_you_sure(main_window: *mut QMainWindow, is_delete_my_mod: bool) -> bool {
+    let title = qtr("rpfm_title");
+    let message = if is_delete_my_mod { qtr("delete_mymod_0") }
+    else if UI_STATE.get_is_modified() { qtr("delete_mymod_1") }
+
+    // In any other situation... just return true and forget about the dialog.
+    else { return true };
+
+    // Create the dialog and run it (Yes => 3, No => 4).
+    unsafe { QMessageBox::from_2_q_string_icon3_int_q_widget(
+        &title,
+        &message,
+        q_message_box::Icon::Warning,
+        65536, // No
+        16384, // Yes
+        1, // By default, select yes.
+        main_window,
+    ).exec() == 3 }
 }
