@@ -156,4 +156,19 @@ pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
 
     app_ui.main_window.add_action(app_ui.command_palette_show);
     app_ui.main_window.add_action(app_ui.command_palette_hide);
+
+    //---------------------------------------------------------------------------------------//
+    // Shortcuts for the PackedFile Views...
+    //---------------------------------------------------------------------------------------//
+    app_ui.tab_bar_packed_file_close.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_close_tab"])));
+    app_ui.tab_bar_packed_file_prev.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_tab_prev"])));
+    app_ui.tab_bar_packed_file_next.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_tab_next"])));
+
+    app_ui.tab_bar_packed_file_close.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.tab_bar_packed_file_prev.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+    app_ui.tab_bar_packed_file_next.set_shortcut_context(ShortcutContext::ApplicationShortcut);
+
+    app_ui.tab_bar_packed_file.add_action(app_ui.tab_bar_packed_file_close);
+    app_ui.tab_bar_packed_file.add_action(app_ui.tab_bar_packed_file_prev);
+    app_ui.tab_bar_packed_file.add_action(app_ui.tab_bar_packed_file_next);
 }

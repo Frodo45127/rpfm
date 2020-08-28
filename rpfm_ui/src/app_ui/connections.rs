@@ -142,4 +142,8 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     // `Generic` connections.
     //-----------------------------------------------//
     app_ui.timer_backup_autosave.timeout().connect(&slots.pack_file_backup_autosave);
+
+    app_ui.tab_bar_packed_file_close.triggered().connect(&slots.tab_bar_packed_file_close);
+    app_ui.tab_bar_packed_file_prev.triggered().connect(&slots.tab_bar_packed_file_prev);
+    app_ui.tab_bar_packed_file_next.triggered().connect(&slots.tab_bar_packed_file_next);
 }

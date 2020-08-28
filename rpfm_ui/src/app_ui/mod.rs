@@ -262,9 +262,13 @@ pub struct AppUI {
     pub debug_update_current_schema_from_asskit: MutPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
-    // "Extra stuff" menu.
+    // Extra stuff
     //-------------------------------------------------------------------------------//
     pub timer_backup_autosave: MutPtr<QTimer>,
+
+    pub tab_bar_packed_file_close: MutPtr<QAction>,
+    pub tab_bar_packed_file_prev: MutPtr<QAction>,
+    pub tab_bar_packed_file_next: MutPtr<QAction>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -307,6 +311,10 @@ impl AppUI {
         tab_bar_packed_file.set_movable(true);
         layout.add_widget_5a(&mut tab_bar_packed_file, 0, 0, 1, 1);
         STATUS_BAR.store(status_bar.as_mut_raw_ptr(), Ordering::SeqCst);
+
+        let tab_bar_packed_file_close = QAction::new();
+        let tab_bar_packed_file_prev = QAction::new();
+        let tab_bar_packed_file_next = QAction::new();
 
         //-----------------------------------------------//
         // `Command Palette` DockWidget.
@@ -802,6 +810,10 @@ impl AppUI {
             // "Extra stuff" menu.
             //-------------------------------------------------------------------------------//
             timer_backup_autosave,
+
+            tab_bar_packed_file_close: tab_bar_packed_file_close.into_ptr(),
+            tab_bar_packed_file_prev: tab_bar_packed_file_prev.into_ptr(),
+            tab_bar_packed_file_next: tab_bar_packed_file_next.into_ptr()
         }
     }
 }

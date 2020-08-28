@@ -153,6 +153,10 @@ pub struct AppUISlots {
     // `Generic` slots.
     //-----------------------------------------------//
     pub pack_file_backup_autosave: Slot<'static>,
+
+    pub tab_bar_packed_file_close: Slot<'static>,
+    pub tab_bar_packed_file_prev: Slot<'static>,
+    pub tab_bar_packed_file_next: Slot<'static>,
 }
 
 pub struct AppUITempSlots {
@@ -1168,34 +1172,7 @@ impl AppUISlots {
         // `PackedFileView` logic.
         //-----------------------------------------------//
         let packed_file_hide = SlotOfInt::new(move |index| {
-
-            // PackFile Views must be deleted on close.
-            let mut purge_on_delete = vec![];
-            let mut tab_index = -1;
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let path = packed_file_view.get_ref_path();
-                let widget = packed_file_view.get_mut_widget();
-                if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                    tab_index = index;
-                    if !path.is_empty() && path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                        purge_on_delete = path.to_vec();
-                        CENTRAL_COMMAND.send_message_qt(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
-                    }
-                    break;
-                }
-            }
-
-            if tab_index != -1 {
-                app_ui.tab_bar_packed_file.remove_tab(tab_index);
-            }
-
-            // This is for cleaning up open PackFiles.
-            if !purge_on_delete.is_empty() {
-                let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
-            }
-
-            // Update the background icon.
-            GameSelectedIcons::set_game_selected_icon(&mut app_ui);
+            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, index);
         });
 
         let packed_file_update = SlotOfInt::new(move |index| {
@@ -1276,6 +1253,25 @@ impl AppUISlots {
             // Reset the timer.
             app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
             app_ui.timer_backup_autosave.start_0a();
+        });
+
+        let tab_bar_packed_file_close = Slot::new(move || {
+            let index = app_ui.tab_bar_packed_file.current_index();
+            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, index);
+        });
+
+        let tab_bar_packed_file_prev = Slot::new(move || {
+            let index = app_ui.tab_bar_packed_file.current_index();
+            if index != -1 {
+                app_ui.tab_bar_packed_file.set_current_index(index - 1);
+            }
+        });
+
+        let tab_bar_packed_file_next = Slot::new(move || {
+            let index = app_ui.tab_bar_packed_file.current_index();
+            if index != -1 {
+                app_ui.tab_bar_packed_file.set_current_index(index + 1);
+            }
         });
 
         // And here... we return all the slots.
@@ -1361,7 +1357,11 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `Generic` slots.
             //-----------------------------------------------//
-            pack_file_backup_autosave
+            pack_file_backup_autosave,
+
+            tab_bar_packed_file_close,
+            tab_bar_packed_file_prev,
+            tab_bar_packed_file_next,
 		}
 	}
 }
