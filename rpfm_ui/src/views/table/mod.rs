@@ -41,6 +41,7 @@ use qt_core::MatchFlag;
 
 use cpp_core::MutPtr;
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::{fmt, fmt::Debug};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
@@ -268,7 +269,19 @@ impl TableView {
         row_filter_column_selector.set_model(row_filter_column_list);
 
         let mut fields = table_definition.get_fields_processed().to_vec();
-        fields.sort_by(|a, b| a.get_ca_order().cmp(&b.get_ca_order()));
+        fields.sort_by(|a, b| {
+            if SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] {
+                if a.get_is_key() && b.get_is_key() { Ordering::Equal }
+                else if a.get_is_key() && !b.get_is_key() { Ordering::Less }
+                else if !a.get_is_key() && b.get_is_key() { Ordering::Greater }
+                else { Ordering::Equal }
+            }
+            else {
+                if a.get_ca_order() == -1 || b.get_ca_order() == -1 { Ordering::Equal }
+                else { a.get_ca_order().cmp(&b.get_ca_order()) }
+            }
+        });
+
         for field in &fields {
             let name = clean_column_names(&field.get_name());
             row_filter_column_selector.add_item_q_string(&QString::from_std_str(&name));

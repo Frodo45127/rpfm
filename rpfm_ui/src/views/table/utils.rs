@@ -625,7 +625,10 @@ pub unsafe fn build_columns(
             .enumerate()
             .map(|(x, y)| (x, y.get_ca_order()))
             .collect::<Vec<(usize, i16)>>();
-        fields.sort_by(|a, b| a.1.cmp(&b.1));
+        fields.sort_by(|a, b| {
+            if a.1 == -1 || b.1 == -1 { Ordering::Equal }
+            else { a.1.cmp(&b.1) }
+        });
 
         for (new_pos, (logical_index, ca_order)) in fields.iter().enumerate() {
             if *ca_order != -1 {
