@@ -772,7 +772,10 @@ impl AppUISlots {
         let view_toggle_global_search_panel = SlotOfBool::new(move |_| {
             let is_visible = global_search_ui.global_search_dock_widget.is_visible();
             if is_visible { global_search_ui.global_search_dock_widget.hide(); }
-            else { global_search_ui.global_search_dock_widget.show(); }
+            else {
+                global_search_ui.global_search_dock_widget.show();
+                global_search_ui.global_search_search_line_edit.set_focus_0a()
+            }
         });
 
         //-----------------------------------------------//
