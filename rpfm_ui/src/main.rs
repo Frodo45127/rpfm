@@ -208,14 +208,17 @@ lazy_static! {
     static ref MEDIUM_GREY: &'static str = "#555555";
 
     static ref YELLOW_BRIGHT: &'static str = "#FFFFDD";
+    static ref YELLOW_MEDIUM: &'static str = "#e5e546";
     static ref YELLOW_DARK: &'static str = "#525200";
 
     static ref GREEN_BRIGHT: &'static str = "#D0FDCC";
+    static ref GREEN_MEDIUM: &'static str = "#87d382";
     static ref GREEN_DARK: &'static str = "#708F6E";
 
     static ref RED_BRIGHT: &'static str = "#FFCCCC";
     static ref RED_DARK: &'static str = "#8F6E6E";
 
+    static ref MAGENTA_MEDIUM: &'static str = "#CA1F7B";
 
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Locale = {

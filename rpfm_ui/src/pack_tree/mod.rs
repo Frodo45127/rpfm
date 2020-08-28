@@ -53,7 +53,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::add_to_q_list_safe;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::{YELLOW_BRIGHT, YELLOW_DARK, GREEN_BRIGHT, GREEN_DARK};
+use crate::{YELLOW_BRIGHT, YELLOW_MEDIUM, YELLOW_DARK, GREEN_BRIGHT, GREEN_MEDIUM, GREEN_DARK, RED_BRIGHT, RED_DARK, MAGENTA_MEDIUM};
 
 // This one is needed for initialization on boot, so it has to be public.
 pub mod icons;
@@ -700,9 +700,9 @@ impl PackTree for MutPtr<QTreeView> {
     }
 
     unsafe fn paint_specific_item_treeview(mut item: MutPtr<QStandardItem>) {
-        let color_added = get_color_added();
-        let color_modified = get_color_modified();
-        let color_added_modified = get_color_added_modified();
+        let color_added = get_color_added_high_intensity();
+        let color_modified = get_color_modified_high_intensity();
+        let color_added_modified = get_color_added_modified_high_intensity();
         let color_untouched = get_color_unmodified();
         match item.data_1a(ITEM_STATUS).to_int_0a() {
             ITEM_STATUS_PRISTINE => item.set_background(&QBrush::from_q_color(color_untouched.as_ref().unwrap())),
@@ -1759,6 +1759,43 @@ pub unsafe fn get_color_added_modified() -> MutPtr<QColor> {
 pub unsafe fn get_color_unmodified() -> MutPtr<QColor> {
     QColor::from_global_color(GlobalColor::Transparent).into_ptr()
 }
+
+pub unsafe fn get_color_correct() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*GREEN_DARK)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*GREEN_BRIGHT)).into_ptr()
+    }
+}
+
+pub unsafe fn get_color_wrong() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*RED_DARK)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*RED_BRIGHT)).into_ptr()
+    }
+}
+
+pub unsafe fn get_color_added_high_intensity() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*GREEN_DARK)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*GREEN_MEDIUM)).into_ptr()
+    }
+}
+
+pub unsafe fn get_color_modified_high_intensity() -> MutPtr<QColor> {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        QColor::from_q_string(&QString::from_std_str(*YELLOW_DARK)).into_ptr()
+    } else {
+        QColor::from_q_string(&QString::from_std_str(*YELLOW_MEDIUM)).into_ptr()
+    }
+}
+
+pub unsafe fn get_color_added_modified_high_intensity() -> MutPtr<QColor> {
+    QColor::from_q_string(&QString::from_std_str(*MAGENTA_MEDIUM)).into_ptr()
+}
+
 
 /*pub unsafe fn get_color_deleted() -> MutPtr<QColor> {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {

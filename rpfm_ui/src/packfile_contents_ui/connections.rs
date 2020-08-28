@@ -30,6 +30,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.filter_line_edit.text_changed().connect(&slots.filter_change_text);
     ui.filter_autoexpand_matches_button.toggled().connect(&slots.filter_change_autoexpand_matches);
     ui.filter_case_sensitive_button.toggled().connect(&slots.filter_change_case_sensitive);
+    ui.filter_line_edit.text_changed().connect(&slots.filter_check_regex);
 
     ui.packfile_contents_tree_model.item_changed().connect(&slots.update_packfile_state);
 

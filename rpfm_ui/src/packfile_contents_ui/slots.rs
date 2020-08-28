@@ -17,6 +17,8 @@ use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
 
 use qt_gui::QCursor;
+use qt_gui::q_palette::ColorRole;
+use qt_gui::QPalette;
 use qt_gui::SlotOfQStandardItem;
 
 use qt_core::{SlotOfBool, Slot, SlotOfQString};
@@ -24,6 +26,8 @@ use qt_core::QSignalBlocker;
 use qt_core::QObject;
 
 use cpp_core::MutPtr;
+
+use regex::Regex;
 
 use std::cell::RefCell;
 use std::fs::DirBuilder;
@@ -42,7 +46,7 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
-use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
+use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation, get_color_correct, get_color_wrong, get_color_unmodified};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
 use crate::packedfile_views::{PackedFileView, TheOneSlot};
@@ -63,6 +67,7 @@ pub struct PackFileContentsSlots {
     pub filter_change_text: SlotOfQString<'static>,
     pub filter_change_autoexpand_matches: SlotOfBool<'static>,
     pub filter_change_case_sensitive: SlotOfBool<'static>,
+    pub filter_check_regex: SlotOfQString<'static>,
 
     pub update_packfile_state: SlotOfQStandardItem<'static>,
 
@@ -133,6 +138,24 @@ impl PackFileContentsSlots {
         });
         let filter_change_case_sensitive = SlotOfBool::new(move |_| {
             pack_file_contents_ui.filter_files();
+        });
+
+        // What happens when we trigger the "Check Regex" action.
+        let filter_check_regex = SlotOfQString::new(move |string| {
+            let mut palette = QPalette::new();
+            if !string.is_empty() {
+                if Regex::new(&string.to_std_string()).is_ok() {
+                    palette.set_color_2a(ColorRole::Base, get_color_correct().as_ref().unwrap());
+                } else {
+                    palette.set_color_2a(ColorRole::Base, get_color_wrong().as_ref().unwrap());
+                }
+            }
+
+            // Not really right but... it does the job for now.
+            else {
+                palette.set_color_2a(ColorRole::Base, get_color_unmodified().as_ref().unwrap());
+            }
+            pack_file_contents_ui.filter_line_edit.set_palette(&palette);
         });
 
         // Slot to show the Contextual Menu for the TreeView.
@@ -1149,6 +1172,7 @@ impl PackFileContentsSlots {
             filter_change_text,
             filter_change_autoexpand_matches,
             filter_change_case_sensitive,
+            filter_check_regex,
 
             update_packfile_state,
 
