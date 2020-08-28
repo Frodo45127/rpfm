@@ -70,8 +70,10 @@ pub fn init_config_path() -> Result<()> {
 ///
 /// Note: On `Debug´ mode this project is the project from where you execute one of RPFM's programs, which should be the root of the repo.
 pub fn get_config_path() -> Result<PathBuf> {
-	match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
-		Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
-		None => Err(ErrorKind::IOFolderCannotBeOpened.into())
-	}
+	if cfg!(debug_assertions) { std::env::current_dir().map_err(From::from) } else {
+        match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
+    		Some(proj_dirs) => Ok(proj_dirs.config_dir().to_path_buf()),
+    		None => Err(ErrorKind::IOFolderCannotBeOpened.into())
+    	}
+    }
 }

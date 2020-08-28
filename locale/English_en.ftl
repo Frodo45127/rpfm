@@ -584,3 +584,5 @@ settings_autosave_interval = Autosave Interval (min)
 autosaving = Autosaving...
 autosaved = Autosaved
 error_autosave_non_editable = This PackFile cannot be autosaved.
+
+settings_ui_table_use_old_column_order_label = Use Old Column Order (Keys first):

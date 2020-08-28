@@ -85,6 +85,7 @@ pub struct SettingsUI {
     pub ui_table_disable_combos_label: MutPtr<QLabel>,
     pub ui_table_extend_last_column_label: MutPtr<QLabel>,
     pub ui_table_tight_table_mode_label: MutPtr<QLabel>,
+    pub ui_table_use_old_column_order_label: MutPtr<QLabel>,
     pub ui_window_start_maximized_label: MutPtr<QLabel>,
     pub ui_window_hide_background_icon_label: MutPtr<QLabel>,
 
@@ -94,6 +95,7 @@ pub struct SettingsUI {
     pub ui_table_disable_combos_checkbox: MutPtr<QCheckBox>,
     pub ui_table_extend_last_column_checkbox: MutPtr<QCheckBox>,
     pub ui_table_tight_table_mode_checkbox: MutPtr<QCheckBox>,
+    pub ui_table_use_old_column_order_checkbox: MutPtr<QCheckBox>,
     pub ui_window_start_maximized_checkbox: MutPtr<QCheckBox>,
     pub ui_window_hide_background_icon_checkbox: MutPtr<QCheckBox>,
 
@@ -255,6 +257,7 @@ impl SettingsUI {
         let mut ui_table_disable_combos_label = QLabel::from_q_string(&qtr("settings_ui_table_disable_combos"));
         let mut ui_table_extend_last_column_label = QLabel::from_q_string(&qtr("settings_ui_table_extend_last_column_label"));
         let mut ui_table_tight_table_mode_label = QLabel::from_q_string(&qtr("settings_ui_table_tight_table_mode_label"));
+        let mut ui_table_use_old_column_order_label = QLabel::from_q_string(&qtr("settings_ui_table_use_old_column_order_label"));
         let mut ui_window_start_maximized_label = QLabel::from_q_string(&qtr("settings_ui_window_start_maximized_label"));
         let mut ui_window_hide_background_icon_label = QLabel::from_q_string(&qtr("settings_ui_window_hide_background_icon"));
 
@@ -264,6 +267,7 @@ impl SettingsUI {
         let mut ui_table_disable_combos_checkbox = QCheckBox::new();
         let mut ui_table_extend_last_column_checkbox = QCheckBox::new();
         let mut ui_table_tight_table_mode_checkbox = QCheckBox::new();
+        let mut ui_table_use_old_column_order_checkbox = QCheckBox::new();
         let mut ui_window_start_maximized_checkbox = QCheckBox::new();
         let mut ui_window_hide_background_icon_checkbox = QCheckBox::new();
 
@@ -301,6 +305,9 @@ impl SettingsUI {
 
         ui_table_view_grid.add_widget_5a(&mut ui_table_tight_table_mode_label, 3, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&mut ui_table_tight_table_mode_checkbox, 3, 1, 1, 1);
+
+        ui_table_view_grid.add_widget_5a(&mut ui_table_use_old_column_order_label, 4, 0, 1, 1);
+        ui_table_view_grid.add_widget_5a(&mut ui_table_use_old_column_order_checkbox, 4, 1, 1, 1);
 
         ui_grid.add_widget_5a(ui_table_view_frame, 99, 0, 1, 2);
         main_grid.add_widget_5a(ui_frame, 2, 0, 1, 1);
@@ -447,6 +454,7 @@ impl SettingsUI {
             ui_table_disable_combos_label: ui_table_disable_combos_label.into_ptr(),
             ui_table_extend_last_column_label: ui_table_extend_last_column_label.into_ptr(),
             ui_table_tight_table_mode_label: ui_table_tight_table_mode_label.into_ptr(),
+            ui_table_use_old_column_order_label: ui_table_use_old_column_order_label.into_ptr(),
             ui_window_start_maximized_label: ui_window_start_maximized_label.into_ptr(),
             ui_window_hide_background_icon_label: ui_window_hide_background_icon_label.into_ptr(),
 
@@ -456,6 +464,7 @@ impl SettingsUI {
             ui_table_disable_combos_checkbox: ui_table_disable_combos_checkbox.into_ptr(),
             ui_table_extend_last_column_checkbox: ui_table_extend_last_column_checkbox.into_ptr(),
             ui_table_tight_table_mode_checkbox: ui_table_tight_table_mode_checkbox.into_ptr(),
+            ui_table_use_old_column_order_checkbox: ui_table_use_old_column_order_checkbox.into_ptr(),
             ui_window_start_maximized_checkbox: ui_window_start_maximized_checkbox.into_ptr(),
             ui_window_hide_background_icon_checkbox: ui_window_hide_background_icon_checkbox.into_ptr(),
 
@@ -544,6 +553,7 @@ impl SettingsUI {
         self.ui_table_disable_combos_checkbox.set_checked(settings.settings_bool["disable_combos_on_tables"]);
         self.ui_table_extend_last_column_checkbox.set_checked(settings.settings_bool["extend_last_column_on_tables"]);
         self.ui_table_tight_table_mode_checkbox.set_checked(settings.settings_bool["tight_table_mode"]);
+        self.ui_table_use_old_column_order_checkbox.set_checked(settings.settings_bool["tables_use_old_column_order"]);
         self.ui_window_start_maximized_checkbox.set_checked(settings.settings_bool["start_maximized"]);
         self.ui_window_hide_background_icon_checkbox.set_checked(settings.settings_bool["hide_background_icon"]);
 
@@ -608,6 +618,7 @@ impl SettingsUI {
         settings.settings_bool.insert("disable_combos_on_tables".to_owned(), self.ui_table_disable_combos_checkbox.is_checked());
         settings.settings_bool.insert("extend_last_column_on_tables".to_owned(), self.ui_table_extend_last_column_checkbox.is_checked());
         settings.settings_bool.insert("tight_table_mode".to_owned(), self.ui_table_tight_table_mode_checkbox.is_checked());
+        settings.settings_bool.insert("tables_use_old_column_order".to_owned(), self.ui_table_use_old_column_order_checkbox.is_checked());
         settings.settings_bool.insert("start_maximized".to_owned(), self.ui_window_start_maximized_checkbox.is_checked());
         settings.settings_bool.insert("hide_background_icon".to_owned(), self.ui_window_hide_background_icon_checkbox.is_checked());
 

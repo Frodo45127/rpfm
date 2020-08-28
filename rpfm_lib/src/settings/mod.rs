@@ -81,6 +81,7 @@ impl Settings {
         settings_bool.insert("use_dark_theme".to_owned(), false);
         settings_bool.insert("tight_table_mode".to_owned(), false);
         settings_bool.insert("hide_background_icon".to_owned(), false);
+        settings_bool.insert("tables_use_old_column_order".to_owned(), false);
 
         // Behavioral Settings.
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
@@ -94,10 +95,6 @@ impl Settings {
         // Debug Settings.
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);
         settings_bool.insert("enable_debug_menu".to_owned(), false);
-
-        // TableView Specific Settings.
-        settings_bool.insert("remember_column_sorting".to_owned(), true);
-        settings_bool.insert("remember_column_visual_order".to_owned(), true);
 
         Self {
             paths,

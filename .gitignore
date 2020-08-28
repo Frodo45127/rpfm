@@ -63,6 +63,9 @@ shortcuts.ron
 # This one is another separate thing, not tracked.
 /schemas/
 
+# This one is another separate thing, not tracked.
+/autosaves/
+
 # Subclasses lib compilation files.
 /rpfm_ui/qt_subclasses/Makefile.*
 /rpfm_ui/qt_subclasses/qt_subclasses.pro.*

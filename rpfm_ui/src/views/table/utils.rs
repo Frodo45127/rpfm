@@ -619,7 +619,7 @@ pub unsafe fn build_columns(
     }
 
     // Now the order. If we have a sort order from the schema, we use that one.
-    if do_we_have_ca_order {
+    if !SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] && do_we_have_ca_order {
         let mut header_primary = table_view_primary.horizontal_header();
         let mut fields = definition.get_fields_processed().iter()
             .enumerate()
