@@ -31,11 +31,18 @@ QSize ResizableLabel::sizeHint() const {
 }
 
 QPixmap ResizableLabel::scaledPixmap() const {
-    return pix.scaled(this->size(), Qt::KeepAspectRatio);
+    if (pix.height() > this->height()) {
+        return pix.scaled(this->size(), Qt::KeepAspectRatio);
+    }
+    else {
+        return pix;
+    }
 }
 
 void ResizableLabel::resizeEvent(QResizeEvent*) {
     if(!pix.isNull()) {
-        QLabel::setPixmap(scaledPixmap());
+        if (pix.height() > this->height()) {
+            QLabel::setPixmap(scaledPixmap());
+        }
     }
 }
