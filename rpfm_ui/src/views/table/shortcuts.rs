@@ -35,6 +35,7 @@ pub unsafe fn set_shortcuts(ui: &mut TableView) {
     ui.get_mut_ptr_context_menu_copy().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy"])));
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["copy_as_lua_table"])));
     ui.get_mut_ptr_context_menu_paste().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste"])));
+    ui.get_mut_ptr_context_menu_paste_as_new_row().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["paste_as_new_row"])));
     ui.get_mut_ptr_context_menu_rewrite_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["rewrite_selection"])));
     ui.get_mut_ptr_context_menu_invert_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["selection_invert"])));
     ui.get_mut_ptr_context_menu_reset_selection().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["revert_selection"])));
@@ -56,6 +57,7 @@ pub unsafe fn set_shortcuts(ui: &mut TableView) {
     ui.get_mut_ptr_context_menu_copy().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_paste().set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.get_mut_ptr_context_menu_paste_as_new_row().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_rewrite_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_invert_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.get_mut_ptr_context_menu_reset_selection().set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -77,6 +79,7 @@ pub unsafe fn set_shortcuts(ui: &mut TableView) {
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_copy());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_copy_as_lua_table());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste());
+    ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_paste_as_new_row());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_rewrite_selection());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_invert_selection());
     ui.get_mut_ptr_table_view_primary().add_action(ui.get_mut_ptr_context_menu_reset_selection());

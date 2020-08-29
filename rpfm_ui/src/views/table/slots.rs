@@ -201,14 +201,14 @@ impl TableViewSlots {
                 match *view.packed_file_type {
                     PackedFileType::DB => {
                         if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
-                            let mut blocker = QSignalBlocker::from_q_object(view.table_model);
+                            let _blocker = QSignalBlocker::from_q_object(view.table_model);
                             if view.get_ref_table_definition().get_fields_processed()[column as usize].get_is_reference().is_some() {
                                 check_references(column, item, &view.dependency_data.read().unwrap(), *view.packed_file_type);
                             }
                         }
                     }
                     PackedFileType::DependencyPackFilesList => {
-                        let mut blocker = QSignalBlocker::from_q_object(view.table_model);
+                        let _blocker = QSignalBlocker::from_q_object(view.table_model);
                         check_references(column, item, &view.dependency_data.read().unwrap(), *view.packed_file_type);
                     }
                     _ => {}
@@ -305,9 +305,8 @@ impl TableViewSlots {
             view.paste();
         }));
 
-        // When you want to append a row to the table...
+        // When you want to paste a row at the end of the table...
         let paste_as_new_row = Slot::new(clone!(
-            mut pack_file_contents_ui,
             mut view => move || {
                 view.paste_as_new_row();
             }
