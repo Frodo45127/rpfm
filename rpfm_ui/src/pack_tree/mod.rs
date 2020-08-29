@@ -53,7 +53,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::add_to_q_list_safe;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::{YELLOW_BRIGHT, YELLOW_MEDIUM, YELLOW_DARK, GREEN_BRIGHT, GREEN_MEDIUM, GREEN_DARK, RED_BRIGHT, RED_DARK, MAGENTA_MEDIUM};
+use crate::{YELLOW_BRIGHT, YELLOW_MEDIUM, YELLOW_DARK, GREEN_BRIGHT, GREEN_MEDIUM, GREEN_DARK, RED_BRIGHT, RED_DARK, MAGENTA_MEDIUM, MEDIUM_DARKER_GREY, TRANSPARENT_BRIGHT};
 
 // This one is needed for initialization on boot, so it has to be public.
 pub mod icons;
@@ -1760,19 +1760,27 @@ pub unsafe fn get_color_unmodified() -> MutPtr<QColor> {
     QColor::from_global_color(GlobalColor::Transparent).into_ptr()
 }
 
-pub unsafe fn get_color_correct() -> MutPtr<QColor> {
+pub unsafe fn get_color_correct() -> String {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*GREEN_DARK)).into_ptr()
+        GREEN_DARK.to_owned()
     } else {
-        QColor::from_q_string(&QString::from_std_str(*GREEN_BRIGHT)).into_ptr()
+        GREEN_BRIGHT.to_owned()
     }
 }
 
-pub unsafe fn get_color_wrong() -> MutPtr<QColor> {
+pub unsafe fn get_color_wrong() -> String {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*RED_DARK)).into_ptr()
+        RED_DARK.to_owned()
     } else {
-        QColor::from_q_string(&QString::from_std_str(*RED_BRIGHT)).into_ptr()
+        RED_BRIGHT.to_owned()
+    }
+}
+
+pub unsafe fn get_color_clean() -> String {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        MEDIUM_DARKER_GREY.to_owned()
+    } else {
+        TRANSPARENT_BRIGHT.to_owned()
     }
 }
 

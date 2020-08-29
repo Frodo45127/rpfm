@@ -12,18 +12,12 @@
 Module with all the code related to the main `GlobalSearchSlots`.
 !*/
 
-use qt_gui::QColor;
-use qt_gui::q_palette::ColorRole;
-use qt_gui::QPalette;
-
-use qt_core::GlobalColor;
 use qt_core::{SlotOfBool, SlotOfQModelIndex, Slot, SlotOfQString};
-
-use regex::Regex;
 
 use crate::app_ui::AppUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::utils::check_regex;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -36,6 +30,7 @@ pub struct GlobalSearchSlots {
     pub global_search_replace_current: Slot<'static>,
     pub global_search_replace_all: Slot<'static>,
     pub global_search_check_regex: SlotOfQString<'static>,
+    pub global_search_check_regex_clean: SlotOfBool<'static>,
     pub global_search_open_match: SlotOfQModelIndex<'static>,
     pub global_search_toggle_all: SlotOfBool<'static>,
     pub global_search_filter_dbs: Slot<'static>,
@@ -82,20 +77,18 @@ impl GlobalSearchSlots {
 
         // What happens when we trigger the "Check Regex" action.
         let global_search_check_regex = SlotOfQString::new(move |string| {
-            let mut palette = QPalette::new();
             if global_search_ui.global_search_use_regex_checkbox.is_checked() {
-                if Regex::new(&string.to_std_string()).is_ok() {
-                    palette.set_color_2a(ColorRole::Base, &QColor::from_global_color(GlobalColor::DarkGreen));
-                } else {
-                    palette.set_color_2a(ColorRole::Base, &QColor::from_global_color(GlobalColor::DarkRed));
-                }
+                check_regex(&string.to_std_string(), global_search_ui.global_search_search_line_edit.static_upcast_mut());
             }
-            else {
+        });
 
-                // Not really right but... it does the job for now.
-                palette.set_color_2a(ColorRole::Base, &QColor::from_global_color(GlobalColor::Transparent));
+        // What happens when we toggle the "Use Regex" checkbox.
+        let global_search_check_regex_clean = SlotOfBool::new(move |is_checked| {
+            if is_checked {
+                check_regex(&global_search_ui.global_search_search_line_edit.text().to_std_string(), global_search_ui.global_search_search_line_edit.static_upcast_mut());
+            } else {
+                check_regex("", global_search_ui.global_search_search_line_edit.static_upcast_mut());
             }
-            global_search_ui.global_search_search_line_edit.set_palette(&palette);
         });
 
         // What happens when we try to open the file corresponding to one of the matches.
@@ -155,6 +148,7 @@ impl GlobalSearchSlots {
             global_search_replace_current,
             global_search_replace_all,
             global_search_check_regex,
+            global_search_check_regex_clean,
             global_search_open_match,
             global_search_toggle_all,
             global_search_filter_dbs,

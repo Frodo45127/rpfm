@@ -27,6 +27,7 @@ pub unsafe fn set_connections(global_search_ui: &GlobalSearchUI, slots: &GlobalS
     global_search_ui.global_search_replace_all_button.released().connect(&slots.global_search_replace_all);
     global_search_ui.global_search_search_line_edit.return_pressed().connect(&slots.global_search_search);
     global_search_ui.global_search_search_line_edit.text_changed().connect(&slots.global_search_check_regex);
+    global_search_ui.global_search_use_regex_checkbox.toggled().connect(&slots.global_search_check_regex_clean);
 
     global_search_ui.global_search_matches_db_tree_view.double_clicked().connect(&slots.global_search_open_match);
     global_search_ui.global_search_matches_loc_tree_view.double_clicked().connect(&slots.global_search_open_match);

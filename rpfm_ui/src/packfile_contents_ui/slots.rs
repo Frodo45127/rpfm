@@ -17,8 +17,6 @@ use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
 
 use qt_gui::QCursor;
-use qt_gui::q_palette::ColorRole;
-use qt_gui::QPalette;
 use qt_gui::SlotOfQStandardItem;
 
 use qt_core::{SlotOfBool, Slot, SlotOfQString};
@@ -26,8 +24,6 @@ use qt_core::QSignalBlocker;
 use qt_core::QObject;
 
 use cpp_core::MutPtr;
-
-use regex::Regex;
 
 use std::cell::RefCell;
 use std::fs::DirBuilder;
@@ -46,12 +42,12 @@ use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
-use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation, get_color_correct, get_color_wrong, get_color_unmodified};
+use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
 use crate::packedfile_views::{PackedFileView, TheOneSlot};
 use crate::QString;
-use crate::utils::show_dialog;
+use crate::utils::{show_dialog, check_regex};
 use crate::UI_STATE;
 use crate::ui_state::op_mode::OperationalMode;
 
@@ -142,20 +138,7 @@ impl PackFileContentsSlots {
 
         // What happens when we trigger the "Check Regex" action.
         let filter_check_regex = SlotOfQString::new(move |string| {
-            let mut palette = QPalette::new();
-            if !string.is_empty() {
-                if Regex::new(&string.to_std_string()).is_ok() {
-                    palette.set_color_2a(ColorRole::Base, get_color_correct().as_ref().unwrap());
-                } else {
-                    palette.set_color_2a(ColorRole::Base, get_color_wrong().as_ref().unwrap());
-                }
-            }
-
-            // Not really right but... it does the job for now.
-            else {
-                palette.set_color_2a(ColorRole::Base, get_color_unmodified().as_ref().unwrap());
-            }
-            pack_file_contents_ui.filter_line_edit.set_palette(&palette);
+            check_regex(&string.to_std_string(), pack_file_contents_ui.filter_line_edit.static_upcast_mut());
         });
 
         // Slot to show the Contextual Menu for the TreeView.

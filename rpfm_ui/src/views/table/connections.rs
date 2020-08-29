@@ -25,6 +25,7 @@ pub unsafe fn set_connections(ui: &TableView, slots: &TableViewSlots) {
     ui.get_mut_ptr_filter_column_selector().current_index_changed().connect(&slots.filter_column_selector);
     ui.get_mut_ptr_filter_case_sensitive_button().toggled().connect(&slots.filter_case_sensitive_button);
     ui.get_mut_ptr_table_view_primary().horizontal_header().sort_indicator_changed().connect(&slots.sort_order_column_changed);
+    ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_check_regex);
 
     ui.get_mut_ptr_table_view_primary().custom_context_menu_requested().connect(&slots.show_context_menu);
     ui.get_mut_ptr_table_view_frozen().custom_context_menu_requested().connect(&slots.show_context_menu);
@@ -65,6 +66,7 @@ pub unsafe fn set_connections(ui: &TableView, slots: &TableViewSlots) {
     ui.get_mut_ptr_search_replace_current_button().released().connect(&slots.search_replace_current);
     ui.get_mut_ptr_search_replace_all_button().released().connect(&slots.search_replace_all);
     ui.get_mut_ptr_search_close_button().released().connect(&slots.search_close);
+    ui.get_mut_ptr_search_search_line_edit().text_changed().connect(&slots.search_check_regex);
 
     ui.get_mut_ptr_table_view_primary().double_clicked().connect(&slots.open_subtable);
 }

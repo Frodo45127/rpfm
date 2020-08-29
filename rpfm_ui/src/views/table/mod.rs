@@ -177,6 +177,7 @@ pub struct TableView {
     sidebar_hide_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
     sidebar_freeze_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
 
+    search_search_line_edit: AtomicPtr<QLineEdit>,
     search_search_button: AtomicPtr<QPushButton>,
     search_replace_current_button: AtomicPtr<QPushButton>,
     search_replace_all_button: AtomicPtr<QPushButton>,
@@ -550,6 +551,7 @@ impl TableView {
             sidebar_hide_checkboxes: Arc::new(hide_show_checkboxes),
             sidebar_freeze_checkboxes: Arc::new(freeze_checkboxes),
 
+            search_search_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_line_edit),
             search_search_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_button),
             search_replace_current_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_current_button),
             search_replace_all_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_all_button),
@@ -809,6 +811,11 @@ impl TableView {
         self.sidebar_freeze_checkboxes.iter()
             .map(|x| mut_ptr_from_atomic(x))
             .collect()
+    }
+
+    /// This function returns a pointer to the search lineedit in the search panel.
+    pub fn get_mut_ptr_search_search_line_edit(&self) -> MutPtr<QLineEdit> {
+        mut_ptr_from_atomic(&self.search_search_line_edit)
     }
 
     /// This function returns a pointer to the search button in the search panel.

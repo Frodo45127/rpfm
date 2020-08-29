@@ -220,6 +220,8 @@ lazy_static! {
 
     static ref MAGENTA_MEDIUM: &'static str = "#CA1F7B";
 
+    static ref TRANSPARENT_BRIGHT: &'static str = "#00000000";
+
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Locale = {
         match Locale::initialize_fallback() {

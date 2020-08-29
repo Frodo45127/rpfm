@@ -40,8 +40,7 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::utils::set_modified;
 use crate::pack_tree::*;
-use crate::utils::atomic_from_mut_ptr;
-use crate::utils::show_dialog;
+use crate::utils::{atomic_from_mut_ptr, check_regex, show_dialog};
 use crate::UI_STATE;
 
 use super::utils::*;
@@ -56,6 +55,7 @@ pub struct TableViewSlots {
     pub filter_line_edit: SlotOfQString<'static>,
     pub filter_column_selector: SlotOfInt<'static>,
     pub filter_case_sensitive_button: Slot<'static>,
+    pub filter_check_regex: SlotOfQString<'static>,
     pub toggle_lookups: SlotOfBool<'static>,
     pub sort_order_column_changed: SlotOfIntSortOrder<'static>,
     pub show_context_menu: SlotOfQPoint<'static>,
@@ -89,6 +89,7 @@ pub struct TableViewSlots {
     pub search_replace_current: Slot<'static>,
     pub search_replace_all: Slot<'static>,
     pub search_close: Slot<'static>,
+    pub search_check_regex: SlotOfQString<'static>,
     pub open_subtable: SlotOfQModelIndex<'static>,
 }
 
@@ -123,6 +124,12 @@ impl TableViewSlots {
         let filter_case_sensitive_button = Slot::new(clone!(
             mut view => move || {
             view.filter_table();
+        }));
+
+        // What happens when we trigger the "Check Regex" action.
+        let filter_check_regex = SlotOfQString::new(clone!(
+            mut view => move |string| {
+            check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast_mut());
         }));
 
         // When we want to toggle the lookups on and off.
@@ -573,6 +580,12 @@ impl TableViewSlots {
             }
         ));
 
+        // What happens when we trigger the "Check Regex" action.
+        let search_check_regex = SlotOfQString::new(clone!(
+            mut view => move |string| {
+            check_regex(&string.to_std_string(), view.search_search_line_edit.static_upcast_mut());
+        }));
+
         let open_subtable = SlotOfQModelIndex::new(clone!(
             mut view => move |model_index| {
                 if model_index.data_1a(ITEM_IS_SEQUENCE).to_bool() {
@@ -608,6 +621,7 @@ impl TableViewSlots {
             filter_line_edit,
             filter_column_selector,
             filter_case_sensitive_button,
+            filter_check_regex,
             toggle_lookups,
             sort_order_column_changed,
             show_context_menu,
@@ -641,6 +655,7 @@ impl TableViewSlots {
             search_replace_current,
             search_replace_all,
             search_close,
+            search_check_regex,
             open_subtable,
         }
     }

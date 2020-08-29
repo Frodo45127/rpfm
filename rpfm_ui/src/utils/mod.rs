@@ -28,13 +28,14 @@ use cpp_core::Ref;
 
 use log::info;
 
+use regex::Regex;
+
 use std::convert::AsRef;
 use std::fmt::Display;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::ASSETS_PATH;
-use crate::ffi::new_text_editor_safe;
-use crate::ffi::set_text_safe;
+use crate::ffi::{new_text_editor_safe, set_text_safe};
 use crate::locale::qtr;
 use crate::ORANGE;
 use crate::SLIGHTLY_DARKER_GREY;
@@ -43,6 +44,7 @@ use crate::DARK_GREY;
 use crate::KINDA_WHITY_GREY;
 use crate::EVEN_MORE_WHITY_GREY;
 use crate::STATUS_BAR;
+use crate::pack_tree::{get_color_correct, get_color_wrong, get_color_clean};
 
 //----------------------------------------------------------------------------//
 //              Utility functions (helpers and stuff like that)
@@ -151,6 +153,20 @@ pub unsafe fn create_grid_layout(mut widget: MutPtr<QWidget>) -> MutPtr<QGridLay
     widget_layout.into_ptr()
 }
 
+pub unsafe fn check_regex(pattern: &str, mut widget: MutPtr<QWidget>) {
+    let style_sheet = if !pattern.is_empty() {
+        if Regex::new(pattern).is_ok() {
+            get_color_correct()
+        } else {
+            get_color_wrong()
+        }
+    }
+    else {
+        get_color_clean()
+    };
+
+    widget.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", style_sheet)));
+}
 /// This function creates the stylesheet used for the dark theme in windows.
 pub fn create_dark_theme_stylesheet() -> String {
     format!("

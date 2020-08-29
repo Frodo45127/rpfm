@@ -25,7 +25,6 @@ use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::QUrl;
 
-
 use std::cell::RefCell;
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
@@ -38,7 +37,7 @@ use rpfm_lib::config::get_config_path;
 use rpfm_lib::DOCS_BASE_URL;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
-use rpfm_lib::packfile::{PFHFileType, CompressionState, RESERVED_NAME_EXTRA_PACKFILE};
+use rpfm_lib::packfile::{PFHFileType, CompressionState};
 use rpfm_lib::packedfile::animpack;
 use rpfm_lib::PATREON_URL;
 use rpfm_lib::SETTINGS;
