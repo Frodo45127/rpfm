@@ -29,7 +29,7 @@ pub unsafe fn set_tips(ui: &mut TableView) {
     ui.get_mut_ptr_context_menu_copy().set_status_tip(&qtr("Copy whatever is selected to the Clipboard."));
     ui.get_mut_ptr_context_menu_copy_as_lua_table().set_status_tip(&qtr("Turns the entire DB Table into a LUA Table and copies it to the clipboard."));
     ui.get_mut_ptr_context_menu_paste().set_status_tip(&qtr("Try to paste whatever is in the Clipboard. If the data of a cell is incompatible with the content to paste, the cell is ignored."));
-    //ui.get_mut_ptr_context_menu_paste_as_new_lines().set_status_tip(&qtr("Try to paste whatever is in the Clipboard as new lines at the end of the table. Does nothing if the data is not compatible with the cell."));
+    ui.get_mut_ptr_context_menu_paste_as_new_row().set_status_tip(&qtr("Try to paste whatever is in the Clipboard as new rows at the end of the table. Does nothing if the data is not compatible with the cell."));
     //ui.get_mut_ptr_context_menu_paste_to_fill_selection().set_status_tip(&qtr("Try to paste whatever is in the Clipboard in EVERY CELL selected. Does nothing if the data is not compatible with the cell."));
     //ui.get_mut_ptr_context_menu_selection_invert().set_status_tip(&qtr("Inverts the current selection."));
     //ui.get_mut_ptr_context_menu_search().set_status_tip(&qtr("Search what you want in the table. Also allows you to replace coincidences."));

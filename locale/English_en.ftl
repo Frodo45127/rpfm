@@ -586,3 +586,5 @@ autosaved = Autosaved
 error_autosave_non_editable = This PackFile cannot be autosaved.
 
 settings_ui_table_use_old_column_order_label = Use Old Column Order (Keys first):
+
+context_menu_paste_as_new_row = Paste as New Row

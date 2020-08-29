@@ -82,6 +82,7 @@ pub struct TableViewRaw {
     pub context_menu_copy: MutPtr<QAction>,
     pub context_menu_copy_as_lua_table: MutPtr<QAction>,
     pub context_menu_paste: MutPtr<QAction>,
+    pub context_menu_paste_as_new_row: MutPtr<QAction>,
     pub context_menu_invert_selection: MutPtr<QAction>,
     pub context_menu_reset_selection: MutPtr<QAction>,
     pub context_menu_rewrite_selection: MutPtr<QAction>,
@@ -459,6 +460,20 @@ impl TableViewRaw {
         QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(lua_table));
     }
 
+    /// This function allow us to paste the contents of the clipboard into new rows at the end of the table, if the content is compatible with them.
+    pub unsafe fn paste_as_new_row(&mut self) {
+
+        // Get the current selection. We treat it like a TSV, for compatibility with table editors.
+        // Also, if the text ends in \n, remove it. Excel things.
+        let mut text = QGuiApplication::clipboard().text().to_std_string();
+        if text.ends_with('\n') { text.pop(); }
+        let rows = text.split('\n').collect::<Vec<&str>>();
+        let rows = rows.iter().map(|x| x.split('\t').collect::<Vec<&str>>()).collect::<Vec<Vec<&str>>>();
+
+        // Then paste the data as it fits. If no indexes are provided, the data is pasted in new rows.
+        self.paste_as_it_fits(&rows, &[]);
+    }
+
     /// This function allow us to paste the contents of the clipboard into the selected cells, if the content is compatible with them.
     ///
     /// This function has some... tricky stuff:
@@ -632,7 +647,7 @@ impl TableViewRaw {
                 history_redo.clear();
             }
             update_undo_model(self.table_model, self.undo_model);
-            //undo_redo_enabler.trigger();
+            self.context_menu_update();
         }
     }
 
@@ -738,29 +753,34 @@ impl TableViewRaw {
                 history_redo.clear();
             }
             update_undo_model(self.table_model, self.undo_model);
-            //undo_redo_enabler.trigger();
+            self.context_menu_update();
         }
     }
 
     /// This function pastes the provided text into the table as it fits, following a square strategy starting in the first selected index.
     unsafe fn paste_as_it_fits(&mut self, text: &[Vec<&str>], indexes: &[Ref<QModelIndex>]) {
 
-        // Get the base index of the square, or stop if there is none.
-        let base_index_visual = if !indexes.is_empty() {
-            &indexes[0]
-        } else { return };
-
         // We're going to try and check in square mode. That means, start in the selected cell, then right
         // until we reach a \n, then return to the initial column. Due to how sorting works, we have to do
         // a test pass first and get all the real AND VALID indexes, then try to paste on them.
         let horizontal_header = self.table_view_primary.horizontal_header();
         let vertical_header = self.table_view_primary.vertical_header();
-        let mut visual_row = vertical_header.visual_index(base_index_visual.row());
+
+        // Get the base index of the square. If no index is being provided, we assume we have to paste all in new rows.
+        let (base_index_visual, mut visual_row) = if !indexes.is_empty() {
+            (Some(&indexes[0]), vertical_header.visual_index(indexes[0].row()))
+        } else {
+            (None, self.table_model.row_count_0a())
+        };
 
         let mut real_cells = vec![];
         let mut added_rows = 0;
         for row in text {
-            let mut visual_column = horizontal_header.visual_index(base_index_visual.column());
+            let mut visual_column = match base_index_visual {
+                Some(base_index_visual) => horizontal_header.visual_index(base_index_visual.column()),
+                None => 0,
+            };
+
             for text in row {
 
                 // Depending on the column, we try to encode the data in one format or another, or we just skip it.
@@ -915,7 +935,7 @@ impl TableViewRaw {
             }
 
             update_undo_model(self.table_model, self.undo_model);
-            //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
+            self.context_menu_update();
         }
     }
 

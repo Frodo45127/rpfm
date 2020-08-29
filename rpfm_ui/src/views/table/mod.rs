@@ -162,6 +162,7 @@ pub struct TableView {
     context_menu_copy: AtomicPtr<QAction>,
     context_menu_copy_as_lua_table: AtomicPtr<QAction>,
     context_menu_paste: AtomicPtr<QAction>,
+    context_menu_paste_as_new_row: AtomicPtr<QAction>,
     context_menu_invert_selection: AtomicPtr<QAction>,
     context_menu_reset_selection: AtomicPtr<QAction>,
     context_menu_rewrite_selection: AtomicPtr<QAction>,
@@ -319,6 +320,7 @@ impl TableView {
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
 
         let context_menu_paste = context_menu.add_action_q_string(&qtr("context_menu_paste"));
+        let context_menu_paste_as_new_row = context_menu.add_action_q_string(&qtr("context_menu_paste_as_new_row"));
 
         let context_menu_rewrite_selection = context_menu.add_action_q_string(&qtr("context_menu_rewrite_selection"));
         let context_menu_invert_selection = context_menu.add_action_q_string(&qtr("context_menu_invert_selection"));
@@ -470,6 +472,7 @@ impl TableView {
             context_menu_copy,
             context_menu_copy_as_lua_table,
             context_menu_paste,
+            context_menu_paste_as_new_row,
             context_menu_invert_selection,
             context_menu_reset_selection,
             context_menu_rewrite_selection,
@@ -536,6 +539,7 @@ impl TableView {
             context_menu_copy: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy),
             context_menu_copy_as_lua_table: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy_as_lua_table),
             context_menu_paste: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste),
+            context_menu_paste_as_new_row: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste_as_new_row),
             context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
             context_menu_reset_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_reset_selection),
             context_menu_rewrite_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_rewrite_selection),
@@ -742,6 +746,11 @@ impl TableView {
     /// This function returns a pointer to the paste action.
     pub fn get_mut_ptr_context_menu_paste(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.context_menu_paste)
+    }
+
+    /// This function returns a pointer to the paste as new row action.
+    pub fn get_mut_ptr_context_menu_paste_as_new_row(&self) -> MutPtr<QAction> {
+        mut_ptr_from_atomic(&self.context_menu_paste_as_new_row)
     }
 
     /// This function returns a pointer to the invert selection action.
