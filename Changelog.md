@@ -8,9 +8,21 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 ### Added
 - Implemented Autosave.
 - Implemented `Are you sure?` dialog when closing the main window.
+- Implemented shortcuts to close/move to next/move to prev tab.
+- Implemented the `Use Old Column Order (Keys first)` setting for people who prefer pre-2.x column order in tables.
+- Implemented `Paste As New Row` for tables.
+
+### Changed
+- Changed all fields that accept regex so it turns green or red depending if the regex is valid or not.
+- Tweaked TreeView Colours to be more visible on light theme.
+- Now the search field gets focused when opening the Global/Table Search pannels.
+- Images now are shown in their original size, except if they are bigger than the current window.
 
 ### Fixed
-- CTD when starting RPFM without internet connection.
+- Fixed a CTD when starting RPFM without internet connection.
+- Fixed a CTD caused by using Ctrl+Z after pasting a reference cell with the dependency checker enabled.
+- Fixed a couple of ordering bugs in the table column order logic.
+- Fixed regex coloring on Global Search not working if you used the dark theme.
 
 ## [2.1.5] - 2020-08-22
 ### Added
