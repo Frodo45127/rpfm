@@ -518,7 +518,10 @@ impl TableViewSlots {
             mut view => move |_| {
             match view.search_widget.is_visible() {
                 true => view.search_widget.hide(),
-                false => view.search_widget.show()
+                false => {
+                    view.search_widget.show();
+                    view.search_search_line_edit.set_focus_0a();
+                }
             }
         }));
 
