@@ -1660,9 +1660,20 @@ impl AppUI {
     pub unsafe fn new_queek_packed_file(&mut self, mut pack_file_contents_ui: &mut PackFileContentsUI) {
 
         // Get the currently selected path and, depending on the selected path, generate one packfile or another.
-        let selected_paths = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
-        if selected_paths.len() == 1 {
-            let path = &selected_paths[0];
+        let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
+        if selected_items.len() == 1 {
+            let item = &selected_items[0];
+
+            let path = match item {
+                TreePathType::File(ref path) => {
+                    let mut path = path.to_vec();
+                    path.pop();
+                    path
+                },
+                TreePathType::Folder(path) => path.to_vec(),
+                _ => return show_dialog(self.main_window, ErrorKind::NoQueekPackedFileHere, false),
+            };
+
             if let Some(mut name) = self.new_packed_file_name_dialog() {
 
                 // DB Check.
