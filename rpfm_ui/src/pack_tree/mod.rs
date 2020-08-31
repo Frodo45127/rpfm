@@ -1132,6 +1132,7 @@ impl PackTree for MutPtr<QTreeView> {
                                 }
                             }
                         }
+                        self.expand_treeview_to_item(path);
                     }
                 }
             },

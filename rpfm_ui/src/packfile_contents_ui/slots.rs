@@ -1003,9 +1003,11 @@ impl PackFileContentsSlots {
                     match response {
                         Response::VecString(path_to_add) => {
 
-                            // If we want to delete the sources, do it now.
+                            // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
                                 let items_to_remove = selected_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect();
+                                let mut _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_model);
+                                selected_paths.iter().for_each(|x| { let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &x, false); });
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove));
                             }
 
