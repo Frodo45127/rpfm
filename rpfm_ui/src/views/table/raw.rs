@@ -571,9 +571,12 @@ impl TableViewRaw {
                         }
                     },
 
+                    // These are a bit special because we have to ignore any difference after the third decimal.
                     FieldType::F32 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<f32>() {
+                        if let Ok(value) = text.parse::<f32>() {
+                            let current_value = format!("{:.3}", item.data_0a().to_float_0a());
+                            let new_value = format!("{:.3}", value);
+                            if current_value != new_value {
                                 item.set_data_2a(&QVariant::from_float(value), 2);
                                 changed_cells += 1;
                             }
@@ -677,9 +680,12 @@ impl TableViewRaw {
                         }
                     },
 
+                    // These are a bit special because we have to ignore any difference after the third decimal.
                     FieldType::F32 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<f32>() {
+                        if let Ok(value) = text.parse::<f32>() {
+                            let current_value = format!("{:.3}", item.data_0a().to_float_0a());
+                            let new_value = format!("{:.3}", value);
+                            if current_value != new_value {
                                 item.set_data_2a(&QVariant::from_float(value), 2);
                                 changed_cells += 1;
                             }
@@ -856,8 +862,11 @@ impl TableViewRaw {
                     }
                 },
 
+                // These are a bit special because we have to ignore any difference after the third decimal.
                 FieldType::F32 => {
-                    if &current_value != *text {
+                    let current_value = format!("{:.3}", self.table_model.data_1a(real_cell).to_float_0a());
+                    let new_value = format!("{:.3}", text.parse::<f32>().unwrap());
+                    if current_value != new_value {
                         self.table_model.set_data_3a(real_cell, &QVariant::from_float(text.parse::<f32>().unwrap()), 2);
                         changed_cells += 1;
                     }
