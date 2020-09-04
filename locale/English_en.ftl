@@ -70,6 +70,7 @@ mymod_game = Game of the Mod:
 
 view_toggle_packfile_contents = Toggle &PackFile Contents
 view_toggle_global_search_panel = Toggle Global Search Window
+view_toggle_diagnostics_panel = Toggle Diagnostics Window
 
 ## Game Selected Menu
 
@@ -588,3 +589,15 @@ error_autosave_non_editable = This PackFile cannot be autosaved.
 settings_ui_table_use_old_column_order_label = Use Old Column Order (Keys first):
 
 context_menu_paste_as_new_row = Paste as New Row
+
+gen_loc_diagnostics = Diagnostics
+diagnostics_button_error = Error
+diagnostics_button_warning = Warning
+diagnostics_button_info = Info
+diagnostics_button_only_current_packed_file = Only Show Currently Open PackedFile Messages
+
+diagnostics_colum_level = Level
+diagnostics_colum_column = Column
+diagnostics_colum_row = Row
+diagnostics_colum_path = Path
+diagnostics_colum_message = Message

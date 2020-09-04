@@ -17,6 +17,7 @@ use qt_core::Slot;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::animpack::PackedFileAnimPackViewRaw;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
@@ -45,7 +46,8 @@ impl PackedFileAnimPackViewSlots {
         view: PackedFileAnimPackViewRaw,
         mut app_ui: AppUI,
         mut pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI
+        global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI
     )  -> Self {
 
         // Slot to unpack the entire AnimPack.
@@ -67,7 +69,7 @@ impl PackedFileAnimPackViewSlots {
                         paths_packedfile.iter().for_each(|path| {
                             if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                                 if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
-                                    let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false);
+                                    let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, path, false);
                                 }
                             }
                         });

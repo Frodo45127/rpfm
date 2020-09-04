@@ -21,6 +21,7 @@ use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
@@ -53,6 +54,7 @@ impl PackedFileTableView {
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
+        diagnostics_ui: &DiagnosticsUI,
     ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
 
         // Get the decoded Table.
@@ -87,6 +89,7 @@ impl PackedFileTableView {
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             table_data,
             Some(packed_file_view.get_path_raw()),
         )?;

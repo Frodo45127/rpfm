@@ -60,6 +60,7 @@ use super::AppUI;
 use super::NewPackedFile;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr, tre};
@@ -108,10 +109,11 @@ impl AppUI {
     pub unsafe fn back_to_back_end_all(&mut self,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
+        diagnostics_ui: DiagnosticsUI,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
+            packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui)?;
         }
         Ok(())
     }
@@ -121,13 +123,14 @@ impl AppUI {
     pub unsafe fn purge_them_all(&mut self,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
+        diagnostics_ui: DiagnosticsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
         save_before_deleting: bool,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             if save_before_deleting && !packed_file_view.get_path().starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui)?;
+                packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui)?;
             }
             let mut widget = packed_file_view.get_mut_widget();
             let index = self.tab_bar_packed_file.index_of(widget);
@@ -160,6 +163,7 @@ impl AppUI {
     pub unsafe fn purge_that_one_specifically(&mut self,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
+        diagnostics_ui: DiagnosticsUI,
         path: &[String],
         save_before_deleting: bool
     ) -> Result<()> {
@@ -173,7 +177,7 @@ impl AppUI {
 
                 // Do not try saving PackFiles.
                 if save_before_deleting && !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                    did_it_worked = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui);
+                    did_it_worked = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui);
                 }
                 let mut widget = packed_file_view.get_mut_widget();
                 let index = self.tab_bar_packed_file.index_of(widget);
@@ -228,13 +232,14 @@ impl AppUI {
         &mut self,
         pack_file_contents_ui: &mut PackFileContentsUI,
         global_search_ui: &mut GlobalSearchUI,
+        diagnostics_ui: &mut DiagnosticsUI,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Result<()> {
 
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
-        let _ = self.purge_them_all(*global_search_ui, *pack_file_contents_ui, slot_holder, false);
+        let _ = self.purge_them_all(*global_search_ui, *pack_file_contents_ui, *diagnostics_ui, slot_holder, false);
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         self.main_window.set_enabled(false);
@@ -402,6 +407,7 @@ impl AppUI {
         &mut self,
         pack_file_contents_ui: &mut PackFileContentsUI,
         global_search_ui: &GlobalSearchUI,
+        diagnostics_ui: &DiagnosticsUI,
         save_as: bool,
     ) -> Result<()> {
 
@@ -409,7 +415,7 @@ impl AppUI {
         self.main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
-        self.back_to_back_end_all(*global_search_ui, *pack_file_contents_ui)?;
+        self.back_to_back_end_all(*global_search_ui, *pack_file_contents_ui, *diagnostics_ui)?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -652,7 +658,13 @@ impl AppUI {
     }
 
     /// This function takes care of recreating the dynamic submenus under `PackFile` menu.
-    pub unsafe fn build_open_from_submenus(mut self, mut pack_file_contents_ui: PackFileContentsUI, mut global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotOfBool<'static>> {
+    pub unsafe fn build_open_from_submenus(
+        mut self,
+        mut pack_file_contents_ui: PackFileContentsUI,
+        mut global_search_ui: GlobalSearchUI,
+        mut diagnostics_ui: DiagnosticsUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
+    ) -> Vec<SlotOfBool<'static>> {
         let mut packfile_open_from_content = self.packfile_open_from_content;
         let mut packfile_open_from_data = self.packfile_open_from_data;
         let mut packfile_load_template = self.packfile_load_template;
@@ -684,9 +696,9 @@ impl AppUI {
                     path,
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
-                        if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &[path.to_path_buf()], "", &slot_holder) {
+                        if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path.to_path_buf()], "", &slot_holder) {
                             show_dialog(self.main_window, error, false);
-                        }
+                        } else { diagnostics_ui.check(); }
                     }
                 }));
 
@@ -711,9 +723,9 @@ impl AppUI {
                     path,
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
-                        if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &[path.to_path_buf()], "", &slot_holder) {
+                        if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path.to_path_buf()], "", &slot_holder) {
                             show_dialog(self.main_window, error, false);
-                        }
+                        } else { diagnostics_ui.check(); }
                     }
                 }));
 
@@ -739,7 +751,7 @@ impl AppUI {
                         match Template::load(&template_name) {
                             Ok(template) => {
                                 if let Some(params) = self.load_template_dialog(&template) {
-                                    match self.back_to_back_end_all(global_search_ui, pack_file_contents_ui) {
+                                    match self.back_to_back_end_all(global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                         Ok(_) => {
                                             CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, params));
                                             let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -752,13 +764,14 @@ impl AppUI {
 
                                                     // Update the global search stuff, if needed.
                                                     global_search_ui.search_on_path(&mut pack_file_contents_ui, paths.iter().map(From::from).collect());
+                                                    diagnostics_ui.check_on_path(&mut pack_file_contents_ui, paths.iter().map(From::from).collect());
 
                                                     // Try to reload all open files which data we altered, and close those that failed.
                                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                                     packed_file_paths.iter().for_each(|path| {
                                                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                                                             if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
-                                                                if let Err(error) = self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false) {
+                                                                if let Err(error) = self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, path, false) {
                                                                     show_dialog(self.main_window, error, false);
                                                                 }
                                                             }
@@ -798,7 +811,12 @@ impl AppUI {
 
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
-    pub unsafe fn build_open_mymod_submenus(mut self, mut pack_file_contents_ui: PackFileContentsUI, mut global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Vec<SlotOfBool<'static>> {
+    pub unsafe fn build_open_mymod_submenus(
+        mut self, mut pack_file_contents_ui: PackFileContentsUI,
+        mut global_search_ui: GlobalSearchUI,
+        mut diagnostics_ui: DiagnosticsUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
+    ) -> Vec<SlotOfBool<'static>> {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
         self.mymod_open_troy.menu_action().set_visible(false);
@@ -864,9 +882,9 @@ impl AppUI {
                                             slot_holder,
                                             game_folder_name => move |_| {
                                             if self.are_you_sure(false) {
-                                                if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &[pack_file.to_path_buf()], &game_folder_name, &slot_holder) {
+                                                if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name, &slot_holder) {
                                                     show_dialog(self.main_window, error, false);
-                                                }
+                                                } else { diagnostics_ui.check(); }
                                             }
                                         }));
 
@@ -1087,6 +1105,7 @@ impl AppUI {
         &mut self,
         pack_file_contents_ui: &mut PackFileContentsUI,
         global_search_ui: &GlobalSearchUI,
+        diagnostics_ui: &DiagnosticsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
         is_preview: bool,
         is_external: bool,
@@ -1133,7 +1152,7 @@ impl AppUI {
 
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
                 if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path) {
-                    if let Err(error) = self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, path, true) {
+                    if let Err(error) = self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, *diagnostics_ui, path, true) {
                         show_dialog(self.main_window, error, false);
                     }
                 }
@@ -1153,7 +1172,7 @@ impl AppUI {
 
                         // If the file is an AnimFragment PackedFile...
                         PackedFileType::AnimFragment => {
-                            match PackedFileAnimFragmentView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileAnimFragmentView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1171,7 +1190,7 @@ impl AppUI {
 
                         // If the file is an AnimPack PackedFile...
                         PackedFileType::AnimPack => {
-                            match PackedFileAnimPackView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileAnimPackView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1188,7 +1207,7 @@ impl AppUI {
 
                         // If the file is an AnimTable PackedFile...
                         PackedFileType::AnimTable => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1207,7 +1226,7 @@ impl AppUI {
 
                         // If the file is a CA_VP8 PackedFile...
                         PackedFileType::CaVp8 => {
-                            match PackedFileCaVp8View::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileCaVp8View::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1224,7 +1243,7 @@ impl AppUI {
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1243,7 +1262,7 @@ impl AppUI {
 
                         // If the file is a DB PackedFile...
                         PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1262,7 +1281,7 @@ impl AppUI {
 
                         // If the file is a MatchedCombat PackedFile...
                         PackedFileType::MatchedCombat => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1281,7 +1300,7 @@ impl AppUI {
 
                         // If the file is a Text PackedFile...
                         PackedFileType::Text(_) => {
-                            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+                            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                                 Ok((slots, packed_file_info)) => {
                                     slot_holder.borrow_mut().push(slots);
 
@@ -1343,7 +1362,7 @@ impl AppUI {
                     let icon = icon_type.get_icon_from_path();
                     let path = Rc::new(RefCell::new(path.to_vec()));
 
-                    match PackedFileExternalView::new_view(&path, self,  &mut tab, global_search_ui, pack_file_contents_ui) {
+                    match PackedFileExternalView::new_view(&path, self,  &mut tab, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                         Ok(slots) => {
                             slot_holder.borrow_mut().push(slots);
 
@@ -1367,6 +1386,7 @@ impl AppUI {
         &mut self,
         pack_file_contents_ui: &PackFileContentsUI,
         global_search_ui: &GlobalSearchUI,
+        diagnostics_ui: &DiagnosticsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) {
 
@@ -1423,7 +1443,7 @@ impl AppUI {
                 let icon = icon_type.get_icon_from_path();
                 tab.set_path(path);
 
-                match PackedFileDecoderView::new_view(&mut tab, global_search_ui, pack_file_contents_ui, &self) {
+                match PackedFileDecoderView::new_view(&mut tab, global_search_ui, pack_file_contents_ui, &self, diagnostics_ui) {
                     Ok(slots) => {
                         slot_holder.borrow_mut().push(slots);
 
@@ -1446,6 +1466,7 @@ impl AppUI {
         &mut self,
         pack_file_contents_ui: &PackFileContentsUI,
         global_search_ui: &GlobalSearchUI,
+        diagnostic_ui: &DiagnosticsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) {
 
@@ -1484,7 +1505,7 @@ impl AppUI {
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
 
-            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostic_ui) {
                 Ok((slots, _)) => {
                     slot_holder.borrow_mut().push(slots);
 
@@ -1505,6 +1526,7 @@ impl AppUI {
         &mut self,
         pack_file_contents_ui: &PackFileContentsUI,
         global_search_ui: &GlobalSearchUI,
+        diagnostics_ui: &DiagnosticsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) {
 
@@ -1543,7 +1565,7 @@ impl AppUI {
             let icon = icon_type.get_icon_from_path();
             tab.set_path(&path);
 
-            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
+            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
                 Ok((slots, _)) => {
                     slot_holder.borrow_mut().push(slots);
 
@@ -2016,7 +2038,13 @@ impl AppUI {
     }
 
     /// This function hides the provided packedfile view.
-    pub unsafe fn packed_file_view_hide(&mut self, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, index: i32) {
+    pub unsafe fn packed_file_view_hide(
+        &mut self,
+        pack_file_contents_ui: PackFileContentsUI,
+        global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI,
+        index: i32
+    ) {
 
         // PackFile Views must be deleted on close.
         let mut purge_on_delete = vec![];
@@ -2040,7 +2068,7 @@ impl AppUI {
 
         // This is for cleaning up open PackFiles.
         if !purge_on_delete.is_empty() {
-            let _ = self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &purge_on_delete, false);
+            let _ = self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &purge_on_delete, false);
         }
 
         // Update the background icon.

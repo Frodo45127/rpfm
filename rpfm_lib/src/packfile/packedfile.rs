@@ -254,6 +254,14 @@ impl PackedFile {
         self.decoded = data.clone();
     }
 
+    /// This function tries to get the decoded data from a `PackedFile`, returning an error if the file was not decoded previously.
+    pub fn get_decoded_from_memory(&self) -> Result<&DecodedPackedFile> {
+        if self.decoded == DecodedPackedFile::Unknown {
+            return Err(ErrorKind::PackedFileNotDecoded.into());
+        }
+        Ok(&self.decoded)
+    }
+
     /// This function returns a reference of the path of a `PackedFile`.
     pub fn get_path(&self) -> &[String] {
         self.raw.get_path()

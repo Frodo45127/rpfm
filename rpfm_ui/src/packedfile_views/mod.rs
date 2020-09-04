@@ -31,6 +31,7 @@ use rpfm_lib::packfile::PathType;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::get_text_safe;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
@@ -194,7 +195,13 @@ impl PackedFileView {
     }
 
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
-    pub unsafe fn save(&self, app_ui: &mut AppUI, mut global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: &mut PackFileContentsUI) -> Result<()> {
+    pub unsafe fn save(
+        &self,
+        app_ui: &mut AppUI,
+        mut global_search_ui: GlobalSearchUI,
+        mut pack_file_contents_ui: &mut PackFileContentsUI,
+        mut diagnostics_ui: DiagnosticsUI,
+        ) -> Result<()> {
 
         match self.get_view() {
             ViewType::Internal(view) => {
@@ -294,11 +301,13 @@ impl PackedFileView {
 
                         // If we have a GlobalSearch on, update the results for this specific PackedFile.
                         let global_search = UI_STATE.get_global_search();
+                        let path_types = vec![PathType::File(self.get_path())];
                         if !global_search.pattern.is_empty() {
-                            let path_types = vec![PathType::File(self.get_path())];
-                            global_search_ui.search_on_path(&mut pack_file_contents_ui, path_types);
+                            global_search_ui.search_on_path(&mut pack_file_contents_ui, path_types.clone());
                             UI_STATE.set_global_search(&global_search);
                         }
+
+                        diagnostics_ui.check_on_path(&mut pack_file_contents_ui, path_types);
 
                         Ok(())
                     }

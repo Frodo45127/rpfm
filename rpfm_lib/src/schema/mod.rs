@@ -84,7 +84,7 @@ use crate::common::get_schemas_path;
 use crate::DEPENDENCY_DATABASE;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
-use crate::packedfile::table::db::DB;
+use crate::packedfile::DecodedPackedFile;
 
 // Legacy Schemas, to keep backwards compatibility during updates.
 pub(crate) mod v2;
@@ -411,13 +411,12 @@ impl Schema {
 
         // Version is... complicated. We don't really want the last one, but the last one compatible with our game.
         // So we have to try to get it first from the Dependency Database first. If that fails, we fall back to the schema.
-        if let Some(vanilla_table) = DEPENDENCY_DATABASE.lock().unwrap().iter_mut()
+        if let Some(vanilla_table) = DEPENDENCY_DATABASE.read().unwrap().iter()
             .filter(|x| x.get_path().len() == 3)
             .find(|x| x.get_path()[0] == "db" && x.get_path()[1] == *table_name) {
-            match DB::read_header(&vanilla_table.get_ref_mut_raw().get_data_and_keep_it().unwrap()) {
-                Ok(data) => self.get_ref_versioned_file_db(table_name)?.get_version(data.0),
-                Err(error) => Err(error),
-            }
+            if let DecodedPackedFile::DB(table) = vanilla_table.get_decoded_from_memory()? {
+                self.get_ref_versioned_file_db(table_name)?.get_version(table.get_ref_definition().get_version())
+            } else { Err(ErrorKind::SchemaDefinitionNotFound.into()) }
         }
 
         // If there was no coincidence in the dependency database... we risk ourselfs getting the last definition we have for

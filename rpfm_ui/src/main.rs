@@ -98,6 +98,7 @@ mod app_ui;
 mod background_thread;
 mod command_palette;
 mod communications;
+mod diagnostics_ui;
 mod ffi;
 mod global_search_ui;
 mod locale;
@@ -217,6 +218,9 @@ lazy_static! {
 
     static ref RED_BRIGHT: &'static str = "#FFCCCC";
     static ref RED_DARK: &'static str = "#8F6E6E";
+
+    static ref BLUE_BRIGHT: &'static str = "#3399ff";
+    static ref BLUE_DARK: &'static str = "#0066cc";
 
     static ref MAGENTA_MEDIUM: &'static str = "#CA1F7B";
 

@@ -68,10 +68,8 @@ use rpfm_lib::SETTINGS;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::ffi::add_to_q_list_safe;
-use crate::ffi::new_combobox_item_delegate_safe;
-use crate::ffi::new_spinbox_item_delegate_safe;
-use crate::ffi::new_qstring_item_delegate_safe;
+use crate::diagnostics_ui::DiagnosticsUI;
+use crate::ffi::{add_to_q_list_safe, new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe, new_qstring_item_delegate_safe};
 use crate::FONT_MONOSPACE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -223,6 +221,7 @@ impl PackedFileDecoderView {
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
         app_ui: &AppUI,
+        diagnostics_ui: &DiagnosticsUI,
     ) -> Result<TheOneSlot> {
 
         // Get the decoded Text.
@@ -521,6 +520,7 @@ impl PackedFileDecoderView {
             *app_ui,
             *pack_file_contents_ui,
             *global_search_ui,
+            *diagnostics_ui,
         );
 
         let mut packed_file_decoder_view = Self {

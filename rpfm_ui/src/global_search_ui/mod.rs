@@ -50,6 +50,7 @@ use rpfm_lib::global_search::{GlobalSearch, MatchHolder, schema::SchemaMatches, 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{add_to_q_list_safe, new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -558,10 +559,10 @@ impl GlobalSearchUI {
     }
 
     /// This function replace all the matches in the current search with the provided text.
-    pub unsafe fn replace_all(&mut self, app_ui: &mut AppUI, pack_file_contents_ui: &mut PackFileContentsUI) {
+    pub unsafe fn replace_all(&mut self, app_ui: &mut AppUI, pack_file_contents_ui: &mut PackFileContentsUI, diagnostics_ui: &mut DiagnosticsUI) {
 
         // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
-        if let Err(error) = app_ui.back_to_back_end_all(*self, *pack_file_contents_ui) {
+        if let Err(error) = app_ui.back_to_back_end_all(*self, *pack_file_contents_ui, *diagnostics_ui) {
             return show_dialog(app_ui.main_window, error, false);
         }
 

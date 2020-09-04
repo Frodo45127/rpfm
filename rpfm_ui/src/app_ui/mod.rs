@@ -175,6 +175,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     pub view_toggle_packfile_contents: MutPtr<QAction>,
     pub view_toggle_global_search_panel: MutPtr<QAction>,
+    pub view_toggle_diagnostics_panel: MutPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
     // `Game Selected` menu.
@@ -300,7 +301,7 @@ impl AppUI {
         let widget = QWidget::new_0a().into_ptr();
         let mut layout = create_grid_layout(widget);
         main_window.set_central_widget(widget);
-        main_window.resize_2a(1100, 400);
+        main_window.resize_2a(1300, 800);
         QApplication::set_window_icon(&QIcon::from_q_string(&QString::from_std_str(format!("{}/img/rpfm.png", ASSETS_PATH.to_string_lossy()))));
 
         // Get the menu and status bars.
@@ -491,8 +492,16 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `Game Selected` menu.
-        let view_toggle_packfile_contents = menu_bar_view.add_action_q_string(&qtr("view_toggle_packfile_contents"));
-        let view_toggle_global_search_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_global_search_panel"));
+        let mut view_toggle_packfile_contents = menu_bar_view.add_action_q_string(&qtr("view_toggle_packfile_contents"));
+        let mut view_toggle_global_search_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_global_search_panel"));
+        let mut view_toggle_diagnostics_panel = menu_bar_view.add_action_q_string(&qtr("view_toggle_diagnostics_panel"));
+
+        view_toggle_packfile_contents.set_checkable(true);
+        view_toggle_global_search_panel.set_checkable(true);
+        view_toggle_diagnostics_panel.set_checkable(true);
+
+        view_toggle_packfile_contents.set_checked(true);
+        view_toggle_diagnostics_panel.set_checked(true);
 
         //-----------------------------------------------//
         // `Game Selected` Menu.
@@ -720,6 +729,7 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
+            view_toggle_diagnostics_panel,
 
             //-------------------------------------------------------------------------------//
             // "Game Selected" menu.

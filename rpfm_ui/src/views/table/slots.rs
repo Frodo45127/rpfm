@@ -35,6 +35,7 @@ use std::path::PathBuf;
 use rpfm_lib::packedfile::table::Table;
 
 use crate::app_ui::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -106,6 +107,7 @@ impl TableViewSlots {
         view: &TableViewRaw,
         global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
+        diagnostics_ui: DiagnosticsUI,
         mut app_ui: AppUI,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
 
@@ -343,10 +345,10 @@ impl TableViewSlots {
         // NOTE: in-edition saves to backend are only triggered when the GlobalSearch has search data, to keep it updated.
         let save = Slot::new(clone!(
             view => move || {
-            if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
+            if !view.save_lock.load(Ordering::SeqCst) {
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
-                        if let Err(error) = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui) {
+                        if let Err(error) = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui) {
                             show_dialog(view.table_view_primary, error, false);
                         }
                     }
@@ -469,7 +471,7 @@ impl TableViewSlots {
 
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
-                            if let Err(error) = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui) {
+                            if let Err(error) = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui) {
                                 return show_dialog(view.table_view_primary, error, false);
                             }
                         }
@@ -617,6 +619,7 @@ impl TableViewSlots {
                         &app_ui,
                         &global_search_ui,
                         &pack_file_contents_ui,
+                        &diagnostics_ui,
                         table_data
                     ) {
                         view.table_filter.set_data_3a(

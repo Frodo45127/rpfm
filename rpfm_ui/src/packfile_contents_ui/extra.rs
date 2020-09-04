@@ -37,6 +37,7 @@ use rpfm_lib::packfile::PathType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter_safe;
 use crate::global_search_ui::GlobalSearchUI;
@@ -58,6 +59,7 @@ impl PackFileContentsUI {
         &mut self,
         app_ui: &mut AppUI,
         global_search_ui: &mut GlobalSearchUI,
+        diagnostics_ui: &mut DiagnosticsUI,
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>]
     ) {
@@ -74,13 +76,14 @@ impl PackFileContentsUI {
 
                 // Update the global search stuff, if needed.
                 global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
+                diagnostics_ui.check_on_path(self, paths.iter().map(From::from).collect());
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                 paths_packedfile.iter().for_each(|path| {
                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                         if packed_file_view.reload(path, self).is_err() {
-                            let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                            let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, *diagnostics_ui, path, false);
                         }
                     }
                 });
@@ -95,7 +98,14 @@ impl PackFileContentsUI {
     }
 
     /// This function is a helper to add entire folders with subfolders to the UI, keeping the UI updated.
-    pub unsafe fn add_packed_files_from_folders(&mut self, app_ui: &mut AppUI, global_search_ui: &mut GlobalSearchUI, paths: &[PathBuf], paths_packedfile: &[Vec<String>]) {
+    pub unsafe fn add_packed_files_from_folders(
+        &mut self,
+        app_ui: &mut AppUI,
+        global_search_ui: &mut GlobalSearchUI,
+        diagnostics_ui: &mut DiagnosticsUI,
+        paths: &[PathBuf],
+        paths_packedfile: &[Vec<String>]
+    ) {
         app_ui.main_window.set_enabled(false);
         let paths_to_send = paths.iter().cloned().zip(paths_packedfile.iter().cloned()).collect();
         CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromFolder(paths_to_send));
@@ -109,6 +119,7 @@ impl PackFileContentsUI {
 
                 // Update the global search stuff, if needed.
                 global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
+                diagnostics_ui.check_on_path(self, paths.iter().map(From::from).collect());
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
@@ -116,7 +127,7 @@ impl PackFileContentsUI {
                     if let PathType::File(path) = path {
                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                             if packed_file_view.reload(path, self).is_err() {
-                                let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, path, false);
+                                let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, *diagnostics_ui, path, false);
                             }
                         }
                     }

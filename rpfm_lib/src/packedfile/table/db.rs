@@ -301,8 +301,7 @@ impl DB {
     fn get_dependency_data_from_real_dependencies(
         references: &mut BTreeMap<String, String>,
         reference_info: (&str, &str, &[String]),
-        real_dep_db: &mut Vec<PackedFile>,
-        schema: &Schema,
+        real_dep_db: &[PackedFile],
     ) {
 
         // Scan the dependency data for references. The process is simple: keep finding referenced tables,
@@ -310,9 +309,9 @@ impl DB {
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
-        let mut iter = real_dep_db.iter_mut();
+        let mut iter = real_dep_db.iter();
         while let Some(packed_file) = iter.find(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", ref_table)])) {
-            if let Ok(table) = packed_file.decode_return_ref_no_locks(schema) {
+            if let Ok(table) = packed_file.get_decoded_from_memory() {
                 if let DecodedPackedFile::DB(db) = table {
                     for row in &db.get_table_data() {
                         let mut reference_data = String::new();
@@ -420,8 +419,7 @@ impl DB {
     fn get_dependency_data_from_packfile(
         references: &mut BTreeMap<String, String>,
         reference_info: (&str, &str, &[String]),
-        packfile: &mut PackFile,
-        schema: &Schema,
+        packfile: &PackFile,
         files_to_ignore: &[Vec<String>]
     ) {
 
@@ -430,9 +428,9 @@ impl DB {
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
-        for packed_file in packfile.get_ref_mut_packed_files_by_path_start(&["db".to_owned(), format!("{}_tables", ref_table)]) {
+        for packed_file in packfile.get_ref_packed_files_by_path_start(&["db".to_owned(), format!("{}_tables", ref_table)]) {
             if files_to_ignore.contains(&packed_file.get_path().to_vec()) { continue; }
-            if let Ok(table) = packed_file.decode_return_ref_no_locks(schema) {
+            if let Ok(table) = packed_file.get_decoded_from_memory() {
                 if let DecodedPackedFile::DB(db) = table {
                     for row in &db.get_table_data() {
                         let mut reference_data = String::new();
@@ -484,10 +482,9 @@ impl DB {
     /// The returned references are in the following format:
     /// ```BTreeMap<column_index, Vec<(referenced_value, lookup_value)>```.
     pub fn get_dependency_data(
-        pack_file: &mut PackFile,
-        schema: &Schema,
+        pack_file: &PackFile,
         table_definition: &Definition,
-        real_dep_db: &mut Vec<PackedFile>,
+        real_dep_db: &[PackedFile],
         fake_dep_db: &[DB],
         files_to_ignore: &[Vec<String>]
     ) -> BTreeMap<i32, BTreeMap<String, String>> {
@@ -500,9 +497,9 @@ impl DB {
                     let lookup_data = if let Some(ref data) = field.get_lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = BTreeMap::new();
 
-                    Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), real_dep_db, schema);
+                    Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), real_dep_db);
                     Self::get_dependency_data_from_fake_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), fake_dep_db);
-                    Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, schema, files_to_ignore);
+                    Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, files_to_ignore);
 
                     data.insert(column as i32, references);
                 }

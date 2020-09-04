@@ -18,6 +18,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::global_search::GlobalSearch;
 
 use crate::app_ui::AppUI;
@@ -53,6 +54,9 @@ pub struct UIState {
 
     /// This stores the current `GlobalSearch`.
     global_search: Arc<RwLock<GlobalSearch>>,
+
+    /// This stores the current `Diagnostics`.
+    diagnostics: Arc<RwLock<Diagnostics>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -71,6 +75,7 @@ impl Default for UIState {
             open_packedfiles: Arc::new(RwLock::new(vec![])),
             operational_mode: Arc::new(RwLock::new(OperationalMode::Normal)),
             global_search: Arc::new(RwLock::new(GlobalSearch::default())),
+            diagnostics: Arc::new(RwLock::new(Diagnostics::default())),
         }
     }
 }
@@ -149,5 +154,15 @@ impl UIState {
     /// This function replaces the current global search with the provided one.
     pub fn set_global_search(&self, global_search: &GlobalSearch) {
         *self.global_search.write().unwrap() = global_search.clone();
+    }
+
+    /// This function returns the current diagnostics info.
+    pub fn get_diagnostics(&self) -> Diagnostics {
+        self.diagnostics.read().unwrap().clone()
+    }
+
+    /// This function replaces the current diagnostics with the provided one.
+    pub fn set_diagnostics(&self, diagnostics: &Diagnostics) {
+        *self.diagnostics.write().unwrap() = diagnostics.clone();
     }
 }

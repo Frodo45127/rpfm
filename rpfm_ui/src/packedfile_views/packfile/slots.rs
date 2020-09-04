@@ -22,6 +22,7 @@ use crate::communications::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
+use crate::packedfile_views::DiagnosticsUI;
 use crate::utils::show_dialog;
 use super::{PackFileExtraView, PackFileExtraViewRaw};
 use crate::UI_STATE;
@@ -50,7 +51,13 @@ pub struct PackFileExtraViewSlots {
 impl PackFileExtraViewSlots {
 
     /// This function builds the entire slot set for the provided PackFileExtraView.
-    pub unsafe fn new(mut app_ui: AppUI, mut pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, mut pack_file_view: PackFileExtraViewRaw) -> Self {
+    pub unsafe fn new(
+        mut app_ui: AppUI,
+        mut pack_file_contents_ui: PackFileContentsUI,
+        global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI,
+        mut pack_file_view: PackFileExtraViewRaw
+    ) -> Self {
 
         // When we want to import the selected PackedFile...
         let import = SlotOfQModelIndex::new(clone!(
@@ -74,7 +81,7 @@ impl PackFileExtraViewSlots {
                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                                         if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
-                                            let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, path, false);
+                                            let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, path, false);
                                         }
                                     }
                                 }

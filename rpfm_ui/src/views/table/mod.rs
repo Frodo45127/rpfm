@@ -58,6 +58,7 @@ use rpfm_lib::SETTINGS;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::*;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
@@ -214,6 +215,7 @@ impl TableView {
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
+        diagnostics_ui: &DiagnosticsUI,
         table_data: TableType,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>
     ) -> Result<(Self, TableViewSlots)> {
@@ -518,6 +520,7 @@ impl TableView {
             &packed_file_table_view_raw,
             *global_search_ui,
             *pack_file_contents_ui,
+            *diagnostics_ui,
             *app_ui,
             packed_file_path.clone(),
         );

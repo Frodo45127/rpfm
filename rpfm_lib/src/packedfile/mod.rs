@@ -267,28 +267,24 @@ impl DecodedPackedFile {
     pub fn update_table(&mut self) -> Result<(i32, i32)> {
         match self {
             DecodedPackedFile::DB(data) => {
-                let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
-                if let Some(schema) = &*SCHEMA.read().unwrap() {
-                    if let Some(vanilla_db) = dep_db.par_iter_mut()
-                        .filter_map(|x| x.decode_return_ref_no_locks(&schema).ok())
-                        .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })
-                        .filter(|x| x.name == data.name)
-                        .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
+                let dep_db = DEPENDENCY_DATABASE.read().unwrap();
+                if let Some(vanilla_db) = dep_db.par_iter()
+                    .filter_map(|x| x.get_decoded_from_memory().ok())
+                    .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })
+                    .filter(|x| x.name == data.name)
+                    .max_by(|x, y| x.get_ref_definition().get_version().cmp(&y.get_ref_definition().get_version())) {
 
-                        let definition_new = vanilla_db.get_definition();
-                        let definition_old = data.get_definition();
-                        if definition_old != definition_new {
-                            data.set_definition(&definition_new);
-                            Ok((definition_old.get_version(), definition_new.get_version()))
-                        }
-                        else {
-                            Err(ErrorKind::NoDefinitionUpdateAvailable.into())
-                        }
+                    let definition_new = vanilla_db.get_definition();
+                    let definition_old = data.get_definition();
+                    if definition_old != definition_new {
+                        data.set_definition(&definition_new);
+                        Ok((definition_old.get_version(), definition_new.get_version()))
                     }
-                    else { Err(ErrorKind::NoTableInGameFilesToCompare.into()) }
+                    else {
+                        Err(ErrorKind::NoDefinitionUpdateAvailable.into())
+                    }
                 }
-                else { Err(ErrorKind::SchemaNotFound.into()) }
-
+                else { Err(ErrorKind::NoTableInGameFilesToCompare.into()) }
             }
             _ => Err(ErrorKind::DBTableIsNotADBTable.into()),
         }

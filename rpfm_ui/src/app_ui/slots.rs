@@ -48,6 +48,7 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::command_palette;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
@@ -107,6 +108,7 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub view_toggle_packfile_contents: SlotOfBool<'static>,
     pub view_toggle_global_search_panel: SlotOfBool<'static>,
+    pub view_toggle_diagnostics_panel: SlotOfBool<'static>,
 
     //-----------------------------------------------//
     // `Game Selected` menu slots.
@@ -175,6 +177,7 @@ impl AppUISlots {
         mut app_ui: AppUI,
         mut global_search_ui: GlobalSearchUI,
         mut pack_file_contents_ui: PackFileContentsUI,
+        mut diagnostics_ui: DiagnosticsUI,
         app_temp_slots: &Rc<RefCell<AppUITempSlots>>,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Self {
@@ -239,7 +242,7 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(false);
 
                     // Close any open PackedFile and clear the global search pannel.
-                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false);
+                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
                     global_search_ui.clear();
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
@@ -299,7 +302,11 @@ impl AppUISlots {
                         }
 
                         // Try to open it, and report it case of error.
-                        if let Err(error) = app_ui.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &paths, "", &slot_holder) { show_dialog(app_ui.main_window, error, false); }
+                        if let Err(error) = app_ui.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, "", &slot_holder) {
+                            return show_dialog(app_ui.main_window, error, false);
+                        }
+
+                        diagnostics_ui.check();
                     }
                 }
             }
@@ -307,7 +314,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Save PackFile" action.
         let packfile_save_packfile = SlotOfBool::new(move |_| {
-                if let Err(error) = app_ui.save_packfile(&mut pack_file_contents_ui, &global_search_ui, false) {
+                if let Err(error) = app_ui.save_packfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false) {
                     show_dialog(app_ui.main_window, error, false);
                 }
             }
@@ -315,7 +322,7 @@ impl AppUISlots {
 
         // What happens when we trigger the "Save PackFile As" action.
         let packfile_save_packfile_as = SlotOfBool::new(move |_| {
-                if let Err(error) = app_ui.save_packfile(&mut pack_file_contents_ui, &global_search_ui, true) {
+                if let Err(error) = app_ui.save_packfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, true) {
                     show_dialog(app_ui.main_window, error, false);
                 }
             }
@@ -341,7 +348,7 @@ impl AppUISlots {
 
                 // Destroy whatever it's in the PackedFile's views and clear the global search UI.
                 global_search_ui.clear();
-                let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false);
+                let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
                 let response = CENTRAL_COMMAND.recv_message_qt();
@@ -466,7 +473,7 @@ impl AppUISlots {
                             // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
                                 UI_STATE.set_operational_mode(&mut app_ui, None);
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -555,7 +562,7 @@ impl AppUISlots {
                     mymod_path.push(&full_mod_name);
 
                     // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false);
+                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
                     global_search_ui.clear();
 
                     // Reset the autosave timer.
@@ -591,7 +598,7 @@ impl AppUISlots {
                             // Show the "Tips".
                             //display_help_tips(&app_ui);
 
-                            app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+                            app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
                             app_ui.main_window.set_enabled(true);
                         }
 
@@ -659,7 +666,7 @@ impl AppUISlots {
                                 }
 
                                 // Update the MyMod list and return true, as we have effectively deleted the MyMod.
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
+                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
                                 true
                             }
                             else { return show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
@@ -762,19 +769,22 @@ impl AppUISlots {
         //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
-        let view_toggle_packfile_contents = SlotOfBool::new(move |_| {
-            let is_visible = pack_file_contents_ui.packfile_contents_dock_widget.is_visible();
-            if is_visible { pack_file_contents_ui.packfile_contents_dock_widget.hide(); }
+        let view_toggle_packfile_contents = SlotOfBool::new(move |state| {
+            if !state { pack_file_contents_ui.packfile_contents_dock_widget.hide(); }
             else { pack_file_contents_ui.packfile_contents_dock_widget.show();}
         });
 
-        let view_toggle_global_search_panel = SlotOfBool::new(move |_| {
-            let is_visible = global_search_ui.global_search_dock_widget.is_visible();
-            if is_visible { global_search_ui.global_search_dock_widget.hide(); }
+        let view_toggle_global_search_panel = SlotOfBool::new(move |state| {
+            if !state { global_search_ui.global_search_dock_widget.hide(); }
             else {
                 global_search_ui.global_search_dock_widget.show();
                 global_search_ui.global_search_search_line_edit.set_focus_0a()
             }
+        });
+
+        let view_toggle_diagnostics_panel = SlotOfBool::new(move |state| {
+            if !state { diagnostics_ui.diagnostics_dock_widget.hide(); }
+            else { diagnostics_ui.diagnostics_dock_widget.show();}
         });
 
         //-----------------------------------------------//
@@ -865,9 +875,8 @@ impl AppUISlots {
                 }
 
                 // Rebuild the open from submenus.
-                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
-                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, &slot_holder);
-
+                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
+                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
             }
         ));
 
@@ -882,7 +891,7 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 let path = animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>();
                 app_ui.main_window.set_enabled(false);
-                let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
+                let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::GenerateDummyAnimPack);
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -991,7 +1000,7 @@ impl AppUISlots {
                 // If there is no problem, ere we go.
                 app_ui.main_window.set_enabled(false);
 
-                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, true) {
+                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, true) {
                     return show_dialog(app_ui.main_window, error, false);
                 }
 
@@ -1022,7 +1031,7 @@ impl AppUISlots {
                 // Ask the background loop to patch the PackFile, and wait for a response.
                 app_ui.main_window.set_enabled(false);
 
-                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, true) {
+                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, true) {
                     return show_dialog(app_ui.main_window, error, false);
                 }
 
@@ -1174,7 +1183,7 @@ impl AppUISlots {
         // `PackedFileView` logic.
         //-----------------------------------------------//
         let packed_file_hide = SlotOfInt::new(move |index| {
-            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, index);
+            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, diagnostics_ui, index);
         });
 
         let packed_file_update = SlotOfInt::new(move |index| {
@@ -1259,7 +1268,7 @@ impl AppUISlots {
 
         let tab_bar_packed_file_close = Slot::new(move || {
             let index = app_ui.tab_bar_packed_file.current_index();
-            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, index);
+            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, diagnostics_ui, index);
         });
 
         let tab_bar_packed_file_prev = Slot::new(move || {
@@ -1315,6 +1324,7 @@ impl AppUISlots {
             //-----------------------------------------------//
             view_toggle_packfile_contents,
             view_toggle_global_search_panel,
+            view_toggle_diagnostics_panel,
 
             //-----------------------------------------------//
             // `Game Selected` menu slots.
@@ -1369,10 +1379,16 @@ impl AppUISlots {
 }
 
 impl AppUITempSlots {
-    pub unsafe fn new(app_ui: AppUI, pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> Self {
+    pub unsafe fn new(
+        app_ui: AppUI,
+        pack_file_contents_ui: PackFileContentsUI,
+        global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI,
+        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
+    ) -> Self {
         Self {
-            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, slot_holder),
-            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, slot_holder),
+            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, slot_holder),
+            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, slot_holder),
         }
     }
 }

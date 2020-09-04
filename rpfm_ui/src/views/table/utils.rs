@@ -960,6 +960,7 @@ pub unsafe fn open_subtable(
     app_ui: &AppUI,
     global_search_ui: &GlobalSearchUI,
     pack_file_contents_ui: &PackFileContentsUI,
+    diagnostics_ui: &DiagnosticsUI,
     table_data: TableType,
 ) -> Option<String> {
 
@@ -974,7 +975,7 @@ pub unsafe fn open_subtable(
     let _widget_grid = create_grid_layout(main_widget.as_mut_ptr());
     let mut accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
 
-    let (table_view, _slots) = TableView::new_view(main_widget.as_mut_ptr(), app_ui, global_search_ui, pack_file_contents_ui, table_data, None).unwrap();
+    let (table_view, _slots) = TableView::new_view(main_widget.as_mut_ptr(), app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None).unwrap();
 
     main_grid.add_widget_5a(&mut main_widget, 0, 0, 1, 1);
     main_grid.add_widget_5a(&mut accept_button, 1, 0, 1, 1);

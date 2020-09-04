@@ -39,6 +39,7 @@ use rpfm_lib::SETTINGS;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
@@ -112,17 +113,18 @@ impl PackFileContentsSlots {
         mut app_ui: AppUI,
         mut pack_file_contents_ui: PackFileContentsUI,
         mut global_search_ui: GlobalSearchUI,
+        mut diagnostics_ui: DiagnosticsUI,
         slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
     ) -> Self {
 
         // Slot to open the selected PackedFile as a preview.
         let open_packedfile_preview = Slot::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, true, false);
+            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder, true, false);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
         let open_packedfile_full = Slot::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, false, false);
+            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder, false, false);
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -450,7 +452,7 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
-                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &paths, &paths_packedfile);
+                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, &paths_packedfile);
                             }
                         }
 
@@ -473,7 +475,7 @@ impl PackFileContentsSlots {
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
                             for path in &paths { paths_packedfile.append(&mut <MutPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
 
-                            pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &paths, &paths_packedfile);
+                            pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, &paths_packedfile);
                         }
                     }
                 }
@@ -538,7 +540,7 @@ impl PackFileContentsSlots {
                                     paths_packedfile
                                 };
 
-                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &paths, &paths_packedfile);
+                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, &paths_packedfile);
                             }
                         }
 
@@ -559,7 +561,7 @@ impl PackFileContentsSlots {
 
                             // Get the Paths of the files inside the folders we want to add.
                             let ui_base_path: Vec<String> = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
-                            pack_file_contents_ui.add_packed_files_from_folders(&mut app_ui, &mut global_search_ui, &folder_paths, &[ui_base_path]);
+                            pack_file_contents_ui.add_packed_files_from_folders(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &folder_paths, &[ui_base_path]);
                         }
                     }
                 }
@@ -613,7 +615,7 @@ impl PackFileContentsSlots {
                     tab.set_is_preview(false);
                     tab.set_path(&fake_path);
 
-                    match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, &global_search_ui, path) {
+                    match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, path) {
                         Ok(slots) => {
                             slot_holder.borrow_mut().push(slots);
 
@@ -646,7 +648,7 @@ impl PackFileContentsSlots {
                         // Remove all the deleted PackedFiles from the cache.
                         for item in &items {
                             match item {
-                                TreePathType::File(path) => if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false) {
+                                TreePathType::File(path) => if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, false) {
                                     show_dialog(app_ui.main_window, error, false);
                                 }
                                 TreePathType::Folder(path) => {
@@ -661,11 +663,11 @@ impl PackFileContentsSlots {
                                     }
 
                                     for path in paths_to_remove {
-                                        let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, false);
+                                        let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, false);
                                     }
 
                                 }
-                                TreePathType::PackFile => { let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, false); },
+                                TreePathType::PackFile => { let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false); },
                                 TreePathType::None => unreachable!(),
                             }
                         }
@@ -719,7 +721,7 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|packed_file| packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui)) {
+                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|packed_file| packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui)) {
                     show_dialog(app_ui.main_window, error, false);
                 }
 
@@ -779,6 +781,7 @@ impl PackFileContentsSlots {
 
                                                 // Update the global search stuff, if needed.
                                                 global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![PathType::File(new_path.to_vec()); 1]);
+                                                diagnostics_ui.check_on_path(&mut pack_file_contents_ui, vec![PathType::File(new_path.to_vec()); 1]);
                                             }
                                         }
                                     }
@@ -881,12 +884,12 @@ impl PackFileContentsSlots {
 
         // What happens when we trigger the "Open Decoder" Action.
         let contextual_menu_open_decoder = SlotOfBool::new(clone!(slot_holder => move |_| {
-            app_ui.open_decoder(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+            app_ui.open_decoder(&pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder);
         }));
 
         // What happens when we trigger the "Open Dependency Table" Action.
         let contextual_menu_open_dependency_manager = SlotOfBool::new(clone!(slot_holder => move |_| {
-            app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+            app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder);
         }));
 
         // What happens when we trigger the "Open Containing Folder" Action.
@@ -904,12 +907,12 @@ impl PackFileContentsSlots {
         let contextual_menu_open_in_external_program = SlotOfBool::new(clone!(
             mut pack_file_contents_ui,
             mut slot_holder => move |_| {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &slot_holder, false, true);
+            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder, false, true);
         }));
 
         // What happens when we trigger the "Open Notes" Action.
         let contextual_menu_open_notes = SlotOfBool::new(clone!(slot_holder => move |_| {
-            app_ui.open_notes(&pack_file_contents_ui, &global_search_ui, &slot_holder);
+            app_ui.open_notes(&pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder);
         }));
 
         // What happens when we trigger the "Check Tables" action in the Contextual Menu.
@@ -993,7 +996,7 @@ impl PackFileContentsSlots {
                     }
 
                     for path in paths_to_close {
-                        if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &path, true) {
+                        if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, true) {
                             return show_dialog(app_ui.main_window, error, false);
                         }
                     }
@@ -1007,7 +1010,7 @@ impl PackFileContentsSlots {
                             if delete_source_files {
                                 let items_to_remove = selected_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect();
                                 let mut _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_model);
-                                selected_paths.iter().for_each(|x| { let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &x, false); });
+                                selected_paths.iter().for_each(|x| { let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &x, false); });
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove));
                             }
 
@@ -1016,7 +1019,8 @@ impl PackFileContentsSlots {
                             UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
 
                             // Update the global search stuff, if needed.
-                            global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![PathType::File(path_to_add); 1]);
+                            global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![PathType::File(path_to_add.to_vec()); 1]);
+                            diagnostics_ui.check_on_path(&mut pack_file_contents_ui, vec![PathType::File(path_to_add); 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1037,7 +1041,7 @@ impl PackFileContentsSlots {
                 TreePathType::File(_) => {
 
                     // First, if the PackedFile is open, save it.
-                    if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, &slot_holder, true) {
+                    if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, true) {
                         return show_dialog(app_ui.main_window, error, false);
                     }
 
@@ -1053,7 +1057,8 @@ impl PackFileContentsSlots {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]));
                             UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
 
-                            global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![path_type; 1]);
+                            global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![path_type.clone(); 1]);
+                            diagnostics_ui.check_on_path(&mut pack_file_contents_ui, vec![path_type; 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1103,6 +1108,7 @@ impl PackFileContentsSlots {
 
                                 // Update the global search stuff, if needed.
                                 global_search_ui.search_on_path(&mut pack_file_contents_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
+                                diagnostics_ui.check_on_path(&mut pack_file_contents_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
                             }
 
                             Response::Error(error) => show_dialog(app_ui.main_window, error, false),

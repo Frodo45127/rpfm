@@ -22,7 +22,7 @@
 
 use lazy_static::lazy_static;
 
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use crate::games::{SupportedGames, get_supported_games_list};
 use crate::packedfile::table::db::DB;
@@ -32,6 +32,7 @@ use crate::settings::Settings;
 
 pub mod assembly_kit;
 pub mod common;
+pub mod diagnostics;
 pub mod config;
 pub mod games;
 pub mod global_search;
@@ -57,7 +58,7 @@ lazy_static! {
     pub static ref GAME_SELECTED: Arc<RwLock<String>> = Arc::new(RwLock::new(SETTINGS.read().unwrap().settings_string["default_game"].to_owned()));
 
     /// PackedFiles from the dependencies of the currently open PackFile.
-    pub static ref DEPENDENCY_DATABASE: Mutex<Vec<PackedFile>> = Mutex::new(vec![]);
+    pub static ref DEPENDENCY_DATABASE: RwLock<Vec<PackedFile>> = RwLock::new(vec![]);
 
     /// DB Files from the Pak File of the current game. Only for dependency checking.
     pub static ref FAKE_DEPENDENCY_DATABASE: RwLock<Vec<DB>> = RwLock::new(vec![]);

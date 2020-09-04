@@ -37,6 +37,7 @@ use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -107,6 +108,7 @@ impl PackedFileDecoderViewSlots {
         mut app_ui: AppUI,
         pack_file_contents_ui: PackFileContentsUI,
         global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI,
     ) -> Self {
 
         // Slot to keep scroll in views in sync.
@@ -591,6 +593,7 @@ impl PackedFileDecoderViewSlots {
                     if let Err(error) = app_ui.purge_that_one_specifically(
                         global_search_ui,
                         pack_file_contents_ui,
+                        diagnostics_ui,
                         path,
                         true,
                     ) {

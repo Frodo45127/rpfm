@@ -53,7 +53,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::add_to_q_list_safe;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::{YELLOW_BRIGHT, YELLOW_MEDIUM, YELLOW_DARK, GREEN_BRIGHT, GREEN_MEDIUM, GREEN_DARK, RED_BRIGHT, RED_DARK, MAGENTA_MEDIUM, MEDIUM_DARKER_GREY, TRANSPARENT_BRIGHT};
+use crate::{YELLOW_BRIGHT, YELLOW_MEDIUM, YELLOW_DARK, GREEN_BRIGHT, GREEN_MEDIUM, GREEN_DARK, RED_BRIGHT, RED_DARK, MAGENTA_MEDIUM, MEDIUM_DARKER_GREY, TRANSPARENT_BRIGHT, BLUE_BRIGHT, BLUE_DARK};
 
 // This one is needed for initialization on boot, so it has to be public.
 pub mod icons;
@@ -1783,6 +1783,26 @@ pub unsafe fn get_color_clean() -> String {
     } else {
         TRANSPARENT_BRIGHT.to_owned()
     }
+}
+
+pub unsafe fn get_color_info() -> String {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        BLUE_DARK.to_owned()
+    } else {
+        BLUE_BRIGHT.to_owned()
+    }
+}
+
+pub unsafe fn get_color_warning() -> String {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        YELLOW_DARK.to_owned()
+    } else {
+        YELLOW_BRIGHT.to_owned()
+    }
+}
+
+pub unsafe fn get_color_error() -> String {
+    get_color_wrong()
 }
 
 pub unsafe fn get_color_added_high_intensity() -> MutPtr<QColor> {

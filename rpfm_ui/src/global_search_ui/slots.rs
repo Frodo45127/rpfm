@@ -15,6 +15,7 @@ Module with all the code related to the main `GlobalSearchSlots`.
 use qt_core::{SlotOfBool, SlotOfQModelIndex, Slot, SlotOfQString};
 
 use crate::app_ui::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::check_regex;
@@ -50,7 +51,8 @@ impl GlobalSearchSlots {
 	pub unsafe fn new(
         mut app_ui: AppUI,
         mut global_search_ui: GlobalSearchUI,
-        pack_file_contents_ui: PackFileContentsUI
+        pack_file_contents_ui: PackFileContentsUI,
+        mut diagnostics_ui: DiagnosticsUI,
     ) -> Self {
 
         // What happens when we trigger the "Global Search" action.
@@ -72,7 +74,7 @@ impl GlobalSearchSlots {
         // What happens when we trigger the "Replace All" action.
         let global_search_replace_all = Slot::new(clone!(
             mut pack_file_contents_ui => move || {
-            global_search_ui.replace_all(&mut app_ui, &mut pack_file_contents_ui);
+            global_search_ui.replace_all(&mut app_ui, &mut pack_file_contents_ui, &mut diagnostics_ui);
         }));
 
         // What happens when we trigger the "Check Regex" action.

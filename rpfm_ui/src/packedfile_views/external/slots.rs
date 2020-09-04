@@ -21,6 +21,7 @@ use std::env::temp_dir;
 use std::rc::Rc;
 
 use crate::app_ui::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
@@ -47,13 +48,14 @@ impl PackedFileExternalViewSlots {
         mut app_ui: AppUI,
         pack_file_contents_ui: PackFileContentsUI,
         global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI,
         packed_file_path: &Rc<RefCell<Vec<String>>>
     )  -> Self {
 
         // Slot to close the open view.
         let stop_watching = Slot::new(clone!(
             packed_file_path => move || {
-                if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, &packed_file_path.borrow(), true) {
+                if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &packed_file_path.borrow(), true) {
                     show_dialog(app_ui.main_window, error, false);
                 }
             }

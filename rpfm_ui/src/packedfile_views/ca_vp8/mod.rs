@@ -31,6 +31,7 @@ use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
@@ -88,6 +89,7 @@ impl PackedFileCaVp8View {
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
+        diagnostics_ui: &DiagnosticsUI
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
@@ -152,6 +154,7 @@ impl PackedFileCaVp8View {
             *app_ui,
             *pack_file_contents_ui,
             *global_search_ui,
+            *diagnostics_ui
         );
 
         let packed_file_ca_vp8_view = Self {

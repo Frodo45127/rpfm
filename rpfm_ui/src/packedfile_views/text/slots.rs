@@ -15,6 +15,7 @@ Module with the slots for Text Views.
 use qt_core::Slot;
 
 use crate::app_ui::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::text::PackedFileTextViewRaw;
@@ -38,7 +39,13 @@ pub struct PackedFileTextViewSlots {
 impl PackedFileTextViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub unsafe fn new(packed_file_view: &PackedFileTextViewRaw, mut app_ui: AppUI, mut pack_file_contents_ui: PackFileContentsUI, global_search_ui: GlobalSearchUI) -> Self {
+    pub unsafe fn new(
+        packed_file_view: &PackedFileTextViewRaw,
+        mut app_ui: AppUI,
+        mut pack_file_contents_ui: PackFileContentsUI,
+        global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI
+    ) -> Self {
 
         // When we want to save the contents of the UI to the backend...
         //
@@ -46,7 +53,7 @@ impl PackedFileTextViewSlots {
         let save = Slot::new(clone!(packed_file_view => move || {
             if !UI_STATE.get_global_search_no_lock().pattern.is_empty() {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_view.path.read().unwrap()) {
-                    if let Err(error) = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui) {
+                    if let Err(error) = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui) {
                         show_dialog(packed_file_view.get_mut_editor(), error, false);
                     }
                 }

@@ -42,6 +42,9 @@ use crate::app_ui::slots::{AppUITempSlots, AppUISlots};
 use crate::ASSETS_PATH;
 use crate::DARK_PALETTE;
 use crate::DARK_STYLESHEET;
+use crate::diagnostics_ui;
+use crate::diagnostics_ui::DiagnosticsUI;
+use crate::diagnostics_ui::slots::DiagnosticsUISlots;
 use crate::GAME_SELECTED_ICONS;
 use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
@@ -68,6 +71,7 @@ pub struct UI {
     pub app_ui: AppUI,
     pub pack_file_contents_ui: PackFileContentsUI,
     pub global_search_ui: GlobalSearchUI,
+    pub diagnostics_ui: DiagnosticsUI,
 }
 
 /// This struct contains all the slots of the main UI, so we got all of them in one place.
@@ -76,6 +80,7 @@ pub struct Slots {
     pub app_temp_slots: Rc<RefCell<AppUITempSlots>>,
     pub pack_file_contents_slots: PackFileContentsSlots,
     pub global_search_slots: GlobalSearchSlots,
+    pub diagnostics_slots: DiagnosticsUISlots,
 }
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
@@ -106,11 +111,13 @@ impl UI {
         let mut app_ui = AppUI::new();
         let mut global_search_ui = GlobalSearchUI::new(app_ui.main_window);
         let mut pack_file_contents_ui = PackFileContentsUI::new(app_ui.main_window);
+        let mut diagnostics_ui = DiagnosticsUI::new(app_ui.main_window);
 
-        let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui, global_search_ui, &slot_holder)));
-        let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, &app_temp_slots, &slot_holder);
-        let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui, global_search_ui, slot_holder);
-        let global_search_slots = GlobalSearchSlots::new(app_ui, global_search_ui, pack_file_contents_ui);
+        let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder)));
+        let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, &app_temp_slots, &slot_holder);
+        let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, slot_holder);
+        let global_search_slots = GlobalSearchSlots::new(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui);
+        let diagnostics_slots = DiagnosticsUISlots::new(app_ui, diagnostics_ui, pack_file_contents_ui);
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&mut app_ui);
@@ -123,6 +130,8 @@ impl UI {
         packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
         packfile_contents_ui::tips::set_tips(&mut pack_file_contents_ui);
         packfile_contents_ui::shortcuts::set_shortcuts(&mut pack_file_contents_ui);
+
+        diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
 
         // Here we also initialize the UI.
         UI_STATE.set_operational_mode(&mut app_ui, None);
@@ -153,9 +162,9 @@ impl UI {
         if args.len() > 1 {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
-                if let Err(error) = app_ui.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &[path], "", &slot_holder) {
+                if let Err(error) = app_ui.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path], "", &slot_holder) {
                     show_dialog(app_ui.main_window, error, false);
-                }
+                } else { diagnostics_ui.check(); }
             }
         }
 
@@ -202,13 +211,15 @@ impl UI {
         (Self {
             app_ui,
             global_search_ui,
-            pack_file_contents_ui
+            pack_file_contents_ui,
+            diagnostics_ui,
         },
         Slots {
             app_slots,
             app_temp_slots,
             global_search_slots,
             pack_file_contents_slots,
+            diagnostics_slots,
         })
     }
 }

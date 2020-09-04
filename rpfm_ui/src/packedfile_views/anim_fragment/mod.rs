@@ -38,10 +38,9 @@ use rpfm_lib::schema::Definition;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
-
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::atomic_from_mut_ptr;
 use crate::utils::mut_ptr_from_atomic;
@@ -82,6 +81,7 @@ impl PackedFileAnimFragmentView {
         app_ui: &AppUI,
         global_search_ui: &GlobalSearchUI,
         pack_file_contents_ui: &PackFileContentsUI,
+        diagnostics_ui: &DiagnosticsUI
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Table.
@@ -134,6 +134,7 @@ impl PackedFileAnimFragmentView {
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             TableType::AnimFragment(From::from(table_data_1)),
             None,
         )?;
@@ -143,6 +144,7 @@ impl PackedFileAnimFragmentView {
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
+            diagnostics_ui,
             TableType::AnimFragment(From::from(table_data_2)),
             None,
         )?;

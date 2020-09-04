@@ -23,13 +23,17 @@ use std::env::temp_dir;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
+use std::thread;
 
 use rpfm_error::{Error, ErrorKind};
+
 use rpfm_lib::assembly_kit::*;
 use rpfm_lib::common::*;
+use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::DEPENDENCY_DATABASE;
 use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
 use rpfm_lib::GAME_SELECTED;
+use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
 use rpfm_lib::packedfile::animpack::AnimPack;
 use rpfm_lib::packedfile::table::db::DB;
@@ -92,6 +96,15 @@ pub fn background_loop() {
                 match PackFile::open_packfiles(&paths, SETTINGS.read().unwrap().settings_bool["use_lazy_loading"], false, false) {
                     Ok(pack_file) => {
                         pack_file_decoded = pack_file;
+
+                        // Force decoding of table/locs, so they're in memory for the diagnostics to work.
+                        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                            let mut packed_files = pack_file_decoded.get_ref_mut_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false);
+                            packed_files.par_iter_mut().for_each(|x| {
+                                let _ = x.decode_no_locks(schema);
+                            });
+                        }
+
                         CENTRAL_COMMAND.send_message_rust(Response::PackFileInfo(PackFileInfo::from(&pack_file_decoded)));
                     }
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
@@ -219,8 +232,14 @@ pub fn background_loop() {
                 // Send a response, so we can unlock the UI.
                 CENTRAL_COMMAND.send_message_rust(Response::Success);
 
-                // Change the `dependency_database` for that game.
-                *DEPENDENCY_DATABASE.lock().unwrap() = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
+                // Change the `dependency_database` for that game and preload the dependency data.
+                let mut real_dep_db = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    real_dep_db.par_iter_mut().for_each(|x| {
+                        let _ = x.decode_no_locks(schema);
+                    });
+                }
+                *DEPENDENCY_DATABASE.write().unwrap() = real_dep_db;
 
                 // Change the `fake dependency_database` for that game.
                 *FAKE_DEPENDENCY_DATABASE.write().unwrap() = DB::read_pak_file();
@@ -309,7 +328,7 @@ pub fn background_loop() {
             Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
 
             // In case we want to check if there is a Dependency Database loaded...
-            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!DEPENDENCY_DATABASE.lock().unwrap().is_empty())),
+            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!DEPENDENCY_DATABASE.read().unwrap().is_empty())),
 
             // In case we want to check if there is a Schema loaded...
             Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
@@ -401,7 +420,6 @@ pub fn background_loop() {
 
             // In case we want to decode a RigidModel PackedFile...
             Command::DecodePackedFile(path) => {
-
                 if path == ["notes.rpfm_reserved".to_owned()] {
                     let mut note = Text::new();
                     note.set_text_type(TextType::Markdown);
@@ -503,7 +521,7 @@ pub fn background_loop() {
 
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => {
-                let tables = (*DEPENDENCY_DATABASE.lock().unwrap()).par_iter().filter(|x| x.get_path().len() > 2).filter(|x| x.get_path()[1].ends_with("_tables")).map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
+                let tables = (*DEPENDENCY_DATABASE.read().unwrap()).par_iter().filter(|x| x.get_path().len() > 2).filter(|x| x.get_path()[1].ends_with("_tables")).map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
                 CENTRAL_COMMAND.send_message_rust(Response::VecString(tables));
             }
 
@@ -564,22 +582,17 @@ pub fn background_loop() {
 
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(definition, files_to_ignore) => {
-                let dependency_data = match &*SCHEMA.read().unwrap() {
-                    Some(ref schema) => {
-                        let mut dep_db = DEPENDENCY_DATABASE.lock().unwrap();
-                        let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
+                let real_dep_db = DEPENDENCY_DATABASE.read().unwrap();
+                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
 
-                        DB::get_dependency_data(
-                            &mut pack_file_decoded,
-                            schema,
-                            &definition,
-                            &mut dep_db,
-                            &fake_dep_db,
-                            &files_to_ignore,
-                        )
-                    }
-                    None => BTreeMap::new(),
-                };
+                let dependency_data = DB::get_dependency_data(
+                    &pack_file_decoded,
+                    &definition,
+                    &real_dep_db,
+                    &fake_dep_db,
+                    &files_to_ignore,
+                );
+
                 CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32BTreeMapStringString(dependency_data));
             }
 
@@ -906,6 +919,26 @@ pub fn background_loop() {
                     }
                     Err(_) => CENTRAL_COMMAND.send_message_notification_to_qt(Notification::Error(Error::from(ErrorKind::SavePackFileGeneric("No autosave files found.".to_string())))),
                 }
+            }
+
+            // In case we want to "Open one or more PackFiles"...
+            Command::DiagnosticsCheck => {
+                thread::spawn(clone!(
+                    mut pack_file_decoded => move || {
+                    let mut diag = Diagnostics::default();
+                    if pack_file_decoded.get_pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.get_pfh_file_type() == PFHFileType::Movie {
+                        diag.check(&pack_file_decoded);
+                    }
+                    CENTRAL_COMMAND.send_message_diagnostics_to_qt(diag);
+                }));
+            }
+
+            // In case we want to "Open one or more PackFiles"...
+            Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
+                diagnostics.update(&pack_file_decoded, &path_types);
+                let packed_files_info = diagnostics.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
+                CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
             }
 
             // These two belong to the network thread, not to this one!!!!

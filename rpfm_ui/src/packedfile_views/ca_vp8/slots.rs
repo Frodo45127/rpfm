@@ -18,6 +18,7 @@ use qt_core::Slot;
 use rpfm_lib::packedfile::ca_vp8::SupportedFormats;
 
 use crate::app_ui::AppUI;
+use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packedfile_views::ca_vp8::PackedFileCaVp8ViewRaw;
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -45,7 +46,8 @@ impl PackedFileCaVp8ViewSlots {
         view: PackedFileCaVp8ViewRaw,
         mut app_ui: AppUI,
         mut pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI
+        global_search_ui: GlobalSearchUI,
+        diagnostics_ui: DiagnosticsUI
     )  -> Self {
 
         // Slot to change the format of the video to CAMV.
@@ -57,7 +59,7 @@ impl PackedFileCaVp8ViewSlots {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui);
+                    let _ = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui);
                 }
             }
         ));
@@ -71,7 +73,7 @@ impl PackedFileCaVp8ViewSlots {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui);
+                    let _ = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui);
                 }
             }
         ));

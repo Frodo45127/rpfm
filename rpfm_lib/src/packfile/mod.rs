@@ -958,7 +958,7 @@ impl PackFile {
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
     /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
-    pub fn get_ref_packed_files_by_types(&mut self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&PackedFile> {
+    pub fn get_ref_packed_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<&PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
                 let y = PackedFileType::get_packed_file_type(x.get_path());
@@ -1465,7 +1465,7 @@ impl PackFile {
             Some(ref schema) => {
 
                 let mut broken_tables = vec![];
-                let mut real_dep_db = DEPENDENCY_DATABASE.lock().unwrap();
+                let real_dep_db = DEPENDENCY_DATABASE.read().unwrap();
                 let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
 
                 // Due to how mutability works, we have first to get the data of every table,
@@ -1476,7 +1476,7 @@ impl PackFile {
 
                 for packed_file in self.get_packed_files_by_path_start(&["db".to_owned()]) {
                     if let DecodedPackedFile::DB(table) = packed_file.get_ref_decoded() {
-                        let dependency_data = DB::get_dependency_data(self, schema, &table.get_definition(), &mut real_dep_db, &fake_dep_db, &[]);
+                        let dependency_data = DB::get_dependency_data(self, &table.get_definition(), &real_dep_db, &fake_dep_db, &[]);
 
                         // If we got some dependency data (the referenced tables actually exists), check every
                         // referenced field of every referenced column for errors.
@@ -1614,16 +1614,16 @@ impl PackFile {
 
         // List of PackedFiles to delete.
         let mut files_to_delete: Vec<Vec<String>> = vec![];
-        let mut dependencies = DEPENDENCY_DATABASE.lock().unwrap();
+        let dependencies = DEPENDENCY_DATABASE.read().unwrap();
 
         // We get the entire list of paths from the dependency database, so we can check if each `PackedFile is trying to overwrite a vanilla one or not.
         let database_path_list = dependencies.iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>();
 
         // Get a list of every Loc and DB PackedFiles in our dependency's files. For performance reasons, we decode every one of them here.
         // Otherwise, they may have to be decoded multiple times, making this function take ages to finish.
-        let (game_dbs, game_locs): (Vec<&DB>, Vec<&Loc>) = dependencies.iter_mut()
+        let (game_dbs, game_locs): (Vec<&DB>, Vec<&Loc>) = dependencies.iter()
             .filter(|x| (x.get_path().len() == 3 && x.get_path()[0] == "db") || (x.get_path().last().unwrap().ends_with(".loc")))
-            .map(|x| x.decode_return_ref())
+            .map(|x| x.get_decoded_from_memory())
             .filter(|x| x.is_ok())
             .map(|x| x.unwrap())
             .partition_map(|x| match x {
