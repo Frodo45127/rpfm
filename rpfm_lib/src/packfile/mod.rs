@@ -182,7 +182,7 @@ pub struct PackFileInfo {
 struct Manifest(Vec<ManifestEntry>);
 
 /// This struct represents a Manifest Entry.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 struct ManifestEntry {
 
     /// The path of the file, relative to /data.
@@ -191,8 +191,8 @@ struct ManifestEntry {
     /// The size in bytes of the file.
     size: u64,
 
-    /// If the file comes with the base game (1), or with one of its dlc (0).
-    belongs_to_base_game: u8,
+    /// If the file comes with the base game (1), or with one of its dlc (0). Not in all games.
+    belongs_to_base_game: Option<u8>,
 }
 
 /// This enum represents the **Version** of a PackFile.
@@ -2620,11 +2620,35 @@ impl Manifest {
             .delimiter(b'\t')
             .quoting(false)
             .has_headers(false)
+            .flexible(true)
             .from_path(&manifest_path)?;
 
-        // If we succesfully load the TSV file into a reader, check the first two lines to ensure
-        // it's a valid TSV for our specific table.
-        let entries = reader.deserialize().filter_map(|x| x.ok()).collect::<Vec<ManifestEntry>>();
+        // Due to "flexible" not actually working when doing serde-backed deserialization (took some time to figure this out)
+        // the deserialization has to be done manually.
+        let mut entries = vec![];
+        for record in reader.records() {
+            let record = record?;
+
+            // We only know these manifest formats.
+            if record.len() != 2 && record.len() != 3 {
+                return Err(ErrorKind::ManifestError.into());
+            } else {
+                let mut manifest_entry = ManifestEntry::default();
+                manifest_entry.relative_path = record.get(0).ok_or(Error::from(ErrorKind::ManifestError))?.to_owned();
+                manifest_entry.size = record.get(1).ok_or(Error::from(ErrorKind::ManifestError))?.parse()?;
+
+                // In newer games, a third field has been added.
+                if record.len() == 3 {
+                    manifest_entry.belongs_to_base_game = record.get(2).ok_or(Error::from(ErrorKind::ManifestError))?.parse().ok();
+                }
+                else {
+                    manifest_entry.belongs_to_base_game = None;
+                }
+
+                entries.push(manifest_entry);
+            }
+        }
+
         let manifest = Self(entries);
         Ok(manifest)
     }
