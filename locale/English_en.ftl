@@ -601,3 +601,5 @@ diagnostics_colum_column = Column
 diagnostics_colum_row = Row
 diagnostics_colum_path = Path
 diagnostics_colum_message = Message
+
+context_menu_copy_path = Copy Path

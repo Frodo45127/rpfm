@@ -17,6 +17,7 @@ use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
 
 use qt_gui::QCursor;
+use qt_gui::QGuiApplication;
 use qt_gui::SlotOfQStandardItem;
 
 use qt_core::{SlotOfBool, Slot, SlotOfQString};
@@ -77,6 +78,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_delete: SlotOfBool<'static>,
     pub contextual_menu_extract: SlotOfBool<'static>,
     pub contextual_menu_rename: SlotOfBool<'static>,
+    pub contextual_menu_copy_path: SlotOfBool<'static>,
 
     pub contextual_menu_new_packed_file_db: SlotOfBool<'static>,
     pub contextual_menu_new_packed_file_loc: SlotOfBool<'static>,
@@ -185,6 +187,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(enabled);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(enabled);
 
                         // Only if we have multiple files selected, we give the option to merge. Further checks are done when clicked.
                         let enabled = files > 1;
@@ -219,6 +222,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_packed_file_text.set_enabled(enabled);
                         pack_file_contents_ui.context_menu_new_queek_packed_file.set_enabled(enabled);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(enabled);
                     },
 
                     // One or more files and one or more folders selected.
@@ -238,6 +242,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
                         pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
@@ -263,6 +268,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
                         pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(true);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(true);
@@ -288,6 +294,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
                         pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
@@ -312,6 +319,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
                         pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
@@ -337,6 +345,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
                         pack_file_contents_ui.context_menu_extract.set_enabled(true);
                         pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
@@ -362,6 +371,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_delete.set_enabled(false);
                         pack_file_contents_ui.context_menu_extract.set_enabled(false);
                         pack_file_contents_ui.context_menu_rename.set_enabled(false);
+                        pack_file_contents_ui.context_menu_copy_path.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
@@ -833,6 +843,13 @@ impl PackFileContentsSlots {
             }
         );
 
+        let contextual_menu_copy_path = SlotOfBool::new(move |_| {
+            let selected_paths = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
+            if selected_paths.len() == 1 {
+                QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(selected_paths[0].join("/")));
+            }
+        });
+
         // What happens when we trigger the "Create DB PackedFile" Action.
         let contextual_menu_new_packed_file_db = SlotOfBool::new(move |_| {
             app_ui.new_packed_file(&mut pack_file_contents_ui, PackedFileType::DB);
@@ -1176,6 +1193,7 @@ impl PackFileContentsSlots {
             contextual_menu_delete,
             contextual_menu_extract,
             contextual_menu_rename,
+            contextual_menu_copy_path,
 
             contextual_menu_new_packed_file_db,
             contextual_menu_new_packed_file_loc,

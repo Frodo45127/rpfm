@@ -36,7 +36,6 @@ pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
     ui.context_menu_add_file.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["add_file"])));
     ui.context_menu_add_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["add_folder"])));
     ui.context_menu_add_from_packfile.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["add_from_packfile"])));
-    ui.context_menu_check_tables.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["check_tables"])));
     ui.context_menu_new_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_folder"])));
     ui.context_menu_new_packed_file_db.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_db"])));
     ui.context_menu_new_packed_file_loc.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["create_loc"])));
@@ -49,6 +48,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
     ui.context_menu_delete.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["delete"])));
     ui.context_menu_extract.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["extract"])));
     ui.context_menu_rename.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["rename"])));
+    ui.context_menu_copy_path.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["copy_path"])));
     ui.context_menu_open_decoder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_in_decoder"])));
     ui.context_menu_open_dependency_manager.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_packfiles_list"])));
     ui.context_menu_open_containing_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_containing_folder"])));
@@ -61,7 +61,6 @@ pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
     ui.context_menu_add_file.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_add_folder.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_add_from_packfile.set_shortcut_context(ShortcutContext::WidgetShortcut);
-    ui.context_menu_check_tables.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_folder.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_packed_file_db.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_new_packed_file_loc.set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -74,6 +73,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
     ui.context_menu_delete.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_extract.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_rename.set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.context_menu_copy_path.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_open_decoder.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_open_dependency_manager.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_open_containing_folder.set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -86,7 +86,6 @@ pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
     ui.packfile_contents_tree_view.add_action(ui.context_menu_add_file);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_add_folder);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_add_from_packfile);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_check_tables);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_new_folder);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_new_packed_file_db);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_new_packed_file_loc);
@@ -99,6 +98,7 @@ pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
     ui.packfile_contents_tree_view.add_action(ui.context_menu_delete);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_extract);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_rename);
+    ui.packfile_contents_tree_view.add_action(ui.context_menu_copy_path);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_open_decoder);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_open_dependency_manager);
     ui.packfile_contents_tree_view.add_action(ui.context_menu_open_containing_folder);

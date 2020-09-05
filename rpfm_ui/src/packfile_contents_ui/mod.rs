@@ -76,6 +76,7 @@ pub struct PackFileContentsUI {
     pub context_menu_rename: MutPtr<QAction>,
     pub context_menu_delete: MutPtr<QAction>,
     pub context_menu_extract: MutPtr<QAction>,
+    pub context_menu_copy_path: MutPtr<QAction>,
     pub context_menu_open_decoder: MutPtr<QAction>,
     pub context_menu_open_dependency_manager: MutPtr<QAction>,
     pub context_menu_open_containing_folder: MutPtr<QAction>,
@@ -165,6 +166,7 @@ impl PackFileContentsUI {
         let mut context_menu_rename = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_rename"));
         let mut context_menu_delete = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_delete"));
         let mut context_menu_extract = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_extract"));
+        let mut context_menu_copy_path = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_copy_path"));
         let mut context_menu_open_decoder = menu_open.add_action_q_string(&qtr("context_menu_open_decoder"));
         let mut context_menu_open_dependency_manager = menu_open.add_action_q_string(&qtr("context_menu_open_dependency_manager"));
         let mut context_menu_open_containing_folder = menu_open.add_action_q_string(&qtr("context_menu_open_containing_folder"));
@@ -193,8 +195,9 @@ impl PackFileContentsUI {
         context_menu_mass_import_tsv.set_enabled(false);
         context_menu_mass_export_tsv.set_enabled(false);
         context_menu_delete.set_enabled(false);
-        context_menu_extract.set_enabled(false);
         context_menu_rename.set_enabled(false);
+        context_menu_extract.set_enabled(false);
+        context_menu_copy_path.set_enabled(false);
         context_menu_open_decoder.set_enabled(false);
         context_menu_open_dependency_manager.set_enabled(false);
         context_menu_open_containing_folder.set_enabled(false);
@@ -237,6 +240,7 @@ impl PackFileContentsUI {
             context_menu_rename,
             context_menu_delete,
             context_menu_extract,
+            context_menu_copy_path,
 
             context_menu_open_decoder,
             context_menu_open_dependency_manager,
