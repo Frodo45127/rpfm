@@ -535,14 +535,6 @@ pub fn background_loop() {
                 } else { CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::SchemaNotFound.into())); }
             }
 
-            // In case we want to check the DB tables for dependency errors...
-            Command::DBCheckTableIntegrity => {
-                match pack_file_decoded.check_table_integrity() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
-                }
-            }
-
             // In case we want to merge DB or Loc Tables from a PackFile...
             Command::MergeTables(paths, name, delete_source_files) => {
                 match pack_file_decoded.merge_tables(&paths, &name, delete_source_files) {

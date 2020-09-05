@@ -82,7 +82,6 @@ pub struct PackFileContentsUI {
     pub context_menu_open_containing_folder: MutPtr<QAction>,
     pub context_menu_open_with_external_program: MutPtr<QAction>,
     pub context_menu_open_notes: MutPtr<QAction>,
-    pub context_menu_check_tables: MutPtr<QAction>,
     pub context_menu_merge_tables: MutPtr<QAction>,
     pub context_menu_update_table: MutPtr<QAction>,
 
@@ -172,7 +171,6 @@ impl PackFileContentsUI {
         let mut context_menu_open_containing_folder = menu_open.add_action_q_string(&qtr("context_menu_open_containing_folder"));
         let mut context_menu_open_with_external_program = menu_open.add_action_q_string(&qtr("context_menu_open_with_external_program"));
         let mut context_menu_open_notes = menu_open.add_action_q_string(&qtr("context_menu_open_notes"));
-        let context_menu_check_tables = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_check_tables"));
         let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_merge_tables"));
         let context_menu_update_table = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_update_table"));
         let packfile_contents_tree_view_expand_all = QAction::from_q_string(&qtr("treeview_expand_all"));
@@ -181,7 +179,7 @@ impl PackFileContentsUI {
         // Configure the `Contextual Menu` for the `PackFile` TreeView.
         packfile_contents_tree_view_context_menu.insert_separator(menu_open.menu_action());
         packfile_contents_tree_view_context_menu.insert_separator(context_menu_rename);
-        packfile_contents_tree_view_context_menu.insert_separator(context_menu_check_tables);
+        packfile_contents_tree_view_context_menu.insert_separator(context_menu_merge_tables);
 
         // Disable all the Contextual Menu actions by default.
         context_menu_add_file.set_enabled(false);
@@ -248,7 +246,6 @@ impl PackFileContentsUI {
             context_menu_open_with_external_program,
             context_menu_open_notes,
 
-            context_menu_check_tables,
             context_menu_merge_tables,
             context_menu_update_table,
 

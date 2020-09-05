@@ -134,7 +134,6 @@ pub unsafe fn get_actions(
 	actions.push((pack_file_contents_ui.context_menu_open_containing_folder, shortcuts.packfile_contents_tree_view["open_containing_folder"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_open_with_external_program, shortcuts.packfile_contents_tree_view["open_with_external_program"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_open_notes, shortcuts.packfile_contents_tree_view["open_notes"].to_owned()));
-	actions.push((pack_file_contents_ui.context_menu_check_tables, shortcuts.packfile_contents_tree_view["check_tables"].to_owned()));
 	actions.push((pack_file_contents_ui.context_menu_merge_tables, shortcuts.packfile_contents_tree_view["merge_tables"].to_owned()));
 
 	actions

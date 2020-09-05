@@ -215,9 +215,6 @@ pub enum Command {
     /// This command is used when we want to get the version of the table provided that's compatible with the version of the game we currently have installed.
     GetTableVersionFromDependencyPackFile(String),
 
-    /// This command is used when we want to check the integrity of all the DB Tables in the PackFile.
-    DBCheckTableIntegrity,
-
     /// This command is used when we want to merge multiple compatible tables into one. The contents of this are as follows:
     /// - Vec<Vec<String>>: List of paths to merge.
     /// - String: Name of the new merged table.

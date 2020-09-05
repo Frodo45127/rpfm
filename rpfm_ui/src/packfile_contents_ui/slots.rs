@@ -43,7 +43,7 @@ use crate::CENTRAL_COMMAND;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, tr, tre};
+use crate::locale::{qtr, tre};
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
@@ -92,7 +92,6 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_open_in_external_program: SlotOfBool<'static>,
     pub contextual_menu_open_notes: SlotOfBool<'static>,
 
-    pub contextual_menu_tables_check_integrity: SlotOfBool<'static>,
     pub contextual_menu_tables_merge_tables: SlotOfBool<'static>,
     pub contextual_menu_tables_update_table: SlotOfBool<'static>,
 
@@ -166,7 +165,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
@@ -201,7 +199,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
                         pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(true);
                         pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(true);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_merge_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_delete.set_enabled(true);
@@ -230,7 +227,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
@@ -256,7 +252,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(true);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(true);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(true);
@@ -282,7 +277,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
@@ -308,7 +302,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
@@ -333,7 +326,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(true);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(true);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
@@ -359,7 +351,6 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_add_file.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_add_from_packfile.set_enabled(false);
-                        pack_file_contents_ui.context_menu_check_tables.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_folder.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
                         pack_file_contents_ui.context_menu_new_packed_file_loc.set_enabled(false);
@@ -398,7 +389,6 @@ impl PackFileContentsSlots {
 
                 // If there is no dependency_database or schema for our GameSelected, ALWAYS disable creating new DB Tables and exporting them.
                 if !is_there_a_dependency_database || !is_there_a_schema {
-                    pack_file_contents_ui.context_menu_check_tables.set_enabled(false);
                     pack_file_contents_ui.context_menu_update_table.set_enabled(false);
                     pack_file_contents_ui.context_menu_new_packed_file_db.set_enabled(false);
                     pack_file_contents_ui.context_menu_mass_import_tsv.set_enabled(false);
@@ -932,21 +922,6 @@ impl PackFileContentsSlots {
             app_ui.open_notes(&pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder);
         }));
 
-        // What happens when we trigger the "Check Tables" action in the Contextual Menu.
-        let contextual_menu_tables_check_integrity = SlotOfBool::new(move |_| {
-
-            // Disable the window and trigger the check for all tables in the PackFile.
-            app_ui.main_window.set_enabled(false);
-            CENTRAL_COMMAND.send_message_qt(Command::DBCheckTableIntegrity);
-            let response = CENTRAL_COMMAND.recv_message_qt();
-            match response {
-                Response::Success => show_dialog(app_ui.main_window, tr("no_errors_detected"), true),
-                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-            }
-            app_ui.main_window.set_enabled(true);
-        });
-
         // What happens when we trigger the "Merge Tables" action in the Contextual Menu.
         let contextual_menu_tables_merge_tables = SlotOfBool::new(move |_| {
 
@@ -1207,7 +1182,6 @@ impl PackFileContentsSlots {
             contextual_menu_open_in_external_program,
             contextual_menu_open_notes,
 
-            contextual_menu_tables_check_integrity,
             contextual_menu_tables_merge_tables,
             contextual_menu_tables_update_table,
 

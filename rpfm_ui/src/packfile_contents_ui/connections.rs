@@ -58,7 +58,6 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
     ui.context_menu_open_with_external_program.triggered().connect(&slots.contextual_menu_open_in_external_program);
     ui.context_menu_open_notes.triggered().connect(&slots.contextual_menu_open_notes);
 
-    ui.context_menu_check_tables.triggered().connect(&slots.contextual_menu_tables_check_integrity);
     ui.context_menu_merge_tables.triggered().connect(&slots.contextual_menu_tables_merge_tables);
     ui.context_menu_update_table.triggered().connect(&slots.contextual_menu_tables_update_table);
 
