@@ -50,7 +50,7 @@ use crate::communications::Command;
 use crate::CENTRAL_COMMAND;
 use crate::ffi::add_to_q_list_safe;
 use crate::locale::qtr;
-use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, TreeViewOperation};
+use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, TreeViewOperation};
 use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
@@ -122,9 +122,29 @@ impl DiagnosticsUI {
         // Hidden until we get this working.
         diagnostics_button_only_current_packed_file.set_visible(false);
 
-        diagnostics_button_info.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", get_color_info())));
-        diagnostics_button_warning.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", get_color_warning())));
-        diagnostics_button_error.set_style_sheet(&QString::from_std_str(&format!("background-color: {}", get_color_error())));
+        diagnostics_button_info.set_style_sheet(&QString::from_std_str(&format!("
+        QPushButton {{
+            background-color: {}
+        }}
+        QPushButton::checked {{
+            background-color: {}
+        }}", get_color_info(), get_color_info_pressed())));
+
+        diagnostics_button_warning.set_style_sheet(&QString::from_std_str(&format!("
+        QPushButton {{
+            background-color: {}
+        }}
+        QPushButton::checked {{
+            background-color: {}
+        }}", get_color_warning(), get_color_warning_pressed())));
+
+        diagnostics_button_error.set_style_sheet(&QString::from_std_str(&format!("
+        QPushButton {{
+            background-color: {}
+        }}
+        QPushButton::checked {{
+            background-color: {}
+        }}", get_color_error(), get_color_error_pressed())));
 
         filter_grid.add_widget_5a(&mut diagnostics_button_error, 0, 0, 1, 1);
         filter_grid.add_widget_5a(&mut diagnostics_button_warning, 0, 1, 1, 1);

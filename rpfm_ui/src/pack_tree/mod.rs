@@ -53,7 +53,31 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::add_to_q_list_safe;
 use crate::pack_tree::icons::IconType;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::{YELLOW_BRIGHT, YELLOW_MEDIUM, YELLOW_DARK, GREEN_BRIGHT, GREEN_MEDIUM, GREEN_DARK, RED_BRIGHT, RED_DARK, MAGENTA_MEDIUM, MEDIUM_DARKER_GREY, TRANSPARENT_BRIGHT, BLUE_BRIGHT, BLUE_DARK};
+use crate::{
+    YELLOW_BRIGHT,
+    YELLOW_MEDIUM,
+    YELLOW_DARK,
+    GREEN_BRIGHT,
+    GREEN_MEDIUM,
+    GREEN_DARK,
+    RED_BRIGHT,
+    RED_DARK,
+    MAGENTA_MEDIUM,
+    MEDIUM_DARKER_GREY,
+    TRANSPARENT_BRIGHT,
+    ERROR_UNPRESSED_DARK,
+    ERROR_UNPRESSED_LIGHT,
+    ERROR_PRESSED_DARK,
+    ERROR_PRESSED_LIGHT,
+    WARNING_UNPRESSED_DARK,
+    WARNING_UNPRESSED_LIGHT,
+    WARNING_PRESSED_DARK,
+    WARNING_PRESSED_LIGHT,
+    INFO_UNPRESSED_DARK,
+    INFO_UNPRESSED_LIGHT,
+    INFO_PRESSED_DARK,
+    INFO_PRESSED_LIGHT
+};
 
 // This one is needed for initialization on boot, so it has to be public.
 pub mod icons;
@@ -1787,22 +1811,50 @@ pub unsafe fn get_color_clean() -> String {
 
 pub unsafe fn get_color_info() -> String {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        BLUE_DARK.to_owned()
+        INFO_UNPRESSED_DARK.to_owned()
     } else {
-        BLUE_BRIGHT.to_owned()
+        INFO_UNPRESSED_LIGHT.to_owned()
     }
 }
 
 pub unsafe fn get_color_warning() -> String {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        YELLOW_DARK.to_owned()
+        WARNING_UNPRESSED_DARK.to_owned()
     } else {
-        YELLOW_BRIGHT.to_owned()
+        WARNING_UNPRESSED_LIGHT.to_owned()
     }
 }
 
 pub unsafe fn get_color_error() -> String {
-    get_color_wrong()
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        ERROR_UNPRESSED_DARK.to_owned()
+    } else {
+        ERROR_UNPRESSED_LIGHT.to_owned()
+    }
+}
+
+pub unsafe fn get_color_info_pressed() -> String {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        INFO_PRESSED_DARK.to_owned()
+    } else {
+        INFO_PRESSED_LIGHT.to_owned()
+    }
+}
+
+pub unsafe fn get_color_warning_pressed() -> String {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        WARNING_PRESSED_DARK.to_owned()
+    } else {
+        WARNING_PRESSED_LIGHT.to_owned()
+    }
+}
+
+pub unsafe fn get_color_error_pressed() -> String {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        ERROR_PRESSED_DARK.to_owned()
+    } else {
+        ERROR_PRESSED_LIGHT.to_owned()
+    }
 }
 
 pub unsafe fn get_color_added_high_intensity() -> MutPtr<QColor> {

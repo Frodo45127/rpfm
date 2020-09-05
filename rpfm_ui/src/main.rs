@@ -226,6 +226,21 @@ lazy_static! {
 
     static ref TRANSPARENT_BRIGHT: &'static str = "#00000000";
 
+    static ref ERROR_UNPRESSED_DARK: &'static str = "#b30000";
+    static ref ERROR_UNPRESSED_LIGHT: &'static str = "#ffcccc";
+    static ref ERROR_PRESSED_DARK: &'static str = "#e60000";
+    static ref ERROR_PRESSED_LIGHT: &'static str = "#ff9999";
+
+    static ref WARNING_UNPRESSED_DARK: &'static str = "#4d4d00";
+    static ref WARNING_UNPRESSED_LIGHT: &'static str = "#ffffcc";
+    static ref WARNING_PRESSED_DARK: &'static str = "#808000";
+    static ref WARNING_PRESSED_LIGHT: &'static str = "#ffff99";
+
+    static ref INFO_UNPRESSED_DARK: &'static str = "#0059b3";
+    static ref INFO_UNPRESSED_LIGHT: &'static str = "#cce6ff";
+    static ref INFO_PRESSED_DARK: &'static str = "#0073e6";
+    static ref INFO_PRESSED_LIGHT: &'static str = "#99ccff";
+
     /// Variable to keep the locale fallback data (english locales) used by the UI loaded and available.
     static ref LOCALE_FALLBACK: Locale = {
         match Locale::initialize_fallback() {
