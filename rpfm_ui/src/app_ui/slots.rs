@@ -351,7 +351,7 @@ impl AppUISlots {
                 let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
-                let response = CENTRAL_COMMAND.recv_message_qt();
+                let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
 
                     // If it's success....
