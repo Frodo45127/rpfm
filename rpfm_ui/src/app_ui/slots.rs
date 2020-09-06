@@ -307,6 +307,7 @@ impl AppUISlots {
                             return show_dialog(app_ui.main_window, error, false);
                         }
 
+                        diagnostics_ui.diagnostics_table_model.clear();
                         diagnostics_ui.check();
                     }
                 }

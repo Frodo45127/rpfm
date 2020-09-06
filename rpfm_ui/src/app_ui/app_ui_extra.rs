@@ -696,9 +696,12 @@ impl AppUI {
                     path,
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
+                        let mut diag = diagnostics_ui.clone();
                         if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path.to_path_buf()], "", &slot_holder) {
-                            show_dialog(self.main_window, error, false);
-                        } else { diagnostics_ui.check(); }
+                            return show_dialog(self.main_window, error, false);
+                        }
+                        diag.diagnostics_table_model.clear();
+                        diag.check();
                     }
                 }));
 
@@ -723,9 +726,12 @@ impl AppUI {
                     path,
                     slot_holder => move |_| {
                     if self.are_you_sure(false) {
+                        let mut diag = diagnostics_ui.clone();
                         if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path.to_path_buf()], "", &slot_holder) {
-                            show_dialog(self.main_window, error, false);
-                        } else { diagnostics_ui.check(); }
+                            return show_dialog(self.main_window, error, false);
+                        }
+                        diag.diagnostics_table_model.clear();
+                        diag.check();
                     }
                 }));
 
@@ -882,9 +888,12 @@ impl AppUI {
                                             slot_holder,
                                             game_folder_name => move |_| {
                                             if self.are_you_sure(false) {
+                                                let mut diag = diagnostics_ui.clone();
                                                 if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name, &slot_holder) {
-                                                    show_dialog(self.main_window, error, false);
-                                                } else { diagnostics_ui.check(); }
+                                                    return show_dialog(self.main_window, error, false);
+                                                }
+                                                diag.diagnostics_table_model.clear();
+                                                diag.check();
                                             }
                                         }));
 

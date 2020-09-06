@@ -162,9 +162,13 @@ impl UI {
         if args.len() > 1 {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
+                let mut diag = diagnostics_ui.clone();
                 if let Err(error) = app_ui.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path], "", &slot_holder) {
                     show_dialog(app_ui.main_window, error, false);
-                } else { diagnostics_ui.check(); }
+                }
+
+                diag.diagnostics_table_model.clear();
+                diag.check();
             }
         }
 
