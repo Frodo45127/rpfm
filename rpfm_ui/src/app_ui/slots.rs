@@ -244,6 +244,7 @@ impl AppUISlots {
                     // Close any open PackedFile and clear the global search pannel.
                     let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
                     global_search_ui.clear();
+                    diagnostics_ui.diagnostics_table_model.clear();
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                     // Show the "Tips".

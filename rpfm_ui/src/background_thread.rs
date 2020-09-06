@@ -915,31 +915,22 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::DiagnosticsCheck => {
-                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
-                    thread::spawn(clone!(
-                        mut pack_file_decoded => move || {
-                        let mut diag = Diagnostics::default();
-                        if pack_file_decoded.get_pfh_file_type() == PFHFileType::Mod ||
-                            pack_file_decoded.get_pfh_file_type() == PFHFileType::Movie {
-                            diag.check(&pack_file_decoded);
-                        }
-                        CENTRAL_COMMAND.send_message_diagnostics_to_qt(diag);
-                    }));
-                } else {
-                    CENTRAL_COMMAND.send_message_diagnostics_to_qt(Diagnostics::default());
-                }
+                thread::spawn(clone!(
+                    mut pack_file_decoded => move || {
+                    let mut diag = Diagnostics::default();
+                    if pack_file_decoded.get_pfh_file_type() == PFHFileType::Mod ||
+                        pack_file_decoded.get_pfh_file_type() == PFHFileType::Movie {
+                        diag.check(&pack_file_decoded);
+                    }
+                    CENTRAL_COMMAND.send_message_diagnostics_to_qt(diag);
+                }));
             }
 
             // In case we want to "Open one or more PackFiles"...
             Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
-                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
-                    diagnostics.update(&pack_file_decoded, &path_types);
-                    let packed_files_info = diagnostics.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
-                    CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
-                }
-                else {
-                    CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((Diagnostics::default(), vec![]));
-                }
+                diagnostics.update(&pack_file_decoded, &path_types);
+                let packed_files_info = diagnostics.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
+                CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
             }
 
             // These two belong to the network thread, not to this one!!!!

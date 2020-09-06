@@ -193,28 +193,34 @@ impl DiagnosticsUI {
 
     /// This function takes care of checking the entire PackFile for errors.
     pub unsafe fn check(&mut self) {
-        CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
-        let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
-        Self::load_diagnostics_to_ui(&mut self.diagnostics_table_model, &mut self.diagnostics_table_view, diagnostics.get_ref_diagnostics());
-        self.filter_by_level();
+        if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+            CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
+            let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
+            Self::load_diagnostics_to_ui(&mut self.diagnostics_table_model, &mut self.diagnostics_table_view, diagnostics.get_ref_diagnostics());
+            self.filter_by_level();
+            UI_STATE.set_diagnostics(&diagnostics);
+        }
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
     pub unsafe fn check_on_path(&mut self, pack_file_contents_ui: &mut PackFileContentsUI, paths: Vec<PathType>) {
-        let diagnostics = UI_STATE.get_diagnostics();
-        CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsUpdate((diagnostics, paths)));
-        let (diagnostics, packed_files_info) = CENTRAL_COMMAND.recv_message_diagnostics_update_to_qt_try();
+        if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+            let diagnostics = UI_STATE.get_diagnostics();
+            CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsUpdate((diagnostics, paths)));
+            let (diagnostics, packed_files_info) = CENTRAL_COMMAND.recv_message_diagnostics_update_to_qt_try();
 
-        self.diagnostics_table_model.clear();
-        Self::load_diagnostics_to_ui(&mut self.diagnostics_table_model, &mut self.diagnostics_table_view, &diagnostics.get_ref_diagnostics());
-        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
+            self.diagnostics_table_model.clear();
+            Self::load_diagnostics_to_ui(&mut self.diagnostics_table_model, &mut self.diagnostics_table_view, &diagnostics.get_ref_diagnostics());
+            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
 
-        self.filter_by_level();
-        UI_STATE.set_diagnostics(&diagnostics);
+            self.filter_by_level();
+            UI_STATE.set_diagnostics(&diagnostics);
+        }
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.
-    pub unsafe fn load_diagnostics_to_ui(model: &mut QStandardItemModel, table_view: &mut QTableView, diagnostics: &[Diagnostic]) {
+    unsafe fn load_diagnostics_to_ui(model: &mut QStandardItemModel, table_view: &mut QTableView, diagnostics: &[Diagnostic]) {
+        model.clear();
         if !diagnostics.is_empty() {
             for diagnostic in diagnostics {
                 for result in diagnostic.get_result() {
