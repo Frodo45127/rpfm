@@ -925,6 +925,8 @@ pub fn background_loop() {
                         }
                         CENTRAL_COMMAND.send_message_diagnostics_to_qt(diag);
                     }));
+                } else {
+                    CENTRAL_COMMAND.send_message_diagnostics_to_qt(Diagnostics::default());
                 }
             }
 
@@ -934,6 +936,9 @@ pub fn background_loop() {
                     diagnostics.update(&pack_file_decoded, &path_types);
                     let packed_files_info = diagnostics.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
                     CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
+                }
+                else {
+                    CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((Diagnostics::default(), vec![]));
                 }
             }
 
