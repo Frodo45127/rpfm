@@ -205,7 +205,7 @@ impl Diagnostics {
                     }));
                 }
 
-                if keys.contains(&local_keys) {
+                if local_keys.len() > 1 && keys.contains(&local_keys) {
                     diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
