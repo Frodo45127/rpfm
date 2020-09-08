@@ -49,12 +49,16 @@ use qt_core::QModelIndex;
 
 use cpp_core::{CppBox, MutPtr};
 
+use rayon::prelude::*;
+
 use std::collections::BTreeMap;
 use std::sync::{Arc, atomic::AtomicPtr, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
 
-use rpfm_lib::common::decoder::*;
+use rpfm_lib::assembly_kit::{get_raw_definition_paths, table_definition::RawDefinition, table_data::RawTable, localisable_fields::RawLocalisableFields};
+use rpfm_lib::common::{get_assembly_kit_db_tables_path, decoder::*};
+use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packedfile::PackedFileType;
 use rpfm_lib::packedfile::table::{animtable, animtable::AnimTable};
 use rpfm_lib::packedfile::table::{anim_fragment, anim_fragment::AnimFragment};
@@ -64,6 +68,7 @@ use rpfm_lib::packedfile::table::{matched_combat, matched_combat::MatchedCombat}
 use rpfm_lib::schema::{Definition, Field, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
+use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
@@ -132,6 +137,7 @@ pub struct PackedFileDecoderView {
     table_view_old_versions_context_menu_load: AtomicPtr<QAction>,
     table_view_old_versions_context_menu_delete: AtomicPtr<QAction>,
 
+    import_from_assembly_kit_button: AtomicPtr<QPushButton>,
     test_definition_button: AtomicPtr<QPushButton>,
     clear_definition_button: AtomicPtr<QPushButton>,
     save_button: AtomicPtr<QPushButton>,
@@ -193,6 +199,7 @@ pub struct PackedFileDecoderViewRaw {
     pub table_view_old_versions_context_menu_load: MutPtr<QAction>,
     pub table_view_old_versions_context_menu_delete: MutPtr<QAction>,
 
+    pub import_from_assembly_kit_button: MutPtr<QPushButton>,
     pub test_definition_button: MutPtr<QPushButton>,
     pub clear_definition_button: MutPtr<QPushButton>,
     pub save_button: MutPtr<QPushButton>,
@@ -434,14 +441,16 @@ impl PackedFileDecoderView {
         let mut button_box_layout = create_grid_layout(button_box.as_mut_ptr().static_upcast_mut());
 
         // Create the bottom Buttons.
+        let mut import_from_assembly_kit_button = QPushButton::from_q_string(&QString::from_std_str("Import from Assembly Kit"));
         let mut test_definition_button = QPushButton::from_q_string(&QString::from_std_str("Test Definition"));
         let mut clear_definition_button = QPushButton::from_q_string(&QString::from_std_str("Remove all fields"));
         let mut save_button = QPushButton::from_q_string(&QString::from_std_str("Finish it!"));
 
         // Add them to the Dialog.
-        button_box_layout.add_widget_5a(&mut test_definition_button, 0, 0, 1, 1);
-        button_box_layout.add_widget_5a(&mut clear_definition_button, 0, 1, 1, 1);
-        button_box_layout.add_widget_5a(&mut save_button, 0, 2, 1, 1);
+        button_box_layout.add_widget_5a(&mut import_from_assembly_kit_button, 0, 0, 1, 1);
+        button_box_layout.add_widget_5a(&mut test_definition_button, 0, 1, 1, 1);
+        button_box_layout.add_widget_5a(&mut clear_definition_button, 0, 2, 1, 1);
+        button_box_layout.add_widget_5a(&mut save_button, 0, 3, 1, 1);
 
         layout.add_widget_5a(button_box.into_ptr(), 4, 1, 1, 2);
 
@@ -501,6 +510,7 @@ impl PackedFileDecoderView {
             table_view_old_versions_context_menu_load,
             table_view_old_versions_context_menu_delete,
 
+            import_from_assembly_kit_button: import_from_assembly_kit_button.into_ptr(),
             test_definition_button: test_definition_button.into_ptr(),
             clear_definition_button: clear_definition_button.into_ptr(),
             save_button: save_button.into_ptr(),
@@ -555,6 +565,7 @@ impl PackedFileDecoderView {
             table_view_old_versions_context_menu_load: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_load),
             table_view_old_versions_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_delete),
 
+            import_from_assembly_kit_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.import_from_assembly_kit_button),
             test_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.test_definition_button),
             clear_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.clear_definition_button),
             save_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.save_button),
@@ -824,6 +835,10 @@ impl PackedFileDecoderView {
 
     fn get_mut_ptr_table_view_old_versions_context_menu_delete(&self) -> MutPtr<QAction> {
         mut_ptr_from_atomic(&self.table_view_old_versions_context_menu_delete)
+    }
+
+    fn get_mut_ptr_import_from_assembly_kit_button(&self) -> MutPtr<QPushButton> {
+        mut_ptr_from_atomic(&self.import_from_assembly_kit_button)
     }
 
     fn get_mut_ptr_test_definition_button(&self) -> MutPtr<QPushButton> {
@@ -1558,6 +1573,149 @@ impl PackedFileDecoderViewRaw {
         }
 
         schema
+    }
+
+    /// This function generates a valid definition using the assembly kit as reference. To stop decoding manually.
+    pub fn import_from_assembly_kit(&self) -> Result<Vec<Vec<Field>>> {
+
+        // Get the raw data ready.
+        let raw_db_version = SUPPORTED_GAMES[&**GAME_SELECTED.read().unwrap()].raw_db_version;
+        let raw_db_path = get_assembly_kit_db_tables_path().unwrap();
+
+        let raw_definition_paths = get_raw_definition_paths(&raw_db_path, raw_db_version)?;
+        let raw_definition = RawDefinition::read(&raw_definition_paths.iter().find(|x| {
+            format!("{}_tables", x.file_stem().unwrap().to_str().unwrap().split_at(5).1) == self.packed_file_path[1]
+        }).unwrap(), raw_db_version).unwrap();
+
+        let raw_table = RawTable::read(&raw_definition, &raw_db_path, raw_db_version)?;
+        let imported_table = DB::from(&raw_table);
+
+        let raw_localisable_fields: Result<RawLocalisableFields> = RawLocalisableFields::read(&raw_db_path, raw_db_version);
+        let mut raw_columns: Vec<Vec<String>> = vec![];
+
+        for row in imported_table.get_ref_table_data() {
+            for (index, field) in row.iter().enumerate() {
+                match raw_columns.get_mut(index) {
+                    Some(ref mut column) => column.push(field.data_to_string()),
+                    None => raw_columns.push(vec![field.data_to_string()])
+                }
+            }
+        }
+
+        let packed_file_data = &self.packed_file_data;
+        let path = &self.packed_file_path[1];
+
+        let mut definitions_possible: Vec<Vec<FieldType>> = vec![];
+
+        let header = DB::read_header(packed_file_data).unwrap();
+        let data = &packed_file_data[header.4..];
+        let index = 0;
+
+        // First check is done here, to initialize the possible schemas.
+        if definitions_possible.is_empty() {
+            if data.decode_packedfile_bool(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::Boolean]); }
+            if data.decode_packedfile_float_f32(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::F32]); }
+            if data.decode_packedfile_integer_i32(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::I32]); }
+            if data.decode_packedfile_integer_i64(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::I64]); }
+            if data.decode_packedfile_string_u8(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::StringU8]); }
+            if data.decode_packedfile_optional_string_u8(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::OptionalStringU8]); }
+        }
+
+        // All the other checks are done here.
+        for _ in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.unwrap().fields).len() - 1 {
+            let mut definitions_possible2: Vec<Vec<FieldType>> = vec![];
+            for base in &definitions_possible {
+                let mut index = 0;
+                for field_type in base {
+                    match field_type {
+                        FieldType::Boolean => { let _ = data.decode_packedfile_bool(index, &mut index); },
+                        FieldType::F32 => { let _ = data.decode_packedfile_float_f32(index, &mut index); },
+                        FieldType::I32 => { let _ = data.decode_packedfile_integer_i32(index, &mut index); },
+                        FieldType::I64 => { let _ = data.decode_packedfile_integer_i64(index, &mut index); },
+                        FieldType::StringU8 => { let _ = data.decode_packedfile_string_u8(index, &mut index); },
+                        FieldType::OptionalStringU8 => { let _ = data.decode_packedfile_optional_string_u8(index, &mut index); },
+                        _ => unimplemented!()
+                    }
+                }
+
+                if data.decode_packedfile_bool(index, &mut index.clone()).is_ok() {
+                    let mut def = base.to_vec();
+                    def.push(FieldType::Boolean);
+                    definitions_possible2.push(def);
+                }
+
+                // 60k as offset, so we properly identify as wrong weird numbers.
+                if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
+                    if (number < 60000.0 && number > -60000.0) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
+                        let mut def = base.to_vec();
+                        def.push(FieldType::F32);
+                        definitions_possible2.push(def);
+                    }
+                }
+                if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
+                    if (number < 60000 && number > -60000) || (number > i32::MAX - 60000) || (number < i32::MIN + 60000) {
+                        let mut def = base.to_vec();
+                        def.push(FieldType::I32);
+                        definitions_possible2.push(def);
+                    }
+                }
+                if let Ok(number) = data.decode_packedfile_integer_i64(index, &mut index.clone()) {
+                    if (number < 60000 && number > -60000) || (number > i64::MAX - 60000) || (number < i64::MIN + 60000) {
+                        let mut def = base.to_vec();
+                        def.push(FieldType::I64);
+                        definitions_possible2.push(def);
+                    }
+                }
+                if data.decode_packedfile_string_u8(index, &mut index.clone()).is_ok() {
+                    let mut def = base.to_vec();
+                    def.push(FieldType::StringU8);
+                    definitions_possible2.push(def);
+                }
+                if data.decode_packedfile_optional_string_u8(index, &mut index.clone()).is_ok() {
+                    let mut def = base.to_vec();
+                    def.push(FieldType::OptionalStringU8);
+                    definitions_possible2.push(def);
+                }
+            }
+            definitions_possible = definitions_possible2;
+        }
+
+        // Now, match all possible definitions against the table, and for the ones that work, match them against the asskit data.
+        Ok(definitions_possible.par_iter().filter_map(|x| {
+            let field_list = x.iter().map(|x| { let mut field = Field::default(); field.set_field_type(x.clone()); field }).collect::<Vec<Field>>();
+            if let Ok(table) = DB::read_with_fields(packed_file_data, &path, &field_list, false) {
+                if !table.get_ref_table_data().is_empty() {
+
+                    let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
+                    let mut decoded_columns: Vec<Vec<String>> = vec![];
+
+                    for row in table.get_ref_table_data() {
+                        for (index, field) in row.iter().enumerate() {
+                            match decoded_columns.get_mut(index) {
+                                Some(ref mut column) => column.push(field.data_to_string()),
+                                None => decoded_columns.push(vec![field.data_to_string()])
+                            }
+                        }
+                    }
+
+                    for (index, column) in decoded_columns.iter().enumerate() {
+                        if let Some(raw_column) = raw_columns.iter().position(|x| x == column) {
+                            mapper.insert(index, raw_column);
+                        }
+                    }
+
+                    // Filter the mapped data to see if we have a common one in every cell.
+                    let fields = mapper.iter().map(|(x, y)| {
+                        let mut field: Field = From::from(raw_definition.fields.get(*y).unwrap());
+                        field.set_field_type(table.get_ref_definition().get_fields_processed()[*x].get_field_type().clone());
+                        field
+                    }).collect();
+
+                    return Some(fields);
+                }
+            }
+            None
+        }).collect::<Vec<Vec<Field>>>())
     }
 }
 

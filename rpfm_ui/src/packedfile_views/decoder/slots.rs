@@ -89,6 +89,7 @@ pub struct PackedFileDecoderViewSlots {
     pub table_view_old_versions_context_menu_load: SlotOfBool<'static>,
     pub table_view_old_versions_context_menu_delete: SlotOfBool<'static>,
 
+    pub import_from_assembly_kit: Slot<'static>,
     pub test_definition: Slot<'static>,
     pub remove_all_fields: Slot<'static>,
     pub save_definition: Slot<'static>,
@@ -501,6 +502,32 @@ impl PackedFileDecoderViewSlots {
             }
         ));
 
+        // Slot for the "Import from Assembly Kit" button.
+        let import_from_assembly_kit = Slot::new(clone!(
+            mut mutable_data,
+            mut view => move || {
+                match view.import_from_assembly_kit() {
+                    Ok(field_list) => {
+                        println!("Amount of possible definitions: {}.", field_list.len());
+                        if let Some(field_list) = field_list.get(0) {
+
+                            // If it worked, update the decoder view.
+                            view.table_model.clear();
+                            *mutable_data.index.lock().unwrap() = get_header_size(view.packed_file_type, &view.packed_file_data).unwrap();
+                            let _ = view.update_view(&field_list, true, &mut mutable_data.index.lock().unwrap());
+                        }
+
+                        else {
+                            show_dialog(view.table_view, "No valid definitions found.", false)
+                        }
+                    }
+
+                    // If it failed, tell us why.
+                    Err(error) => show_dialog(view.table_view, error, false),
+                }
+            }
+        ));
+
         // Slot for the "Test Definition" button.
         let test_definition = Slot::new(clone!(
             mut view => move || {
@@ -648,6 +675,7 @@ impl PackedFileDecoderViewSlots {
             table_view_old_versions_context_menu_load,
             table_view_old_versions_context_menu_delete,
 
+            import_from_assembly_kit,
             test_definition,
             remove_all_fields,
             save_definition,

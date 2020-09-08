@@ -1226,15 +1226,18 @@ impl From<&RawDefinition> for Definition {
 impl From<&RawField> for Field {
     fn from(raw_field: &RawField) -> Self {
         let field_type = match &*raw_field.field_type {
-            "Boolean" => FieldType::Boolean,
-            "F32" => FieldType::F32,
-            "I16" => FieldType::I16,
-            "I32" => FieldType::I32,
-            "I64" => FieldType::I64,
-            "StringU8" => FieldType::StringU8,
-            "StringU16" => FieldType::StringU16,
-            "OptionalStringU8" => FieldType::OptionalStringU8,
-            "OptionalStringU16" => FieldType::OptionalStringU16,
+            "yesno" => FieldType::Boolean,
+            "single" | "double" => FieldType::F32,
+            "integer" => FieldType::I32,
+            "autonumber" => FieldType::I64,
+            "text" => {
+                if raw_field.required == "1" {
+                    FieldType::StringU8
+                }
+                else {
+                    FieldType::OptionalStringU8
+                }
+            },
             _ => FieldType::StringU8,
         };
 

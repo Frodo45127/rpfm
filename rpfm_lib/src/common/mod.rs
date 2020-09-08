@@ -309,3 +309,22 @@ pub fn parse_str_as_bool(string: &str) -> Result<bool> {
         Err(ErrorKind::NotABooleanValue.into())
     }
 }
+
+/// This function returns the assembly kit raw data path, or an error if the game selected doesn't have a known path.
+pub fn get_assembly_kit_db_tables_path() -> Result<PathBuf> {
+    let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
+    match version {
+
+        // Post-Shogun 2 games.
+        2 => {
+            let mut path = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()].clone().unwrap();
+            path.push("assembly_kit");
+            path.push("raw_data");
+            path.push("db");
+            Ok(path)
+        }
+
+        // Shogun 2/Older games
+        _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+    }
+}
