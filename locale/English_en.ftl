@@ -402,7 +402,7 @@ settings_check_updates_on_start = Check Updates on Start:
 settings_check_schema_updates_on_start = Check Schema Updates on Start:
 settings_allow_editing_of_ca_packfiles = Allow Editing of CA PackFiles:
 settings_optimize_not_renamed_packedfiles = Optimize Non-Renamed PackedFiles:
-settings_use_dependency_checker = Enable Dependency Checker for DB Tables:
+settings_use_dependency_checker = Enable Diagnostics Tool:
 settings_use_lazy_loading = Use Lazy-Loading for PackFiles:
 settings_disable_uuid_regeneration_tables = Disable UUID Regeneration on DB Tables:
 

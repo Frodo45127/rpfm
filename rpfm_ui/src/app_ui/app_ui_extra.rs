@@ -695,7 +695,11 @@ impl AppUI {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
                             return show_dialog(app_ui.main_window, error, false);
                         }
+
+                        // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
+                        app_ui.menu_bar_packfile.set_enabled(false);
                         DiagnosticsUI::check(&diagnostics_ui);
+                        app_ui.menu_bar_packfile.set_enabled(true);
                     }
                 }));
 
@@ -725,7 +729,9 @@ impl AppUI {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
                             return show_dialog(app_ui.main_window, error, false);
                         }
+                        app_ui.menu_bar_packfile.set_enabled(false);
                         DiagnosticsUI::check(&diagnostics_ui);
+                        app_ui.menu_bar_packfile.set_enabled(true);
                     }
                 }));
 
@@ -885,7 +891,9 @@ impl AppUI {
                                                 if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &mut global_search_ui, &diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name) {
                                                     return show_dialog(app_ui.main_window, error, false);
                                                 }
+                                                app_ui.menu_bar_mymod.set_enabled(false);
                                                 DiagnosticsUI::check(&diagnostics_ui);
+                                                app_ui.menu_bar_mymod.set_enabled(true);
                                             }
                                         }));
 
