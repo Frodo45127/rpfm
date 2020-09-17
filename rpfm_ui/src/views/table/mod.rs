@@ -284,12 +284,12 @@ impl TableView {
 
         // Create the filter's widgets.
         let row_filter_line_edit = QLineEdit::new();
-        let row_filter_column_selector = QComboBox::new_0a();
+        let filter_column_selector = QComboBox::new_0a();
         let row_filter_case_sensitive_button = QPushButton::from_q_string(&qtr("table_filter_case_sensitive"));
-        let row_filter_column_list = QStandardItemModel::new_0a();
+        let row_filter_column_list = QStandardItemModel::new_0a().into_ptr();
         let table_enable_lookups_button = QPushButton::from_q_string(&qtr("table_enable_lookups"));
 
-        row_filter_column_selector.set_model(&row_filter_column_list);
+        filter_column_selector.set_model(row_filter_column_list);
 
         let mut fields = table_definition.get_fields_processed().to_vec();
         fields.sort_by(|a, b| {
@@ -307,7 +307,7 @@ impl TableView {
 
         for field in &fields {
             let name = clean_column_names(&field.get_name());
-            row_filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
+            filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
         }
 
         row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
@@ -319,7 +319,7 @@ impl TableView {
         layout.add_widget_5a(&table_view_primary, 0, 0, 1, 4);
         layout.add_widget_5a(&row_filter_line_edit, 2, 0, 1, 1);
         layout.add_widget_5a(&row_filter_case_sensitive_button, 2, 1, 1, 1);
-        layout.add_widget_5a(&row_filter_column_selector, 2, 2, 1, 1);
+        layout.add_widget_5a(&filter_column_selector, 2, 2, 1, 1);
         //layout.add_widget_5a(& table_enable_lookups_button, 2, 3, 1, 1);
 
         // Action to make the delete button delete contents.
@@ -479,7 +479,7 @@ impl TableView {
             //table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
             filter_line_edit: row_filter_line_edit,
             filter_case_sensitive_button: row_filter_case_sensitive_button,
-            filter_column_selector: row_filter_column_selector,
+            filter_column_selector,
             column_sort_state: Arc::new(RwLock::new((-1, 0))),
 
             context_menu,
