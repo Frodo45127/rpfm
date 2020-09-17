@@ -822,7 +822,7 @@ impl PackedFileDecoderView {
             // If the table is empty, we just load a fake row, so the column headers are created properly.
             if field_list.is_empty() {
                 let qlist = QListOfQStandardItem::new();
-                (0..16).for_each(|_| qlist.append_q_standard_item(&mut QStandardItem::new().as_mut_raw_ptr()));
+                (0..16).for_each(|_| qlist.append_q_standard_item(&mut QStandardItem::new().into_ptr().as_mut_raw_ptr()));
                 self.table_model.append_row_q_list_of_q_standard_item(&qlist);
                 configure_table_view(&self.table_view);
                 self.table_model.remove_rows_2a(0, 1);
@@ -1049,22 +1049,22 @@ impl PackedFileDecoderView {
         field_number.set_editable(false);
 
         // The first one is the row number, to be updated later.
-        qlist.append_q_standard_item(&field_number.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_name.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_type.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&decoded_data.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_is_key.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_reference_table.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_reference_field.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_lookup_columns.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_default_value.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_max_length.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_is_filename.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_filename_relative_path.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_ca_order.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_description.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_is_bitwise.as_mut_raw_ptr());
-        qlist.append_q_standard_item(&field_enum_values.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_number.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_name.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_type.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&decoded_data.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_is_key.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_reference_table.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_reference_field.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_lookup_columns.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_default_value.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_max_length.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_is_filename.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_filename_relative_path.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_ca_order.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_description.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_is_bitwise.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_enum_values.into_ptr().as_mut_raw_ptr());
 
         // If it's the initial load, insert them recursively.
         if is_initial_load {
@@ -1529,7 +1529,8 @@ impl PackedFileDecoderView {
         }
 
         // All the other checks are done here.
-        for _ in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.unwrap().fields).len() - 1 {
+        for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.unwrap().fields).len() - 1 {
+            println!("Possible definitions for the step {}: {}.", step, definitions_possible.len());
             let mut definitions_possible2: Vec<Vec<FieldType>> = vec![];
             for base in &definitions_possible {
                 let mut index = 0;
