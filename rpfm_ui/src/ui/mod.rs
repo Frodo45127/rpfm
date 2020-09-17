@@ -249,21 +249,25 @@ impl GameSelectedIcons {
         // Fix due to windows paths.
         let big_icon = if cfg!(target_os = "windows") {  big_icon.replace("\\", "/") } else { big_icon.to_owned() };
 
-        if !SETTINGS.read().unwrap().settings_bool["hide_background_icon"] && app_ui.tab_bar_packed_file.count() == 0 {
+        if !SETTINGS.read().unwrap().settings_bool["hide_background_icon"] {
+            if app_ui.tab_bar_packed_file.count() == 0 {
 
-            // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?
-            let border =  if cfg!(target_os = "windows") { "border: 0px solid #754EF9;" } else { "" };
-            app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str(&format!("
-                QTabWidget::pane {{
-                    background-image: url('{}');
-                    background-repeat: no-repeat;
-                    background-position: center;
-                    {}
-                }}
-            ", big_icon, border)));
-        }
-        else {
-            app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str("QTabWidget::pane {background-image: url();}"));
+                // WTF of the day: without the border line, this doesn't work on windows. Who knows why...?
+                let border =  if cfg!(target_os = "windows") { "border: 0px solid #754EF9;" } else { "" };
+                app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str(&format!("
+                    QTabWidget::pane {{
+                        background-image: url('{}');
+                        background-repeat: no-repeat;
+                        background-position: center;
+                        {}
+                    }}
+                ", big_icon, border)));
+            }
+            else {
+
+                // This is laggy after a while.
+                app_ui.tab_bar_packed_file.set_style_sheet(&QString::from_std_str("QTabWidget::pane {background-image: url();}"));
+            }
         }
     }
 }
