@@ -119,14 +119,17 @@ pub unsafe fn show_debug_dialog<T: AsRef<str>>(text: T) {
     let layout = create_grid_layout(window.static_upcast());
     let editor = new_text_editor_safe(&window);
 
-    layout.add_widget_5a(editor.as_ptr(), 0, 0, 1, 1);
+    layout.add_widget_5a(&editor, 0, 0, 1, 1);
     set_text_safe(&editor, &QString::from_std_str(text).as_ptr(), &QString::from_std_str("plain").as_ptr());
 
     // Center it on screen.
     window.resize_2a(1000, 600);
     let pos_x = QApplication::desktop().screen_geometry().center().as_ref() - window.rect().center().as_ref();
     window.move_1a(&pos_x);
-    window.show();
+
+    // And show it.
+    let window_ptr = window.into_ptr();
+    window_ptr.show();
 }
 
 /*
