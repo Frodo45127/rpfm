@@ -12,14 +12,18 @@
 Module with the slots for AnimPack Views.
 !*/
 
-use qt_core::Slot;
+use qt_core::QBox;
+use qt_core::SlotNoArgs;
+
+use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::packedfile_views::animpack::PackedFileAnimPackViewRaw;
+use crate::packedfile_views::animpack::PackedFileAnimPackView;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
@@ -31,7 +35,7 @@ use crate::utils::show_dialog;
 
 /// This struct contains the slots of the view of a AnimPack PackedFile.
 pub struct PackedFileAnimPackViewSlots {
-    pub unpack: Slot<'static>,
+    pub unpack: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -43,17 +47,20 @@ impl PackedFileAnimPackViewSlots {
 
     /// This function creates the entire slot pack for AnimPack PackedFile Views.
     pub unsafe fn new(
-        view: PackedFileAnimPackViewRaw,
-        mut app_ui: AppUI,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        diagnostics_ui: DiagnosticsUI
+        view: &Arc<PackedFileAnimPackView>,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     )  -> Self {
 
         // Slot to unpack the entire AnimPack.
-        let unpack = Slot::new(clone!(
-            mut view,
-            mut view => move || {
+        let unpack = SlotNoArgs::new(&view.file_count_data_label, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            view => move || {
 
                 CENTRAL_COMMAND.send_message_qt(Command::AnimPackUnpack(view.path.read().unwrap().to_vec()));
                 let response = CENTRAL_COMMAND.recv_message_qt();
@@ -62,14 +69,14 @@ impl PackedFileAnimPackViewSlots {
                         let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
-                        UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                         // Try to reload all open files which data we altered, and close those that failed.
                         let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                         paths_packedfile.iter().for_each(|path| {
                             if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
-                                if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
-                                    let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, path, false);
+                                if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
+                                    let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false);
                                 }
                             }
                         });

@@ -34,6 +34,7 @@ use qt_gui::QStandardItemModel;
 use qt_gui::QTextCharFormat;
 use qt_gui::q_text_cursor::{MoveOperation, MoveMode};
 
+use qt_core::QBox;
 use qt_core::ContextMenuPolicy;
 use qt_core::GlobalColor;
 use qt_core::QSignalBlocker;
@@ -46,13 +47,15 @@ use qt_core::QObject;
 use qt_core::CheckState;
 use qt_core::QStringList;
 use qt_core::QModelIndex;
+use qt_core::QPtr;
 
-use cpp_core::{CppBox, MutPtr};
+use cpp_core::CppBox;
 
 use rayon::prelude::*;
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, atomic::AtomicPtr, Mutex};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use rpfm_error::{ErrorKind, Result};
 
@@ -74,15 +77,13 @@ use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
-use crate::ffi::{add_to_q_list_safe, new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe, new_qstring_item_delegate_safe};
+use crate::ffi::{new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe, new_qstring_item_delegate_safe};
 use crate::FONT_MONOSPACE;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
-use crate::utils::atomic_from_mut_ptr;
+use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::utils::create_grid_layout;
 use crate::utils::ref_from_atomic;
-use crate::utils::mut_ptr_from_atomic;
 use self::slots::PackedFileDecoderViewSlots;
 
 pub mod connections;
@@ -106,107 +107,60 @@ pub const DECODER_EXTENSION: &str = "-rpfm-decoder";
 
 /// This struct contains the view of the PackedFile Decoder.
 pub struct PackedFileDecoderView {
-    hex_view_index: AtomicPtr<QTextEdit>,
-    hex_view_raw: AtomicPtr<QTextEdit>,
-    hex_view_decoded: AtomicPtr<QTextEdit>,
+    hex_view_index: QBox<QTextEdit>,
+    hex_view_raw: QBox<QTextEdit>,
+    hex_view_decoded: QBox<QTextEdit>,
 
-    table_view: AtomicPtr<QTreeView>,
-    table_model: AtomicPtr<QStandardItemModel>,
+    table_view: QBox<QTreeView>,
+    table_model: QBox<QStandardItemModel>,
 
-    table_view_context_menu_move_up: AtomicPtr<QAction>,
-    table_view_context_menu_move_down: AtomicPtr<QAction>,
-    table_view_context_menu_move_left: AtomicPtr<QAction>,
-    table_view_context_menu_move_right: AtomicPtr<QAction>,
-    table_view_context_menu_delete: AtomicPtr<QAction>,
+    table_view_context_menu: QBox<QMenu>,
+    table_view_context_menu_move_up: QPtr<QAction>,
+    table_view_context_menu_move_down: QPtr<QAction>,
+    table_view_context_menu_move_left: QPtr<QAction>,
+    table_view_context_menu_move_right: QPtr<QAction>,
+    table_view_context_menu_delete: QPtr<QAction>,
 
-    bool_button: AtomicPtr<QPushButton>,
-    f32_button: AtomicPtr<QPushButton>,
-    i16_button: AtomicPtr<QPushButton>,
-    i32_button: AtomicPtr<QPushButton>,
-    i64_button: AtomicPtr<QPushButton>,
-    string_u8_button: AtomicPtr<QPushButton>,
-    string_u16_button: AtomicPtr<QPushButton>,
-    optional_string_u8_button: AtomicPtr<QPushButton>,
-    optional_string_u16_button: AtomicPtr<QPushButton>,
-    sequence_u32_button: AtomicPtr<QPushButton>,
+    bool_line_edit: QBox<QLineEdit>,
+    f32_line_edit: QBox<QLineEdit>,
+    i16_line_edit: QBox<QLineEdit>,
+    i32_line_edit: QBox<QLineEdit>,
+    i64_line_edit: QBox<QLineEdit>,
+    string_u8_line_edit: QBox<QLineEdit>,
+    string_u16_line_edit: QBox<QLineEdit>,
+    optional_string_u8_line_edit: QBox<QLineEdit>,
+    optional_string_u16_line_edit: QBox<QLineEdit>,
+    sequence_u32_line_edit: QBox<QLineEdit>,
 
-    packed_file_info_version_decoded_label: AtomicPtr<QLabel>,
-    packed_file_info_entry_count_decoded_label: AtomicPtr<QLabel>,
+    bool_button: QBox<QPushButton>,
+    f32_button: QBox<QPushButton>,
+    i16_button: QBox<QPushButton>,
+    i32_button: QBox<QPushButton>,
+    i64_button: QBox<QPushButton>,
+    string_u8_button: QBox<QPushButton>,
+    string_u16_button: QBox<QPushButton>,
+    optional_string_u8_button: QBox<QPushButton>,
+    optional_string_u16_button: QBox<QPushButton>,
+    sequence_u32_button: QBox<QPushButton>,
 
-    table_view_old_versions: AtomicPtr<QTableView>,
-    table_view_old_versions_context_menu_load: AtomicPtr<QAction>,
-    table_view_old_versions_context_menu_delete: AtomicPtr<QAction>,
+    packed_file_info_version_decoded_label: QBox<QLabel>,
+    packed_file_info_entry_count_decoded_label: QBox<QLabel>,
 
-    import_from_assembly_kit_button: AtomicPtr<QPushButton>,
-    test_definition_button: AtomicPtr<QPushButton>,
-    clear_definition_button: AtomicPtr<QPushButton>,
-    save_button: AtomicPtr<QPushButton>,
+    table_view_old_versions: QBox<QTableView>,
+    table_model_old_versions: QBox<QStandardItemModel>,
+
+    table_view_old_versions_context_menu: QBox<QMenu>,
+    table_view_old_versions_context_menu_load: QPtr<QAction>,
+    table_view_old_versions_context_menu_delete: QPtr<QAction>,
+
+    import_from_assembly_kit_button: QBox<QPushButton>,
+    test_definition_button: QBox<QPushButton>,
+    clear_definition_button: QBox<QPushButton>,
+    save_button: QBox<QPushButton>,
 
     packed_file_type: PackedFileType,
     packed_file_path: Vec<String>,
     packed_file_data: Arc<Vec<u8>>,
-}
-
-/// This struct contains the raw version of each pointer in `PackedFileDecoderViewRaw`, to be used when building the slots.
-///
-/// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
-/// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileDecoderView`.
-#[derive(Clone)]
-pub struct PackedFileDecoderViewRaw {
-    pub hex_view_index: MutPtr<QTextEdit>,
-    pub hex_view_raw: MutPtr<QTextEdit>,
-    pub hex_view_decoded: MutPtr<QTextEdit>,
-
-    pub table_view: MutPtr<QTreeView>,
-    pub table_model: MutPtr<QStandardItemModel>,
-
-    pub table_view_context_menu: MutPtr<QMenu>,
-    pub table_view_context_menu_move_up: MutPtr<QAction>,
-    pub table_view_context_menu_move_down: MutPtr<QAction>,
-    pub table_view_context_menu_move_left: MutPtr<QAction>,
-    pub table_view_context_menu_move_right: MutPtr<QAction>,
-    pub table_view_context_menu_delete: MutPtr<QAction>,
-
-    pub bool_line_edit: MutPtr<QLineEdit>,
-    pub f32_line_edit: MutPtr<QLineEdit>,
-    pub i16_line_edit: MutPtr<QLineEdit>,
-    pub i32_line_edit: MutPtr<QLineEdit>,
-    pub i64_line_edit: MutPtr<QLineEdit>,
-    pub string_u8_line_edit: MutPtr<QLineEdit>,
-    pub string_u16_line_edit: MutPtr<QLineEdit>,
-    pub optional_string_u8_line_edit: MutPtr<QLineEdit>,
-    pub optional_string_u16_line_edit: MutPtr<QLineEdit>,
-    pub sequence_u32_line_edit: MutPtr<QLineEdit>,
-
-    pub bool_button: MutPtr<QPushButton>,
-    pub f32_button: MutPtr<QPushButton>,
-    pub i16_button: MutPtr<QPushButton>,
-    pub i32_button: MutPtr<QPushButton>,
-    pub i64_button: MutPtr<QPushButton>,
-    pub string_u8_button: MutPtr<QPushButton>,
-    pub string_u16_button: MutPtr<QPushButton>,
-    pub optional_string_u8_button: MutPtr<QPushButton>,
-    pub optional_string_u16_button: MutPtr<QPushButton>,
-    pub sequence_u32_button: MutPtr<QPushButton>,
-
-    pub packed_file_info_version_decoded_label: MutPtr<QLabel>,
-    pub packed_file_info_entry_count_decoded_label: MutPtr<QLabel>,
-
-    pub table_view_old_versions: MutPtr<QTableView>,
-    pub table_model_old_versions: MutPtr<QStandardItemModel>,
-
-    pub table_view_old_versions_context_menu: MutPtr<QMenu>,
-    pub table_view_old_versions_context_menu_load: MutPtr<QAction>,
-    pub table_view_old_versions_context_menu_delete: MutPtr<QAction>,
-
-    pub import_from_assembly_kit_button: MutPtr<QPushButton>,
-    pub test_definition_button: MutPtr<QPushButton>,
-    pub clear_definition_button: MutPtr<QPushButton>,
-    pub save_button: MutPtr<QPushButton>,
-
-    pub packed_file_type: PackedFileType,
-    pub packed_file_path: Vec<String>,
-    pub packed_file_data: Arc<Vec<u8>>,
 }
 
 /// This struct contains data we need to keep separated from the other two due to mutability issues.
@@ -225,11 +179,11 @@ impl PackedFileDecoderView {
     /// This function creates a new Decoder View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-        global_search_ui: &GlobalSearchUI,
-        pack_file_contents_ui: &PackFileContentsUI,
-        app_ui: &AppUI,
-        diagnostics_ui: &DiagnosticsUI,
-    ) -> Result<TheOneSlot> {
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        app_ui: &Rc<AppUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+    ) -> Result<()> {
 
         // Get the decoded Text.
         CENTRAL_COMMAND.send_message_qt(Command::GetPackedFile(packed_file_view.get_path()));
@@ -251,48 +205,48 @@ impl PackedFileDecoderView {
         }
 
         // Create the hex view on the left side.
-        let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
+        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
         //---------------------------------------------//
         // Hex Data section.
         //---------------------------------------------//
 
-        let hex_view_group = QGroupBox::from_q_string(&QString::from_std_str("PackedFile's Data")).into_ptr();
-        let mut hex_view_index = QTextEdit::new();
-        let mut hex_view_raw = QTextEdit::new();
-        let mut hex_view_decoded = QTextEdit::new();
-        let mut hex_view_layout = create_grid_layout(hex_view_group.static_upcast_mut());
+        let hex_view_group = QGroupBox::from_q_string(&QString::from_std_str("PackedFile's Data"));
+        let hex_view_index = QTextEdit::new();
+        let hex_view_raw = QTextEdit::new();
+        let hex_view_decoded = QTextEdit::new();
+        let hex_view_layout = create_grid_layout(hex_view_group.static_upcast());
 
         hex_view_index.set_font(ref_from_atomic(&*FONT_MONOSPACE));
         hex_view_raw.set_font(ref_from_atomic(&*FONT_MONOSPACE));
         hex_view_decoded.set_font(ref_from_atomic(&*FONT_MONOSPACE));
 
-        hex_view_layout.add_widget_5a(&mut hex_view_index, 0, 0, 1, 1);
-        hex_view_layout.add_widget_5a(&mut hex_view_raw, 0, 1, 1, 1);
-        hex_view_layout.add_widget_5a(&mut hex_view_decoded, 0, 2, 1, 1);
+        hex_view_layout.add_widget_5a(& hex_view_index, 0, 0, 1, 1);
+        hex_view_layout.add_widget_5a(& hex_view_raw, 0, 1, 1, 1);
+        hex_view_layout.add_widget_5a(& hex_view_decoded, 0, 2, 1, 1);
 
-        layout.add_widget_5a(hex_view_group, 0, 0, 5, 1);
+        layout.add_widget_5a(&hex_view_group, 0, 0, 5, 1);
 
         //---------------------------------------------//
         // Fields Table section.
         //---------------------------------------------//
 
-        let mut table_view = QTreeView::new_0a();
-        let mut table_model = QStandardItemModel::new_0a();
-        table_view.set_model(table_model.as_mut_ptr());
+        let table_view = QTreeView::new_0a();
+        let table_model = QStandardItemModel::new_0a();
+        table_view.set_model(table_model.as_raw_ptr());
         table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
         //table_view.header().set_stretch_last_section(true);
         table_view.set_alternating_row_colors(true);
 
         // Create the Contextual Menu for the TableView.
-        let mut table_view_context_menu = QMenu::new();
+        let table_view_context_menu = QMenu::new();
 
         // Create the Contextual Menu Actions.
-        let mut table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Up"));
-        let mut table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Down"));
-        let mut table_view_context_menu_move_left = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Left"));
-        let mut table_view_context_menu_move_right = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Right"));
-        let mut table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("Delete"));
+        let table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Up"));
+        let table_view_context_menu_move_down = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Down"));
+        let table_view_context_menu_move_left = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Left"));
+        let table_view_context_menu_move_right = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Right"));
+        let table_view_context_menu_delete = table_view_context_menu.add_action_q_string(&QString::from_std_str("Delete"));
 
         // Disable them by default.
         table_view_context_menu_move_up.set_enabled(false);
@@ -301,14 +255,14 @@ impl PackedFileDecoderView {
         table_view_context_menu_move_right.set_enabled(false);
         table_view_context_menu_delete.set_enabled(false);
 
-        layout.add_widget_5a(table_view.as_mut_ptr(), 0, 1, 1, 2);
+        layout.add_widget_5a(table_view.as_raw_ptr(), 0, 1, 1, 2);
 
         //---------------------------------------------//
         // Decoded Fields section.
         //---------------------------------------------//
 
-        let mut decoded_fields_frame = QGroupBox::from_q_string(&QString::from_std_str("Current Field Decoded"));
-        let mut decoded_fields_layout = create_grid_layout(decoded_fields_frame.as_mut_ptr().static_upcast_mut());
+        let decoded_fields_frame = QGroupBox::from_q_string(&QString::from_std_str("Current Field Decoded"));
+        let decoded_fields_layout = create_grid_layout(decoded_fields_frame.static_upcast());
         decoded_fields_layout.set_column_stretch(1, 10);
 
         // Create the stuff for the decoded fields.
@@ -323,69 +277,69 @@ impl PackedFileDecoderView {
         let optional_string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U16\":"));
         let sequence_u32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"SequenceU32\":"));
 
-        let mut bool_line_edit = QLineEdit::new();
-        let mut f32_line_edit = QLineEdit::new();
-        let mut i16_line_edit = QLineEdit::new();
-        let mut i32_line_edit = QLineEdit::new();
-        let mut i64_line_edit = QLineEdit::new();
-        let mut string_u8_line_edit = QLineEdit::new();
-        let mut string_u16_line_edit = QLineEdit::new();
-        let mut optional_string_u8_line_edit = QLineEdit::new();
-        let mut optional_string_u16_line_edit = QLineEdit::new();
-        let mut sequence_u32_line_edit = QLineEdit::new();
+        let bool_line_edit = QLineEdit::new();
+        let f32_line_edit = QLineEdit::new();
+        let i16_line_edit = QLineEdit::new();
+        let i32_line_edit = QLineEdit::new();
+        let i64_line_edit = QLineEdit::new();
+        let string_u8_line_edit = QLineEdit::new();
+        let string_u16_line_edit = QLineEdit::new();
+        let optional_string_u8_line_edit = QLineEdit::new();
+        let optional_string_u16_line_edit = QLineEdit::new();
+        let sequence_u32_line_edit = QLineEdit::new();
 
-        let mut bool_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut f32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut i16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut i32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut i64_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut optional_string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut optional_string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let mut sequence_u32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let bool_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let f32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let i16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let i32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let i64_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let optional_string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let optional_string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let sequence_u32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
 
-        decoded_fields_layout.add_widget_5a(bool_label.into_ptr(), 0, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(f32_label.into_ptr(), 1, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(i16_label.into_ptr(), 2, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(i32_label.into_ptr(), 3, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(i64_label.into_ptr(), 4, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(string_u8_label.into_ptr(), 5, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(string_u16_label.into_ptr(), 6, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(optional_string_u8_label.into_ptr(), 7, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(optional_string_u16_label.into_ptr(), 8, 0, 1, 1);
-        decoded_fields_layout.add_widget_5a(sequence_u32_label.into_ptr(), 9, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&bool_label, 0, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&f32_label, 1, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i16_label, 2, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i32_label, 3, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i64_label, 4, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_label, 5, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_label, 6, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_label, 7, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_label, 8, 0, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_label, 9, 0, 1, 1);
 
-        decoded_fields_layout.add_widget_5a(&mut bool_line_edit, 0, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut f32_line_edit, 1, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut i16_line_edit, 2, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut i32_line_edit, 3, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut i64_line_edit, 4, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u8_line_edit, 5, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u16_line_edit, 6, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_line_edit, 7, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_line_edit, 8, 1, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut sequence_u32_line_edit, 9, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&bool_line_edit, 0, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&f32_line_edit, 1, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i16_line_edit, 2, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i32_line_edit, 3, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i64_line_edit, 4, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_line_edit, 5, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_line_edit, 6, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_line_edit, 7, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_line_edit, 8, 1, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_line_edit, 9, 1, 1, 1);
 
-        decoded_fields_layout.add_widget_5a(&mut bool_button, 0, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut f32_button, 1, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut i16_button, 2, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut i32_button, 3, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut i64_button, 4, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u8_button, 5, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut string_u16_button, 6, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u8_button, 7, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut optional_string_u16_button, 8, 2, 1, 1);
-        decoded_fields_layout.add_widget_5a(&mut sequence_u32_button, 9, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&bool_button, 0, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&f32_button, 1, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i16_button, 2, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i32_button, 3, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&i64_button, 4, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u8_button, 5, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&string_u16_button, 6, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u8_button, 7, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&optional_string_u16_button, 8, 2, 1, 1);
+        decoded_fields_layout.add_widget_5a(&sequence_u32_button, 9, 2, 1, 1);
 
-        layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
+        layout.add_widget_5a(&decoded_fields_frame, 1, 1, 3, 1);
 
         //---------------------------------------------//
         // Info section.
         //---------------------------------------------//
 
-        let mut info_frame = QGroupBox::from_q_string(&QString::from_std_str("PackedFile Info"));
-        let mut info_layout = create_grid_layout(info_frame.as_mut_ptr().static_upcast_mut());
+        let info_frame = QGroupBox::from_q_string(&QString::from_std_str("PackedFile Info"));
+        let info_layout = create_grid_layout(info_frame.static_upcast());
 
         // Create stuff for the info frame.
         let packed_file_info_type_label = QLabel::from_q_string(&QString::from_std_str("PackedFile Type:"));
@@ -396,27 +350,27 @@ impl PackedFileDecoderView {
             PackedFileType::DB => format!("DB/{}", packed_file_view.get_path()[1]),
             _ => format!("{}", packed_file_type),
         }));
-        let mut packed_file_info_version_decoded_label = QLabel::new();
-        let mut packed_file_info_entry_count_decoded_label = QLabel::new();
+        let packed_file_info_version_decoded_label = QLabel::new();
+        let packed_file_info_entry_count_decoded_label = QLabel::new();
 
-        info_layout.add_widget_5a(packed_file_info_type_label.into_ptr(), 0, 0, 1, 1);
-        info_layout.add_widget_5a(packed_file_info_version_label.into_ptr(), 1, 0, 1, 1);
+        info_layout.add_widget_5a(&packed_file_info_type_label, 0, 0, 1, 1);
+        info_layout.add_widget_5a(&packed_file_info_version_label, 1, 0, 1, 1);
 
-        info_layout.add_widget_5a(packed_file_info_type_decoded_label.into_ptr(), 0, 1, 1, 1);
-        info_layout.add_widget_5a(&mut packed_file_info_version_decoded_label, 1, 1, 1, 1);
+        info_layout.add_widget_5a(&packed_file_info_type_decoded_label, 0, 1, 1, 1);
+        info_layout.add_widget_5a(&packed_file_info_version_decoded_label, 1, 1, 1, 1);
 
-        info_layout.add_widget_5a(packed_file_info_entry_count_label.into_ptr(), 2, 0, 1, 1);
-        info_layout.add_widget_5a(&mut packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
+        info_layout.add_widget_5a(&packed_file_info_entry_count_label, 2, 0, 1, 1);
+        info_layout.add_widget_5a(&packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
 
-        layout.add_widget_5a(info_frame.into_ptr(), 1, 2, 1, 1);
+        layout.add_widget_5a(&info_frame, 1, 2, 1, 1);
 
         //---------------------------------------------//
         // Other Versions section.
         //---------------------------------------------//
 
-        let mut table_view_old_versions = QTableView::new_0a();
-        let mut table_model_old_versions = QStandardItemModel::new_0a();
-        table_view_old_versions.set_model(&mut table_model_old_versions);
+        let table_view_old_versions = QTableView::new_0a();
+        let table_model_old_versions = QStandardItemModel::new_0a();
+        table_view_old_versions.set_model(&table_model_old_versions);
         table_view_old_versions.set_alternating_row_colors(true);
         table_view_old_versions.set_edit_triggers(QFlags::from(EditTrigger::NoEditTriggers));
         table_view_old_versions.set_selection_mode(SelectionMode::SingleSelection);
@@ -425,34 +379,34 @@ impl PackedFileDecoderView {
         table_view_old_versions.vertical_header().set_visible(false);
         table_view_old_versions.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
 
-        let mut table_view_old_versions_context_menu = QMenu::new();
-        let mut table_view_old_versions_context_menu_load = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Load"));
-        let mut table_view_old_versions_context_menu_delete = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Delete"));
+        let table_view_old_versions_context_menu = QMenu::new();
+        let table_view_old_versions_context_menu_load = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Load"));
+        let table_view_old_versions_context_menu_delete = table_view_old_versions_context_menu.add_action_q_string(&QString::from_std_str("&Delete"));
         table_view_old_versions_context_menu_load.set_enabled(false);
         table_view_old_versions_context_menu_delete.set_enabled(false);
 
-        layout.add_widget_5a(&mut table_view_old_versions, 2, 2, 1, 1);
+        layout.add_widget_5a(&table_view_old_versions, 2, 2, 1, 1);
 
         //---------------------------------------------//
         // Buttons section.
         //---------------------------------------------//
 
-        let mut button_box = QFrame::new_0a();
-        let mut button_box_layout = create_grid_layout(button_box.as_mut_ptr().static_upcast_mut());
+        let button_box = QFrame::new_0a();
+        let button_box_layout = create_grid_layout(button_box.static_upcast());
 
         // Create the bottom Buttons.
-        let mut import_from_assembly_kit_button = QPushButton::from_q_string(&QString::from_std_str("Import from Assembly Kit"));
-        let mut test_definition_button = QPushButton::from_q_string(&QString::from_std_str("Test Definition"));
-        let mut clear_definition_button = QPushButton::from_q_string(&QString::from_std_str("Remove all fields"));
-        let mut save_button = QPushButton::from_q_string(&QString::from_std_str("Finish it!"));
+        let import_from_assembly_kit_button = QPushButton::from_q_string(&QString::from_std_str("Import from Assembly Kit"));
+        let test_definition_button = QPushButton::from_q_string(&QString::from_std_str("Test Definition"));
+        let clear_definition_button = QPushButton::from_q_string(&QString::from_std_str("Remove all fields"));
+        let save_button = QPushButton::from_q_string(&QString::from_std_str("Finish it!"));
 
         // Add them to the Dialog.
-        button_box_layout.add_widget_5a(&mut import_from_assembly_kit_button, 0, 0, 1, 1);
-        button_box_layout.add_widget_5a(&mut test_definition_button, 0, 1, 1, 1);
-        button_box_layout.add_widget_5a(&mut clear_definition_button, 0, 2, 1, 1);
-        button_box_layout.add_widget_5a(&mut save_button, 0, 3, 1, 1);
+        button_box_layout.add_widget_5a(&import_from_assembly_kit_button, 0, 0, 1, 1);
+        button_box_layout.add_widget_5a(&test_definition_button, 0, 1, 1, 1);
+        button_box_layout.add_widget_5a(&clear_definition_button, 0, 2, 1, 1);
+        button_box_layout.add_widget_5a(&save_button, 0, 3, 1, 1);
 
-        layout.add_widget_5a(button_box.into_ptr(), 4, 1, 1, 2);
+        layout.add_widget_5a(&button_box, 4, 1, 1, 2);
 
         layout.set_column_stretch(1, 10);
         layout.set_row_stretch(0, 10);
@@ -463,117 +417,75 @@ impl PackedFileDecoderView {
             &packed_file.get_raw_data()?
         )?;
 
-        let mut packed_file_decoder_view_raw = PackedFileDecoderViewRaw {
-            hex_view_index: hex_view_index.into_ptr(),
-            hex_view_raw: hex_view_raw.into_ptr(),
-            hex_view_decoded: hex_view_decoded.into_ptr(),
+        let packed_file_decoder_view = Arc::new(PackedFileDecoderView {
+            hex_view_index,
+            hex_view_raw,
+            hex_view_decoded,
 
-            table_view: table_view.into_ptr(),
-            table_model: table_model.into_ptr(),
+            table_view,
+            table_model,
 
-            table_view_context_menu: table_view_context_menu.into_ptr(),
+            table_view_context_menu,
             table_view_context_menu_move_up,
             table_view_context_menu_move_down,
             table_view_context_menu_move_left,
             table_view_context_menu_move_right,
             table_view_context_menu_delete,
 
-            bool_line_edit: bool_line_edit.into_ptr(),
-            f32_line_edit: f32_line_edit.into_ptr(),
-            i16_line_edit: i16_line_edit.into_ptr(),
-            i32_line_edit: i32_line_edit.into_ptr(),
-            i64_line_edit: i64_line_edit.into_ptr(),
-            string_u8_line_edit: string_u8_line_edit.into_ptr(),
-            string_u16_line_edit: string_u16_line_edit.into_ptr(),
-            optional_string_u8_line_edit: optional_string_u8_line_edit.into_ptr(),
-            optional_string_u16_line_edit: optional_string_u16_line_edit.into_ptr(),
-            sequence_u32_line_edit: sequence_u32_line_edit.into_ptr(),
+            bool_line_edit,
+            f32_line_edit,
+            i16_line_edit,
+            i32_line_edit,
+            i64_line_edit,
+            string_u8_line_edit,
+            string_u16_line_edit,
+            optional_string_u8_line_edit,
+            optional_string_u16_line_edit,
+            sequence_u32_line_edit,
 
-            bool_button: bool_button.into_ptr(),
-            f32_button: f32_button.into_ptr(),
-            i16_button: i16_button.into_ptr(),
-            i32_button: i32_button.into_ptr(),
-            i64_button: i64_button.into_ptr(),
-            string_u8_button: string_u8_button.into_ptr(),
-            string_u16_button: string_u16_button.into_ptr(),
-            optional_string_u8_button: optional_string_u8_button.into_ptr(),
-            optional_string_u16_button: optional_string_u16_button.into_ptr(),
-            sequence_u32_button: sequence_u32_button.into_ptr(),
+            bool_button,
+            f32_button,
+            i16_button,
+            i32_button,
+            i64_button,
+            string_u8_button,
+            string_u16_button,
+            optional_string_u8_button,
+            optional_string_u16_button,
+            sequence_u32_button,
 
-            packed_file_info_version_decoded_label: packed_file_info_version_decoded_label.into_ptr(),
-            packed_file_info_entry_count_decoded_label: packed_file_info_entry_count_decoded_label.into_ptr(),
+            packed_file_info_version_decoded_label,
+            packed_file_info_entry_count_decoded_label,
 
-            table_view_old_versions: table_view_old_versions.into_ptr(),
-            table_model_old_versions: table_model_old_versions.into_ptr(),
+            table_view_old_versions,
+            table_model_old_versions,
 
-            table_view_old_versions_context_menu: table_view_old_versions_context_menu.into_ptr(),
+            table_view_old_versions_context_menu,
             table_view_old_versions_context_menu_load,
             table_view_old_versions_context_menu_delete,
 
-            import_from_assembly_kit_button: import_from_assembly_kit_button.into_ptr(),
-            test_definition_button: test_definition_button.into_ptr(),
-            clear_definition_button: clear_definition_button.into_ptr(),
-            save_button: save_button.into_ptr(),
+            import_from_assembly_kit_button,
+            test_definition_button,
+            clear_definition_button,
+            save_button,
 
             packed_file_type,
             packed_file_path: packed_file.get_path().to_vec(),
             packed_file_data: Arc::new(packed_file.get_raw_data()?),
-        };
+        });
 
         let packed_file_decoder_mutable_data = PackedFileDecoderMutableData {
             index: Arc::new(Mutex::new(header_size)),
         };
 
         let packed_file_decoder_view_slots = PackedFileDecoderViewSlots::new(
-            packed_file_decoder_view_raw.clone(),
+            &packed_file_decoder_view,
             packed_file_decoder_mutable_data.clone(),
-            *app_ui,
-            *pack_file_contents_ui,
-            *global_search_ui,
-            *diagnostics_ui,
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
         );
-
-        let mut packed_file_decoder_view = Self {
-            hex_view_index: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_index),
-            hex_view_raw: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_raw),
-            hex_view_decoded: atomic_from_mut_ptr(packed_file_decoder_view_raw.hex_view_decoded),
-
-            table_view: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view),
-            table_model: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_model),
-
-            table_view_context_menu_move_up: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_up),
-            table_view_context_menu_move_down: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_down),
-            table_view_context_menu_move_left: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_left),
-            table_view_context_menu_move_right: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_move_right),
-            table_view_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_context_menu_delete),
-
-            bool_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.bool_button),
-            f32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.f32_button),
-            i16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i16_button),
-            i32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i32_button),
-            i64_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.i64_button),
-            string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u8_button),
-            string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.string_u16_button),
-            optional_string_u8_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u8_button),
-            optional_string_u16_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.optional_string_u16_button),
-            sequence_u32_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.sequence_u32_button),
-
-            packed_file_info_version_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_version_decoded_label),
-            packed_file_info_entry_count_decoded_label: atomic_from_mut_ptr(packed_file_decoder_view_raw.packed_file_info_entry_count_decoded_label),
-
-            table_view_old_versions: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions),
-            table_view_old_versions_context_menu_load: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_load),
-            table_view_old_versions_context_menu_delete: atomic_from_mut_ptr(packed_file_decoder_view_raw.table_view_old_versions_context_menu_delete),
-
-            import_from_assembly_kit_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.import_from_assembly_kit_button),
-            test_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.test_definition_button),
-            clear_definition_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.clear_definition_button),
-            save_button: atomic_from_mut_ptr(packed_file_decoder_view_raw.save_button),
-
-            packed_file_type,
-            packed_file_path: packed_file.get_path().to_vec(),
-            packed_file_data: packed_file_decoder_view_raw.packed_file_data.clone(),
-        };
 
         let definition = get_definition(
             packed_file_decoder_view.packed_file_type,
@@ -587,11 +499,11 @@ impl PackedFileDecoderView {
         } else { vec![] };
 
         packed_file_decoder_view.load_packed_file_data()?;
-        packed_file_decoder_view_raw.load_versions_list();
-        packed_file_decoder_view_raw.update_view(&fields, true, &mut packed_file_decoder_mutable_data.index.lock().unwrap())?;
-        packed_file_decoder_view_raw.update_rows_decoded(&mut 0, None, None)?;
+        packed_file_decoder_view.load_versions_list();
+        packed_file_decoder_view.update_view(&fields, true, &mut packed_file_decoder_mutable_data.index.lock().unwrap())?;
+        packed_file_decoder_view.update_rows_decoded(&mut 0, None, None)?;
         connections::set_connections(&packed_file_decoder_view, &packed_file_decoder_view_slots);
-        shortcuts::set_shortcuts(&mut packed_file_decoder_view);
+        shortcuts::set_shortcuts(&packed_file_decoder_view);
         packed_file_view.view = ViewType::Internal(View::Decoder(packed_file_decoder_view));
 
         // Update the path so the decoder is identified as a separate file.
@@ -600,7 +512,7 @@ impl PackedFileDecoderView {
         packed_file_view.set_path(&path);
 
         // Return success.
-        Ok(TheOneSlot::Decoder(packed_file_decoder_view_slots))
+        Ok(())
     }
 
     /// This function loads the raw data of a PackedFile into the UI and prepare it to be updated later on.
@@ -680,12 +592,12 @@ impl PackedFileDecoderView {
         let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
         let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
         let brush = QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkRed } else { GlobalColor::Red });
-        let mut header_format = QTextCharFormat::new();
+        let header_format = QTextCharFormat::new();
         header_format.set_background(&brush);
 
         // Block the signals during this, so we don't mess things up.
-        let mut blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_raw().static_upcast_mut::<QObject>());
-        let mut cursor = self.get_mut_ptr_hex_view_raw().text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_raw().static_upcast::<QObject>());
+        let cursor = self.get_mut_ptr_hex_view_raw().text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (header_size * 3) as i32);
         self.get_mut_ptr_hex_view_raw().set_text_cursor(&cursor);
@@ -696,8 +608,8 @@ impl PackedFileDecoderView {
         blocker.unblock();
 
         // Block the signals during this, so we don't mess things up.
-        let mut blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_decoded().static_upcast_mut::<QObject>());
-        let mut cursor = self.get_mut_ptr_hex_view_decoded().text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.get_mut_ptr_hex_view_decoded().static_upcast::<QObject>());
+        let cursor = self.get_mut_ptr_hex_view_decoded().text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
         self.get_mut_ptr_hex_view_decoded().set_text_cursor(&cursor);
@@ -737,132 +649,128 @@ impl PackedFileDecoderView {
         Ok(())
     }
 
-    fn get_mut_ptr_hex_view_index(&self) -> MutPtr<QTextEdit> {
-        mut_ptr_from_atomic(&self.hex_view_index)
+    fn get_mut_ptr_hex_view_index(&self) -> &QBox<QTextEdit> {
+        &self.hex_view_index
     }
 
-    fn get_mut_ptr_hex_view_raw(&self) -> MutPtr<QTextEdit> {
-        mut_ptr_from_atomic(&self.hex_view_raw)
+    fn get_mut_ptr_hex_view_raw(&self) -> &QBox<QTextEdit> {
+        &self.hex_view_raw
     }
 
-    fn get_mut_ptr_hex_view_decoded(&self) -> MutPtr<QTextEdit> {
-        mut_ptr_from_atomic(&self.hex_view_decoded)
+    fn get_mut_ptr_hex_view_decoded(&self) -> &QBox<QTextEdit> {
+        &self.hex_view_decoded
     }
 
-    fn get_mut_ptr_bool_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.bool_button)
+    fn get_mut_ptr_bool_button(&self) -> &QBox<QPushButton> {
+        &self.bool_button
     }
 
-    fn get_mut_ptr_f32_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.f32_button)
+    fn get_mut_ptr_f32_button(&self) -> &QBox<QPushButton> {
+        &self.f32_button
     }
 
-    fn get_mut_ptr_i16_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.i16_button)
+    fn get_mut_ptr_i16_button(&self) -> &QBox<QPushButton> {
+        &self.i16_button
     }
 
-    fn get_mut_ptr_i32_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.i32_button)
+    fn get_mut_ptr_i32_button(&self) -> &QBox<QPushButton> {
+        &self.i32_button
     }
 
-    fn get_mut_ptr_i64_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.i64_button)
+    fn get_mut_ptr_i64_button(&self) -> &QBox<QPushButton> {
+        &self.i64_button
     }
 
-    fn get_mut_ptr_string_u8_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.string_u8_button)
+    fn get_mut_ptr_string_u8_button(&self) -> &QBox<QPushButton> {
+        &self.string_u8_button
     }
 
-    fn get_mut_ptr_string_u16_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.string_u16_button)
+    fn get_mut_ptr_string_u16_button(&self) -> &QBox<QPushButton> {
+        &self.string_u16_button
     }
 
-    fn get_mut_ptr_optional_string_u8_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.optional_string_u8_button)
+    fn get_mut_ptr_optional_string_u8_button(&self) -> &QBox<QPushButton> {
+        &self.optional_string_u8_button
     }
 
-    fn get_mut_ptr_optional_string_u16_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.optional_string_u16_button)
+    fn get_mut_ptr_optional_string_u16_button(&self) -> &QBox<QPushButton> {
+        &self.optional_string_u16_button
     }
 
-    fn get_mut_ptr_sequence_u32_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.sequence_u32_button)
+    fn get_mut_ptr_sequence_u32_button(&self) -> &QBox<QPushButton> {
+        &self.sequence_u32_button
     }
 
-    fn get_mut_ptr_packed_file_info_version_decoded_label(&self) -> MutPtr<QLabel> {
-        mut_ptr_from_atomic(&self.packed_file_info_version_decoded_label)
+    fn get_mut_ptr_packed_file_info_version_decoded_label(&self) -> &QBox<QLabel> {
+        &self.packed_file_info_version_decoded_label
     }
 
-    fn get_mut_ptr_packed_file_info_entry_count_decoded_label(&self) -> MutPtr<QLabel> {
-        mut_ptr_from_atomic(&self.packed_file_info_entry_count_decoded_label)
+    fn get_mut_ptr_packed_file_info_entry_count_decoded_label(&self) -> &QBox<QLabel> {
+        &self.packed_file_info_entry_count_decoded_label
     }
 
-    fn get_mut_ptr_table_model(&self) -> MutPtr<QStandardItemModel> {
-        mut_ptr_from_atomic(&self.table_model)
+    fn get_mut_ptr_table_model(&self) -> &QBox<QStandardItemModel> {
+        &self.table_model
     }
 
-    fn get_mut_ptr_table_view(&self) -> MutPtr<QTreeView> {
-        mut_ptr_from_atomic(&self.table_view)
+    fn get_mut_ptr_table_view(&self) -> &QBox<QTreeView> {
+        &self.table_view
     }
 
-    fn get_mut_ptr_table_view_old_versions(&self) -> MutPtr<QTableView> {
-        mut_ptr_from_atomic(&self.table_view_old_versions)
+    fn get_mut_ptr_table_view_old_versions(&self) -> &QBox<QTableView> {
+        &self.table_view_old_versions
     }
 
-    fn get_mut_ptr_table_view_context_menu_move_up(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.table_view_context_menu_move_up)
+    fn get_mut_ptr_table_view_context_menu_move_up(&self) -> &QPtr<QAction> {
+        &self.table_view_context_menu_move_up
     }
 
-    fn get_mut_ptr_table_view_context_menu_move_down(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.table_view_context_menu_move_down)
+    fn get_mut_ptr_table_view_context_menu_move_down(&self) -> &QPtr<QAction> {
+        &self.table_view_context_menu_move_down
     }
 
-    fn get_mut_ptr_table_view_context_menu_move_left(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.table_view_context_menu_move_left)
+    fn get_mut_ptr_table_view_context_menu_move_left(&self) -> &QPtr<QAction> {
+        &self.table_view_context_menu_move_left
     }
 
-    fn get_mut_ptr_table_view_context_menu_move_rigth(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.table_view_context_menu_move_right)
+    fn get_mut_ptr_table_view_context_menu_move_rigth(&self) -> &QPtr<QAction> {
+        &self.table_view_context_menu_move_right
     }
 
-    fn get_mut_ptr_table_view_context_menu_delete(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.table_view_context_menu_delete)
+    fn get_mut_ptr_table_view_context_menu_delete(&self) -> &QPtr<QAction> {
+        &self.table_view_context_menu_delete
     }
 
-    fn get_mut_ptr_table_view_old_versions_context_menu_load(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.table_view_old_versions_context_menu_load)
+    fn get_mut_ptr_table_view_old_versions_context_menu_load(&self) -> &QPtr<QAction> {
+        &self.table_view_old_versions_context_menu_load
     }
 
-    fn get_mut_ptr_table_view_old_versions_context_menu_delete(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.table_view_old_versions_context_menu_delete)
+    fn get_mut_ptr_table_view_old_versions_context_menu_delete(&self) -> &QPtr<QAction> {
+        &self.table_view_old_versions_context_menu_delete
     }
 
-    fn get_mut_ptr_import_from_assembly_kit_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.import_from_assembly_kit_button)
+    fn get_mut_ptr_import_from_assembly_kit_button(&self) -> &QBox<QPushButton> {
+        &self.import_from_assembly_kit_button
     }
 
-    fn get_mut_ptr_test_definition_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.test_definition_button)
+    fn get_mut_ptr_test_definition_button(&self) -> &QBox<QPushButton> {
+        &self.test_definition_button
     }
 
-    fn get_mut_ptr_clear_definition_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.clear_definition_button)
+    fn get_mut_ptr_clear_definition_button(&self) -> &QBox<QPushButton> {
+        &self.clear_definition_button
     }
 
-    fn get_mut_ptr_save_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.save_button)
+    fn get_mut_ptr_save_button(&self) -> &QBox<QPushButton> {
+        &self.save_button
     }
-}
-
-/// Implementation of `PackedFileDecoderViewRaw`.
-impl PackedFileDecoderViewRaw {
 
     /// This function syncronize the selection between the Hex View and the Decoded View of the PackedFile Data.
     /// Pass `hex = true` if the selected view is the Hex View. Otherwise, pass false.
-    pub unsafe fn hex_selection_sync(&mut self, hex: bool) {
+    pub unsafe fn hex_selection_sync(&self, hex: bool) {
 
         let cursor = if hex { self.hex_view_raw.text_cursor() } else { self.hex_view_decoded.text_cursor() };
-        let mut cursor_dest = if !hex { self.hex_view_raw.text_cursor() } else { self.hex_view_decoded.text_cursor() };
+        let cursor_dest = if !hex { self.hex_view_raw.text_cursor() } else { self.hex_view_decoded.text_cursor() };
 
         let mut selection_start = cursor.selection_start();
         let mut selection_end = cursor.selection_end();
@@ -889,12 +797,12 @@ impl PackedFileDecoderViewRaw {
 
         // Block the signals during this, so we don't trigger an infinite loop.
         if hex {
-            let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded);
+            let blocker = QSignalBlocker::from_q_object(&self.hex_view_decoded);
             self.hex_view_decoded.set_text_cursor(&cursor_dest);
             blocker.unblock();
         }
         else {
-            let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw);
+            let blocker = QSignalBlocker::from_q_object(&self.hex_view_raw);
             self.hex_view_raw.set_text_cursor(&cursor_dest);
             blocker.unblock();
         }
@@ -902,7 +810,7 @@ impl PackedFileDecoderViewRaw {
 
     /// This function is used to update the state of the decoder view every time a change it's done.
     unsafe fn update_view(
-        &mut self,
+        &self,
         field_list: &[Field],
         is_initial_load: bool,
         mut index: &mut usize,
@@ -913,10 +821,10 @@ impl PackedFileDecoderViewRaw {
 
             // If the table is empty, we just load a fake row, so the column headers are created properly.
             if field_list.is_empty() {
-                let mut qlist = QListOfQStandardItem::new();
-                (0..16).for_each(|_| add_to_q_list_safe(qlist.as_mut_ptr(), QStandardItem::new().into_ptr()));
+                let qlist = QListOfQStandardItem::new();
+                (0..16).for_each(|_| qlist.append_q_standard_item(&mut QStandardItem::new().as_mut_raw_ptr()));
                 self.table_model.append_row_q_list_of_q_standard_item(&qlist);
-                configure_table_view(self.table_view);
+                configure_table_view(&self.table_view);
                 self.table_model.remove_rows_2a(0, 1);
             }
 
@@ -925,7 +833,7 @@ impl PackedFileDecoderViewRaw {
                 for field in field_list {
                     self.add_field_to_view(&field, &mut index, is_initial_load, None);
                 }
-                configure_table_view(self.table_view);
+                configure_table_view(&self.table_view);
             }
         }
 
@@ -959,16 +867,16 @@ impl PackedFileDecoderViewRaw {
         // Prepare to paint the changes in the hex data views.
         let header_size = get_header_size(self.packed_file_type, &self.packed_file_data)?;
         let use_dark_theme = SETTINGS.read().unwrap().settings_bool["use_dark_theme"];
-        let mut index_format = QTextCharFormat::new();
-        let mut decoded_format = QTextCharFormat::new();
-        let mut neutral_format = QTextCharFormat::new();
+        let index_format = QTextCharFormat::new();
+        let decoded_format = QTextCharFormat::new();
+        let neutral_format = QTextCharFormat::new();
         index_format.set_background(&QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkMagenta } else { GlobalColor::Magenta }));
         decoded_format.set_background(&QBrush::from_global_color(if use_dark_theme { GlobalColor::DarkYellow } else { GlobalColor::Yellow }));
         neutral_format.set_background(&QBrush::from_global_color(GlobalColor::Transparent));
 
         // Clean both TextEdits, so we can repaint all the changes on them.
-        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast_mut::<QObject>());
-        let mut cursor = self.hex_view_raw.text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast::<QObject>());
+        let cursor = self.hex_view_raw.text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size * 3) as i32);
         cursor.move_position_2a(MoveOperation::End, MoveMode::KeepAnchor);
@@ -980,8 +888,8 @@ impl PackedFileDecoderViewRaw {
 
         blocker.unblock();
 
-        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast_mut::<QObject>());
-        let mut cursor = self.hex_view_decoded.text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast::<QObject>());
+        let cursor = self.hex_view_decoded.text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size + (header_size as f32 / 16.0).floor() as usize) as i32);
         cursor.move_position_2a(MoveOperation::End, MoveMode::KeepAnchor);
@@ -997,8 +905,8 @@ impl PackedFileDecoderViewRaw {
         // Raw data painting decoded data section.
         //---------------------------------------------//
 
-        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast_mut::<QObject>());
-        let mut cursor = self.hex_view_raw.text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast::<QObject>());
+        let cursor = self.hex_view_raw.text_cursor();
         cursor.move_position_1a(MoveOperation::Start);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::MoveAnchor, (header_size * 3) as i32);
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, ((*index - header_size) * 3) as i32);
@@ -1010,8 +918,8 @@ impl PackedFileDecoderViewRaw {
 
         blocker.unblock();
 
-        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast_mut::<QObject>());
-        let mut cursor = self.hex_view_decoded.text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast::<QObject>());
+        let cursor = self.hex_view_decoded.text_cursor();
 
         // Create the "Selection" for the decoded row.
         let positions_to_move_end = *index / 16;
@@ -1035,8 +943,8 @@ impl PackedFileDecoderViewRaw {
         // Raw data painting current index section.
         //---------------------------------------------//
 
-        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast_mut::<QObject>());
-        let mut cursor = self.hex_view_raw.text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_raw.static_upcast::<QObject>());
+        let cursor = self.hex_view_raw.text_cursor();
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, 3);
 
         self.hex_view_raw.set_text_cursor(&cursor);
@@ -1046,8 +954,8 @@ impl PackedFileDecoderViewRaw {
 
         blocker.unblock();
 
-        let mut blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast_mut::<QObject>());
-        let mut cursor = self.hex_view_decoded.text_cursor();
+        let blocker = QSignalBlocker::from_q_object(self.hex_view_decoded.static_upcast::<QObject>());
+        let cursor = self.hex_view_decoded.text_cursor();
         cursor.move_position_3a(MoveOperation::NextCharacter, MoveMode::KeepAnchor, 1);
 
         self.hex_view_decoded.set_text_cursor(&cursor);
@@ -1065,7 +973,7 @@ impl PackedFileDecoderViewRaw {
     ///
     /// It returns the new index.
     pub unsafe fn add_field_to_view(
-        &mut self,
+        &self,
         field: &Field,
         mut index: &mut usize,
         is_initial_load: bool,
@@ -1095,12 +1003,12 @@ impl PackedFileDecoderViewRaw {
         };
 
         // Create a new list of StandardItem.
-        let mut qlist = QListOfQStandardItem::new();
+        let qlist = QListOfQStandardItem::new();
 
         // Create the items of the new row.
         let field_name = QStandardItem::from_q_string(&QString::from_std_str(&field.get_name()));
         let field_type = QStandardItem::from_q_string(&QString::from_std_str(field_type));
-        let mut field_is_key = QStandardItem::new();
+        let field_is_key = QStandardItem::new();
         field_is_key.set_editable(false);
         field_is_key.set_checkable(true);
         field_is_key.set_check_state(if field.get_is_key() { CheckState::Checked } else { CheckState::Unchecked });
@@ -1113,7 +1021,7 @@ impl PackedFileDecoderViewRaw {
             QStandardItem::from_q_string(&QString::from_std_str(columns.join(",")))
         } else { QStandardItem::new() };
 
-        let mut decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
+        let decoded_data = QStandardItem::from_q_string(&QString::from_std_str(&decoded_data));
         decoded_data.set_editable(false);
 
         let field_default_value = if let Some(ref default_value) = field.get_default_value() {
@@ -1121,7 +1029,7 @@ impl PackedFileDecoderViewRaw {
         } else { QStandardItem::new() };
 
         let field_max_length = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", field.get_max_length())));
-        let mut field_is_filename = QStandardItem::new();
+        let field_is_filename = QStandardItem::new();
         field_is_filename.set_editable(false);
         field_is_filename.set_checkable(true);
         field_is_filename.set_check_state(if field.get_is_filename() { CheckState::Checked } else { CheckState::Unchecked });
@@ -1134,30 +1042,29 @@ impl PackedFileDecoderViewRaw {
         let field_description = QStandardItem::from_q_string(&QString::from_std_str(field.get_description()));
         let field_enum_values = QStandardItem::from_q_string(&QString::from_std_str(field.get_enum_values_to_string()));
 
-        let mut field_is_bitwise = QStandardItem::new();
+        let field_is_bitwise = QStandardItem::new();
         field_is_bitwise.set_data_2a(&QVariant::from_int(field.get_is_bitwise()), 2);
 
-        let mut field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
+        let field_number = QStandardItem::from_q_string(&QString::from_std_str(&format!("{}", 1 + 1)));
         field_number.set_editable(false);
 
-
         // The first one is the row number, to be updated later.
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_number.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_name.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_type.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), decoded_data.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_is_key.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_reference_table.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_reference_field.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_lookup_columns.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_default_value.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_max_length.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_is_filename.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_filename_relative_path.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_ca_order.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_description.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_is_bitwise.into_ptr());
-        add_to_q_list_safe(qlist.as_mut_ptr(), field_enum_values.into_ptr());
+        qlist.append_q_standard_item(&field_number.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_name.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_type.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&decoded_data.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_is_key.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_reference_table.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_reference_field.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_lookup_columns.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_default_value.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_max_length.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_is_filename.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_filename_relative_path.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_ca_order.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_description.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_is_bitwise.as_mut_raw_ptr());
+        qlist.append_q_standard_item(&field_enum_values.as_mut_raw_ptr());
 
         // If it's the initial load, insert them recursively.
         if is_initial_load {
@@ -1296,7 +1203,7 @@ impl PackedFileDecoderViewRaw {
     ///
     /// To be triggered when the table changes.
     unsafe fn update_rows_decoded(
-        &mut self,
+        &self,
         mut index: &mut usize,
         entries: Option<u32>,
         model_index: Option<CppBox<QModelIndex>>,
@@ -1353,10 +1260,10 @@ impl PackedFileDecoderViewRaw {
 
                     // Get the items from the "Row Number" and "First Row Decoded" columns.
                     if entry == 0 {
-                        let mut item = self.table_model.item_from_index(&model_index.sibling_at_column(3));
+                        let item = self.table_model.item_from_index(&model_index.sibling_at_column(3));
                         item.set_text(&QString::from_std_str(&decoded_data));
 
-                        let mut item = self.table_model.item_from_index(&model_index.sibling_at_column(0));
+                        let item = self.table_model.item_from_index(&model_index.sibling_at_column(0));
                         item.set_text(&QString::from_std_str(&format!("{}", row + 1)));
                     }
 
@@ -1377,7 +1284,7 @@ impl PackedFileDecoderViewRaw {
     }
 
     /// This function is used to update the list of "Versions" of the currently open table decoded.
-    unsafe fn load_versions_list(&mut self) {
+    unsafe fn load_versions_list(&self) {
         self.table_model_old_versions.clear();
         if let Some(ref schema) = *SCHEMA.read().unwrap() {
 
@@ -1407,7 +1314,7 @@ impl PackedFileDecoderViewRaw {
     /// This function is used to update the decoder view when we try to add a new field to
     /// the definition with one of the "Use this" buttons.
     pub unsafe fn use_this(
-        &mut self,
+        &self,
         field_type: FieldType,
         mut index: &mut usize,
     ) -> Result<()> {
@@ -1772,8 +1679,8 @@ fn get_definition(
 }
 
 /// This function configures the provided TableView, so it has the right columns and it's resized to the right size.
-unsafe fn configure_table_view(table_view: MutPtr<QTreeView>) {
-    let mut table_model = table_view.model();
+unsafe fn configure_table_view(table_view: &QBox<QTreeView>) {
+    let table_model = table_view.model();
     table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Row Number")));
     table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Name")));
     table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&QString::from_std_str("Field Type")));
@@ -1794,7 +1701,7 @@ unsafe fn configure_table_view(table_view: MutPtr<QTreeView>) {
     table_view.header().resize_sections(ResizeMode::ResizeToContents);
 
     // The second field should be a combobox.
-    let mut list = QStringList::new();
+    let list = QStringList::new();
     list.append_q_string(&QString::from_std_str("Bool"));
     list.append_q_string(&QString::from_std_str("F32"));
     list.append_q_string(&QString::from_std_str("I16"));
@@ -1806,10 +1713,10 @@ unsafe fn configure_table_view(table_view: MutPtr<QTreeView>) {
     list.append_q_string(&QString::from_std_str("OptionalStringU16"));
     list.append_q_string(&QString::from_std_str("SequenceU16"));
     list.append_q_string(&QString::from_std_str("SequenceU32"));
-    new_combobox_item_delegate_safe(&mut table_view.static_upcast_mut(), 2, list.into_ptr().as_ptr(), false, 0);
+    new_combobox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 2, list.as_ptr(), false, 0);
 
     // Fields Max lenght and CA Order must be numeric.
-    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 9, 32);
-    new_spinbox_item_delegate_safe(&mut table_view.static_upcast_mut(), 12, 16);
-    new_qstring_item_delegate_safe(&mut table_view.static_upcast_mut(), 15, 65535);
+    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 9, 32);
+    new_spinbox_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 12, 16);
+    new_qstring_item_delegate_safe(&table_view.static_upcast::<QObject>().as_ptr(), 15, 65535);
 }

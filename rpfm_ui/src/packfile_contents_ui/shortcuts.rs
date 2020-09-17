@@ -18,6 +18,8 @@ use qt_gui::QKeySequence;
 
 use qt_core::ShortcutContext;
 
+use std::rc::Rc;
+
 use super::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -25,7 +27,7 @@ use crate::UI_STATE;
 /// This function setup all the shortcuts used by the actions in the provided `PackFileContentsUI` .
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
-pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
+pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
     //---------------------------------------------------------------------------------------//
@@ -83,28 +85,28 @@ pub unsafe fn set_shortcuts(ui: &mut PackFileContentsUI) {
     ui.packfile_contents_tree_view_collapse_all.set_shortcut_context(ShortcutContext::WidgetShortcut);
 
     // Add the actions to the TreeView, so the shortcuts work.
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_add_file);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_add_folder);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_add_from_packfile);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_new_folder);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_new_packed_file_db);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_new_packed_file_loc);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_new_packed_file_text);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_new_queek_packed_file);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_mass_import_tsv);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_mass_export_tsv);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_merge_tables);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_update_table);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_delete);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_extract);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_rename);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_copy_path);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_open_decoder);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_open_dependency_manager);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_open_containing_folder);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_open_with_external_program);
-    ui.packfile_contents_tree_view.add_action(ui.context_menu_open_notes);
-    ui.packfile_contents_tree_view.add_action(ui.packfile_contents_tree_view_expand_all);
-    ui.packfile_contents_tree_view.add_action(ui.packfile_contents_tree_view_collapse_all);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_add_file);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_add_folder);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_add_from_packfile);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_folder);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_db);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_loc);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_packed_file_text);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_new_queek_packed_file);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_mass_import_tsv);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_mass_export_tsv);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_merge_tables);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_update_table);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_delete);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_extract);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_rename);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_copy_path);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_decoder);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_dependency_manager);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_containing_folder);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_with_external_program);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_notes);
+    ui.packfile_contents_tree_view.add_action(ui.packfile_contents_tree_view_expand_all.as_ptr());
+    ui.packfile_contents_tree_view.add_action(ui.packfile_contents_tree_view_collapse_all.as_ptr());
 
 }

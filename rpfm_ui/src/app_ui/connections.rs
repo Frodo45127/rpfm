@@ -14,25 +14,21 @@ Module with all the code to connect `AppUI` signals with their corresponding slo
 This module is, and should stay, private, as it's only glue between the `AppUI` and `AppUISlots` structs.
 !*/
 
+use std::rc::Rc;
+
 use super::{AppUI, slots::AppUISlots};
 
 /// This function connects all the actions from the provided `AppUI` with their slots in `AppUISlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
-pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
-
-	//-----------------------------------------------//
-    // Command Palette connections.
-    //-----------------------------------------------//
-    app_ui.command_palette_show.triggered().connect(&slots.command_palette_show);
-    app_ui.command_palette_hide.triggered().connect(&slots.command_palette_hide);
-
-    app_ui.command_palette_completer.activated().connect(&slots.command_palette_trigger);
+pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
 
     //-----------------------------------------------//
     // `PackFile` menu connections.
     //-----------------------------------------------//
+    app_ui.menu_bar_packfile.about_to_show().connect(&slots.packfile_open_menu);
+
     app_ui.packfile_new_packfile.triggered().connect(&slots.packfile_new_packfile);
     app_ui.packfile_open_packfile.triggered().connect(&slots.packfile_open_packfile);
     app_ui.packfile_save_packfile.triggered().connect(&slots.packfile_save_packfile);
@@ -54,6 +50,7 @@ pub unsafe fn set_connections(app_ui: &AppUI, slots: &AppUISlots) {
     //-----------------------------------------------//
     // `MyMod` menu connections.
     //-----------------------------------------------//
+    app_ui.menu_bar_mymod.about_to_show().connect(&slots.mymod_open_menu);
     app_ui.mymod_new.triggered().connect(&slots.mymod_new);
     app_ui.mymod_delete_selected.triggered().connect(&slots.mymod_delete_selected);
     app_ui.mymod_install.triggered().connect(&slots.mymod_install);

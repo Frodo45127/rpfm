@@ -24,14 +24,15 @@ use qt_widgets::QTreeView;
 
 use qt_gui::QStandardItemModel;
 
+use qt_core::QBox;
+use qt_core::QPtr;
 use qt_core::CaseSensitivity;
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
 
-use cpp_core::MutPtr;
-
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock, atomic::AtomicPtr};
+use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 use rpfm_error::Result;
 
@@ -42,11 +43,9 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
+use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
-use crate::utils::atomic_from_mut_ptr;
-use crate::utils::mut_ptr_from_atomic;
 
 use self::slots::PackFileExtraViewSlots;
 
@@ -60,32 +59,16 @@ pub mod slots;
 
 /// This struct contains the view of the extra PackFile.
 pub struct PackFileExtraView {
-    tree_view: AtomicPtr<QTreeView>,
-
-    filter_line_edit: AtomicPtr<QLineEdit>,
-    filter_autoexpand_matches_button: AtomicPtr<QPushButton>,
-    filter_case_sensitive_button: AtomicPtr<QPushButton>,
-
-    expand_all: AtomicPtr<QAction>,
-    collapse_all: AtomicPtr<QAction>,
-}
-
-/// This struct contains the raw version of each pointer in `PackFileExtraView`, to be used when building the slots.
-///
-/// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
-/// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackFileExtraView`.
-#[derive(Clone)]
-pub struct PackFileExtraViewRaw {
     pack_file_path: Arc<RwLock<PathBuf>>,
-    tree_view: MutPtr<QTreeView>,
-    tree_model_filter: MutPtr<QSortFilterProxyModel>,
+    tree_view: QBox<QTreeView>,
+    tree_model_filter: QBox<QSortFilterProxyModel>,
 
-    filter_line_edit: MutPtr<QLineEdit>,
-    filter_autoexpand_matches_button: MutPtr<QPushButton>,
-    filter_case_sensitive_button: MutPtr<QPushButton>,
+    filter_line_edit: QBox<QLineEdit>,
+    filter_autoexpand_matches_button: QBox<QPushButton>,
+    filter_case_sensitive_button: QBox<QPushButton>,
 
-    expand_all: MutPtr<QAction>,
-    collapse_all: MutPtr<QAction>,
+    expand_all: QBox<QAction>,
+    collapse_all: QBox<QAction>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -98,12 +81,12 @@ impl PackFileExtraView {
     /// This function creates a new PackedFileView, and sets up his slots and connections.
     pub unsafe fn new_view(
         pack_file_view: &mut PackedFileView,
-        app_ui: &AppUI,
-        pack_file_contents_ui: &PackFileContentsUI,
-        global_search_ui: &GlobalSearchUI,
-        diagnostics_ui: &DiagnosticsUI,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         pack_file_path: PathBuf,
-    ) -> Result<TheOneSlot> {
+    ) -> Result<()> {
 
         // Load the extra PackFile to memory.
         // Ignore the response, we don't need it yet.
@@ -117,11 +100,11 @@ impl PackFileExtraView {
         }
 
         // Create and configure the `TreeView` itself.
-        let mut tree_view = QTreeView::new_0a().into_ptr();
+        let tree_view = QTreeView::new_0a();
         let tree_model = QStandardItemModel::new_0a().into_ptr();
-        let mut tree_model_filter = new_treeview_filter_safe(&mut pack_file_view.get_mut_widget());
+        let tree_model_filter = new_treeview_filter_safe(pack_file_view.get_mut_widget().static_upcast());
         tree_model_filter.set_source_model(tree_model);
-        tree_view.set_model(tree_model_filter);
+        tree_view.set_model(&tree_model_filter);
         tree_view.set_header_hidden(true);
         tree_view.set_animated(true);
         tree_view.set_uniform_row_heights(true);
@@ -131,141 +114,97 @@ impl PackFileExtraView {
         tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.to_path_buf())));
 
         // Create and configure the widgets to control the `TreeView`s filter.
-        let mut filter_line_edit = QLineEdit::new();
-        let mut filter_autoexpand_matches_button = QPushButton::from_q_string(&qtr("treeview_autoexpand"));
-        let mut filter_case_sensitive_button = QPushButton::from_q_string(&qtr("treeview_aai"));
+        let filter_line_edit = QLineEdit::new();
+        let filter_autoexpand_matches_button = QPushButton::from_q_string(&qtr("treeview_autoexpand"));
+        let filter_case_sensitive_button = QPushButton::from_q_string(&qtr("treeview_aai"));
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
 
         // Create the extra actions for the TreeView.
-        let expand_all = QAction::from_q_string(&qtr("treeview_expand_all")).into_ptr();
-        let collapse_all = QAction::from_q_string(&qtr("treeview_collapse_all")).into_ptr();
-        tree_view.add_action(expand_all);
-        tree_view.add_action(collapse_all);
+        let expand_all = QAction::from_q_string(&qtr("treeview_expand_all"));
+        let collapse_all = QAction::from_q_string(&qtr("treeview_collapse_all"));
+        tree_view.add_action(expand_all.as_ptr());
+        tree_view.add_action(collapse_all.as_ptr());
 
         // Add everything to the main widget's Layout.
-        let mut layout: MutPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast_mut();
-        layout.add_widget_5a(tree_view, 0, 0, 1, 3);
-        layout.add_widget_5a(&mut filter_line_edit, 1, 0, 1, 1);
-        layout.add_widget_5a(&mut filter_autoexpand_matches_button, 1, 1, 1, 1);
-        layout.add_widget_5a(&mut filter_case_sensitive_button, 1, 2, 1, 1);
+        let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();
+        layout.add_widget_5a(&tree_view, 0, 0, 1, 3);
+        layout.add_widget_5a(&filter_line_edit, 1, 0, 1, 1);
+        layout.add_widget_5a(&filter_autoexpand_matches_button, 1, 1, 1, 1);
+        layout.add_widget_5a(&filter_case_sensitive_button, 1, 2, 1, 1);
 
         // Build the slots and set up the shortcuts/connections/tip.
-        let raw = PackFileExtraViewRaw{
+        let view = Arc::new(PackFileExtraView{
             pack_file_path: Arc::new(RwLock::new(pack_file_path)),
             tree_view,
             tree_model_filter,
 
-            filter_line_edit: filter_line_edit.into_ptr(),
-            filter_autoexpand_matches_button: filter_autoexpand_matches_button.into_ptr(),
-            filter_case_sensitive_button: filter_case_sensitive_button.into_ptr(),
+            filter_line_edit,
+            filter_autoexpand_matches_button,
+            filter_case_sensitive_button,
 
             expand_all,
             collapse_all,
-        };
+        });
 
-        let slots = PackFileExtraViewSlots::new(*app_ui, *pack_file_contents_ui, *global_search_ui, *diagnostics_ui, raw.clone());
-        let mut view = Self {
-            tree_view: atomic_from_mut_ptr(raw.tree_view),
-
-            filter_line_edit: atomic_from_mut_ptr(raw.filter_line_edit),
-            filter_autoexpand_matches_button: atomic_from_mut_ptr(raw.filter_autoexpand_matches_button),
-            filter_case_sensitive_button: atomic_from_mut_ptr(raw.filter_case_sensitive_button),
-
-            expand_all: atomic_from_mut_ptr(raw.expand_all),
-            collapse_all: atomic_from_mut_ptr(raw.collapse_all),
-        };
+        let slots = PackFileExtraViewSlots::new(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, &view);
 
         connections::set_connections(&view, &slots);
-        shortcuts::set_shortcuts(&mut view);
+        shortcuts::set_shortcuts(&view);
         pack_file_view.view = ViewType::Internal(View::PackFile(view));
 
         // Return success.
-        Ok(TheOneSlot::PackFile(slots))
+        Ok(())
     }
 
     /// This function returns a mutable reference to the `TreeView` widget.
-    pub fn get_mut_ptr_tree_view(&self) -> MutPtr<QTreeView> {
-        mut_ptr_from_atomic(&self.tree_view)
+    pub fn get_mut_ptr_tree_view(&self) -> &QBox<QTreeView> {
+        &self.tree_view
     }
 
     /// This function returns a mutable reference to the `Expand All` Action.
-    pub fn get_mut_ptr_expand_all(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.expand_all)
+    pub fn get_mut_ptr_expand_all(&self) -> &QBox<QAction> {
+        &self.expand_all
     }
 
     /// This function returns a mutable reference to the `Collapse All` Action.
-    pub fn get_mut_ptr_collapse_all(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.collapse_all)
+    pub fn get_mut_ptr_collapse_all(&self) -> &QBox<QAction> {
+        &self.collapse_all
     }
 
     /// This function returns a mutable reference to the `Filter` Line Edit.
-    pub fn get_mut_ptr_filter_line_edit(&self) -> MutPtr<QLineEdit> {
-        mut_ptr_from_atomic(&self.filter_line_edit)
+    pub fn get_mut_ptr_filter_line_edit(&self) -> &QBox<QLineEdit> {
+        &self.filter_line_edit
     }
 
     /// This function returns a mutable reference to the `Autoexpand Matches` Button.
-    pub fn get_mut_ptr_autoexpand_matches_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.filter_autoexpand_matches_button)
+    pub fn get_mut_ptr_autoexpand_matches_button(&self) -> &QBox<QPushButton> {
+        &self.filter_autoexpand_matches_button
     }
 
     /// This function returns a mutable reference to the `Case Sensitive` Button.
-    pub fn get_mut_ptr_case_sensitive_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.filter_case_sensitive_button)
+    pub fn get_mut_ptr_case_sensitive_button(&self) -> &QBox<QPushButton> {
+        &self.filter_case_sensitive_button
     }
 
     // Function to filter the contents of the TreeView.
-    pub unsafe fn filter_files(view: &PackFileExtraViewRaw) {
+    pub unsafe fn filter_files(view: &Arc<Self>) {
 
         // Set the pattern to search.
-        let mut pattern = QRegExp::new_1a(&view.get_mut_ptr_filter_line_edit().text());
+        let pattern = QRegExp::new_1a(&view.filter_line_edit.text());
 
         // Check if the filter should be "Case Sensitive".
-        let case_sensitive = view.get_mut_ptr_case_sensitive_button().is_checked();
+        let case_sensitive = view.filter_case_sensitive_button.is_checked();
         if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
         else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_treeview_filter_safe(&mut view.get_mut_ptr_tree_model_filter(), &mut pattern);
+        trigger_treeview_filter_safe(&view.tree_model_filter, &pattern.as_ptr());
 
         // Expand all the matches, if the option for it is enabled.
-        if view.get_mut_ptr_autoexpand_matches_button().is_checked() {
-            view.get_mut_ptr_tree_view().expand_all();
+        if view.filter_autoexpand_matches_button.is_checked() {
+            view.tree_view.expand_all();
         }
-    }
-}
-
-/// Implementation of `PackFileExtraViewRaw`.
-impl PackFileExtraViewRaw {
-
-    /// This function returns a mutable reference to the `TreeView` widget.
-    pub fn get_mut_ptr_tree_view(&self) -> MutPtr<QTreeView> {
-        self.tree_view
-    }
-
-    /// This function returns a pointer to the `SortFilterProxyModel` widget.
-    pub fn get_mut_ptr_tree_model_filter(&self) -> MutPtr<QSortFilterProxyModel> {
-        self.tree_model_filter
-    }
-
-    /// This function returns a mutable reference to the `Filter` Line Edit.
-    pub fn get_mut_ptr_filter_line_edit(&self) -> MutPtr<QLineEdit> {
-        self.filter_line_edit
-    }
-
-    /// This function returns a mutable reference to the `Autoexpand Matches` Button.
-    pub fn get_mut_ptr_autoexpand_matches_button(&self) -> MutPtr<QPushButton> {
-        self.filter_autoexpand_matches_button
-    }
-
-    /// This function returns a mutable reference to the `Case Sensitive` Button.
-    pub fn get_mut_ptr_case_sensitive_button(&self) -> MutPtr<QPushButton> {
-        self.filter_case_sensitive_button
-    }
-
-    /// This function returns a copy of this PackFile's real path.
-    pub fn get_pack_file_path(&self) -> PathBuf {
-        self.pack_file_path.read().unwrap().to_path_buf()
     }
 }

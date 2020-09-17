@@ -33,13 +33,13 @@ use qt_core::Orientation;
 use qt_core::SortOrder;
 
 use cpp_core::CppBox;
-use cpp_core::MutPtr;
+use cpp_core::Ptr;
 use cpp_core::Ref;
 
 use std::collections::BTreeMap;
 use std::cmp::Ordering;
-use std::sync::RwLock;
-use std::sync::atomic::AtomicPtr;
+use std::rc::Rc;
+use std::sync::{atomic::AtomicPtr, RwLock};
 
 use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::schema::{Definition, Field, FieldType};
@@ -60,7 +60,7 @@ use super::*;
 //----------------------------------------------------------------------------//
 
 /// This function is used to update the background or undo table when a change is made in the main table.
-pub unsafe fn update_undo_model(model: MutPtr<QStandardItemModel>, mut undo_model: MutPtr<QStandardItemModel>) {
+pub unsafe fn update_undo_model(model: &QBox<QStandardItemModel>, undo_model: &QBox<QStandardItemModel>) {
     undo_model.clear();
     for row in 0..model.row_count_0a() {
         for column in 0..model.column_count_0a() {
@@ -76,7 +76,7 @@ pub unsafe fn update_undo_model(model: MutPtr<QStandardItemModel>, mut undo_mode
 
 /// This function sorts the VISUAL SELECTION. That means, the selection just as you see it on screen.
 /// This should be provided with the indexes OF THE VIEW/FILTER, NOT THE MODEL.
-pub unsafe fn sort_indexes_visually(indexes_sorted: &mut Vec<Ref<QModelIndex>>, table_view: MutPtr<QTableView>) {
+pub unsafe fn sort_indexes_visually(indexes_sorted: &mut Vec<Ref<QModelIndex>>, table_view: &QBox<QTableView>) {
 
     // Sort the indexes so they follow the visual index, not their logical one.
     // This should fix situations like copying a row and getting a different order in the cells,
@@ -110,7 +110,7 @@ pub unsafe fn sort_indexes_by_model(indexes_sorted: &mut Vec<Ref<QModelIndex>>) 
 
 
 /// This function gives you the model's ModelIndexes from the ones from the view/filter.
-pub unsafe fn get_real_indexes(indexes_sorted: &[Ref<QModelIndex>], filter_model: MutPtr<QSortFilterProxyModel>) -> Vec<CppBox<QModelIndex>> {
+pub unsafe fn get_real_indexes(indexes_sorted: &[Ref<QModelIndex>], filter_model: &QBox<QSortFilterProxyModel>) -> Vec<CppBox<QModelIndex>> {
     indexes_sorted.iter().map(|x| filter_model.map_to_source(*x)).collect()
 }
 
@@ -132,7 +132,7 @@ pub unsafe fn dedup_indexes_per_row(indexes: &mut Vec<Ref<QModelIndex>>) {
 ///
 /// It returns a list of (first row of the pack's position, list of deleted rows).
 /// NOTE: The list of rows must be in 9->0 order.
-pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -> Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)> {
+pub unsafe fn delete_rows(model: &QBox<QStandardItemModel>, rows: &[i32]) -> Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)> {
 
     // Make sure all rows are sorted 9->0.
     let mut rows = rows.to_vec();
@@ -148,7 +148,7 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
         // Items are individually cloned because there is no "takeRows" function to take out multiple individual rows.
         let items = (0..model.column_count_0a())
             .map(|column| (&*model.item_2a(*row, column)).clone())
-            .collect::<Vec<MutPtr<QStandardItem>>>();
+            .collect::<Vec<Ptr<QStandardItem>>>();
 
         // If the current line is not the next of the batch, nor the first one, finish the pack.
         if (*row != current_row_index - 1) && index != 0 {
@@ -174,7 +174,7 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
     rows_splitted.iter()
         .map(|x| (x.0, x.1.iter()
             .map(|y| y.iter()
-                .map(|z| atomic_from_mut_ptr(*z))
+                .map(|z| atomic_from_ptr(*z))
                 .collect()
             )
             .collect()
@@ -184,10 +184,10 @@ pub unsafe fn delete_rows(mut model: MutPtr<QStandardItemModel>, rows: &[i32]) -
 
 /// This function returns a new default row.
 pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStandardItem> {
-    let mut qlist = QListOfQStandardItem::new();
+    let qlist = QListOfQStandardItem::new();
     for field in table_definition.get_fields_processed() {
         let item = get_default_item_from_field(&field);
-        add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
+        qlist.append_q_standard_item(&mut item.into_ptr().as_mut_raw_ptr());
     }
     qlist
 }
@@ -196,7 +196,7 @@ pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStand
 pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem> {
     match field.get_ref_field_type() {
         FieldType::Boolean => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             item.set_editable(false);
             item.set_checkable(true);
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
@@ -219,7 +219,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item
         }
         FieldType::F32 => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             let data = if let Some(default_value) = field.get_default_value() {
                 if let Ok(default_value) = default_value.parse::<f32>() {
                     default_value
@@ -238,7 +238,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item
         },
         FieldType::I16 => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             let data = if let Some(default_value) = field.get_default_value() {
                 if let Ok(default_value) = default_value.parse::<i16>() {
                     default_value as i32
@@ -256,7 +256,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item
         },
         FieldType::I32 => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             let data = if let Some(default_value) = field.get_default_value() {
                 if let Ok(default_value) = default_value.parse::<i32>() {
                     default_value
@@ -274,7 +274,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             item
         },
         FieldType::I64 => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             let data = if let Some(default_value) = field.get_default_value() {
                 if let Ok(default_value) = default_value.parse::<i64>() {
                     default_value
@@ -300,7 +300,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
             } else {
                 String::new()
             };
-            let mut item = QStandardItem::from_q_string(&QString::from_std_str(&text));
+            let item = QStandardItem::from_q_string(&QString::from_std_str(&text));
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&text])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
@@ -310,7 +310,7 @@ pub unsafe fn get_default_item_from_field(field: &Field) -> CppBox<QStandardItem
 
         FieldType::SequenceU16(ref definition) | FieldType::SequenceU32(ref definition)  => {
             let table = serde_json::to_string(&Table::new(&definition)).unwrap();
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
 
             item.set_text(&qtr("packedfile_editable_sequence"));
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
@@ -345,7 +345,7 @@ pub fn clean_column_names(field_name: &str) -> String {
 }
 
 /// This function returns the color used for wrong referenced data in tables.
-pub unsafe fn get_color_wrong_key() -> MutPtr<QColor> {
+pub unsafe fn get_color_wrong_key() -> Ptr<QColor> {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
         QColor::from_q_string(&QString::from_std_str(*DARK_RED)).into_ptr()
     } else {
@@ -354,7 +354,7 @@ pub unsafe fn get_color_wrong_key() -> MutPtr<QColor> {
 }
 
 /// This function returns the color used for data with missing references in tables.
-pub unsafe fn get_color_no_ref_data() -> MutPtr<QColor> {
+pub unsafe fn get_color_no_ref_data() -> Ptr<QColor> {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
         QColor::from_q_string(&QString::from_std_str(*LINK_BLUE)).into_ptr()
     } else {
@@ -363,7 +363,7 @@ pub unsafe fn get_color_no_ref_data() -> MutPtr<QColor> {
 }
 
 /// This function returns the color used for correct referenced data in tables.
-pub unsafe fn get_color_correct_key() -> MutPtr<QColor> {
+pub unsafe fn get_color_correct_key() -> Ptr<QColor> {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
         QColor::from_q_string(&QString::from_std_str(*EVEN_MORE_WHITY_GREY)).into_ptr()
     } else {
@@ -374,7 +374,7 @@ pub unsafe fn get_color_correct_key() -> MutPtr<QColor> {
 /// Function to check if an specific field's data is in their references.
 pub unsafe fn check_references(
     column: i32,
-    mut item: MutPtr<QStandardItem>,
+    item: Ptr<QStandardItem>,
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
     table_type: PackedFileType,
 ) {
@@ -417,14 +417,14 @@ pub unsafe fn check_references(
 
 /// This function loads the data from a compatible `PackedFile` into a TableView.
 pub unsafe fn load_data(
-    table_view_primary: MutPtr<QTableView>,
-    table_view_frozen: MutPtr<QTableView>,
+    table_view_primary: &QBox<QTableView>,
+    table_view_frozen: &QBox<QTableView>,
     definition: &Definition,
     dependency_data: &RwLock<BTreeMap<i32, BTreeMap<String, String>>>,
     data: &TableType,
 ) {
-    let table_filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
-    let mut table_model: MutPtr<QStandardItemModel> = table_filter.source_model().static_downcast_mut();
+    let table_filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
+    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
 
     // First, we delete all the data from the `ListStore`. Just in case there is something there.
     // This wipes out header information, so remember to run "build_columns" after this.
@@ -443,29 +443,29 @@ pub unsafe fn load_data(
     if !data.is_empty() {
 
         // Load the data, row by row.
-        let mut blocker = QSignalBlocker::from_q_object(table_model.static_upcast_mut::<QObject>());
+        let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
         for (row, entry) in data.iter().enumerate() {
-            let mut qlist = QListOfQStandardItem::new();
+            let qlist = QListOfQStandardItem::new();
             for (index, field) in entry.iter().enumerate() {
-                let mut item = get_item_from_decoded_data(field);
+                let item = get_item_from_decoded_data(field);
 
                 match packed_file_type {
                     PackedFileType::DB => {
 
                         // If we have the dependency stuff enabled, check if it's a valid reference.
                         if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.get_fields_processed()[index].get_is_reference().is_some() {
-                            check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap(), packed_file_type);
+                            check_references(index as i32, item.as_ptr(), &dependency_data.read().unwrap(), packed_file_type);
                         }
                     }
 
                     PackedFileType::DependencyPackFilesList => {
-                        check_references(index as i32, item.as_mut_ptr(), &dependency_data.read().unwrap(), packed_file_type);
+                        check_references(index as i32, item.as_ptr(), &dependency_data.read().unwrap(), packed_file_type);
                     }
 
                     _ => {}
                 }
 
-                add_to_q_list_safe(qlist.as_mut_ptr(), item.into_ptr());
+                qlist.append_q_standard_item(&mut item.into_ptr().as_mut_raw_ptr());
             }
             if row == data.len() - 1 {
                 blocker.unblock();
@@ -483,7 +483,7 @@ pub unsafe fn load_data(
 
     setup_item_delegates(
         table_view_primary,
-        table_view_frozen,
+        &table_view_frozen,
         definition,
         &dependency_data.read().unwrap(),
     )
@@ -495,7 +495,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
 
         // This one needs a couple of changes before turning it into an item in the table.
         DecodedData::Boolean(ref data) => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
             item.set_data_2a(&QVariant::from_bool(*data), ITEM_SOURCE_VALUE);
@@ -519,7 +519,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
                 else { *data }
             };
 
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
@@ -528,7 +528,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             item
         },
         DecodedData::I16(ref data) => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
@@ -537,7 +537,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             item
         },
         DecodedData::I32(ref data) => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
@@ -546,7 +546,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
             item
         },
         DecodedData::I64(ref data) => {
-            let mut item = QStandardItem::new();
+            let item = QStandardItem::new();
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data.to_string()])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
@@ -559,7 +559,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
         DecodedData::StringU16(ref data) |
         DecodedData::OptionalStringU8(ref data) |
         DecodedData::OptionalStringU16(ref data) => {
-            let mut item = QStandardItem::from_q_string(&QString::from_std_str(data));
+            let item = QStandardItem::from_q_string(&QString::from_std_str(data));
             item.set_tool_tip(&QString::from_std_str(&tre("original_data", &[&data])));
             item.set_data_2a(&QVariant::from_bool(true), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_IS_SEQUENCE);
@@ -568,7 +568,7 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
         },
         DecodedData::SequenceU16(ref table) | DecodedData::SequenceU32(ref table) => {
             let table = QString::from_std_str(&serde_json::to_string(&table).unwrap());
-            let mut item = QStandardItem::from_q_string(&qtr("packedfile_editable_sequence"));
+            let item = QStandardItem::from_q_string(&qtr("packedfile_editable_sequence"));
             item.set_editable(false);
             item.set_data_2a(&QVariant::from_bool(false), ITEM_HAS_SOURCE_VALUE);
             item.set_data_2a(&QVariant::from_bool(true), ITEM_IS_SEQUENCE);
@@ -581,13 +581,13 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we load/reload the data to the table.
 pub unsafe fn build_columns(
-    mut table_view_primary: MutPtr<QTableView>,
-    table_view_frozen: Option<MutPtr<QTableView>>,
+    table_view_primary: &QBox<QTableView>,
+    table_view_frozen: Option<&QBox<QTableView>>,
     definition: &Definition,
     table_name: Option<&String>,
 ) {
-    let filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
-    let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+    let filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
+    let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
     let schema = SCHEMA.read().unwrap();
     let mut do_we_have_ca_order = false;
     let mut keys = vec![];
@@ -595,8 +595,8 @@ pub unsafe fn build_columns(
     for (index, field) in definition.get_fields_processed().iter().enumerate() {
 
         let name = clean_column_names(&field.get_name());
-        let mut item = QStandardItem::from_q_string(&QString::from_std_str(&name));
-        set_column_tooltip(&schema, &field, table_name, &mut item);
+        let item = QStandardItem::from_q_string(&QString::from_std_str(&name));
+        set_column_tooltip(&schema, &field, table_name, &item);
         model.set_horizontal_header_item(index as i32, item.into_ptr());
 
         // Depending on his type, set one width or another.
@@ -620,7 +620,7 @@ pub unsafe fn build_columns(
 
     // Now the order. If we have a sort order from the schema, we use that one.
     if !SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] && do_we_have_ca_order {
-        let mut header_primary = table_view_primary.horizontal_header();
+        let header_primary = table_view_primary.horizontal_header();
         let mut fields = definition.get_fields_processed().iter()
             .enumerate()
             .map(|(x, y)| (x, y.get_ca_order()))
@@ -635,8 +635,8 @@ pub unsafe fn build_columns(
                 let visual_index = header_primary.visual_index(*logical_index as i32);
                 header_primary.move_section(visual_index as i32, new_pos as i32);
 
-                if let Some(table_view_frozen) = table_view_frozen {
-                    let mut header_frozen = table_view_frozen.horizontal_header();
+                if let Some(ref table_view_frozen) = table_view_frozen {
+                    let header_frozen = table_view_frozen.horizontal_header();
                     header_frozen.move_section(visual_index as i32, new_pos as i32);
                 }
             }
@@ -645,12 +645,12 @@ pub unsafe fn build_columns(
 
     // Otherwise, if we have any "Key" field, move it to the beginning.
     else if !keys.is_empty() {
-        let mut header_primary = table_view_primary.horizontal_header();
+        let header_primary = table_view_primary.horizontal_header();
         for (position, column) in keys.iter().enumerate() {
             header_primary.move_section(*column as i32, position as i32);
 
-            if let Some(table_view_frozen) = table_view_frozen {
-                let mut header_frozen = table_view_frozen.horizontal_header();
+            if let Some(ref table_view_frozen) = table_view_frozen {
+                let header_frozen = table_view_frozen.horizontal_header();
                 header_frozen.move_section(*column as i32, position as i32);
             }
         }
@@ -663,7 +663,12 @@ pub unsafe fn build_columns(
 }
 
 /// This function sets the tooltip for the provided column header, if the column should have one.
-pub unsafe fn set_column_tooltip(schema: &Option<Schema>, field: &Field, table_name: Option<&String>, item: &mut QStandardItem) {
+pub unsafe fn set_column_tooltip(
+    schema: &Option<Schema>,
+    field: &Field,
+    table_name: Option<&String>,
+    item: &QStandardItem
+) {
 
     // If we passed it a table name, build the tooltip based on it. The logic is simple:
     // - If we have a description, we add it to the tooltip.
@@ -753,7 +758,7 @@ pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32
                     if let View::Table(table) = view {
                         let table = table.get_ref_table();
                         let column = clean_column_names(column);
-                        let table_model = mut_ptr_from_atomic(&table.table_model);
+                        let table_model = &table.table_model;
                         for column_index in 0..table_model.column_count_0a() {
                             if table_model.header_data_2a(column_index, Orientation::Horizontal).to_string().to_std_string() == column {
                                 for row in 0..table_model.row_count_0a() {
@@ -799,8 +804,8 @@ pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32
 
 /// This function sets up the item delegates for all columns in a table.
 pub unsafe fn setup_item_delegates(
-    mut table_view_primary: MutPtr<QTableView>,
-    mut table_view_frozen: MutPtr<QTableView>,
+    table_view_primary: &QBox<QTableView>,
+    table_view_frozen: &QBox<QTableView>,
     definition: &Definition,
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
 ) {
@@ -809,7 +814,7 @@ pub unsafe fn setup_item_delegates(
 
         // Combos are a bit special, as they may or may not replace other delegates. If we disable them, use the normal delegates.
         if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() || !field.get_enum_values().is_empty() {
-            let mut list = QStringList::new();
+            let list = QStringList::new();
             if let Some(data) = dependency_data.get(&(column as i32)) {
                 data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
@@ -818,30 +823,30 @@ pub unsafe fn setup_item_delegates(
                 field.get_enum_values().values().for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
-            new_combobox_item_delegate_safe(&mut table_view_primary, column as i32, list.as_ptr(), true, field.get_max_length());
-            new_combobox_item_delegate_safe(&mut table_view_frozen, column as i32, list.as_ptr(), true, field.get_max_length());
+            new_combobox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length());
+            new_combobox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, list.as_ptr(), true, field.get_max_length());
         }
 
         else {
             match field.get_ref_field_type() {
                 FieldType::Boolean => {},
                 FieldType::F32 => {
-                    new_doublespinbox_item_delegate_safe(&mut table_view_primary, column as i32);
-                    new_doublespinbox_item_delegate_safe(&mut table_view_frozen, column as i32);
+                    new_doublespinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32);
+                    new_doublespinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32);
                 },
                 FieldType::I16 => {
-                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 16);
-                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 16);
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 16);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 16);
                 },
                 FieldType::I32 => {
-                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 32);
-                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 32);
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 32);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 32);
                 },
 
                 // LongInteger uses normal string controls due to QSpinBox being limited to i32.
                 FieldType::I64 => {
-                    new_spinbox_item_delegate_safe(&mut table_view_primary, column as i32, 64);
-                    new_spinbox_item_delegate_safe(&mut table_view_frozen, column as i32, 64);
+                    new_spinbox_item_delegate_safe(&table_view_primary.static_upcast::<QObject>().as_ptr(), column as i32, 64);
+                    new_spinbox_item_delegate_safe(&table_view_frozen.static_upcast::<QObject>().as_ptr(), column as i32, 64);
                 },
                 FieldType::StringU8 |
                 FieldType::StringU16 |
@@ -858,12 +863,12 @@ pub unsafe fn setup_item_delegates(
 
 /// This function checks an entire table for errors.
 pub unsafe fn check_table_for_errors(
-    model: MutPtr<QStandardItemModel>,
+    model: &QBox<QStandardItemModel>,
     definition: &Definition,
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
     packed_file_type: PackedFileType,
 ) {
-    let _blocker = QSignalBlocker::from_q_object(model.static_upcast_mut::<QObject>());
+    let _blocker = QSignalBlocker::from_q_object(model.static_upcast::<QObject>());
     match packed_file_type {
         PackedFileType::DB => {
             for (column, field) in definition.get_fields_processed().iter().enumerate() {
@@ -889,7 +894,11 @@ pub unsafe fn check_table_for_errors(
 }
 
 /// This function is a generic way to toggle the sort order of a column.
-pub unsafe fn sort_column(table_view: MutPtr<QTableView>, column: i32, column_sort_state: Arc<RwLock<(i32, i8)>>) {
+pub unsafe fn sort_column(
+    table_view: &QBox<QTableView>,
+    column: i32,
+    column_sort_state: Arc<RwLock<(i32, i8)>>
+) {
     let mut needs_cleaning = false;
     {
         // We only change the order if it's less than 2. Otherwise, we reset it.
@@ -913,7 +922,10 @@ pub unsafe fn sort_column(table_view: MutPtr<QTableView>, column: i32, column_so
 }
 
 /// This function is used to build a table struct with the data of a TableView and it's definition.
-pub unsafe fn get_table_from_view(model: MutPtr<QStandardItemModel>, definition: &Definition) -> Result<Table> {
+pub unsafe fn get_table_from_view(
+    model: &QBox<QStandardItemModel>,
+    definition: &Definition
+) -> Result<Table> {
     let mut entries = vec![];
 
     for row in 0..model.row_count_0a() {
@@ -956,37 +968,37 @@ pub unsafe fn get_table_from_view(model: MutPtr<QStandardItemModel>, definition:
 
 /// This function creates a new subtable from the current table.
 pub unsafe fn open_subtable(
-    parent: MutPtr<QWidget>,
-    app_ui: &AppUI,
-    global_search_ui: &GlobalSearchUI,
-    pack_file_contents_ui: &PackFileContentsUI,
-    diagnostics_ui: &DiagnosticsUI,
+    parent: QPtr<QWidget>,
+    app_ui: &Rc<AppUI>,
+    global_search_ui: &Rc<GlobalSearchUI>,
+    pack_file_contents_ui: &Rc<PackFileContentsUI>,
+    diagnostics_ui: &Rc<DiagnosticsUI>,
     table_data: TableType,
 ) -> Option<String> {
 
     // Create and configure the dialog.
-    let mut dialog = QDialog::new_1a(parent);
+    let dialog = QDialog::new_1a(parent);
     dialog.set_window_title(&qtr("nested_table_title"));
     dialog.set_modal(true);
     dialog.resize_2a(600, 200);
 
-    let mut main_grid = create_grid_layout(dialog.as_mut_ptr().static_upcast_mut());
-    let mut main_widget = QWidget::new_0a();
-    let _widget_grid = create_grid_layout(main_widget.as_mut_ptr());
-    let mut accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
+    let main_grid = create_grid_layout(dialog.static_upcast());
+    let main_widget = QWidget::new_0a();
+    let _widget_grid = create_grid_layout(main_widget.static_upcast());
+    let accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
 
-    let (table_view, _slots) = TableView::new_view(main_widget.as_mut_ptr(), app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None).unwrap();
+    let table_view = TableView::new_view(&main_widget, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, table_data, None).unwrap();
 
-    main_grid.add_widget_5a(&mut main_widget, 0, 0, 1, 1);
-    main_grid.add_widget_5a(&mut accept_button, 1, 0, 1, 1);
+    main_grid.add_widget_5a(&main_widget, 0, 0, 1, 1);
+    main_grid.add_widget_5a(&accept_button, 1, 0, 1, 1);
 
     accept_button.released().connect(dialog.slot_accept());
 
     if dialog.exec() == 1 {
-        if let Ok(table) = get_table_from_view(mut_ptr_from_atomic(&table_view.table_model), &table_view.get_ref_table_definition()) {
+        if let Ok(table) = get_table_from_view(&table_view.table_model, &table_view.get_ref_table_definition()) {
             Some(serde_json::to_string(&table).unwrap())
         } else {
-            show_dialog(mut_ptr_from_atomic(&table_view.table_view_primary), ErrorKind::Generic, false);
+            show_dialog(&table_view.table_view_primary, ErrorKind::Generic, false);
             None
         }
     } else { None }

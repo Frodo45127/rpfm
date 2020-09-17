@@ -12,20 +12,18 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
+use qt_core::QBox;
 use qt_widgets::QAction;
-use qt_widgets::QCompleter;
 use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
 use qt_widgets::QMessageBox;
 
 use qt_gui::QDesktopServices;
 
-use qt_core::FocusReason;
-use qt_core::{SlotOfBool, SlotOfInt, Slot, SlotOfQString};
+use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs};
 use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::QUrl;
 
-use std::cell::RefCell;
 use std::fs::{DirBuilder, copy, remove_file, remove_dir_all};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -46,14 +44,13 @@ use rpfm_lib::SUPPORTED_GAMES;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::command_palette;
 use crate::communications::{THREADS_COMMUNICATION_ERROR, Command, Response};
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr, tre};
 use crate::mymod_ui::MyModUI;
 use crate::pack_tree::{new_pack_file_tooltip, PackTree, TreeViewOperation};
-use crate::packedfile_views::{TheOneSlot, View, ViewType};
+use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::TreePathType;
 use crate::settings_ui::SettingsUI;
@@ -72,98 +69,88 @@ use crate::views::table::utils::{check_table_for_errors, get_reference_data, set
 /// This means everything you can do with the stuff you have in the `AppUI` goes here.
 pub struct AppUISlots {
 
-	//-----------------------------------------------//
-    // Command Palette slots.
-    //-----------------------------------------------//
-    pub command_palette_show: Slot<'static>,
-    pub command_palette_hide: Slot<'static>,
-    pub command_palette_trigger: SlotOfQString<'static>,
-
     //-----------------------------------------------//
     // `PackFile` menu slots.
     //-----------------------------------------------//
-    pub packfile_new_packfile: SlotOfBool<'static>,
-    pub packfile_open_packfile: SlotOfBool<'static>,
-    pub packfile_save_packfile: SlotOfBool<'static>,
-    pub packfile_save_packfile_as: SlotOfBool<'static>,
-    pub packfile_open_from: Vec<SlotOfBool<'static>>,
-    pub packfile_load_all_ca_packfiles: SlotOfBool<'static>,
-    pub packfile_change_packfile_type: SlotOfBool<'static>,
-    pub packfile_index_includes_timestamp: SlotOfBool<'static>,
-    pub packfile_data_is_compressed: SlotOfBool<'static>,
-    pub packfile_preferences: SlotOfBool<'static>,
-    pub packfile_quit: SlotOfBool<'static>,
+    pub packfile_open_menu: QBox<SlotNoArgs>,
+    pub packfile_new_packfile: QBox<SlotOfBool>,
+    pub packfile_open_packfile: QBox<SlotOfBool>,
+    pub packfile_save_packfile: QBox<SlotOfBool>,
+    pub packfile_save_packfile_as: QBox<SlotOfBool>,
+    pub packfile_load_all_ca_packfiles: QBox<SlotOfBool>,
+    pub packfile_change_packfile_type: QBox<SlotOfBool>,
+    pub packfile_index_includes_timestamp: QBox<SlotOfBool>,
+    pub packfile_data_is_compressed: QBox<SlotOfBool>,
+    pub packfile_preferences: QBox<SlotOfBool>,
+    pub packfile_quit: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `MyMod` menu slots.
     //-----------------------------------------------//
-    pub mymod_new: SlotOfBool<'static>,
-    pub mymod_delete_selected: SlotOfBool<'static>,
-    pub mymod_install: SlotOfBool<'static>,
-    pub mymod_uninstall: SlotOfBool<'static>,
-    pub mymod_open: Vec<SlotOfBool<'static>>,
+    pub mymod_open_menu: QBox<SlotNoArgs>,
+    pub mymod_new: QBox<SlotOfBool>,
+    pub mymod_delete_selected: QBox<SlotOfBool>,
+    pub mymod_install: QBox<SlotOfBool>,
+    pub mymod_uninstall: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `View` menu slots.
     //-----------------------------------------------//
-    pub view_toggle_packfile_contents: SlotOfBool<'static>,
-    pub view_toggle_global_search_panel: SlotOfBool<'static>,
-    pub view_toggle_diagnostics_panel: SlotOfBool<'static>,
+    pub view_toggle_packfile_contents: QBox<SlotOfBool>,
+    pub view_toggle_global_search_panel: QBox<SlotOfBool>,
+    pub view_toggle_diagnostics_panel: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Game Selected` menu slots.
     //-----------------------------------------------//
-    pub game_selected_launch_game: SlotOfBool<'static>,
-    pub game_selected_open_game_data_folder: SlotOfBool<'static>,
-    pub game_selected_open_game_assembly_kit_folder: SlotOfBool<'static>,
-    pub game_selected_open_config_folder: SlotOfBool<'static>,
-    pub change_game_selected: SlotOfBool<'static>,
+    pub game_selected_launch_game: QBox<SlotOfBool>,
+    pub game_selected_open_game_data_folder: QBox<SlotOfBool>,
+    pub game_selected_open_game_assembly_kit_folder: QBox<SlotOfBool>,
+    pub game_selected_open_config_folder: QBox<SlotOfBool>,
+    pub change_game_selected: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Special Stuff` menu slots.
     //-----------------------------------------------//
-    pub special_stuff_repack_animtable: SlotOfBool<'static>,
-    pub special_stuff_generate_pak_file: SlotOfBool<'static>,
-    pub special_stuff_optimize_packfile: SlotOfBool<'static>,
-    pub special_stuff_patch_siege_ai: SlotOfBool<'static>,
+    pub special_stuff_repack_animtable: QBox<SlotOfBool>,
+    pub special_stuff_generate_pak_file: QBox<SlotOfBool>,
+    pub special_stuff_optimize_packfile: QBox<SlotOfBool>,
+    pub special_stuff_patch_siege_ai: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `About` menu slots.
     //-----------------------------------------------//
-    pub about_about_qt: SlotOfBool<'static>,
-    pub about_about_rpfm: SlotOfBool<'static>,
-    pub about_open_manual: SlotOfBool<'static>,
-    pub about_patreon_link: SlotOfBool<'static>,
-    pub about_check_updates: SlotOfBool<'static>,
-    pub about_check_schema_updates: SlotOfBool<'static>,
-    pub about_update_templates: SlotOfBool<'static>,
+    pub about_about_qt: QBox<SlotOfBool>,
+    pub about_about_rpfm: QBox<SlotOfBool>,
+    pub about_open_manual: QBox<SlotOfBool>,
+    pub about_patreon_link: QBox<SlotOfBool>,
+    pub about_check_updates: QBox<SlotOfBool>,
+    pub about_check_schema_updates: QBox<SlotOfBool>,
+    pub about_update_templates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
     //-----------------------------------------------//
-    pub debug_update_current_schema_from_asskit: SlotOfBool<'static>,
+    pub debug_update_current_schema_from_asskit: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `PackedFileView` slots.
     //-----------------------------------------------//
-    pub packed_file_hide: SlotOfInt<'static>,
-    pub packed_file_update: SlotOfInt<'static>,
-    pub packed_file_unpreview: SlotOfInt<'static>,
+    pub packed_file_hide: QBox<SlotOfInt>,
+    pub packed_file_update: QBox<SlotOfInt>,
+    pub packed_file_unpreview: QBox<SlotOfInt>,
 
     //-----------------------------------------------//
     // `Generic` slots.
     //-----------------------------------------------//
-    pub pack_file_backup_autosave: Slot<'static>,
+    pub pack_file_backup_autosave: QBox<SlotNoArgs>,
 
-    pub tab_bar_packed_file_close: Slot<'static>,
-    pub tab_bar_packed_file_prev: Slot<'static>,
-    pub tab_bar_packed_file_next: Slot<'static>,
+    pub tab_bar_packed_file_close: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_prev: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
 }
 
-pub struct AppUITempSlots {
-    pub packfile_open_from: Vec<SlotOfBool<'static>>,
-    pub mymod_open: Vec<SlotOfBool<'static>>,
-}
+pub struct AppUITempSlots {}
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
@@ -174,62 +161,35 @@ impl AppUISlots {
 
 	/// This function creates an entire `AppUISlots` struct. Used to create the logic of the starting UI.
 	pub unsafe fn new(
-        mut app_ui: AppUI,
-        mut global_search_ui: GlobalSearchUI,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        mut diagnostics_ui: DiagnosticsUI,
-        app_temp_slots: &Rc<RefCell<AppUITempSlots>>,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Self {
-
-		//-----------------------------------------------//
-        // Command Palette logic.
-        //-----------------------------------------------//
-
-        // This one puts the command palette in the top center part of the window, make it appear and gives it the focus.
-		let command_palette_show = Slot::new(move || {
-            let mut line_edit = app_ui.command_palette_line_edit;
-            let mut command_palette = app_ui.command_palette;
-            let mut completer = app_ui.command_palette_completer;
-            let main_window = app_ui.main_window;
-
-            let width = (main_window.width() / 2 ) - (command_palette.width() / 2 );
-			let height = 80;
-            command_palette.move_2a(width, height);
-            line_edit.set_completer(app_ui.command_palette_completer);
-
-            command_palette::load_actions(&mut app_ui, &pack_file_contents_ui);
-            command_palette.show();
-			line_edit.set_focus_1a(FocusReason::ShortcutFocusReason);
-            line_edit.set_text(&QString::from_std_str(""));
-
-            line_edit.completer();
-            completer.complete_0a();
-        });
-
-		// This one hides the command palette.
-        let command_palette_hide = Slot::new(move || {
-            app_ui.command_palette_line_edit.set_completer(QCompleter::new().into_ptr());
-            app_ui.command_palette.hide();
-        });
-
-        // This is the fun one. This one triggers any command you type in the command palette.
-        let command_palette_trigger = SlotOfQString::new(move |command| {
-        	app_ui.command_palette.hide();
-            command_palette::exec_action(&app_ui, &pack_file_contents_ui, command);
-        });
 
         //-----------------------------------------------//
         // `PackFile` menu logic.
         //-----------------------------------------------//
 
+        // Slot to build the "Open from" submenus of the PackFile menu.
+        let packfile_open_menu = SlotNoArgs::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+                AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+            }
+        ));
+
         // What happens when we trigger the "New PackFile" action.
-        let packfile_new_packfile = SlotOfBool::new(clone!(
-            mut global_search_ui,
-            mut slot_holder => move |_| {
+        let packfile_new_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if app_ui.are_you_sure(false) {
+                if AppUI::are_you_sure(&app_ui, false) {
 
                     // Tell the Background Thread to create a new PackFile.
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
@@ -242,9 +202,9 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(false);
 
                     // Close any open PackedFile and clear the global search pannel.
-                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
-                    global_search_ui.clear();
-                    diagnostics_ui.diagnostics_table_model.clear();
+                    let _ = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false);
+                    GlobalSearchUI::clear(&global_search_ui);
+                    diagnostics_ui.get_ref_diagnostics_table_model().clear();
                     //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                     // Show the "Tips".
@@ -269,23 +229,26 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(true);
 
                     // Enable the actions available for the PackFile from the `MenuBar`.
-                    app_ui.enable_packfile_actions(true);
+                    AppUI::enable_packfile_actions(&app_ui, true);
 
                     // Set the current "Operational Mode" to Normal, as this is a "New" mod.
-                    UI_STATE.set_operational_mode(&mut app_ui, None);
-                    UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
+                    UI_STATE.set_operational_mode(&app_ui, None);
+                    UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
                 }
             }
         ));
 
-        let packfile_open_packfile = SlotOfBool::new(clone!(
-            slot_holder => move |_| {
+        let packfile_open_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Check first if there has been changes in the PackFile.
-                if app_ui.are_you_sure(false) {
+                if AppUI::are_you_sure(&app_ui, false) {
 
                     // Create the FileDialog to get the PackFile to open and configure it.
-                    let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                    let file_dialog = QFileDialog::from_q_widget_q_string(
                         app_ui.main_window,
                         &qtr("open_packfiles"),
                     );
@@ -303,43 +266,50 @@ impl AppUISlots {
                         }
 
                         // Try to open it, and report it case of error.
-                        if let Err(error) = app_ui.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, "", &slot_holder) {
+                        if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &paths, "") {
                             return show_dialog(app_ui.main_window, error, false);
                         }
 
-                        diagnostics_ui.diagnostics_table_model.clear();
-                        diagnostics_ui.check();
+                        DiagnosticsUI::check(&diagnostics_ui);
                     }
                 }
             }
         ));
 
         // What happens when we trigger the "Save PackFile" action.
-        let packfile_save_packfile = SlotOfBool::new(move |_| {
-                if let Err(error) = app_ui.save_packfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false) {
+        let packfile_save_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false) {
                     show_dialog(app_ui.main_window, error, false);
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Save PackFile As" action.
-        let packfile_save_packfile_as = SlotOfBool::new(move |_| {
-                if let Err(error) = app_ui.save_packfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, true) {
+        let packfile_save_packfile_as = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+                if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, true) {
                     show_dialog(app_ui.main_window, error, false);
                 }
             }
-        );
-
-        let packfile_open_from = vec![];
+        ));
 
         // What happens when we trigger the "Load All CA PackFiles" action.
-        let packfile_load_all_ca_packfiles = SlotOfBool::new(clone!(
-            mut global_search_ui,
-            mut slot_holder => move |_| {
+        let packfile_load_all_ca_packfiles = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
             // Check first if there has been changes in the PackFile. If we accept, just take all the PackFiles in the data folder
             // and open them all together, skipping mods.
-            if app_ui.are_you_sure(false) {
+            if AppUI::are_you_sure(&app_ui, false) {
 
                 // Reset the autosave timer.
                 app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
@@ -349,8 +319,8 @@ impl AppUISlots {
                 app_ui.main_window.set_enabled(false);
 
                 // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                global_search_ui.clear();
-                let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
+                GlobalSearchUI::clear(&global_search_ui);
+                let _ = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::LoadAllCAPackFiles);
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -394,14 +364,8 @@ impl AppUISlots {
                             _ => unreachable!(),
                         }
 
-                        UI_STATE.set_operational_mode(&mut app_ui, None);
-                        UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
-
-                        // Close the Global Search stuff and reset the filter's history.
-                        //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
-
-                        // Show the "Tips".
-                        //display_help_tips(&app_ui);
+                        UI_STATE.set_operational_mode(&app_ui, None);
+                        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
                     }
 
                     // If we got an error...
@@ -419,7 +383,9 @@ impl AppUISlots {
         }));
 
         // What happens when we trigger the "Change PackFile Type" action.
-        let packfile_change_packfile_type = SlotOfBool::new(move |_| {
+        let packfile_change_packfile_type = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
 
                 // Get the currently selected PackFile's Type.
                 let packfile_type = match &*(app_ui.change_packfile_type_group
@@ -434,34 +400,40 @@ impl AppUISlots {
 
                 // Send the type to the Background Thread, and update the UI.
                 CENTRAL_COMMAND.send_message_qt(Command::SetPackFileType(packfile_type));
-                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
-        );
+        ));
 
         // What happens when we change the value of "Include Last Modified Date" action.
-        let packfile_index_includes_timestamp = SlotOfBool::new(move |_| {
+        let packfile_index_includes_timestamp = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui =>  move |_| {
                 let state = app_ui.change_packfile_type_index_includes_timestamp.is_checked();
                 CENTRAL_COMMAND.send_message_qt(Command::ChangeIndexIncludesTimestamp(state));
-                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
-        );
+        ));
 
         // What happens when we enable/disable compression on the current PackFile.
-        let packfile_data_is_compressed = SlotOfBool::new(move |_| {
+        let packfile_data_is_compressed = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui =>  move |_| {
                 let state = app_ui.change_packfile_type_data_is_compressed.is_checked();
                 CENTRAL_COMMAND.send_message_qt(Command::ChangeDataIsCompressed(state));
-                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
             }
-        );
+        ));
 
         // What happens when we trigger the "Preferences" action.
-        let packfile_preferences = SlotOfBool::new(clone!(
-            slot_holder,
-            app_temp_slots => move |_| {
+        let packfile_preferences = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // We store a copy of the old settings (for checking changes) and trigger the new settings dialog.
                 let old_settings = SETTINGS.read().unwrap().clone();
-                if let Some(settings) = SettingsUI::new(&mut app_ui) {
+                if let Some(settings) = SettingsUI::new(&app_ui) {
 
                     // If we returned new settings, save them and wait for confirmation.
                     CENTRAL_COMMAND.send_message_qt(Command::SetSettings(settings.clone()));
@@ -474,8 +446,8 @@ impl AppUISlots {
                             // If we changed the "MyMod's Folder" path, disable the MyMod mode and set it so the MyMod menu will be re-built
                             // next time we open the MyMod menu.
                             if settings.paths["mymods_base_path"] != old_settings.paths["mymods_base_path"] {
-                                UI_STATE.set_operational_mode(&mut app_ui, None);
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
+                                UI_STATE.set_operational_mode(&app_ui, None);
+                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
                             }
 
                             // If we have changed the path of any of the games, and that game is the current `GameSelected`,
@@ -485,7 +457,7 @@ impl AppUISlots {
                                 .any(|x| x.0 == &*GAME_SELECTED.read().unwrap());
 
                             if has_game_selected_path_changed {
-                                QAction::trigger(&mut app_ui.game_selected_group.checked_action());
+                                QAction::trigger(&app_ui.game_selected_group.checked_action());
                             }
                         }
 
@@ -500,9 +472,9 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Quit" action.
-        let packfile_quit = SlotOfBool::new(clone!(
+        let packfile_quit = SlotOfBool::new(app_ui.main_window, clone!(
             mut app_ui => move |_| {
-                if app_ui.are_you_sure(false) {
+                if AppUI::are_you_sure(&app_ui, false) {
                     app_ui.main_window.close();
                 }
             }
@@ -512,15 +484,25 @@ impl AppUISlots {
         // `MyMod` menu logic.
         //-----------------------------------------------//
 
+        // Slot to build the "Open from" submenus of the MyMod menu.
+        let mymod_open_menu = SlotNoArgs::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+            }
+        ));
 
         // This slot is used for the "New MyMod" action.
-        let mymod_new = SlotOfBool::new(clone!(
-            mut app_temp_slots,
-            mut global_search_ui,
-            mut slot_holder => move |_| {
+        let mymod_new = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Trigger the `New MyMod` Dialog, and get the result.
-                if let Some((mod_name, mod_game)) = MyModUI::new(&mut app_ui) {
+                if let Some((mod_name, mod_game)) = MyModUI::new(&app_ui) {
                     let full_mod_name = format!("{}.pack", mod_name);
 
                     // Change the Game Selected to match the one we chose for the new "MyMod".
@@ -564,8 +546,8 @@ impl AppUISlots {
                     mymod_path.push(&full_mod_name);
 
                     // Destroy whatever it's in the PackedFile's views and clear the global search UI.
-                    let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false);
-                    global_search_ui.clear();
+                    let _ = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false);
+                    GlobalSearchUI::clear(&global_search_ui);
 
                     // Reset the autosave timer.
                     app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
@@ -577,7 +559,7 @@ impl AppUISlots {
                     match response {
                         Response::PackFileInfo(pack_file_info) => {
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
-                            let mut packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
+                            let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                             packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                             packfile_item.set_text(&QString::from_std_str(&full_mod_name));
 
@@ -589,18 +571,17 @@ impl AppUISlots {
                             app_ui.change_packfile_type_header_is_extended.set_checked(false);
                             app_ui.change_packfile_type_data_is_compressed.set_checked(false);
 
-                            app_ui.enable_packfile_actions(true);
+                            AppUI::enable_packfile_actions(&app_ui, true);
 
-                            UI_STATE.set_operational_mode(&mut app_ui, Some(&mymod_path));
-                            UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
+                            UI_STATE.set_operational_mode(&app_ui, Some(&mymod_path));
+                            UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                             // Close the Global Search stuff and reset the filter's history.
                             //if !SETTINGS.lock().unwrap().settings_bool["remember_table_state_permanently"] { TABLE_STATES_UI.lock().unwrap().clear(); }
 
                             // Show the "Tips".
                             //display_help_tips(&app_ui);
-
-                            app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
+                            AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
                             app_ui.main_window.set_enabled(true);
                         }
 
@@ -617,12 +598,14 @@ impl AppUISlots {
         ));
 
         // This slot is used for the "Delete Selected MyMod" action.
-        let mymod_delete_selected = SlotOfBool::new(clone!(
-            slot_holder,
-            app_temp_slots => move |_| {
+        let mymod_delete_selected = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Ask before doing it, as this will permanently delete the mod from the Disk.
-                if app_ui.are_you_sure(true) {
+                if AppUI::are_you_sure(&app_ui, true) {
 
                     // We want to keep our "MyMod" name for the success message, so we store it here.
                     let old_mod_name: String;
@@ -668,7 +651,7 @@ impl AppUISlots {
                                 }
 
                                 // Update the MyMod list and return true, as we have effectively deleted the MyMod.
-                                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
+                                AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
                                 true
                             }
                             else { return show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
@@ -680,11 +663,11 @@ impl AppUISlots {
 
                     // If we deleted the "MyMod", we allow chaos to form below.
                     if mod_deleted {
-                        UI_STATE.set_operational_mode(&mut app_ui, None);
+                        UI_STATE.set_operational_mode(&app_ui, None);
                         CENTRAL_COMMAND.send_message_qt(Command::ResetPackFile);
-                        app_ui.enable_packfile_actions(false);
+                        AppUI::enable_packfile_actions(&app_ui, false);
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear);
-                        UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
+                        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
                         show_dialog(app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
                     }
@@ -693,7 +676,8 @@ impl AppUISlots {
         ));
 
         // This slot is used for the "Install MyMod" action.
-        let mymod_install = SlotOfBool::new(move |_| {
+        let mymod_install = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
 
                 // Depending on our current "Mode", we choose what to do.
                 match UI_STATE.get_operational_mode() {
@@ -735,10 +719,11 @@ impl AppUISlots {
                 }
 
             }
-        );
+        ));
 
         // This slot is used for the "Uninstall MyMod" action.
-        let mymod_uninstall = SlotOfBool::new(move |_| {
+        let mymod_uninstall = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
 
                 // Depending on our current "Mode", we choose what to do.
                 match UI_STATE.get_operational_mode() {
@@ -764,79 +749,86 @@ impl AppUISlots {
                     OperationalMode::Normal => show_dialog(app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
                 }
             }
-        );
-
-        let mymod_open = vec![];
+        ));
 
         //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
-        let view_toggle_packfile_contents = SlotOfBool::new(move |state| {
+        let view_toggle_packfile_contents = SlotOfBool::new(app_ui.main_window, clone!(
+            pack_file_contents_ui => move |state| {
             if !state { pack_file_contents_ui.packfile_contents_dock_widget.hide(); }
             else { pack_file_contents_ui.packfile_contents_dock_widget.show();}
-        });
+        }));
 
-        let view_toggle_global_search_panel = SlotOfBool::new(move |state| {
+        let view_toggle_global_search_panel = SlotOfBool::new(app_ui.main_window, clone!(
+            global_search_ui => move |state| {
             if !state { global_search_ui.global_search_dock_widget.hide(); }
             else {
                 global_search_ui.global_search_dock_widget.show();
                 global_search_ui.global_search_search_line_edit.set_focus_0a()
             }
-        });
+        }));
 
-        let view_toggle_diagnostics_panel = SlotOfBool::new(move |state| {
-            if !state { diagnostics_ui.diagnostics_dock_widget.hide(); }
-            else { diagnostics_ui.diagnostics_dock_widget.show();}
-        });
+        let view_toggle_diagnostics_panel = SlotOfBool::new(app_ui.main_window, clone!(
+            diagnostics_ui => move |state| {
+                if !state { diagnostics_ui.get_ref_diagnostics_dock_widget().hide(); }
+                else { diagnostics_ui.get_ref_diagnostics_dock_widget().show();}
+        }));
 
         //-----------------------------------------------//
         // `Game Selected` menu logic.
         //-----------------------------------------------//
 
         // What happens when we trigger the "Launch Game" action.
-        let game_selected_launch_game = SlotOfBool::new(move |_| {
+        let game_selected_launch_game = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
             if let Some(steam_id) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().steam_id {
                 if open::that(format!("steam://rungameid/{}", steam_id)).is_err() {
                     show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
             else { show_dialog(app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false); }
-        });
+        }));
 
         // What happens when we trigger the "Open Game's Data Folder" action.
-        let game_selected_open_game_data_folder = SlotOfBool::new(move |_| {
+        let game_selected_open_game_data_folder = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
             if let Some(path) = get_game_selected_data_path() {
                 if open::that(&path).is_err() {
                     show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
             else { show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
-        });
+        }));
 
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
-        let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(move |_| {
+        let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
             if let Some(path) = get_game_selected_assembly_kit_path() {
                 if open::that(&path).is_err() {
                     show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
             else { show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
-        });
+        }));
 
         // What happens when we trigger the "Open Config Folder" action.
-        let game_selected_open_config_folder = SlotOfBool::new(move |_| {
+        let game_selected_open_config_folder = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
             if let Ok(path) = get_config_path() {
                 if open::that(&path).is_err() {
                     show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
             else { show_dialog(app_ui.main_window, ErrorKind::ConfigFolderCouldNotBeOpened, false); }
-        });
+        }));
 
         // What happens when we trigger the "Change Game Selected" action.
-        let change_game_selected = SlotOfBool::new(clone!(
-            slot_holder,
-            app_temp_slots => move |_| {
+        //
+        // NOTE: NEVER EVER AGAIN SHALL YOU TRIGGER HERE A REBUILD OF THE GAME-SPECIFIC SLOTS!!!!!!!!!!
+        let change_game_selected = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
 
                 // Get the new `Game Selected` and clean his name up, so it ends up like "x_y".
                 let mut new_game_selected = app_ui.game_selected_group.checked_action().text().to_std_string();
@@ -858,27 +850,23 @@ impl AppUISlots {
 
                     // If we have a packfile open, set the current "Operational Mode" to `Normal` (In case we were in `MyMod` mode).
                     if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() > 0 {
-                        UI_STATE.set_operational_mode(&mut app_ui, None);
+                        UI_STATE.set_operational_mode(&app_ui, None);
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
-                        UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }
 
                     // Re-enable the Main Window.
                     app_ui.main_window.set_enabled(true);
 
                     // Change the GameSelected Icon. Disabled until we find better icons.
-                    GameSelectedIcons::set_game_selected_icon(&mut app_ui);
+                    GameSelectedIcons::set_game_selected_icon(&app_ui);
                 }
 
                 // Disable the `PackFile Management` actions and, if we have a `PackFile` open, re-enable them.
-                app_ui.enable_packfile_actions(false);
+                AppUI::enable_packfile_actions(&app_ui, false);
                 if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
-                    app_ui.enable_packfile_actions(true);
+                    AppUI::enable_packfile_actions(&app_ui, true);
                 }
-
-                // Rebuild the open from submenus.
-                app_temp_slots.borrow_mut().packfile_open_from = app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
-                app_temp_slots.borrow_mut().mymod_open = app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder);
             }
         ));
 
@@ -887,13 +875,16 @@ impl AppUISlots {
         //-----------------------------------------------------//
 
         // What happens when we trigger the "Create Dummy AnimPack" action.
-        let special_stuff_repack_animtable = SlotOfBool::new(clone!(
-            mut global_search_ui => move |_| {
+        let special_stuff_repack_animtable = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // If there is no problem, ere we go.
                 let path = animpack::DEFAULT_PATH.iter().map(|x| x.to_string()).collect::<Vec<String>>();
                 app_ui.main_window.set_enabled(false);
-                let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, false);
+                let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::GenerateDummyAnimPack);
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -915,7 +906,8 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Generate Pak File" action.
-        let special_stuff_generate_pak_file = SlotOfBool::new(move |_| {
+        let special_stuff_generate_pak_file = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
                 let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
@@ -934,7 +926,7 @@ impl AppUISlots {
                     1 => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
-                        let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                        let file_dialog = QFileDialog::from_q_widget_q_string(
                             app_ui.main_window,
                             &qtr("special_stuff_select_ak_folder"),
                         );
@@ -955,7 +947,7 @@ impl AppUISlots {
                     0 => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
-                        let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                        let file_dialog = QFileDialog::from_q_widget_q_string(
                             app_ui.main_window,
                             &qtr("special_stuff_select_raw_db_folder"),
                         );
@@ -992,21 +984,23 @@ impl AppUISlots {
                     show_dialog(app_ui.main_window, tr("game_selected_unsupported_operation"), false);
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Optimize PackFile" action.
-        let special_stuff_optimize_packfile = SlotOfBool::new(clone!(
-            mut global_search_ui,
-            mut slot_holder => move |_| {
+        let special_stuff_optimize_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // If there is no problem, ere we go.
                 app_ui.main_window.set_enabled(false);
 
-                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, true) {
+                if let Err(error) = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, true) {
                     return show_dialog(app_ui.main_window, error, false);
                 }
 
-                global_search_ui.clear();
+                GlobalSearchUI::clear(&global_search_ui);
 
                 CENTRAL_COMMAND.send_message_qt(Command::OptimizePackFile);
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -1026,18 +1020,20 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Patch Siege AI" action.
-        let special_stuff_patch_siege_ai = SlotOfBool::new(clone!(
-            mut global_search_ui,
-            mut slot_holder => move |_| {
+        let special_stuff_patch_siege_ai = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Ask the background loop to patch the PackFile, and wait for a response.
                 app_ui.main_window.set_enabled(false);
 
-                if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, true) {
+                if let Err(error) = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, true) {
                     return show_dialog(app_ui.main_window, error, false);
                 }
 
-                global_search_ui.clear();
+                GlobalSearchUI::clear(&global_search_ui);
 
                 CENTRAL_COMMAND.send_message_qt(Command::PatchSiegeAI);
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -1064,68 +1060,82 @@ impl AppUISlots {
         //-----------------------------------------------//
 
         // What happens when we trigger the "About Qt" action.
-        let about_about_qt = SlotOfBool::new(move |_| { QMessageBox::about_qt_1a(app_ui.main_window); });
+        let about_about_qt = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
+                QMessageBox::about_qt_1a(app_ui.main_window);
+            }
+        ));
 
         // What happens when we trigger the "About RPFM" action.
-        let about_about_rpfm = SlotOfBool::new(move |_| {
-            QMessageBox::about(
-                app_ui.main_window,
-                &qtr("about_about_rpfm"),
+        let about_about_rpfm = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
+                QMessageBox::about(
+                    app_ui.main_window,
+                    &qtr("about_about_rpfm"),
 
-                // NOTE: This one is hardcoded, because I don't want people attributing themselfs the program in the translations.
-                &QString::from_std_str(format!(
-                    "<table>
-                        <tr>
-                            <td><h2><b>Rusted PackFile Manager</b></h2></td>
-                            <td>{}</td>
-                        </tr>
-                    </table>
+                    // NOTE: This one is hardcoded, because I don't want people attributing themselfs the program in the translations.
+                    &QString::from_std_str(format!(
+                        "<table>
+                            <tr>
+                                <td><h2><b>Rusted PackFile Manager</b></h2></td>
+                                <td>{}</td>
+                            </tr>
+                        </table>
 
-                    <p><b>Rusted PackFile Manager</b> (a.k.a. RPFM) is a modding tool for modern Total War Games, made by modders, for modders.</p>
-                    <p>This program is <b>open-source</b>, under MIT License. You can always get the last version (or collaborate) here:</p>
-                    <a href=\"https://github.com/Frodo45127/rpfm\">https://github.com/Frodo45127/rpfm</a>
-                    <p>This program is also <b>free</b> (if you paid for this, sorry, but you got scammed), but if you want to help with money, here is <b>RPFM's Patreon</b>:</p>
-                    <a href=\"https://www.patreon.com/RPFM\">https://www.patreon.com/RPFM</a>
+                        <p><b>Rusted PackFile Manager</b> (a.k.a. RPFM) is a modding tool for modern Total War Games, made by modders, for modders.</p>
+                        <p>This program is <b>open-source</b>, under MIT License. You can always get the last version (or collaborate) here:</p>
+                        <a href=\"https://github.com/Frodo45127/rpfm\">https://github.com/Frodo45127/rpfm</a>
+                        <p>This program is also <b>free</b> (if you paid for this, sorry, but you got scammed), but if you want to help with money, here is <b>RPFM's Patreon</b>:</p>
+                        <a href=\"https://www.patreon.com/RPFM\">https://www.patreon.com/RPFM</a>
 
-                    <h3>Credits</h3>
-                    <ul style=\"list-style-type: disc\">
-                        <li>Created and Programmed by: <b>Frodo45127</b>.</li>
-                        <li>Icon until 1.6.2 by: <b>Maruka</b>.</li>
-                        <li>Icons since 2.0.0 by: <b>Jake Armitage</b>.</li>
-                        <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
-                        <li>LUA functions by: <b>Aexrael Dex</b>.</li>
-                        <li>LUA Types for Kailua: <b>DrunkFlamingo</b>.</li>
-                        <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
-                        <li>Ca_vp8 research: <b>John Sirett</b>.</li>
-                        <li>AnimPack research: <b>Marthenil</b> and <b>Frodo45127</b>.</li>
-                        <li>TreeView Icons made by <a href=\"https://www.flaticon.com/authors/smashicons\" title=\"Smashicons\">Smashicons</a> from <a href=\"https://www.flaticon.com/\" title=\"Flaticon\">www.flaticon.com</a>. Licensed under <a href=\"http://creativecommons.org/licenses/by/3.0/\" title=\"Creative Commons BY 3.0\" target=\"_blank\">CC 3.0 BY</a>
-                    </ul>
+                        <h3>Credits</h3>
+                        <ul style=\"list-style-type: disc\">
+                            <li>Created and Programmed by: <b>Frodo45127</b>.</li>
+                            <li>Icon until 1.6.2 by: <b>Maruka</b>.</li>
+                            <li>Icons since 2.0.0 by: <b>Jake Armitage</b>.</li>
+                            <li>RigidModel research by: <b>Mr.Jox</b>, <b>Der Spaten</b>, <b>Maruka</b> and <b>Frodo45127</b>.</li>
+                            <li>LUA functions by: <b>Aexrael Dex</b>.</li>
+                            <li>LUA Types for Kailua: <b>DrunkFlamingo</b>.</li>
+                            <li>TW: Arena research and coding: <b>Trolldemorted</b>.</li>
+                            <li>Ca_vp8 research: <b>John Sirett</b>.</li>
+                            <li>AnimPack research: <b>Marthenil</b> and <b>Frodo45127</b>.</li>
+                            <li>TreeView Icons made by <a href=\"https://www.flaticon.com/authors/smashicons\" title=\"Smashicons\">Smashicons</a> from <a href=\"https://www.flaticon.com/\" title=\"Flaticon\">www.flaticon.com</a>. Licensed under <a href=\"http://creativecommons.org/licenses/by/3.0/\" title=\"Creative Commons BY 3.0\" target=\"_blank\">CC 3.0 BY</a>
+                        </ul>
 
-                    <h3>Special thanks</h3>
-                    <ul style=\"list-style-type: disc\">
-                        <li><b>PFM team</b>, for providing the community with awesome modding tools.</li>
-                        <li><b>CA</b>, for being a mod-friendly company.</li>
-                        <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
-                    </ul>
-                    ", &VERSION))
-                );
+                        <h3>Special thanks</h3>
+                        <ul style=\"list-style-type: disc\">
+                            <li><b>PFM team</b>, for providing the community with awesome modding tools.</li>
+                            <li><b>CA</b>, for being a mod-friendly company.</li>
+                            <li><b>CnC discord guys</b>, for asking for features, helping with testing from time to time, etc...</li>
+                        </ul>
+                        ", &VERSION))
+                    );
             }
-        );
+        ));
 
         // What happens when we trigger the "Open Manual" action.
-        let about_open_manual = SlotOfBool::new(|_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DOCS_BASE_URL))); });
+        let about_open_manual = SlotOfBool::new(app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DOCS_BASE_URL))); });
 
         // What happens when we trigger the "Support me on Patreon" action.
-        let about_patreon_link = SlotOfBool::new(|_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
+        let about_patreon_link = SlotOfBool::new(app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
 
         // What happens when we trigger the "Check Update" action.
-        let about_check_updates = SlotOfBool::new(move |_| { app_ui.check_updates(true); });
+        let about_check_updates = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
+                AppUI::check_updates(&app_ui, true);
+            }
+        ));
 
         // What happens when we trigger the "Check Schema Update" action.
-        let about_check_schema_updates = SlotOfBool::new(move |_| { app_ui.check_schema_updates(true); });
+        let about_check_schema_updates = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
+                AppUI::check_schema_updates(&app_ui, true);
+            }
+        ));
 
         // What happens when we trigger the "Update Templates" action.
-        let about_update_templates = SlotOfBool::new(move |_| {
+        let about_update_templates = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
                 app_ui.main_window.set_enabled(false);
 
                 CENTRAL_COMMAND.send_message_qt(Command::UpdateTemplates);
@@ -1139,10 +1149,11 @@ impl AppUISlots {
                 // Re-enable the Main Window.
                 app_ui.main_window.set_enabled(true);
             }
-        );
+        ));
 
         // What happens when we trigger the "Update from AssKit" action.
-        let debug_update_current_schema_from_asskit = SlotOfBool::new(move |_| {
+        let debug_update_current_schema_from_asskit = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
                 let version = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().raw_db_version;
@@ -1150,7 +1161,7 @@ impl AppUISlots {
                     1| 0 => {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
-                        let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                        let file_dialog = QFileDialog::from_q_widget_q_string(
                             app_ui.main_window,
                             &qtr("special_stuff_select_raw_db_folder"),
                         );
@@ -1179,132 +1190,144 @@ impl AppUISlots {
 
                 app_ui.main_window.set_enabled(true);
             }
-        );
+        ));
 
         //-----------------------------------------------//
         // `PackedFileView` logic.
         //-----------------------------------------------//
-        let packed_file_hide = SlotOfInt::new(move |index| {
-            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, diagnostics_ui, index);
-        });
+        let packed_file_hide = SlotOfInt::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |index| {
+                AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, index);
+            }
+        ));
 
-        let packed_file_update = SlotOfInt::new(move |index| {
-            if index == -1 { return; }
+        let packed_file_update = SlotOfInt::new(app_ui.main_window, clone!(
+            app_ui => move |index| {
+                if index == -1 { return; }
 
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let widget = packed_file_view.get_mut_widget();
-                if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                    if let ViewType::Internal(view) = packed_file_view.get_view() {
+                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                    let widget = packed_file_view.get_mut_widget();
+                    if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                        if let ViewType::Internal(view) = packed_file_view.get_view() {
 
-                        // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
-                        if let View::Table(table) = view {
-                            let table = table.get_ref_table();
-                            if let Ok(data) = get_reference_data(&table.get_ref_table_definition()) {
-                                table.set_dependency_data(&data);
+                            // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
+                            if let View::Table(table) = view {
+                                let table = table.get_ref_table();
+                                if let Ok(data) = get_reference_data(&table.get_ref_table_definition()) {
+                                    table.set_dependency_data(&data);
 
-                                setup_item_delegates(
-                                    table.get_mut_ptr_table_view_primary(),
-                                    table.get_mut_ptr_table_view_frozen(),
-                                    &table.get_ref_table_definition(),
-                                    &data
-                                );
-
-                                if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
-                                    check_table_for_errors(
-                                        table.get_mut_ptr_table_model(),
+                                    setup_item_delegates(
+                                        &table.get_mut_ptr_table_view_primary(),
+                                        &table.get_mut_ptr_table_view_frozen(),
                                         &table.get_ref_table_definition(),
-                                        &data,
-                                        table.get_packed_file_type()
+                                        &data
                                     );
+
+                                    if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+                                        check_table_for_errors(
+                                            &table.get_mut_ptr_table_model(),
+                                            &table.get_ref_table_definition(),
+                                            &data,
+                                            table.get_packed_file_type()
+                                        );
+                                    }
                                 }
                             }
                         }
+                        break;
                     }
-                    break;
+                }
+
+                // We also have to check for colliding packedfile names, so we can use their full path instead.
+                AppUI::update_views_names(&app_ui);
+
+                // Update the background icon.
+                GameSelectedIcons::set_game_selected_icon(&app_ui);
+            }
+        ));
+
+        let packed_file_unpreview = SlotOfInt::new(app_ui.main_window, clone!(
+            app_ui => move |index| {
+                if index == -1 { return; }
+
+                for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                    let widget = packed_file_view.get_mut_widget();
+                    if app_ui.tab_bar_packed_file.index_of(widget) == index {
+                        if packed_file_view.get_is_preview() {
+                            packed_file_view.set_is_preview(false);
+
+                            let name = packed_file_view.get_ref_path().last().unwrap().to_owned();
+                            app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+                        }
+                        break;
+                    }
                 }
             }
-
-            // We also have to check for colliding packedfile names, so we can use their full path instead.
-            app_ui.update_views_names();
-
-            // Update the background icon.
-            GameSelectedIcons::set_game_selected_icon(&mut app_ui);
-        });
-
-        let packed_file_unpreview = SlotOfInt::new(move |index| {
-            if index == -1 { return; }
-
-            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-                let widget = packed_file_view.get_mut_widget();
-                if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                    if packed_file_view.get_is_preview() {
-                        packed_file_view.set_is_preview(false);
-
-                        let name = packed_file_view.get_ref_path().last().unwrap().to_owned();
-                        app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
-                    }
-                    break;
-                }
-            }
-        });
+        ));
 
         // Autosave slot.
-        let pack_file_backup_autosave = Slot::new(move || {
-            CENTRAL_COMMAND.send_message_qt(Command::TriggerBackupAutosave);
-            log_to_status_bar(&tr("autosaving"));
-            app_ui.main_window.set_enabled(false);
-            let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
-            match response {
-                Response::Success => log_to_status_bar(&tr("autosaved")),
-                Response::Error(error) => if error.kind() == &ErrorKind::PackFileIsNonEditable {
-                    log_to_status_bar(&tr("error_autosave_non_editable"))
-                } else { log_to_status_bar(&error.to_terminal()) },
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+        let pack_file_backup_autosave = SlotNoArgs::new(app_ui.main_window, clone!(
+            app_ui => move || {
+                CENTRAL_COMMAND.send_message_qt(Command::TriggerBackupAutosave);
+                log_to_status_bar(&tr("autosaving"));
+                app_ui.main_window.set_enabled(false);
+                let response = CENTRAL_COMMAND.recv_message_notification_to_qt_try();
+                match response {
+                    Response::Success => log_to_status_bar(&tr("autosaved")),
+                    Response::Error(error) => if error.kind() == &ErrorKind::PackFileIsNonEditable {
+                        log_to_status_bar(&tr("error_autosave_non_editable"))
+                    } else { log_to_status_bar(&error.to_terminal()) },
+                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                }
+                app_ui.main_window.set_enabled(true);
+
+                // Reset the timer.
+                app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
+                app_ui.timer_backup_autosave.start_0a();
             }
-            app_ui.main_window.set_enabled(true);
+        ));
 
-            // Reset the timer.
-            app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
-            app_ui.timer_backup_autosave.start_0a();
-        });
-
-        let tab_bar_packed_file_close = Slot::new(move || {
+        let tab_bar_packed_file_close = SlotNoArgs::new(app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
             let index = app_ui.tab_bar_packed_file.current_index();
-            app_ui.packed_file_view_hide(pack_file_contents_ui, global_search_ui, diagnostics_ui, index);
-        });
+            AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, index);
+        }));
 
-        let tab_bar_packed_file_prev = Slot::new(move || {
-            let index = app_ui.tab_bar_packed_file.current_index();
-            if index != -1 {
-                app_ui.tab_bar_packed_file.set_current_index(index - 1);
+        let tab_bar_packed_file_prev = SlotNoArgs::new(app_ui.main_window, clone!(
+            app_ui => move || {
+                let index = app_ui.tab_bar_packed_file.current_index();
+                if index != -1 {
+                    app_ui.tab_bar_packed_file.set_current_index(index - 1);
+                }
             }
-        });
+        ));
 
-        let tab_bar_packed_file_next = Slot::new(move || {
-            let index = app_ui.tab_bar_packed_file.current_index();
-            if index != -1 {
-                app_ui.tab_bar_packed_file.set_current_index(index + 1);
+        let tab_bar_packed_file_next = SlotNoArgs::new(app_ui.main_window, clone!(
+            app_ui => move || {
+                let index = app_ui.tab_bar_packed_file.current_index();
+                if index != -1 {
+                    app_ui.tab_bar_packed_file.set_current_index(index + 1);
+                }
             }
-        });
+        ));
 
         // And here... we return all the slots.
 		Self {
 
-			//-----------------------------------------------//
-	        // Command Palette slots.
-	        //-----------------------------------------------//
-			command_palette_show,
-    		command_palette_hide,
-    		command_palette_trigger,
-
             //-----------------------------------------------//
             // `PackFile` menu slots.
             //-----------------------------------------------//
+            packfile_open_menu,
             packfile_new_packfile,
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
-            packfile_open_from,
             packfile_load_all_ca_packfiles,
             packfile_change_packfile_type,
             packfile_index_includes_timestamp,
@@ -1315,11 +1338,11 @@ impl AppUISlots {
             //-----------------------------------------------//
             // `MyMod` menu slots.
             //-----------------------------------------------//
+            mymod_open_menu,
             mymod_new,
             mymod_delete_selected,
             mymod_install,
             mymod_uninstall,
-            mymod_open,
 
             //-----------------------------------------------//
             // `View` menu slots.
@@ -1381,16 +1404,13 @@ impl AppUISlots {
 }
 
 impl AppUITempSlots {
-    pub unsafe fn new(
-        app_ui: AppUI,
-        pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        diagnostics_ui: DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
-    ) -> Self {
-        Self {
-            packfile_open_from: app_ui.build_open_from_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, slot_holder),
-            mymod_open: app_ui.build_open_mymod_submenus(pack_file_contents_ui, global_search_ui, diagnostics_ui, slot_holder),
-        }
+    pub unsafe fn build(
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>
+    ) {
+        AppUI::build_open_from_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
     }
 }

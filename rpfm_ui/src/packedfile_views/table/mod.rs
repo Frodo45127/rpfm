@@ -12,6 +12,10 @@
 Module with all the code for managing the view for Table PackedFiles.
 !*/
 
+use std::sync::Arc;
+
+use std::rc::Rc;
+
 use rpfm_error::{ErrorKind, Result};
 
 use rpfm_lib::packedfile::PackedFileType;
@@ -24,11 +28,9 @@ use crate::communications::*;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
+use crate::packedfile_views::{PackedFileView, View, ViewType};
 
 use crate::views::table::{TableView, TableType};
-
-pub mod slots;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -36,7 +38,7 @@ pub mod slots;
 
 /// This struct contains pointers to all the widgets in a Table View.
 pub struct PackedFileTableView {
-    table_view: TableView,
+    table_view: Arc<TableView>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -51,11 +53,11 @@ impl PackedFileTableView {
     /// NOTE: To open the dependency list, make sure the view has an empty path.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-        app_ui: &AppUI,
-        global_search_ui: &GlobalSearchUI,
-        pack_file_contents_ui: &PackFileContentsUI,
-        diagnostics_ui: &DiagnosticsUI,
-    ) -> Result<(TheOneSlot, Option<PackedFileInfo>)> {
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+    ) -> Result<Option<PackedFileInfo>> {
 
         // Get the decoded Table.
         if packed_file_view.get_ref_path().is_empty() { CENTRAL_COMMAND.send_message_qt(Command::GetDependencyPackFilesList); }
@@ -84,8 +86,8 @@ impl PackedFileTableView {
             TableType::MatchedCombat(_) => PackedFileType::MatchedCombat,
         };
 
-        let (table_view, table_view_slots) = TableView::new_view(
-            packed_file_view.get_mut_widget(),
+        let table_view = TableView::new_view(
+            &packed_file_view.get_mut_widget(),
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
@@ -98,18 +100,14 @@ impl PackedFileTableView {
             table_view,
         };
 
-        packed_file_view.view = ViewType::Internal(View::Table(packed_file_table_view));
+        packed_file_view.view = ViewType::Internal(View::Table(Arc::new(packed_file_table_view)));
         packed_file_view.packed_file_type = packed_file_type;
 
         // Return success.
-        Ok((TheOneSlot::Table(table_view_slots), packed_file_info))
+        Ok(packed_file_info)
     }
 
     pub fn get_ref_table(&self) ->&TableView {
         &self.table_view
-    }
-
-    pub fn get_ref_mut_table(&mut self) ->&mut TableView {
-        &mut self.table_view
     }
 }

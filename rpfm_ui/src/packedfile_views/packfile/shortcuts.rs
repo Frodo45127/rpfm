@@ -16,14 +16,16 @@ use qt_gui::QKeySequence;
 
 use qt_core::ShortcutContext;
 
-use super::PackFileExtraView;
+use std::sync::Arc;
+
 use crate::QString;
 use crate::UI_STATE;
+use super::PackFileExtraView;
 
 /// This function setup all the shortcuts used by the actions in the provided `PackFileExtraView` .
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
-pub unsafe fn set_shortcuts(ui: &mut PackFileExtraView) {
+pub unsafe fn set_shortcuts(ui: &Arc<PackFileExtraView>) {
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
     ui.get_mut_ptr_expand_all().set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));

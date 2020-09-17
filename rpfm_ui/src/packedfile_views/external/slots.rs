@@ -12,18 +12,21 @@
 Module with the slots for External Views.
 !*/
 
-use qt_core::Slot;
+use qt_core::QBox;
+use qt_core::SlotNoArgs;
 
 use open::that_in_background;
 
 use std::cell::RefCell;
 use std::env::temp_dir;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::app_ui::AppUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::packedfile_views::PackedFileExternalView;
 use crate::utils::show_dialog;
 
 //-------------------------------------------------------------------------------//
@@ -32,8 +35,8 @@ use crate::utils::show_dialog;
 
 /// This struct contains the slots of the view of a External PackedFile.
 pub struct PackedFileExternalViewSlots {
-    pub stop_watching: Slot<'static>,
-    pub open_folder: Slot<'static>,
+    pub stop_watching: QBox<SlotNoArgs>,
+    pub open_folder: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -45,24 +48,29 @@ impl PackedFileExternalViewSlots {
 
     /// This function creates the entire slot pack for External PackedFile Views.
     pub unsafe fn new(
-        mut app_ui: AppUI,
-        pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        diagnostics_ui: DiagnosticsUI,
+        view: &Arc<PackedFileExternalView>,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         packed_file_path: &Rc<RefCell<Vec<String>>>
     )  -> Self {
 
         // Slot to close the open view.
-        let stop_watching = Slot::new(clone!(
+        let stop_watching = SlotNoArgs::new(&view.stop_watching_button, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
             packed_file_path => move || {
-                if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &packed_file_path.borrow(), true) {
+                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &packed_file_path.borrow(), true) {
                     show_dialog(app_ui.main_window, error, false);
                 }
             }
         ));
 
         // Slot to open the folder of the current PackedFile in the file manager.
-        let open_folder = Slot::new(move || {
+        let open_folder = SlotNoArgs::new(&view.stop_watching_button, move || {
             let _ = that_in_background(temp_dir());
         });
 

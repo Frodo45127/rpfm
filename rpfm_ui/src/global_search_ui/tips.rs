@@ -12,11 +12,13 @@
 Module with all the code to setup the tips (in the `StatusBar`) for the actions in `GlobalSearchUI`.
 !*/
 
+use std::rc::Rc;
+
 use crate::locale::qtr;
 use super::GlobalSearchUI;
 
 /// This function sets the status bar tip for all the actions in the provided `GlobalSearchUI`.
-pub unsafe fn set_tips(global_search_ui: &mut GlobalSearchUI) {
+pub unsafe fn set_tips(global_search_ui: &Rc<GlobalSearchUI>) {
 
     //---------------------------------------------------//
     // Global Search panel tips.

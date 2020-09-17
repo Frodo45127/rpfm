@@ -14,7 +14,7 @@ Module with all the code for managing the view for RigidModel PackedFiles.
 
 use qt_widgets::QWidget;
 
-use cpp_core::MutPtr;
+use cpp_core::Ptr;
 
 use std::sync::{Arc, RwLock};
 
@@ -48,7 +48,7 @@ pub struct PackedFileRigidModelView {
 /// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileRigidModelView`.
 #[derive(Clone)]
 pub struct PackedFileRigidModelViewRaw {
-    pub editor: MutPtr<QWidget>,
+    pub editor: Ptr<QWidget>,
     pub path: Arc<RwLock<Vec<String>>>,
 }
 
@@ -62,9 +62,9 @@ impl PackedFileRigidModelView {
     /// This function creates a new Text View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-        app_ui: &AppUI,
-        global_search_ui: &GlobalSearchUI,
-        pack_file_contents_ui: &PackFileContentsUI,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
     ) -> Result<(TheOneSlot, PackedFileInfo)> {
 
         // Get the decoded Text.
@@ -81,7 +81,7 @@ impl PackedFileRigidModelView {
 
         let packed_file_rigid_model_view_raw = PackedFileRigidModelViewRaw {editor, path: packed_file_view.get_path_raw()};
         let packed_file_rigid_model_view_slots = PackedFileRigidModelViewSlots::new(&packed_file_rigid_model_view_raw, *app_ui, *global_search_ui, *pack_file_contents_ui);
-        let packed_file_rigid_model_view = Self { /*editor: atomic_from_mut_ptr(packed_file_rigid_model_view_raw.editor)*/ };
+        let packed_file_rigid_model_view = Self { /*editor: atomic_from_q_ptr(packed_file_rigid_model_view_raw.editor)*/ };
 
         packed_file_view.view = ViewType::Internal(View::RigidModel(packed_file_rigid_model_view));
 

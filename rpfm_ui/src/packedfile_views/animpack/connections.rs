@@ -14,13 +14,15 @@ Module with all the code to connect `PackedFileAnimPackView` signals with their 
 This module is, and should stay, private, as it's only glue between the `PackedFileAnimPackView` and `PackedFileAnimPackViewSlots` structs.
 !*/
 
+use std::sync::Arc;
+
 use super::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
 
 /// This function connects all the actions from the provided `PackedFileAnimPackView` with their slots in `PackedFileAnimPackViewSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
-pub unsafe fn set_connections(ui: &PackedFileAnimPackView, slots: &PackedFileAnimPackViewSlots) {
+pub unsafe fn set_connections(ui: &Arc<PackedFileAnimPackView>, slots: &PackedFileAnimPackViewSlots) {
     ui.get_mut_ptr_unpack_button().released().connect(&slots.unpack);
 }
 

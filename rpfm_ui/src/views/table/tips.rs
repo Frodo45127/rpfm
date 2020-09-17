@@ -12,11 +12,13 @@
 Module with all the code to setup the tips (in the `StatusBar`) for the actions in `TableView`.
 !*/
 
+use std::sync::Arc;
+
 use crate::locale::qtr;
 use super::TableView;
 
 /// This function sets the status bar tip for all the actions in the provided `TableView`.
-pub unsafe fn set_tips(ui: &mut TableView) {
+pub unsafe fn set_tips(ui: &Arc<TableView>) {
 
     // Status Tips for the actions.
     ui.get_mut_ptr_context_menu_add_rows().set_status_tip(&qtr("Add an empty row at the end of the table."));

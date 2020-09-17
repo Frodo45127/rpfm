@@ -15,6 +15,7 @@ This module contains the code needed to keep track of the current `Operational M
 !*/
 
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use crate::app_ui::AppUI;
 
@@ -41,7 +42,7 @@ pub enum OperationalMode {
 impl OperationalMode {
 
     /// This function sets the current operational mode of the application, depending on the provided MyMod path.
-    pub fn set_operational_mode(&mut self, app_ui: &mut AppUI, mymod_path: Option<&PathBuf>) {
+    pub fn set_operational_mode(&mut self, app_ui: &Rc<AppUI>, mymod_path: Option<&PathBuf>) {
         match mymod_path {
 
             // If we received a MyMod path, we enable the MyMod mode with that path.

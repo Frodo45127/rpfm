@@ -12,11 +12,11 @@ rpfm_lib = { path = "../rpfm_lib" }
 
 # CLI parsing, formatting and color support.
 clap = "^2.33"
-colored = "^1.8"
+colored = "^2.0"
 prettytable-rs = "^0.8"
 bytesize = "^1.0"
 
 # Logging support.
 log = "^0.4"
-simplelog = "^0.7.0"
-simple_logger = "^1.4"
+simplelog = "^0.8"
+simple_logger = "^1.9"

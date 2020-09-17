@@ -17,14 +17,15 @@ use qt_gui::QKeySequence;
 use qt_core::ShortcutContext;
 use qt_core::QString;
 
+use std::rc::Rc;
+
 use super::AppUI;
-use crate::locale::qtr;
 use crate::UI_STATE;
 
 /// This function setup all the shortcuts used by the actions in the provided `AppUI` .
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
-pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
+pub unsafe fn set_shortcuts(app_ui: &Rc<AppUI>) {
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
     //---------------------------------------------------------------------------------------//
@@ -145,19 +146,6 @@ pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
     app_ui.about_check_schema_updates.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
     //---------------------------------------------------------------------------------------//
-    // Shortcuts for the Command Palette...
-    //---------------------------------------------------------------------------------------//
-
-    app_ui.command_palette_show.set_shortcut(&QKeySequence::from_q_string(&qtr("shortcut_csp")));
-    app_ui.command_palette_hide.set_shortcut(&QKeySequence::from_q_string(&qtr("shortcut_esc")));
-
-    app_ui.command_palette_show.set_shortcut_context(ShortcutContext::ApplicationShortcut);
-    app_ui.command_palette_hide.set_shortcut_context(ShortcutContext::ApplicationShortcut);
-
-    app_ui.main_window.add_action(app_ui.command_palette_show);
-    app_ui.main_window.add_action(app_ui.command_palette_hide);
-
-    //---------------------------------------------------------------------------------------//
     // Shortcuts for the PackedFile Views...
     //---------------------------------------------------------------------------------------//
     app_ui.tab_bar_packed_file_close.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packed_file_table["shortcut_close_tab"])));
@@ -168,7 +156,7 @@ pub unsafe fn set_shortcuts(app_ui: &mut AppUI) {
     app_ui.tab_bar_packed_file_prev.set_shortcut_context(ShortcutContext::ApplicationShortcut);
     app_ui.tab_bar_packed_file_next.set_shortcut_context(ShortcutContext::ApplicationShortcut);
 
-    app_ui.tab_bar_packed_file.add_action(app_ui.tab_bar_packed_file_close);
-    app_ui.tab_bar_packed_file.add_action(app_ui.tab_bar_packed_file_prev);
-    app_ui.tab_bar_packed_file.add_action(app_ui.tab_bar_packed_file_next);
+    app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_close);
+    app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_prev);
+    app_ui.tab_bar_packed_file.add_action(&app_ui.tab_bar_packed_file_next);
 }

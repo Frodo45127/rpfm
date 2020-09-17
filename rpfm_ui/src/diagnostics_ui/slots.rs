@@ -12,7 +12,10 @@
 Module with all the code related to the main `DiagnosticsUISlots`.
 !*/
 
-use qt_core::{Slot, SlotOfQModelIndex};
+use qt_core::QBox;
+use qt_core::{SlotNoArgs, SlotOfQModelIndex};
+
+use std::rc::Rc;
 
 use crate::AppUI;
 use crate::diagnostics_ui::DiagnosticsUI;
@@ -24,8 +27,8 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 
 /// This struct contains all the slots we need to respond to signals of the diagnostics panel.
 pub struct DiagnosticsUISlots {
-    pub diagnostics_open_result: SlotOfQModelIndex<'static>,
-    pub toggle_filters_by_level: Slot<'static>,
+    pub diagnostics_open_result: QBox<SlotOfQModelIndex>,
+    pub toggle_filters_by_level: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -37,19 +40,23 @@ impl DiagnosticsUISlots {
 
     /// This function creates an entire `DiagnosticsUISlots` struct.
     pub unsafe fn new(
-        app_ui: AppUI,
-        mut diagnostics_ui: DiagnosticsUI,
-        pack_file_contents_ui: PackFileContentsUI
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Self {
 
         // What happens when we try to open the file corresponding to one of the matches.
-        let diagnostics_open_result = SlotOfQModelIndex::new(move |model_index_filter| {
-            DiagnosticsUI::open_match(app_ui, pack_file_contents_ui, model_index_filter.as_ptr());
-        });
+        let diagnostics_open_result = SlotOfQModelIndex::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |model_index_filter| {
+                DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, model_index_filter.as_ptr());
+            }
+        ));
 
-        let toggle_filters_by_level = Slot::new(move || {
-            diagnostics_ui.filter_by_level();
-        });
+        let toggle_filters_by_level = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+            DiagnosticsUI::filter_by_level(&diagnostics_ui);
+        }));
 
         // And here... we return all the slots.
         Self {

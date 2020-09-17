@@ -27,7 +27,7 @@ use qt_widgets::QPushButton;
 use qt_core::CaseSensitivity;
 use qt_core::QRegExp;
 use qt_core::QString;
-use qt_core::Slot;
+use qt_core::SlotNoArgs;
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -56,10 +56,10 @@ impl PackFileContentsUI {
 
     /// This function is a helper to add PackedFiles to the UI, keeping the UI updated.
     pub unsafe fn add_packedfiles(
-        &mut self,
-        app_ui: &mut AppUI,
-        global_search_ui: &mut GlobalSearchUI,
-        diagnostics_ui: &mut DiagnosticsUI,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<Self>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>]
     ) {
@@ -70,20 +70,20 @@ impl PackFileContentsUI {
         match response {
             Response::Success => {
                 let paths = paths_packedfile.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
-                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
-                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
-                UI_STATE.set_is_modified(true, app_ui, self);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Update the global search stuff, if needed.
-                global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
-                diagnostics_ui.check_on_path(self, paths.iter().map(From::from).collect());
+                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
+                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                 paths_packedfile.iter().for_each(|path| {
                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
-                        if packed_file_view.reload(path, self).is_err() {
-                            let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, *diagnostics_ui, path, false);
+                        if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
+                            let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false);
                         }
                     }
                 });
@@ -99,10 +99,10 @@ impl PackFileContentsUI {
 
     /// This function is a helper to add entire folders with subfolders to the UI, keeping the UI updated.
     pub unsafe fn add_packed_files_from_folders(
-        &mut self,
-        app_ui: &mut AppUI,
-        global_search_ui: &mut GlobalSearchUI,
-        diagnostics_ui: &mut DiagnosticsUI,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<Self>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>]
     ) {
@@ -113,21 +113,21 @@ impl PackFileContentsUI {
         match response {
             Response::VecPathType(paths_packedfile) => {
                 let paths = paths_packedfile.iter().map(From::from).collect::<Vec<TreePathType>>();
-                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
-                self.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
-                UI_STATE.set_is_modified(true, app_ui, self);
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
+                UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
                 // Update the global search stuff, if needed.
-                global_search_ui.search_on_path(self, paths.iter().map(From::from).collect());
-                diagnostics_ui.check_on_path(self, paths.iter().map(From::from).collect());
+                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
+                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                 paths_packedfile.iter().for_each(|path| {
                     if let PathType::File(path) = path {
                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
-                            if packed_file_view.reload(path, self).is_err() {
-                                let _ = app_ui.purge_that_one_specifically(*global_search_ui, *self, *diagnostics_ui, path, false);
+                            if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
+                                let _ = AppUI::purge_that_one_specifically(app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false);
                             }
                         }
                     }
@@ -143,44 +143,44 @@ impl PackFileContentsUI {
     }
 
     /// Function to filter the PackFile Contents TreeView.
-    pub unsafe fn filter_files(&mut self) {
+    pub unsafe fn filter_files(pack_file_contents_ui: &Rc<Self>) {
 
         // Set the pattern to search.
-        let mut pattern = QRegExp::new_1a(&self.filter_line_edit.text());
+        let pattern = QRegExp::new_1a(&pack_file_contents_ui.filter_line_edit.text());
 
         // Check if the filter should be "Case Sensitive".
-        let case_sensitive = self.filter_case_sensitive_button.is_checked();
+        let case_sensitive = pack_file_contents_ui.filter_case_sensitive_button.is_checked();
         if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
         else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
 
         // Filter whatever it's in that column by the text we got.
-        trigger_treeview_filter_safe(&mut self.packfile_contents_tree_model_filter, &mut pattern);
+        trigger_treeview_filter_safe(&pack_file_contents_ui.packfile_contents_tree_model_filter, &pattern.as_ptr());
 
         // Expand all the matches, if the option for it is enabled.
-        if self.filter_autoexpand_matches_button.is_checked() {
-            self.packfile_contents_tree_view.expand_all();
+        if pack_file_contents_ui.filter_autoexpand_matches_button.is_checked() {
+            pack_file_contents_ui.packfile_contents_tree_view.expand_all();
         }
     }
 
     /// This function creates the entire "Rename" dialog.
     ///
     ///It returns the new name of the Item, or `None` if the dialog is canceled or closed.
-    pub unsafe fn create_rename_dialog(app_ui: &mut AppUI, selected_items: &[TreePathType]) -> Option<String> {
+    pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[TreePathType]) -> Option<String> {
 
         // Create and configure the dialog.
-        let mut dialog = QDialog::new_1a(app_ui.main_window).into_ptr();
+        let dialog = QDialog::new_1a(app_ui.main_window);
         dialog.set_window_title(&qtr("rename_selection"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
+        let main_grid = create_grid_layout(dialog.static_upcast());
 
         // Create a little frame with some instructions.
-        let instructions_frame = QGroupBox::from_q_string(&qtr("rename_selection_instructions")).into_ptr();
-        let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
+        let instructions_frame = QGroupBox::from_q_string(&qtr("rename_selection_instructions"));
+        let instructions_grid = create_grid_layout(instructions_frame.static_upcast());
         let instructions_label = QLabel::from_q_string(&qtr("rename_instructions"));
-        instructions_grid.add_widget_5a(instructions_label.into_ptr(), 0, 0, 1, 1);
+        instructions_grid.add_widget_5a(&instructions_label, 0, 0, 1, 1);
 
-        let mut rewrite_sequence_line_edit = QLineEdit::new();
+        let rewrite_sequence_line_edit = QLineEdit::new();
         rewrite_sequence_line_edit.set_placeholder_text(&qtr("rename_selection_placeholder"));
 
         // If we only have one selected item, put his name by default in the rename dialog.
@@ -189,11 +189,11 @@ impl PackFileContentsUI {
                 rewrite_sequence_line_edit.set_text(&QString::from_std_str(path.last().unwrap()));
             }
         }
-        let mut accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
+        let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
-        main_grid.add_widget_5a(instructions_frame, 0, 0, 1, 2);
-        main_grid.add_widget_5a(&mut rewrite_sequence_line_edit, 1, 0, 1, 1);
-        main_grid.add_widget_5a(&mut accept_button, 1, 1, 1, 1);
+        main_grid.add_widget_5a(&instructions_frame, 0, 0, 1, 2);
+        main_grid.add_widget_5a(&rewrite_sequence_line_edit, 1, 0, 1, 1);
+        main_grid.add_widget_5a(&accept_button, 1, 1, 1, 1);
 
         accept_button.released().connect(dialog.slot_accept());
 
@@ -209,30 +209,30 @@ impl PackFileContentsUI {
     pub unsafe fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(Vec<PathBuf>, Option<String>)> {
 
         // Create the "Mass-Import TSV" Dialog and configure it.
-        let mut dialog = QDialog::new_1a(app_ui.main_window).into_ptr();
+        let dialog = Rc::new(QDialog::new_1a(app_ui.main_window)    );
         dialog.set_window_title(&qtr("mass_import_tsv"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 100);
 
         // Create the main Grid and his stuff.
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
-        let mut files_to_import_label = QLabel::from_q_string(&qtr("mass_import_num_to_import"));
-        let mut select_files_button = QPushButton::from_q_string(&QString::from_std_str("..."));
-        let mut imported_files_name_line_edit = QLineEdit::new();
-        let mut use_original_filenames_label = QLabel::from_q_string(&qtr("mass_import_use_original_filename"));
-        let mut use_original_filenames_checkbox = QCheckBox::new();
-        let mut import_button = QPushButton::from_q_string(&qtr("mass_import_import"));
+        let main_grid = create_grid_layout(dialog.static_upcast());
+        let files_to_import_label = QLabel::from_q_string(&qtr("mass_import_num_to_import"));
+        let select_files_button = QPushButton::from_q_string(&QString::from_std_str("..."));
+        let imported_files_name_line_edit = QLineEdit::new();
+        let use_original_filenames_label = QLabel::from_q_string(&qtr("mass_import_use_original_filename"));
+        let use_original_filenames_checkbox = QCheckBox::new();
+        let import_button = QPushButton::from_q_string(&qtr("mass_import_import"));
 
         // Set a dummy name as default.
         imported_files_name_line_edit.set_text(&qtr("mass_import_default_name"));
 
         // Add all the widgets to the main grid, and the main grid to the dialog.
-        main_grid.add_widget_5a(&mut files_to_import_label, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&mut select_files_button, 0, 1, 1, 1);
-        main_grid.add_widget_5a(&mut use_original_filenames_label, 1, 0, 1, 1);
-        main_grid.add_widget_5a(&mut use_original_filenames_checkbox, 1, 1, 1, 1);
-        main_grid.add_widget_5a(&mut imported_files_name_line_edit, 2, 0, 1, 1);
-        main_grid.add_widget_5a(&mut import_button, 2, 1, 1, 1);
+        main_grid.add_widget_5a(& files_to_import_label, 0, 0, 1, 1);
+        main_grid.add_widget_5a(& select_files_button, 0, 1, 1, 1);
+        main_grid.add_widget_5a(& use_original_filenames_label, 1, 0, 1, 1);
+        main_grid.add_widget_5a(& use_original_filenames_checkbox, 1, 1, 1, 1);
+        main_grid.add_widget_5a(& imported_files_name_line_edit, 2, 0, 1, 1);
+        main_grid.add_widget_5a(& import_button, 2, 1, 1, 1);
 
         //-------------------------------------------------------------------------------------------//
         // Actions for the Mass-Import TSV Dialog...
@@ -242,12 +242,13 @@ impl PackFileContentsUI {
         let files_to_import = Rc::new(RefCell::new(vec![]));
 
         // What happens when we hit the "..." button.
-        let slot_select_files = Slot::new(clone!(
+        let slot_select_files = SlotNoArgs::new(&*dialog, clone!(
+            dialog,
             files_to_import => move || {
 
                 // Create the FileDialog to get the TSV files, and add them to the list if we accept.
-                let mut file_dialog = QFileDialog::from_q_widget_q_string(
-                    dialog,
+                let file_dialog = QFileDialog::from_q_widget_q_string(
+                    &*dialog,
                     &qtr("mass_import_select"),
                 );
 

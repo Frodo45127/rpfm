@@ -12,7 +12,7 @@
 Module with the slots for RigidModel Views.
 !*/
 
-use qt_core::Slot;
+use qt_core::SlotNoArgs;
 
 use crate::app_ui::AppUI;
 use crate::global_search_ui::GlobalSearchUI;
@@ -26,7 +26,7 @@ use crate::UI_STATE;
 
 /// This struct contains the slots of the view of an RigidModel PackedFile.
 pub struct PackedFileRigidModelViewSlots {
-    pub save: Slot<'static>,
+    pub save: SlotNoArgs,
 }
 
 //-------------------------------------------------------------------------------//
@@ -37,12 +37,12 @@ pub struct PackedFileRigidModelViewSlots {
 impl PackedFileRigidModelViewSlots {
 
     /// This function creates the entire slot pack for images.
-    pub unsafe fn new(packed_file_view: &PackedFileRigidModelViewRaw, mut app_ui: AppUI, global_search_ui: GlobalSearchUI, mut pack_file_contents_ui: PackFileContentsUI) -> Self {
+    pub unsafe fn new(packed_file_view: &PackedFileRigidModelViewRaw, mut app_ui: &Rc<AppUI>, global_search_ui: &Rc<GlobalSearchUI>, mut pack_file_contents_ui: &Rc<PackFileContentsUI>) -> Self {
 
         // When we want to save the contents of the UI to the backend...
-        let save = Slot::new(clone!(packed_file_view => move || {
+        let save = SlotNoArgs::new(clone!(packed_file_view => move || {
             if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_view.path.read().unwrap()) {
-                if let Err(_error) = packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui) {
+                if let Err(_error) = packed_file.save(&app_ui, global_search_ui, &pack_file_contents_ui) {
                     //show_dialog(packed_file_view.get_table_view_primary(), error, false);
                 }
             }

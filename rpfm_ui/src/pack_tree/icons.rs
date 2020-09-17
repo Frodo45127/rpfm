@@ -83,7 +83,7 @@ impl IconType {
     /// This function is used to set the icon of an Item in the `TreeView` depending on his type.
     ///
     /// TODO: Find a way to abstract this into the PackedFileType thing.
-    pub fn set_icon_to_item_safe(&self, item: &mut QStandardItem) {
+    pub fn set_icon_to_item_safe(&self, item: &QStandardItem) {
         let icon = ref_from_atomic_ref(match self {
 
             // For PackFiles.

@@ -22,9 +22,11 @@ use qt_widgets::QPushButton;
 
 use qt_gui::QStandardItemModel;
 
+use qt_core::QBox;
 use qt_core::QString;
+use qt_core::QPtr;
 
-use cpp_core::MutPtr;
+use std::rc::Rc;
 
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::SETTINGS;
@@ -43,13 +45,12 @@ mod slots;
 //-------------------------------------------------------------------------------//
 
 /// `This struct holds all the relevant stuff for "MyMod"'s New Mod Window.
-#[derive(Copy, Clone, Debug)]
 pub struct MyModUI {
-    pub mymod_dialog: MutPtr<QDialog>,
-    pub mymod_game_combobox: MutPtr<QComboBox>,
-    pub mymod_name_line_edit: MutPtr<QLineEdit>,
-    pub mymod_cancel_button: MutPtr<QPushButton>,
-    pub mymod_accept_button: MutPtr<QPushButton>,
+    pub mymod_dialog: QBox<QDialog>,
+    pub mymod_game_combobox: QBox<QComboBox>,
+    pub mymod_name_line_edit: QBox<QLineEdit>,
+    pub mymod_cancel_button: QPtr<QPushButton>,
+    pub mymod_accept_button: QPtr<QPushButton>,
 }
 
 
@@ -62,37 +63,37 @@ impl MyModUI {
 
     /// This function creates the entire "New Mod" dialog and executes it. It returns
     /// the name of the mod and the folder_name of the game.
-    pub unsafe fn new(app_ui: &mut AppUI) -> Option<(String, String)> {
+    pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<(String, String)> {
 
         // Create the "New MyMod" Dialog and configure it.
-        let mut dialog = QDialog::new_1a(app_ui.main_window).into_ptr();
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
+        let dialog = QDialog::new_1a(app_ui.main_window);
+        let main_grid = create_grid_layout(dialog.static_upcast());
         dialog.set_window_title(&qtr("mymod_new"));
         dialog.set_modal(true);
         dialog.resize_2a(300, 0);
 
         // Create the Advices Frame and configure it.
-        let advices_frame = QFrame::new_0a().into_ptr();
-        let mut advices_grid = create_grid_layout(advices_frame.static_upcast_mut());
-        let mut advices_label = QLabel::from_q_string(&QString::from_std_str("Things to take into account before creating a new mod:
+        let advices_frame = QFrame::new_0a();
+        let advices_grid = create_grid_layout(advices_frame.static_upcast());
+        let advices_label = QLabel::from_q_string(&QString::from_std_str("Things to take into account before creating a new mod:
     - Select the game you'll make the mod for.
     - Pick an simple name (it shouldn't end in *.pack).
     - If you want to use multiple words, use \"_\" instead of \" \".
     - You can't create a mod for a game that has no path set in the settings."));
 
-        advices_grid.add_widget_5a(&mut advices_label, 0, 0, 1, 1);
-        main_grid.add_widget_5a(advices_frame, 0, 0, 1, 2);
+        advices_grid.add_widget_5a(&advices_label, 0, 0, 1, 1);
+        main_grid.add_widget_5a(&advices_frame, 0, 0, 1, 2);
 
         // Create the "MyMod's Name" Label and LineEdit and configure them.
-        let mut mymod_name_label = QLabel::from_q_string(&qtr("mymod_name"));
-        let mut mymod_name_line_edit = QLineEdit::new();
+        let mymod_name_label = QLabel::from_q_string(&qtr("mymod_name"));
+        let mymod_name_line_edit = QLineEdit::new();
         mymod_name_line_edit.set_placeholder_text(&qtr("mymod_name_default"));
 
         // Create the "MyMod's Game" Label and ComboBox and configure them.
-        let mut mymod_game_label = QLabel::from_q_string(&qtr("mymod_game"));
-        let mut mymod_game_combobox = QComboBox::new_0a();
-        let mut mymod_game_model = QStandardItemModel::new_0a();
-        mymod_game_combobox.set_model(&mut mymod_game_model);
+        let mymod_game_label = QLabel::from_q_string(&qtr("mymod_game"));
+        let mymod_game_combobox = QComboBox::new_0a();
+        let mymod_game_model = QStandardItemModel::new_0a();
+        mymod_game_combobox.set_model(&mymod_game_model);
 
         // Add the games to the ComboBox.
         let mut selected_index = 0;
@@ -110,31 +111,31 @@ impl MyModUI {
         mymod_game_combobox.set_current_index(selected_index as i32);
 
         // Add all the widgets to the main grid.
-        main_grid.add_widget_5a(&mut mymod_name_label, 1, 0, 1, 1);
-        main_grid.add_widget_5a(&mut mymod_name_line_edit, 1, 1, 1, 1);
+        main_grid.add_widget_5a(&mymod_name_label, 1, 0, 1, 1);
+        main_grid.add_widget_5a(&mymod_name_line_edit, 1, 1, 1, 1);
 
-        main_grid.add_widget_5a(&mut mymod_game_label, 2, 0, 1, 1);
-        main_grid.add_widget_5a(&mut mymod_game_combobox, 2, 1, 1, 1);
+        main_grid.add_widget_5a(&mymod_game_label, 2, 0, 1, 1);
+        main_grid.add_widget_5a(&mymod_game_combobox, 2, 1, 1, 1);
 
         // Create the bottom ButtonBox and configure it
-        let mut button_box = QDialogButtonBox::new();
+        let button_box = QDialogButtonBox::new();
         let mymod_cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
-        let mut mymod_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
-        main_grid.add_widget_5a(&mut button_box, 3, 0, 1, 2);
+        let mymod_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
+        main_grid.add_widget_5a(&button_box, 3, 0, 1, 2);
 
         // Disable the "Accept" button by default.
         mymod_accept_button.set_enabled(false);
 
         // Put all the stuff together and launch the dialog.
-        let mut mymod_ui = Self {
+        let mymod_ui = Rc::new(Self {
             mymod_dialog: dialog,
-            mymod_game_combobox: mymod_game_combobox.into_ptr(),
-            mymod_name_line_edit: mymod_name_line_edit.into_ptr(),
+            mymod_game_combobox,
+            mymod_name_line_edit,
             mymod_cancel_button,
             mymod_accept_button,
-        };
+        });
 
-        let mymod_slots = MyModUISlots::new(mymod_ui);
+        let mymod_slots = MyModUISlots::new(&mymod_ui);
         connections::set_connections(&mymod_ui, &mymod_slots);
 
         // Execute the dialog and return the result if we accepted.
@@ -151,7 +152,7 @@ impl MyModUI {
     }
 
     /// This function checks if the MyMod's name is valid or not, disabling or enabling the "Accept" button in response.
-    unsafe fn check_my_mod_validity(&mut self) {
+    unsafe fn check_my_mod_validity(&self) {
         let mod_name = self.mymod_name_line_edit.text().to_std_string();
         let mut game = self.mymod_game_combobox.current_text().to_std_string();
         if let Some(index) = game.find('&') { game.remove(index); }

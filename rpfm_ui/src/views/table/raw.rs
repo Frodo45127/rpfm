@@ -13,15 +13,11 @@ Module with all the code to deal with the raw version of the tables.
 !*/
 
 use qt_widgets::q_abstract_item_view::ScrollHint;
-use qt_widgets::QAction;
-use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
 use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
-use qt_widgets::QTableView;
-use qt_widgets::QMenu;
 
 use qt_gui::QBrush;
 use qt_gui::QGuiApplication;
@@ -30,114 +26,34 @@ use qt_gui::QStandardItemModel;
 use qt_core::CaseSensitivity;
 use qt_core::QFlags;
 use qt_core::QItemSelection;
-use qt_core::QModelIndex;
 use qt_core::QRegExp;
+use qt_core::QString;
+use qt_core::QModelIndex;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QVariant;
-use qt_core::QString;
 use qt_core::Orientation;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QSignalBlocker;
+use qt_core::QPtr;
 
-use cpp_core::MutPtr;
 use cpp_core::Ref;
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 
-use rpfm_lib::schema::Definition;
-
-use crate::utils::{atomic_from_mut_ptr, create_grid_layout, mut_ptr_from_atomic, log_to_status_bar};
+use crate::utils::{atomic_from_ptr, create_grid_layout, log_to_status_bar};
 use crate::pack_tree::*;
 use super::*;
-
-//-------------------------------------------------------------------------------//
-//                              Enums & Structs
-//-------------------------------------------------------------------------------//
-
-/// This struct contains the raw version of each pointer in `PackedFileTableView`, to be used when building the slots.
-///
-/// This is kinda a hack, because AtomicPtr cannot be copied, and we need a copy of the entire set of pointers available
-/// for the construction of the slots. So we build this one, copy it for the slots, then move it into the `PackedFileTableView`.
-#[derive(Clone)]
-pub struct TableViewRaw {
-    pub table_view_primary: MutPtr<QTableView>,
-    pub table_view_frozen: MutPtr<QTableView>,
-    pub table_filter: MutPtr<QSortFilterProxyModel>,
-    pub table_model: MutPtr<QStandardItemModel>,
-    //pub table_enable_lookups_button: MutPtr<QPushButton>,
-    pub filter_case_sensitive_button: MutPtr<QPushButton>,
-    pub filter_column_selector: MutPtr<QComboBox>,
-    pub filter_line_edit: MutPtr<QLineEdit>,
-    pub column_sort_state: Arc<RwLock<(i32, i8)>>,
-
-    pub context_menu: MutPtr<QMenu>,
-    pub context_menu_enabler: MutPtr<QAction>,
-    pub context_menu_add_rows: MutPtr<QAction>,
-    pub context_menu_insert_rows: MutPtr<QAction>,
-    pub context_menu_delete_rows: MutPtr<QAction>,
-    pub context_menu_clone_and_append: MutPtr<QAction>,
-    pub context_menu_clone_and_insert: MutPtr<QAction>,
-    pub context_menu_copy: MutPtr<QAction>,
-    pub context_menu_copy_as_lua_table: MutPtr<QAction>,
-    pub context_menu_paste: MutPtr<QAction>,
-    pub context_menu_paste_as_new_row: MutPtr<QAction>,
-    pub context_menu_invert_selection: MutPtr<QAction>,
-    pub context_menu_reset_selection: MutPtr<QAction>,
-    pub context_menu_rewrite_selection: MutPtr<QAction>,
-    pub context_menu_undo: MutPtr<QAction>,
-    pub context_menu_redo: MutPtr<QAction>,
-    pub context_menu_import_tsv: MutPtr<QAction>,
-    pub context_menu_export_tsv: MutPtr<QAction>,
-    pub context_menu_resize_columns: MutPtr<QAction>,
-    pub context_menu_sidebar: MutPtr<QAction>,
-    pub context_menu_search: MutPtr<QAction>,
-    pub smart_delete: MutPtr<QAction>,
-
-    pub sidebar_scroll_area: MutPtr<QScrollArea>,
-    pub search_widget: MutPtr<QWidget>,
-
-    pub search_search_line_edit: MutPtr<QLineEdit>,
-    pub search_replace_line_edit: MutPtr<QLineEdit>,
-    pub search_search_button: MutPtr<QPushButton>,
-    pub search_replace_current_button: MutPtr<QPushButton>,
-    pub search_replace_all_button: MutPtr<QPushButton>,
-    pub search_close_button: MutPtr<QPushButton>,
-    pub search_prev_match_button: MutPtr<QPushButton>,
-    pub search_next_match_button: MutPtr<QPushButton>,
-    pub search_matches_label: MutPtr<QLabel>,
-    pub search_column_selector: MutPtr<QComboBox>,
-    pub search_case_sensitive_button: MutPtr<QPushButton>,
-    pub search_data: Arc<RwLock<TableSearch>>,
-
-    pub dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
-    pub table_definition: Arc<RwLock<Definition>>,
-    pub packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
-    pub packed_file_type: Arc<PackedFileType>,
-
-    pub save_lock: Arc<AtomicBool>,
-    pub undo_lock: Arc<AtomicBool>,
-
-    pub undo_model: MutPtr<QStandardItemModel>,
-    pub history_undo: Arc<RwLock<Vec<TableOperations>>>,
-    pub history_redo: Arc<RwLock<Vec<TableOperations>>>,
-}
 
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
 
-/// Implementation of `TableViewRaw`.
-impl TableViewRaw {
-
-    /// This function returns a reference to the definition of this table.
-    pub fn get_ref_table_definition(&self) -> RwLockReadGuard<Definition> {
-        self.table_definition.read().unwrap()
-    }
+/// Implementation of `TableView`.
+impl TableView {
 
     /// This function updates the state of the actions in the context menu.
-    pub unsafe fn context_menu_update(&mut self) {
+    pub unsafe fn context_menu_update(&self) {
 
         // Turns out that this slot doesn't give the the amount of selected items, so we have to get them ourselfs.
         let indexes = self.table_filter.map_selection_to_source(&self.table_view_primary.selection_model().selection()).indexes();
@@ -169,9 +85,9 @@ impl TableViewRaw {
     }
 
     /// Function to filter the table.
-    pub unsafe fn filter_table(&mut self) {
+    pub unsafe fn filter_table(&self) {
 
-        let mut pattern = QRegExp::new_1a(&self.filter_line_edit.text());
+        let pattern = QRegExp::new_1a(&self.filter_line_edit.text());
 
         let column_name = self.filter_column_selector.current_text();
         for column in 0..self.table_model.column_count_0a() {
@@ -214,13 +130,13 @@ impl TableViewRaw {
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
 
         let mut items_reverted = 0;
         for index in &indexes_sorted {
             if index.is_valid() {
-                let mut item = self.table_model.item_from_index(index);
+                let item = self.table_model.item_from_index(index);
                 if item.data_1a(ITEM_HAS_SOURCE_VALUE).to_bool() {
                     let original_data = item.data_1a(ITEM_SOURCE_VALUE);
                     let current_data = item.data_1a(2);
@@ -252,7 +168,7 @@ impl TableViewRaw {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
-            update_undo_model(self.table_model, self.undo_model);
+            update_undo_model(&self.table_model, &self.undo_model);
         }
     }
 
@@ -263,15 +179,15 @@ impl TableViewRaw {
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
             let indexes = self.table_view_primary.selection_model().selection().indexes();
             let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
-            let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+            sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
+            let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
 
             let mut changed_cells = 0;
             for model_index in indexes_sorted {
                 if model_index.is_valid() {
 
                     // Get the column of that cell, the row, the current value, and the new value.
-                    let mut item = self.table_model.item_from_index(model_index.as_ref());
+                    let item = self.table_model.item_from_index(model_index.as_ref());
                     let column = model_index.column();
                     let row = model_index.row();
                     let current_value = item.text().to_std_string();
@@ -382,7 +298,7 @@ impl TableViewRaw {
                     history_undo.push(TableOperations::Editing(edits_data));
                     history_redo.clear();
                 }
-                update_undo_model(self.table_model, self.undo_model);
+                update_undo_model(&self.table_model, &self.undo_model);
                 //undo_redo_enabler.trigger();
             }
         }
@@ -394,8 +310,8 @@ impl TableViewRaw {
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
 
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
@@ -437,8 +353,8 @@ impl TableViewRaw {
         // Get the selection sorted visually.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
 
         // Split the indexes in two groups: those who have a key column selected and those who haven't.
         // Keep in mind this doesn't check what key column we have selected.
@@ -461,7 +377,7 @@ impl TableViewRaw {
     }
 
     /// This function allow us to paste the contents of the clipboard into new rows at the end of the table, if the content is compatible with them.
-    pub unsafe fn paste_as_new_row(&mut self) {
+    pub unsafe fn paste_as_new_row(&self) {
 
         // Get the current selection. We treat it like a TSV, for compatibility with table editors.
         // Also, if the text ends in \n, remove it. Excel things.
@@ -478,7 +394,7 @@ impl TableViewRaw {
     ///
     /// This function has some... tricky stuff:
     /// - There are several special behaviors when pasting, in order to provide an Excel-Like pasting experience.
-    pub unsafe fn paste(&mut self) {
+    pub unsafe fn paste(&self) {
 
         // Get the current selection. We treat it like a TSV, for compatibility with table editors.
         // Also, if the text ends in \n, remove it. Excel things.
@@ -490,7 +406,7 @@ impl TableViewRaw {
         // Get the current selection and his, visually speaking, first item (top-left).
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
+        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
 
         // If nothing is selected, got back to where you came from.
         if indexes_sorted.is_empty() { return }
@@ -547,7 +463,7 @@ impl TableViewRaw {
     }
 
     /// This function pastes the value in the clipboard in every selected Cell.
-    unsafe fn paste_one_for_all(&mut self, text: &str, indexes: &[Ref<QModelIndex>]) {
+    unsafe fn paste_one_for_all(&self, text: &str, indexes: &[Ref<QModelIndex>]) {
         let mut changed_cells = 0;
         self.save_lock.store(true, Ordering::SeqCst);
 
@@ -557,7 +473,7 @@ impl TableViewRaw {
 
                 // Get the column of that cell.
                 let column = model_index.column();
-                let mut item = self.table_model.item_from_index(model_index.as_ref());
+                let item = self.table_model.item_from_index(model_index.as_ref());
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = item.text().to_std_string();
@@ -649,13 +565,13 @@ impl TableViewRaw {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
-            update_undo_model(self.table_model, self.undo_model);
+            update_undo_model(&self.table_model, &self.undo_model);
             self.context_menu_update();
         }
     }
 
     /// This function pastes the row in the clipboard in every selected row that has the same amount of items selected as items in the clipboard we have.
-    unsafe fn paste_same_row_for_all(&mut self, text: &[&str], indexes: &[Ref<QModelIndex>]) {
+    unsafe fn paste_same_row_for_all(&self, text: &[&str], indexes: &[Ref<QModelIndex>]) {
         self.save_lock.store(true, Ordering::SeqCst);
         let mut changed_cells = 0;
 
@@ -666,7 +582,7 @@ impl TableViewRaw {
 
                 // Get the column of that cell.
                 let column = model_index.column();
-                let mut item = self.table_model.item_from_index(model_index.as_ref());
+                let item = self.table_model.item_from_index(model_index.as_ref());
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = item.text().to_std_string();
@@ -758,13 +674,13 @@ impl TableViewRaw {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
-            update_undo_model(self.table_model, self.undo_model);
+            update_undo_model(&self.table_model, &self.undo_model);
             self.context_menu_update();
         }
     }
 
     /// This function pastes the provided text into the table as it fits, following a square strategy starting in the first selected index.
-    unsafe fn paste_as_it_fits(&mut self, text: &[Vec<&str>], indexes: &[Ref<QModelIndex>]) {
+    unsafe fn paste_as_it_fits(&self, text: &[Vec<&str>], indexes: &[Ref<QModelIndex>]) {
 
         // We're going to try and check in square mode. That means, start in the selected cell, then right
         // until we reach a \n, then return to the initial column. Due to how sorting works, we have to do
@@ -839,7 +755,7 @@ impl TableViewRaw {
         {
             //let mut table_state_data = table_state_data.borrow_mut();
             //let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
-            update_undo_model(self.table_model, self.undo_model);
+            update_undo_model(&self.table_model, &self.undo_model);
         }
 
         self.save_lock.store(true, Ordering::SeqCst);
@@ -943,7 +859,7 @@ impl TableViewRaw {
                 history_redo.clear();
             }
 
-            update_undo_model(self.table_model, self.undo_model);
+            update_undo_model(&self.table_model, &self.undo_model);
             self.context_menu_update();
         }
     }
@@ -953,12 +869,12 @@ impl TableViewRaw {
     /// If undo = true we are undoing. Otherwise we are redoing.
     /// NOTE: repeat_x_times is for internal recursion!!! ALWAYS PUT A 0 THERE!!!.
     pub unsafe fn undo_redo(
-        &mut self,
+        &self,
         undo: bool,
         mut repeat_x_times: usize,
     ) {
-        let filter: MutPtr<QSortFilterProxyModel> = self.table_view_primary.model().static_downcast_mut();
-        let mut model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+        let filter: QPtr<QSortFilterProxyModel> = self.table_view_primary.model().static_downcast();
+        let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
         let mut is_carolina = false;
 
         {
@@ -976,12 +892,12 @@ impl TableViewRaw {
 
                     // Prepare the redo operation, then do the rest.
                     let mut redo_editions = vec![];
-                    editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), atomic_from_mut_ptr((&*model.item_2a((x.0).0, (x.0).1)).clone()))));
+                    editions.iter().for_each(|x| redo_editions.push((((x.0).0, (x.0).1), atomic_from_ptr((&*model.item_2a((x.0).0, (x.0).1)).clone()))));
                     history_opposite.push(TableOperations::Editing(redo_editions));
 
                     self.undo_lock.store(true, Ordering::SeqCst);
                     for (index, ((row, column), item)) in editions.iter().enumerate() {
-                        let item = &*mut_ptr_from_atomic(&item);
+                        let item = &*ptr_from_atomic(&item);
                         model.set_item_3a(*row, *column, item.clone());
 
                         // If we are going to process the last one, unlock the save.
@@ -992,11 +908,11 @@ impl TableViewRaw {
                     }
 
                     // Select all the edited items.
-                    let mut selection_model = self.table_view_primary.selection_model();
+                    let selection_model = self.table_view_primary.selection_model();
                     selection_model.clear();
 
                     // TODO: This is still very slow. We need some kind of range optimization.
-                    let _blocker = QSignalBlocker::from_q_object(selection_model);
+                    let _blocker = QSignalBlocker::from_q_object(&selection_model);
                     for ((row, column),_) in &editions {
                         let model_index_filtered = filter.map_from_source(&model.index_2a(*row, *column));
                         if model_index_filtered.is_valid() {
@@ -1016,7 +932,7 @@ impl TableViewRaw {
                     // Sort them 0->9, so we can process them.
                     rows.sort_by(|x, y| x.cmp(y));
                     self.undo_lock.store(true, Ordering::SeqCst);
-                    let rows_splitted = delete_rows(self.table_model, &rows);
+                    let rows_splitted = delete_rows(&self.table_model, &rows);
                     history_opposite.push(TableOperations::RemoveRows(rows_splitted));
                     self.undo_lock.store(false, Ordering::SeqCst);
                 }
@@ -1032,8 +948,8 @@ impl TableViewRaw {
                     // First, we re-create the rows and re-insert them.
                     for (index, row_pack) in &rows {
                         for (offset, row) in row_pack.iter().enumerate() {
-                            let mut qlist = QListOfQStandardItem::new();
-                            row.iter().for_each(|x| add_to_q_list_safe(qlist.as_mut_ptr(), mut_ptr_from_atomic(x)));
+                            let qlist = QListOfQStandardItem::new();
+                            row.iter().for_each(|x| qlist.append_q_standard_item(&mut ptr_from_atomic(x).as_mut_raw_ptr()));
                             model.insert_row_int_q_list_of_q_standard_item(*index + offset as i32, &qlist);
                         }
                     }
@@ -1053,7 +969,7 @@ impl TableViewRaw {
 
                     // Select all the re-inserted rows that are in the filter. We need to block signals here because the bigger this gets,
                     // the slower it gets. And it gets very slow on high amounts of lines.
-                    let mut selection_model = self.table_view_primary.selection_model();
+                    let selection_model = self.table_view_primary.selection_model();
                     selection_model.clear();
                     for (index, row_pack) in &rows {
                         let initial_model_index_filtered = self.table_filter.map_from_source(&self.table_model.index_2a(*index, 0));
@@ -1079,7 +995,7 @@ impl TableViewRaw {
                     let row_count = self.table_model.row_count_0a();
                     self.table_model.remove_rows_2a(0, row_count);
                     for row in &table_data {
-                        let row = mut_ptr_from_atomic(row);
+                        let row = ptr_from_atomic(row);
                         self.table_model.append_row_q_list_of_q_standard_item(row.as_ref().unwrap())
                     }
                 }
@@ -1249,7 +1165,7 @@ impl TableViewRaw {
     /// This function is used to append new rows to a table.
     ///
     /// If clone = true, the appended rows are copies of the selected ones.
-    pub unsafe fn append_rows(&mut self, clone: bool) {
+    pub unsafe fn append_rows(&self, clone: bool) {
 
         // Get the indexes ready for battle.
         let selection = self.table_view_primary.selection_model().selection();
@@ -1266,12 +1182,12 @@ impl TableViewRaw {
                 row_numbers.push(index.row());
 
                 let columns = self.table_model.column_count_0a();
-                let mut qlist = QListOfQStandardItem::new();
+                let qlist = QListOfQStandardItem::new();
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
-                    let mut item = (*original_item).clone();
+                    let item = (*original_item).clone();
                     item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
-                    add_to_q_list_safe(qlist.as_mut_ptr(), item);
+                    qlist.append_q_standard_item(&mut item.as_mut_raw_ptr());
                 }
 
                 rows.push(qlist);
@@ -1279,14 +1195,14 @@ impl TableViewRaw {
             rows
         } else {
             let color = get_color_added();
-            let mut row = get_new_row(&self.get_ref_table_definition());
-            for index in 0..row.count() {
-                row.index(index).as_mut().unwrap().set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+            let row = get_new_row(&self.get_ref_table_definition());
+            for index in 0..row.count_0a() {
+                row.value_1a(index).set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
             }
             vec![row]
         };
 
-        let mut selection_model = self.table_view_primary.selection_model();
+        let selection_model = self.table_view_primary.selection_model();
         selection_model.clear();
         for row in &rows {
             self.table_model.append_row_q_list_of_q_standard_item(row.as_ref());
@@ -1311,14 +1227,14 @@ impl TableViewRaw {
         let range = (total_rows - rows.len() as i32..total_rows).collect::<Vec<i32>>();
         self.history_undo.write().unwrap().push(TableOperations::AddRows(range));
         self.history_redo.write().unwrap().clear();
-        update_undo_model(self.table_model, self.undo_model);
+        update_undo_model(&self.table_model, &self.undo_model);
         //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     }
 
     /// This function is used to insert new rows into a table.
     ///
     /// If clone = true, the appended rows are copies of the selected ones.
-    pub unsafe fn insert_rows(&mut self, clone: bool) {
+    pub unsafe fn insert_rows(&self, clone: bool) {
 
         // Get the indexes ready for battle.
         let selection = self.table_view_primary.selection_model().selection();
@@ -1335,7 +1251,7 @@ impl TableViewRaw {
             row_numbers.push(self.table_model.row_count_0a() - 1);
         }
 
-        let mut selection_model = self.table_view_primary.selection_model();
+        let selection_model = self.table_view_primary.selection_model();
         selection_model.clear();
 
         for index in indexes_sorted.iter().rev() {
@@ -1345,19 +1261,19 @@ impl TableViewRaw {
             let row = if clone {
                 let color = get_color_added_modified();
                 let columns = self.table_model.column_count_0a();
-                let mut qlist = QListOfQStandardItem::new();
+                let qlist = QListOfQStandardItem::new();
                 for column in 0..columns {
                     let original_item = self.table_model.item_2a(index.row(), column);
-                    let mut item = (*original_item).clone();
+                    let item = (*original_item).clone();
                     item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
-                    add_to_q_list_safe(qlist.as_mut_ptr(), item);
+                    qlist.append_q_standard_item(&mut item.as_mut_raw_ptr());
                 }
                 qlist
             } else {
                 let color = get_color_added();
-                let mut row = get_new_row(&self.get_ref_table_definition());
-                for index in 0..row.count() {
-                    row.index(index).as_mut().unwrap().set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
+                let row = get_new_row(&self.get_ref_table_definition());
+                for index in 0..row.count_0a() {
+                    row.value_1a(index).set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
                 }
                 row
             };
@@ -1376,19 +1292,19 @@ impl TableViewRaw {
         // The undo mode needs this reversed.
         self.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
         self.history_redo.write().unwrap().clear();
-        update_undo_model(self.table_model, self.undo_model);
+        update_undo_model(&self.table_model, &self.undo_model);
     }
 
     /// This function returns a copy of the entire model.
     pub unsafe fn get_copy_of_table(&self) -> Vec<AtomicPtr<QListOfQStandardItem>> {
         let mut old_data = vec![];
         for row in 0..self.table_model.row_count_0a() {
-            let mut qlist = QListOfQStandardItem::new();
+            let qlist = QListOfQStandardItem::new();
             for column in 0..self.table_model.column_count_0a() {
                 let item = self.table_model.item_2a(row, column);
-                add_to_q_list_safe(qlist.as_mut_ptr(), (*item).clone());
+                qlist.append_q_standard_item(&mut (*item).clone().as_mut_raw_ptr());
             }
-            old_data.push(atomic_from_mut_ptr(qlist.into_ptr()));
+            old_data.push(atomic_from_ptr(qlist.into_ptr()));
         }
         old_data
     }
@@ -1397,27 +1313,27 @@ impl TableViewRaw {
     pub unsafe fn create_rewrite_selection_dialog(&self) -> Option<(bool, String)> {
 
         // Create and configure the dialog.
-        let mut dialog = QDialog::new_1a(self.table_view_primary);
+        let dialog = QDialog::new_1a(&self.table_view_primary);
         dialog.set_window_title(&qtr("rewrite_selection_title"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
-        let mut main_grid = create_grid_layout(dialog.as_mut_ptr().static_upcast_mut());
+        let main_grid = create_grid_layout(dialog.static_upcast());
 
         // Create a little frame with some instructions.
-        let instructions_frame = QGroupBox::from_q_string(&qtr("rewrite_selection_instructions_title")).into_ptr();
-        let mut instructions_grid = create_grid_layout(instructions_frame.static_upcast_mut());
-        let mut instructions_label = QLabel::from_q_string(&qtr("rewrite_selection_instructions"));
-        instructions_grid.add_widget_5a(&mut instructions_label, 0, 0, 1, 1);
+        let instructions_frame = QGroupBox::from_q_string(&qtr("rewrite_selection_instructions_title"));
+        let instructions_grid = create_grid_layout(instructions_frame.static_upcast());
+        let instructions_label = QLabel::from_q_string(&qtr("rewrite_selection_instructions"));
+        instructions_grid.add_widget_5a(& instructions_label, 0, 0, 1, 1);
 
-        let mut is_math_op = QCheckBox::from_q_string(&qtr("rewrite_selection_is_math"));
-        let mut rewrite_sequence_line_edit = QLineEdit::new();
+        let is_math_op = QCheckBox::from_q_string(&qtr("rewrite_selection_is_math"));
+        let rewrite_sequence_line_edit = QLineEdit::new();
         rewrite_sequence_line_edit.set_placeholder_text(&qtr("rewrite_selection_placeholder"));
-        let mut accept_button = QPushButton::from_q_string(&qtr("rewrite_selection_accept"));
+        let accept_button = QPushButton::from_q_string(&qtr("rewrite_selection_accept"));
 
-        main_grid.add_widget_5a(instructions_frame, 0, 0, 1, 2);
-        main_grid.add_widget_5a(&mut is_math_op, 1, 0, 1, 2);
-        main_grid.add_widget_5a(&mut rewrite_sequence_line_edit, 2, 0, 1, 1);
-        main_grid.add_widget_5a(&mut accept_button, 2, 1, 1, 1);
+        main_grid.add_widget_5a(&instructions_frame, 0, 0, 1, 2);
+        main_grid.add_widget_5a(&is_math_op, 1, 0, 1, 2);
+        main_grid.add_widget_5a(&rewrite_sequence_line_edit, 2, 0, 1, 1);
+        main_grid.add_widget_5a(&accept_button, 2, 1, 1, 1);
 
         accept_button.released().connect(dialog.slot_accept());
 
@@ -1428,13 +1344,13 @@ impl TableViewRaw {
     }
 
     /// This function takes care of the "Smart Delete" feature for tables.
-    pub unsafe fn smart_delete(&mut self) {
+    pub unsafe fn smart_delete(&self) {
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
 
         let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
         for model_index in &indexes_sorted {
@@ -1467,7 +1383,7 @@ impl TableViewRaw {
         let mut editions = 0;
         for (row, columns) in &individual_cells {
             for column in columns {
-                let mut item = self.table_model.item_2a(*row, *column);
+                let item = self.table_model.item_2a(*row, *column);
                 let current_value = item.text().to_std_string();
                 match self.get_ref_table_definition().get_fields_processed()[*column as usize].get_ref_field_type() {
                     FieldType::Boolean => {
@@ -1517,7 +1433,7 @@ impl TableViewRaw {
         }
 
         // Then, we delete all the fully selected rows.
-        let rows_splitted = super::utils::delete_rows(self.table_model, &full_rows);
+        let rows_splitted = super::utils::delete_rows(&self.table_model, &full_rows);
 
         // Then, we have to fix the undo history. For that, we take out all the editions, merge them,
         // then merge them with the table edition into a carolina.
@@ -1546,7 +1462,7 @@ impl TableViewRaw {
                 if !changes.is_empty() {
                     self.history_undo.write().unwrap().push(TableOperations::Carolina(changes));
                     self.history_redo.write().unwrap().clear();
-                    update_undo_model(self.table_model, self.undo_model);
+                    update_undo_model(&self.table_model, &self.undo_model);
                     self.context_menu_update();
                 }
             }

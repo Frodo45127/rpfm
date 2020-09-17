@@ -14,13 +14,15 @@ Module with all the code to connect `TableView` signals with their corresponding
 This module is, and should stay, private, as it's only glue between the `TableView` and `TableViewSlots` structs.
 !*/
 
+use std::sync::Arc;
+
 use super::{TableView, slots::TableViewSlots};
 
 /// This function connects all the actions from the provided `TableView` with their slots in `TableViewSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
-pub unsafe fn set_connections(ui: &TableView, slots: &TableViewSlots) {
+pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_line_edit);
     ui.get_mut_ptr_filter_column_selector().current_index_changed().connect(&slots.filter_column_selector);
     ui.get_mut_ptr_filter_case_sensitive_button().toggled().connect(&slots.filter_case_sensitive_button);

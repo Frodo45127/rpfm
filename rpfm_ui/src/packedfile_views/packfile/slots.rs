@@ -12,7 +12,11 @@
 Module with the slots for PackFile Views.
 !*/
 
-use qt_core::{SlotOfBool, SlotOfQModelIndex, Slot, SlotOfQString};
+use qt_core::{SlotOfBool, SlotOfQModelIndex, SlotNoArgs, SlotOfQString};
+use qt_core::QBox;
+
+use std::sync::Arc;
+use std::rc::Rc;
 
 use rpfm_lib::packfile::PathType;
 
@@ -24,7 +28,7 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::DiagnosticsUI;
 use crate::utils::show_dialog;
-use super::{PackFileExtraView, PackFileExtraViewRaw};
+use super::PackFileExtraView;
 use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
@@ -33,14 +37,14 @@ use crate::UI_STATE;
 
 /// This struct contains the slots of the view of the extra PackFile.
 pub struct PackFileExtraViewSlots {
-    pub import: SlotOfQModelIndex<'static>,
+    pub import: QBox<SlotOfQModelIndex>,
 
-    pub filter_change_text: SlotOfQString<'static>,
-    pub filter_change_autoexpand_matches: SlotOfBool<'static>,
-    pub filter_change_case_sensitive: SlotOfBool<'static>,
+    pub filter_change_text: QBox<SlotOfQString>,
+    pub filter_change_autoexpand_matches: QBox<SlotOfBool>,
+    pub filter_change_case_sensitive: QBox<SlotOfBool>,
 
-    pub expand_all: Slot<'static>,
-    pub collapse_all: Slot<'static>,
+    pub expand_all: QBox<SlotNoArgs>,
+    pub collapse_all: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -52,16 +56,20 @@ impl PackFileExtraViewSlots {
 
     /// This function builds the entire slot set for the provided PackFileExtraView.
     pub unsafe fn new(
-        mut app_ui: AppUI,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        diagnostics_ui: DiagnosticsUI,
-        mut pack_file_view: PackFileExtraViewRaw
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+        pack_file_view: &Arc<PackFileExtraView>
     ) -> Self {
 
         // When we want to import the selected PackedFile...
-        let import = SlotOfQModelIndex::new(clone!(
-            mut pack_file_view => move |_| {
+        let import = SlotOfQModelIndex::new(&pack_file_view.tree_view, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
+            pack_file_view => move |_| {
 
                 // Get the file to get from the TreeView.
                 let selection_file_to_move = pack_file_view.tree_view.selection_model().selection();
@@ -70,7 +78,7 @@ impl PackFileExtraViewSlots {
 
                     // Ask the Background Thread to move the files, and send him the path.
                     app_ui.main_window.set_enabled(false);
-                    CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromPackFile((pack_file_view.get_pack_file_path(), item_types)));
+                    CENTRAL_COMMAND.send_message_qt(Command::AddPackedFilesFromPackFile(((&pack_file_view.pack_file_path.read().unwrap()).to_path_buf(), item_types)));
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
                         Response::VecPathType(paths_ok) => {
@@ -80,8 +88,8 @@ impl PackFileExtraViewSlots {
                                 if let PathType::File(path) = path {
                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
-                                        if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
-                                            let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, path, false);
+                                        if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
+                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false);
                                         }
                                     }
                                 }
@@ -91,7 +99,7 @@ impl PackFileExtraViewSlots {
                             let paths_ok = paths_ok.iter().map(From::from).collect::<Vec<TreePathType>>();
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_ok.to_vec()));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_ok.to_vec()));
-                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 /*
                             // Update the global search stuff, if needed.
                             let paths = paths.iter().map(|x|
@@ -129,19 +137,19 @@ impl PackFileExtraViewSlots {
         ));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
-        let filter_change_text = SlotOfQString::new(clone!(pack_file_view => move |_| {
+        let filter_change_text = SlotOfQString::new(&pack_file_view.tree_view, clone!(pack_file_view => move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
         }));
-        let filter_change_autoexpand_matches = SlotOfBool::new(clone!(pack_file_view => move |_| {
+        let filter_change_autoexpand_matches = SlotOfBool::new(&pack_file_view.tree_view, clone!(pack_file_view => move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
         }));
-        let filter_change_case_sensitive = SlotOfBool::new(clone!(pack_file_view => move |_| {
+        let filter_change_case_sensitive = SlotOfBool::new(&pack_file_view.tree_view, clone!(pack_file_view => move |_| {
             PackFileExtraView::filter_files(&pack_file_view);
         }));
 
         // Actions without buttons for the TreeView.
-        let expand_all = Slot::new(clone!(mut pack_file_view => move || { pack_file_view.tree_view.expand_all(); }));
-        let collapse_all = Slot::new(move || { pack_file_view.tree_view.collapse_all(); });
+        let expand_all = SlotNoArgs::new(&pack_file_view.tree_view, clone!(pack_file_view => move || { pack_file_view.tree_view.expand_all(); }));
+        let collapse_all = SlotNoArgs::new(&pack_file_view.tree_view, clone!(pack_file_view => move || { pack_file_view.tree_view.collapse_all(); }));
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {

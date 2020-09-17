@@ -12,6 +12,7 @@
 Module with all the code for managing the view for Tables.
 !*/
 
+use crate::utils::ptr_from_atomic;
 use qt_widgets::QCheckBox;
 use qt_widgets::QAction;
 use qt_widgets::QComboBox;
@@ -28,6 +29,8 @@ use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
+use qt_core::QAbstractItemModel;
+use qt_core::QBox;
 use qt_core::QModelIndex;
 use qt_core::CheckState;
 use qt_core::QFlags;
@@ -38,14 +41,16 @@ use qt_core::QVariant;
 use qt_core::QString;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::MatchFlag;
+use qt_core::QPtr;
 
-use cpp_core::MutPtr;
+use cpp_core::Ptr;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::{fmt, fmt::Debug};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
+use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::parse_str_as_bool;
@@ -64,12 +69,12 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{View, ViewType};
-use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
+use crate::utils::{atomic_from_ptr, q_ptr_from_atomic};
 use crate::utils::create_grid_layout;
 use crate::utils::show_dialog;
+use crate::utils::atomic_from_q_box;
 
 use self::slots::TableViewSlots;
-use self::raw::*;
 use self::utils::*;
 
 mod connections;
@@ -126,14 +131,14 @@ pub enum TableOperations {
 /// This struct contains all the stuff needed to perform a table search. There is one per table, integrated in the view.
 #[derive(Clone)]
 pub struct TableSearch {
-    pattern: MutPtr<QString>,
-    replace: MutPtr<QString>,
+    pattern: Ptr<QString>,
+    replace: Ptr<QString>,
     regex: bool,
     case_sensitive: bool,
     column: Option<i32>,
 
     /// This one contains the QModelIndex of the model and the QModelIndex of the filter, if exists.
-    matches: Vec<(MutPtr<QModelIndex>, Option<MutPtr<QModelIndex>>)>,
+    matches: Vec<(Ptr<QModelIndex>, Option<Ptr<QModelIndex>>)>,
     current_item: Option<u64>,
 }
 
@@ -147,46 +152,57 @@ pub enum TableSearchUpdate {
 
 /// This struct contains pointers to all the widgets in a Table View.
 pub struct TableView {
-    table_view_primary: AtomicPtr<QTableView>,
-    table_view_frozen: AtomicPtr<QTableView>,
-    table_model: AtomicPtr<QStandardItemModel>,
-    //table_enable_lookups_button: AtomicPtr<QPushButton>,
-    filter_case_sensitive_button: AtomicPtr<QPushButton>,
-    filter_column_selector: AtomicPtr<QComboBox>,
-    filter_line_edit: AtomicPtr<QLineEdit>,
+    table_view_primary: QBox<QTableView>,
+    table_view_frozen: QBox<QTableView>,
+    table_filter: QBox<QSortFilterProxyModel>,
+    table_model: QBox<QStandardItemModel>,
+    //table_enable_lookups_button: QBox<QPushButton>,
+    filter_case_sensitive_button: QBox<QPushButton>,
+    filter_column_selector: QBox<QComboBox>,
+    filter_line_edit: QBox<QLineEdit>,
 
-    context_menu_add_rows: AtomicPtr<QAction>,
-    context_menu_insert_rows: AtomicPtr<QAction>,
-    context_menu_delete_rows: AtomicPtr<QAction>,
-    context_menu_clone_and_append: AtomicPtr<QAction>,
-    context_menu_clone_and_insert: AtomicPtr<QAction>,
-    context_menu_copy: AtomicPtr<QAction>,
-    context_menu_copy_as_lua_table: AtomicPtr<QAction>,
-    context_menu_paste: AtomicPtr<QAction>,
-    context_menu_paste_as_new_row: AtomicPtr<QAction>,
-    context_menu_invert_selection: AtomicPtr<QAction>,
-    context_menu_reset_selection: AtomicPtr<QAction>,
-    context_menu_rewrite_selection: AtomicPtr<QAction>,
-    context_menu_undo: AtomicPtr<QAction>,
-    context_menu_redo: AtomicPtr<QAction>,
-    context_menu_import_tsv: AtomicPtr<QAction>,
-    context_menu_export_tsv: AtomicPtr<QAction>,
-    context_menu_resize_columns: AtomicPtr<QAction>,
-    context_menu_sidebar: AtomicPtr<QAction>,
-    context_menu_search: AtomicPtr<QAction>,
-    smart_delete: AtomicPtr<QAction>,
+    column_sort_state: Arc<RwLock<(i32, i8)>>,
+
+    context_menu: QBox<QMenu>,
+    context_menu_add_rows: QPtr<QAction>,
+    context_menu_insert_rows: QPtr<QAction>,
+    context_menu_delete_rows: QPtr<QAction>,
+    context_menu_clone_and_append: QPtr<QAction>,
+    context_menu_clone_and_insert: QPtr<QAction>,
+    context_menu_copy: QPtr<QAction>,
+    context_menu_copy_as_lua_table: QPtr<QAction>,
+    context_menu_paste: QPtr<QAction>,
+    context_menu_paste_as_new_row: QPtr<QAction>,
+    context_menu_invert_selection: QPtr<QAction>,
+    context_menu_reset_selection: QPtr<QAction>,
+    context_menu_rewrite_selection: QPtr<QAction>,
+    context_menu_undo: QPtr<QAction>,
+    context_menu_redo: QPtr<QAction>,
+    context_menu_import_tsv: QPtr<QAction>,
+    context_menu_export_tsv: QPtr<QAction>,
+    context_menu_resize_columns: QPtr<QAction>,
+    context_menu_sidebar: QPtr<QAction>,
+    context_menu_search: QPtr<QAction>,
+    smart_delete: QBox<QAction>,
+
+    sidebar_scroll_area: QBox<QScrollArea>,
+    search_widget: QBox<QWidget>,
 
     sidebar_hide_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
     sidebar_freeze_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
 
-    search_search_line_edit: AtomicPtr<QLineEdit>,
-    search_search_button: AtomicPtr<QPushButton>,
-    search_replace_current_button: AtomicPtr<QPushButton>,
-    search_replace_all_button: AtomicPtr<QPushButton>,
-    search_close_button: AtomicPtr<QPushButton>,
-    search_prev_match_button: AtomicPtr<QPushButton>,
-    search_next_match_button: AtomicPtr<QPushButton>,
-    search_column_selector: AtomicPtr<QComboBox>,
+    search_search_line_edit: QBox<QLineEdit>,
+    search_replace_line_edit: QBox<QLineEdit>,
+    search_search_button: QBox<QPushButton>,
+    search_replace_current_button: QBox<QPushButton>,
+    search_replace_all_button: QBox<QPushButton>,
+    search_close_button: QBox<QPushButton>,
+    search_prev_match_button: QBox<QPushButton>,
+    search_next_match_button: QBox<QPushButton>,
+    search_matches_label: QBox<QLabel>,
+    search_column_selector: QBox<QComboBox>,
+    search_case_sensitive_button: QBox<QPushButton>,
+    search_data: Arc<RwLock<TableSearch>>,
 
     table_name: Option<String>,
     table_uuid: Option<String>,
@@ -195,7 +211,10 @@ pub struct TableView {
     table_definition: Arc<RwLock<Definition>>,
     dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
 
-    undo_model: AtomicPtr<QStandardItemModel>,
+    save_lock: Arc<AtomicBool>,
+    undo_lock: Arc<AtomicBool>,
+
+    undo_model: QBox<QStandardItemModel>,
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
 }
@@ -211,14 +230,14 @@ impl TableView {
     ///
     /// NOTE: To open the dependency list, pass it an empty path.
     pub unsafe fn new_view(
-        mut parent: MutPtr<QWidget>,
-        app_ui: &AppUI,
-        global_search_ui: &GlobalSearchUI,
-        pack_file_contents_ui: &PackFileContentsUI,
-        diagnostics_ui: &DiagnosticsUI,
+        parent: &QBox<QWidget>,
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         table_data: TableType,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>
-    ) -> Result<(Self, TableViewSlots)> {
+    ) -> Result<Arc<Self>> {
 
         let (table_definition, table_name, table_uuid, packed_file_type) = match table_data {
             TableType::DependencyManager(_) => {
@@ -240,11 +259,11 @@ impl TableView {
         let save_lock = Arc::new(AtomicBool::new(false));
 
         // Prepare the Table and its model.
-        let mut filter_model = QSortFilterProxyModel::new_0a();
-        let mut model = QStandardItemModel::new_0a();
-        filter_model.set_source_model(&mut model);
-        let (mut table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&mut parent);
-        set_frozen_data_model_safe(&mut table_view_primary, &mut filter_model);
+        let table_filter = QSortFilterProxyModel::new_0a();
+        let table_model = QStandardItemModel::new_0a();
+        table_filter.set_source_model(&table_model);
+        let (table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&parent.as_ptr());
+        set_frozen_data_model_safe(&table_view_primary.as_ptr(), &table_filter.static_upcast::<QAbstractItemModel>().as_ptr());
 
         // Make the last column fill all the available space, if the setting says so.
         if SETTINGS.read().unwrap().settings_bool["extend_last_column_on_tables"] {
@@ -264,13 +283,13 @@ impl TableView {
         }
 
         // Create the filter's widgets.
-        let mut row_filter_line_edit = QLineEdit::new();
-        let mut row_filter_column_selector = QComboBox::new_0a();
-        let mut row_filter_case_sensitive_button = QPushButton::from_q_string(&qtr("table_filter_case_sensitive"));
-        let row_filter_column_list = QStandardItemModel::new_0a().into_ptr();
-        let mut table_enable_lookups_button = QPushButton::from_q_string(&qtr("table_enable_lookups"));
+        let row_filter_line_edit = QLineEdit::new();
+        let row_filter_column_selector = QComboBox::new_0a();
+        let row_filter_case_sensitive_button = QPushButton::from_q_string(&qtr("table_filter_case_sensitive"));
+        let row_filter_column_list = QStandardItemModel::new_0a();
+        let table_enable_lookups_button = QPushButton::from_q_string(&qtr("table_enable_lookups"));
 
-        row_filter_column_selector.set_model(row_filter_column_list);
+        row_filter_column_selector.set_model(&row_filter_column_list);
 
         let mut fields = table_definition.get_fields_processed().to_vec();
         fields.sort_by(|a, b| {
@@ -296,28 +315,27 @@ impl TableView {
         table_enable_lookups_button.set_checkable(true);
 
         // Add everything to the grid.
-        let mut layout: MutPtr<QGridLayout> = parent.layout().static_downcast_mut();
-        layout.add_widget_5a(table_view_primary, 0, 0, 1, 4);
-        layout.add_widget_5a(&mut row_filter_line_edit, 2, 0, 1, 1);
-        layout.add_widget_5a(&mut row_filter_case_sensitive_button, 2, 1, 1, 1);
-        layout.add_widget_5a(&mut row_filter_column_selector, 2, 2, 1, 1);
-        //layout.add_widget_5a(&mut table_enable_lookups_button, 2, 3, 1, 1);
+        let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
+        layout.add_widget_5a(&table_view_primary, 0, 0, 1, 4);
+        layout.add_widget_5a(&row_filter_line_edit, 2, 0, 1, 1);
+        layout.add_widget_5a(&row_filter_case_sensitive_button, 2, 1, 1, 1);
+        layout.add_widget_5a(&row_filter_column_selector, 2, 2, 1, 1);
+        //layout.add_widget_5a(& table_enable_lookups_button, 2, 3, 1, 1);
 
         // Action to make the delete button delete contents.
-        let smart_delete = QAction::new().into_ptr();
+        let smart_delete = QAction::new();
 
         // Create the Contextual Menu for the TableView.
-        let context_menu_enabler = QAction::new();
-        let mut context_menu = QMenu::new().into_ptr();
+        let context_menu = QMenu::new();
         let context_menu_add_rows = context_menu.add_action_q_string(&qtr("context_menu_add_rows"));
         let context_menu_insert_rows = context_menu.add_action_q_string(&qtr("context_menu_insert_rows"));
         let context_menu_delete_rows = context_menu.add_action_q_string(&qtr("context_menu_delete_rows"));
 
-        let mut context_menu_clone_submenu = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
+        let context_menu_clone_submenu = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
         let context_menu_clone_and_insert = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_append"));
 
-        let mut context_menu_copy_submenu = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
+        let context_menu_copy_submenu = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
         let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy"));
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
 
@@ -339,34 +357,34 @@ impl TableView {
         let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
 
         // Insert some separators to space the menu, and the paste submenu.
-        context_menu.insert_menu(context_menu_paste, context_menu_clone_submenu.into_ptr());
-        context_menu.insert_menu(context_menu_paste, context_menu_copy_submenu.into_ptr());
-        context_menu.insert_separator(context_menu_rewrite_selection);
-        context_menu.insert_separator(context_menu_import_tsv);
-        context_menu.insert_separator(context_menu_search);
-        context_menu.insert_separator(context_menu_undo);
+        context_menu.insert_menu(&context_menu_paste, context_menu_clone_submenu.into_ptr());
+        context_menu.insert_menu(&context_menu_paste, context_menu_copy_submenu.into_ptr());
+        context_menu.insert_separator(&context_menu_rewrite_selection);
+        context_menu.insert_separator(&context_menu_import_tsv);
+        context_menu.insert_separator(&context_menu_search);
+        context_menu.insert_separator(&context_menu_undo);
 
         //--------------------------------------------------//
         // Search Section.
         //--------------------------------------------------//
         //
-        let mut search_widget = QWidget::new_0a().into_ptr();
-        let mut search_grid = create_grid_layout(search_widget);
+        let search_widget = QWidget::new_0a();
+        let search_grid = create_grid_layout(search_widget.static_upcast());
 
-        let mut search_matches_label = QLabel::new();
+        let search_matches_label = QLabel::new();
         let search_search_label = QLabel::from_q_string(&QString::from_std_str("Search Pattern:"));
         let search_replace_label = QLabel::from_q_string(&QString::from_std_str("Replace Pattern:"));
-        let mut search_search_line_edit = QLineEdit::new();
-        let mut search_replace_line_edit = QLineEdit::new();
-        let mut search_prev_match_button = QPushButton::from_q_string(&QString::from_std_str("Prev. Match"));
-        let mut search_next_match_button = QPushButton::from_q_string(&QString::from_std_str("Next Match"));
-        let mut search_search_button = QPushButton::from_q_string(&QString::from_std_str("Search"));
-        let mut search_replace_current_button = QPushButton::from_q_string(&QString::from_std_str("Replace Current"));
-        let mut search_replace_all_button = QPushButton::from_q_string(&QString::from_std_str("Replace All"));
-        let mut search_close_button = QPushButton::from_q_string(&QString::from_std_str("Close"));
-        let mut search_column_selector = QComboBox::new_0a();
+        let search_search_line_edit = QLineEdit::new();
+        let search_replace_line_edit = QLineEdit::new();
+        let search_prev_match_button = QPushButton::from_q_string(&QString::from_std_str("Prev. Match"));
+        let search_next_match_button = QPushButton::from_q_string(&QString::from_std_str("Next Match"));
+        let search_search_button = QPushButton::from_q_string(&QString::from_std_str("Search"));
+        let search_replace_current_button = QPushButton::from_q_string(&QString::from_std_str("Replace Current"));
+        let search_replace_all_button = QPushButton::from_q_string(&QString::from_std_str("Replace All"));
+        let search_close_button = QPushButton::from_q_string(&QString::from_std_str("Close"));
+        let search_column_selector = QComboBox::new_0a();
         let search_column_list = QStandardItemModel::new_0a();
-        let mut search_case_sensitive_button = QPushButton::from_q_string(&QString::from_std_str("Case Sensitive"));
+        let search_case_sensitive_button = QPushButton::from_q_string(&QString::from_std_str("Case Sensitive"));
 
         search_search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
         search_replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
@@ -384,21 +402,21 @@ impl TableView {
         search_replace_all_button.set_enabled(false);
 
         // Add all the widgets to the search grid.
-        search_grid.add_widget_5a(search_search_label.into_ptr(), 0, 0, 1, 1);
-        search_grid.add_widget_5a(&mut search_search_line_edit, 0, 1, 1, 1);
-        search_grid.add_widget_5a(&mut search_prev_match_button, 0, 2, 1, 1);
-        search_grid.add_widget_5a(&mut search_next_match_button, 0, 3, 1, 1);
-        search_grid.add_widget_5a(search_replace_label.into_ptr(), 1, 0, 1, 1);
-        search_grid.add_widget_5a(&mut search_replace_line_edit, 1, 1, 1, 3);
-        search_grid.add_widget_5a(&mut search_search_button, 0, 4, 1, 1);
-        search_grid.add_widget_5a(&mut search_replace_current_button, 1, 4, 1, 1);
-        search_grid.add_widget_5a(&mut search_replace_all_button, 2, 4, 1, 1);
-        search_grid.add_widget_5a(&mut search_close_button, 2, 0, 1, 1);
-        search_grid.add_widget_5a(&mut search_matches_label, 2, 1, 1, 1);
-        search_grid.add_widget_5a(&mut search_column_selector, 2, 2, 1, 1);
-        search_grid.add_widget_5a(&mut search_case_sensitive_button, 2, 3, 1, 1);
+        search_grid.add_widget_5a(&search_search_label, 0, 0, 1, 1);
+        search_grid.add_widget_5a(&search_search_line_edit, 0, 1, 1, 1);
+        search_grid.add_widget_5a(&search_prev_match_button, 0, 2, 1, 1);
+        search_grid.add_widget_5a(&search_next_match_button, 0, 3, 1, 1);
+        search_grid.add_widget_5a(&search_replace_label, 1, 0, 1, 1);
+        search_grid.add_widget_5a(&search_replace_line_edit, 1, 1, 1, 3);
+        search_grid.add_widget_5a(&search_search_button, 0, 4, 1, 1);
+        search_grid.add_widget_5a(&search_replace_current_button, 1, 4, 1, 1);
+        search_grid.add_widget_5a(&search_replace_all_button, 2, 4, 1, 1);
+        search_grid.add_widget_5a(&search_close_button, 2, 0, 1, 1);
+        search_grid.add_widget_5a(&search_matches_label, 2, 1, 1, 1);
+        search_grid.add_widget_5a(&search_column_selector, 2, 2, 1, 1);
+        search_grid.add_widget_5a(&search_case_sensitive_button, 2, 3, 1, 1);
 
-        layout.add_widget_5a(search_widget, 1, 0, 1, 4);
+        layout.add_widget_5a(&search_widget, 1, 0, 1, 4);
         layout.set_column_stretch(0, 10);
         search_widget.hide();
 
@@ -407,65 +425,64 @@ impl TableView {
         //--------------------------------------------------//
 
         // Create the search and hide/show/freeze widgets.
-        let sidebar_widget = QWidget::new_0a().into_ptr();
-        let mut sidebar_scroll_area = QScrollArea::new_0a().into_ptr();
-        let mut sidebar_grid = create_grid_layout(sidebar_widget);
-        sidebar_scroll_area.set_widget(sidebar_widget);
+        let sidebar_widget = QWidget::new_0a();
+        let sidebar_scroll_area = QScrollArea::new_0a();
+        let sidebar_grid = create_grid_layout(sidebar_widget.static_upcast());
+        sidebar_scroll_area.set_widget(&sidebar_widget);
         sidebar_scroll_area.set_widget_resizable(true);
         sidebar_scroll_area.horizontal_scroll_bar().set_enabled(false);
         sidebar_grid.set_contents_margins_4a(4, 0, 4, 4);
         sidebar_grid.set_spacing(4);
 
-        let mut header_column = QLabel::from_q_string(&qtr("header_column"));
-        let mut header_hidden = QLabel::from_q_string(&qtr("header_hidden"));
-        let mut header_frozen = QLabel::from_q_string(&qtr("header_frozen"));
+        let header_column = QLabel::from_q_string(&qtr("header_column"));
+        let header_hidden = QLabel::from_q_string(&qtr("header_hidden"));
+        let header_frozen = QLabel::from_q_string(&qtr("header_frozen"));
 
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_column, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));
-        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut header_frozen, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_column, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_frozen, QFlags::from(AlignmentFlag::AlignHCenter));
 
-        sidebar_grid.add_widget_5a(header_column.into_ptr(), 0, 0, 1, 1);
-        sidebar_grid.add_widget_5a(header_hidden.into_ptr(), 0, 1, 1, 1);
-        sidebar_grid.add_widget_5a(header_frozen.into_ptr(), 0, 2, 1, 1);
+        sidebar_grid.add_widget_5a(&header_column, 0, 0, 1, 1);
+        sidebar_grid.add_widget_5a(&header_hidden, 0, 1, 1, 1);
+        sidebar_grid.add_widget_5a(&header_frozen, 0, 2, 1, 1);
 
         let mut hide_show_checkboxes = vec![];
         let mut freeze_checkboxes = vec![];
         for (index, column) in fields.iter().enumerate() {
             let column_name = QLabel::from_q_string(&QString::from_std_str(&utils::clean_column_names(&column.get_name())));
-            let mut hide_show_checkbox = QCheckBox::new();
-            let mut freeze_unfreeze_checkbox = QCheckBox::new();
+            let hide_show_checkbox = QCheckBox::new();
+            let freeze_unfreeze_checkbox = QCheckBox::new();
             freeze_unfreeze_checkbox.set_enabled(false);
 
-            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
-            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&mut freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
+            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
+            sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
 
-            sidebar_grid.add_widget_5a(column_name.into_ptr(), (index + 1) as i32, 0, 1, 1);
-            sidebar_grid.add_widget_5a(&mut hide_show_checkbox, (index + 1) as i32, 1, 1, 1);
-            sidebar_grid.add_widget_5a(&mut freeze_unfreeze_checkbox, (index + 1) as i32, 2, 1, 1);
+            sidebar_grid.add_widget_5a(&column_name, (index + 1) as i32, 0, 1, 1);
+            sidebar_grid.add_widget_5a(&hide_show_checkbox, (index + 1) as i32, 1, 1, 1);
+            sidebar_grid.add_widget_5a(&freeze_unfreeze_checkbox, (index + 1) as i32, 2, 1, 1);
 
-            hide_show_checkboxes.push(atomic_from_mut_ptr(hide_show_checkbox.into_ptr()));
-            freeze_checkboxes.push(atomic_from_mut_ptr(freeze_unfreeze_checkbox.into_ptr()));
+            hide_show_checkboxes.push(atomic_from_q_box(hide_show_checkbox));
+            freeze_checkboxes.push(atomic_from_q_box(freeze_unfreeze_checkbox));
         }
 
         // Add all the stuff to the main grid and hide the search widget.
-        layout.add_widget_5a(sidebar_scroll_area, 0, 4, 3, 1);
+        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 3, 1);
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
 
         // Create the raw Struct and begin
-        let packed_file_table_view_raw = TableViewRaw {
+        let packed_file_table_view = Arc::new(TableView {
             table_view_primary,
             table_view_frozen,
-            table_filter: filter_model.into_ptr(),
-            table_model: model.into_ptr(),
+            table_filter,
+            table_model,
             //table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
-            filter_line_edit: row_filter_line_edit.into_ptr(),
-            filter_case_sensitive_button: row_filter_case_sensitive_button.into_ptr(),
-            filter_column_selector: row_filter_column_selector.into_ptr(),
+            filter_line_edit: row_filter_line_edit,
+            filter_case_sensitive_button: row_filter_case_sensitive_button,
+            filter_column_selector: row_filter_column_selector,
             column_sort_state: Arc::new(RwLock::new((-1, 0))),
 
             context_menu,
-            context_menu_enabler: context_menu_enabler.into_ptr(),
             context_menu_add_rows,
             context_menu_insert_rows,
             context_menu_delete_rows,
@@ -487,22 +504,27 @@ impl TableView {
             context_menu_search,
             smart_delete,
 
-            search_search_line_edit: search_search_line_edit.into_ptr(),
-            search_replace_line_edit: search_replace_line_edit.into_ptr(),
-            search_search_button: search_search_button.into_ptr(),
-            search_replace_current_button: search_replace_current_button.into_ptr(),
-            search_replace_all_button: search_replace_all_button.into_ptr(),
-            search_close_button: search_close_button.into_ptr(),
-            search_prev_match_button: search_prev_match_button.into_ptr(),
-            search_next_match_button: search_next_match_button.into_ptr(),
-            search_matches_label: search_matches_label.into_ptr(),
-            search_column_selector: search_column_selector.into_ptr(),
-            search_case_sensitive_button: search_case_sensitive_button.into_ptr(),
+            search_search_line_edit,
+            search_replace_line_edit,
+            search_search_button,
+            search_replace_current_button,
+            search_replace_all_button,
+            search_close_button,
+            search_prev_match_button,
+            search_next_match_button,
+            search_matches_label,
+            search_column_selector,
+            search_case_sensitive_button,
             search_data: Arc::new(RwLock::new(TableSearch::default())),
+
+            sidebar_hide_checkboxes: Arc::new(hide_show_checkboxes),
+            sidebar_freeze_checkboxes: Arc::new(freeze_checkboxes),
 
             sidebar_scroll_area,
             search_widget,
 
+            table_name,
+            table_uuid,
             dependency_data: Arc::new(RwLock::new(dependency_data)),
             table_definition: Arc::new(RwLock::new(table_definition)),
             packed_file_path: packed_file_path.clone(),
@@ -511,86 +533,32 @@ impl TableView {
             undo_lock,
             save_lock,
 
-            undo_model: QStandardItemModel::new_0a().into_ptr(),
+            undo_model: QStandardItemModel::new_0a(),
             history_undo: Arc::new(RwLock::new(vec![])),
             history_redo: Arc::new(RwLock::new(vec![])),
-        };
+        });
 
         let packed_file_table_view_slots = TableViewSlots::new(
-            &packed_file_table_view_raw,
-            *global_search_ui,
-            *pack_file_contents_ui,
-            *diagnostics_ui,
-            *app_ui,
+            &packed_file_table_view,
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui,
             packed_file_path.clone(),
         );
-
-        let mut packed_file_table_view = Self {
-            table_view_primary: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_primary),
-            table_view_frozen: atomic_from_mut_ptr(packed_file_table_view_raw.table_view_frozen),
-            table_model: atomic_from_mut_ptr(packed_file_table_view_raw.table_model),
-            //table_enable_lookups_button: atomic_from_mut_ptr(packed_file_table_view_raw.table_enable_lookups_button),
-            filter_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.filter_line_edit),
-            filter_case_sensitive_button: atomic_from_mut_ptr(packed_file_table_view_raw.filter_case_sensitive_button),
-            filter_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.filter_column_selector),
-
-            context_menu_add_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_add_rows),
-            context_menu_insert_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_insert_rows),
-            context_menu_delete_rows: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_delete_rows),
-            context_menu_clone_and_append: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_clone_and_append),
-            context_menu_clone_and_insert: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_clone_and_insert),
-            context_menu_copy: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy),
-            context_menu_copy_as_lua_table: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_copy_as_lua_table),
-            context_menu_paste: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste),
-            context_menu_paste_as_new_row: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_paste_as_new_row),
-            context_menu_invert_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_invert_selection),
-            context_menu_reset_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_reset_selection),
-            context_menu_rewrite_selection: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_rewrite_selection),
-            context_menu_undo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_undo),
-            context_menu_redo: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_redo),
-            context_menu_import_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_import_tsv),
-            context_menu_export_tsv: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_export_tsv),
-            context_menu_resize_columns: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_resize_columns),
-            context_menu_sidebar: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_sidebar),
-            context_menu_search: atomic_from_mut_ptr(packed_file_table_view_raw.context_menu_search),
-            smart_delete: atomic_from_mut_ptr(packed_file_table_view_raw.smart_delete),
-
-            sidebar_hide_checkboxes: Arc::new(hide_show_checkboxes),
-            sidebar_freeze_checkboxes: Arc::new(freeze_checkboxes),
-
-            search_search_line_edit: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_line_edit),
-            search_search_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_search_button),
-            search_replace_current_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_current_button),
-            search_replace_all_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_replace_all_button),
-            search_close_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_close_button),
-            search_prev_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_prev_match_button),
-            search_next_match_button: atomic_from_mut_ptr(packed_file_table_view_raw.search_next_match_button),
-            search_column_selector: atomic_from_mut_ptr(packed_file_table_view_raw.search_column_selector),
-
-            table_name,
-            table_uuid,
-            packed_file_path: packed_file_path.clone(),
-            packed_file_type: packed_file_table_view_raw.packed_file_type.clone(),
-            dependency_data: packed_file_table_view_raw.dependency_data.clone(),
-            table_definition: packed_file_table_view_raw.table_definition.clone(),
-
-            undo_model: atomic_from_mut_ptr(packed_file_table_view_raw.undo_model),
-            history_undo: packed_file_table_view_raw.history_undo.clone(),
-            history_redo: packed_file_table_view_raw.history_redo.clone(),
-        };
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
         load_data(
-            packed_file_table_view_raw.table_view_primary,
-            packed_file_table_view_raw.table_view_frozen,
-            &packed_file_table_view_raw.table_definition.read().unwrap(),
-            &packed_file_table_view_raw.dependency_data,
+            &packed_file_table_view.table_view_primary,
+            &packed_file_table_view.table_view_frozen,
+            &packed_file_table_view.table_definition.read().unwrap(),
+            &packed_file_table_view.dependency_data,
             &table_data
         );
 
         // Initialize the undo model.
-        update_undo_model(mut_ptr_from_atomic(&packed_file_table_view.table_model), mut_ptr_from_atomic(&packed_file_table_view.undo_model));
+        update_undo_model(&packed_file_table_view.table_model, &packed_file_table_view.undo_model);
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
         let table_name = if let Some(ref path) = packed_file_path {
@@ -598,30 +566,30 @@ impl TableView {
         } else { None };
 
         build_columns(
-            packed_file_table_view_raw.table_view_primary,
-            Some(packed_file_table_view_raw.table_view_frozen),
-            &packed_file_table_view_raw.table_definition.read().unwrap(),
+            &packed_file_table_view.table_view_primary,
+            Some(&packed_file_table_view.table_view_frozen),
+            &packed_file_table_view.table_definition.read().unwrap(),
             table_name.as_ref()
         );
 
         // Set the connections and return success.
         connections::set_connections(&packed_file_table_view, &packed_file_table_view_slots);
-        shortcuts::set_shortcuts(&mut packed_file_table_view);
-        tips::set_tips(&mut packed_file_table_view);
+        shortcuts::set_shortcuts(&packed_file_table_view);
+        tips::set_tips(&packed_file_table_view);
 
-        Ok((packed_file_table_view, packed_file_table_view_slots))
+        Ok(packed_file_table_view)
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
     ///
     /// NOTE: This allows for a table to change it's definition on-the-fly, so be carefull with that!
-    pub unsafe fn reload_view(&mut self, data: TableType) {
-        let table_view_primary = mut_ptr_from_atomic(&self.table_view_primary);
-        let table_view_frozen = mut_ptr_from_atomic(&self.table_view_frozen);
-        let undo_model = mut_ptr_from_atomic(&self.undo_model);
+    pub unsafe fn reload_view(&self, data: TableType) {
+        let table_view_primary = &self.table_view_primary;
+        let table_view_frozen = &self.table_view_frozen;
+        let undo_model = &self.undo_model;
 
-        let filter: MutPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast_mut();
-        let model: MutPtr<QStandardItemModel> = filter.source_model().static_downcast_mut();
+        let filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
+        let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
 
         // Update the stored definition.
         let table_definition = match data {
@@ -635,15 +603,15 @@ impl TableView {
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
         load_data(
-            table_view_primary,
-            table_view_frozen,
+            &table_view_primary,
+            &table_view_frozen,
             &self.get_ref_table_definition(),
             &self.dependency_data,
             &data
         );
 
         // Reset the undo model and the undo/redo history.
-        update_undo_model(model, undo_model);
+        update_undo_model(&model.into_q_box(), &undo_model);
         self.history_undo.write().unwrap().clear();
         self.history_redo.write().unwrap().clear();
 
@@ -653,15 +621,15 @@ impl TableView {
 
         // Rebuild the column's stuff.
         build_columns(
-            table_view_primary,
-            Some(table_view_frozen),
+            &table_view_primary,
+            Some(&table_view_frozen),
             &self.get_ref_table_definition(),
             table_name.as_ref()
         );
 
         // Rebuild the column list of the filter and search panels, just in case the definition changed.
-        let mut filter_column_selector = mut_ptr_from_atomic(&self.filter_column_selector);
-        let mut search_column_selector = mut_ptr_from_atomic(&self.search_column_selector);
+        let filter_column_selector = &self.filter_column_selector;
+        let search_column_selector = &self.search_column_selector;
         filter_column_selector.clear();
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
@@ -677,187 +645,187 @@ impl TableView {
     }
 
     /// This function returns a reference to the StandardItemModel widget.
-    pub fn get_mut_ptr_table_model(&self) -> MutPtr<QStandardItemModel> {
-        mut_ptr_from_atomic(&self.table_model)
+    pub fn get_mut_ptr_table_model(&self) -> &QBox<QStandardItemModel> {
+        &self.table_model
     }
 
     // This function returns a mutable reference to the `Enable Lookups` Pushbutton.
-    //pub fn get_mut_ptr_enable_lookups_button(&self) -> MutPtr<QPushButton> {
-    //    mut_ptr_from_atomic(&self.table_enable_lookups_button)
+    //pub fn get_mut_ptr_enable_lookups_button(&self) -> QPtr<QPushButton> {
+    //    q_ptr_from_atomic(&self.table_enable_lookups_button)
     //}
 
     /// This function returns a pointer to the Primary TableView widget.
-    pub fn get_mut_ptr_table_view_primary(&self) -> MutPtr<QTableView> {
-        mut_ptr_from_atomic(&self.table_view_primary)
+    pub fn get_mut_ptr_table_view_primary(&self) -> &QBox<QTableView> {
+        &self.table_view_primary
     }
 
     /// This function returns a pointer to the Frozen TableView widget.
-    pub fn get_mut_ptr_table_view_frozen(&self) -> MutPtr<QTableView> {
-        mut_ptr_from_atomic(&self.table_view_frozen)
+    pub fn get_mut_ptr_table_view_frozen(&self) -> &QBox<QTableView> {
+        &self.table_view_frozen
     }
 
     /// This function returns a pointer to the filter's LineEdit widget.
-    pub fn get_mut_ptr_filter_line_edit(&self) -> MutPtr<QLineEdit> {
-        mut_ptr_from_atomic(&self.filter_line_edit)
+    pub fn get_mut_ptr_filter_line_edit(&self) -> &QBox<QLineEdit> {
+        &self.filter_line_edit
     }
 
     /// This function returns a pointer to the filter's column selector combobox.
-    pub fn get_mut_ptr_filter_column_selector(&self) -> MutPtr<QComboBox> {
-        mut_ptr_from_atomic(&self.filter_column_selector)
+    pub fn get_mut_ptr_filter_column_selector(&self) -> &QBox<QComboBox> {
+        &self.filter_column_selector
     }
 
     /// This function returns a pointer to the filter's case sensitive button.
-    pub fn get_mut_ptr_filter_case_sensitive_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.filter_case_sensitive_button)
+    pub fn get_mut_ptr_filter_case_sensitive_button(&self) -> &QBox<QPushButton> {
+        &self.filter_case_sensitive_button
     }
 
     /// This function returns a pointer to the add rows action.
-    pub fn get_mut_ptr_context_menu_add_rows(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_add_rows)
+    pub fn get_mut_ptr_context_menu_add_rows(&self) -> &QPtr<QAction> {
+        &self.context_menu_add_rows
     }
 
     /// This function returns a pointer to the insert rows action.
-    pub fn get_mut_ptr_context_menu_insert_rows(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_insert_rows)
+    pub fn get_mut_ptr_context_menu_insert_rows(&self) -> &QPtr<QAction> {
+        &self.context_menu_insert_rows
     }
 
     /// This function returns a pointer to the delete rows action.
-    pub fn get_mut_ptr_context_menu_delete_rows(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_delete_rows)
+    pub fn get_mut_ptr_context_menu_delete_rows(&self) -> &QPtr<QAction> {
+        &self.context_menu_delete_rows
     }
 
     /// This function returns a pointer to the clone_and_append action.
-    pub fn get_mut_ptr_context_menu_clone_and_append(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_clone_and_append)
+    pub fn get_mut_ptr_context_menu_clone_and_append(&self) -> &QPtr<QAction> {
+        &self.context_menu_clone_and_append
     }
 
     /// This function returns a pointer to the clone_and_insert action.
-    pub fn get_mut_ptr_context_menu_clone_and_insert(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_clone_and_insert)
+    pub fn get_mut_ptr_context_menu_clone_and_insert(&self) -> &QPtr<QAction> {
+        &self.context_menu_clone_and_insert
     }
 
     /// This function returns a pointer to the copy action.
-    pub fn get_mut_ptr_context_menu_copy(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_copy)
+    pub fn get_mut_ptr_context_menu_copy(&self) -> &QPtr<QAction> {
+        &self.context_menu_copy
     }
 
     /// This function returns a pointer to the copy as lua table action.
-    pub fn get_mut_ptr_context_menu_copy_as_lua_table(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_copy_as_lua_table)
+    pub fn get_mut_ptr_context_menu_copy_as_lua_table(&self) -> &QPtr<QAction> {
+        &self.context_menu_copy_as_lua_table
     }
 
     /// This function returns a pointer to the paste action.
-    pub fn get_mut_ptr_context_menu_paste(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_paste)
+    pub fn get_mut_ptr_context_menu_paste(&self) -> &QPtr<QAction> {
+        &self.context_menu_paste
     }
 
     /// This function returns a pointer to the paste as new row action.
-    pub fn get_mut_ptr_context_menu_paste_as_new_row(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_paste_as_new_row)
+    pub fn get_mut_ptr_context_menu_paste_as_new_row(&self) -> &QPtr<QAction> {
+        &self.context_menu_paste_as_new_row
     }
 
     /// This function returns a pointer to the invert selection action.
-    pub fn get_mut_ptr_context_menu_invert_selection(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_invert_selection)
+    pub fn get_mut_ptr_context_menu_invert_selection(&self) -> &QPtr<QAction> {
+        &self.context_menu_invert_selection
     }
 
     /// This function returns a pointer to the reset selection action.
-    pub fn get_mut_ptr_context_menu_reset_selection(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_reset_selection)
+    pub fn get_mut_ptr_context_menu_reset_selection(&self) -> &QPtr<QAction> {
+        &self.context_menu_reset_selection
     }
 
     /// This function returns a pointer to the rewrite selection action.
-    pub fn get_mut_ptr_context_menu_rewrite_selection(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_rewrite_selection)
+    pub fn get_mut_ptr_context_menu_rewrite_selection(&self) -> &QPtr<QAction> {
+        &self.context_menu_rewrite_selection
     }
 
     /// This function returns a pointer to the undo action.
-    pub fn get_mut_ptr_context_menu_undo(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_undo)
+    pub fn get_mut_ptr_context_menu_undo(&self) -> &QPtr<QAction> {
+        &self.context_menu_undo
     }
 
     /// This function returns a pointer to the redo action.
-    pub fn get_mut_ptr_context_menu_redo(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_redo)
+    pub fn get_mut_ptr_context_menu_redo(&self) -> &QPtr<QAction> {
+        &self.context_menu_redo
     }
 
     /// This function returns a pointer to the import TSV action.
-    pub fn get_mut_ptr_context_menu_import_tsv(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_import_tsv)
+    pub fn get_mut_ptr_context_menu_import_tsv(&self) -> &QPtr<QAction> {
+        &self.context_menu_import_tsv
     }
 
     /// This function returns a pointer to the export TSV action.
-    pub fn get_mut_ptr_context_menu_export_tsv(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_export_tsv)
+    pub fn get_mut_ptr_context_menu_export_tsv(&self) -> &QPtr<QAction> {
+        &self.context_menu_export_tsv
     }
 
     /// This function returns a pointer to the smart delete action.
-    pub fn get_mut_ptr_smart_delete(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.smart_delete)
+    pub fn get_mut_ptr_smart_delete(&self) -> &QBox<QAction> {
+        &self.smart_delete
     }
 
     /// This function returns a pointer to the resize columns action.
-    pub fn get_mut_ptr_context_menu_resize_columns(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_resize_columns)
+    pub fn get_mut_ptr_context_menu_resize_columns(&self) -> &QPtr<QAction> {
+        &self.context_menu_resize_columns
     }
 
     /// This function returns a pointer to the sidebar action.
-    pub fn get_mut_ptr_context_menu_sidebar(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_sidebar)
+    pub fn get_mut_ptr_context_menu_sidebar(&self) -> &QPtr<QAction> {
+        &self.context_menu_sidebar
     }
 
     /// This function returns a pointer to the search action.
-    pub fn get_mut_ptr_context_menu_search(&self) -> MutPtr<QAction> {
-        mut_ptr_from_atomic(&self.context_menu_search)
+    pub fn get_mut_ptr_context_menu_search(&self) -> &QPtr<QAction> {
+        &self.context_menu_search
     }
 
     /// This function returns a vector with the entire hide/show checkbox list.
-    pub fn get_hide_show_checkboxes(&self) -> Vec<MutPtr<QCheckBox>> {
+    pub fn get_hide_show_checkboxes(&self) -> Vec<QPtr<QCheckBox>> {
         self.sidebar_hide_checkboxes.iter()
-            .map(|x| mut_ptr_from_atomic(x))
+            .map(|x| q_ptr_from_atomic(x))
             .collect()
     }
 
     /// This function returns a vector with the entire freeze checkbox list.
-    pub fn get_freeze_checkboxes(&self) -> Vec<MutPtr<QCheckBox>> {
+    pub fn get_freeze_checkboxes(&self) -> Vec<QPtr<QCheckBox>> {
         self.sidebar_freeze_checkboxes.iter()
-            .map(|x| mut_ptr_from_atomic(x))
+            .map(|x| q_ptr_from_atomic(x))
             .collect()
     }
 
     /// This function returns a pointer to the search lineedit in the search panel.
-    pub fn get_mut_ptr_search_search_line_edit(&self) -> MutPtr<QLineEdit> {
-        mut_ptr_from_atomic(&self.search_search_line_edit)
+    pub fn get_mut_ptr_search_search_line_edit(&self) -> &QBox<QLineEdit> {
+        &self.search_search_line_edit
     }
 
     /// This function returns a pointer to the search button in the search panel.
-    pub fn get_mut_ptr_search_search_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.search_search_button)
+    pub fn get_mut_ptr_search_search_button(&self) -> &QBox<QPushButton> {
+        &self.search_search_button
     }
 
     /// This function returns a pointer to the prev match button in the search panel.
-    pub fn get_mut_ptr_search_prev_match_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.search_prev_match_button)
+    pub fn get_mut_ptr_search_prev_match_button(&self) -> &QBox<QPushButton> {
+        &self.search_prev_match_button
     }
 
     /// This function returns a pointer to the next_match button in the search panel.
-    pub fn get_mut_ptr_search_next_match_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.search_next_match_button)
+    pub fn get_mut_ptr_search_next_match_button(&self) -> &QBox<QPushButton> {
+        &self.search_next_match_button
     }
 
     /// This function returns a pointer to the replace current button in the search panel.
-    pub fn get_mut_ptr_search_replace_current_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.search_replace_current_button)
+    pub fn get_mut_ptr_search_replace_current_button(&self) -> &QBox<QPushButton> {
+        &self.search_replace_current_button
     }
 
     /// This function returns a pointer to the replace all button in the search panel.
-    pub fn get_mut_ptr_search_replace_all_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.search_replace_all_button)
+    pub fn get_mut_ptr_search_replace_all_button(&self) -> &QBox<QPushButton> {
+        &self.search_replace_all_button
     }
 
     /// This function returns a pointer to the close button in the search panel.
-    pub fn get_mut_ptr_search_close_button(&self) -> MutPtr<QPushButton> {
-        mut_ptr_from_atomic(&self.search_close_button)
+    pub fn get_mut_ptr_search_close_button(&self) -> &QBox<QPushButton> {
+        &self.search_close_button
     }
 
     /// This function returns a reference to this table's name.
@@ -917,12 +885,12 @@ impl Debug for TableOperations {
 impl Clone for TableOperations {
     fn clone(&self) -> Self {
         match self {
-            Self::Editing(items) => Self::Editing(items.iter().map(|(x, y)| (*x, atomic_from_mut_ptr(mut_ptr_from_atomic(y)))).collect()),
+            Self::Editing(items) => Self::Editing(items.iter().map(|(x, y)| (*x, atomic_from_ptr(ptr_from_atomic(y)))).collect()),
             Self::AddRows(rows) => Self::AddRows(rows.to_vec()),
             Self::RemoveRows(rows) => Self::RemoveRows(rows.iter()
                 .map(|(x, y)| (*x, y.iter()
                     .map(|y| y.iter()
-                        .map(|z| atomic_from_mut_ptr(mut_ptr_from_atomic(z)))
+                        .map(|z| atomic_from_ptr(ptr_from_atomic(z)))
                         .collect()
                     ).collect()
                 )).collect()),
@@ -954,25 +922,25 @@ impl Default for TableSearch {
 impl TableSearch {
 
     /// This function returns the list of matches present in the model.
-    fn get_matches_in_model(&self) -> Vec<MutPtr<QModelIndex>> {
+    fn get_matches_in_model(&self) -> Vec<Ptr<QModelIndex>> {
         self.matches.iter().map(|x| x.0).collect()
     }
 
     /// This function returns the list of matches visible to the user with the current filter.
-    fn get_matches_in_filter(&self) -> Vec<MutPtr<QModelIndex>> {
+    fn get_matches_in_filter(&self) -> Vec<Ptr<QModelIndex>> {
         self.matches.iter().filter_map(|x| x.1).collect()
     }
 
     /// This function returns the list of matches present in the model that are visible to the user with the current filter.
-    fn get_visible_matches_in_model(&self) -> Vec<MutPtr<QModelIndex>> {
+    fn get_visible_matches_in_model(&self) -> Vec<Ptr<QModelIndex>> {
         self.matches.iter().filter(|x| x.1.is_some()).map(|x| x.0).collect()
     }
 
     /// This function takes care of searching data whithin a column, and adding the matches to the matches list.
     unsafe fn find_in_column(
         &mut self,
-        model: MutPtr<QStandardItemModel>,
-        filter: MutPtr<QSortFilterProxyModel>,
+        model: Ptr<QStandardItemModel>,
+        filter: Ptr<QSortFilterProxyModel>,
         definition: &Definition,
         flags: QFlags<MatchFlag>,
         column: i32
@@ -980,15 +948,15 @@ impl TableSearch {
 
         // First, check the column type. Boolean columns need special logic, as they cannot be matched by string.
         let is_bool = definition.get_fields_processed()[column as usize].get_ref_field_type() == &FieldType::Boolean;
-        let mut matches_unprocessed = if is_bool {
+        let matches_unprocessed = if is_bool {
             match parse_str_as_bool(&self.pattern.to_std_string()) {
                 Ok(boolean) => {
                     let check_state = if boolean { CheckState::Checked } else { CheckState::Unchecked };
-                    let mut items = QListOfQStandardItem::new();
+                    let items = QListOfQStandardItem::new();
                     for row in 0..model.row_count_0a() {
                         let item = model.item_2a(row, column);
                         if item.check_state() == check_state {
-                            add_to_q_list_safe(items.as_mut_ptr(), item);
+                            items.append_q_standard_item(&mut item.as_mut_raw_ptr());
                         }
                     }
                     items
@@ -1002,18 +970,18 @@ impl TableSearch {
             model.find_items_3a(self.pattern.as_ref().unwrap(), flags, column)
         };
 
-        for index in 0..matches_unprocessed.count() {
-            let model_index = matches_unprocessed.index(index).as_ref().unwrap().index();
+        for index in 0..matches_unprocessed.count_0a() {
+            let model_index = matches_unprocessed.value_1a(index).index();
             let filter_model_index = filter.map_from_source(&model_index);
             self.matches.push((
-                model_index.into_ptr(),
+                model_index.as_ptr(),
                 if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
             ));
         }
     }
 
     /// This function takes care of updating the UI to reflect changes in the table search.
-    pub unsafe fn update_search_ui(parent: &mut TableViewRaw, update_type: TableSearchUpdate) {
+    pub unsafe fn update_search_ui(parent: &TableView, update_type: TableSearchUpdate) {
         let table_search = &mut parent.search_data.write().unwrap();
         let matches_in_filter = table_search.get_matches_in_filter();
         let matches_in_model = table_search.get_matches_in_model();
@@ -1175,7 +1143,7 @@ impl TableSearch {
     }
 
     /// This function takes care of updating the search data whenever a change that can alter the results happens.
-    pub unsafe fn update_search(parent: &mut TableViewRaw) {
+    pub unsafe fn update_search(parent: &TableView) {
         {
             let table_search = &mut parent.search_data.write().unwrap();
             table_search.matches.clear();
@@ -1196,7 +1164,7 @@ impl TableSearch {
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.get_ref_table_definition(), flags, *column);
+                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.get_ref_table_definition(), flags, *column);
             }
         }
 
@@ -1204,7 +1172,7 @@ impl TableSearch {
     }
 
     /// This function takes care of searching the patter we provided in the TableView.
-    pub unsafe fn search(parent: &mut TableViewRaw) {
+    pub unsafe fn search(parent: &TableView) {
         {
             let table_search = &mut parent.search_data.write().unwrap();
             table_search.matches.clear();
@@ -1234,7 +1202,7 @@ impl TableSearch {
             };
 
             for column in &columns_to_search {
-                table_search.find_in_column(parent.table_model, parent.table_filter, &parent.get_ref_table_definition(), flags, *column);
+                table_search.find_in_column(parent.table_model.as_ptr(), parent.table_filter.as_ptr(), &parent.get_ref_table_definition(), flags, *column);
             }
         }
 
@@ -1242,17 +1210,17 @@ impl TableSearch {
     }
 
     /// This function takes care of moving the selection to the previous match on the matches list.
-    pub unsafe fn prev_match(parent: &mut TableViewRaw) {
+    pub unsafe fn prev_match(parent: &TableView) {
         Self::update_search_ui(parent, TableSearchUpdate::PrevMatch);
     }
 
     /// This function takes care of moving the selection to the next match on the matches list.
-    pub unsafe fn next_match(parent: &mut TableViewRaw) {
+    pub unsafe fn next_match(parent: &TableView) {
         Self::update_search_ui(parent, TableSearchUpdate::NextMatch);
     }
 
     /// This function takes care of replacing the current match with the provided replacing text.
-    pub unsafe fn replace_current(parent: &mut TableViewRaw) {
+    pub unsafe fn replace_current(parent: &TableView) {
 
         // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
         let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
@@ -1264,7 +1232,7 @@ impl TableSearch {
             if text_source == text_replace { return }
 
             // And if we got a valid position.
-            let mut item;
+            let item;
             let replaced_text;
             if let Some(ref position) = parent.search_data.read().unwrap().current_item {
 
@@ -1289,11 +1257,11 @@ impl TableSearch {
 
                     // We need to do an extra check to ensure the new text can be in the field.
                     match parent.get_ref_table_definition().get_fields_processed()[model_index.column() as usize].get_ref_field_type() {
-                        FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                        FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                        FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                         _ =>  {}
                     }
                 } else { return }
@@ -1323,7 +1291,7 @@ impl TableSearch {
     }
 
     /// This function takes care of replacing all the instances of a match with the provided replacing text.
-    pub unsafe fn replace_all(parent: &mut TableViewRaw) {
+    pub unsafe fn replace_all(parent: &TableView) {
 
         // NOTE: WE CANNOT HAVE THE SEARCH DATA LOCK UNTIL AFTER WE DO THE REPLACE. That's why there are a lot of read here.
         let text_source = parent.search_data.read().unwrap().pattern.to_std_string();
@@ -1334,7 +1302,7 @@ impl TableSearch {
             let text_replace = parent.search_data.read().unwrap().replace.to_std_string();
             if text_source == text_replace { return }
 
-            let mut positions_and_texts: Vec<(MutPtr<QModelIndex>, String)> = vec![];
+            let mut positions_and_texts: Vec<(Ptr<QModelIndex>, String)> = vec![];
             {
                 // Here is save to lock, as the lock will be drop before doing the replace.
                 let table_search = &mut parent.search_data.read().unwrap();
@@ -1370,11 +1338,11 @@ impl TableSearch {
 
                         // We need to do an extra check to ensure the new text can be in the field.
                         match parent.get_ref_table_definition().get_fields_processed()[model_index.column() as usize].get_ref_field_type() {
-                            FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
-                            FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::Boolean => if parse_str_as_bool(&replaced_text).is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::F32 => if replaced_text.parse::<f32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::I16 => if replaced_text.parse::<i16>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::I32 => if replaced_text.parse::<i32>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
+                            FieldType::I64 => if replaced_text.parse::<i64>().is_err() { return show_dialog(&parent.table_view_primary, ErrorKind::DBTableReplaceInvalidData, false) }
                             _ =>  {}
                         }
 
@@ -1385,7 +1353,7 @@ impl TableSearch {
 
             // At this point, we trigger editions. Which mean, here ALL LOCKS SHOULD HAVE BEEN ALREADY DROP.
             for (model_index, replaced_text) in &positions_and_texts {
-                let mut item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
+                let item = parent.table_model.item_from_index(model_index.as_ref().unwrap());
                 match parent.get_ref_table_definition().get_fields_processed()[item.column() as usize].get_ref_field_type() {
                     FieldType::Boolean => item.set_check_state(if parse_str_as_bool(&replaced_text).unwrap() { CheckState::Checked } else { CheckState::Unchecked }),
                     FieldType::F32 => item.set_data_2a(&QVariant::from_float(replaced_text.parse::<f32>().unwrap()), 2),
@@ -1417,7 +1385,7 @@ impl TableSearch {
                     history_undo.push(TableOperations::Editing(edits_data));
                     history_redo.clear();
                 }
-                update_undo_model(parent.table_model, parent.undo_model);
+                update_undo_model(&parent.table_model, &parent.undo_model);
             }
         }
     }

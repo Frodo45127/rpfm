@@ -13,10 +13,12 @@ Module with all the code to setup the tips (in the `StatusBar`) for the actions 
 !*/
 
 use crate::locale::qtr;
+use std::rc::Rc;
+
 use super::PackFileContentsUI;
 
 /// This function sets the status bar tip for all the actions in the provided `PackFileContentsUI`.
-pub unsafe fn set_tips(ui: &mut PackFileContentsUI) {
+pub unsafe fn set_tips(ui: &Rc<PackFileContentsUI>) {
 
     //---------------------------------------------------//
     // PackFile Contents TreeView's Contextual menu tips.

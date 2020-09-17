@@ -12,11 +12,13 @@
 Module with all the code to setup the tips (in the `StatusBar`) for the actions in `AppUI`.
 !*/
 
+use std::rc::Rc;
+
 use crate::locale::qtr;
 use crate::app_ui::AppUI;
 
 /// This function sets the status bar tip for all the actions in the provided `AppUI`.
-pub unsafe fn set_tips(app_ui: &mut AppUI) {
+pub unsafe fn set_tips(app_ui: &Rc<AppUI>) {
 
     //-----------------------------------------------//
     // `PackFile` menu tips.

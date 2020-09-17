@@ -13,16 +13,17 @@ Module with all the code related to `SettingsUISlots`.
 !*/
 
 use qt_widgets::QFontDialog;
+use qt_widgets::QWidget;
 
 use qt_gui::QGuiApplication;
 use qt_gui::QFontDatabase;
 use qt_gui::q_font_database::SystemFont;
 
-use qt_core::Slot;
-
-use cpp_core::MutPtr;
+use qt_core::QBox;
+use qt_core::SlotNoArgs;
 
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
 
@@ -42,13 +43,13 @@ use crate::utils::show_dialog;
 ///
 /// This means everything you can do with the stuff you have in the `SettingsUI` goes here.
 pub struct SettingsUISlots {
-    pub restore_default: Slot<'static>,
-    pub select_mymod_path: Slot<'static>,
-    pub select_zip_path: Slot<'static>,
-    pub select_game_paths: BTreeMap<String, Slot<'static>>,
-    pub shortcuts: Slot<'static>,
-    pub text_editor: Slot<'static>,
-    pub font_settings: Slot<'static>,
+    pub restore_default: QBox<SlotNoArgs>,
+    pub select_mymod_path: QBox<SlotNoArgs>,
+    pub select_zip_path: QBox<SlotNoArgs>,
+    pub select_game_paths: BTreeMap<String, QBox<SlotNoArgs>>,
+    pub shortcuts: QBox<SlotNoArgs>,
+    pub text_editor: QBox<SlotNoArgs>,
+    pub font_settings: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -59,22 +60,25 @@ pub struct SettingsUISlots {
 impl SettingsUISlots {
 
     /// This function creates a new `SettingsUISlots`.
-    pub unsafe fn new(ui: &mut SettingsUI) -> Self {
+    pub unsafe fn new(ui: &Rc<SettingsUI>) -> Self {
 
         // What happens when we hit thr "Restore Default" button.
-        let restore_default = Slot::new(clone!(mut ui => move || {
-            ui.load(&Settings::new());
-            QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
-        }));
+        let restore_default = SlotNoArgs::new(&ui.dialog, clone!(
+            mut ui => move || {
+                ui.load(&Settings::new());
+                QGuiApplication::set_font(&QFontDatabase::system_font(SystemFont::GeneralFont));
+            }
+        ));
 
         // What happens when we hit the "..." button for MyMods.
-        let select_mymod_path = Slot::new(clone!(
+        let select_mymod_path = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
-            ui.update_entry_path(MYMOD_BASE_PATH);
-        }));
+                ui.update_entry_path(MYMOD_BASE_PATH);
+            }
+        ));
 
         // What happens when we hit the "..." button for 7Zip.
-        let select_zip_path = Slot::new(clone!(
+        let select_zip_path = SlotNoArgs::new(&ui.dialog, clone!(
             ui => move || {
             ui.update_entry_path(ZIP_PATH);
         }));
@@ -84,7 +88,7 @@ impl SettingsUISlots {
         for key in ui.paths_games_line_edits.keys() {
             select_game_paths.insert(
                 key.to_owned(),
-                Slot::new(clone!(
+                SlotNoArgs::new(&ui.dialog, clone!(
                     key,
                     ui => move || {
                     ui.update_entry_path(&key);
@@ -93,30 +97,29 @@ impl SettingsUISlots {
         }
 
         // What happens when we hit the "Shortcuts" button.
-        let shortcuts = Slot::new(clone!(ui => move || {
+        let shortcuts = SlotNoArgs::new(&ui.dialog, clone!(ui => move || {
 
             // Create the Shortcuts Dialog. If we got new shortcuts, try to save them and report any error.
-            if let Some(shortcuts) = ShortcutsUI::new(ui.dialog) {
+            if let Some(shortcuts) = ShortcutsUI::new(&ui.dialog) {
                 CENTRAL_COMMAND.send_message_qt(Command::SetShortcuts(shortcuts.clone()));
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 match response {
                     Response::Success => UI_STATE.set_shortcuts(&shortcuts),
-                    Response::Error(error) => show_dialog(ui.dialog, error, false),
+                    Response::Error(error) => show_dialog(&ui.dialog, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
         }));
 
         // What happens when we hit the "Text Editor Preferences" button.
-        let text_editor = Slot::new(clone!(mut ui => move || {
-            ffi::open_text_editor_config_safe(&mut ui.dialog);
+        let text_editor = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            ffi::open_text_editor_config_safe(&ui.dialog.static_upcast::<QWidget>().as_ptr());
         }));
 
-        let font_settings = Slot::new(clone!(mut ui => move || {
+        let font_settings = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
             let font_changed: *mut bool = &mut false;
-            let font_changed = MutPtr::from_raw(font_changed);
             let current_font = QGuiApplication::font();
-            let new_font = QFontDialog::get_font_bool_q_font_q_widget(font_changed, current_font.as_ref(), ui.dialog);
+            let new_font = QFontDialog::get_font_bool_q_font_q_widget(font_changed, current_font.as_ref(), &ui.dialog);
             if *font_changed {
                 QGuiApplication::set_font(new_font.as_ref());
             }

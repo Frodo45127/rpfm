@@ -16,9 +16,10 @@ This module contains the code to manage the views and actions of each decodeable
 
 use qt_widgets::QWidget;
 
-use cpp_core::MutPtr;
+use qt_core::QBox;
 
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use rpfm_error::{ErrorKind, Result};
@@ -37,23 +38,21 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::views::table::utils::get_table_from_view;
-use crate::utils::atomic_from_mut_ptr;
 use crate::utils::create_grid_layout;
-use crate::utils::mut_ptr_from_atomic;
 use crate::utils::show_dialog;
 use crate::UI_STATE;
 use crate::views::table::TableType;
 
-use self::anim_fragment::{PackedFileAnimFragmentView, slots::PackedFileAnimFragmentViewSlots};
-use self::animpack::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
-use self::ca_vp8::{PackedFileCaVp8View, slots::PackedFileCaVp8ViewSlots};
-use self::decoder::{PackedFileDecoderView, slots::PackedFileDecoderViewSlots};
-use self::external::{PackedFileExternalView, slots::PackedFileExternalViewSlots};
-use self::image::{PackedFileImageView, slots::PackedFileImageViewSlots};
-use self::table::{PackedFileTableView, slots::PackedFileTableViewSlots};
-use self::text::{PackedFileTextView, slots::PackedFileTextViewSlots};
-use self::packfile::{PackFileExtraView, slots::PackFileExtraViewSlots};
-//use self::rigidmodel::{PackedFileRigidModelView, slots::PackedFileRigidModelViewSlots};
+use self::anim_fragment::PackedFileAnimFragmentView;
+use self::animpack::PackedFileAnimPackView;
+use self::ca_vp8::PackedFileCaVp8View;
+use self::decoder::PackedFileDecoderView;
+use self::external::PackedFileExternalView;
+use self::image::PackedFileImageView;
+use self::table::PackedFileTableView;
+use self::text::PackedFileTextView;
+use self::packfile::PackFileExtraView;
+//use self::rigidmodel::PackedFileRigidModelView;
 
 pub mod anim_fragment;
 pub mod animpack;
@@ -75,7 +74,7 @@ pub mod utils;
 /// This struct contains the widget of the view of a PackedFile and his info.
 pub struct PackedFileView {
     path: Arc<RwLock<Vec<String>>>,
-    widget: AtomicPtr<QWidget>,
+    widget: Arc<QBox<QWidget>>,
     is_preview: AtomicBool,
     view: ViewType,
     packed_file_type: PackedFileType,
@@ -88,38 +87,21 @@ pub enum ViewType {
     Internal(View),
 
     /// This means the PackFile has been saved to a file on disk, so no internal view is shown.
-    External(PackedFileExternalView)
+    External(Arc<PackedFileExternalView>)
 }
 
 /// This enum is used to hold in a common way all the view types we have.
 pub enum View {
-    AnimFragment(PackedFileAnimFragmentView),
-    AnimPack(PackedFileAnimPackView),
-    CaVp8(PackedFileCaVp8View),
-    Decoder(PackedFileDecoderView),
+    AnimFragment(Arc<PackedFileAnimFragmentView>),
+    AnimPack(Arc<PackedFileAnimPackView>),
+    CaVp8(Arc<PackedFileCaVp8View>),
+    Decoder(Arc<PackedFileDecoderView>),
     Image(PackedFileImageView),
-    PackFile(PackFileExtraView),
+    PackFile(Arc<PackFileExtraView>),
     //RigidModel(PackedFileRigidModelView),
-    Table(PackedFileTableView),
-    Text(PackedFileTextView),
+    Table(Arc<PackedFileTableView>),
+    Text(Arc<PackedFileTextView>),
     None,
-}
-
-/// One slot to rule them all,
-/// One slot to find them,
-/// One slot to bring them all
-/// and in the darkness bind them.
-pub enum TheOneSlot {
-    AnimFragment(PackedFileAnimFragmentViewSlots),
-    AnimPack(PackedFileAnimPackViewSlots),
-    CaVp8(PackedFileCaVp8ViewSlots),
-    Decoder(PackedFileDecoderViewSlots),
-    External(PackedFileExternalViewSlots),
-    Image(PackedFileImageViewSlots),
-    PackFile(PackFileExtraViewSlots),
-    //RigidModel(PackedFileRigidModelViewSlots),
-    Table(PackedFileTableViewSlots),
-    Text(PackedFileTextViewSlots),
 }
 
 //-------------------------------------------------------------------------------//
@@ -130,9 +112,9 @@ pub enum TheOneSlot {
 impl Default for PackedFileView {
     fn default() -> Self {
         let path = Arc::new(RwLock::new(vec![]));
-        let widget_ptr = unsafe { QWidget::new_0a().into_ptr() };
-        let widget = atomic_from_mut_ptr(widget_ptr);
-        unsafe { create_grid_layout(widget_ptr); }
+        let widget_ptr = unsafe { QWidget::new_0a() };
+        unsafe { create_grid_layout(widget_ptr.static_upcast()); }
+        let widget = Arc::new(widget_ptr);
         let is_preview = AtomicBool::new(false);
         let view = ViewType::Internal(View::None);
         let packed_file_type = PackedFileType::Unknown;
@@ -145,6 +127,10 @@ impl Default for PackedFileView {
         }
     }
 }
+
+/// Wacky fix for the "You cannot put a pointer in a static" problem.
+unsafe impl Send for PackedFileView {}
+unsafe impl Sync for PackedFileView {}
 
 /// Implementation for `PackedFileView`.
 impl PackedFileView {
@@ -170,8 +156,8 @@ impl PackedFileView {
     }
 
     /// This function returns a mutable pointer to the `Widget` of the `PackedFileView`.
-    pub fn get_mut_widget(&self) -> MutPtr<QWidget> {
-        mut_ptr_from_atomic(&self.widget)
+    pub fn get_mut_widget(&self) -> &QBox<QWidget> {
+        &self.widget
     }
 
     /// This function returns if the `PackedFileView` is a preview or not.
@@ -197,11 +183,11 @@ impl PackedFileView {
     /// This function allows you to save a `PackedFileView` to his corresponding `PackedFile`.
     pub unsafe fn save(
         &self,
-        app_ui: &mut AppUI,
-        mut global_search_ui: GlobalSearchUI,
-        mut pack_file_contents_ui: &mut PackFileContentsUI,
-        mut diagnostics_ui: DiagnosticsUI,
-        ) -> Result<()> {
+        app_ui: &Rc<AppUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+    ) -> Result<()> {
 
         match self.get_view() {
             ViewType::Internal(view) => {
@@ -214,7 +200,7 @@ impl PackedFileView {
                     PackedFileType::Loc |
                     PackedFileType::MatchedCombat => if let View::Table(view) = view {
 
-                        let new_table = get_table_from_view(view.get_ref_table().get_mut_ptr_table_model(), &view.get_ref_table().get_ref_table_definition())?;
+                        let new_table = get_table_from_view(&view.get_ref_table().get_mut_ptr_table_model(), &view.get_ref_table().get_ref_table_definition())?;
                         match self.packed_file_type {
                             PackedFileType::AnimTable => {
                                 let table = AnimTable::from(new_table);
@@ -303,11 +289,11 @@ impl PackedFileView {
                         let global_search = UI_STATE.get_global_search();
                         let path_types = vec![PathType::File(self.get_path())];
                         if !global_search.pattern.is_empty() {
-                            global_search_ui.search_on_path(&mut pack_file_contents_ui, path_types.clone());
+                            GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, path_types.clone());
                             UI_STATE.set_global_search(&global_search);
                         }
 
-                        diagnostics_ui.check_on_path(&mut pack_file_contents_ui, path_types);
+                        DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, path_types);
 
                         Ok(())
                     }
@@ -321,7 +307,7 @@ impl PackedFileView {
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
                     Response::Success => {},
-                    Response::Error(error) => show_dialog(pack_file_contents_ui.packfile_contents_tree_view, error, false),
+                    Response::Error(error) => show_dialog(&pack_file_contents_ui.packfile_contents_tree_view, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
 
@@ -334,7 +320,7 @@ impl PackedFileView {
     pub unsafe fn reload(
         &mut self,
         path: &[String],
-        pack_file_contents_ui: &mut PackFileContentsUI
+        pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) -> Result<()> {
          match self.get_ref_mut_view() {
             ViewType::Internal(view) => {
@@ -370,7 +356,7 @@ impl PackedFileView {
 
                     Response::AnimTablePackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_mut_table();
+                            let old_table = old_table.get_ref_table();
                             old_table.reload_view(TableType::AnimTable(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
@@ -384,7 +370,6 @@ impl PackedFileView {
                         if let View::CaVp8(old_ca_vp8) = view {
                             old_ca_vp8.reload_view(&ca_vp8);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
-
                         }
                         else {
                             return Err(ErrorKind::NewDataIsNotDecodeableTheSameWayAsOldDAta.into());
@@ -393,7 +378,7 @@ impl PackedFileView {
 
                     Response::DBPackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_mut_table();
+                            let old_table = old_table.get_ref_table();
                             old_table.reload_view(TableType::DB(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
@@ -415,7 +400,7 @@ impl PackedFileView {
 
                     Response::LocPackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_mut_table();
+                            let old_table = old_table.get_ref_table();
                             old_table.reload_view(TableType::Loc(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
@@ -427,7 +412,7 @@ impl PackedFileView {
 
                     Response::MatchedCombatPackedFileInfo((table, packed_file_info)) => {
                         if let View::Table(old_table) = view {
-                            let old_table = old_table.get_ref_mut_table();
+                            let old_table = old_table.get_ref_table();
                             old_table.reload_view(TableType::MatchedCombat(table));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 

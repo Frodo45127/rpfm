@@ -14,13 +14,15 @@ Module with all the code to connect `PackedFileExternalView` signals with their 
 This module is, and should stay, private, as it's only glue between the `PackedFileExternalView` and `PackedFileExternalViewSlots` structs.
 !*/
 
+use std::sync::Arc;
+
 use super::{PackedFileExternalView, slots::PackedFileExternalViewSlots};
 
 /// This function connects all the actions from the provided `PackedFileExternalView` with their slots in `PackedFileExternalViewSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
-pub unsafe fn set_connections(ui: &PackedFileExternalView, slots: &PackedFileExternalViewSlots) {
+pub unsafe fn set_connections(ui: &Arc<PackedFileExternalView>, slots: &PackedFileExternalViewSlots) {
     ui.get_mut_ptr_stop_watching_button().released().connect(&slots.stop_watching);
     ui.get_mut_ptr_open_folder_button().released().connect(&slots.open_folder);
 }

@@ -17,13 +17,15 @@ use qt_gui::QKeySequence;
 use qt_core::ShortcutContext;
 use qt_core::QString;
 
+use std::sync::Arc;
+
 use super::TableView;
 use crate::UI_STATE;
 
 /// This function setup all the shortcuts used by the actions in the provided `TableViewSlots`.
 ///
 /// This function is just glue to trigger after initializing the actions. It's here to not fill the other module with a ton of shortcuts.
-pub unsafe fn set_shortcuts(ui: &mut TableView) {
+pub unsafe fn set_shortcuts(ui: &Arc<TableView>) {
     let shortcuts = UI_STATE.get_shortcuts_no_lock();
 
     // Set the shortcuts for these actions.

@@ -12,7 +12,10 @@
 Module with all the code related to the `MyModUISlots`.
 !*/
 
-use qt_core::Slot;
+use qt_core::QBox;
+use qt_core::SlotNoArgs;
+
+use std::rc::Rc;
 
 use crate::mymod_ui::MyModUI;
 
@@ -22,8 +25,8 @@ use crate::mymod_ui::MyModUI;
 
 /// This struct contains all the slots we need to respond to signals of the New MyMod Dialog.
 pub struct MyModUISlots {
-    pub mymod_name_change: Slot<'static>,
-    pub mymod_game_change: Slot<'static>,
+    pub mymod_name_change: QBox<SlotNoArgs>,
+    pub mymod_game_change: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -34,17 +37,19 @@ pub struct MyModUISlots {
 impl MyModUISlots {
 
     /// This function creates an entire `MyModUISlots` struct.
-    pub unsafe fn new(mut mymod_ui: MyModUI) -> Self {
+    pub unsafe fn new(mymod_ui: &Rc<MyModUI>) -> Self {
 
         // What happens when we change the name of the MyMod.
-        let mymod_name_change = Slot::new(move || {
+        let mymod_name_change = SlotNoArgs::new(&mymod_ui.mymod_dialog, clone!(
+            mymod_ui => move || {
             mymod_ui.check_my_mod_validity();
-        });
+        }));
 
         // What happens when we change the game the Mymod is for.
-        let mymod_game_change = Slot::new(move || {
+        let mymod_game_change = SlotNoArgs::new(&mymod_ui.mymod_dialog, clone!(
+            mymod_ui => move || {
             mymod_ui.check_my_mod_validity();
-        });
+        }));
 
         // And here... we return all the slots.
         Self {

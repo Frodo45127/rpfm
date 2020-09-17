@@ -17,14 +17,18 @@ use qt_widgets::QGridLayout;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QWidget;
 
+use qt_core::QBox;
 use qt_core::QFlags;
+use qt_core::QPtr;
 use qt_core::QString;
+use qt_core::QObject;
 
-use cpp_core::CastInto;
 use cpp_core::CppBox;
 use cpp_core::CppDeletable;
-use cpp_core::MutPtr;
+use cpp_core::Ptr;
 use cpp_core::Ref;
+use cpp_core::StaticUpcast;
+
 
 use log::info;
 
@@ -54,12 +58,20 @@ pub(crate) fn atomic_from_cpp_box<T: CppDeletable>(cpp_box: CppBox<T>) -> Atomic
     AtomicPtr::new(cpp_box.into_raw_ptr())
 }
 
-pub(crate) fn atomic_from_mut_ptr<T: Sized>(ptr: MutPtr<T>) -> AtomicPtr<T> {
+pub(crate) fn atomic_from_q_box<T: StaticUpcast<QObject> + CppDeletable>(q_box: QBox<T>) -> AtomicPtr<T> {
+    unsafe { AtomicPtr::new(q_box.as_mut_raw_ptr()) }
+}
+
+pub(crate) fn atomic_from_ptr<T: Sized>(ptr: Ptr<T>) -> AtomicPtr<T> {
     AtomicPtr::new(ptr.as_mut_raw_ptr())
 }
 
-pub(crate) fn mut_ptr_from_atomic<T: Sized>(ptr: &AtomicPtr<T>) -> MutPtr<T> {
-    unsafe { MutPtr::from_raw(ptr.load(Ordering::SeqCst)) }
+pub(crate) fn q_ptr_from_atomic<T: Sized + StaticUpcast<QObject>>(ptr: &AtomicPtr<T>) -> QPtr<T> {
+    unsafe { QPtr::from_raw(ptr.load(Ordering::SeqCst)) }
+}
+
+pub(crate) fn ptr_from_atomic<T: Sized>(ptr: &AtomicPtr<T>) -> Ptr<T> {
+    unsafe { Ptr::from_raw(ptr.load(Ordering::SeqCst)) }
 }
 
 pub(crate) fn ref_from_atomic<T: Sized>(ptr: &AtomicPtr<T>) -> Ref<T> {
@@ -72,7 +84,7 @@ pub(crate) fn ref_from_atomic_ref<T: Sized>(ptr: &AtomicPtr<T>) -> Ref<T> {
 
 /// This functions logs the provided message to the status bar, so it can be seen by the user.
 pub(crate) fn log_to_status_bar(text: &str) {
-    unsafe { mut_ptr_from_atomic(&STATUS_BAR).show_message_2a(&QString::from_std_str(text), 2500); }
+    unsafe { q_ptr_from_atomic(&STATUS_BAR).show_message_2a(&QString::from_std_str(text), 2500); }
     info!("{}", text);
 }
 
@@ -82,7 +94,7 @@ pub(crate) fn log_to_status_bar(text: &str) {
 /// - parent: a pointer to the widget that'll be the parent of the dialog.
 /// - text: something that implements the trait `Display`, to put in the dialog window.
 /// - is_success: true for `Success` Dialog, false for `Error` Dialog.
-pub unsafe fn show_dialog<T: Display>(parent: impl CastInto<MutPtr<QWidget>>, text: T, is_success: bool) {
+pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, text: T, is_success: bool) {
 
     // Depending on the type of the dialog, set everything specific here.
     let title = if is_success { qtr("title_success") } else { qtr("title_error") };
@@ -103,12 +115,12 @@ pub unsafe fn show_dialog<T: Display>(parent: impl CastInto<MutPtr<QWidget>>, te
 /// It requires:
 /// - text: something that dereferences to `str`, to put in the window.
 pub unsafe fn show_debug_dialog<T: AsRef<str>>(text: T) {
-    let mut window = QWidget::new_0a().into_ptr();
-    let mut layout = create_grid_layout(window);
-    let mut editor = new_text_editor_safe(&mut window);
+    let window = QWidget::new_0a();
+    let layout = create_grid_layout(window.static_upcast());
+    let editor = new_text_editor_safe(&window);
 
-    layout.add_widget_5a(editor, 0, 0, 1, 1);
-    set_text_safe(&mut editor, &mut QString::from_std_str(text), &mut QString::from_std_str("plain"));
+    layout.add_widget_5a(editor.as_ptr(), 0, 0, 1, 1);
+    set_text_safe(&editor, &QString::from_std_str(text).as_ptr(), &QString::from_std_str("plain").as_ptr());
 
     // Center it on screen.
     window.resize_2a(1000, 600);
@@ -136,9 +148,9 @@ pub fn display_help_tips(app_ui: &AppUI) {
 */
 
 /// This function creates a `GridLayout` for the provided widget with the settings we want.
-pub unsafe fn create_grid_layout(mut widget: MutPtr<QWidget>) -> MutPtr<QGridLayout> {
-    let mut widget_layout = QGridLayout::new_0a();
-    widget.set_layout(&mut widget_layout);
+pub unsafe fn create_grid_layout(widget: QPtr<QWidget>) -> QBox<QGridLayout> {
+    let widget_layout = QGridLayout::new_0a();
+    widget.set_layout(&widget_layout);
 
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.
     if cfg!(target_os = "windows") {
@@ -150,10 +162,10 @@ pub unsafe fn create_grid_layout(mut widget: MutPtr<QWidget>) -> MutPtr<QGridLay
         widget_layout.set_spacing(0);
     }
 
-    widget_layout.into_ptr()
+    widget_layout
 }
 
-pub unsafe fn check_regex(pattern: &str, mut widget: MutPtr<QWidget>) {
+pub unsafe fn check_regex(pattern: &str, widget: QPtr<QWidget>) {
     let style_sheet = if !pattern.is_empty() {
         if Regex::new(pattern).is_ok() {
             get_color_correct()

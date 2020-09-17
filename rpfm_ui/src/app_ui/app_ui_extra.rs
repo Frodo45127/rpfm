@@ -28,12 +28,11 @@ use qt_widgets::QLabel;
 
 use qt_gui::QStandardItemModel;
 
+use qt_core::QBox;
 use qt_core::QFlags;
 use qt_core::QRegExp;
 use qt_core::{SlotOfBool, SlotOfQString};
 use qt_core::QSortFilterProxyModel;
-
-use cpp_core::MutPtr;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -65,7 +64,7 @@ use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tr, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, table::*, TheOneSlot, text::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, table::*, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -80,62 +79,64 @@ use crate::utils::{create_grid_layout, show_dialog};
 impl AppUI {
 
     /// This function takes care of updating the Main Window's title to reflect the current state of the program.
-    pub unsafe fn update_window_title(&mut self, packfile_contents_ui: &PackFileContentsUI) {
+    pub unsafe fn update_window_title(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // First check if we have a PackFile open. If not, just leave the default title.
-        let window_title = if packfile_contents_ui.packfile_contents_tree_model.invisible_root_item().is_null() ||
-            packfile_contents_ui.packfile_contents_tree_model.invisible_root_item().row_count() == 0 {
+        let window_title =
+            if pack_file_contents_ui.packfile_contents_tree_model.invisible_root_item().is_null() ||
+            pack_file_contents_ui.packfile_contents_tree_model.invisible_root_item().row_count() == 0 {
             "Rusted PackFile Manager[*]".to_owned()
         }
 
         // If there is a `PackFile` open, check if it has been modified, and set the title accordingly.
         else {
-            format!("{}[*]", packfile_contents_ui.packfile_contents_tree_model.item_1a(0).text().to_std_string())
+            format!("{}[*]", pack_file_contents_ui.packfile_contents_tree_model.item_1a(0).text().to_std_string())
         };
 
-        self.main_window.set_window_modified(UI_STATE.get_is_modified());
-        self.main_window.set_window_title(&QString::from_std_str(window_title));
+        app_ui.main_window.set_window_modified(UI_STATE.get_is_modified());
+        app_ui.main_window.set_window_title(&QString::from_std_str(window_title));
     }
 
     /// This function pops up a modal asking you if you're sure you want to do an action that may result in unsaved data loss.
     ///
     /// If you are trying to delete the open MyMod, pass it true.
-    pub unsafe fn are_you_sure(&self, is_delete_my_mod: bool) -> bool {
-        are_you_sure(self.main_window.as_mut_raw_ptr(), is_delete_my_mod)
+    pub unsafe fn are_you_sure(app_ui: &Rc<Self>, is_delete_my_mod: bool) -> bool {
+        are_you_sure(app_ui.main_window.as_mut_raw_ptr(), is_delete_my_mod)
     }
 
     /// This function updates the backend of all open PackedFiles with their view's data.
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
-    pub unsafe fn back_to_back_end_all(&mut self,
-        global_search_ui: GlobalSearchUI,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        diagnostics_ui: DiagnosticsUI,
+    pub unsafe fn back_to_back_end_all(
+        app_ui: &Rc<Self>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui)?;
+            packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui)?;
         }
         Ok(())
     }
 
     /// This function deletes all the widgets corresponding to opened PackedFiles.
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
-    pub unsafe fn purge_them_all(&mut self,
-        global_search_ui: GlobalSearchUI,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        diagnostics_ui: DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+    pub unsafe fn purge_them_all(
+        app_ui: &Rc<Self>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         save_before_deleting: bool,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             if save_before_deleting && !packed_file_view.get_path().starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui)?;
+                packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui)?;
             }
-            let mut widget = packed_file_view.get_mut_widget();
-            let index = self.tab_bar_packed_file.index_of(widget);
+            let widget = packed_file_view.get_mut_widget();
+            let index = app_ui.tab_bar_packed_file.index_of(widget);
             if index != -1 {
-                self.tab_bar_packed_file.remove_tab(index);
+                app_ui.tab_bar_packed_file.remove_tab(index);
             }
 
             // Delete the widget manually to free memory.
@@ -144,26 +145,26 @@ impl AppUI {
 
         // Remove all open PackedFiles and their slots.
         UI_STATE.set_open_packedfiles().clear();
-        slot_holder.borrow_mut().clear();
 
         // Just in case what was open before this was a DB Table, make sure the "Game Selected" menu is re-enabled.
-        self.game_selected_group.set_enabled(true);
+        app_ui.game_selected_group.set_enabled(true);
 
         // Just in case what was open before was the `Add From PackFile` TreeView, unlock it.
         UI_STATE.set_packfile_contents_read_only(false);
 
         // Update the background icon.
-        GameSelectedIcons::set_game_selected_icon(self);
+        GameSelectedIcons::set_game_selected_icon(app_ui);
 
         Ok(())
     }
 
     /// This function deletes all the widgets corresponding to the specified PackedFile, if exists.
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
-    pub unsafe fn purge_that_one_specifically(&mut self,
-        global_search_ui: GlobalSearchUI,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        diagnostics_ui: DiagnosticsUI,
+    pub unsafe fn purge_that_one_specifically(
+        app_ui: &Rc<Self>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         path: &[String],
         save_before_deleting: bool
     ) -> Result<()> {
@@ -177,12 +178,12 @@ impl AppUI {
 
                 // Do not try saving PackFiles.
                 if save_before_deleting && !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                    did_it_worked = packed_file_view.save(self, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui);
+                    did_it_worked = packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui);
                 }
-                let mut widget = packed_file_view.get_mut_widget();
-                let index = self.tab_bar_packed_file.index_of(widget);
+                let widget = packed_file_view.get_mut_widget();
+                let index = app_ui.tab_bar_packed_file.index_of(widget);
                 if index != -1 {
-                    self.tab_bar_packed_file.remove_tab(index);
+                    app_ui.tab_bar_packed_file.remove_tab(index);
                 }
 
                 // Delete the widget manually to free memory.
@@ -213,14 +214,14 @@ impl AppUI {
                     }
 
                     if enable_game_selected_menu {
-                        self.game_selected_group.set_enabled(true);
+                        app_ui.game_selected_group.set_enabled(true);
                     }
                 }
             }
         }
 
         // Update the background icon.
-        GameSelectedIcons::set_game_selected_icon(self);
+        GameSelectedIcons::set_game_selected_icon(app_ui);
 
         did_it_worked
     }
@@ -229,24 +230,23 @@ impl AppUI {
     ///
     /// NOTE: The `game_folder` is for when using this function with *MyMods*. If you're opening a normal mod, pass it empty.
     pub unsafe fn open_packfile(
-        &mut self,
-        pack_file_contents_ui: &mut PackFileContentsUI,
-        global_search_ui: &mut GlobalSearchUI,
-        diagnostics_ui: &mut DiagnosticsUI,
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
     ) -> Result<()> {
 
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
-        let _ = self.purge_them_all(*global_search_ui, *pack_file_contents_ui, *diagnostics_ui, slot_holder, false);
+        let _ = Self::purge_them_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false);
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
-        self.main_window.set_enabled(false);
+        app_ui.main_window.set_enabled(false);
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
-        self.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
-        self.timer_backup_autosave.start_0a();
+        app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
+        app_ui.timer_backup_autosave.start_0a();
 
         // Check what response we got.
         let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -257,35 +257,35 @@ impl AppUI {
 
                 // We choose the right option, depending on our PackFile.
                 match ui_data.pfh_file_type {
-                    PFHFileType::Boot => self.change_packfile_type_boot.set_checked(true),
-                    PFHFileType::Release => self.change_packfile_type_release.set_checked(true),
-                    PFHFileType::Patch => self.change_packfile_type_patch.set_checked(true),
-                    PFHFileType::Mod => self.change_packfile_type_mod.set_checked(true),
-                    PFHFileType::Movie => self.change_packfile_type_movie.set_checked(true),
-                    PFHFileType::Other(_) => self.change_packfile_type_other.set_checked(true),
+                    PFHFileType::Boot => app_ui.change_packfile_type_boot.set_checked(true),
+                    PFHFileType::Release => app_ui.change_packfile_type_release.set_checked(true),
+                    PFHFileType::Patch => app_ui.change_packfile_type_patch.set_checked(true),
+                    PFHFileType::Mod => app_ui.change_packfile_type_mod.set_checked(true),
+                    PFHFileType::Movie => app_ui.change_packfile_type_movie.set_checked(true),
+                    PFHFileType::Other(_) => app_ui.change_packfile_type_other.set_checked(true),
                 }
 
                 // Enable or disable these, depending on what data we have in the header.
-                self.change_packfile_type_data_is_encrypted.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA));
-                self.change_packfile_type_index_includes_timestamp.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
-                self.change_packfile_type_index_is_encrypted.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX));
-                self.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER));
+                app_ui.change_packfile_type_data_is_encrypted.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_DATA));
+                app_ui.change_packfile_type_index_includes_timestamp.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS));
+                app_ui.change_packfile_type_index_is_encrypted.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX));
+                app_ui.change_packfile_type_header_is_extended.set_checked(ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER));
 
                 // Set the compression level correctly, because otherwise we may fuckup some files.
                 let compression_state = match ui_data.compression_state {
                     CompressionState::Enabled => true,
                     CompressionState::Partial | CompressionState::Disabled => false,
                 };
-                self.change_packfile_type_data_is_compressed.set_checked(compression_state);
+                app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                 // Update the TreeView.
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
 
                 // Re-enable the Main Window.
-                self.main_window.set_enabled(true);
+                app_ui.main_window.set_enabled(true);
 
                 // Close the Global Search stuff and reset the filter's history.
-                global_search_ui.clear();
+                GlobalSearchUI::clear(&global_search_ui);
 
                 // If it's a "MyMod" (game_folder_name is not empty), we choose the Game selected Depending on it.
                 if !game_folder.is_empty() && pack_file_paths.len() == 1 {
@@ -293,21 +293,21 @@ impl AppUI {
                     // NOTE: Arena should never be here.
                     // Change the Game Selected in the UI.
                     match game_folder {
-                        KEY_TROY => self.game_selected_troy.trigger(),
-                        KEY_THREE_KINGDOMS => self.game_selected_three_kingdoms.trigger(),
-                        KEY_WARHAMMER_2 => self.game_selected_warhammer_2.trigger(),
-                        KEY_WARHAMMER => self.game_selected_warhammer.trigger(),
-                        KEY_THRONES_OF_BRITANNIA => self.game_selected_thrones_of_britannia.trigger(),
-                        KEY_ATTILA => self.game_selected_attila.trigger(),
-                        KEY_ROME_2 => self.game_selected_rome_2.trigger(),
-                        KEY_SHOGUN_2 => self.game_selected_shogun_2.trigger(),
-                        KEY_NAPOLEON => self.game_selected_napoleon.trigger(),
-                        KEY_EMPIRE => self.game_selected_empire.trigger(),
+                        KEY_TROY => app_ui.game_selected_troy.trigger(),
+                        KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
+                        KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
+                        KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
+                        KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
+                        KEY_ATTILA => app_ui.game_selected_attila.trigger(),
+                        KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
+                        KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
+                        KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
+                        KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
                         _ => unimplemented!()
                     }
 
                     // Set the current "Operational Mode" to `MyMod`.
-                    UI_STATE.set_operational_mode(self, Some(&pack_file_paths[0]));
+                    UI_STATE.set_operational_mode(app_ui, Some(&pack_file_paths[0]));
                 }
 
                 // If it's not a "MyMod", we choose the new Game Selected depending on what the open mod id is.
@@ -322,18 +322,18 @@ impl AppUI {
 
                             // If the PackFile has the mysterious byte enabled, it's from Arena.
                             if ui_data.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
-                                self.game_selected_arena.trigger();
+                                app_ui.game_selected_arena.trigger();
                             }
 
                             // Otherwise, it's from Three Kingdoms or Warhammer 2.
                             else {
                                 match &*game_selected {
-                                    KEY_TROY => self.game_selected_troy.trigger(),
-                                    KEY_THREE_KINGDOMS => self.game_selected_three_kingdoms.trigger(),
-                                    KEY_WARHAMMER_2 => self.game_selected_warhammer_2.trigger(),
+                                    KEY_TROY => app_ui.game_selected_troy.trigger(),
+                                    KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
+                                    KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
                                     _ => {
-                                        show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_2]), true);
-                                        self.game_selected_warhammer_2.trigger();
+                                        show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_2]), true);
+                                        app_ui.game_selected_warhammer_2.trigger();
                                     }
                                 }
                             }
@@ -344,13 +344,13 @@ impl AppUI {
 
                             // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
                             match &*game_selected {
-                                KEY_WARHAMMER => self.game_selected_warhammer.trigger(),
-                                KEY_THRONES_OF_BRITANNIA => self.game_selected_thrones_of_britannia.trigger(),
-                                KEY_ATTILA => self.game_selected_attila.trigger(),
-                                KEY_ROME_2 => self.game_selected_rome_2.trigger(),
+                                KEY_WARHAMMER => app_ui.game_selected_warhammer.trigger(),
+                                KEY_THRONES_OF_BRITANNIA => app_ui.game_selected_thrones_of_britannia.trigger(),
+                                KEY_ATTILA => app_ui.game_selected_attila.trigger(),
+                                KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
                                 _ => {
-                                    show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]), true);
-                                    self.game_selected_rome_2.trigger();
+                                    show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]), true);
+                                    app_ui.game_selected_rome_2.trigger();
                                 }
                             }
                         },
@@ -358,10 +358,10 @@ impl AppUI {
                         // PFH3/2 is for Shogun 2.
                         PFHVersion::PFH3 | PFHVersion::PFH2 => {
                             match &*game_selected {
-                                KEY_SHOGUN_2 => self.game_selected_shogun_2.trigger(),
+                                KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
                                 _ => {
-                                    show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]), true);
-                                    self.game_selected_shogun_2.trigger();
+                                    show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]), true);
+                                    app_ui.game_selected_shogun_2.trigger();
                                 }
                             }
                         }
@@ -369,24 +369,24 @@ impl AppUI {
                         // PFH0 is for Napoleon/Empire.
                         PFHVersion::PFH0 => {
                             match &*game_selected {
-                                KEY_NAPOLEON => self.game_selected_napoleon.trigger(),
-                                KEY_EMPIRE => self.game_selected_empire.trigger(),
+                                KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
+                                KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
                                 _ => {
-                                    show_dialog(self.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]), true);
-                                    self.game_selected_empire.trigger();
+                                    show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]), true);
+                                    app_ui.game_selected_empire.trigger();
                                 }
                             }
                         },
                     }
                 }
 
-                UI_STATE.set_is_modified(false, self, pack_file_contents_ui);
+                UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
             }
 
             // If we got an error...
             Response::Error(error) => {
-                self.main_window.set_enabled(true);
+                app_ui.main_window.set_enabled(true);
                 return Err(error)
             }
 
@@ -404,18 +404,18 @@ impl AppUI {
     /// If the PackFile doesn't exist or we pass `save_as = true`,
     /// it opens a dialog asking for a path.
     pub unsafe fn save_packfile(
-        &mut self,
-        pack_file_contents_ui: &mut PackFileContentsUI,
-        global_search_ui: &GlobalSearchUI,
-        diagnostics_ui: &DiagnosticsUI,
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         save_as: bool,
     ) -> Result<()> {
 
         let mut result = Ok(());
-        self.main_window.set_enabled(false);
+        app_ui.main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
-        self.back_to_back_end_all(*global_search_ui, *pack_file_contents_ui, *diagnostics_ui)?;
+        AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui)?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -423,8 +423,8 @@ impl AppUI {
         if !path.is_file() || save_as {
 
             // Create the FileDialog to save the PackFile and configure it.
-            let mut file_dialog = QFileDialog::from_q_widget_q_string(
-                self.main_window,
+            let file_dialog = QFileDialog::from_q_widget_q_string(
+                app_ui.main_window,
                 &qtr("save_packfile"),
             );
             file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
@@ -454,12 +454,12 @@ impl AppUI {
                 match response {
                     Response::PackFileInfo(pack_file_info) => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
-                        let mut packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
+                        let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                         packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                         packfile_item.set_text(&QString::from_std_str(&file_name));
 
-                        UI_STATE.set_operational_mode(self, None);
-                        UI_STATE.set_is_modified(false, self, pack_file_contents_ui);
+                        UI_STATE.set_operational_mode(app_ui, None);
+                        UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                     }
                     Response::Error(error) => result = Err(error),
 
@@ -475,9 +475,9 @@ impl AppUI {
             match response {
                 Response::PackFileInfo(pack_file_info) => {
                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clean);
-                    let mut packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
+                    let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                     packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
-                    UI_STATE.set_is_modified(false, self, pack_file_contents_ui);
+                    UI_STATE.set_is_modified(false, app_ui, pack_file_contents_ui);
                 }
                 Response::Error(error) => result = Err(error),
 
@@ -487,52 +487,52 @@ impl AppUI {
         }
 
         // Then we re-enable the main Window and return whatever we've received.
-        self.main_window.set_enabled(true);
+        app_ui.main_window.set_enabled(true);
         result
     }
 
     /// This function enables/disables the actions on the main window, depending on the current state of the Application.
     ///
     /// You have to pass `enable = true` if you are trying to enable actions, and `false` to disable them.
-    pub unsafe fn enable_packfile_actions(&mut self, enable: bool) {
+    pub unsafe fn enable_packfile_actions(app_ui: &Rc<Self>, enable: bool) {
 
         // If the game is Arena, no matter what we're doing, these ones ALWAYS have to be disabled.
         if &**GAME_SELECTED.read().unwrap() == KEY_ARENA {
 
             // Disable the actions that allow to create and save PackFiles.
-            self.packfile_new_packfile.set_enabled(false);
-            self.packfile_save_packfile.set_enabled(false);
-            self.packfile_save_packfile_as.set_enabled(false);
+            app_ui.packfile_new_packfile.set_enabled(false);
+            app_ui.packfile_save_packfile.set_enabled(false);
+            app_ui.packfile_save_packfile_as.set_enabled(false);
 
             // This one too, though we had to deal with it specially later on.
-            self.mymod_new.set_enabled(false);
+            app_ui.mymod_new.set_enabled(false);
         }
 
         // Otherwise...
         else {
 
             // Enable or disable the actions from "PackFile" Submenu.
-            self.packfile_new_packfile.set_enabled(true);
-            self.packfile_save_packfile.set_enabled(enable);
-            self.packfile_save_packfile_as.set_enabled(enable);
+            app_ui.packfile_new_packfile.set_enabled(true);
+            app_ui.packfile_save_packfile.set_enabled(enable);
+            app_ui.packfile_save_packfile_as.set_enabled(enable);
 
             // If there is a "MyMod" path set in the settings...
             if let Some(ref path) = SETTINGS.read().unwrap().paths[MYMOD_BASE_PATH] {
 
                 // And it's a valid directory, enable the "New MyMod" button.
-                if path.is_dir() { self.mymod_new.set_enabled(true); }
+                if path.is_dir() { app_ui.mymod_new.set_enabled(true); }
 
                 // Otherwise, disable it.
-                else { self.mymod_new.set_enabled(false); }
+                else { app_ui.mymod_new.set_enabled(false); }
             }
 
             // Otherwise, disable it.
-            else { self.mymod_new.set_enabled(false); }
+            else { app_ui.mymod_new.set_enabled(false); }
         }
 
         // These actions are common, no matter what game we have.
-        self.change_packfile_type_group.set_enabled(enable);
-        self.change_packfile_type_index_includes_timestamp.set_enabled(enable);
+        app_ui.change_packfile_type_group.set_enabled(enable);
+        app_ui.change_packfile_type_index_includes_timestamp.set_enabled(enable);
 
         // If we are enabling...
         if enable {
@@ -540,56 +540,56 @@ impl AppUI {
             // Check the Game Selected and enable the actions corresponding to out game.
             match &**GAME_SELECTED.read().unwrap() {
                 KEY_TROY => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(true);
-                    self.special_stuff_troy_optimize_packfile.set_enabled(true);
-                    self.special_stuff_troy_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
+                    app_ui.special_stuff_troy_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_troy_generate_pak_file.set_enabled(true);
                 },
                 KEY_THREE_KINGDOMS => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(true);
-                    self.special_stuff_three_k_optimize_packfile.set_enabled(true);
-                    self.special_stuff_three_k_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
+                    app_ui.special_stuff_three_k_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_three_k_generate_pak_file.set_enabled(true);
                 },
                 KEY_WARHAMMER_2 => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(true);
-                    self.special_stuff_wh2_repack_animtable.set_enabled(true);
-                    self.special_stuff_wh2_patch_siege_ai.set_enabled(true);
-                    self.special_stuff_wh2_optimize_packfile.set_enabled(true);
-                    self.special_stuff_wh2_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(true);
+                    app_ui.special_stuff_wh2_repack_animtable.set_enabled(true);
+                    app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(true);
+                    app_ui.special_stuff_wh2_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_wh2_generate_pak_file.set_enabled(true);
                 },
                 KEY_WARHAMMER => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_wh_repack_animtable.set_enabled(true);
-                    self.special_stuff_wh_patch_siege_ai.set_enabled(true);
-                    self.special_stuff_wh_optimize_packfile.set_enabled(true);
-                    self.special_stuff_wh_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+                    app_ui.special_stuff_wh_repack_animtable.set_enabled(true);
+                    app_ui.special_stuff_wh_patch_siege_ai.set_enabled(true);
+                    app_ui.special_stuff_wh_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_wh_generate_pak_file.set_enabled(true);
                 },
                 KEY_THRONES_OF_BRITANNIA => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_tob_optimize_packfile.set_enabled(true);
-                    self.special_stuff_tob_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+                    app_ui.special_stuff_tob_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_tob_generate_pak_file.set_enabled(true);
                 },
                 KEY_ATTILA => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_att_optimize_packfile.set_enabled(true);
-                    self.special_stuff_att_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+                    app_ui.special_stuff_att_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_att_generate_pak_file.set_enabled(true);
                 },
                 KEY_ROME_2 => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_rom2_optimize_packfile.set_enabled(true);
-                    self.special_stuff_rom2_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+                    app_ui.special_stuff_rom2_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_rom2_generate_pak_file.set_enabled(true);
                 },
                 KEY_SHOGUN_2 => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_sho2_optimize_packfile.set_enabled(true);
-                    self.special_stuff_sho2_generate_pak_file.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+                    app_ui.special_stuff_sho2_optimize_packfile.set_enabled(true);
+                    app_ui.special_stuff_sho2_generate_pak_file.set_enabled(true);
                 },
                 KEY_NAPOLEON => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_nap_optimize_packfile.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+                    app_ui.special_stuff_nap_optimize_packfile.set_enabled(true);
                 },
                 KEY_EMPIRE => {
-                    self.change_packfile_type_data_is_compressed.set_enabled(false);
-                    self.special_stuff_emp_optimize_packfile.set_enabled(true);
+                    app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
+                    app_ui.special_stuff_emp_optimize_packfile.set_enabled(true);
                 },
                 _ => {},
             }
@@ -599,49 +599,49 @@ impl AppUI {
         else {
 
             // Universal Actions.
-            self.change_packfile_type_data_is_compressed.set_enabled(false);
+            app_ui.change_packfile_type_data_is_compressed.set_enabled(false);
 
             // Disable Troy actions...
-            self.special_stuff_troy_optimize_packfile.set_enabled(false);
-            self.special_stuff_troy_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_troy_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_troy_generate_pak_file.set_enabled(false);
 
             // Disable Three Kingdoms actions...
-            self.special_stuff_three_k_optimize_packfile.set_enabled(false);
-            self.special_stuff_three_k_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_three_k_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_three_k_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer 2 actions...
-            self.special_stuff_wh2_repack_animtable.set_enabled(false);
-            self.special_stuff_wh2_patch_siege_ai.set_enabled(false);
-            self.special_stuff_wh2_optimize_packfile.set_enabled(false);
-            self.special_stuff_wh2_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_wh2_repack_animtable.set_enabled(false);
+            app_ui.special_stuff_wh2_patch_siege_ai.set_enabled(false);
+            app_ui.special_stuff_wh2_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_wh2_generate_pak_file.set_enabled(false);
 
             // Disable Warhammer actions...
-            self.special_stuff_wh_repack_animtable.set_enabled(false);
-            self.special_stuff_wh_patch_siege_ai.set_enabled(false);
-            self.special_stuff_wh_optimize_packfile.set_enabled(false);
-            self.special_stuff_wh_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_wh_repack_animtable.set_enabled(false);
+            app_ui.special_stuff_wh_patch_siege_ai.set_enabled(false);
+            app_ui.special_stuff_wh_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_wh_generate_pak_file.set_enabled(false);
 
             // Disable Thrones of Britannia actions...
-            self.special_stuff_tob_optimize_packfile.set_enabled(false);
-            self.special_stuff_tob_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_tob_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_tob_generate_pak_file.set_enabled(false);
 
             // Disable Attila actions...
-            self.special_stuff_att_optimize_packfile.set_enabled(false);
-            self.special_stuff_att_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_att_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_att_generate_pak_file.set_enabled(false);
 
             // Disable Rome 2 actions...
-            self.special_stuff_rom2_optimize_packfile.set_enabled(false);
-            self.special_stuff_rom2_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_rom2_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_rom2_generate_pak_file.set_enabled(false);
 
             // Disable Shogun 2 actions...
-            self.special_stuff_sho2_optimize_packfile.set_enabled(false);
-            self.special_stuff_sho2_generate_pak_file.set_enabled(false);
+            app_ui.special_stuff_sho2_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_sho2_generate_pak_file.set_enabled(false);
 
             // Disable Napoleon actions...
-            self.special_stuff_nap_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_nap_optimize_packfile.set_enabled(false);
 
             // Disable Empire actions...
-            self.special_stuff_emp_optimize_packfile.set_enabled(false);
+            app_ui.special_stuff_emp_optimize_packfile.set_enabled(false);
         }
 
         // The assembly kit thing should only be available for Rome 2 and later games.
@@ -652,30 +652,23 @@ impl AppUI {
             KEY_WARHAMMER |
             KEY_THRONES_OF_BRITANNIA |
             KEY_ATTILA |
-            KEY_ROME_2 => self.game_selected_open_game_assembly_kit_folder.set_enabled(true),
-            _ => self.game_selected_open_game_assembly_kit_folder.set_enabled(false),
+            KEY_ROME_2 => app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(true),
+            _ => app_ui.game_selected_open_game_assembly_kit_folder.set_enabled(false),
         }
     }
 
     /// This function takes care of recreating the dynamic submenus under `PackFile` menu.
     pub unsafe fn build_open_from_submenus(
-        mut self,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        mut global_search_ui: GlobalSearchUI,
-        mut diagnostics_ui: DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
-    ) -> Vec<SlotOfBool<'static>> {
-        let mut packfile_open_from_content = self.packfile_open_from_content;
-        let mut packfile_open_from_data = self.packfile_open_from_data;
-        let mut packfile_load_template = self.packfile_load_template;
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+    ) {
 
         // First, we clear both menus, so we can rebuild them properly.
-        packfile_open_from_content.clear();
-        packfile_open_from_data.clear();
-        packfile_load_template.clear();
-
-        // And we create the slots.
-        let mut open_from_slots = vec![];
+        app_ui.packfile_open_from_content.clear();
+        app_ui.packfile_open_from_data.clear();
+        app_ui.packfile_load_template.clear();
 
         //---------------------------------------------------------------------------------------//
         // Build the menus...
@@ -689,25 +682,25 @@ impl AppUI {
 
                 // That means our file is a valid PackFile and it needs to be added to the menu.
                 let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let open_mod_action = packfile_open_from_content.add_action_q_string(&QString::from_std_str(mod_name));
+                let open_mod_action = app_ui.packfile_open_from_content.add_action_q_string(&QString::from_std_str(mod_name));
 
                 // Create the slot for that action.
-                let slot_open_mod = SlotOfBool::new(clone!(
-                    path,
-                    slot_holder => move |_| {
-                    if self.are_you_sure(false) {
-                        let mut diag = diagnostics_ui.clone();
-                        if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path.to_path_buf()], "", &slot_holder) {
-                            return show_dialog(self.main_window, error, false);
+                let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                    app_ui,
+                    pack_file_contents_ui,
+                    global_search_ui,
+                    diagnostics_ui,
+                    path => move |_| {
+                    if Self::are_you_sure(&app_ui, false) {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
+                            return show_dialog(app_ui.main_window, error, false);
                         }
-                        diag.diagnostics_table_model.clear();
-                        diag.check();
+                        DiagnosticsUI::check(&diagnostics_ui);
                     }
                 }));
 
                 // Connect the slot and store it.
                 open_mod_action.triggered().connect(&slot_open_mod);
-                open_from_slots.push(slot_open_mod);
             }
         }
 
@@ -719,25 +712,25 @@ impl AppUI {
 
                 // That means our file is a valid PackFile and it needs to be added to the menu.
                 let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let open_mod_action = packfile_open_from_data.add_action_q_string(&QString::from_std_str(mod_name));
+                let open_mod_action = app_ui.packfile_open_from_data.add_action_q_string(&QString::from_std_str(mod_name));
 
                 // Create the slot for that action.
-                let slot_open_mod = SlotOfBool::new(clone!(
-                    path,
-                    slot_holder => move |_| {
-                    if self.are_you_sure(false) {
-                        let mut diag = diagnostics_ui.clone();
-                        if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path.to_path_buf()], "", &slot_holder) {
-                            return show_dialog(self.main_window, error, false);
+                let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                    app_ui,
+                    pack_file_contents_ui,
+                    global_search_ui,
+                    diagnostics_ui,
+                    path => move |_| {
+                    if Self::are_you_sure(&app_ui, false) {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
+                            return show_dialog(app_ui.main_window, error, false);
                         }
-                        diag.diagnostics_table_model.clear();
-                        diag.check();
+                        DiagnosticsUI::check(&diagnostics_ui);
                     }
                 }));
 
                 // Connect the slot and store it.
                 open_mod_action.triggered().connect(&slot_open_mod);
-                open_from_slots.push(slot_open_mod);
             }
         }
 
@@ -749,15 +742,19 @@ impl AppUI {
 
                 // That means our file is a valid PackFile and it needs to be added to the menu.
                 let template_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let template_load_action = packfile_load_template.add_action_q_string(&QString::from_std_str(&template_name));
+                let template_load_action = app_ui.packfile_load_template.add_action_q_string(&QString::from_std_str(&template_name));
 
                 // Create the slot for that action.
-                let slot_load_template = SlotOfBool::new(clone!(
-                    template_name => move |_| {
+                let slot_load_template = SlotOfBool::new(&template_load_action, clone!(
+                    mut app_ui,
+                    mut pack_file_contents_ui,
+                    mut global_search_ui,
+                    mut diagnostics_ui,
+                    mut template_name => move |_| {
                         match Template::load(&template_name) {
                             Ok(template) => {
-                                if let Some(params) = self.load_template_dialog(&template) {
-                                    match self.back_to_back_end_all(global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                if let Some(params) = Self::load_template_dialog(&app_ui, &template) {
+                                    match Self::back_to_back_end_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui) {
                                         Ok(_) => {
                                             CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, params));
                                             let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -766,88 +763,82 @@ impl AppUI {
                                                     let paths = packed_file_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths.to_vec()));
                                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
-                                                    UI_STATE.set_is_modified(true, &mut self, &mut pack_file_contents_ui);
+                                                    UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                                                     // Update the global search stuff, if needed.
-                                                    global_search_ui.search_on_path(&mut pack_file_contents_ui, paths.iter().map(From::from).collect());
-                                                    diagnostics_ui.check_on_path(&mut pack_file_contents_ui, paths.iter().map(From::from).collect());
+                                                    GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
+                                                    DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
 
                                                     // Try to reload all open files which data we altered, and close those that failed.
                                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                                     packed_file_paths.iter().for_each(|path| {
                                                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
-                                                            if packed_file_view.reload(path, &mut pack_file_contents_ui).is_err() {
-                                                                if let Err(error) = self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, path, false) {
-                                                                    show_dialog(self.main_window, error, false);
+                                                            if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
+                                                                if let Err(error) = Self::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false) {
+                                                                    show_dialog(app_ui.main_window, error, false);
                                                                 }
                                                             }
                                                         }
                                                     });
                                                 }
-                                                Response::Error(error) => show_dialog(self.main_window, error, false),
+                                                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
 
                                                 // In ANY other situation, it's a message problem.
                                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                             }
                                         }
-                                        Err(error) => show_dialog(self.main_window, error, false),
+                                        Err(error) => show_dialog(app_ui.main_window, error, false),
                                     }
 
                                 }
                             }
-                            Err(error) => show_dialog(self.main_window, error, false),
+                            Err(error) => show_dialog(app_ui.main_window, error, false),
                         }
                     }
                 ));
 
                 // Connect the slot and store it.
                 template_load_action.triggered().connect(&slot_load_template);
-                open_from_slots.push(slot_load_template);
             }
         }
 
         // Only if the submenu has items, we enable it.
-        packfile_open_from_content.menu_action().set_visible(!packfile_open_from_content.actions().is_empty());
-        packfile_open_from_data.menu_action().set_visible(!packfile_open_from_data.actions().is_empty());
-        packfile_load_template.menu_action().set_visible(!packfile_load_template.actions().is_empty());
-
-        // Return the slots.
-        open_from_slots
+        app_ui.packfile_open_from_content.menu_action().set_visible(!app_ui.packfile_open_from_content.actions().is_empty());
+        app_ui.packfile_open_from_data.menu_action().set_visible(!app_ui.packfile_open_from_data.actions().is_empty());
+        app_ui.packfile_load_template.menu_action().set_visible(!app_ui.packfile_load_template.actions().is_empty());
     }
 
 
     /// This function takes care of the re-creation of the `MyMod` list for each game.
     pub unsafe fn build_open_mymod_submenus(
-        mut self, mut pack_file_contents_ui: PackFileContentsUI,
-        mut global_search_ui: GlobalSearchUI,
-        mut diagnostics_ui: DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
-    ) -> Vec<SlotOfBool<'static>> {
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>
+    ) {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
-        self.mymod_open_troy.menu_action().set_visible(false);
-        self.mymod_open_three_kingdoms.menu_action().set_visible(false);
-        self.mymod_open_warhammer_2.menu_action().set_visible(false);
-        self.mymod_open_warhammer.menu_action().set_visible(false);
-        self.mymod_open_thrones_of_britannia.menu_action().set_visible(false);
-        self.mymod_open_attila.menu_action().set_visible(false);
-        self.mymod_open_rome_2.menu_action().set_visible(false);
-        self.mymod_open_shogun_2.menu_action().set_visible(false);
-        self.mymod_open_napoleon.menu_action().set_visible(false);
-        self.mymod_open_empire.menu_action().set_visible(false);
+        app_ui.mymod_open_troy.menu_action().set_visible(false);
+        app_ui.mymod_open_three_kingdoms.menu_action().set_visible(false);
+        app_ui.mymod_open_warhammer_2.menu_action().set_visible(false);
+        app_ui.mymod_open_warhammer.menu_action().set_visible(false);
+        app_ui.mymod_open_thrones_of_britannia.menu_action().set_visible(false);
+        app_ui.mymod_open_attila.menu_action().set_visible(false);
+        app_ui.mymod_open_rome_2.menu_action().set_visible(false);
+        app_ui.mymod_open_shogun_2.menu_action().set_visible(false);
+        app_ui.mymod_open_napoleon.menu_action().set_visible(false);
+        app_ui.mymod_open_empire.menu_action().set_visible(false);
 
-        self.mymod_open_troy.clear();
-        self.mymod_open_three_kingdoms.clear();
-        self.mymod_open_warhammer_2.clear();
-        self.mymod_open_warhammer.clear();
-        self.mymod_open_thrones_of_britannia.clear();
-        self.mymod_open_attila.clear();
-        self.mymod_open_rome_2.clear();
-        self.mymod_open_shogun_2.clear();
-        self.mymod_open_napoleon.clear();
-        self.mymod_open_empire.clear();
-
-        let mut slots = vec![];
+        app_ui.mymod_open_troy.clear();
+        app_ui.mymod_open_three_kingdoms.clear();
+        app_ui.mymod_open_warhammer_2.clear();
+        app_ui.mymod_open_warhammer.clear();
+        app_ui.mymod_open_thrones_of_britannia.clear();
+        app_ui.mymod_open_attila.clear();
+        app_ui.mymod_open_rome_2.clear();
+        app_ui.mymod_open_shogun_2.clear();
+        app_ui.mymod_open_napoleon.clear();
+        app_ui.mymod_open_empire.clear();
 
         // If we have the "MyMod" path configured, get all the packfiles under the `MyMod` folder, separated by supported game.
         let supported_folders = SUPPORTED_GAMES.iter().filter(|(_, x)| x.supports_editing).map(|(folder_name,_)| *folder_name).collect::<Vec<&str>>();
@@ -859,17 +850,17 @@ impl AppUI {
                         // If it's a valid folder, and it's in our supported games list, get all the PackFiles inside it and create an open action for them.
                         let game_folder_name = game_folder.file_name().to_string_lossy().as_ref().to_owned();
                         if game_folder.path().is_dir() && supported_folders.contains(&&*game_folder_name) {
-                            let mut game_submenu = match &*game_folder_name {
-                                KEY_TROY => self.mymod_open_troy,
-                                KEY_THREE_KINGDOMS => self.mymod_open_three_kingdoms,
-                                KEY_WARHAMMER_2 => self.mymod_open_warhammer_2,
-                                KEY_WARHAMMER => self.mymod_open_warhammer,
-                                KEY_THRONES_OF_BRITANNIA => self.mymod_open_thrones_of_britannia,
-                                KEY_ATTILA => self.mymod_open_attila,
-                                KEY_ROME_2 => self.mymod_open_rome_2,
-                                KEY_SHOGUN_2 => self.mymod_open_shogun_2,
-                                KEY_NAPOLEON => self.mymod_open_napoleon,
-                                KEY_EMPIRE => self.mymod_open_empire,
+                            let game_submenu = match &*game_folder_name {
+                                KEY_TROY => &app_ui.mymod_open_troy,
+                                KEY_THREE_KINGDOMS => &app_ui.mymod_open_three_kingdoms,
+                                KEY_WARHAMMER_2 => &app_ui.mymod_open_warhammer_2,
+                                KEY_WARHAMMER => &app_ui.mymod_open_warhammer,
+                                KEY_THRONES_OF_BRITANNIA => &app_ui.mymod_open_thrones_of_britannia,
+                                KEY_ATTILA => &app_ui.mymod_open_attila,
+                                KEY_ROME_2 => &app_ui.mymod_open_rome_2,
+                                KEY_SHOGUN_2 => &app_ui.mymod_open_shogun_2,
+                                KEY_NAPOLEON => &app_ui.mymod_open_napoleon,
+                                KEY_EMPIRE => &app_ui.mymod_open_empire,
                                 _ => unimplemented!()
                             };
 
@@ -884,27 +875,27 @@ impl AppUI {
                                         let open_mod_action = game_submenu.add_action_q_string(&QString::from_std_str(&mod_name));
 
                                         // Create the slot for that action.
-                                        let slot_open_mod = SlotOfBool::new(clone!(
-                                            slot_holder,
-                                            game_folder_name => move |_| {
-                                            if self.are_you_sure(false) {
-                                                let mut diag = diagnostics_ui.clone();
-                                                if let Err(error) = self.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name, &slot_holder) {
-                                                    return show_dialog(self.main_window, error, false);
+                                        let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                                            mut app_ui,
+                                            mut pack_file_contents_ui,
+                                            mut global_search_ui,
+                                            mut diagnostics_ui,
+                                            mut game_folder_name => move |_| {
+                                            if Self::are_you_sure(&app_ui, false) {
+                                                if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &mut global_search_ui, &diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name) {
+                                                    return show_dialog(app_ui.main_window, error, false);
                                                 }
-                                                diag.diagnostics_table_model.clear();
-                                                diag.check();
+                                                DiagnosticsUI::check(&diagnostics_ui);
                                             }
                                         }));
 
                                         open_mod_action.triggered().connect(&slot_open_mod);
-                                        slots.push(slot_open_mod);
                                     }
                                 }
                             }
 
                             // Only if the submenu has items, we show it to the big menu.
-                            if game_submenu.actions().count() > 0 {
+                            if game_submenu.actions().count_0a() > 0 {
                                 game_submenu.menu_action().set_visible(true);
                             }
                         }
@@ -912,25 +903,23 @@ impl AppUI {
                 }
             }
         }
-
-        slots
     }
 
     /// This function checks if there is any newer version of RPFM released.
     ///
     /// If the `use_dialog` is false, we make the checks in the background, and pop up a dialog only in case there is an update available.
-    pub unsafe fn check_updates(&self, use_dialog: bool) {
+    pub unsafe fn check_updates(app_ui: &Rc<Self>, use_dialog: bool) {
         CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckUpdates);
 
-        let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
             q_message_box::Icon::Information,
             &qtr("update_checker"),
             &qtr("update_searching"),
             QFlags::from(q_message_box::StandardButton::Close),
-            self.main_window,
+            app_ui.main_window,
         );
 
-        let mut update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
         update_button.set_enabled(false);
 
         dialog.set_modal(true);
@@ -986,8 +975,8 @@ impl AppUI {
 
             let response = CENTRAL_COMMAND.recv_message_qt_try();
             match response {
-                Response::Success => show_dialog(self.main_window, tr("update_success_main_program"), true),
-                Response::Error(error) => show_dialog(self.main_window, error, false),
+                Response::Success => show_dialog(app_ui.main_window, tr("update_success_main_program"), true),
+                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
@@ -996,22 +985,22 @@ impl AppUI {
     /// This function checks if there is any newer version of RPFM's schemas released.
     ///
     /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
-    pub unsafe fn check_schema_updates(&self, use_dialog: bool) {
+    pub unsafe fn check_schema_updates(app_ui: &Rc<Self>, use_dialog: bool) {
         CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckSchemaUpdates);
 
         // If we want to use a Dialog to show the full searching process.
         if use_dialog {
 
             // Create the dialog to show the response and configure it.
-            let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
                 q_message_box::Icon::Information,
                 &qtr("update_schema_checker"),
                 &qtr("update_searching"),
                 QFlags::from(q_message_box::StandardButton::Close),
-                self.main_window,
+                app_ui.main_window,
             );
 
-            let mut update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+            let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
             update_button.set_enabled(false);
 
             dialog.set_modal(true);
@@ -1038,7 +1027,7 @@ impl AppUI {
                     }
                 }
 
-                Response::Error(error) => return show_dialog(self.main_window, error, false),
+                Response::Error(error) => return show_dialog(app_ui.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
             };
 
@@ -1052,8 +1041,8 @@ impl AppUI {
                 update_button.set_enabled(false);
 
                 match CENTRAL_COMMAND.recv_message_qt_try() {
-                    Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
-                    Response::Error(error) => show_dialog(self.main_window, error, false),
+                    Response::Success => show_dialog(app_ui.main_window, tr("schema_update_success"), true),
+                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
                 }
             }
@@ -1081,15 +1070,15 @@ impl AppUI {
             };
 
             // Create the dialog to show the response.
-            let mut dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
                 q_message_box::Icon::Information,
                 &qtr("update_schema_checker"),
                 &message,
                 QFlags::from(q_message_box::StandardButton::Close),
-                self.main_window,
+                app_ui.main_window,
             );
 
-            let mut update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+            let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
             dialog.set_modal(true);
 
             // If we hit "Update", try to update the schemas.
@@ -1101,8 +1090,8 @@ impl AppUI {
                 update_button.set_enabled(false);
 
                 match CENTRAL_COMMAND.recv_message_qt_try() {
-                    Response::Success => show_dialog(self.main_window, tr("schema_update_success"), true),
-                    Response::Error(error) => show_dialog(self.main_window, error, false),
+                    Response::Success => show_dialog(app_ui.main_window, tr("schema_update_success"), true),
+                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
                 }
             }
@@ -1111,11 +1100,10 @@ impl AppUI {
 
     /// This function is used to open ANY supported PackedFiles in a DockWidget, docked in the Main Window.
     pub unsafe fn open_packedfile(
-        &mut self,
-        pack_file_contents_ui: &mut PackFileContentsUI,
-        global_search_ui: &GlobalSearchUI,
-        diagnostics_ui: &DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         is_preview: bool,
         is_external: bool,
     ) {
@@ -1130,9 +1118,9 @@ impl AppUI {
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let open_path = packed_file_view.get_ref_path();
-                    let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
                     if *open_path != *path && packed_file_view.get_is_preview() && index != -1 {
-                        self.tab_bar_packed_file.remove_tab(index);
+                        app_ui.tab_bar_packed_file.remove_tab(index);
                     }
                 }
 
@@ -1140,7 +1128,7 @@ impl AppUI {
                 // If it was a preview, then we mark it as full. Index == -1 means it's not in a tab.
                 if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *path) {
                     if !is_external {
-                        let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+                        let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                         // If we're trying to open as preview something already open as full, we don't do anything.
                         if !(index != -1 && is_preview && !tab_widget.get_is_preview()) {
@@ -1150,24 +1138,23 @@ impl AppUI {
                         if index == -1 {
                             let icon_type = IconType::File(path.to_vec());
                             let icon = icon_type.get_icon_from_path();
-                            self.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &QString::from_std_str(""));
                         }
 
-                        self.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
-                        self.update_views_names();
+                        app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                        Self::update_views_names(app_ui);
                         return;
                     }
                 }
 
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
                 if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path) {
-                    if let Err(error) = self.purge_that_one_specifically(*global_search_ui, *pack_file_contents_ui, *diagnostics_ui, path, true) {
-                        show_dialog(self.main_window, error, false);
+                    if let Err(error) = Self::purge_that_one_specifically(app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, true) {
+                        show_dialog(app_ui.main_window, error, false);
                     }
                 }
 
                 let mut tab = PackedFileView::default();
-                let tab_widget = tab.get_mut_widget();
                 if !is_external {
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_vec());
@@ -1181,148 +1168,140 @@ impl AppUI {
 
                         // If the file is an AnimFragment PackedFile...
                         PackedFileType::AnimFragment => {
-                            match PackedFileAnimFragmentView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileAnimFragmentView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
 
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::AnimFragmentDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::AnimFragmentDecode(format!("{}", error)), false),
                             }
                         }
 
                         // If the file is an AnimPack PackedFile...
                         PackedFileType::AnimPack => {
-                            match PackedFileAnimPackView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileAnimPackView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::AnimPackDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::AnimPackDecode(format!("{}", error)), false),
                             }
                         }
 
                         // If the file is an AnimTable PackedFile...
                         PackedFileType::AnimTable => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::AnimTableDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::AnimTableDecode(format!("{}", error)), false),
                             }
                         }
 
                         // If the file is a CA_VP8 PackedFile...
                         PackedFileType::CaVp8 => {
-                            match PackedFileCaVp8View::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileCaVp8View::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
                             }
                         }
 
                         // If the file is a Loc PackedFile...
                         PackedFileType::Loc => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
                             }
                         }
 
                         // If the file is a DB PackedFile...
                         PackedFileType::DB => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
                             }
                         }
 
                         // If the file is a MatchedCombat PackedFile...
                         PackedFileType::MatchedCombat => {
-                            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::MatchedCombatDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::MatchedCombatDecode(format!("{}", error)), false),
                             }
                         }
 
                         // If the file is a Text PackedFile...
                         PackedFileType::Text(_) => {
-                            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                                Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
+                            match PackedFileTextView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                                Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     if let Some(packed_file_info) = packed_file_info {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
                             }
                         }
                         /*
@@ -1330,27 +1309,25 @@ impl AppUI {
                         PackedFileType::RigidModel => {
                             match PackedFileRigidModelView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui) {
                                 Ok((slots, packed_file_info)) => {
-                                    slot_holder.borrow_mut().push(slots);
 
                                     // Add the file to the 'Currently open' list and make it visible.
-                                    self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
-                                    self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(&name));
+                                    app_ui.tab_bar_packed_file.set_current_widget(tab_widget);
                                     let mut open_list = UI_STATE.set_open_packedfiles();
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
-                                Err(error) => return show_dialog(self.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
                             }
                         }
                         */
                         // If the file is a Image PackedFile, ignore failures while opening.
                         PackedFileType::Image => {
-                            if let Ok((slots, packed_file_info)) = PackedFileImageView::new_view(&mut tab) {
-                                slot_holder.borrow_mut().push(slots);
+                            if let Ok(packed_file_info) = PackedFileImageView::new_view(&mut tab) {
 
                                 // Add the file to the 'Currently open' list and make it visible.
-                                self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                                self.tab_bar_packed_file.set_current_widget(tab_widget);
+                                app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                                app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                                 let mut open_list = UI_STATE.set_open_packedfiles();
                                 open_list.push(tab);
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
@@ -1371,42 +1348,40 @@ impl AppUI {
                     let icon = icon_type.get_icon_from_path();
                     let path = Rc::new(RefCell::new(path.to_vec()));
 
-                    match PackedFileExternalView::new_view(&path, self,  &mut tab, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                        Ok(slots) => {
-                            slot_holder.borrow_mut().push(slots);
+                    match PackedFileExternalView::new_view(&path, app_ui,  &mut tab, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                        Ok(_) => {
 
                             // Add the file to the 'Currently open' list and make it visible.
-                            self.tab_bar_packed_file.add_tab_3a(tab_widget, icon, &QString::from_std_str(""));
-                            self.tab_bar_packed_file.set_current_widget(tab_widget);
+                            app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(""));
+                            app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
                         }
-                        Err(error) => show_dialog(self.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
+                        Err(error) => show_dialog(app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
                     }
                 }
             }
         }
 
-        self.update_views_names();
+        Self::update_views_names(app_ui);
     }
 
     /// This function is used to open the PackedFile Decoder.
     pub unsafe fn open_decoder(
-        &mut self,
-        pack_file_contents_ui: &PackFileContentsUI,
-        global_search_ui: &GlobalSearchUI,
-        diagnostics_ui: &DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
 
         // If we don't have an schema, don't even try it.
         if SCHEMA.read().unwrap().is_none() {
-            return show_dialog(self.main_window, ErrorKind::SchemaNotFound, false);
+            return show_dialog(app_ui.main_window, ErrorKind::SchemaNotFound, false);
         }
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
         if !UI_STATE.get_packfile_contents_read_only() {
-            let mut selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
+            let mut selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &mut selected_items[0] } else { return };
             if let TreePathType::File(ref mut path) = item_type {
                 let mut fake_path = path.to_vec();
@@ -1415,9 +1390,9 @@ impl AppUI {
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let open_path = packed_file_view.get_ref_path();
-                    let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
                     if *open_path != *path && packed_file_view.get_is_preview() && index != -1 {
-                        self.tab_bar_packed_file.remove_tab(index);
+                        app_ui.tab_bar_packed_file.remove_tab(index);
                     }
                 }
 
@@ -1425,23 +1400,23 @@ impl AppUI {
                 let name = qtr("decoder_title");
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                     let open_path = packed_file_view.get_ref_path();
-                    let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                    let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
                     if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
-                        self.tab_bar_packed_file.remove_tab(index);
+                        app_ui.tab_bar_packed_file.remove_tab(index);
                     }
                 }
 
                 // If the decoder is already open, or it's hidden, we show it/focus it, instead of opening it again.
                 if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == fake_path) {
-                    let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+                    let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                     if index == -1 {
                         let icon_type = IconType::PackFile(true);
                         let icon = icon_type.get_icon_from_path();
-                        self.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
+                        app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
                     }
 
-                    self.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                    app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
                     return;
                 }
 
@@ -1452,31 +1427,29 @@ impl AppUI {
                 let icon = icon_type.get_icon_from_path();
                 tab.set_path(path);
 
-                match PackedFileDecoderView::new_view(&mut tab, global_search_ui, pack_file_contents_ui, &self, diagnostics_ui) {
-                    Ok(slots) => {
-                        slot_holder.borrow_mut().push(slots);
+                match PackedFileDecoderView::new_view(&mut tab, global_search_ui, pack_file_contents_ui, &app_ui, diagnostics_ui) {
+                    Ok(_) => {
 
                         // Add the decoder to the 'Currently open' list and make it visible.
-                        self.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                        self.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                        app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                        app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                         let mut open_list = UI_STATE.set_open_packedfiles();
                         open_list.push(tab);
                     },
-                    Err(error) => return show_dialog(self.main_window, ErrorKind::DecoderDecode(format!("{}", error)), false),
+                    Err(error) => return show_dialog(app_ui.main_window, ErrorKind::DecoderDecode(format!("{}", error)), false),
                 }
             }
         }
 
-        self.update_views_names();
+        Self::update_views_names(app_ui);
     }
 
     /// This function is used to open the dependency manager.
     pub unsafe fn open_dependency_manager(
-        &mut self,
-        pack_file_contents_ui: &PackFileContentsUI,
-        global_search_ui: &GlobalSearchUI,
-        diagnostic_ui: &DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
@@ -1487,23 +1460,23 @@ impl AppUI {
             let name = qtr("table_dependency_manager_title");
             for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                 let open_path = packed_file_view.get_ref_path();
-                let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
                 if !open_path.is_empty() && packed_file_view.get_is_preview() && index != -1 {
-                    self.tab_bar_packed_file.remove_tab(index);
+                    app_ui.tab_bar_packed_file.remove_tab(index);
                 }
             }
 
             // If the manager is already open, or it's hidden, we show it/focus it, instead of opening it again.
             if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
                     let icon_type = IconType::PackFile(true);
                     let icon = icon_type.get_icon_from_path();
-                    self.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
                 }
 
-                self.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
                 return;
             }
 
@@ -1514,29 +1487,27 @@ impl AppUI {
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
 
-            match PackedFileTableView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostic_ui) {
-                Ok((slots, _)) => {
-                    slot_holder.borrow_mut().push(slots);
+            match PackedFileTableView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                Ok(_) => {
 
                     // Add the manager to the 'Currently open' list and make it visible.
-                    self.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                    self.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                     UI_STATE.set_open_packedfiles().push(tab);
                 },
-                Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }
         }
 
-        self.update_views_names();
+        Self::update_views_names(app_ui);
     }
 
     /// This function is used to open the notes embebed into a PackFile.
     pub unsafe fn open_notes(
-        &mut self,
-        pack_file_contents_ui: &PackFileContentsUI,
-        global_search_ui: &GlobalSearchUI,
-        diagnostics_ui: &DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>,
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
@@ -1547,23 +1518,23 @@ impl AppUI {
             let name = qtr("notes");
             for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                 let open_path = packed_file_view.get_ref_path();
-                let index = self.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
                 if *open_path != path && packed_file_view.get_is_preview() && index != -1 {
-                    self.tab_bar_packed_file.remove_tab(index);
+                    app_ui.tab_bar_packed_file.remove_tab(index);
                 }
             }
 
             // If the notes are already open, or are hidden, we show them/focus them, instead of opening them again.
             if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                let index = self.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
 
                 if index == -1 {
                     let icon_type = IconType::PackFile(true);
                     let icon = icon_type.get_icon_from_path();
-                    self.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
                 }
 
-                self.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
                 return;
             }
 
@@ -1574,28 +1545,27 @@ impl AppUI {
             let icon = icon_type.get_icon_from_path();
             tab.set_path(&path);
 
-            match PackedFileTextView::new_view(&mut tab, self, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
-                Ok((slots, _)) => {
-                    slot_holder.borrow_mut().push(slots);
+            match PackedFileTextView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                Ok(_) => {
 
                     // Add the manager to the 'Currently open' list and make it visible.
-                    self.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
-                    self.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                     UI_STATE.set_open_packedfiles().push(tab);
                 },
-                Err(error) => return show_dialog(self.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }
         }
 
-        self.update_views_names();
+        Self::update_views_names(app_ui);
     }
 
     /// This function is the one that takes care of the creation of different PackedFiles.
-    pub unsafe fn new_packed_file(&mut self, mut pack_file_contents_ui: &mut PackFileContentsUI, packed_file_type: PackedFileType) {
+    pub unsafe fn new_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>, packed_file_type: PackedFileType) {
 
         // Create the "New PackedFile" dialog and wait for his data (or a cancelation). If we receive None, we do nothing. If we receive Some,
         // we still have to check if it has been any error during the creation of the PackedFile (for example, no definition for DB Tables).
-        if let Some(new_packed_file) = self.new_packed_file_dialog(packed_file_type) {
+        if let Some(new_packed_file) = Self::new_packed_file_dialog(app_ui, packed_file_type) {
             match new_packed_file {
                 Ok(mut new_packed_file) => {
 
@@ -1607,7 +1577,7 @@ impl AppUI {
 
                             // If the name is_empty, stop.
                             if name.is_empty() {
-                                return show_dialog(self.main_window, ErrorKind::EmptyInput, false)
+                                return show_dialog(app_ui.main_window, ErrorKind::EmptyInput, false)
                             }
 
                             // Fix their name termination if needed.
@@ -1636,7 +1606,7 @@ impl AppUI {
 
                             // Get the currently selected paths (or the complete path, in case of DB Tables),
                             // and only continue if there is only one and it's not empty.
-                            let selected_paths = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
+                            let selected_paths = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(pack_file_contents_ui);
                             let complete_path = if let NewPackedFile::DB(name, table,_) = &new_packed_file {
                                 vec!["db".to_owned(), table.to_owned(), name.to_owned()]
                             }
@@ -1658,7 +1628,7 @@ impl AppUI {
                                 CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(complete_path.to_vec()));
                                 let response = CENTRAL_COMMAND.recv_message_qt();
                                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                                if exists { return show_dialog(self.main_window, ErrorKind::FileAlreadyInPackFile, false)}
+                                if exists { return show_dialog(app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
 
                                 // Get the response, just in case it failed.
                                 CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(complete_path.to_vec(), new_packed_file));
@@ -1667,17 +1637,17 @@ impl AppUI {
                                     Response::Success => {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(complete_path.to_vec()); 1]));
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(complete_path); 1]));
-                                        UI_STATE.set_is_modified(true, self, &mut pack_file_contents_ui);
+                                        UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
                                     }
 
-                                    Response::Error(error) => show_dialog(self.main_window, error, false),
+                                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                 }
                             }
                         }
                     }
                 }
-                Err(error) => show_dialog(self.main_window, error, false),
+                Err(error) => show_dialog(app_ui.main_window, error, false),
             }
         }
     }
@@ -1688,10 +1658,10 @@ impl AppUI {
     /// - `script/xxxx` -> Lua PackedFile.
     /// - `variantmeshes/variantmeshdefinitions/xxxx` -> VMD PackedFile.
     /// The name used for each packfile is a generic one.
-    pub unsafe fn new_queek_packed_file(&mut self, mut pack_file_contents_ui: &mut PackFileContentsUI) {
+    pub unsafe fn new_queek_packed_file(app_ui: &Rc<Self>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the currently selected path and, depending on the selected path, generate one packfile or another.
-        let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
+        let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(pack_file_contents_ui);
         if selected_items.len() == 1 {
             let item = &selected_items[0];
 
@@ -1702,10 +1672,10 @@ impl AppUI {
                     path
                 },
                 TreePathType::Folder(path) => path.to_vec(),
-                _ => return show_dialog(self.main_window, ErrorKind::NoQueekPackedFileHere, false),
+                _ => return show_dialog(app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false),
             };
 
-            if let Some(mut name) = self.new_packed_file_name_dialog() {
+            if let Some(mut name) = Self::new_packed_file_name_dialog(app_ui) {
 
                 // DB Check.
                 let (new_path, new_packed_file) = if path.starts_with(&["db".to_owned()]) && (path.len() == 2 || path.len() == 3) {
@@ -1716,7 +1686,7 @@ impl AppUI {
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     let version = match response {
                         Response::I32(data) => data,
-                        Response::Error(error) => return show_dialog(self.main_window, error, false),
+                        Response::Error(error) => return show_dialog(app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     };
 
@@ -1759,14 +1729,14 @@ impl AppUI {
 
                 // Neutral Check, for folders without a predefined type.
                 else {
-                    return show_dialog(self.main_window, ErrorKind::NoQueekPackedFileHere, false);
+                    return show_dialog(app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false);
                 };
 
                 // Check if the PackedFile already exists, and report it if so.
                 CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(new_path.to_vec()));
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                if exists { return show_dialog(self.main_window, ErrorKind::FileAlreadyInPackFile, false)}
+                if exists { return show_dialog(app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
 
                 // Create the PackFile.
                 CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
@@ -1775,9 +1745,9 @@ impl AppUI {
                     Response::Success => {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(new_path.to_vec()); 1]));
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(new_path); 1]));
-                        UI_STATE.set_is_modified(true, self, &mut pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
                     }
-                    Response::Error(error) => show_dialog(self.main_window, error, false),
+                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
@@ -1787,19 +1757,19 @@ impl AppUI {
     /// This function creates the entire "New Folder" dialog.
     ///
     /// It returns the new name of the Folder, or None if the dialog is canceled or closed.
-    pub unsafe fn new_folder_dialog(&self) -> Option<String> {
-        let mut dialog = QDialog::new_1a(self.main_window).into_ptr();
+    pub unsafe fn new_folder_dialog(app_ui: &Rc<Self>) -> Option<String> {
+        let dialog = QDialog::new_1a(app_ui.main_window);
         dialog.set_window_title(&qtr("new_folder"));
         dialog.set_modal(true);
 
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
+        let main_grid = create_grid_layout(dialog.static_upcast());
 
-        let mut new_folder_line_edit = QLineEdit::new();
+        let new_folder_line_edit = QLineEdit::new();
         new_folder_line_edit.set_text(&qtr("new_folder_default"));
-        let mut new_folder_button = QPushButton::from_q_string(&qtr("new_folder"));
+        let new_folder_button = QPushButton::from_q_string(&qtr("new_folder"));
 
-        main_grid.add_widget_5a(&mut new_folder_line_edit, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&mut new_folder_button, 0, 1, 1, 1);
+        main_grid.add_widget_5a(& new_folder_line_edit, 0, 0, 1, 1);
+        main_grid.add_widget_5a(& new_folder_button, 0, 1, 1, 1);
         new_folder_button.released().connect(dialog.slot_accept());
 
         if dialog.exec() == 1 { Some(new_folder_line_edit.text().to_std_string()) }
@@ -1809,10 +1779,10 @@ impl AppUI {
     /// This function creates all the "New PackedFile" dialogs.
     ///
     /// It returns the type/name of the new file, or None if the dialog is canceled or closed.
-    pub unsafe fn new_packed_file_dialog(&self, packed_file_type: PackedFileType) -> Option<Result<NewPackedFile>> {
+    pub unsafe fn new_packed_file_dialog(app_ui: &Rc<Self>, packed_file_type: PackedFileType) -> Option<Result<NewPackedFile>> {
 
         // Create and configure the "New PackedFile" Dialog.
-        let mut dialog = QDialog::new_1a(self.main_window).into_ptr();
+        let dialog = QDialog::new_1a(app_ui.main_window);
         match packed_file_type {
             PackedFileType::DB => dialog.set_window_title(&qtr("new_db_file")),
             PackedFileType::Loc => dialog.set_window_title(&qtr("new_loc_file")),
@@ -1822,21 +1792,21 @@ impl AppUI {
         dialog.set_modal(true);
 
         // Create the main Grid and his widgets.
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
-        let mut name_line_edit = QLineEdit::new().into_ptr();
-        let mut table_filter_line_edit = QLineEdit::new().into_ptr();
-        let mut create_button = QPushButton::from_q_string(&qtr("gen_loc_create"));
-        let mut table_dropdown = QComboBox::new_0a();
-        let mut table_filter = QSortFilterProxyModel::new_0a();
-        let mut table_model = QStandardItemModel::new_0a();
+        let main_grid = create_grid_layout(dialog.static_upcast());
+        let name_line_edit = QLineEdit::new().into_ptr();
+        let table_filter_line_edit = QLineEdit::new().into_ptr();
+        let create_button = QPushButton::from_q_string(&qtr("gen_loc_create"));
+        let table_dropdown = QComboBox::new_0a();
+        let table_filter = QSortFilterProxyModel::new_0a();
+        let table_model = QStandardItemModel::new_0a();
 
         name_line_edit.set_text(&qtr("new_file_default"));
-        table_dropdown.set_model(&mut table_model);
+        table_dropdown.set_model(&table_model);
         table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
 
         // Add all the widgets to the main grid, except those specific for a PackedFileType.
         main_grid.add_widget_5a(name_line_edit, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&mut create_button, 0, 1, 1, 1);
+        main_grid.add_widget_5a(& create_button, 0, 1, 1, 1);
 
         // If it's a DB Table, add its widgets, and populate the table list.
         if let PackedFileType::DB = packed_file_type {
@@ -1851,10 +1821,10 @@ impl AppUI {
                         .filter_map(|x| if let VersionedFile::DB(name, _) = x { Some(name) } else { None })
                         .filter(|x| tables.contains(&x))
                         .for_each(|x| table_dropdown.add_item_q_string(&QString::from_std_str(&x)));
-                    table_filter.set_source_model(&mut table_model);
-                    table_dropdown.set_model(&mut table_filter);
+                    table_filter.set_source_model(&table_model);
+                    table_dropdown.set_model(&table_filter);
 
-                    main_grid.add_widget_5a(&mut table_dropdown, 1, 0, 1, 1);
+                    main_grid.add_widget_5a(& table_dropdown, 1, 0, 1, 1);
                     main_grid.add_widget_5a(table_filter_line_edit, 2, 0, 1, 1);
                 }
                 None => return Some(Err(ErrorKind::SchemaNotFound.into())),
@@ -1862,7 +1832,7 @@ impl AppUI {
         }
 
         // What happens when we search in the filter.
-        let slot_table_filter_change_text = SlotOfQString::new(move |_| {
+        let slot_table_filter_change_text = SlotOfQString::new(&dialog, move |_| {
             let pattern = QRegExp::new_1a(&table_filter_line_edit.text());
             table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
         });
@@ -1901,22 +1871,22 @@ impl AppUI {
     /// This function creates the "New PackedFile's Name" dialog when creating a new QueeK PackedFile.
     ///
     /// It returns the new name of the PackedFile, or `None` if the dialog is canceled or closed.
-    unsafe fn new_packed_file_name_dialog(&self) -> Option<String> {
+    unsafe fn new_packed_file_name_dialog(app_ui: &Rc<Self>) -> Option<String> {
 
         // Create and configure the dialog.
-        let mut dialog = QDialog::new_1a(self.main_window).into_ptr();
+        let dialog = QDialog::new_1a(app_ui.main_window);
         dialog.set_window_title(&qtr("new_packedfile_name"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
 
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
-        let mut name_line_edit = QLineEdit::new();
-        let mut accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
+        let main_grid = create_grid_layout(dialog.static_upcast());
+        let name_line_edit = QLineEdit::new();
+        let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
 
         name_line_edit.set_text(&qtr("trololol"));
 
-        main_grid.add_widget_5a(&mut name_line_edit, 1, 0, 1, 1);
-        main_grid.add_widget_5a(&mut accept_button, 1, 1, 1, 1);
+        main_grid.add_widget_5a(& name_line_edit, 1, 0, 1, 1);
+        main_grid.add_widget_5a(& accept_button, 1, 1, 1, 1);
 
         accept_button.released().connect(dialog.slot_accept());
 
@@ -1927,23 +1897,23 @@ impl AppUI {
     }
 
     /// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
-    pub unsafe fn merge_tables_dialog(&self) -> Option<(String, bool)> {
+    pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>) -> Option<(String, bool)> {
 
-        let mut dialog = QDialog::new_1a(self.main_window).into_ptr();
+        let dialog = QDialog::new_1a(app_ui.main_window);
         dialog.set_window_title(&qtr("packedfile_merge_tables"));
         dialog.set_modal(true);
 
         // Create the main Grid.
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
-        let mut name = QLineEdit::new();
+        let main_grid = create_grid_layout(dialog.static_upcast());
+        let name = QLineEdit::new();
         name.set_placeholder_text(&qtr("merge_tables_new_name"));
 
-        let mut delete_source_tables = QCheckBox::from_q_string(&qtr("merge_tables_delete_option"));
+        let delete_source_tables = QCheckBox::from_q_string(&qtr("merge_tables_delete_option"));
 
-        let mut accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
-        main_grid.add_widget_5a(&mut name, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&mut delete_source_tables, 1, 0, 1, 1);
-        main_grid.add_widget_5a(&mut accept_button, 2, 0, 1, 1);
+        let accept_button = QPushButton::from_q_string(&qtr("gen_loc_accept"));
+        main_grid.add_widget_5a(& name, 0, 0, 1, 1);
+        main_grid.add_widget_5a(& delete_source_tables, 1, 0, 1, 1);
+        main_grid.add_widget_5a(& accept_button, 2, 0, 1, 1);
 
         // What happens when we hit the "Search" button.
         accept_button.released().connect(dialog.slot_accept());
@@ -1961,14 +1931,14 @@ impl AppUI {
     }
 
     /// This function creates the entire "Load Template" dialog. It returns a vector with the stuff set in it.
-    pub unsafe fn load_template_dialog(&self, template: &Template) -> Option<Vec<String>> {
+    pub unsafe fn load_template_dialog(app_ui: &Rc<Self>, template: &Template) -> Option<Vec<String>> {
 
-        let mut dialog = QDialog::new_1a(self.main_window).into_ptr();
+        let dialog = QDialog::new_1a(app_ui.main_window);
         dialog.set_window_title(&qtr("load_templates_dialog_title"));
         dialog.set_modal(true);
 
         // Create the main Grid.
-        let mut main_grid = create_grid_layout(dialog.static_upcast_mut());
+        let main_grid = create_grid_layout(dialog.static_upcast());
         main_grid.set_contents_margins_4a(4, 0, 4, 4);
         main_grid.set_spacing(4);
 
@@ -1980,15 +1950,15 @@ impl AppUI {
         let mut param_widgets = vec![];
         for (row, param) in template.params.iter().enumerate() {
             let param_label = QLabel::from_q_string(&QString::from_std_str(&param.0));
-            let mut param_widget = QLineEdit::new();
+            let param_widget = QLineEdit::new();
             param_widget.set_placeholder_text(&QString::from_std_str(&param.0));
             main_grid.add_widget_5a(param_label.into_ptr(), row as i32 + 2, 0, 1, 1);
-            main_grid.add_widget_5a(&mut param_widget, row as i32 + 2, 1, 1, 1);
+            main_grid.add_widget_5a(&param_widget, row as i32 + 2, 1, 1, 1);
             param_widgets.push(param_widget.into_ptr());
         }
 
-        let mut accept_button = QPushButton::from_q_string(&qtr("load_templates_dialog_accept"));
-        main_grid.add_widget_5a(&mut accept_button, 99, 0, 1, 2);
+        let accept_button = QPushButton::from_q_string(&qtr("load_templates_dialog_accept"));
+        main_grid.add_widget_5a(&accept_button, 99, 0, 1, 2);
 
         // What happens when we hit the "Load Template" button.
         accept_button.released().connect(dialog.slot_accept());
@@ -2005,14 +1975,14 @@ impl AppUI {
     }
 
     /// Update the PackedFileView names, to ensure we have no collisions.
-    pub unsafe fn update_views_names(&mut self) {
+    pub unsafe fn update_views_names(app_ui: &Rc<AppUI>) {
 
         // We also have to check for colliding packedfile names, so we can use their full path instead.
         let mut names = HashMap::new();
         let open_packedfiles = UI_STATE.get_open_packedfiles();
         for packed_file_view in open_packedfiles.iter() {
             let widget = packed_file_view.get_mut_widget();
-            if self.tab_bar_packed_file.index_of(widget) != -1 {
+            if app_ui.tab_bar_packed_file.index_of(widget) != -1 {
 
                 // If there is no path, is a dependency manager.
                 let path = packed_file_view.get_ref_path();
@@ -2039,8 +2009,8 @@ impl AppUI {
                         name.push_str(" (Preview)");
                     }
 
-                    let index = self.tab_bar_packed_file.index_of(widget);
-                    self.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
+                    let index = app_ui.tab_bar_packed_file.index_of(widget);
+                    app_ui.tab_bar_packed_file.set_tab_text(index, &QString::from_std_str(&name));
                 }
             }
         }
@@ -2048,10 +2018,10 @@ impl AppUI {
 
     /// This function hides the provided packedfile view.
     pub unsafe fn packed_file_view_hide(
-        &mut self,
-        pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        diagnostics_ui: DiagnosticsUI,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         index: i32
     ) {
 
@@ -2061,7 +2031,7 @@ impl AppUI {
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             let path = packed_file_view.get_ref_path();
             let widget = packed_file_view.get_mut_widget();
-            if self.tab_bar_packed_file.index_of(widget) == index {
+            if app_ui.tab_bar_packed_file.index_of(widget) == index {
                 tab_index = index;
                 if !path.is_empty() && path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
                     purge_on_delete = path.to_vec();
@@ -2072,15 +2042,15 @@ impl AppUI {
         }
 
         if tab_index != -1 {
-            self.tab_bar_packed_file.remove_tab(tab_index);
+            app_ui.tab_bar_packed_file.remove_tab(tab_index);
         }
 
         // This is for cleaning up open PackFiles.
         if !purge_on_delete.is_empty() {
-            let _ = self.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &purge_on_delete, false);
+            let _ = Self::purge_that_one_specifically(app_ui, global_search_ui, pack_file_contents_ui, &diagnostics_ui, &purge_on_delete, false);
         }
 
         // Update the background icon.
-        GameSelectedIcons::set_game_selected_icon(self);
+        GameSelectedIcons::set_game_selected_icon(app_ui);
     }
 }

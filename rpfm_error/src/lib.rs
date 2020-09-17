@@ -987,20 +987,12 @@ impl From<Box<bincode::ErrorKind>> for Error {
     }
 }
 
-/// Implementation to create an `Error` from a `ron::ser::Error`.
-impl From<ron::ser::Error> for Error {
-    fn from(_: ron::ser::Error) -> Self {
-        Self::from(ErrorKind::RonSerializerError)
-    }
-}
-
-/// Implementation to create an `Error` from a `ron::de::Error`.
-impl From<ron::de::Error> for Error {
-    fn from(_: ron::de::Error) -> Self {
+/// Implementation to create an `Error` from a `ron::error::Error`.
+impl From<ron::error::Error> for Error {
+    fn from(_: ron::error::Error) -> Self {
         Self::from(ErrorKind::RonDeserializerError)
     }
 }
-
 
 /// Implementation to create an `Error` from a `(FluentResource, Vec<ParserError>)`. Because for fluent, single errors are hard.
 impl From<(FluentResource, Vec<ParserError>)> for Error {

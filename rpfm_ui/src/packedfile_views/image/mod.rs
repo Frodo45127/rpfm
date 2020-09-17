@@ -17,13 +17,12 @@ use qt_widgets::QLabel;
 
 use qt_gui::QPixmap;
 
+use cpp_core::CppBox;
+
 use qt_core::QFlags;
 use qt_core::AlignmentFlag;
 use qt_core::QByteArray;
-
-use cpp_core::MutPtr;
-
-use std::sync::atomic::AtomicPtr;
+use qt_core::QPtr;
 
 use rpfm_error::{Result, ErrorKind};
 use rpfm_lib::packedfile::image::Image;
@@ -33,11 +32,7 @@ use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
 use crate::ffi::{new_resizable_label_safe, set_pixmap_on_resizable_label_safe};
-use crate::packedfile_views::{PackedFileView, TheOneSlot, View, ViewType};
-use crate::utils::{atomic_from_mut_ptr, mut_ptr_from_atomic};
-use self::slots::PackedFileImageViewSlots;
-
-pub mod slots;
+use crate::packedfile_views::{PackedFileView, View, ViewType};
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -45,8 +40,8 @@ pub mod slots;
 
 /// This struct contains the view of an Image PackedFile.
 pub struct PackedFileImageView {
-    label: AtomicPtr<QLabel>,
-    image: AtomicPtr<QPixmap>,
+    label: QPtr<QLabel>,
+    image: CppBox<QPixmap>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -59,7 +54,7 @@ impl PackedFileImageView {
     /// This function creates a new Image View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-    ) -> Result<(TheOneSlot, PackedFileInfo)> {
+    ) -> Result<PackedFileInfo> {
 
         // Get the path of the extracted Image.
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
@@ -73,34 +68,31 @@ impl PackedFileImageView {
 
         // Create the image in the UI.
         let byte_array = QByteArray::from_slice(image.get_data());
-        let mut image = QPixmap::new().into_ptr();
+        let image = QPixmap::new();
         if !image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap()) {
            return Err(ErrorKind::ImageDecode("The image is not supported by the previsualizer.".to_owned()).into());
         }
 
         // Get the size of the holding widget.
-        let mut layout: MutPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast_mut();
-        let mut label = new_resizable_label_safe(&mut packed_file_view.get_mut_widget(), &mut image);
+        let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        let label = new_resizable_label_safe(&packed_file_view.get_mut_widget().as_ptr(), &image.as_ptr());
         label.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
-        layout.add_widget_5a(label.as_mut_raw_ptr(), 0, 0, 1, 1);
+        layout.add_widget_5a(&label, 0, 0, 1, 1);
 
         packed_file_view.packed_file_type = PackedFileType::Image;
         packed_file_view.view = ViewType::Internal(View::Image(Self {
-            image: atomic_from_mut_ptr(image),
-            label: atomic_from_mut_ptr(label)
+            label,
+            image
         }));
 
         // Return success.
-        Ok((TheOneSlot::Image(PackedFileImageViewSlots {}), packed_file_info))
+        Ok(packed_file_info)
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
     pub unsafe fn reload_view(&self, data: &Image) {
-        let mut image = mut_ptr_from_atomic(&self.image);
-        let mut label = mut_ptr_from_atomic(&self.label);
-
         let byte_array = QByteArray::from_slice(data.get_data());
-        image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap());
-        set_pixmap_on_resizable_label_safe(&mut label, &mut image);
+        self.image.load_from_data_q_byte_array(byte_array.into_ptr().as_ref().unwrap());
+        set_pixmap_on_resizable_label_safe(&self.label.as_ptr(), &self.image.as_ptr());
     }
 }

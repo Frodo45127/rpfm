@@ -14,13 +14,15 @@ Module with all the code to connect `GlobalSearchUI` signals with their correspo
 This module is, and should stay, private, as it's only glue between the `GlobalSearchUI` and `GlobalSearchSlots` structs.
 !*/
 
+use std::rc::Rc;
+
 use super::{GlobalSearchUI, slots::GlobalSearchSlots};
 
 /// This function connects all the actions from the provided `GlobalSearchUI` with their slots in `GlobalSearchSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not polute the other modules with a ton of connections.
-pub unsafe fn set_connections(global_search_ui: &GlobalSearchUI, slots: &GlobalSearchSlots) {
+pub unsafe fn set_connections(global_search_ui: &Rc<GlobalSearchUI>, slots: &GlobalSearchSlots) {
     global_search_ui.global_search_search_button.released().connect(&slots.global_search_search);
     global_search_ui.global_search_clear_button.released().connect(&slots.global_search_clear);
     global_search_ui.global_search_replace_button.released().connect(&slots.global_search_replace_current);

@@ -15,7 +15,7 @@ doctest = false
 rpfm_error = { path = "../rpfm_error" }
 
 # Configuration support.
-directories = "^2.0"
+directories = "^3.0"
 lazy_static = "^1.2"
 indexmap = "^1.5"
 
@@ -42,7 +42,7 @@ serde_json = "^1.0"
 serde-xml-rs = "^0.4"
 bincode = "^1.1"
 csv = "^1.1"
-ron = "^0.5"
+ron = "^0.6"
 
 # Git support.
 git2 = "^0.13"
@@ -60,7 +60,7 @@ half = "^1.4"
 fraction = "^0.6"
 
 # AutoUpdater Support
-self_update = { version = "^0.19", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
+self_update = { version = "^0.20", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
 tempfile = "^3.1"
 zip-extract = "^0.1"
 

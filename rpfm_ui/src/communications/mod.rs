@@ -562,7 +562,7 @@ impl CentralCommand {
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     #[allow(dead_code)]
     pub fn recv_message_diagnostics_to_qt_try(&self) -> Diagnostics {
-        let mut event_loop = unsafe { QEventLoop::new_0a() };
+        let event_loop = unsafe { QEventLoop::new_0a() };
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
@@ -582,7 +582,7 @@ impl CentralCommand {
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     #[allow(dead_code)]
     pub fn recv_message_diagnostics_update_to_qt_try(&self) -> (Diagnostics, Vec<PackedFileInfo>) {
-        let mut event_loop = unsafe { QEventLoop::new_0a() };
+        let event_loop = unsafe { QEventLoop::new_0a() };
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
@@ -596,12 +596,13 @@ impl CentralCommand {
             unsafe { event_loop.process_events_0a(); }
         }
     }
+
     /// This functions serves to receive messages from the background thread into the main thread.
     ///
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     #[allow(dead_code)]
     pub fn recv_message_notification_to_qt_try(&self) -> Response {
-        let mut event_loop = unsafe { QEventLoop::new_0a() };
+        let event_loop = unsafe { QEventLoop::new_0a() };
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
@@ -624,7 +625,7 @@ impl CentralCommand {
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     #[allow(dead_code)]
     pub fn recv_message_qt_try(&self) -> Response {
-        let mut event_loop = unsafe { QEventLoop::new_0a() };
+        let event_loop = unsafe { QEventLoop::new_0a() };
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
@@ -642,7 +643,7 @@ impl CentralCommand {
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     #[allow(dead_code)]
     pub fn recv_message_network_to_qt_try(&self) -> Response {
-        let mut event_loop = unsafe { QEventLoop::new_0a() };
+        let event_loop = unsafe { QEventLoop::new_0a() };
         loop {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.

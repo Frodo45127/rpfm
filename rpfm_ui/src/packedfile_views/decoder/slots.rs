@@ -16,12 +16,16 @@ use qt_widgets::SlotOfQPoint;
 
 use qt_gui::QCursor;
 
+use qt_core::QBox;
 use qt_core::QModelIndex;
-use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, Slot, SlotOfQModelIndexQModelIndexQVectorOfInt};
+use qt_core::{SlotOfBool, SlotOfInt, SlotOfQItemSelectionQItemSelection, SlotNoArgs, SlotOfQModelIndexQModelIndexQVectorOfInt};
 
 use cpp_core::Ref;
 
 use bincode::deserialize;
+
+use std::rc::Rc;
+use std::sync::Arc;
 
 use rpfm_error::ErrorKind;
 
@@ -47,7 +51,7 @@ use crate::UI_STATE;
 
 use super::get_definition;
 use super::get_header_size;
-use super::PackedFileDecoderViewRaw;
+use super::PackedFileDecoderView;
 use super::PackedFileDecoderMutableData;
 use super::DECODER_EXTENSION;
 
@@ -57,42 +61,42 @@ use super::DECODER_EXTENSION;
 
 /// This struct contains the slots of the view of an Text PackedFile.
 pub struct PackedFileDecoderViewSlots {
-    pub hex_view_scroll_sync: SlotOfInt<'static>,
-    pub hex_view_selection_raw_sync: Slot<'static>,
-    pub hex_view_selection_decoded_sync: Slot<'static>,
+    pub hex_view_scroll_sync: QBox<SlotOfInt>,
+    pub hex_view_selection_raw_sync: QBox<SlotNoArgs>,
+    pub hex_view_selection_decoded_sync: QBox<SlotNoArgs>,
 
-    pub use_this_bool: Slot<'static>,
-    pub use_this_f32: Slot<'static>,
-    pub use_this_i16: Slot<'static>,
-    pub use_this_i32: Slot<'static>,
-    pub use_this_i64: Slot<'static>,
-    pub use_this_string_u8: Slot<'static>,
-    pub use_this_string_u16: Slot<'static>,
-    pub use_this_optional_string_u8: Slot<'static>,
-    pub use_this_optional_string_u16: Slot<'static>,
-    pub use_this_sequence_u32: Slot<'static>,
+    pub use_this_bool: QBox<SlotNoArgs>,
+    pub use_this_f32: QBox<SlotNoArgs>,
+    pub use_this_i16: QBox<SlotNoArgs>,
+    pub use_this_i32: QBox<SlotNoArgs>,
+    pub use_this_i64: QBox<SlotNoArgs>,
+    pub use_this_string_u8: QBox<SlotNoArgs>,
+    pub use_this_string_u16: QBox<SlotNoArgs>,
+    pub use_this_optional_string_u8: QBox<SlotNoArgs>,
+    pub use_this_optional_string_u16: QBox<SlotNoArgs>,
+    pub use_this_sequence_u32: QBox<SlotNoArgs>,
 
-    pub table_change_field_type: SlotOfQModelIndexQModelIndexQVectorOfInt<'static>,
+    pub table_change_field_type: QBox<SlotOfQModelIndexQModelIndexQVectorOfInt>,
 
-    pub table_view_context_menu_move_up: SlotOfBool<'static>,
-    pub table_view_context_menu_move_down: SlotOfBool<'static>,
-    pub table_view_context_menu_move_left: SlotOfBool<'static>,
-    pub table_view_context_menu_move_right: SlotOfBool<'static>,
-    pub table_view_context_menu_delete: SlotOfBool<'static>,
+    pub table_view_context_menu_move_up: QBox<SlotOfBool>,
+    pub table_view_context_menu_move_down: QBox<SlotOfBool>,
+    pub table_view_context_menu_move_left: QBox<SlotOfBool>,
+    pub table_view_context_menu_move_right: QBox<SlotOfBool>,
+    pub table_view_context_menu_delete: QBox<SlotOfBool>,
 
-    pub table_view_context_menu: SlotOfQPoint<'static>,
-    pub table_view_context_menu_enabler: SlotOfQItemSelectionQItemSelection<'static>,
+    pub table_view_context_menu: QBox<SlotOfQPoint>,
+    pub table_view_context_menu_enabler: QBox<SlotOfQItemSelectionQItemSelection>,
 
-    pub table_view_versions_context_menu: SlotOfQPoint<'static>,
-    pub table_view_versions_context_menu_enabler: SlotOfQItemSelectionQItemSelection<'static>,
+    pub table_view_versions_context_menu: QBox<SlotOfQPoint>,
+    pub table_view_versions_context_menu_enabler: QBox<SlotOfQItemSelectionQItemSelection>,
 
-    pub table_view_old_versions_context_menu_load: SlotOfBool<'static>,
-    pub table_view_old_versions_context_menu_delete: SlotOfBool<'static>,
+    pub table_view_old_versions_context_menu_load: QBox<SlotOfBool>,
+    pub table_view_old_versions_context_menu_delete: QBox<SlotOfBool>,
 
-    pub import_from_assembly_kit: Slot<'static>,
-    pub test_definition: Slot<'static>,
-    pub remove_all_fields: Slot<'static>,
-    pub save_definition: Slot<'static>,
+    pub import_from_assembly_kit: QBox<SlotNoArgs>,
+    pub test_definition: QBox<SlotNoArgs>,
+    pub remove_all_fields: QBox<SlotNoArgs>,
+    pub save_definition: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -104,16 +108,16 @@ impl PackedFileDecoderViewSlots {
 
     /// This function creates the entire slot pack for images.
     pub unsafe fn new(
-        view: PackedFileDecoderViewRaw,
+        view: &Arc<PackedFileDecoderView>,
         mutable_data: PackedFileDecoderMutableData,
-        mut app_ui: AppUI,
-        pack_file_contents_ui: PackFileContentsUI,
-        global_search_ui: GlobalSearchUI,
-        diagnostics_ui: DiagnosticsUI,
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Self {
 
         // Slot to keep scroll in views in sync.
-        let hex_view_scroll_sync = SlotOfInt::new(clone!(
+        let hex_view_scroll_sync = SlotOfInt::new(&view.table_view, clone!(
             mut view => move |value| {
             view.hex_view_index.vertical_scroll_bar().set_value(value);
             view.hex_view_raw.vertical_scroll_bar().set_value(value);
@@ -121,75 +125,75 @@ impl PackedFileDecoderViewSlots {
         }));
 
         // Slot to keep selection in views in sync.
-        let hex_view_selection_raw_sync = Slot::new(clone!(
+        let hex_view_selection_raw_sync = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             view.hex_selection_sync(true);
         }));
 
         // Slot to keep selection in views in sync.
-        let hex_view_selection_decoded_sync = Slot::new(clone!(
+        let hex_view_selection_decoded_sync = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
             view.hex_selection_sync(false);
         }));
 
         // Slot to use a boolean value.
-        let use_this_bool = Slot::new(clone!(
+        let use_this_bool = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::Boolean, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use a float value.
-        let use_this_f32 = Slot::new(clone!(
+        let use_this_f32 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::F32, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use an integer value.
-        let use_this_i16 = Slot::new(clone!(
+        let use_this_i16 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::I16, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use an integer value.
-        let use_this_i32 = Slot::new(clone!(
+        let use_this_i32 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::I32, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use a long integer value.
-        let use_this_i64 = Slot::new(clone!(
+        let use_this_i64 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::I64, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use a string u8 value.
-        let use_this_string_u8 = Slot::new(clone!(
+        let use_this_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::StringU8, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use a string u16 value.
-        let use_this_string_u16 = Slot::new(clone!(
+        let use_this_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::StringU16, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use an optional string u8 value.
-        let use_this_optional_string_u8 = Slot::new(clone!(
+        let use_this_optional_string_u8 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::OptionalStringU8, &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot to use an optional string u16 value.
-        let use_this_optional_string_u16 = Slot::new(clone!(
+        let use_this_optional_string_u16 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::OptionalStringU16, &mut mutable_data.index.lock().unwrap());
@@ -197,16 +201,16 @@ impl PackedFileDecoderViewSlots {
 
 
         // Slot to use a sequence u32 value.
-        let use_this_sequence_u32 = Slot::new(clone!(
+        let use_this_sequence_u32 = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
             let _ = view.use_this(FieldType::SequenceU32(Definition::new(-1)), &mut mutable_data.index.lock().unwrap());
         }));
 
         // Slot for when we change the Type of the selected field in the table.
-        let table_change_field_type = SlotOfQModelIndexQModelIndexQVectorOfInt::new(clone!(
-            mut mutable_data,
-            mut view => move |initial_model_index,final_model_index,_| {
+        let table_change_field_type = SlotOfQModelIndexQModelIndexQVectorOfInt::new(&view.table_view, clone!(
+            mutable_data,
+            view => move |initial_model_index,final_model_index,_| {
                 if initial_model_index.column() == 2 && final_model_index.column() == 2 {
                     let _ = view.update_rows_decoded(&mut mutable_data.index.lock().unwrap(), None, None);
                 }
@@ -214,7 +218,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slots for the "Move up" contextual action of the TableView.
-        let table_view_context_menu_move_up = SlotOfBool::new(clone!(
+        let table_view_context_menu_move_up = SlotOfBool::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move |_| {
 
@@ -248,7 +252,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slots for the "Move down" contextual action of the TableView.
-        let table_view_context_menu_move_down = SlotOfBool::new(clone!(
+        let table_view_context_menu_move_down = SlotOfBool::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move |_| {
 
@@ -289,7 +293,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slots for the "Move left" contextual action of the TableView.
-        let table_view_context_menu_move_left = SlotOfBool::new(clone!(
+        let table_view_context_menu_move_left = SlotOfBool::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move |_| {
 
@@ -323,7 +327,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slots for the "Move right" contextual action of the TableView.
-        let table_view_context_menu_move_right = SlotOfBool::new(clone!(
+        let table_view_context_menu_move_right = SlotOfBool::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move |_| {
 
@@ -339,7 +343,7 @@ impl PackedFileDecoderViewSlots {
                     // Only move right if the one above is in a lower level.
                     let parent = child.parent();
                     if child.row() > 0 {
-                        let mut item = if parent.is_valid() {
+                        let item = if parent.is_valid() {
                             view.table_model.item_from_index(&parent).child_1a(child.row() - 1)
                         }
                         else {
@@ -364,7 +368,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slots for the "Delete" contextual action of the TableView.
-        let table_view_context_menu_delete = SlotOfBool::new(clone!(
+        let table_view_context_menu_delete = SlotOfBool::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move |_| {
 
@@ -393,13 +397,13 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slot to show the Contextual Menu for the fields table view.
-        let table_view_context_menu = SlotOfQPoint::new(clone!(
+        let table_view_context_menu = SlotOfQPoint::new(&view.table_view, clone!(
             mut view => move |_| {
             view.table_view_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
         // Slot to enable/disable contextual actions depending on the selected item.
-        let table_view_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(clone!(
+        let table_view_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(&view.table_view, clone!(
             mut view => move |selection, _| {
 
                 // If there is something selected...
@@ -423,13 +427,13 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slot to show the Contextual Menu for the Other Versions table view.
-        let table_view_versions_context_menu = SlotOfQPoint::new(clone!(
+        let table_view_versions_context_menu = SlotOfQPoint::new(&view.table_view, clone!(
             mut view => move |_| {
             view.table_view_old_versions_context_menu.exec_1a_mut(&QCursor::pos_0a());
         }));
 
         // Slot to enable/disable contextual actions depending on the selected item.
-        let table_view_versions_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(clone!(
+        let table_view_versions_context_menu_enabler = SlotOfQItemSelectionQItemSelection::new(&view.table_view, clone!(
             mut view => move |selection, _| {
 
                 // If there is something selected...
@@ -447,7 +451,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slots for the "Load" contextual action of the Version's TableView.
-        let table_view_old_versions_context_menu_load = SlotOfBool::new(clone!(
+        let table_view_old_versions_context_menu_load = SlotOfBool::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move |_| {
 
@@ -476,7 +480,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slots for the "Delete" contextual action of the Version's TableView.
-        let table_view_old_versions_context_menu_delete = SlotOfBool::new(clone!(
+        let table_view_old_versions_context_menu_delete = SlotOfBool::new(&view.table_view, clone!(
             mut view => move |_| {
 
                 let selection = view.table_view_old_versions.selection_model().selection();
@@ -503,7 +507,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slot for the "Import from Assembly Kit" button.
-        let import_from_assembly_kit = Slot::new(clone!(
+        let import_from_assembly_kit = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
                 match view.import_from_assembly_kit() {
@@ -518,25 +522,25 @@ impl PackedFileDecoderViewSlots {
                         }
 
                         else {
-                            show_dialog(view.table_view, "No valid definitions found.", false)
+                            show_dialog(&view.table_view, "No valid definitions found.", false)
                         }
                     }
 
                     // If it failed, tell us why.
-                    Err(error) => show_dialog(view.table_view, error, false),
+                    Err(error) => show_dialog(&view.table_view, error, false),
                 }
             }
         ));
 
         // Slot for the "Test Definition" button.
-        let test_definition = Slot::new(clone!(
+        let test_definition = SlotNoArgs::new(&view.table_view, clone!(
             mut view => move || {
                 let schema = view.add_definition_to_schema();
 
                 match view.packed_file_type {
 
                     PackedFileType::AnimTable => match AnimTable::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
@@ -546,7 +550,7 @@ impl PackedFileDecoderViewSlots {
                     }
 
                     PackedFileType::AnimFragment => match AnimFragment::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
@@ -556,7 +560,7 @@ impl PackedFileDecoderViewSlots {
                     }
 
                     PackedFileType::DB => match DB::read(&view.packed_file_data, &view.packed_file_path[1], &schema, true) {
-                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
@@ -566,7 +570,7 @@ impl PackedFileDecoderViewSlots {
                     }
 
                     PackedFileType::Loc => match Loc::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
@@ -576,7 +580,7 @@ impl PackedFileDecoderViewSlots {
                     }
 
                    PackedFileType::MatchedCombat => match MatchedCombat::read(&view.packed_file_data, &schema, true) {
-                        Ok(_) => show_dialog(view.table_view, "Seems ok.", true),
+                        Ok(_) => show_dialog(&view.table_view, "Seems ok.", true),
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
@@ -591,7 +595,7 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slot for the "Kill them all!" button.
-        let remove_all_fields = Slot::new(clone!(
+        let remove_all_fields = SlotNoArgs::new(&view.table_view, clone!(
             mut mutable_data,
             mut view => move || {
                 view.table_model.clear();
@@ -601,7 +605,11 @@ impl PackedFileDecoderViewSlots {
         ));
 
         // Slot for the "Finish it!" button.
-        let save_definition = Slot::new(clone!(
+        let save_definition = SlotNoArgs::new(&view.table_view, clone!(
+            mut app_ui,
+            mut pack_file_contents_ui,
+            mut global_search_ui,
+            mut diagnostics_ui,
             mut view => move || {
                 let schema = view.add_definition_to_schema();
 
@@ -617,14 +625,15 @@ impl PackedFileDecoderViewSlots {
                 }
 
                 for path in &packed_files_to_save {
-                    if let Err(error) = app_ui.purge_that_one_specifically(
-                        global_search_ui,
-                        pack_file_contents_ui,
-                        diagnostics_ui,
+                    if let Err(error) = AppUI::purge_that_one_specifically(
+                        &app_ui,
+                        &global_search_ui,
+                        &pack_file_contents_ui,
+                        &diagnostics_ui,
                         path,
                         true,
                     ) {
-                        show_dialog(view.table_view, error, false);
+                        show_dialog(&view.table_view, error, false);
                     }
                 }
 
@@ -632,8 +641,8 @@ impl PackedFileDecoderViewSlots {
                 CENTRAL_COMMAND.send_message_qt(Command::SaveSchema(schema));
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 match response {
-                    Response::Success => show_dialog(view.table_view, "Schema successfully saved.", true),
-                    Response::Error(error) => show_dialog(view.table_view, error, false),
+                    Response::Success => show_dialog(&view.table_view, "Schema successfully saved.", true),
+                    Response::Error(error) => show_dialog(&view.table_view, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
 

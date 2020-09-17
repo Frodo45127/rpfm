@@ -41,15 +41,12 @@ use lazy_static::lazy_static;
 use log::info;
 use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
 
-use std::cell::RefCell;
 use std::fs::File;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::atomic::AtomicPtr;
 use std::thread;
 
 use rpfm_error::ctd::CrashReport;
-use rpfm_error::{Error, ErrorKind};
 
 use rpfm_lib::config::{init_config_path, get_config_path};
 use rpfm_lib::SETTINGS;
@@ -62,6 +59,7 @@ use crate::ui::GameSelectedIcons;
 use crate::ui_state::UIState;
 use crate::ui::UI;
 use crate::utils::atomic_from_cpp_box;
+use crate::utils::atomic_from_q_box;
 
 /// This macro is used to clone the variables into the closures without the compiler complaining.
 /// This should be BEFORE the `mod xxx` stuff, so submodules can use it too.
@@ -96,7 +94,6 @@ macro_rules! clone {
 
 mod app_ui;
 mod background_thread;
-mod command_palette;
 mod communications;
 mod diagnostics_ui;
 mod ffi;
@@ -156,7 +153,7 @@ lazy_static! {
     /// The dark one is taken from here, with some modifications: https://gist.github.com/QuantumCD/6245215
     static ref LIGHT_PALETTE: AtomicPtr<QPalette> = unsafe { atomic_from_cpp_box(QPalette::new()) };
     static ref DARK_PALETTE: AtomicPtr<QPalette> = unsafe {{
-        let mut palette = QPalette::new();
+        let palette = QPalette::new();
 
         // Base config.
         palette.set_color_2a(ColorRole::Window, &QColor::from_3_int(51, 51, 51));
@@ -264,7 +261,7 @@ lazy_static! {
     static ref UI_STATE: UIState = UIState::default();
 
     /// Pointer to the status bar of the Main Window, for logging purpouses.
-    static ref STATUS_BAR: AtomicPtr<QStatusBar> = unsafe { atomic_from_cpp_box(QStatusBar::new_0a()) };
+    static ref STATUS_BAR: AtomicPtr<QStatusBar> = unsafe { atomic_from_q_box(QStatusBar::new_0a()) };
 
     /// Monospace font, just in case we need it.
     static ref FONT_MONOSPACE: AtomicPtr<QFont> = unsafe { atomic_from_cpp_box(QFontDatabase::system_font(SystemFont::FixedFont)) };
@@ -281,7 +278,7 @@ fn main() {
     if !cfg!(debug_assertions) && CrashReport::init().is_err() {
         let _ = CombinedLogger::init(
             vec![
-                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed).ok_or_else(|| Error::from(ErrorKind::InitializingLoggerError)).unwrap(),
+                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed),
                 WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path().unwrap().join("rpfm_ui.log")).unwrap()),
             ]
         );
@@ -303,8 +300,7 @@ fn main() {
 
     // Create the application and start the loop.
     QApplication::init(|app| {
-        let slot_holder = Rc::new(RefCell::new(vec![]));
-        let (_ui, _slots) = unsafe { UI::new(app, &slot_holder) };
+        let _ui = unsafe { UI::new(app) };
 
         // And launch it.
         unsafe { QApplication::exec() }

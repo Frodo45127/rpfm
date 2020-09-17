@@ -20,13 +20,11 @@ use qt_gui::QCursor;
 use qt_gui::QGuiApplication;
 use qt_gui::SlotOfQStandardItem;
 
-use qt_core::{SlotOfBool, Slot, SlotOfQString};
+use qt_core::QBox;
+use qt_core::{SlotOfBool, SlotNoArgs, SlotOfQString};
 use qt_core::QSignalBlocker;
 use qt_core::QObject;
 
-use cpp_core::MutPtr;
-
-use std::cell::RefCell;
 use std::fs::DirBuilder;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -47,7 +45,7 @@ use crate::locale::{qtr, tre};
 use crate::pack_tree::{icons::IconType, PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::packfile::PackFileExtraView;
-use crate::packedfile_views::{PackedFileView, TheOneSlot};
+use crate::packedfile_views::PackedFileView;
 use crate::QString;
 use crate::utils::{show_dialog, check_regex};
 use crate::UI_STATE;
@@ -59,47 +57,47 @@ use crate::ui_state::op_mode::OperationalMode;
 
 /// This struct contains all the slots we need to respond to signals of the PackFile Contents panel.
 pub struct PackFileContentsSlots {
-    pub open_packedfile_preview: Slot<'static>,
-    pub open_packedfile_full: Slot<'static>,
+    pub open_packedfile_preview: QBox<SlotNoArgs>,
+    pub open_packedfile_full: QBox<SlotNoArgs>,
 
-    pub filter_change_text: SlotOfQString<'static>,
-    pub filter_change_autoexpand_matches: SlotOfBool<'static>,
-    pub filter_change_case_sensitive: SlotOfBool<'static>,
-    pub filter_check_regex: SlotOfQString<'static>,
+    pub filter_change_text: QBox<SlotOfQString>,
+    pub filter_change_autoexpand_matches: QBox<SlotOfBool>,
+    pub filter_change_case_sensitive: QBox<SlotOfBool>,
+    pub filter_check_regex: QBox<SlotOfQString>,
 
-    pub update_packfile_state: SlotOfQStandardItem<'static>,
+    pub update_packfile_state: QBox<SlotOfQStandardItem>,
 
-    pub contextual_menu: SlotOfQPoint<'static>,
-    pub contextual_menu_enabler: Slot<'static>,
+    pub contextual_menu: QBox<SlotOfQPoint>,
+    pub contextual_menu_enabler: QBox<SlotNoArgs>,
 
-    pub contextual_menu_add_file: SlotOfBool<'static>,
-    pub contextual_menu_add_folder: SlotOfBool<'static>,
-    pub contextual_menu_add_from_packfile: SlotOfBool<'static>,
-    pub contextual_menu_delete: SlotOfBool<'static>,
-    pub contextual_menu_extract: SlotOfBool<'static>,
-    pub contextual_menu_rename: SlotOfBool<'static>,
-    pub contextual_menu_copy_path: SlotOfBool<'static>,
+    pub contextual_menu_add_file: QBox<SlotOfBool>,
+    pub contextual_menu_add_folder: QBox<SlotOfBool>,
+    pub contextual_menu_add_from_packfile: QBox<SlotOfBool>,
+    pub contextual_menu_delete: QBox<SlotOfBool>,
+    pub contextual_menu_extract: QBox<SlotOfBool>,
+    pub contextual_menu_rename: QBox<SlotOfBool>,
+    pub contextual_menu_copy_path: QBox<SlotOfBool>,
 
-    pub contextual_menu_new_packed_file_db: SlotOfBool<'static>,
-    pub contextual_menu_new_packed_file_loc: SlotOfBool<'static>,
-    pub contextual_menu_new_packed_file_text: SlotOfBool<'static>,
-    pub contextual_menu_new_folder: SlotOfBool<'static>,
-    pub contextual_menu_new_queek_packed_file: SlotOfBool<'static>,
+    pub contextual_menu_new_packed_file_db: QBox<SlotOfBool>,
+    pub contextual_menu_new_packed_file_loc: QBox<SlotOfBool>,
+    pub contextual_menu_new_packed_file_text: QBox<SlotOfBool>,
+    pub contextual_menu_new_folder: QBox<SlotOfBool>,
+    pub contextual_menu_new_queek_packed_file: QBox<SlotOfBool>,
 
-    pub contextual_menu_open_decoder: SlotOfBool<'static>,
-    pub contextual_menu_open_dependency_manager: SlotOfBool<'static>,
-    pub contextual_menu_open_containing_folder: SlotOfBool<'static>,
-    pub contextual_menu_open_in_external_program: SlotOfBool<'static>,
-    pub contextual_menu_open_notes: SlotOfBool<'static>,
+    pub contextual_menu_open_decoder: QBox<SlotOfBool>,
+    pub contextual_menu_open_dependency_manager: QBox<SlotOfBool>,
+    pub contextual_menu_open_containing_folder: QBox<SlotOfBool>,
+    pub contextual_menu_open_in_external_program: QBox<SlotOfBool>,
+    pub contextual_menu_open_notes: QBox<SlotOfBool>,
 
-    pub contextual_menu_tables_merge_tables: SlotOfBool<'static>,
-    pub contextual_menu_tables_update_table: SlotOfBool<'static>,
+    pub contextual_menu_tables_merge_tables: QBox<SlotOfBool>,
+    pub contextual_menu_tables_update_table: QBox<SlotOfBool>,
 
-    pub contextual_menu_mass_import_tsv: SlotOfBool<'static>,
-    pub contextual_menu_mass_export_tsv: SlotOfBool<'static>,
+    pub contextual_menu_mass_import_tsv: QBox<SlotOfBool>,
+    pub contextual_menu_mass_export_tsv: QBox<SlotOfBool>,
 
-    pub packfile_contents_tree_view_expand_all: Slot<'static>,
-    pub packfile_contents_tree_view_collapse_all: Slot<'static>,
+    pub packfile_contents_tree_view_expand_all: QBox<SlotNoArgs>,
+    pub packfile_contents_tree_view_collapse_all: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -111,51 +109,69 @@ impl PackFileContentsSlots {
 
 	/// This function creates an entire `PackFileContentsSlots` struct.
 	pub unsafe fn new(
-        mut app_ui: AppUI,
-        mut pack_file_contents_ui: PackFileContentsUI,
-        mut global_search_ui: GlobalSearchUI,
-        mut diagnostics_ui: DiagnosticsUI,
-        slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+
     ) -> Self {
 
         // Slot to open the selected PackedFile as a preview.
-        let open_packedfile_preview = Slot::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder, true, false);
+        let open_packedfile_preview = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, true, false);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
-        let open_packedfile_full = Slot::new(clone!(slot_holder => move || {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder, false, false);
+        let open_packedfile_full = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+            AppUI::open_packedfile(&app_ui, & pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false, false);
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
-        let filter_change_text = SlotOfQString::new(move |_| {
-            pack_file_contents_ui.filter_files();
-        });
-        let filter_change_autoexpand_matches = SlotOfBool::new(move |_| {
-            pack_file_contents_ui.filter_files();
-        });
-        let filter_change_case_sensitive = SlotOfBool::new(move |_| {
-            pack_file_contents_ui.filter_files();
-        });
+        let filter_change_text = SlotOfQString::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move |_| {
+                PackFileContentsUI::filter_files(&pack_file_contents_ui);
+            }
+        ));
+        let filter_change_autoexpand_matches = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move |_| {
+                PackFileContentsUI::filter_files(&pack_file_contents_ui);
+            }
+        ));
+        let filter_change_case_sensitive = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move |_| {
+                PackFileContentsUI::filter_files(&pack_file_contents_ui);
+            }
+        ));
 
         // What happens when we trigger the "Check Regex" action.
-        let filter_check_regex = SlotOfQString::new(move |string| {
-            check_regex(&string.to_std_string(), pack_file_contents_ui.filter_line_edit.static_upcast_mut());
-        });
+        let filter_check_regex = SlotOfQString::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move |string| {
+                check_regex(&string.to_std_string(), pack_file_contents_ui.filter_line_edit.static_upcast());
+            }
+        ));
 
         // Slot to show the Contextual Menu for the TreeView.
-        let contextual_menu = SlotOfQPoint::new(move |_| {
+        let contextual_menu = SlotOfQPoint::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move |_| {
             pack_file_contents_ui.packfile_contents_tree_view_context_menu.exec_1a_mut(&QCursor::pos_0a());
-        });
+        }));
 
-        let update_packfile_state = SlotOfQStandardItem::new(move |item| {
-            <MutPtr<QTreeView> as PackTree>::paint_specific_item_treeview(item);
+        let update_packfile_state = SlotOfQStandardItem::new(&pack_file_contents_ui.packfile_contents_dock_widget, move |item| {
+            <QBox<QTreeView> as PackTree>::paint_specific_item_treeview(item);
         });
 
         // Slot to enable/disable contextual actions depending on the selected item.
-        let contextual_menu_enabler = Slot::new(move || {
-                let (contents, files, folders) = <MutPtr<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
+        let contextual_menu_enabler = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+                let (contents, files, folders) = <QBox<QTreeView> as PackTree>::get_combination_from_main_treeview_selection(&pack_file_contents_ui);
                 match contents {
 
                     // Only one or more files selected.
@@ -395,13 +411,17 @@ impl PackFileContentsSlots {
                     pack_file_contents_ui.context_menu_mass_export_tsv.set_enabled(false);
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Add File/s" action in the Contextual Menu.
-        let contextual_menu_add_file = SlotOfBool::new(move |_| {
+        let contextual_menu_add_file = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Create the FileDialog to get the file/s to add and configure it.
-                let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                let file_dialog = QFileDialog::from_q_widget_q_string(
                     app_ui.main_window,
                     &qtr("context_menu_add_files"),
                 );
@@ -448,11 +468,11 @@ impl PackFileContentsSlots {
                                 // Otherwise, they are added like normal files.
                                 else {
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths { paths_packedfile.append(&mut <MutPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
+                                    for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
                                     paths_packedfile
                                 };
 
-                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, &paths_packedfile);
+                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &paths, &paths_packedfile);
                             }
                         }
 
@@ -473,20 +493,24 @@ impl PackFileContentsSlots {
 
                             // Get their final paths in the PackFile and only proceed if all of them are closed.
                             let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                            for path in &paths { paths_packedfile.append(&mut <MutPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
+                            for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
 
-                            pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, &paths_packedfile);
+                            PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &paths, &paths_packedfile);
                         }
                     }
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Add Folder/s" action in the Contextual Menu.
-        let contextual_menu_add_folder = SlotOfBool::new(move |_| {
+        let contextual_menu_add_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Create the FileDialog to get the folder/s to add and configure it.
-                let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                let file_dialog = QFileDialog::from_q_widget_q_string(
                     app_ui.main_window,
                     &qtr("context_menu_add_folders"),
                 );
@@ -536,11 +560,11 @@ impl PackFileContentsSlots {
                                 // Otherwise, they are added like normal files.
                                 else {
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths { paths_packedfile.append(&mut <MutPtr<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
+                                    for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
                                     paths_packedfile
                                 };
 
-                                pack_file_contents_ui.add_packedfiles(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &paths, &paths_packedfile);
+                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &paths, &paths_packedfile);
                             }
                         }
 
@@ -560,20 +584,23 @@ impl PackFileContentsSlots {
                             for index in 0..paths_qt.size() { folder_paths.push(PathBuf::from(paths_qt.at(index).to_std_string())); }
 
                             // Get the Paths of the files inside the folders we want to add.
-                            let ui_base_path: Vec<String> = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
-                            pack_file_contents_ui.add_packed_files_from_folders(&mut app_ui, &mut global_search_ui, &mut diagnostics_ui, &folder_paths, &[ui_base_path]);
+                            let ui_base_path: Vec<String> = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
+                            PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &folder_paths, &[ui_base_path]);
                         }
                     }
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Add From PackFile" action in the Contextual Menu.
-        let contextual_menu_add_from_packfile = SlotOfBool::new(clone!(
-            slot_holder => move |_| {
+        let contextual_menu_add_from_packfile = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
-                let mut file_dialog = QFileDialog::from_q_widget_q_string(
+                let file_dialog = QFileDialog::from_q_widget_q_string(
                     app_ui.main_window,
                     &qtr("context_menu_select_packfile"),
                 );
@@ -616,8 +643,7 @@ impl PackFileContentsSlots {
                     tab.set_path(&fake_path);
 
                     match PackFileExtraView::new_view(&mut tab, &app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, path) {
-                        Ok(slots) => {
-                            slot_holder.borrow_mut().push(slots);
+                        Ok(_) => {
 
                             app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &QString::from_std_str(&path_str));
                             app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
@@ -631,9 +657,12 @@ impl PackFileContentsSlots {
         ));
 
         // What happens when we trigger the "Delete" action in the Contextual Menu.
-        let contextual_menu_delete = SlotOfBool::new(clone!(
-            slot_holder => move |_| {
-                let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+        let contextual_menu_delete = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                 let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
 
                 CENTRAL_COMMAND.send_message_qt(Command::DeletePackedFiles(selected_items));
@@ -643,12 +672,12 @@ impl PackFileContentsSlots {
                         let items = deleted_items.iter().map(From::from).collect::<Vec<TreePathType>>();
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items.to_vec()));
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(items.to_vec()));
-                        UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                         // Remove all the deleted PackedFiles from the cache.
                         for item in &items {
                             match item {
-                                TreePathType::File(path) => if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, false) {
+                                TreePathType::File(path) => if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, false) {
                                     show_dialog(app_ui.main_window, error, false);
                                 }
                                 TreePathType::Folder(path) => {
@@ -663,11 +692,11 @@ impl PackFileContentsSlots {
                                     }
 
                                     for path in paths_to_remove {
-                                        let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, false);
+                                        let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, false);
                                     }
 
                                 }
-                                TreePathType::PackFile => { let _ = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, false); },
+                                TreePathType::PackFile => { let _ = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false); },
                                 TreePathType::None => unreachable!(),
                             }
                         }
@@ -678,10 +707,14 @@ impl PackFileContentsSlots {
         ));
 
         // What happens when we trigger the "Extract" action in the Contextual Menu.
-        let contextual_menu_extract = SlotOfBool::new(move |_| {
+        let contextual_menu_extract = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Get the currently selected paths (and visible) paths.
-                let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                 let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
                 let extraction_path = match UI_STATE.get_operational_mode() {
 
@@ -721,7 +754,9 @@ impl PackFileContentsSlots {
 
                 // We have to save our data from cache to the backend before extracting it. Otherwise we would extract outdated data.
                 // TODO: Make this more... optimal.
-                if let Err(error) = UI_STATE.get_open_packedfiles().iter().try_for_each(|packed_file| packed_file.save(&mut app_ui, global_search_ui, &mut pack_file_contents_ui, diagnostics_ui)) {
+                if let Err(error) = UI_STATE.get_open_packedfiles()
+                    .iter()
+                    .try_for_each(|packed_file| packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui)) {
                     show_dialog(app_ui.main_window, error, false);
                 }
 
@@ -737,17 +772,21 @@ impl PackFileContentsSlots {
                     app_ui.main_window.set_enabled(true);
                 }
             }
-        );
+        ));
 
 
         // What happens when we trigger the "Rename" Action.
-        let contextual_menu_rename = SlotOfBool::new(move |_| {
+        let contextual_menu_rename = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Get the currently selected items, and check how many of them are valid before trying to rewrite them.
                 // Why? Because I'm sure there is an asshole out there that it's going to try to give the files duplicated
                 // names, and if that happen, we have to stop right there that criminal scum.
-                let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
-                if let Some(rewrite_sequence) = PackFileContentsUI::create_rename_dialog(&mut app_ui, &selected_items) {
+                let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                if let Some(rewrite_sequence) = PackFileContentsUI::create_rename_dialog(&app_ui, &selected_items) {
                     let mut renaming_data_background: Vec<(PathType, String)> = vec![];
                     for item_type in selected_items {
                         match item_type {
@@ -780,8 +819,8 @@ impl PackFileContentsSlots {
                                                 path_changes.push((current_path.to_vec(), new_path.to_vec()));
 
                                                 // Update the global search stuff, if needed.
-                                                global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![PathType::File(new_path.to_vec()); 1]);
-                                                diagnostics_ui.check_on_path(&mut pack_file_contents_ui, vec![PathType::File(new_path.to_vec()); 1]);
+                                                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, vec![PathType::File(new_path.to_vec()); 1]);
+                                                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, vec![PathType::File(new_path.to_vec()); 1]);
                                             }
                                         }
                                     }
@@ -816,7 +855,7 @@ impl PackFileContentsSlots {
                                 (TreePathType::from(x), path)
                             }).collect();
 
-                            let mut blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.selection_model().static_upcast_mut::<QObject>());
+                            let blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_view.selection_model().static_upcast::<QObject>());
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Move(renamed_items_view));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(renamed_items.iter().map(|x| match x.0 {
                                 TreePathType::File(_) => TreePathType::File(x.1.to_vec()),
@@ -824,45 +863,54 @@ impl PackFileContentsSlots {
                                 _ => unimplemented!()
                             }).collect()));
                             blocker.unblock();
-                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
             }
-        );
+        ));
 
-        let contextual_menu_copy_path = SlotOfBool::new(move |_| {
-            let selected_paths = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
+        let contextual_menu_copy_path = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move |_| {
+            let selected_paths = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
             if selected_paths.len() == 1 {
                 QGuiApplication::clipboard().set_text_1a(&QString::from_std_str(selected_paths[0].join("/")));
             }
-        });
+        }));
 
         // What happens when we trigger the "Create DB PackedFile" Action.
-        let contextual_menu_new_packed_file_db = SlotOfBool::new(move |_| {
-            app_ui.new_packed_file(&mut pack_file_contents_ui, PackedFileType::DB);
-        });
+        let contextual_menu_new_packed_file_db = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::DB);
+        }));
 
         // What happens when we trigger the "Create Loc PackedFile" Action.
-        let contextual_menu_new_packed_file_loc = SlotOfBool::new(move |_| {
-            app_ui.new_packed_file(&mut pack_file_contents_ui, PackedFileType::Loc);
-        });
+        let contextual_menu_new_packed_file_loc = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::Loc);
+        }));
 
         // What happens when we trigger the "Create Text PackedFile" Action.
-        let contextual_menu_new_packed_file_text = SlotOfBool::new(move |_| {
-            app_ui.new_packed_file(&mut pack_file_contents_ui, PackedFileType::Text(TextType::Plain));
-        });
+        let contextual_menu_new_packed_file_text = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            AppUI::new_packed_file(&app_ui, &pack_file_contents_ui, PackedFileType::Text(TextType::Plain));
+        }));
 
         // What happens when we trigger the "New Folder" Action.
-        let contextual_menu_new_folder = SlotOfBool::new(move |_| {
+        let contextual_menu_new_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
 
                 // Create the "New Folder" dialog and wait for a new name (or a cancelation).
-                if let Some(new_folder_name) = app_ui.new_folder_dialog() {
+                if let Some(new_folder_name) = AppUI::new_folder_dialog(&app_ui) {
 
                     // Get the currently selected paths, and only continue if there is only one.
-                    let selected_paths = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
+                    let selected_paths = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
                     if selected_paths.len() == 1 {
 
                         // Add the folder's name to the list.
@@ -878,29 +926,40 @@ impl PackFileContentsSlots {
                         if folder_exists { return show_dialog(app_ui.main_window, ErrorKind::FolderAlreadyInPackFile, false)}
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::Folder(complete_path.to_vec()); 1]));
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::Folder(complete_path); 1]));
-                        UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                        UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                     }
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Create Text PackedFile" Action.
-        let contextual_menu_new_queek_packed_file = SlotOfBool::new(move |_| {
-            app_ui.new_queek_packed_file(&mut pack_file_contents_ui);
-        });
+        let contextual_menu_new_queek_packed_file = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
+            AppUI::new_queek_packed_file(&app_ui, &pack_file_contents_ui);
+        }));
 
         // What happens when we trigger the "Open Decoder" Action.
-        let contextual_menu_open_decoder = SlotOfBool::new(clone!(slot_holder => move |_| {
-            app_ui.open_decoder(&pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder);
+        let contextual_menu_open_decoder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+            AppUI::open_decoder(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         }));
 
         // What happens when we trigger the "Open Dependency Table" Action.
-        let contextual_menu_open_dependency_manager = SlotOfBool::new(clone!(slot_holder => move |_| {
-            app_ui.open_dependency_manager(&pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder);
+        let contextual_menu_open_dependency_manager = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+            AppUI::open_dependency_manager(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         }));
 
         // What happens when we trigger the "Open Containing Folder" Action.
-        let contextual_menu_open_containing_folder = SlotOfBool::new(move |_| {
+        let contextual_menu_open_containing_folder = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui => move |_| {
             CENTRAL_COMMAND.send_message_qt(Command::OpenContainingFolder);
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
@@ -908,25 +967,35 @@ impl PackFileContentsSlots {
                 Response::Error(error) => show_dialog(app_ui.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
-        });
+        }));
 
         // What happens when we trigger the "Open In External Program" Action.
-        let contextual_menu_open_in_external_program = SlotOfBool::new(clone!(
-            mut pack_file_contents_ui,
-            mut slot_holder => move |_| {
-            app_ui.open_packedfile(&mut pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder, false, true);
+        let contextual_menu_open_in_external_program = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false, true);
         }));
 
         // What happens when we trigger the "Open Notes" Action.
-        let contextual_menu_open_notes = SlotOfBool::new(clone!(slot_holder => move |_| {
-            app_ui.open_notes(&pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &slot_holder);
+        let contextual_menu_open_notes = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+            AppUI::open_notes(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         }));
 
         // What happens when we trigger the "Merge Tables" action in the Contextual Menu.
-        let contextual_menu_tables_merge_tables = SlotOfBool::new(move |_| {
+        let contextual_menu_tables_merge_tables = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
             // Get the currently selected paths, and get how many we have of each type.
-            let selected_paths = <MutPtr<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
+            let selected_paths = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui);
 
             // First, we check if we're merging locs, as it's far simpler.
             let mut loc_pass = true;
@@ -969,7 +1038,7 @@ impl PackFileContentsSlots {
             if (loc_pass || db_pass) && !(loc_pass && db_pass) {
 
                 // Get the info for the merged file.
-                if let Some((mut name, delete_source_files)) = app_ui.merge_tables_dialog() {
+                if let Some((mut name, delete_source_files)) = AppUI::merge_tables_dialog(&app_ui) {
 
                     // If it's a loc file and the name doesn't end in a ".loc" termination, call it ".loc".
                     if loc_pass && !name.to_lowercase().ends_with(".loc") {
@@ -988,7 +1057,7 @@ impl PackFileContentsSlots {
                     }
 
                     for path in paths_to_close {
-                        if let Err(error) = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &path, true) {
+                        if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, true) {
                             return show_dialog(app_ui.main_window, error, false);
                         }
                     }
@@ -1001,18 +1070,18 @@ impl PackFileContentsSlots {
                             // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
                                 let items_to_remove = selected_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect();
-                                let mut _blocker = QSignalBlocker::from_q_object(pack_file_contents_ui.packfile_contents_tree_model);
-                                selected_paths.iter().for_each(|x| { let _ = app_ui.purge_that_one_specifically(global_search_ui, pack_file_contents_ui, diagnostics_ui, &x, false); });
+                                let mut _blocker = QSignalBlocker::from_q_object(&pack_file_contents_ui.packfile_contents_tree_model);
+                                selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &x, false); });
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove));
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(path_to_add.to_vec()); 1]));
-                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             // Update the global search stuff, if needed.
-                            global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![PathType::File(path_to_add.to_vec()); 1]);
-                            diagnostics_ui.check_on_path(&mut pack_file_contents_ui, vec![PathType::File(path_to_add); 1]);
+                            GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, vec![PathType::File(path_to_add.to_vec()); 1]);
+                            DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, vec![PathType::File(path_to_add); 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1022,18 +1091,21 @@ impl PackFileContentsSlots {
             }
 
             else { show_dialog(app_ui.main_window, ErrorKind::InvalidFilesForMerging, false); }
-        });
-
+        }));
 
         // What happens when we trigger the "Update Table" action in the Contextual Menu.
-        let contextual_menu_tables_update_table = SlotOfBool::new(clone!(slot_holder => move |_| {
-            let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+        let contextual_menu_tables_update_table = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
+            let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
             let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
             match item_type {
                 TreePathType::File(_) => {
 
                     // First, if the PackedFile is open, save it.
-                    if let Err(error) = app_ui.purge_them_all(global_search_ui, pack_file_contents_ui, diagnostics_ui, &slot_holder, true) {
+                    if let Err(error) = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, true) {
                         return show_dialog(app_ui.main_window, error, false);
                     }
 
@@ -1047,10 +1119,10 @@ impl PackFileContentsSlots {
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]));
-                            UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                            UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
-                            global_search_ui.search_on_path(&mut pack_file_contents_ui, vec![path_type.clone(); 1]);
-                            diagnostics_ui.check_on_path(&mut pack_file_contents_ui, vec![path_type; 1]);
+                            GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, vec![path_type.clone(); 1]);
+                            DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, vec![path_type; 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1064,7 +1136,11 @@ impl PackFileContentsSlots {
         // What happens when we trigger the "Mass-Import TSV" Action.
         //
         // TODO: Make it so the name of the table is split off when importing keeping the original name.
-        let contextual_menu_mass_import_tsv = SlotOfBool::new(move |_| {
+        let contextual_menu_mass_import_tsv = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |_| {
 
                 // Don't do anything if there is a PackedFile open. This fixes the situation where you could overwrite data already in the UI.
                 //if !packedfiles_open_in_packedfile_view.borrow().is_empty() { return show_dialog(app_ui.window, false, ErrorKind::PackedFileIsOpen) }
@@ -1096,11 +1172,11 @@ impl PackFileContentsSlots {
                                 // Update the TreeView.
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(paths_to_add2.to_vec()));
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths_to_add2));
-                                UI_STATE.set_is_modified(true, &mut app_ui, &mut pack_file_contents_ui);
+                                UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                                 // Update the global search stuff, if needed.
-                                global_search_ui.search_on_path(&mut pack_file_contents_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
-                                diagnostics_ui.check_on_path(&mut pack_file_contents_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
+                                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
+                                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
                             }
 
                             Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1112,10 +1188,12 @@ impl PackFileContentsSlots {
                     }
                 }
             }
-        );
+        ));
 
         // What happens when we trigger the "Mass-Export TSV" Action.
-        let contextual_menu_mass_export_tsv = SlotOfBool::new(move |_| {
+        let contextual_menu_mass_export_tsv = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui => move |_| {
 
                 // Get a "Folder-only" FileDialog.
                 let export_path = QFileDialog::get_existing_directory_2a(
@@ -1128,7 +1206,7 @@ impl PackFileContentsSlots {
                     let export_path = PathBuf::from(export_path.to_std_string());
                     if export_path.is_dir() {
                         app_ui.main_window.set_enabled(false);
-                        let selected_items = <MutPtr<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
+                        let selected_items = <QBox<QTreeView> as PackTree>::get_item_types_from_main_treeview_selection(&pack_file_contents_ui);
                         let selected_items = selected_items.iter().map(From::from).collect::<Vec<PathType>>();
                         CENTRAL_COMMAND.send_message_qt(Command::MassExportTSV(selected_items, export_path));
                         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -1142,10 +1220,18 @@ impl PackFileContentsSlots {
                     }
                 }
             }
-        );
+        ));
 
-        let packfile_contents_tree_view_expand_all = Slot::new(move || { pack_file_contents_ui.packfile_contents_tree_view.expand_all(); });
-        let packfile_contents_tree_view_collapse_all = Slot::new(move || { pack_file_contents_ui.packfile_contents_tree_view.collapse_all(); });
+        let packfile_contents_tree_view_expand_all = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+                pack_file_contents_ui.packfile_contents_tree_view.expand_all();
+            }
+        ));
+        let packfile_contents_tree_view_collapse_all = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+                pack_file_contents_ui.packfile_contents_tree_view.collapse_all();
+            }
+        ));
 
         // And here... we return all the slots.
 		Self {

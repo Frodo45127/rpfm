@@ -17,6 +17,7 @@ This module contains the code needed to keep track of the current state of the U
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::rc::Rc;
 
 use rpfm_lib::diagnostics::Diagnostics;
 use rpfm_lib::global_search::GlobalSearch;
@@ -89,9 +90,9 @@ impl UIState {
     }
 
     /// This function sets the flag that stores if the open PackFile has been modified or not.
-    pub unsafe fn set_is_modified(&self, is_modified: bool, app_ui: &mut AppUI, pack_file_contents_ui: &mut PackFileContentsUI) {
+    pub unsafe fn set_is_modified(&self, is_modified: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         self.is_modified.store(is_modified, Ordering::SeqCst);
-        app_ui.update_window_title(&pack_file_contents_ui);
+        AppUI::update_window_title(&app_ui, &pack_file_contents_ui);
     }
 
     /// This function returns the current Shortcuts.
@@ -137,18 +138,13 @@ impl UIState {
     }
 
     /// This function sets the current operational mode of the application, depending on the provided MyMod path.
-    pub fn set_operational_mode(&self, app_ui: &mut AppUI, mymod_path: Option<&PathBuf>) {
+    pub fn set_operational_mode(&self, app_ui: &Rc<AppUI>, mymod_path: Option<&PathBuf>) {
         self.operational_mode.write().unwrap().set_operational_mode(app_ui, mymod_path);
     }
 
     /// This function returns the current global search info.
     pub fn get_global_search(&self) -> GlobalSearch{
         self.global_search.read().unwrap().clone()
-    }
-
-    /// This function returns a read-only non-locking guard to the global search info.
-    pub fn get_global_search_no_lock(&self) -> RwLockReadGuard<GlobalSearch> {
-        self.global_search.read().unwrap()
     }
 
     /// This function replaces the current global search with the provided one.

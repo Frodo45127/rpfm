@@ -13,11 +13,12 @@
 //! Any logging helper should be here.
 
 use simplelog::{CombinedLogger, LevelFilter, TerminalMode, TermLogger, WriteLogger};
+use simple_logger::SimpleLogger;
 
 use std::fs::File;
 
 use rpfm_error::ctd::CrashReport;
-use rpfm_error::{Error, ErrorKind, Result};
+use rpfm_error::Result;
 
 use rpfm_lib::config::get_config_path;
 
@@ -33,7 +34,7 @@ pub fn initialize_logs() -> Result<()> {
         CrashReport::init()?;
         CombinedLogger::init(
             vec![
-                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed).ok_or_else(|| Error::from(ErrorKind::InitializingLoggerError))?,
+                TermLogger::new(LevelFilter::Info, simplelog::Config::default(), TerminalMode::Mixed),
                 WriteLogger::new(LevelFilter::Info, simplelog::Config::default(), File::create(get_config_path()?.join("rpfm_cli.log"))?),
             ]
         )?;
@@ -42,7 +43,7 @@ pub fn initialize_logs() -> Result<()> {
     // Simplelog does not work properly with custom terminals, like the one in Sublime Text.
     // So, for debug builds, we use simple_logger instead.
     else {
-        simple_logger::init()?;
+        SimpleLogger::new().init()?;
     }
 
     Ok(())

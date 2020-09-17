@@ -23,9 +23,8 @@ use qt_core::QFlags;
 use qt_core::QString;
 use qt_core::WindowState;
 
-use cpp_core::MutPtr;
+use cpp_core::Ptr;
 
-use std::cell::RefCell;
 use std::env::args;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -50,7 +49,6 @@ use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
-use crate::packedfile_views::TheOneSlot;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
@@ -66,21 +64,11 @@ use crate::utils::ref_from_atomic;
 /// This struct contains all the pointers we need to access to EVERY widget/action created at the start of the program.
 ///
 /// This means every widget/action that's created on start (menus, the TreeView,...) should be here.
-#[derive(Copy, Clone)]
 pub struct UI {
-    pub app_ui: AppUI,
-    pub pack_file_contents_ui: PackFileContentsUI,
-    pub global_search_ui: GlobalSearchUI,
-    pub diagnostics_ui: DiagnosticsUI,
-}
-
-/// This struct contains all the slots of the main UI, so we got all of them in one place.
-pub struct Slots {
-    pub app_slots: AppUISlots,
-    pub app_temp_slots: Rc<RefCell<AppUITempSlots>>,
-    pub pack_file_contents_slots: PackFileContentsSlots,
-    pub global_search_slots: GlobalSearchSlots,
-    pub diagnostics_slots: DiagnosticsUISlots,
+    pub app_ui: Rc<AppUI>,
+    pub pack_file_contents_ui: Rc<PackFileContentsUI>,
+    pub global_search_ui: Rc<GlobalSearchUI>,
+    pub diagnostics_ui: Rc<DiagnosticsUI>,
 }
 
 /// This struct is used to hold all the Icons used for the window's titlebar.
@@ -106,35 +94,36 @@ pub struct GameSelectedIcons {
 impl UI {
 
     /// This function initialize the entire `UI`.
-    pub unsafe fn new(mut app: MutPtr<QApplication>, slot_holder: &Rc<RefCell<Vec<TheOneSlot>>>) -> (Self, Slots) {
+    pub unsafe fn new(app: Ptr<QApplication>) -> Self {
 
-        let mut app_ui = AppUI::new();
-        let mut global_search_ui = GlobalSearchUI::new(app_ui.main_window);
-        let mut pack_file_contents_ui = PackFileContentsUI::new(app_ui.main_window);
-        let mut diagnostics_ui = DiagnosticsUI::new(app_ui.main_window);
+        let app_ui = Rc::new(AppUI::new());
+        let mut global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window));
+        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(app_ui.main_window));
+        let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window));
 
-        let app_temp_slots = Rc::new(RefCell::new(AppUITempSlots::new(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, &slot_holder)));
-        let app_slots = AppUISlots::new(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, &app_temp_slots, &slot_holder);
-        let pack_file_contents_slots = PackFileContentsSlots::new(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, slot_holder);
-        let global_search_slots = GlobalSearchSlots::new(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui);
-        let diagnostics_slots = DiagnosticsUISlots::new(app_ui, diagnostics_ui, pack_file_contents_ui);
+        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+
+        let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui);
+        let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &diagnostics_ui);
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
-        app_ui::tips::set_tips(&mut app_ui);
-        app_ui::shortcuts::set_shortcuts(&mut app_ui);
+        app_ui::tips::set_tips(&app_ui);
+        app_ui::shortcuts::set_shortcuts(&app_ui);
 
         global_search_ui::connections::set_connections(&global_search_ui, &global_search_slots);
         global_search_ui::tips::set_tips(&mut global_search_ui);
         global_search_ui::shortcuts::set_shortcuts(&mut global_search_ui);
 
         packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
-        packfile_contents_ui::tips::set_tips(&mut pack_file_contents_ui);
-        packfile_contents_ui::shortcuts::set_shortcuts(&mut pack_file_contents_ui);
+        packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);
+        packfile_contents_ui::shortcuts::set_shortcuts(&pack_file_contents_ui);
 
         diagnostics_ui::connections::set_connections(&diagnostics_ui, &diagnostics_slots);
 
         // Here we also initialize the UI.
-        UI_STATE.set_operational_mode(&mut app_ui, None);
+        UI_STATE.set_operational_mode(&app_ui, None);
 
         match &*SETTINGS.read().unwrap().settings_string["default_game"] {
             KEY_TROY => app_ui.game_selected_troy.trigger(),
@@ -151,7 +140,7 @@ impl UI {
             _ => unimplemented!()
         }
 
-        UI_STATE.set_is_modified(false, &mut app_ui, &mut pack_file_contents_ui);
+        UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
         // Show the Main Window...
         app_ui.main_window.show();
@@ -162,13 +151,11 @@ impl UI {
         if args.len() > 1 {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
-                let mut diag = diagnostics_ui.clone();
-                if let Err(error) = app_ui.open_packfile(&mut pack_file_contents_ui, &mut global_search_ui, &mut diagnostics_ui, &[path], "", &slot_holder) {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &mut global_search_ui, &diagnostics_ui, &[path], "") {
                     show_dialog(app_ui.main_window, error, false);
                 }
 
-                diag.diagnostics_table_model.clear();
-                diag.check();
+                DiagnosticsUI::check(&diagnostics_ui);
             }
         }
 
@@ -178,7 +165,7 @@ impl UI {
         }
 
         if !SETTINGS.read().unwrap().settings_string["font_name"].is_empty() && !SETTINGS.read().unwrap().settings_string["font_size"].is_empty() {
-            let mut font = QFont::new();
+            let font = QFont::new();
             font.set_family(&QString::from_std_str(&SETTINGS.read().unwrap().settings_string["font_name"]));
             font.set_point_size(SETTINGS.read().unwrap().settings_string["font_size"].parse::<i32>().unwrap());
             QApplication::set_font_1a(&font);
@@ -207,24 +194,17 @@ impl UI {
         }
 
         // If we have it enabled in the prefs, check if there are updates.
-        if SETTINGS.read().unwrap().settings_bool["check_updates_on_start"] { app_ui.check_updates(false) };
+        if SETTINGS.read().unwrap().settings_bool["check_updates_on_start"] { AppUI::check_updates(&app_ui, false) };
 
         // If we have it enabled in the prefs, check if there are schema updates.
-        if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { app_ui.check_schema_updates(false) };
+        if SETTINGS.read().unwrap().settings_bool["check_schema_updates_on_start"] { AppUI::check_schema_updates(&app_ui, false) };
 
-        (Self {
+        Self {
             app_ui,
             global_search_ui,
             pack_file_contents_ui,
             diagnostics_ui,
-        },
-        Slots {
-            app_slots,
-            app_temp_slots,
-            global_search_slots,
-            pack_file_contents_slots,
-            diagnostics_slots,
-        })
+        }
     }
 }
 
@@ -249,7 +229,7 @@ impl GameSelectedIcons {
     }
 
     /// This function sets the main window icon according to the currently selected game.
-    pub unsafe fn set_game_selected_icon(app_ui: &mut AppUI) {
+    pub unsafe fn set_game_selected_icon(app_ui: &Rc<AppUI>) {
         let (icon, big_icon) = match &**GAME_SELECTED.read().unwrap() {
             KEY_TROY => &GAME_SELECTED_ICONS.troy,
             KEY_THREE_KINGDOMS => &GAME_SELECTED_ICONS.three_kingdoms,
