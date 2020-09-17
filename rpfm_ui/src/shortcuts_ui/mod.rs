@@ -138,14 +138,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref());
         }
@@ -163,14 +163,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
@@ -188,14 +188,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
@@ -213,14 +213,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
@@ -238,14 +238,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
@@ -263,14 +263,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
@@ -288,14 +288,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
@@ -313,14 +313,14 @@ impl ShortcutsUI {
                 let value = QStandardItem::from_q_string(&QString::from_std_str(value));
                 key.set_editable(false);
 
-                row_list.append_q_standard_item(&mut key.as_mut_raw_ptr());
-                row_list.append_q_standard_item(&mut value.as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut key.into_ptr().as_mut_raw_ptr());
+                row_list.append_q_standard_item(&mut value.into_ptr().as_mut_raw_ptr());
 
                 section.append_row_q_list_of_q_standard_item(row_list.as_ref());
             }
 
-            menu_bar_packfile_parent.append_q_standard_item(&mut section.as_mut_raw_ptr());
-            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut section.into_ptr().as_mut_raw_ptr());
+            menu_bar_packfile_parent.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
 
             shortcuts_ui.shortcuts_model.append_row_q_list_of_q_standard_item(menu_bar_packfile_parent.as_ref().unwrap());
         }
