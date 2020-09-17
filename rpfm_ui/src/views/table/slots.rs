@@ -357,7 +357,9 @@ impl TableViewSlots {
             global_search_ui,
             diagnostics_ui,
             view => move || {
-            if !view.save_lock.load(Ordering::SeqCst) {
+
+            // Only save to the backend if both, the save and undo locks are disabled. Otherwise this will cause locks.
+            if !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
                         if let Err(error) = packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui) {

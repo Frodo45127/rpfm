@@ -993,11 +993,13 @@ impl TableView {
                     history_opposite.push(TableOperations::ImportTSV(old_data));
 
                     let row_count = self.table_model.row_count_0a();
+                    self.undo_lock.store(true, Ordering::SeqCst);
                     self.table_model.remove_rows_2a(0, row_count);
                     for row in &table_data {
                         let row = ptr_from_atomic(row);
                         self.table_model.append_row_q_list_of_q_standard_item(row.as_ref().unwrap())
                     }
+                    self.undo_lock.store(false, Ordering::SeqCst);
                 }
 
                 TableOperations::Carolina(mut operations) => {
