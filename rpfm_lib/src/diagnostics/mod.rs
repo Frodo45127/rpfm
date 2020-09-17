@@ -131,6 +131,16 @@ impl Diagnostics {
             let mut columns_without_reference_table = vec![];
             let mut columns_with_reference_table_and_no_column = vec![];
             let mut keys = vec![];
+
+            // Before anything else, check if the table is outdated.
+            if table.is_outdated() {
+                diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                    column_number: 0,
+                    row_number: 0,
+                    message: "Possibly outdated table.".to_owned(),
+                }));
+            }
+
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {
                 let mut row_is_empty = true;
                 let mut row_keys_are_empty = true;
