@@ -67,7 +67,7 @@ jobs:
           cd deploy
           mkdir win
           cd win
-          curl -L -o rpfm-release-assets-windows-x64.zip https://www.dropbox.com/s/2ko2ssvgxjhb9kt/rpfm-release-assets-windows-x64.zip?dl=0
+          curl -L -o rpfm-release-assets-windows-x64.zip https://www.dropbox.com/s/zjh9dffb6astfqg/rpfm-release-assets-windows-x64-2.zip?dl=0
           7z x rpfm-release-assets-windows-x64.zip
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.exe D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.exe D:\deploy\win\rpfm-release-assets
