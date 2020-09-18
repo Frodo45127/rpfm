@@ -262,7 +262,7 @@ impl Diagnostics {
                 let data = cells[1].data_to_string();
 
                 if key.is_empty() && data.is_empty() {
-                    diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
                         message: format!("Empty row.")
@@ -270,7 +270,7 @@ impl Diagnostics {
                 }
 
                 if key.is_empty() && !data.is_empty() {
-                    diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
                         message: format!("Empty key.")
@@ -279,7 +279,7 @@ impl Diagnostics {
 
                 let local_keys = vec![key, data];
                 if keys.contains(&local_keys) {
-                    diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
                         message: format!("Duplicated row.")
