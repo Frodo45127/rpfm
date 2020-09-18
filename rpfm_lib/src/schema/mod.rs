@@ -464,6 +464,21 @@ impl Schema {
         let config = PrettyConfig::default();
 
         self.sort();
+
+        // Make sure all definitions are properly sorted.
+        self.versioned_files.iter_mut().for_each(|x| {
+            match x {
+                VersionedFile::AnimFragment(ref mut versions) |
+                VersionedFile::AnimTable(ref mut versions) |
+                VersionedFile::DB(_, ref mut versions) |
+                VersionedFile::DepManager(ref mut versions) |
+                VersionedFile::Loc(ref mut versions) |
+                VersionedFile::MatchedCombat(ref mut versions) => {
+                    // Sort them by version number.
+                    versions.sort_by(|a, b| b.get_version().cmp(&a.get_version()));
+                }
+            }
+        });
         file.write_all(to_string_pretty(&self, config)?.as_bytes())?;
         Ok(())
     }
