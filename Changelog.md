@@ -11,8 +11,10 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Implemented shortcuts to close/move to next/move to prev tab.
 - Implemented the `Use Old Column Order (Keys first)` setting for people who prefer pre-2.x column order in tables.
 - Implemented `Paste As New Row` for tables.
-- Implemented `Diagnostics` panel (enabled by enabling the dependency checker in the settings).
+- Implemented `Diagnostics` panel (you need to enable it in the settings).
 - Implemented `Copy Path` feature, to easely copy paths of files/folders in a PackFile.
+- Implemented a not-very-optimal definition guesser for the PackedFile Decoder.
+- Implemented a check to see if a table is outdated.
 
 ### Changed
 - Changed all fields that accept regex so it turns green or red depending if the regex is valid or not.
@@ -21,11 +23,16 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Images now are shown in their original size, except if they are bigger than the current window.
 - The view menu now uses checkboxes to show if a panel is visible or not.
 - Newly added files are expanded automatically on the Treeview.
+- Updated Qt Bindings to 0.5.
 
 ### Fixed
 - Fixed a CTD when starting RPFM without internet connection.
 - Fixed a CTD caused by using Ctrl+Z after pasting a reference cell with the dependency checker enabled.
+- Fixed a CTD caused by hitting Ctrl+Z too fast after importing a TSV.
+- Fixed a CTD caused by hitting Ctrl+Z too fast after undoing a TSV Import.
 - Fixed a CTD that caused a crash after pasting very specific float numbers.
+- Fixed a CTD at the start if you didn't had vcruntime_140.dll somewhere in your system.
+- Fixed a semi-random CTD when opening a PackFile from one of the submenus.
 - Fixed a rare hang after performing certain actions that tried to use the table dependency data.
 - Fixed a bug that caused `Load All CA PackFiles` to not work on games older than Warhammer.
 - Fixed a bug that caused `Load All CA PackFiles` to hang the application until the files finish loading.
@@ -33,9 +40,11 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed some harmless errors while merging tables.
 - Fixed a couple of ordering bugs in the table column order logic.
 - Fixed regex coloring on Global Search not working if you used the dark theme.
+- Fixed a bug that caused image rescaling to not work as intended.
 
 ### Removed
 - Removed `Check Tables` feature, as it has been superseed by the new `Diagnostics` panel.
+- Removed `Command Palette`.
 
 ## [2.1.5] - 2020-08-22
 ### Added
