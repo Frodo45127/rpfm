@@ -500,8 +500,8 @@ impl PackedFileDecoderViewSlots {
                         }.unwrap();
 
                         versioned_file.remove_version(version);
-                        view.load_versions_list();
                     }
+                    view.load_versions_list();
                 }
             }
         ));
