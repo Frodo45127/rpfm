@@ -383,7 +383,7 @@ settings_ui_title = UI Settings
 settings_table_title = Table Settings
 
 settings_ui_language = Language (Requires restart):
-settings_ui_dark_theme = Use Dark Theme (Requires restart):
+settings_ui_dark_theme = Use Dark Theme:
 settings_ui_table_adjust_columns_to_content = Adjust Columns to Content:
 settings_ui_table_disable_combos = Disable ComboBoxes on Tables:
 settings_ui_table_extend_last_column_label = Extend Last Column on Tables:
@@ -405,12 +405,16 @@ settings_optimize_not_renamed_packedfiles = Optimize Non-Renamed PackedFiles:
 settings_use_dependency_checker = Enable Diagnostics Tool:
 settings_use_lazy_loading = Use Lazy-Loading for PackFiles:
 settings_disable_uuid_regeneration_tables = Disable UUID Regeneration on DB Tables:
+settings_packfile_treeview_resize_to_fit = Resize TreeView to content's size:
+settings_table_resize_on_edit = Resize tables on edits to content's size:
 
 settings_debug_title = Debug Settings
 settings_debug_missing_table = Check for Missing Table Definitions
 settings_debug_enable_debug_menu = Enable Debug Menu
 
 settings_text_title = Text Editor Settings
+
+settings_warning_message = <p><b style="color:red;">WARNING: Most of these settings require you to restart the program in order to take effect!</b></p><p></p>
 
 ### Settings Tips
 

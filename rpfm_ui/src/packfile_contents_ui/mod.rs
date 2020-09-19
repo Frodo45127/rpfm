@@ -15,6 +15,7 @@ Module with all the code related to the main `PackFileContentsUI`.
 use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QDockWidget;
+use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;
@@ -30,6 +31,8 @@ use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
 
 use cpp_core::Ptr;
+
+use rpfm_lib::SETTINGS;
 
 use crate::ffi::{new_packed_file_model_safe, new_treeview_filter_safe};
 use crate::locale::qtr;
@@ -128,6 +131,18 @@ impl PackFileContentsUI {
         packfile_contents_tree_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
         packfile_contents_tree_view.set_expands_on_double_click(true);
         packfile_contents_tree_view.header().set_stretch_last_section(false);
+
+        // Not yet working.
+        if SETTINGS.read().unwrap().settings_bool["packfile_treeview_resize_to_fit"] {
+            //packfile_contents_tree_view.set_size_adjust_policy(qt_widgets::q_abstract_scroll_area::SizeAdjustPolicy::AdjustToContents);
+            //packfile_contents_tree_view.horizontal_scroll_bar().set_disabled(true);
+            //packfile_contents_tree_view.set_horizontal_scroll_bar_policy(qt_core::ScrollBarPolicy::ScrollBarAlwaysOff);
+            //packfile_contents_tree_view.header().set_section_resize_mode_1a(ResizeMode::ResizeToContents);
+            //packfile_contents_tree_view.set_size_policy_2a(qt_widgets::q_size_policy::Policy::Maximum, qt_widgets::q_size_policy::Policy::Maximum);
+            //packfile_contents_dock_inner_widget.set_size_policy_2a(qt_widgets::q_size_policy::Policy::Minimum, qt_widgets::q_size_policy::Policy::Maximum);
+            //packfile_contents_dock_widget.set_size_policy_2a(qt_widgets::q_size_policy::Policy::MinimumExpanding, qt_widgets::q_size_policy::Policy::Maximum);
+
+        }
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_line_edit = QLineEdit::new();

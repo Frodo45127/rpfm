@@ -15,6 +15,7 @@ Module with all the code related to the main `PackFileContentsSlots`.
 use qt_widgets::{QFileDialog, q_file_dialog::FileMode};
 use qt_widgets::SlotOfQPoint;
 use qt_widgets::QTreeView;
+use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QCursor;
 use qt_gui::QGuiApplication;
@@ -98,6 +99,8 @@ pub struct PackFileContentsSlots {
 
     pub packfile_contents_tree_view_expand_all: QBox<SlotNoArgs>,
     pub packfile_contents_tree_view_collapse_all: QBox<SlotNoArgs>,
+
+    pub packfile_contents_resize: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -1233,6 +1236,17 @@ impl PackFileContentsSlots {
             }
         ));
 
+        let packfile_contents_resize = SlotNoArgs::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            pack_file_contents_ui => move || {
+
+                // Not yet working.
+                if SETTINGS.read().unwrap().settings_bool["packfile_treeview_resize_to_fit"] {
+                    //pack_file_contents_ui.packfile_contents_dock_widget.widget().adjust_size();
+                    //pack_file_contents_ui.packfile_contents_tree_view.header().resize_sections(ResizeMode::ResizeToContents);
+                }
+            }
+        ));
+
         // And here... we return all the slots.
 		Self {
             open_packedfile_preview,
@@ -1276,6 +1290,8 @@ impl PackFileContentsSlots {
 
             packfile_contents_tree_view_expand_all,
             packfile_contents_tree_view_collapse_all,
+
+            packfile_contents_resize
 		}
 	}
 }

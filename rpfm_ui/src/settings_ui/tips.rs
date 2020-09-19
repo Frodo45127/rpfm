@@ -65,12 +65,12 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_tool_tip(&extra_packfile_allow_editing_of_ca_packfiles_tip);
     settings_ui.extra_packfile_optimize_not_renamed_packedfiles_label.set_tool_tip(&extra_packfile_optimize_not_renamed_packedfiles_tip);
     settings_ui.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_tool_tip(&extra_packfile_optimize_not_renamed_packedfiles_tip);
-    settings_ui.extra_packfile_use_dependency_checker_label.set_tool_tip(&extra_packfile_use_dependency_checker_tip);
-    settings_ui.extra_packfile_use_dependency_checker_checkbox.set_tool_tip(&extra_packfile_use_dependency_checker_tip);
+    settings_ui.extra_packfile_enable_diagnostics_label.set_tool_tip(&extra_packfile_use_dependency_checker_tip);
+    settings_ui.extra_packfile_enable_diagnostics_checkbox.set_tool_tip(&extra_packfile_use_dependency_checker_tip);
     settings_ui.extra_packfile_use_lazy_loading_label.set_tool_tip(&extra_packfile_use_lazy_loading_tip);
     settings_ui.extra_packfile_use_lazy_loading_checkbox.set_tool_tip(&extra_packfile_use_lazy_loading_tip);
-    settings_ui.extra_disable_uuid_regeneration_on_db_tables_label.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);
-    settings_ui.extra_disable_uuid_regeneration_on_db_tables_checkbox.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);
+    settings_ui.extra_packfile_disable_uuid_regeneration_on_db_tables_label.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);
+    settings_ui.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_tool_tip(&extra_disable_uuid_regeneration_on_db_tables_label_tip);
 
     //-----------------------------------------------//
     // `Debug` tips.

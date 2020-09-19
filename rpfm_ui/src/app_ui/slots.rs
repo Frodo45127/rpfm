@@ -1226,7 +1226,7 @@ impl AppUISlots {
                                         &data
                                     );
 
-                                    if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+                                    if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
                                         check_table_for_errors(
                                             &table.get_mut_ptr_table_model(),
                                             &table.get_ref_table_definition(),

@@ -65,7 +65,7 @@ impl Settings {
             paths.insert((*folder_name).to_string(), None);
         }
 
-        // Default Game.
+        // General Settings.
         settings_string.insert("default_game".to_owned(), KEY_THREE_KINGDOMS.to_owned());
         settings_string.insert("language".to_owned(), "English_en".to_owned());
         settings_string.insert("update_channel".to_owned(), STABLE.to_owned());
@@ -74,23 +74,25 @@ impl Settings {
         settings_string.insert("font_size".to_owned(), "".to_owned());
 
         // UI Settings.
-        settings_bool.insert("adjust_columns_to_content".to_owned(), true);
-        settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
-        settings_bool.insert("disable_combos_on_tables".to_owned(), false);
         settings_bool.insert("start_maximized".to_owned(), false);
         settings_bool.insert("use_dark_theme".to_owned(), false);
-        settings_bool.insert("tight_table_mode".to_owned(), false);
         settings_bool.insert("hide_background_icon".to_owned(), false);
-        settings_bool.insert("tables_use_old_column_order".to_owned(), false);
-
-        // Behavioral Settings.
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
-        settings_bool.insert("use_dependency_checker".to_owned(), false);
+        settings_bool.insert("enable_diagnostics_tool".to_owned(), true);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);
         settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), false);
+        settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), false);
+
+        // Table Settings.
+        settings_bool.insert("adjust_columns_to_content".to_owned(), true);
+        settings_bool.insert("extend_last_column_on_tables".to_owned(), true);
+        settings_bool.insert("disable_combos_on_tables".to_owned(), false);
+        settings_bool.insert("tight_table_mode".to_owned(), false);
+        settings_bool.insert("table_resize_on_edit".to_owned(), false);
+        settings_bool.insert("tables_use_old_column_order".to_owned(), false);
 
         // Debug Settings.
         settings_bool.insert("check_for_missing_table_definitions".to_owned(), false);

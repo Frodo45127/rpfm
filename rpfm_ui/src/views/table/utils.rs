@@ -453,7 +453,7 @@ pub unsafe fn load_data(
                     PackedFileType::DB => {
 
                         // If we have the dependency stuff enabled, check if it's a valid reference.
-                        if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] && definition.get_fields_processed()[index].get_is_reference().is_some() {
+                        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] && definition.get_fields_processed()[index].get_is_reference().is_some() {
                             check_references(index as i32, item.as_ptr(), &dependency_data.read().unwrap(), packed_file_type);
                         }
                     }

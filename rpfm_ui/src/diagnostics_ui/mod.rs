@@ -197,7 +197,7 @@ impl DiagnosticsUI {
 
     /// This function takes care of checking the entire PackFile for errors.
     pub unsafe fn check(diagnostics_ui: &Rc<Self>) {
-        if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
             CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
             diagnostics_ui.diagnostics_table_model.clear();
             let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
@@ -209,7 +209,7 @@ impl DiagnosticsUI {
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
     pub unsafe fn check_on_path(pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<PathType>) {
-        if SETTINGS.read().unwrap().settings_bool["use_dependency_checker"] {
+        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
             let diagnostics = UI_STATE.get_diagnostics();
             CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsUpdate((diagnostics, paths)));
             let (diagnostics, packed_files_info) = CENTRAL_COMMAND.recv_message_diagnostics_update_to_qt_try();

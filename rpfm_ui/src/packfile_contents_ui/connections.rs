@@ -66,4 +66,7 @@ pub unsafe fn set_connections(ui: &PackFileContentsUI, slots: &PackFileContentsS
 
     ui.packfile_contents_tree_view_expand_all.triggered().connect(&slots.packfile_contents_tree_view_expand_all);
     ui.packfile_contents_tree_view_collapse_all.triggered().connect(&slots.packfile_contents_tree_view_collapse_all);
+
+    // Not yet working.
+    //ui.packfile_contents_tree_view.expanded().connect(&slots.packfile_contents_resize);
 }
