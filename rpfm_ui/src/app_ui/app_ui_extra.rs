@@ -245,8 +245,11 @@ impl AppUI {
         app_ui.main_window.set_enabled(false);
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
-        app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
-        app_ui.timer_backup_autosave.start_0a();
+        let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+        if timer > 0 {
+            app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+            app_ui.timer_backup_autosave.start_0a();
+        }
 
         // Check what response we got.
         let response = CENTRAL_COMMAND.recv_message_qt_try();

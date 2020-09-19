@@ -195,8 +195,11 @@ impl AppUISlots {
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
 
                     // Reset the autosave timer.
-                    app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
-                    app_ui.timer_backup_autosave.start_0a();
+                    let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+                    if timer > 0 {
+                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                        app_ui.timer_backup_autosave.start_0a();
+                    }
 
                     // Disable the main window, so the user can't interrupt the process or iterfere with it.
                     app_ui.main_window.set_enabled(false);
@@ -312,8 +315,11 @@ impl AppUISlots {
             if AppUI::are_you_sure(&app_ui, false) {
 
                 // Reset the autosave timer.
-                app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
-                app_ui.timer_backup_autosave.start_0a();
+                let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+                if timer > 0 {
+                    app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                    app_ui.timer_backup_autosave.start_0a();
+                }
 
                 // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
                 app_ui.main_window.set_enabled(false);
@@ -550,8 +556,11 @@ impl AppUISlots {
                     GlobalSearchUI::clear(&global_search_ui);
 
                     // Reset the autosave timer.
-                    app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
-                    app_ui.timer_backup_autosave.start_0a();
+                    let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+                    if timer > 0 {
+                        app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                        app_ui.timer_backup_autosave.start_0a();
+                    }
 
                     CENTRAL_COMMAND.send_message_qt(Command::NewPackFile);
                     CENTRAL_COMMAND.send_message_qt(Command::SavePackFileAs(mymod_path.to_path_buf()));
@@ -1285,8 +1294,11 @@ impl AppUISlots {
                 app_ui.main_window.set_enabled(true);
 
                 // Reset the timer.
-                app_ui.timer_backup_autosave.set_interval(SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10) * 60 * 1000);
-                app_ui.timer_backup_autosave.start_0a();
+                let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
+                if timer > 0 {
+                    app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
+                    app_ui.timer_backup_autosave.start_0a();
+                }
             }
         ));
 
