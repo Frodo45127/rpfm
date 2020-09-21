@@ -243,7 +243,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // Extra stuff
     //-------------------------------------------------------------------------------//
-    pub timer_backup_autosave: Ptr<QTimer>,
+    pub timer_backup_autosave: QBox<QTimer>,
 
     pub tab_bar_packed_file_close: QBox<QAction>,
     pub tab_bar_packed_file_prev: QBox<QAction>,
@@ -570,7 +570,7 @@ impl AppUI {
         //-------------------------------------------------------------------------------//
         // "Extra stuff" menu.
         //-------------------------------------------------------------------------------//
-        let timer_backup_autosave = QTimer::new_0a().into_ptr();
+        let timer_backup_autosave = QTimer::new_0a();
         timer_backup_autosave.set_single_shot(true);
 
         // Create ***Da monsta***.

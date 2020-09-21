@@ -150,10 +150,10 @@ impl DiagnosticsUI {
             background-color: {}
         }}", get_color_error(), get_color_error_pressed())));
 
-        filter_grid.add_widget_5a(& diagnostics_button_error, 0, 0, 1, 1);
-        filter_grid.add_widget_5a(& diagnostics_button_warning, 0, 1, 1, 1);
-        filter_grid.add_widget_5a(& diagnostics_button_info, 0, 2, 1, 1);
-        filter_grid.add_widget_5a(& diagnostics_button_only_current_packed_file, 0, 3, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_error, 0, 0, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_warning, 0, 1, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_info, 0, 2, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_only_current_packed_file, 0, 3, 1, 1);
 
         let diagnostics_table_view = QTableView::new_0a();
         let diagnostics_table_filter = QSortFilterProxyModel::new_0a();
@@ -170,7 +170,7 @@ impl DiagnosticsUI {
         }
 
         diagnostics_dock_layout.add_widget_5a(&filter_frame, 0, 0, 1, 1);
-        diagnostics_dock_layout.add_widget_5a(& diagnostics_table_view, 1, 0, 1, 1);
+        diagnostics_dock_layout.add_widget_5a(&diagnostics_table_view, 1, 0, 1, 1);
 
         main_window.set_corner(qt_core::Corner::BottomLeftCorner, qt_core::DockWidgetArea::LeftDockWidgetArea);
         main_window.set_corner(qt_core::Corner::BottomRightCorner, qt_core::DockWidgetArea::RightDockWidgetArea);

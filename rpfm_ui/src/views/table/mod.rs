@@ -37,8 +37,9 @@ use qt_core::QFlags;
 use qt_core::AlignmentFlag;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QStringList;
-use qt_core::QVariant;
 use qt_core::QString;
+use qt_core::QTimer;
+use qt_core::QVariant;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::MatchFlag;
 use qt_core::QPtr;
@@ -217,6 +218,8 @@ pub struct TableView {
     undo_model: QBox<QStandardItemModel>,
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
+
+    timer_diagnostics_check: QBox<QTimer>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -470,6 +473,9 @@ impl TableView {
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
 
+        let timer_diagnostics_check = QTimer::new_0a();
+        timer_diagnostics_check.set_single_shot(true);
+
         // Create the raw Struct and begin
         let packed_file_table_view = Arc::new(TableView {
             table_view_primary,
@@ -536,6 +542,8 @@ impl TableView {
             undo_model: QStandardItemModel::new_0a(),
             history_undo: Arc::new(RwLock::new(vec![])),
             history_redo: Arc::new(RwLock::new(vec![])),
+
+            timer_diagnostics_check,
         });
 
         let packed_file_table_view_slots = TableViewSlots::new(
@@ -826,6 +834,11 @@ impl TableView {
     /// This function returns a pointer to the close button in the search panel.
     pub fn get_mut_ptr_search_close_button(&self) -> &QBox<QPushButton> {
         &self.search_close_button
+    }
+
+    /// This function returns a pointer to the timer for the diagnostic check.
+    pub fn get_mut_ptr_timer_diagnostics_check(&self) -> &QBox<QTimer> {
+        &self.timer_diagnostics_check
     }
 
     /// This function returns a reference to this table's name.

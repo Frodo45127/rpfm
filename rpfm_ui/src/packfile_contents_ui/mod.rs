@@ -15,7 +15,6 @@ Module with all the code related to the main `PackFileContentsUI`.
 use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QAction;
 use qt_widgets::QDockWidget;
-use qt_widgets::q_header_view::ResizeMode;
 use qt_widgets::QLineEdit;
 use qt_widgets::QMainWindow;
 use qt_widgets::QMenu;

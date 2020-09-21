@@ -112,7 +112,6 @@ impl TableViewSlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
-
     ) -> Self {
 
         // When we want to filter the table...
@@ -195,6 +194,10 @@ impl TableViewSlots {
                             view.context_menu_update();
                             if let Some(ref packed_file_path) = packed_file_path {
                                 TableSearch::update_search(&view);
+
+                                view.timer_diagnostics_check.set_interval(3000);
+                                view.timer_diagnostics_check.start_0a();
+
                                 set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                             }
                         }
