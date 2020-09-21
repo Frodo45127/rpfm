@@ -207,14 +207,7 @@ impl TableViewSlots {
                 // If we have the dependency stuff enabled, check if it's a valid reference.
                 let column = item.column();
                 match *view.packed_file_type {
-                    PackedFileType::DB => {
-                        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
-                            let _blocker = QSignalBlocker::from_q_object(&view.table_model);
-                            if view.get_ref_table_definition().get_fields_processed()[column as usize].get_is_reference().is_some() {
-                                check_references(column, item, &view.dependency_data.read().unwrap(), *view.packed_file_type);
-                            }
-                        }
-                    }
+                    PackedFileType::DB => {},
                     PackedFileType::DependencyPackFilesList => {
                         let _blocker = QSignalBlocker::from_q_object(&view.table_model);
                         check_references(column, item, &view.dependency_data.read().unwrap(), *view.packed_file_type);

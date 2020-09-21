@@ -379,24 +379,7 @@ pub unsafe fn check_references(
     table_type: PackedFileType,
 ) {
     match table_type {
-        PackedFileType::DB => {
-
-            // First, check if we have dependency data for that column.
-            if let Some(ref_data) = dependency_data.get(&column) {
-                let text = item.text().to_std_string();
-
-                // Then, check if the data we have is in the ref data list.
-                if ref_data.is_empty() {
-                    item.set_foreground(&QBrush::from_q_color(get_color_no_ref_data().as_ref().unwrap()));
-                }
-                else if ref_data.contains_key(&text) {
-                    item.set_foreground(&QBrush::from_q_color(get_color_correct_key().as_ref().unwrap()));
-                }
-                else {
-                    item.set_foreground(&QBrush::from_q_color(get_color_wrong_key().as_ref().unwrap()));
-                }
-            }
-        }
+        PackedFileType::DB => {}
         PackedFileType::DependencyPackFilesList => {
             let packfile = item.text().to_std_string();
 
@@ -450,14 +433,7 @@ pub unsafe fn load_data(
                 let item = get_item_from_decoded_data(field);
 
                 match packed_file_type {
-                    PackedFileType::DB => {
-
-                        // If we have the dependency stuff enabled, check if it's a valid reference.
-                        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] && definition.get_fields_processed()[index].get_is_reference().is_some() {
-                            check_references(index as i32, item.as_ptr(), &dependency_data.read().unwrap(), packed_file_type);
-                        }
-                    }
-
+                    PackedFileType::DB => {},
                     PackedFileType::DependencyPackFilesList => {
                         check_references(index as i32, item.as_ptr(), &dependency_data.read().unwrap(), packed_file_type);
                     }
@@ -870,17 +846,7 @@ pub unsafe fn check_table_for_errors(
 ) {
     let _blocker = QSignalBlocker::from_q_object(model.static_upcast::<QObject>());
     match packed_file_type {
-        PackedFileType::DB => {
-            for (column, field) in definition.get_fields_processed().iter().enumerate() {
-                if field.get_is_reference().is_some() {
-                    for row in 0..model.row_count_0a() {
-                        let item = model.item_2a(row, column as i32);
-                        check_references(column as i32, item, dependency_data, packed_file_type);
-                    }
-                }
-            }
-        }
-
+        PackedFileType::DB => {}
         PackedFileType::DependencyPackFilesList => {
             for row in 0..model.row_count_0a() {
                 let item = model.item_2a(row, 0);
