@@ -53,7 +53,7 @@ use rpfm_getset::{GetRef, GetRefMut, Set};
 use crate::AppUI;
 use crate::communications::Command;
 use crate::CENTRAL_COMMAND;
-use crate::locale::qtr;
+use crate::locale::{qtr, tr};
 use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, TreeViewOperation};
 use crate::packedfile_views::{View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -203,6 +203,7 @@ impl DiagnosticsUI {
             let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
             Self::load_diagnostics_to_ui(diagnostics_ui, diagnostics.get_ref_diagnostics());
             Self::filter_by_level(diagnostics_ui);
+            Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
             UI_STATE.set_diagnostics(&diagnostics);
         }
     }
@@ -219,6 +220,7 @@ impl DiagnosticsUI {
             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
 
             Self::filter_by_level(diagnostics_ui);
+            Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
             UI_STATE.set_diagnostics(&diagnostics);
         }
     }
@@ -362,5 +364,15 @@ impl DiagnosticsUI {
         diagnostics_ui.diagnostics_table_filter.set_filter_case_sensitivity(CaseSensitivity::CaseSensitive);
         diagnostics_ui.diagnostics_table_filter.set_filter_key_column(0);
         diagnostics_ui.diagnostics_table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
+    }
+
+    pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[Diagnostic]) {
+        let info = diagnostics.iter().map(|x| x.get_result().iter().filter(|y| if let DiagnosticResult::Info(_) = y { true } else { false }).count() ).sum::<usize>();
+        let warning = diagnostics.iter().map(|x| x.get_result().iter().filter(|y| if let DiagnosticResult::Warning(_) = y { true } else { false }).count() ).sum::<usize>();
+        let error = diagnostics.iter().map(|x| x.get_result().iter().filter(|y| if let DiagnosticResult::Error(_) = y { true } else { false }).count() ).sum::<usize>();
+
+        diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_info"), info)));
+        diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_warning"), warning)));
+        diagnostics_ui.diagnostics_button_error.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_error"), error)));
     }
 }
