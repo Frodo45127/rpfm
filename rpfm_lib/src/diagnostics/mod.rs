@@ -237,11 +237,20 @@ impl Diagnostics {
             }
 
             for column in &columns_with_reference_table_and_no_column {
-                diagnostic.result.push(DiagnosticResult::Info(DiagnosticReport{
-                    column_number: *column as u32,
-                    row_number: -1,
-                    message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name())
-                }));
+                if fake_dep_db.is_empty() {
+                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                        column_number: *column as u32,
+                        row_number: -1,
+                        message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name())
+                    }));
+                }
+                else {
+                    diagnostic.result.push(DiagnosticResult::Info(DiagnosticReport{
+                        column_number: *column as u32,
+                        row_number: -1,
+                        message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name())
+                    }));
+                }
             }
 
             if !diagnostic.get_result().is_empty() {
