@@ -36,34 +36,30 @@ const PROGRAM_NAME: &str = "rpfm";
 /// This can fail, so if this fails, better stop the program and check why it failed.
 #[must_use = "Many things depend on this folder existing. So better check this worked."]
 pub fn init_config_path() -> Result<()> {
-	match ProjectDirs::from(&QUALIFIER, &ORGANISATION, &PROGRAM_NAME) {
-		Some(proj_dirs) => {
-			let config_path = proj_dirs.config_dir();
-            let autosaves_path = config_path.to_path_buf().join("autosaves");
-			let error_path = config_path.to_path_buf().join("error");
-			let schemas_path = config_path.to_path_buf().join("schemas");
-            let templates_path = config_path.to_path_buf().join("templates");
-            let templates_custom_path = config_path.to_path_buf().join("templates_custom");
 
-	        DirBuilder::new().recursive(true).create(&autosaves_path)?;
-            DirBuilder::new().recursive(true).create(&config_path)?;
-	        DirBuilder::new().recursive(true).create(&error_path)?;
-	        DirBuilder::new().recursive(true).create(&schemas_path)?;
-            DirBuilder::new().recursive(true).create(&templates_path)?;
-            DirBuilder::new().recursive(true).create(&templates_custom_path)?;
+	let config_path = get_config_path()?;
+    let autosaves_path = config_path.to_path_buf().join("autosaves");
+	let error_path = config_path.to_path_buf().join("error");
+	let schemas_path = config_path.to_path_buf().join("schemas");
+    let templates_path = config_path.to_path_buf().join("templates");
+    let templates_custom_path = config_path.to_path_buf().join("templates_custom");
 
-            // Init autosave files if they're not yet initialized.
-            (1..=25).into_iter().for_each(|x| {
-                let path = autosaves_path.join(format!("autosave_{:02?}.pack", x));
-                if !path.is_file() {
-                    let _ = File::create(path);
-                }
-            });
+    DirBuilder::new().recursive(true).create(&autosaves_path)?;
+    DirBuilder::new().recursive(true).create(&config_path)?;
+    DirBuilder::new().recursive(true).create(&error_path)?;
+    DirBuilder::new().recursive(true).create(&schemas_path)?;
+    DirBuilder::new().recursive(true).create(&templates_path)?;
+    DirBuilder::new().recursive(true).create(&templates_custom_path)?;
 
-	        Ok(())
-		},
-		None => Err(ErrorKind::IOFolderCannotBeOpened.into())
-	}
+    // Init autosave files if they're not yet initialized.
+    (1..=25).into_iter().for_each(|x| {
+        let path = autosaves_path.join(format!("autosave_{:02?}.pack", x));
+        if !path.is_file() {
+            let _ = File::create(path);
+        }
+    });
+
+    Ok(())
 }
 
 /// This function returns the current config path, or an error if said path is not available.
