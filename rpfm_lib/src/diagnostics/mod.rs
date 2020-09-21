@@ -15,6 +15,7 @@ This module contains the code needed to get a `Diagnostics` over an entire `Pack
 !*/
 
 use rayon::prelude::*;
+use fancy_regex::Regex;
 
 use crate::DB;
 use crate::DEPENDENCY_DATABASE;
@@ -283,6 +284,15 @@ impl Diagnostics {
                         column_number: 0,
                         row_number: row as i64,
                         message: format!("Empty key.")
+                    }));
+                }
+
+                // Magic Regex. It works. Don't ask why.
+                if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
+                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                        column_number: 1,
+                        row_number: row as i64,
+                        message: format!("Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.")
                     }));
                 }
 
