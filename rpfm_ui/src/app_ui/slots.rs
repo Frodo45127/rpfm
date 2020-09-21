@@ -88,6 +88,7 @@ pub struct AppUISlots {
     // `MyMod` menu slots.
     //-----------------------------------------------//
     pub mymod_open_menu: QBox<SlotNoArgs>,
+    pub mymod_open_mymod_folder: QBox<SlotOfBool>,
     pub mymod_new: QBox<SlotOfBool>,
     pub mymod_delete_selected: QBox<SlotOfBool>,
     pub mymod_install: QBox<SlotOfBool>,
@@ -499,6 +500,17 @@ impl AppUISlots {
                 AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
             }
         ));
+
+        // What happens when we trigger the "Open MyMod Folder" action.
+        let mymod_open_mymod_folder = SlotOfBool::new(app_ui.main_window, clone!(
+            app_ui => move |_| {
+            if let Some(ref path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
+                if open::that(&path).is_err() {
+                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                };
+            }
+            else { show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
+        }));
 
         // This slot is used for the "New MyMod" action.
         let mymod_new = SlotOfBool::new(app_ui.main_window, clone!(
@@ -1351,6 +1363,7 @@ impl AppUISlots {
             // `MyMod` menu slots.
             //-----------------------------------------------//
             mymod_open_menu,
+            mymod_open_mymod_folder,
             mymod_new,
             mymod_delete_selected,
             mymod_install,

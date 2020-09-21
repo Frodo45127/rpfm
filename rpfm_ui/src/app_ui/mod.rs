@@ -132,6 +132,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // `MyMod` menu.
     //-------------------------------------------------------------------------------//
+    pub mymod_open_mymod_folder: QPtr<QAction>,
     pub mymod_new: QPtr<QAction>,
     pub mymod_delete_selected: QPtr<QAction>,
     pub mymod_install: QPtr<QAction>,
@@ -391,6 +392,7 @@ impl AppUI {
         //-----------------------------------------------//
 
         // Populate the `Game Selected` menu.
+        let mymod_open_mymod_folder = menu_bar_mymod.add_action_q_string(&qtr("mymod_open_mymod_folder"));
         let mymod_new = menu_bar_mymod.add_action_q_string(&qtr("mymod_new"));
         let mymod_delete_selected = menu_bar_mymod.add_action_q_string(&qtr("mymod_delete_selected"));
         let mymod_install = menu_bar_mymod.add_action_q_string(&qtr("mymod_install"));
@@ -409,6 +411,7 @@ impl AppUI {
         let mymod_open_napoleon = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_NAPOLEON));
         let mymod_open_empire = menu_bar_mymod.add_menu_q_string(&QString::from_std_str(GAME_SELECTED_EMPIRE));
 
+        menu_bar_mymod.insert_separator(&mymod_new);
         menu_bar_mymod.insert_separator(&mymod_install);
 
         // Disable all the Contextual Menu actions by default.
@@ -634,6 +637,7 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             // `MyMod` menu.
             //-------------------------------------------------------------------------------//
+            mymod_open_mymod_folder,
             mymod_new,
             mymod_delete_selected,
             mymod_install,
