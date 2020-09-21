@@ -679,9 +679,7 @@ impl PackFileContentsSlots {
                         // Remove all the deleted PackedFiles from the cache.
                         for item in &items {
                             match item {
-                                TreePathType::File(path) => if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, false) {
-                                    show_dialog(app_ui.main_window, error, false);
-                                }
+                                TreePathType::File(path) => { let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, false); },
                                 TreePathType::Folder(path) => {
                                     let mut paths_to_remove = vec![];
                                     {
@@ -1072,13 +1070,13 @@ impl PackFileContentsSlots {
                             // If we want to delete the sources, do it now. Oh, and close them manually first, or the autocleanup will try to save them and fail miserably.
                             if delete_source_files {
                                 let items_to_remove = selected_paths.iter().map(|x| TreePathType::File(x.to_vec())).collect();
-                                let mut _blocker = QSignalBlocker::from_q_object(&pack_file_contents_ui.packfile_contents_tree_model);
                                 selected_paths.iter().for_each(|x| { let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &x, false); });
                                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(items_to_remove));
                             }
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::File(path_to_add.to_vec()); 1]));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(path_to_add.to_vec()); 1]));
+
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             // Update the global search stuff, if needed.

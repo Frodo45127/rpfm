@@ -30,6 +30,7 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QVariant;
 use qt_core::QPtr;
+use qt_core::QSignalBlocker;
 
 use cpp_core::CppBox;
 use cpp_core::Ptr;
@@ -789,7 +790,7 @@ impl PackTree for QBox<QTreeView> {
 
     unsafe fn update_treeview(&self, has_filter: bool, operation: TreeViewOperation) {
         let filter: Option<QPtr<QSortFilterProxyModel>> = if has_filter { Some(self.model().static_downcast()) } else { None };
-        let model: QPtr<QStandardItemModel> = if let Some(filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast() };
+        let model: QPtr<QStandardItemModel> = if let Some(ref filter) = filter { filter.source_model().static_downcast() } else { self.model().static_downcast() };
 
         // We act depending on the operation requested.
         match operation {
@@ -1227,7 +1228,12 @@ impl PackTree for QBox<QTreeView> {
                                 // Get the parent of the item, and kill the item in a cruel way.
                                 parent = item.parent();
                                 parent_status = get_status_item_from_item(parent);
+
+                                // Block the selection from retriggering open PackedFiles.
+                                let blocker = QSignalBlocker::from_q_object(&self.selection_model());
                                 parent.remove_row(item.row());
+                                blocker.unblock();
+
                                 parent_status.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
                                 if !parent_status.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
                                     parent_status.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
@@ -1291,7 +1297,11 @@ impl PackTree for QBox<QTreeView> {
                                 // Get the parent of the item and kill the item in a cruel way.
                                 parent = item.parent();
                                 parent_status = get_status_item_from_item(parent);
+
+                                let blocker = QSignalBlocker::from_q_object(&self.selection_model());
                                 parent.remove_row(item.row());
+                                blocker.unblock();
+
                                 parent_status.set_data_2a(&QVariant::from_int(ITEM_STATUS_MODIFIED), ITEM_STATUS);
                                 if !parent_status.data_1a(ITEM_IS_FOREVER_MODIFIED).to_bool() {
                                     parent_status.set_data_2a(&QVariant::from_bool(true), ITEM_IS_FOREVER_MODIFIED);
