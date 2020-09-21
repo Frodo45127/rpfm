@@ -20,7 +20,7 @@ use crate::DB;
 use crate::DEPENDENCY_DATABASE;
 use crate::FAKE_DEPENDENCY_DATABASE;
 use crate::packfile::{PackFile, PathType};
-use crate::packedfile::{DecodedPackedFile, PackedFileType};
+use crate::packedfile::{table::DecodedData, DecodedPackedFile, PackedFileType};
 use crate::packfile::packedfile::PackedFileInfo;
 use crate::PackedFile;
 use crate::schema::FieldType;
@@ -267,8 +267,8 @@ impl Diagnostics {
             // Check all the columns with reference data.
             let mut keys = vec![];
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {
-                let key = cells[0].data_to_string();
-                let data = cells[1].data_to_string();
+                let key = if let DecodedData::StringU16(ref data) = cells[0] { data } else { unimplemented!() };
+                let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
                 if key.is_empty() && data.is_empty() {
                     diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
