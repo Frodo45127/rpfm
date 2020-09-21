@@ -104,6 +104,7 @@ pub struct AppUI {
     pub packfile_save_packfile_as: QPtr<QAction>,
     pub packfile_open_from_content: Ptr<QMenu>,
     pub packfile_open_from_data: Ptr<QMenu>,
+    pub packfile_open_from_autosave: Ptr<QMenu>,
     pub packfile_change_packfile_type: Ptr<QMenu>,
     pub packfile_load_all_ca_packfiles: QPtr<QAction>,
     pub packfile_load_template: Ptr<QMenu>,
@@ -325,6 +326,7 @@ impl AppUI {
         let packfile_save_packfile_as = menu_bar_packfile.add_action_q_string(&qtr("save_packfile_as"));
         let packfile_open_from_content = QMenu::from_q_string(&qtr("open_from_content")).into_ptr();
         let packfile_open_from_data = QMenu::from_q_string(&qtr("open_from_data")).into_ptr();
+        let packfile_open_from_autosave = QMenu::from_q_string(&qtr("open_from_autosave")).into_ptr();
         let packfile_change_packfile_type = QMenu::from_q_string(&qtr("change_packfile_type")).into_ptr();
         let packfile_load_all_ca_packfiles = menu_bar_packfile.add_action_q_string(&qtr("load_all_ca_packfiles"));
         let packfile_load_template = QMenu::from_q_string(&qtr("load_template")).into_ptr();
@@ -334,6 +336,7 @@ impl AppUI {
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, packfile_open_from_content);
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, packfile_open_from_data);
+        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, packfile_open_from_autosave);
 
         menu_bar_packfile.insert_separator(packfile_open_from_content.menu_action());
         menu_bar_packfile.insert_separator(&packfile_preferences);
@@ -609,6 +612,7 @@ impl AppUI {
             packfile_save_packfile_as,
             packfile_open_from_content,
             packfile_open_from_data,
+            packfile_open_from_autosave,
             packfile_change_packfile_type,
             packfile_load_all_ca_packfiles,
             packfile_load_template,

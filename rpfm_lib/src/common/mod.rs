@@ -98,6 +98,20 @@ pub fn get_oldest_file_in_folder(current_path: &Path) -> Result<Option<PathBuf>>
     Ok(files.get(0).cloned())
 }
 
+/// This function gets the files in a folder sorted from newest to oldest.
+#[allow(dead_code)]
+pub fn get_files_in_folder_from_newest_to_oldest(current_path: &Path) -> Result<Vec<PathBuf>> {
+    let mut files = get_files_from_subdir(current_path)?;
+    files.sort();
+    files.sort_by(|a, b| {
+        let a = File::open(a).unwrap();
+        let b = File::open(b).unwrap();
+        get_last_modified_time_from_file(&b).cmp(&get_last_modified_time_from_file(&a))
+    });
+
+    Ok(files)
+}
+
 /// This function gets the `/data` path of the game selected, straighoutta settings, if it's configured.
 #[allow(dead_code)]
 pub fn get_game_selected_data_path() -> Option<PathBuf> {
