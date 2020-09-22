@@ -15,6 +15,9 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Implemented `Copy Path` feature, to easely copy paths of files/folders in a PackFile.
 - Implemented a not-very-optimal definition guesser for the PackedFile Decoder.
 - Implemented a check to see if a table is outdated.
+- Implemented `Resize tables on edits to content's size:` setting.
+- implemented `Open MyMod Folder` feature.
+- Implemented `Check Template Updates` feature.
 
 ### Changed
 - Changed all fields that accept regex so it turns green or red depending if the regex is valid or not.
@@ -23,6 +26,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Images now are shown in their original size, except if they are bigger than the current window.
 - The view menu now uses checkboxes to show if a panel is visible or not.
 - Newly added files are expanded automatically on the Treeview.
+- Reorganized `Preferences` window.
 - Updated Qt Bindings to 0.5.
 
 ### Fixed
@@ -32,6 +36,9 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed a CTD caused by hitting Ctrl+Z too fast after undoing a TSV Import.
 - Fixed a CTD that caused a crash after pasting very specific float numbers.
 - Fixed a CTD at the start if you didn't had vcruntime_140.dll somewhere in your system.
+- Fixed a CTD when trying to generate a PAK for Rome 2.
+- Fixed a CTD when trying to delete a schema definition.
+- Fixed a CTD when trying to merge tables.
 - Fixed a semi-random CTD when opening a PackFile from one of the submenus.
 - Fixed a rare hang after performing certain actions that tried to use the table dependency data.
 - Fixed a bug that caused `Load All CA PackFiles` to not work on games older than Warhammer.
@@ -41,9 +48,15 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed a couple of ordering bugs in the table column order logic.
 - Fixed regex coloring on Global Search not working if you used the dark theme.
 - Fixed a bug that caused image rescaling to not work as intended.
+- Fixed a bug that caused schemas to be saved unordered.
+- Fixed a bug that caused autosave to hang the program if autosave interval was set to 0.
+- Fixed ghost items being created in the TreeView after using `Merge Tables`.
+- Fixed a long-standing issue that triggered a harmless error when deleting a decodeable PackedFile from the TreeView.
+- Fixed a bug that caused initialization of config folders to not work properly on debug mode.
 
 ### Removed
 - Removed `Check Tables` feature, as it has been superseed by the new `Diagnostics` panel.
+- Removed color coding for errors in tables.
 - Removed `Command Palette`.
 
 ## [2.1.5] - 2020-08-22
