@@ -293,6 +293,9 @@ pub enum Command {
 
     /// This command is used to trigger a partial diagnostics check over the open PackFile.
     DiagnosticsUpdate((Diagnostics, Vec<PathType>)),
+
+    /// This command is used to check for template updates.
+    CheckTemplateUpdates,
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

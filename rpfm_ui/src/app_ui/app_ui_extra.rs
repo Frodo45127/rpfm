@@ -62,7 +62,7 @@ use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
-use crate::locale::{qtr, qtre, tr, tre};
+use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, table::*, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -963,6 +963,7 @@ impl AppUI {
             app_ui.main_window,
         );
 
+        let close_button = dialog.button(q_message_box::StandardButton::Close);
         let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
         update_button.set_enabled(false);
 
@@ -1016,11 +1017,18 @@ impl AppUI {
             dialog.show();
             dialog.set_text(&qtr("update_in_prog"));
             update_button.set_enabled(false);
+            close_button.set_enabled(false);
 
             let response = CENTRAL_COMMAND.recv_message_qt_try();
             match response {
-                Response::Success => show_dialog(app_ui.main_window, tr("update_success_main_program"), true),
-                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                Response::Success => {
+                    dialog.set_text(&qtr("update_success_main_program"));
+                    close_button.set_enabled(true);
+                },
+                Response::Error(error) => {
+                    dialog.set_text(&QString::from_std_str(&error.to_string()));
+                    close_button.set_enabled(true);
+                }
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
@@ -1032,112 +1040,148 @@ impl AppUI {
     pub unsafe fn check_schema_updates(app_ui: &Rc<Self>, use_dialog: bool) {
         CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckSchemaUpdates);
 
-        // If we want to use a Dialog to show the full searching process.
+        // Create the dialog to show the response and configure it.
+        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            q_message_box::Icon::Information,
+            &qtr("update_schema_checker"),
+            &qtr("update_searching"),
+            QFlags::from(q_message_box::StandardButton::Close),
+            app_ui.main_window,
+        );
+
+        let close_button = dialog.button(q_message_box::StandardButton::Close);
+        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+        update_button.set_enabled(false);
+
+        dialog.set_modal(true);
         if use_dialog {
-
-            // Create the dialog to show the response and configure it.
-            let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-                q_message_box::Icon::Information,
-                &qtr("update_schema_checker"),
-                &qtr("update_searching"),
-                QFlags::from(q_message_box::StandardButton::Close),
-                app_ui.main_window,
-            );
-
-            let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-            update_button.set_enabled(false);
-
-            dialog.set_modal(true);
             dialog.show();
-
-            // When we get a response, act depending on the kind of response we got.
-            let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
-            let message = match response_thread {
-
-                Response::APIResponseSchema(ref response) => {
-                    match response {
-                        APIResponseSchema::NewUpdate => {
-                            update_button.set_enabled(true);
-                            qtr("schema_new_update")
-                        }
-                        APIResponseSchema::NoUpdate => {
-                            update_button.set_enabled(false);
-                            qtr("schema_no_update")
-                        }
-                        APIResponseSchema::NoLocalFiles => {
-                            update_button.set_enabled(true);
-                            qtr("update_no_local_schema")
-                        }
-                    }
-                }
-
-                Response::Error(error) => return show_dialog(app_ui.main_window, error, false),
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
-            };
-
-            // If we hit "Update", try to update the schemas.
-            dialog.set_text(&message);
-            if dialog.exec() == 0 {
-                CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
-
-                dialog.show();
-                dialog.set_text(&qtr("update_in_prog"));
-                update_button.set_enabled(false);
-
-                match CENTRAL_COMMAND.recv_message_qt_try() {
-                    Response::Success => show_dialog(app_ui.main_window, tr("schema_update_success"), true),
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
-                }
-            }
         }
 
-        // Otherwise, we just wait until we got a response, and only then (and only in case of new schema update) we show a dialog.
-        else {
-            let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
-            let message = match response_thread {
-
-                Response::APIResponseSchema(ref response) => {
-                    match response {
-                        APIResponseSchema::NewUpdate => {
-                            qtr("schema_new_update")
-                        }
-                        APIResponseSchema::NoUpdate => return,
-                        APIResponseSchema::NoLocalFiles => {
-                            qtr("update_no_local_schema")
-                        }
+        // When we get a response, act depending on the kind of response we got.
+        let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+        let message = match response_thread {
+            Response::APIResponseSchema(ref response) => {
+                match response {
+                    APIResponseSchema::NewUpdate => {
+                        update_button.set_enabled(true);
+                        qtr("schema_new_update")
+                    }
+                    APIResponseSchema::NoUpdate => {
+                        if !use_dialog { return; }
+                        qtr("schema_no_update")
+                    }
+                    APIResponseSchema::NoLocalFiles => {
+                        update_button.set_enabled(true);
+                        qtr("update_no_local_schema")
                     }
                 }
+            }
 
-                Response::Error(_) => return,
-                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
-            };
+            Response::Error(_) => {
+                if !use_dialog { return; }
+                qtr("api_response_error")
+            }
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+        };
 
-            // Create the dialog to show the response.
-            let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
-                q_message_box::Icon::Information,
-                &qtr("update_schema_checker"),
-                &message,
-                QFlags::from(q_message_box::StandardButton::Close),
-                app_ui.main_window,
-            );
+        // If we hit "Update", try to update the schemas.
+        dialog.set_text(&message);
+        if dialog.exec() == 0 {
+            CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
 
-            let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
-            dialog.set_modal(true);
+            dialog.show();
+            dialog.set_text(&qtr("update_in_prog"));
+            update_button.set_enabled(false);
+            close_button.set_enabled(false);
 
-            // If we hit "Update", try to update the schemas.
-            if dialog.exec() == 0 {
-                CENTRAL_COMMAND.send_message_qt(Command::UpdateSchemas);
-
-                dialog.show();
-                dialog.set_text(&qtr("update_in_prog"));
-                update_button.set_enabled(false);
-
-                match CENTRAL_COMMAND.recv_message_qt_try() {
-                    Response::Success => show_dialog(app_ui.main_window, tr("schema_update_success"), true),
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            match response {
+                Response::Success => {
+                    dialog.set_text(&qtr("schema_update_success"));
+                    close_button.set_enabled(true);
+                },
+                Response::Error(error) => {
+                    dialog.set_text(&QString::from_std_str(&error.to_string()));
+                    close_button.set_enabled(true);
                 }
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        }
+    }
+
+    /// This function checks if there is any newer version of RPFM's templates released.
+    ///
+    /// If the `use_dialog` is false, we only show a dialog in case of update available. Useful for checks at start.
+    pub unsafe fn check_template_updates(app_ui: &Rc<Self>, use_dialog: bool) {
+        CENTRAL_COMMAND.send_message_qt_to_network(Command::CheckTemplateUpdates);
+
+        // Create the dialog to show the response and configure it.
+        let dialog = QMessageBox::from_icon2_q_string_q_flags_standard_button_q_widget(
+            q_message_box::Icon::Information,
+            &qtr("update_template_checker"),
+            &qtr("update_searching"),
+            QFlags::from(q_message_box::StandardButton::Close),
+            app_ui.main_window,
+        );
+
+        let close_button = dialog.button(q_message_box::StandardButton::Close);
+        let update_button = dialog.add_button_q_string_button_role(&qtr("update_button"), q_message_box::ButtonRole::AcceptRole);
+        update_button.set_enabled(false);
+
+        dialog.set_modal(true);
+        if use_dialog {
+            dialog.show();
+        }
+
+        // When we get a response, act depending on the kind of response we got.
+        let response_thread = CENTRAL_COMMAND.recv_message_network_to_qt_try();
+        let message = match response_thread {
+            Response::APIResponseSchema(ref response) => {
+                match response {
+                    APIResponseSchema::NewUpdate => {
+                        update_button.set_enabled(true);
+                        qtr("template_new_update")
+                    }
+                    APIResponseSchema::NoUpdate => {
+                        if !use_dialog { return; }
+                        qtr("template_no_update")
+                    }
+                    APIResponseSchema::NoLocalFiles => {
+                        update_button.set_enabled(true);
+                        qtr("update_no_local_template")
+                    }
+                }
+            }
+
+            Response::Error(_) => {
+                if !use_dialog { return; }
+                qtr("api_response_error")
+            }
+            _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
+        };
+
+        // If we hit "Update", try to update the schemas.
+        dialog.set_text(&message);
+        if dialog.exec() == 0 {
+            CENTRAL_COMMAND.send_message_qt(Command::UpdateTemplates);
+
+            dialog.show();
+            dialog.set_text(&qtr("update_in_prog"));
+            update_button.set_enabled(false);
+            close_button.set_enabled(false);
+
+            let response = CENTRAL_COMMAND.recv_message_qt_try();
+            match response {
+                Response::Success => {
+                    dialog.set_text(&qtr("template_update_success"));
+                    close_button.set_enabled(true);
+                },
+                Response::Error(error) => {
+                    dialog.set_text(&QString::from_std_str(&error.to_string()));
+                    close_button.set_enabled(true);
+                }
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }
     }

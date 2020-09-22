@@ -80,6 +80,7 @@ impl Settings {
         settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), false);
         settings_bool.insert("check_updates_on_start".to_owned(), true);
         settings_bool.insert("check_schema_updates_on_start".to_owned(), true);
+        settings_bool.insert("check_template_updates_on_start".to_owned(), true);
         settings_bool.insert("enable_diagnostics_tool".to_owned(), true);
         settings_bool.insert("use_lazy_loading".to_owned(), true);
         settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), false);

@@ -127,7 +127,7 @@ pub struct AppUISlots {
     pub about_patreon_link: QBox<SlotOfBool>,
     pub about_check_updates: QBox<SlotOfBool>,
     pub about_check_schema_updates: QBox<SlotOfBool>,
-    pub about_update_templates: QBox<SlotOfBool>,
+    pub about_check_templates_updates: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
     // `Debug` menu slots.
@@ -1155,20 +1155,9 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Update Templates" action.
-        let about_update_templates = SlotOfBool::new(app_ui.main_window, clone!(
+        let about_check_templates_updates = SlotOfBool::new(app_ui.main_window, clone!(
             app_ui => move |_| {
-                app_ui.main_window.set_enabled(false);
-
-                CENTRAL_COMMAND.send_message_qt(Command::UpdateTemplates);
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
-                match response {
-                    Response::Success => show_dialog(app_ui.main_window, tr("uodate_templates_success"), true),
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
-                    _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
-                }
-
-                // Re-enable the Main Window.
-                app_ui.main_window.set_enabled(true);
+                AppUI::check_template_updates(&app_ui, true);
             }
         ));
 
@@ -1402,7 +1391,7 @@ impl AppUISlots {
             about_patreon_link,
             about_check_updates,
             about_check_schema_updates,
-            about_update_templates,
+            about_check_templates_updates,
 
             //-----------------------------------------------//
             // `Debug` menu slots.

@@ -88,6 +88,7 @@ pub struct SettingsUI {
     pub extra_packfile_autosave_interval_label: QBox<QLabel>,
     pub extra_network_check_updates_on_start_label: QBox<QLabel>,
     pub extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
+    pub extra_network_check_template_updates_on_start_label: QBox<QLabel>,
     pub extra_packfile_allow_editing_of_ca_packfiles_label: QBox<QLabel>,
     pub extra_packfile_optimize_not_renamed_packedfiles_label: QBox<QLabel>,
     pub extra_packfile_enable_diagnostics_label: QBox<QLabel>,
@@ -104,6 +105,7 @@ pub struct SettingsUI {
     pub extra_packfile_autosave_interval_spinbox: QBox<QSpinBox>,
     pub extra_network_check_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_network_check_schema_updates_on_start_checkbox: QBox<QCheckBox>,
+    pub extra_network_check_template_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_packfile_allow_editing_of_ca_packfiles_checkbox: QBox<QCheckBox>,
     pub extra_packfile_optimize_not_renamed_packedfiles_checkbox: QBox<QCheckBox>,
     pub extra_packfile_enable_diagnostics_checkbox: QBox<QCheckBox>,
@@ -290,8 +292,10 @@ impl SettingsUI {
         // Update checkers.
         let extra_network_check_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_updates_on_start"));
         let extra_network_check_schema_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_schema_updates_on_start"));
+        let extra_network_check_template_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_template_updates_on_start"));
         let extra_network_check_updates_on_start_checkbox = QCheckBox::new();
         let extra_network_check_schema_updates_on_start_checkbox = QCheckBox::new();
+        let extra_network_check_template_updates_on_start_checkbox = QCheckBox::new();
 
         // Behavior settings.
         let extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string(&qtr("settings_allow_editing_of_ca_packfiles"));
@@ -340,29 +344,32 @@ impl SettingsUI {
         general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_label, 5, 0, 1, 1);
         general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_checkbox, 5, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 6, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 6, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_template_updates_on_start_label, 6, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_template_updates_on_start_checkbox, 6, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 7, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 7, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 7, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 7, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_label, 8, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_checkbox, 8, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 8, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 8, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 9, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 9, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_label, 9, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_checkbox, 9, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_label, 10, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox, 10, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 10, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 10, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 11, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 11, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_label, 11, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox, 11, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_window_start_maximized_label, 12, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 12, 1, 1, 1);
+        general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 12, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 12, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 13, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 13, 1, 1, 1);
+        general_grid.add_widget_5a(&ui_window_start_maximized_label, 13, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 13, 1, 1, 1);
+
+        general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 14, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 14, 1, 1, 1);
 
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_label, 14, 0, 1, 1);
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_checkbox, 14, 1, 1, 1);
@@ -498,6 +505,7 @@ impl SettingsUI {
             extra_packfile_autosave_interval_label,
             extra_network_check_updates_on_start_label,
             extra_network_check_schema_updates_on_start_label,
+            extra_network_check_template_updates_on_start_label,
             extra_packfile_allow_editing_of_ca_packfiles_label,
             extra_packfile_optimize_not_renamed_packedfiles_label,
             extra_packfile_enable_diagnostics_label,
@@ -514,6 +522,7 @@ impl SettingsUI {
             extra_packfile_autosave_interval_spinbox,
             extra_network_check_updates_on_start_checkbox,
             extra_network_check_schema_updates_on_start_checkbox,
+            extra_network_check_template_updates_on_start_checkbox,
             extra_packfile_allow_editing_of_ca_packfiles_checkbox,
             extra_packfile_optimize_not_renamed_packedfiles_checkbox,
             extra_packfile_enable_diagnostics_checkbox,
@@ -608,6 +617,7 @@ impl SettingsUI {
         self.ui_window_hide_background_icon_checkbox.set_checked(settings.settings_bool["hide_background_icon"]);
         self.extra_network_check_updates_on_start_checkbox.set_checked(settings.settings_bool["check_updates_on_start"]);
         self.extra_network_check_schema_updates_on_start_checkbox.set_checked(settings.settings_bool["check_schema_updates_on_start"]);
+        self.extra_network_check_template_updates_on_start_checkbox.set_checked(settings.settings_bool["check_template_updates_on_start"]);
         self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.set_checked(settings.settings_bool["allow_editing_of_ca_packfiles"]);
         self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.set_checked(settings.settings_bool["optimize_not_renamed_packedfiles"]);
         self.extra_packfile_enable_diagnostics_checkbox.set_checked(settings.settings_bool["enable_diagnostics_tool"]);
@@ -675,6 +685,7 @@ impl SettingsUI {
         settings.settings_bool.insert("hide_background_icon".to_owned(), self.ui_window_hide_background_icon_checkbox.is_checked());
         settings.settings_bool.insert("check_updates_on_start".to_owned(), self.extra_network_check_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("check_schema_updates_on_start".to_owned(), self.extra_network_check_schema_updates_on_start_checkbox.is_checked());
+        settings.settings_bool.insert("check_template_updates_on_start".to_owned(), self.extra_network_check_template_updates_on_start_checkbox.is_checked());
         settings.settings_bool.insert("allow_editing_of_ca_packfiles".to_owned(), self.extra_packfile_allow_editing_of_ca_packfiles_checkbox.is_checked());
         settings.settings_bool.insert("optimize_not_renamed_packedfiles".to_owned(), self.extra_packfile_optimize_not_renamed_packedfiles_checkbox.is_checked());
         settings.settings_bool.insert("enable_diagnostics_tool".to_owned(), self.extra_packfile_enable_diagnostics_checkbox.is_checked());

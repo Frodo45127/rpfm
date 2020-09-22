@@ -107,10 +107,12 @@ generate_schema_diff = Generate Schema Diff
 
 update_checker = Update Checker
 update_schema_checker = Update Schema Checker
+update_template_checker = Update Template Checker
 update_searching = Searching for updates...
 update_button = &Update
 update_in_prog = <p>Downloading updates, don't close this window...</p> <p>This may take a while.</p>
 update_no_local_schema = <p>No local schemas found. Do you want to download the lastest ones?</p><p><b>NOTE:</b> Schemas are needed for opening tables, locs and other PackedFiles. No schemas means you cannot edit tables.</p>
+update_no_local_template = <p>No local templates found. Do you want to download the lastest ones?</p><p><b>NOTE:</b> Templates are useful to bootstraps mods in a few clicks.</p>
 
 ## Folder Dialogues
 
@@ -400,6 +402,7 @@ settings_extra_title = Extra Settings
 settings_default_game = Default Game:
 settings_check_updates_on_start = Check Updates on Start:
 settings_check_schema_updates_on_start = Check Schema Updates on Start:
+settings_check_template_updates_on_start = Check Template Updates on Start:
 settings_allow_editing_of_ca_packfiles = Allow Editing of CA PackFiles:
 settings_optimize_not_renamed_packedfiles = Optimize Non-Renamed PackedFiles:
 settings_use_dependency_checker = Enable Diagnostics Tool:
@@ -491,8 +494,12 @@ api_response_error = <h4>Error while checking new updates :(</h4> <p>If you see 
 schema_no_update = <h4>No new schema updates available</h4> <p>More luck next time :)</p>
 schema_new_update = <h4>New schema update available</h4> <p>Do you want to update the schemas?</p>
 
+template_no_update = <h4>No new template updates available</h4> <p>More luck next time :)</p>
+template_new_update = <h4>New template update available</h4> <p>Do you want to update the templates?</p>
+
 api_response_schema_error = <h4>Error while checking new updates :(</h4> <p>If you see this message, there has been a problem with your connection to the Github.com server. Please, make sure you can access to <a href=\"https://api.github.com\">https://api.github.com</a> and try again.</p>
 schema_update_success = <h4>Schemas updated and reloaded</h4><p>You can continue using RPFM now.</p>
+template_update_success = <h4>Templates updated and reloaded</h4><p>You can continue using RPFM now.</p>
 
 files_extracted_success = {"{"}{"}"} files extracted. No errors detected.
 mymod_delete_success = MyMod successfully deleted: \"{"{"}{"}"}\"
@@ -575,7 +582,7 @@ load_templates_dialog_accept = Load Template
 nested_table_title = Nested Table
 nested_table_accept = Accept
 
-about_update_templates = Update Templates
+about_check_template_updates = Check Template Updates
 uodate_templates_success = Templates updated correctly.
 tt_uodate_templates = This command attemps to update your templates.
 

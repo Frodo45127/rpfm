@@ -32,7 +32,7 @@ use crate::packedfile::table::loc::Loc;
 use crate::packedfile::table::Table;
 use crate::packedfile::table::DecodedData;
 use crate::SCHEMA;
-use crate::schema::FieldType;
+use crate::schema::{APIResponseSchema, FieldType};
 
 pub const TEMPLATE_FOLDER: &str = "templates";
 pub const DEFINITIONS_FOLDER: &str = "definitions";
@@ -324,6 +324,35 @@ impl Template {
 
         else {
             Err(ErrorKind::DownloadTemplatesError.into())
+        }
+    }
+
+    /// This function checks if there is a new template update in the template repo.
+    pub fn check_update() -> Result<APIResponseSchema> {
+        let template_path = get_template_base_path()?;
+        let repo = match Repository::open(&template_path) {
+            Ok(repo) => repo,
+
+            // If this fails, it means we either we don´t have the templates downloaded, or we have the old ones downloaded.
+            Err(_) => return Ok(APIResponseSchema::NoLocalFiles),
+        };
+
+        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
+        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+
+        if analysis.0.is_up_to_date() {
+            Ok(APIResponseSchema::NoUpdate)
+        }
+
+        else if analysis.0.is_fast_forward() {
+            Ok(APIResponseSchema::NewUpdate)
+        }
+
+        else {
+            Err(ErrorKind::SchemaUpdateError.into())
         }
     }
 }

@@ -15,6 +15,7 @@ Basically, this does the network checks of the program.
 !*/
 
 use rpfm_lib::schema::Schema;
+use rpfm_lib::template::Template;
 use rpfm_lib::updater;
 
 use crate::CENTRAL_COMMAND;
@@ -46,6 +47,14 @@ pub fn network_loop() {
             // When we want to check if there is a schema's update available...
             Command::CheckSchemaUpdates => {
                 match Schema::check_update() {
+                    Ok(response) => CENTRAL_COMMAND.send_message_network_to_qt(Response::APIResponseSchema(response)),
+                    Err(error) => CENTRAL_COMMAND.send_message_network_to_qt(Response::Error(error)),
+                }
+            }
+
+            // When we want to check if there is a template update available.
+            Command::CheckTemplateUpdates => {
+                match Template::check_update() {
                     Ok(response) => CENTRAL_COMMAND.send_message_network_to_qt(Response::APIResponseSchema(response)),
                     Err(error) => CENTRAL_COMMAND.send_message_network_to_qt(Response::Error(error)),
                 }
