@@ -352,7 +352,7 @@ impl Template {
         }
 
         else {
-            Err(ErrorKind::SchemaUpdateError.into())
+            Err(ErrorKind::TemplateUpdateError.into())
         }
     }
 }

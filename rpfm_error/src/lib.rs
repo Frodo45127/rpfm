@@ -586,6 +586,9 @@ pub enum ErrorKind {
 
     /// Error for when reading the manifest.txt fails.
     ManifestError,
+
+    /// Error for when there was an error while downloading the updated templates.
+    TemplateUpdateError,
 }
 
 /// Implementation of `Error`.
@@ -890,6 +893,7 @@ impl Display for ErrorKind {
             ErrorKind::ErrorExtractingUpdate => write!(f, "<p>There was an error while extracting the update. This means either I uploaded a broken file, or your download was incomplete. In any case, no changes have been done so... try again later.<p>"),
             ErrorKind::PackedFileNotDecoded => write!(f, "<p>Undecoded PackedFile. If you see this, it's a bug, so please report it.<p>"),
             ErrorKind::ManifestError => write!(f, "<p>Error while parsing the manifest.txt file of the game selected.<p>"),
+            ErrorKind::TemplateUpdateError => write!(f, "<p>There was an error while downloading the templates. Please, try again later.</p>"),
         }
     }
 }
