@@ -137,7 +137,7 @@ impl RawDefinition {
     pub fn read(raw_definition_path: &PathBuf, version: i16) -> Result<Self> {
         match version {
             2 | 1 => {
-                let definition_file = BufReader::new(File::open(&raw_definition_path)?);
+                let definition_file = BufReader::new(File::open(&raw_definition_path).map_err(|_|Error::from(ErrorKind::AssemblyKitNotFound))?);
                 let mut definition: Self = from_reader(definition_file).map_err(Error::from)?;
                 definition.name = Some(raw_definition_path.file_name().unwrap().to_str().unwrap().split_at(5).1.to_string());
                 Ok(definition)

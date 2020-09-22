@@ -48,7 +48,6 @@ use rpfm_lib::SETTINGS;
 use crate::DARK_RED;
 use crate::EVEN_MORE_WHITY_GREY;
 use crate::ffi::*;
-use crate::LINK_BLUE;
 use crate::locale::{qtr, tr, tre};
 use crate::MEDIUM_DARK_GREY;
 use crate::utils::*;
@@ -353,15 +352,6 @@ pub unsafe fn get_color_wrong_key() -> Ptr<QColor> {
     }
 }
 
-/// This function returns the color used for data with missing references in tables.
-pub unsafe fn get_color_no_ref_data() -> Ptr<QColor> {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*LINK_BLUE)).into_ptr()
-    } else {
-        QColor::from_q_string(&QString::from_std_str(*LINK_BLUE)).into_ptr()
-    }
-}
-
 /// This function returns the color used for correct referenced data in tables.
 pub unsafe fn get_color_correct_key() -> Ptr<QColor> {
     if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
@@ -373,9 +363,9 @@ pub unsafe fn get_color_correct_key() -> Ptr<QColor> {
 
 /// Function to check if an specific field's data is in their references.
 pub unsafe fn check_references(
-    column: i32,
+    _column: i32,
     item: Ptr<QStandardItem>,
-    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
+    _dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
     table_type: PackedFileType,
 ) {
     match table_type {
@@ -840,7 +830,7 @@ pub unsafe fn setup_item_delegates(
 /// This function checks an entire table for errors.
 pub unsafe fn check_table_for_errors(
     model: &QBox<QStandardItemModel>,
-    definition: &Definition,
+    _definition: &Definition,
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
     packed_file_type: PackedFileType,
 ) {

@@ -936,11 +936,16 @@ impl AppUISlots {
 
                     // Post-Shogun 2 games.
                     2 => {
-                        let mut path = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()].clone().unwrap();
-                        path.push("assembly_kit");
-                        path.push("raw_data");
-                        path.push("db");
-                        path
+                        if let Some(ref path) = SETTINGS.read().unwrap().paths[&**GAME_SELECTED.read().unwrap()] {
+                            let mut path = path.to_path_buf();
+                            path.push("assembly_kit");
+                            path.push("raw_data");
+                            path.push("db");
+                            path
+                        }
+                        else {
+                            return show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                        }
                     }
 
                     // Shogun 2.
@@ -957,36 +962,22 @@ impl AppUISlots {
                         file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
 
                         // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        let mut path = if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
-                        } else { PathBuf::from("") };
+                        let mut path = if file_dialog.exec() == 1 {
+                            PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
+                        } else {
+                            return show_dialog(app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
+                        };
+
                         path.push("raw_data");
                         path.push("db");
                         path
                     }
 
                     // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
-                    0 => {
-
-                        // Create the FileDialog to get the path of the Assembly Kit.
-                        let file_dialog = QFileDialog::from_q_widget_q_string(
-                            app_ui.main_window,
-                            &qtr("special_stuff_select_raw_db_folder"),
-                        );
-
-                        // Set it to only search Folders.
-                        file_dialog.set_file_mode(FileMode::Directory);
-                        file_dialog.set_options(QFlags::from(QFileDialogOption::ShowDirsOnly));
-
-                        // Run it and expect a response (1 => Accept, 0 => Cancel).
-                        if file_dialog.exec() == 1 { PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
-                        } else { PathBuf::from("") }
-                    }
-
-                    // For any other game, return an empty path.
-                    _ => PathBuf::new(),
+                    _ => return show_dialog(app_ui.main_window, tr("game_selected_unsupported_operation"), false),
                 };
 
-                if path.file_name().is_some() {
+                if path.is_dir() {
 
                     // If there is no problem, ere we go.
                     app_ui.main_window.set_enabled(false);
@@ -1002,7 +993,7 @@ impl AppUISlots {
                     app_ui.main_window.set_enabled(true);
                 }
                 else {
-                    show_dialog(app_ui.main_window, tr("game_selected_unsupported_operation"), false);
+                    show_dialog(app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
                 }
             }
         ));

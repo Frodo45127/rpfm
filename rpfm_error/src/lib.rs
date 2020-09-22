@@ -504,6 +504,9 @@ pub enum ErrorKind {
     /// Error for when we try to parse a blacklisted table.
     AssemblyKitTableTableIgnored,
 
+    /// Error for when we try to get the assembly kit, but it's not yet installed.
+    AssemblyKitNotFound,
+
     //-----------------------------------------------------//
     //                  7-Zip Errors
     //-----------------------------------------------------//
@@ -860,6 +863,7 @@ impl Display for ErrorKind {
             ErrorKind::AssemblyKitLocalisableFieldsNotFound => write!(f, "<p>The `Localisable Fields` file hasn't been found.</p>"),
             ErrorKind::AssemblyKitUnsupportedVersion(version) => write!(f, "<p>Operations over the Assembly Kit of version {} are not currently supported.</p>", version),
             ErrorKind::AssemblyKitTableTableIgnored => write!(f, "<p>One of the Assembly Kit Tables you tried to decode has been blacklisted due to issues.</p>"),
+            ErrorKind::AssemblyKitNotFound => write!(f, "<p>The Assembly Kit Folder could not be read. You may need to install the Assembly Kit for the current game selected.</p>"),
 
             //-----------------------------------------------------//
             //                  7-Zip Errors
