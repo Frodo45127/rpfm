@@ -17,7 +17,7 @@ Next, all those checkboxes. You can get an explanation about what they do just b
 
 Next, the Text Editor button. This controls all the settings relative to the text editor, including his theme.
 
-ss
+![Yes, you can make it darker here...](./images/image3.png)
 
 And finally, the `Shortcuts` button. Hitting it will open the `Shortcuts` window, where you can see and edit all the shortcuts currently used by RPFM.
 

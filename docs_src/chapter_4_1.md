@@ -27,10 +27,11 @@ These are all the actions available for DB Tables:
 - `Clone…/Clone and Append`: Creates a duplicate of every row with a selected cell and appends the duplicates at the end of the table.
 - `Copy …/Copy`: It copies whatever is selected to the Clipboard, in a format compatible with Excel, LibreOffice Calc and others.
 - `Copy …/Copy as LUA Table`: It copies the entire table as a Lua "Map\<String, Vector\<data\>\>" if the table has a key field, or as a series of Vectors if it hasn't, ready to paste it in a script. For scripters.
-- `Paste…/Paste`: It tries to paste whatever is in the Clipboard to the selected cells. It does some clever things while pasting:
+- `Paste`: It tries to paste whatever is in the Clipboard to the selected cells. It does some clever things while pasting:
     - If only one cell was copied, it pastes it in all selected cells.
     - If only a few cells of a row were copied, and the amount of copied cells equals the amount of selected columns, it pastes the first item in every cell in the first selected column, the second item in every cell of the second selected column,...
     - If none of the above, it defaults to a normal paste.
+- `Paste as New Row`: It allows you to paste the contents of the clipboard as a new row, appended at the end of the table.
 - `Rewrite Selection`: Allows you to rewrite the contents of a complete selection with whatever you want. It also allows for some limited numeric operations.
 - `Invert Selection`: Inverse the selection state of all cells on the table.
 - `Reset Selection`: Reset all selected cells to the value they had when the table was initially open.

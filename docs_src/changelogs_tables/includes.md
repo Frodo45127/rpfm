@@ -1,1 +1,0 @@
-Here you can find **all the changes the schemas have received since I started logging them** (not gonna check git to get all the changes from the beginning, sorry!). If you want to check a version in particular, just click it and the page will scroll to it. Otherwise, you can just scroll and reach them by yourself.
