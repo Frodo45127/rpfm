@@ -9,6 +9,7 @@ For those new with the concept, remember that `MyMod` folder we set in the setti
 This makes easier to keep track of the mod files, and you can even **put that folder under .git**, or any other version control system, as you can have an unpacked mod that you can pack with a single click (well, a few clicks).
 
 The `MyMod` Menu has the following buttons:
+- `Open MyMod Folder`: Opens the `MyMod` folder in your default file explorer.
 - `New MyMod`: It opens the `New MyMod` Dialog. It's explained under this list.
 - `Delete Selected MyMod`: It deletes the currently selected `MyMod`. This cannot be undone, so you'll got a warning before doing it.
 - `Install`: Copy the currently `MyMod` PackFile to the data folder of his game, so you can test your changes in an easy way. You can re-install the mod to test further changes.
@@ -22,5 +23,5 @@ When we click on `New MyMod`, the following dialog will appear:
 Here you can configure the name and game the mod is for. Once you're done, hit `Save` and your new `MyMod` will be created and opened.
 
 And lastly, a couple of aclarations:
-- To be able to use `Install/Uninstall` you need to have your `MyMod` open. 
+- To be able to use `Install/Uninstall` you need to have your `MyMod` open.
 - Only `MyMod` PackFiles opened from `XXX/yourmod.pack` will enjoy the `MyMod` features, like keeping the paths when adding/extracting files. Manually opened `MyMod` PackFiles will be treated as regular PackFiles.

@@ -13,6 +13,7 @@ Here, we can find the *basic* actions:
 And some more... *specific* ones:
 - `Open From Content…/xxx.pack`: Open the selected PackFile from the *Content* folder (Workshop mods) of the game. Requires the game's path to be configured.
 - `Open From Data…/xxx.pack`: Open the selected PackFile from the *Data* folder of the game. Requires the game's path to be configured.
+- `Open From Autosave…/xxx.pack`: Open the selected PackFile from the *Autosave* folder. The autosaves are sorted from newest to oldest, so if you want to load the last autosave done, pick the first one.
 - `Load All CA PackFiles`: Creates a fake PackFile in memory and tries to load into it all the data from every Vanilla PackFile of the game. Keep in mind that this takes a while.
 - `Change PackFile Type`: Allows you to change the open PackFile's Type and configure some options for it.
 - `Load Template`: Allows you to load a template into the open PackFile.

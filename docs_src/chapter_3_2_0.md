@@ -30,7 +30,7 @@ These are the actions you can use to alter the PackFile. Each one of them has a 
 - `Rename`: Allows you to rename whatever is selected, except the PackFile.
 - `Delete`: Allows you to delete whatever is selected. If the PackFile is selected, it removes every file from it.
 - `Extract`: Allows you to extract whatever is selected out of the PackFile. If whatever you selected is compressed/encrypted, RPFM will decompress/decrypt it before extracting, so the resulting file is usable.
-- `Check Tables`: Allows you to check the referencial integrity of all the tables on your PackFile.
+- `Copy Path`: Allows you to copy the selected item's path to the clipboard.
 - `Merge Tables`: Allows you to merge multiple DB/LOC Tables into one.
 - `Update Tables`: Allows you to update the structure of a table to the latest one one used by the game selected.
 

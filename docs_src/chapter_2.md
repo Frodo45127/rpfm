@@ -4,25 +4,20 @@
 
 After we start RPFM for the first time, we have to configure a couple of things.
 
-First, it should promt you to update your schemas. Hit yes and, if it fails, go to `About/Check Schema Update` and keep hitting update untils it succeeds.
+First, it should promt you to update your schemas/templates. Hit yes. Schemas and templates some extra files used for some features of RPFM, which we'll explain later. For now, just remember you should always have them up-to-date.
 
 Then, we need to go to `PackFile/Preferences`, and the window above this will popup. It seems like a lot of new stuff to know, but it's really simple. First the paths:
-- `MyMod's folder`: it's the path where your ***MyMod*** will be stored. ***MyMod*** are explained in a later chapter of this documentation, so for now you just need to know that it's a path RPFM will use to store stuff for your mods. Set it pointing to an empty folder.
 - `XXX folder`: These are the folders where your games are. Not where /data is, but **WHERE THE .EXE IS!!!** RPFM uses them for plenty of things, so remember to set them for the games you have.
-
-In the end, it should look something like this:
-
-![Paths... all of them end in Rome.](./images/image3.png)
-
-Next, the `Default Game`. RPFM uses a `Game Selected` setting to configure certain parts of the program to work with one game or another. For example, it changes the way the mods are saved, the default folder to save them, **the schema used for the tables**,.... Here you can set the game that'll be selected by default when you open the program.
+- `MyMod's folder`: it's the path where your ***MyMod*** will be stored. ***MyMod*** are explained in a later chapter of this documentation, so for now you just need to know that it's a path RPFM will use to store stuff for your mods. Set it pointing to an empty folder.
+- `7-Zip Folder`: if you have 7-Zip installed, put here the folder where the 7-Zip exe is. This is needed to support compression. Without it, if you try to compress a PackFile, it'll fail.
 
 Next, all those checkboxes. You can get an explanation about what they do just by hovering them with the mouse, like this.
 
 ![Hovering before it was cool!.](./images/image4.png)
 
-There are a couple of settings that may need some aditional explanation:
-- `Use Dark Theme`: Self-explanatory, but only available in Windows. The Linux version **uses the system's Qt Theme** instead.
-- **The entire debug section**: Stuff that an user will never need, but it helps me a lot. Don't use them unless you really need it.
+Next, the Text Editor button. This controls all the settings relative to the text editor, including his theme.
+
+ss
 
 And finally, the `Shortcuts` button. Hitting it will open the `Shortcuts` window, where you can see and edit all the shortcuts currently used by RPFM.
 
