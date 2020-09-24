@@ -621,7 +621,7 @@ impl TableView {
         // Reset the undo model and the undo/redo history.
         let model = model.into_q_box();
         update_undo_model(&model, &undo_model);
-        let model = model.into_q_ptr();
+        let _model = model.into_q_ptr();
         self.history_undo.write().unwrap().clear();
         self.history_redo.write().unwrap().clear();
 
