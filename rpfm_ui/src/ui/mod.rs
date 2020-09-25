@@ -142,23 +142,6 @@ impl UI {
 
         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
-        // Show the Main Window...
-        app_ui.main_window.show();
-
-        // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
-        // in which case, we automatically try to open it.
-        let args = args().collect::<Vec<String>>();
-        if args.len() > 1 {
-            let path = PathBuf::from(&args[1]);
-            if path.is_file() {
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &mut global_search_ui, &diagnostics_ui, &[path], "") {
-                    show_dialog(app_ui.main_window, error, false);
-                }
-
-                DiagnosticsUI::check(&diagnostics_ui);
-            }
-        }
-
         // If we want the window to start maximized...
         if SETTINGS.read().unwrap().settings_bool["start_maximized"] {
             app_ui.main_window.set_window_state(QFlags::from(WindowState::WindowMaximized));
@@ -190,6 +173,23 @@ impl UI {
                 app.set_style_sheet(&QString::from_std_str(&*DARK_STYLESHEET));
             } else {
                 QApplication::set_palette_1a(ref_from_atomic(&*LIGHT_PALETTE));
+            }
+        }
+
+        // Show the Main Window...
+        app_ui.main_window.show();
+
+        // We get all the Arguments provided when starting RPFM, just in case we passed it a path,
+        // in which case, we automatically try to open it.
+        let args = args().collect::<Vec<String>>();
+        if args.len() > 1 {
+            let path = PathBuf::from(&args[1]);
+            if path.is_file() {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &mut global_search_ui, &diagnostics_ui, &[path], "") {
+                    show_dialog(app_ui.main_window, error, false);
+                }
+
+                DiagnosticsUI::check(&diagnostics_ui);
             }
         }
 
