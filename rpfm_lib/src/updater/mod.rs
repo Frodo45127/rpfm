@@ -17,7 +17,7 @@ use self_update::{Download, get_target, Move, backends::github::ReleaseList, car
 use serde_derive::{Serialize, Deserialize};
 use tempfile::Builder;
 
-use std::env::{current_dir, current_exe};
+use std::env::current_exe;
 use std::fs::{DirBuilder, File};
 
 use rpfm_error::{Error, ErrorKind, Result};
@@ -79,9 +79,11 @@ pub fn update_main_program() -> Result<()> {
 
     // Get the download for our architecture.
     let asset = last_release.asset_for(&get_target()).ok_or_else(|| Error::from(ErrorKind::NoUpdateForYourArchitecture))?;
+    let mut tmp_path = std::env::current_exe().unwrap();
+    tmp_path.pop();
     let tmp_dir = Builder::new()
         .prefix(UPDATE_FOLDER_PREFIX)
-        .tempdir_in(current_dir()?)?;
+        .tempdir_in(tmp_path)?;
 
     DirBuilder::new().recursive(true).create(&tmp_dir)?;
 
