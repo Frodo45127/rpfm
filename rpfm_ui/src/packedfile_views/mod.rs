@@ -281,7 +281,7 @@ impl PackedFileView {
 
                 // Save the PackedFile, and trigger the stuff that needs to be triggered after a save.
                 CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromView(self.get_path(), data));
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let response = CENTRAL_COMMAND.recv_message_save_packedfile_try();
                 match response {
                     Response::Success => {
 
@@ -304,7 +304,7 @@ impl PackedFileView {
             },
             ViewType::External(view) => {
                 CENTRAL_COMMAND.send_message_qt(Command::SavePackedFileFromExternalView((self.get_path(), view.get_external_path())));
-                let response = CENTRAL_COMMAND.recv_message_qt_try();
+                let response = CENTRAL_COMMAND.recv_message_save_packedfile_try();
                 match response {
                     Response::Success => {},
                     Response::Error(error) => show_dialog(&pack_file_contents_ui.packfile_contents_tree_view, error, false),

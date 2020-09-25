@@ -61,6 +61,8 @@ pub struct CentralCommand {
     sender_notification_to_qt: Sender<Notification>,
     sender_diagnostics_to_qt: Sender<Diagnostics>,
     sender_diagnostics_update_to_qt: Sender<(Diagnostics, Vec<PackedFileInfo>)>,
+    sender_save_packedfile: Sender<Response>,
+
     receiver_qt: Receiver<Response>,
     receiver_rust: Receiver<Command>,
     receiver_qt_to_network: Receiver<Command>,
@@ -68,6 +70,7 @@ pub struct CentralCommand {
     receiver_notification_to_qt: Receiver<Notification>,
     receiver_diagnostics_to_qt: Receiver<Diagnostics>,
     receiver_diagnostics_update_to_qt: Receiver<(Diagnostics, Vec<PackedFileInfo>)>,
+    receiver_save_packedfile: Receiver<Response>,
 }
 
 /// This enum defines the commands (messages) you can send to the background thread in order to execute actions.
@@ -430,6 +433,7 @@ impl Default for CentralCommand {
         let notification_response_channel = unbounded();
         let diagnostics_response_channel = unbounded();
         let diagnostics_update_response_channel = unbounded();
+        let save_packedfile_response_channel = unbounded();
         Self {
             sender_qt: command_channel.0,
             sender_rust: response_channel.0,
@@ -438,6 +442,7 @@ impl Default for CentralCommand {
             sender_notification_to_qt: notification_response_channel.0,
             sender_diagnostics_to_qt: diagnostics_response_channel.0,
             sender_diagnostics_update_to_qt: diagnostics_update_response_channel.0,
+            sender_save_packedfile: save_packedfile_response_channel.0,
             receiver_qt: response_channel.1,
             receiver_rust: command_channel.1,
             receiver_qt_to_network: network_command_channel.1,
@@ -445,6 +450,7 @@ impl Default for CentralCommand {
             receiver_notification_to_qt: notification_response_channel.1,
             receiver_diagnostics_to_qt: diagnostics_response_channel.1,
             receiver_diagnostics_update_to_qt: diagnostics_update_response_channel.1,
+            receiver_save_packedfile: save_packedfile_response_channel.1,
         }
     }
 }
@@ -504,6 +510,14 @@ impl CentralCommand {
     #[allow(dead_code)]
     pub fn send_message_diagnostics_update_to_qt(&self, data: (Diagnostics, Vec<PackedFileInfo>)) {
         if self.sender_diagnostics_update_to_qt.send(data).is_err() {
+            panic!(THREADS_SENDER_ERROR);
+        }
+    }
+
+    /// This function serves to send message from the background thread to the main thread when a PackedFile is saved.
+    #[allow(dead_code)]
+    pub fn send_message_save_packedfile(&self, data: Response) {
+        if self.sender_save_packedfile.send(data).is_err() {
             panic!(THREADS_SENDER_ERROR);
         }
     }
@@ -651,6 +665,24 @@ impl CentralCommand {
 
             // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
             let response = self.receiver_network_to_qt.try_recv() ;
+            match response {
+                Ok(data) => return data,
+                Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+            }
+            unsafe { event_loop.process_events_0a(); }
+        }
+    }
+
+    /// This functions serves to receive messages from the network thread into the main thread when a PackedFile is saved.
+    ///
+    /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
+    #[allow(dead_code)]
+    pub fn recv_message_save_packedfile_try(&self) -> Response {
+        let event_loop = unsafe { QEventLoop::new_0a() };
+        loop {
+
+            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
+            let response = self.receiver_save_packedfile.try_recv() ;
             match response {
                 Ok(data) => return data,
                 Err(error) => if error.is_disconnected() { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }

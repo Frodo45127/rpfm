@@ -472,7 +472,7 @@ pub fn background_loop() {
                 else if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                     *packed_file.get_ref_mut_decoded() = decoded_packed_file;
                 }
-                CENTRAL_COMMAND.send_message_rust(Response::Success);
+                CENTRAL_COMMAND.send_message_save_packedfile(Response::Success);
             }
 
             // In case we want to delete PackedFiles from a PackFile...
@@ -779,11 +779,11 @@ pub fn background_loop() {
                                                 Ok(new_data) => {
                                                     *data = new_data;
                                                     match packed_file.encode_and_clean_cache() {
-                                                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                                                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                        Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
+                                                        Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
                                                     }
                                                 }
-                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
                                             }
                                         }
                                         else if let DecodedPackedFile::Loc(ref mut data) = data {
@@ -791,18 +791,18 @@ pub fn background_loop() {
                                                 Ok(new_data) => {
                                                     *data = new_data;
                                                     match packed_file.encode_and_clean_cache() {
-                                                        Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
-                                                        Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                        Ok(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Success),
+                                                        Err(error) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
                                                     }
                                                 }
-                                                Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                                Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
                                             }
                                         }
                                         else {
                                             unimplemented!()
                                         }
                                     },
-                                    Err(error) =>  CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                                    Err(error) =>  CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(error)),
                                 }
                             },
 
@@ -813,17 +813,17 @@ pub fn background_loop() {
                                         match file.read_to_end(&mut data) {
                                             Ok(_) => {
                                                 packed_file.set_raw_data(&data);
-                                                CENTRAL_COMMAND.send_message_rust(Response::Success);
+                                                CENTRAL_COMMAND.send_message_save_packedfile(Response::Success);
                                             }
-                                            Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::IOGeneric.into())),
+                                            Err(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(ErrorKind::IOGeneric.into())),
                                         }
                                     }
-                                    Err(_) => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::IOGeneric.into())),
+                                    Err(_) => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(ErrorKind::IOGeneric.into())),
                                 }
                             }
                         }
                     }
-                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                    None => CENTRAL_COMMAND.send_message_save_packedfile(Response::Error(ErrorKind::PackedFileNotFound.into())),
                 }
             }
 
