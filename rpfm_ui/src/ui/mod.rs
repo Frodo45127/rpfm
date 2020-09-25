@@ -147,6 +147,10 @@ impl UI {
             app_ui.main_window.set_window_state(QFlags::from(WindowState::WindowMaximized));
         }
 
+        if !SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
+            app_ui.view_toggle_diagnostics_panel.toggle();
+        }
+
         if !SETTINGS.read().unwrap().settings_string["font_name"].is_empty() && !SETTINGS.read().unwrap().settings_string["font_size"].is_empty() {
             let font = QFont::new();
             font.set_family(&QString::from_std_str(&SETTINGS.read().unwrap().settings_string["font_name"]));
