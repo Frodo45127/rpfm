@@ -74,7 +74,7 @@ pub mod tips;
 
 /// This struct contains all the pointers we need to access the widgets in the Global Search panel.
 pub struct GlobalSearchUI {
-    pub global_search_dock_widget: Ptr<QDockWidget>,
+    pub global_search_dock_widget: QBox<QDockWidget>,
     pub global_search_search_line_edit: QBox<QLineEdit>,
     pub global_search_search_button: QBox<QPushButton>,
 
@@ -136,11 +136,11 @@ impl GlobalSearchUI {
     pub unsafe fn new(main_window: Ptr<QMainWindow>) -> Self {
 
         // Create and configure the 'Global Search` Dock Widget and all his contents.
-        let global_search_dock_widget = QDockWidget::from_q_widget(main_window).into_ptr();
+        let global_search_dock_widget = QDockWidget::from_q_widget(main_window);
         let global_search_dock_inner_widget = QWidget::new_0a();
         let global_search_dock_layout = create_grid_layout(global_search_dock_inner_widget.static_upcast());
         global_search_dock_widget.set_widget(&global_search_dock_inner_widget);
-        main_window.add_dock_widget_2a(DockWidgetArea::RightDockWidgetArea, global_search_dock_widget);
+        main_window.add_dock_widget_2a(DockWidgetArea::RightDockWidgetArea, &global_search_dock_widget);
         global_search_dock_widget.set_window_title(&qtr("global_search"));
 
         // Create the search & replace section.
@@ -761,19 +761,19 @@ impl GlobalSearchUI {
                         text.set_editable(false);
 
                         // Add an empty row to the list.
-                        qlist_boi.append_q_standard_item(&mut column_name.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut row.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut text.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut column_number.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&column_name.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&column_number.into_ptr().as_mut_raw_ptr());
 
                         // Append the new row.
                         file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                     }
 
-                    qlist_daddy.append_q_standard_item(&mut file.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill2.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill3.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&file.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
 
                     model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
                 }
@@ -830,19 +830,19 @@ impl GlobalSearchUI {
                         len.set_editable(false);
 
                         // Add an empty row to the list.
-                        qlist_boi.append_q_standard_item(&mut text.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut row.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut column.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut len.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&text.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&len.into_ptr().as_mut_raw_ptr());
 
                         // Append the new row.
                         file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                     }
 
-                    qlist_daddy.append_q_standard_item(&mut file.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill2.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill3.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&file.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill3.into_ptr().as_mut_raw_ptr());
 
                     model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
                 }
@@ -901,17 +901,17 @@ impl GlobalSearchUI {
                         column.set_editable(false);
 
                         // Add an empty row to the list.
-                        qlist_boi.append_q_standard_item(&mut name.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut version.into_ptr().as_mut_raw_ptr());
-                        qlist_boi.append_q_standard_item(&mut column.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&name.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&version.into_ptr().as_mut_raw_ptr());
+                        qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
 
                         // Append the new row.
                         versioned_file.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                     }
 
-                    qlist_daddy.append_q_standard_item(&mut versioned_file.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill1.into_ptr().as_mut_raw_ptr());
-                    qlist_daddy.append_q_standard_item(&mut fill2.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&versioned_file.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
+                    qlist_daddy.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
 
                     model.append_row_q_list_of_q_standard_item(qlist_daddy.as_ref());
                 }

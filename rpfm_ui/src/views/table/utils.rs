@@ -186,7 +186,7 @@ pub unsafe fn get_new_row(table_definition: &Definition) -> CppBox<QListOfQStand
     let qlist = QListOfQStandardItem::new();
     for field in table_definition.get_fields_processed() {
         let item = get_default_item_from_field(&field);
-        qlist.append_q_standard_item(&mut item.into_ptr().as_mut_raw_ptr());
+        qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
     }
     qlist
 }
@@ -431,7 +431,7 @@ pub unsafe fn load_data(
                     _ => {}
                 }
 
-                qlist.append_q_standard_item(&mut item.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
             }
             if row == data.len() - 1 {
                 blocker.unblock();

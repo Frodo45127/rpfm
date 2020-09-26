@@ -949,7 +949,7 @@ impl TableView {
                     for (index, row_pack) in &rows {
                         for (offset, row) in row_pack.iter().enumerate() {
                             let qlist = QListOfQStandardItem::new();
-                            row.iter().for_each(|x| qlist.append_q_standard_item(&mut ptr_from_atomic(x).as_mut_raw_ptr()));
+                            row.iter().for_each(|x| qlist.append_q_standard_item(&ptr_from_atomic(x).as_mut_raw_ptr()));
                             model.insert_row_int_q_list_of_q_standard_item(*index + offset as i32, &qlist);
                         }
                     }
@@ -1189,7 +1189,7 @@ impl TableView {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
                     item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
-                    qlist.append_q_standard_item(&mut item.as_mut_raw_ptr());
+                    qlist.append_q_standard_item(&item.as_mut_raw_ptr());
                 }
 
                 rows.push(qlist);
@@ -1268,7 +1268,7 @@ impl TableView {
                     let original_item = self.table_model.item_2a(index.row(), column);
                     let item = (*original_item).clone();
                     item.set_background(&QBrush::from_q_color(color.as_ref().unwrap()));
-                    qlist.append_q_standard_item(&mut item.as_mut_raw_ptr());
+                    qlist.append_q_standard_item(&item.as_mut_raw_ptr());
                 }
                 qlist
             } else {
@@ -1304,7 +1304,7 @@ impl TableView {
             let qlist = QListOfQStandardItem::new();
             for column in 0..self.table_model.column_count_0a() {
                 let item = self.table_model.item_2a(row, column);
-                qlist.append_q_standard_item(&mut (*item).clone().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&(*item).clone().as_mut_raw_ptr());
             }
             old_data.push(atomic_from_ptr(qlist.into_ptr()));
         }

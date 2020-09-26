@@ -259,11 +259,11 @@ impl DiagnosticsUI {
                     message.set_editable(false);
 
                     // Add an empty row to the list.
-                    qlist_boi.append_q_standard_item(&mut level.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&mut column.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&mut row.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&mut path.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&mut message.into_ptr().as_mut_raw_ptr());
+                    qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                    qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
+                    qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
+                    qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                    qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
 
                     // Append the new row.
                     diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());

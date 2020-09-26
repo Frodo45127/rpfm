@@ -971,7 +971,7 @@ impl TableSearch {
                     for row in 0..model.row_count_0a() {
                         let item = model.item_2a(row, column);
                         if item.check_state() == check_state {
-                            items.append_q_standard_item(&mut item.as_mut_raw_ptr());
+                            items.append_q_standard_item(&item.as_mut_raw_ptr());
                         }
                     }
                     items

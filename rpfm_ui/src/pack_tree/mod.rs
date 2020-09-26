@@ -902,8 +902,8 @@ impl PackTree for QBox<QTreeView> {
                             icon_type.set_icon_to_item_safe(&mut file);
 
                             let qlist = QListOfQStandardItem::new();
-                            qlist.append_q_standard_item(&mut file.into_ptr().as_mut_raw_ptr());
-                            qlist.append_q_standard_item(&mut state_item.into_ptr().as_mut_raw_ptr());
+                            qlist.append_q_standard_item(&file.into_ptr().as_mut_raw_ptr());
+                            qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
 
                             parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
                         }
@@ -951,8 +951,8 @@ impl PackTree for QBox<QTreeView> {
                                 icon_type.set_icon_to_item_safe(&mut folder);
 
                                 let qlist = QListOfQStandardItem::new();
-                                qlist.append_q_standard_item(&mut folder.into_ptr().as_mut_raw_ptr());
-                                qlist.append_q_standard_item(&mut state_item.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&folder.into_ptr().as_mut_raw_ptr());
+                                qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
                                 parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
 
                                 // This is our parent now.
@@ -965,8 +965,8 @@ impl PackTree for QBox<QTreeView> {
 
                 // Delay adding the big parent as much as we can, as otherwise the signals triggered when adding a PackedFile can slow this down to a crawl.
                 let qlist = QListOfQStandardItem::new();
-                qlist.append_q_standard_item(&mut big_parent.into_ptr().as_mut_raw_ptr());
-                qlist.append_q_standard_item(&mut state_item.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&big_parent.into_ptr().as_mut_raw_ptr());
+                qlist.append_q_standard_item(&state_item.into_ptr().as_mut_raw_ptr());
 
                 model.append_row_q_list_of_q_standard_item(qlist.as_ref());
                 self.header().set_section_resize_mode_2a(0, ResizeMode::Stretch);
@@ -1075,8 +1075,8 @@ impl PackTree for QBox<QTreeView> {
                                     }
 
                                     let qlist = QListOfQStandardItem::new().into_ptr();
-                                    qlist.append_q_standard_item(&mut item.as_mut_raw_ptr());
-                                    qlist.append_q_standard_item(&mut item_status.as_mut_raw_ptr());
+                                    qlist.append_q_standard_item(&item.as_mut_raw_ptr());
+                                    qlist.append_q_standard_item(&item_status.as_mut_raw_ptr());
 
                                     parent.append_row_q_list_of_q_standard_item(qlist.as_ref().unwrap());
 
@@ -1138,8 +1138,8 @@ impl PackTree for QBox<QTreeView> {
                                     IconType::set_icon_to_item_safe(&IconType::Folder, &mut folder);
 
                                     let qlist = QListOfQStandardItem::new();
-                                    qlist.append_q_standard_item(&mut folder.as_mut_raw_ptr());
-                                    qlist.append_q_standard_item(&mut folder_status.as_mut_raw_ptr());
+                                    qlist.append_q_standard_item(&folder.as_mut_raw_ptr());
+                                    qlist.append_q_standard_item(&folder_status.as_mut_raw_ptr());
 
                                     parent.append_row_q_list_of_q_standard_item(qlist.as_ref());
 
