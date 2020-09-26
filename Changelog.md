@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2020-09-26
+### Changed
+- The diagnostics panel now it starts hidden if the diagnostics tool is disabled.
+
+### Fixed
+- Fixed a very time-specific CTD that caused crashes if you had an action going exactly 3 seconds after you edited a PackedFile.
+- Fixed an issue where pasting `0` over float cells in a table didn't work.
+- Fixed an issue that caused the autoupdater to leave files where it shouldn't.
+- Fixed an issue that caused the dark theme to take some time to load if you started RPFM by doubleclicking on a PackFile.
+
 ## [2.2.0] - 2020-09-25
 ### Added
 - Implemented Autosave.
