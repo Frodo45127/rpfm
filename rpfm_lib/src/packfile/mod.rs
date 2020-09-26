@@ -2476,7 +2476,7 @@ impl PackFile {
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
         // NOTE: This sorting has to be CASE INSENSITIVE. This means for "ac", "Ab" and "aa" it'll be "aa", "Ab", "ac".
-        self.packed_files.sort_unstable_by(|a, b| a.get_path().join("\\").to_lowercase().cmp(&b.get_path().join("\\").to_lowercase()));
+        self.packed_files.sort_unstable_by_key(|a| a.get_path().join("\\").to_lowercase());
 
         // We ensure that all the data is loaded and in his right form (compressed/encrypted) before attempting to save.
         // We need to do this here because we need later on their compressed size.
@@ -2634,12 +2634,12 @@ impl Manifest {
                 return Err(ErrorKind::ManifestError.into());
             } else {
                 let mut manifest_entry = ManifestEntry::default();
-                manifest_entry.relative_path = record.get(0).ok_or(Error::from(ErrorKind::ManifestError))?.to_owned();
-                manifest_entry.size = record.get(1).ok_or(Error::from(ErrorKind::ManifestError))?.parse()?;
+                manifest_entry.relative_path = record.get(0).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.to_owned();
+                manifest_entry.size = record.get(1).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse()?;
 
                 // In newer games, a third field has been added.
                 if record.len() == 3 {
-                    manifest_entry.belongs_to_base_game = record.get(2).ok_or(Error::from(ErrorKind::ManifestError))?.parse().ok();
+                    manifest_entry.belongs_to_base_game = record.get(2).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse().ok();
                 }
                 else {
                     manifest_entry.belongs_to_base_game = None;

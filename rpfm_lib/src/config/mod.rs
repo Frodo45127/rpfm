@@ -38,11 +38,11 @@ const PROGRAM_NAME: &str = "rpfm";
 pub fn init_config_path() -> Result<()> {
 
 	let config_path = get_config_path()?;
-    let autosaves_path = config_path.to_path_buf().join("autosaves");
-	let error_path = config_path.to_path_buf().join("error");
-	let schemas_path = config_path.to_path_buf().join("schemas");
-    let templates_path = config_path.to_path_buf().join("templates");
-    let templates_custom_path = config_path.to_path_buf().join("templates_custom");
+    let autosaves_path = config_path.join("autosaves");
+	let error_path = config_path.join("error");
+	let schemas_path = config_path.join("schemas");
+    let templates_path = config_path.join("templates");
+    let templates_custom_path = config_path.join("templates_custom");
 
     DirBuilder::new().recursive(true).create(&autosaves_path)?;
     DirBuilder::new().recursive(true).create(&config_path)?;
@@ -52,7 +52,7 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(&templates_custom_path)?;
 
     // Init autosave files if they're not yet initialized.
-    (1..=25).into_iter().for_each(|x| {
+    (1..=25).for_each(|x| {
         let path = autosaves_path.join(format!("autosave_{:02?}.pack", x));
         if !path.is_file() {
             let _ = File::create(path);

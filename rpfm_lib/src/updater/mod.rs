@@ -143,8 +143,8 @@ pub fn check_updates_rpfm() -> Result<APIResponse> {
     let update_channel = get_update_channel();
     let last_release = get_last_release(update_channel)?;
 
-    let current_version = cargo_crate_version!().split(".").map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
-    let last_version = &last_release.version.split(".").map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
+    let current_version = cargo_crate_version!().split('.').map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
+    let last_version = &last_release.version.split('.').map(|x| x.parse::<i32>().unwrap_or(0)).collect::<Vec<i32>>();
 
     // Before doing anything else, check if we are going back to stable after a beta, and we are currently in a beta version.
     // In that case, return the last stable as valid.
@@ -222,7 +222,7 @@ pub fn get_last_release(update_channel: UpdateChannel) -> Result<Release> {
 
     match releases.iter().find(|release| {
         match update_channel {
-            UpdateChannel::Stable => release.version.split(".").collect::<Vec<&str>>()[2].parse::<i32>().unwrap_or(0) < 99,
+            UpdateChannel::Stable => release.version.split('.').collect::<Vec<&str>>()[2].parse::<i32>().unwrap_or(0) < 99,
             UpdateChannel::Beta => true
         }
     }) {

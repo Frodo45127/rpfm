@@ -869,7 +869,7 @@ impl Definition {
         }
         else {field_processed.get_name().to_owned() };
 
-        return fields.iter().find(|x| x.get_name() == name).unwrap().clone()
+        fields.iter().find(|x| x.get_name() == name).unwrap().clone()
     }
 
     /// This function updates the fields in the provided definition with the data in the provided RawDefinition.

@@ -156,7 +156,7 @@ impl RawDefinition {
 
         self.fields.iter()
             .filter(|x| !localisable_fields_names.contains(&&*x.name))
-            .map(|x| From::from(x))
+            .map(From::from)
             .collect::<Vec<Field>>()
     }
 }

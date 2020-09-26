@@ -649,48 +649,42 @@ impl Table {
                         if field.get_is_bitwise() > 1 {
                             vec![DecodedData::Boolean(false); field.get_is_bitwise() as usize]
                         }
-                        else {
-                            if let Some(default_value) = field.get_default_value() {
-                                if let Ok(default_value) = default_value.parse::<i16>() {
-                                    vec![DecodedData::I16(default_value); 1]
-                                } else {
-                                    vec![DecodedData::I16(0); 1]
-                                }
+                        else if let Some(default_value) = field.get_default_value() {
+                            if let Ok(default_value) = default_value.parse::<i16>() {
+                                vec![DecodedData::I16(default_value); 1]
                             } else {
                                 vec![DecodedData::I16(0); 1]
                             }
+                        } else {
+                            vec![DecodedData::I16(0); 1]
                         }
                     },
                     FieldType::I32 => {
                         if field.get_is_bitwise() > 1 {
                             vec![DecodedData::Boolean(false); field.get_is_bitwise() as usize]
                         }
-                        else {
-                            if let Some(default_value) = field.get_default_value() {
-                                if let Ok(default_value) = default_value.parse::<i32>() {
-                                    vec![DecodedData::I32(default_value); 1]
-                                } else {
-                                    vec![DecodedData::I32(0); 1]
-                                }
+                        else if let Some(default_value) = field.get_default_value() {
+                            if let Ok(default_value) = default_value.parse::<i32>() {
+                                vec![DecodedData::I32(default_value); 1]
                             } else {
                                 vec![DecodedData::I32(0); 1]
                             }
+                        } else {
+                            vec![DecodedData::I32(0); 1]
                         }
                     },
                     FieldType::I64 => {
                         if field.get_is_bitwise() > 1 {
                             vec![DecodedData::Boolean(false); field.get_is_bitwise() as usize]
                         }
-                        else {
-                            if let Some(default_value) = field.get_default_value() {
-                                if let Ok(default_value) = default_value.parse::<i64>() {
-                                    vec![DecodedData::I64(default_value); 1]
-                                } else {
-                                    vec![DecodedData::I64(0); 1]
-                                }
+                        else if let Some(default_value) = field.get_default_value() {
+                            if let Ok(default_value) = default_value.parse::<i64>() {
+                                vec![DecodedData::I64(default_value); 1]
                             } else {
                                 vec![DecodedData::I64(0); 1]
                             }
+                        } else {
+                            vec![DecodedData::I64(0); 1]
                         }
                     },
                     FieldType::StringU8 => {

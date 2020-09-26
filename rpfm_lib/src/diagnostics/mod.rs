@@ -204,7 +204,7 @@ impl Diagnostics {
                     diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
-                        message: format!("Empty row.")
+                        message: "Empty row.".to_string()
                     }));
                 }
 
@@ -212,7 +212,7 @@ impl Diagnostics {
                     diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
-                        message: format!("Empty key fields.")
+                        message: "Empty key fields.".to_string()
                     }));
                 }
 
@@ -220,7 +220,7 @@ impl Diagnostics {
                     diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
-                        message: format!("Duplicated combined keys.")
+                        message: "Duplicated combined keys.".to_string()
                     }));
                 }
                 else {
@@ -275,7 +275,7 @@ impl Diagnostics {
                     diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
-                        message: format!("Empty row.")
+                        message: "Empty row.".to_string()
                     }));
                 }
 
@@ -283,7 +283,7 @@ impl Diagnostics {
                     diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
-                        message: format!("Empty key.")
+                        message: "Empty key.".to_string()
                     }));
                 }
 
@@ -292,7 +292,7 @@ impl Diagnostics {
                     diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 1,
                         row_number: row as i64,
-                        message: format!("Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.")
+                        message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string()
                     }));
                 }
 
@@ -301,7 +301,7 @@ impl Diagnostics {
                     diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
                         column_number: 0,
                         row_number: row as i64,
-                        message: format!("Duplicated row.")
+                        message: "Duplicated row.".to_string()
                     }));
                 }
                 else {

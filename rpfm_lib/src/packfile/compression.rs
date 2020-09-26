@@ -104,10 +104,10 @@ pub fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
 
                     Ok(fixed_data)
                 }
-                None => return Err(ErrorKind::ZipFolderNotFound.into())
+                None => Err(ErrorKind::ZipFolderNotFound.into())
             }
         }
 
-        None => return Err(ErrorKind::ZipFolderNotFound.into())
+        None => Err(ErrorKind::ZipFolderNotFound.into())
     }
 }
