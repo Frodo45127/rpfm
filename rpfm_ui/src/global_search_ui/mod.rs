@@ -472,13 +472,13 @@ impl GlobalSearchUI {
         CENTRAL_COMMAND.send_message_qt(Command::GlobalSearchUpdate(global_search, paths));
 
         // While we wait for an answer, we need to clear the current results panels.
-        let mut tree_view_db = &global_search_ui.global_search_matches_db_tree_view;
-        let mut tree_view_loc = &global_search_ui.global_search_matches_loc_tree_view;
-        let mut tree_view_text = &global_search_ui.global_search_matches_text_tree_view;
+        let tree_view_db = &global_search_ui.global_search_matches_db_tree_view;
+        let tree_view_loc = &global_search_ui.global_search_matches_loc_tree_view;
+        let tree_view_text = &global_search_ui.global_search_matches_text_tree_view;
 
-        let mut model_db = &global_search_ui.global_search_matches_db_tree_model;
-        let mut model_loc = &global_search_ui.global_search_matches_loc_tree_model;
-        let mut model_text = &global_search_ui.global_search_matches_text_tree_model;
+        let model_db = &global_search_ui.global_search_matches_db_tree_model;
+        let model_loc = &global_search_ui.global_search_matches_loc_tree_model;
+        let model_text = &global_search_ui.global_search_matches_text_tree_model;
 
         model_db.clear();
         model_loc.clear();
@@ -489,9 +489,9 @@ impl GlobalSearchUI {
             Response::GlobalSearchVecPackedFileInfo((global_search, packed_files_info)) => {
 
                 // Load the results to their respective models. Then, store the GlobalSearch for future checks.
-                Self::load_table_matches_to_ui(&mut model_db, &mut tree_view_db, &global_search.matches_db);
-                Self::load_table_matches_to_ui(&mut model_loc, &mut tree_view_loc, &global_search.matches_loc);
-                Self::load_text_matches_to_ui(&mut model_text, &mut tree_view_text, &global_search.matches_text);
+                Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
+                Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
+                Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
             }
 
@@ -943,9 +943,9 @@ impl GlobalSearchUI {
         if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
         else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
 
-        let mut model_filter: QPtr<QSortFilterProxyModel> = view.model().static_downcast();
+        let model_filter: QPtr<QSortFilterProxyModel> = view.model().static_downcast();
         model_filter.set_filter_key_column(column_combobox.current_index());
-        trigger_treeview_filter_safe(&mut model_filter, &pattern.as_ptr());
+        trigger_treeview_filter_safe(&model_filter, &pattern.as_ptr());
     }
 
     /// Function to get all the selected matches in the visible selection.

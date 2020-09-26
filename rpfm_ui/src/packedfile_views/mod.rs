@@ -250,8 +250,8 @@ impl PackedFileView {
                     PackedFileType::Text(_) => {
                         if let View::Text(view) = view {
                             let mut text = Text::default();
-                            let mut widget = view.get_mut_editor();
-                            let string = get_text_safe(&mut widget).to_std_string();
+                            let widget = view.get_mut_editor();
+                            let string = get_text_safe(&widget).to_std_string();
                             text.set_contents(&string);
                             DecodedPackedFile::Text(text)
                         } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }

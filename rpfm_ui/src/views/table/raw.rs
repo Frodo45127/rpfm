@@ -930,7 +930,7 @@ impl TableView {
                 TableOperations::AddRows(mut rows) => {
 
                     // Sort them 0->9, so we can process them.
-                    rows.sort_by(|x, y| x.cmp(y));
+                    rows.sort();
                     self.undo_lock.store(true, Ordering::SeqCst);
                     let rows_splitted = delete_rows(&self.table_model, &rows);
                     history_opposite.push(TableOperations::RemoveRows(rows_splitted));

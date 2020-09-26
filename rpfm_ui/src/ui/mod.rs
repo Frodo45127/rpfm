@@ -97,7 +97,7 @@ impl UI {
     pub unsafe fn new(app: Ptr<QApplication>) -> Self {
 
         let app_ui = Rc::new(AppUI::new());
-        let mut global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window));
+        let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window));
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(app_ui.main_window));
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window));
 
@@ -113,8 +113,8 @@ impl UI {
         app_ui::shortcuts::set_shortcuts(&app_ui);
 
         global_search_ui::connections::set_connections(&global_search_ui, &global_search_slots);
-        global_search_ui::tips::set_tips(&mut global_search_ui);
-        global_search_ui::shortcuts::set_shortcuts(&mut global_search_ui);
+        global_search_ui::tips::set_tips(&global_search_ui);
+        global_search_ui::shortcuts::set_shortcuts(&global_search_ui);
 
         packfile_contents_ui::connections::set_connections(&pack_file_contents_ui, &pack_file_contents_slots);
         packfile_contents_ui::tips::set_tips(&pack_file_contents_ui);
@@ -189,7 +189,7 @@ impl UI {
         if args.len() > 1 {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &mut global_search_ui, &diagnostics_ui, &[path], "") {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path], "") {
                     show_dialog(app_ui.main_window, error, false);
                 }
 

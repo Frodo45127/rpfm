@@ -889,7 +889,7 @@ impl PackTree for QBox<QTreeView> {
 
                         // If it's the last string in the file path, it's a file, so we add it to the model.
                         if index_in_path == packed_file.path.len() - 1 {
-                            let mut file = QStandardItem::from_q_string(&QString::from_std_str(name));
+                            let file = QStandardItem::from_q_string(&QString::from_std_str(name));
                             let state_item = QStandardItem::new();
                             let tooltip = new_packed_file_tooltip(&packed_file);
                             file.set_tool_tip(&QString::from_std_str(tooltip));
@@ -899,7 +899,7 @@ impl PackTree for QBox<QTreeView> {
                             state_item.set_editable(false);
                             state_item.set_flags(QFlags::from(flags));
                             let icon_type = IconType::File(packed_file.path.to_vec());
-                            icon_type.set_icon_to_item_safe(&mut file);
+                            icon_type.set_icon_to_item_safe(&file);
 
                             let qlist = QListOfQStandardItem::new();
                             qlist.append_q_standard_item(&file.into_ptr().as_mut_raw_ptr());
@@ -940,7 +940,7 @@ impl PackTree for QBox<QTreeView> {
 
                             // If our current parent doesn't have anything, just add it as a new folder.
                             if !duplicate_found {
-                                let mut folder = QStandardItem::from_q_string(&QString::from_std_str(name));
+                                let folder = QStandardItem::from_q_string(&QString::from_std_str(name));
                                 let state_item = QStandardItem::new();
                                 folder.set_editable(false);
                                 folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
@@ -948,7 +948,7 @@ impl PackTree for QBox<QTreeView> {
                                 state_item.set_editable(false);
                                 state_item.set_flags(QFlags::from(flags));
                                 let icon_type = IconType::Folder;
-                                icon_type.set_icon_to_item_safe(&mut folder);
+                                icon_type.set_icon_to_item_safe(&folder);
 
                                 let qlist = QListOfQStandardItem::new();
                                 qlist.append_q_standard_item(&folder.into_ptr().as_mut_raw_ptr());
@@ -1055,14 +1055,14 @@ impl PackTree for QBox<QTreeView> {
 
                                     // Create the Item, configure it depending on if it's a file or a folder,
                                     // and add the file to the TreeView.
-                                    let mut item = QStandardItem::from_q_string(&QString::from_std_str(name)).into_ptr();
+                                    let item = QStandardItem::from_q_string(&QString::from_std_str(name)).into_ptr();
                                     let item_status = QStandardItem::new().into_ptr();
                                     item.set_editable(false);
                                     item_status.set_editable(false);
 
                                     if let TreePathType::File(ref path) = &item_type {
                                         item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FILE), ITEM_TYPE);
-                                        IconType::set_icon_to_item_safe(&IconType::File(path.to_vec()), &mut item);
+                                        IconType::set_icon_to_item_safe(&IconType::File(path.to_vec()), &item);
                                         if let Some(info) = packed_file_info {
                                             let tooltip = new_packed_file_tooltip(info);
                                             item.set_tool_tip(&QString::from_std_str(tooltip));
@@ -1071,7 +1071,7 @@ impl PackTree for QBox<QTreeView> {
 
                                     else if let TreePathType::Folder(_) = &item_type {
                                         item.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
-                                        IconType::set_icon_to_item_safe(&IconType::Folder, &mut item);
+                                        IconType::set_icon_to_item_safe(&IconType::Folder, &item);
                                     }
 
                                     let qlist = QListOfQStandardItem::new().into_ptr();
@@ -1130,12 +1130,12 @@ impl PackTree for QBox<QTreeView> {
 
                                 // If the folder doesn't already exists, just add it.
                                 if !duplicate_found {
-                                    let mut folder = QStandardItem::from_q_string(&QString::from_std_str(name)).into_ptr();
+                                    let folder = QStandardItem::from_q_string(&QString::from_std_str(name)).into_ptr();
                                     let folder_status = QStandardItem::new().into_ptr();
                                     folder.set_editable(false);
                                     folder.set_data_2a(&QVariant::from_int(ITEM_TYPE_FOLDER), ITEM_TYPE);
 
-                                    IconType::set_icon_to_item_safe(&IconType::Folder, &mut folder);
+                                    IconType::set_icon_to_item_safe(&IconType::Folder, &folder);
 
                                     let qlist = QListOfQStandardItem::new();
                                     qlist.append_q_standard_item(&folder.as_mut_raw_ptr());

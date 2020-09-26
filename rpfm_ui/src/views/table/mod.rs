@@ -302,10 +302,8 @@ impl TableView {
                 else if !a.get_is_key() && b.get_is_key() { Ordering::Greater }
                 else { Ordering::Equal }
             }
-            else {
-                if a.get_ca_order() == -1 || b.get_ca_order() == -1 { Ordering::Equal }
-                else { a.get_ca_order().cmp(&b.get_ca_order()) }
-            }
+            else if a.get_ca_order() == -1 || b.get_ca_order() == -1 { Ordering::Equal }
+            else { a.get_ca_order().cmp(&b.get_ca_order()) }
         });
 
         for field in &fields {

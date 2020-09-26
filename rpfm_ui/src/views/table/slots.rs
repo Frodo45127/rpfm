@@ -582,31 +582,31 @@ impl TableViewSlots {
 
         let search_search = SlotNoArgs::new(&view.table_view_primary, clone!(
             mut view => move || {
-                TableSearch::search(&mut view);
+                TableSearch::search(&view);
             }
         ));
 
         let search_prev_match = SlotNoArgs::new(&view.table_view_primary, clone!(
             mut view => move || {
-                TableSearch::prev_match(&mut view);
+                TableSearch::prev_match(&view);
             }
         ));
 
         let search_next_match = SlotNoArgs::new(&view.table_view_primary, clone!(
             mut view => move || {
-                TableSearch::next_match(&mut view);
+                TableSearch::next_match(&view);
             }
         ));
 
         let search_replace_current = SlotNoArgs::new(&view.table_view_primary, clone!(
             mut view => move || {
-                TableSearch::replace_current(&mut view);
+                TableSearch::replace_current(&view);
             }
         ));
 
         let search_replace_all = SlotNoArgs::new(&view.table_view_primary, clone!(
             mut view => move || {
-                TableSearch::replace_all(&mut view);
+                TableSearch::replace_all(&view);
             }
         ));
 

@@ -924,7 +924,7 @@ impl AppUI {
                                             mut diagnostics_ui,
                                             mut game_folder_name => move |_| {
                                             if Self::are_you_sure(&app_ui, false) {
-                                                if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &mut global_search_ui, &diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name) {
+                                                if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name) {
                                                     return show_dialog(app_ui.main_window, error, false);
                                                 }
                                                 app_ui.menu_bar_mymod.set_enabled(false);

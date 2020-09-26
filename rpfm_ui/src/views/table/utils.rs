@@ -37,7 +37,7 @@ use cpp_core::Ptr;
 use cpp_core::Ref;
 
 use std::collections::BTreeMap;
-use std::cmp::Ordering;
+use std::cmp::{Ordering, Reverse};
 use std::rc::Rc;
 use std::sync::{atomic::AtomicPtr, RwLock};
 
@@ -135,7 +135,7 @@ pub unsafe fn delete_rows(model: &QBox<QStandardItemModel>, rows: &[i32]) -> Vec
 
     // Make sure all rows are sorted 9->0.
     let mut rows = rows.to_vec();
-    rows.sort_by(|x, y| y.cmp(&x));
+    rows.sort_by_key(|&y| Reverse(y));
 
     // To optimize this, we remove them in consecutive packs, which really helps when you're deleting a ton of rows at the same time.
     // That way we only trigger one deletion with it's signals instead a ton of them.
