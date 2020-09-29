@@ -52,7 +52,7 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(&templates_custom_path)?;
 
     // Init autosave files if they're not yet initialized.
-    (1..=25).for_each(|x| {
+    (1..=10).for_each(|x| {
         let path = autosaves_path.join(format!("autosave_{:02?}.pack", x));
         if !path.is_file() {
             let _ = File::create(path);
