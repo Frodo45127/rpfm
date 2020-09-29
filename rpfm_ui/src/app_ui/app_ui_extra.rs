@@ -702,7 +702,7 @@ impl AppUI {
 
                         // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
                         app_ui.menu_bar_packfile.set_enabled(false);
-                        DiagnosticsUI::check(&diagnostics_ui);
+                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         app_ui.menu_bar_packfile.set_enabled(true);
                     }
                 }));
@@ -734,7 +734,7 @@ impl AppUI {
                             return show_dialog(app_ui.main_window, error, false);
                         }
                         app_ui.menu_bar_packfile.set_enabled(false);
-                        DiagnosticsUI::check(&diagnostics_ui);
+                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         app_ui.menu_bar_packfile.set_enabled(true);
                     }
                 }));
@@ -765,7 +765,7 @@ impl AppUI {
                             return show_dialog(app_ui.main_window, error, false);
                         }
                         app_ui.menu_bar_packfile.set_enabled(false);
-                        DiagnosticsUI::check(&diagnostics_ui);
+                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         app_ui.menu_bar_packfile.set_enabled(true);
                     }
                 }));
@@ -808,7 +808,7 @@ impl AppUI {
 
                                                     // Update the global search stuff, if needed.
                                                     GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
-                                                    DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
+                                                    DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
 
                                                     // Try to reload all open files which data we altered, and close those that failed.
                                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
@@ -928,7 +928,7 @@ impl AppUI {
                                                     return show_dialog(app_ui.main_window, error, false);
                                                 }
                                                 app_ui.menu_bar_mymod.set_enabled(false);
-                                                DiagnosticsUI::check(&diagnostics_ui);
+                                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                                                 app_ui.menu_bar_mymod.set_enabled(true);
                                             }
                                         }));

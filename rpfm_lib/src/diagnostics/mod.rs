@@ -26,36 +26,35 @@ use crate::packfile::packedfile::PackedFileInfo;
 use crate::PackedFile;
 use crate::schema::FieldType;
 
+use self::packfile::PackFileDiagnostic;
+use self::table::{TableDiagnostic, TableDiagnosticReport};
+
+pub mod packfile;
+pub mod table;
+
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the results of a diagnostics check over multiple PackedFiles.
 #[derive(Debug, Clone)]
-pub struct Diagnostics(Vec<Diagnostic>);
+pub struct Diagnostics(Vec<DiagnosticType>);
 
-/// This struct contains the results of a diagnostics check over a single PackedFile.
 #[derive(Debug, Clone)]
-pub struct Diagnostic {
-    path: Vec<String>,
-    result: Vec<DiagnosticResult>
+pub enum DiagnosticType {
+    DB(TableDiagnostic),
+    Loc(TableDiagnostic),
+    PackFile(PackFileDiagnostic),
 }
 
 /// This enum defines the possible results for a result of a diagnostic check.
 #[derive(Debug, Clone)]
-pub enum DiagnosticResult {
-    Info(DiagnosticReport),
-    Warning(DiagnosticReport),
-    Error(DiagnosticReport),
+pub enum DiagnosticLevel {
+    Info,
+    Warning,
+    Error,
 }
 
-/// This struct defines an individual diagnostic result.
-#[derive(Debug, Clone)]
-pub struct DiagnosticReport {
-    pub column_number: u32,
-    pub row_number: i64,
-    pub message: String,
-}
 //---------------------------------------------------------------p----------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -67,33 +66,24 @@ impl Default for Diagnostics {
     }
 }
 
-/// Implementation of `Diagnostic`.
-impl Diagnostic {
-    pub fn new(path: &[String]) -> Self {
-        Self {
-            path: path.to_vec(),
-            result: vec![],
+impl DiagnosticType {
+    pub fn get_path(&self) -> &[String] {
+        match self {
+            Self::DB(ref diag) |
+            Self::Loc(ref diag) => diag.get_path(),
+            Self::PackFile(ref diag) => diag.get_path(),
         }
     }
-
-    pub fn get_path(&self) -> &[String] {
-        &self.path
-    }
-
-    pub fn get_result(&self) -> &[DiagnosticResult] {
-        &self.result
-    }
 }
-
 
 /// Implementation of `Diagnostics`.
 impl Diagnostics {
 
-    pub fn get_ref_diagnostics(&self) -> &[Diagnostic] {
+    pub fn get_ref_diagnostics(&self) -> &[DiagnosticType] {
         &self.0
     }
 
-    pub fn get_ref_mut_diagnostics(&mut self) -> &mut Vec<Diagnostic> {
+    pub fn get_ref_mut_diagnostics(&mut self) -> &mut Vec<DiagnosticType> {
         &mut self.0
     }
 
@@ -108,6 +98,10 @@ impl Diagnostics {
                 _ => None,
             }
         }).collect();
+
+        if let Some(diagnostics) = Self::check_packfile() {
+            self.0.push(diagnostics);
+        }
     }
 
     /// This function takes care of checking the db tables of your mod for errors.
@@ -117,9 +111,9 @@ impl Diagnostics {
         path: &[String],
         real_dep_db: &[PackedFile],
         fake_dep_db: &[DB],
-    ) ->Option<Diagnostic> {
+    ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
-            let mut diagnostic = Diagnostic::new(path);
+            let mut diagnostic = TableDiagnostic::new(path);
             let dependency_data = DB::get_dependency_data(
                 &pack_file,
                 table.get_ref_definition(),
@@ -135,11 +129,12 @@ impl Diagnostics {
 
             // Before anything else, check if the table is outdated.
             if table.is_outdated() {
-                diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                     column_number: 0,
-                    row_number: 0,
+                    row_number: -1,
                     message: "Possibly outdated table.".to_owned(),
-                }));
+                    level: DiagnosticLevel::Error,
+                });
             }
 
             for (row, cells) in table.get_ref_table_data().iter().enumerate() {
@@ -163,11 +158,12 @@ impl Diagnostics {
 
                                 // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
                                 else if !cell_data.is_empty() && !ref_data.contains_key(&cell_data) {
-                                    diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                                         column_number: column as u32,
                                         row_number: row as i64,
-                                        message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, table.get_ref_definition().get_fields_processed()[column].get_name())
-                                    }));
+                                        message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, table.get_ref_definition().get_fields_processed()[column].get_name()),
+                                        level: DiagnosticLevel::Error,
+                                    });
                                 }
                             }
                             None => {
@@ -188,11 +184,12 @@ impl Diagnostics {
                     }
 
                     if field.get_is_key() && field.get_field_type() != FieldType::OptionalStringU8 && field.get_field_type() != FieldType::Boolean && (cell_data.is_empty() || cell_data == "false") {
-                        diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                        diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                             column_number: column as u32,
                             row_number: row as i64,
-                            message: format!("Empty key for column \"{}\".", table.get_ref_definition().get_fields_processed()[column].get_name())
-                        }));
+                            message: format!("Empty key for column \"{}\".", table.get_ref_definition().get_fields_processed()[column].get_name()),
+                            level: DiagnosticLevel::Warning,
+                        });
                     }
 
                     if field.get_is_key() {
@@ -201,27 +198,30 @@ impl Diagnostics {
                 }
 
                 if row_is_empty {
-                    diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
-                        message: "Empty row.".to_string()
-                    }));
+                        message: "Empty row.".to_string(),
+                        level: DiagnosticLevel::Error,
+                    });
                 }
 
                 if row_keys_are_empty {
-                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
-                        message: "Empty key fields.".to_string()
-                    }));
+                        message: "Empty key fields.".to_string(),
+                        level: DiagnosticLevel::Warning,
+                    });
                 }
 
                 if local_keys.len() > 1 && keys.contains(&local_keys) {
-                    diagnostic.result.push(DiagnosticResult::Error(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
-                        message: "Duplicated combined keys.".to_string()
-                    }));
+                        message: "Duplicated combined keys.".to_string(),
+                        level: DiagnosticLevel::Error,
+                    });
                 }
                 else {
                     keys.push(local_keys);
@@ -230,40 +230,43 @@ impl Diagnostics {
 
             // Checks that only need to be done once per table.
             for column in &columns_without_reference_table {
-                diagnostic.result.push(DiagnosticResult::Info(DiagnosticReport{
+                diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                     column_number: *column as u32,
                     row_number: -1,
-                    message: format!("No reference table found for column \"{}\".", table.get_ref_definition().get_fields_processed()[*column as usize].get_name())
-                }));
+                    message: format!("No reference table found for column \"{}\".", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                    level: DiagnosticLevel::Info,
+                });
             }
 
             for column in &columns_with_reference_table_and_no_column {
                 if fake_dep_db.is_empty() {
-                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: *column as u32,
                         row_number: -1,
-                        message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name())
-                    }));
+                        message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                        level: DiagnosticLevel::Warning,
+                    });
                 }
                 else {
-                    diagnostic.result.push(DiagnosticResult::Info(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: *column as u32,
                         row_number: -1,
-                        message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name())
-                    }));
+                        message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                        level: DiagnosticLevel::Info,
+                    });
                 }
             }
 
-            if !diagnostic.get_result().is_empty() {
-                Some(diagnostic)
+            if !diagnostic.get_ref_result().is_empty() {
+                Some(DiagnosticType::DB(diagnostic))
             } else { None }
         } else { None }
     }
 
     /// This function takes care of checking the loc tables of your mod for errors.
-    fn check_loc(packed_file: &DecodedPackedFile, path: &[String]) ->Option<Diagnostic> {
+    fn check_loc(packed_file: &DecodedPackedFile, path: &[String]) ->Option<DiagnosticType> {
         if let DecodedPackedFile::Loc(table) = packed_file {
-            let mut diagnostic = Diagnostic::new(path);
+            let mut diagnostic = TableDiagnostic::new(path);
 
             // Check all the columns with reference data.
             let mut keys = vec![];
@@ -272,46 +275,58 @@ impl Diagnostics {
                 let data = if let DecodedData::StringU16(ref data) = cells[1] { data } else { unimplemented!() };
 
                 if key.is_empty() && data.is_empty() {
-                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
-                        message: "Empty row.".to_string()
-                    }));
+                        message: "Empty row.".to_string(),
+                        level: DiagnosticLevel::Warning,
+                    });
                 }
 
                 if key.is_empty() && !data.is_empty() {
-                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
-                        message: "Empty key.".to_string()
-                    }));
+                        message: "Empty key.".to_string(),
+                        level: DiagnosticLevel::Warning,
+                    });
                 }
 
                 // Magic Regex. It works. Don't ask why.
                 if !data.is_empty() && Regex::new(r"(?<!\\)\\n|(?<!\\)\\t").unwrap().is_match(data).unwrap() {
-                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 1,
                         row_number: row as i64,
-                        message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string()
-                    }));
+                        message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
+                        level: DiagnosticLevel::Warning,
+                    });
                 }
 
                 let local_keys = vec![key, data];
                 if keys.contains(&local_keys) {
-                    diagnostic.result.push(DiagnosticResult::Warning(DiagnosticReport{
+                    diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
-                        message: "Duplicated row.".to_string()
-                    }));
+                        message: "Duplicated row.".to_string(),
+                        level: DiagnosticLevel::Warning,
+                    });
                 }
                 else {
                     keys.push(local_keys);
                 }
             }
 
-            if !diagnostic.get_result().is_empty() {
-                Some(diagnostic)
+            if !diagnostic.get_ref_result().is_empty() {
+                Some(DiagnosticType::Loc(diagnostic))
             } else { None }
+        } else { None }
+    }
+
+    /// This function takes care of checking for PackFile-Related for errors.
+    fn check_packfile() ->Option<DiagnosticType> {
+        let diagnostic = PackFileDiagnostic::new();
+        if !diagnostic.get_ref_result().is_empty() {
+            Some(DiagnosticType::PackFile(diagnostic))
         } else { None }
     }
 
@@ -338,7 +353,7 @@ impl Diagnostics {
 
         // We remove the added/edited/deleted files from all the search.
         for path in &paths {
-            self.get_ref_mut_diagnostics().retain(|x| &x.path != path);
+            self.get_ref_mut_diagnostics().retain(|x| &x.get_path() != path);
         }
 
         // If we got no schema, don't even decode.
@@ -356,7 +371,7 @@ impl Diagnostics {
             }
         }
 
-        self.get_ref_mut_diagnostics().sort_by(|a, b| a.path.cmp(&b.path));
+        self.get_ref_mut_diagnostics().sort_by(|a, b| a.get_path().cmp(b.get_path()));
     }
 
     /// This function returns the PackedFileInfo for all the PackedFiles with the provided paths.

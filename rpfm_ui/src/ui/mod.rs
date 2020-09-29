@@ -193,7 +193,7 @@ impl UI {
                     show_dialog(app_ui.main_window, error, false);
                 }
 
-                DiagnosticsUI::check(&diagnostics_ui);
+                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
             }
         }
 

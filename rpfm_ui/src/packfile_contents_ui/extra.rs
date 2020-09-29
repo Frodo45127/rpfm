@@ -76,7 +76,7 @@ impl PackFileContentsUI {
 
                 // Update the global search stuff, if needed.
                 GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
-                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
+                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
@@ -119,7 +119,7 @@ impl PackFileContentsUI {
 
                 // Update the global search stuff, if needed.
                 GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
-                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
+                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
 
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();

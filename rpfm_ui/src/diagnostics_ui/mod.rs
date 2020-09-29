@@ -44,7 +44,7 @@ use std::rc::Rc;
 
 use rpfm_error::ErrorKind;
 
-use rpfm_lib::diagnostics::{Diagnostic, DiagnosticResult};
+use rpfm_lib::diagnostics::{*, table::*};
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
@@ -196,12 +196,12 @@ impl DiagnosticsUI {
     }
 
     /// This function takes care of checking the entire PackFile for errors.
-    pub unsafe fn check(diagnostics_ui: &Rc<Self>) {
+    pub unsafe fn check(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>) {
         if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
             CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsCheck);
             diagnostics_ui.diagnostics_table_model.clear();
             let diagnostics = CENTRAL_COMMAND.recv_message_diagnostics_to_qt_try();
-            Self::load_diagnostics_to_ui(diagnostics_ui, diagnostics.get_ref_diagnostics());
+            Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
             Self::filter_by_level(diagnostics_ui);
             Self::update_level_counts(diagnostics_ui, diagnostics.get_ref_diagnostics());
             UI_STATE.set_diagnostics(&diagnostics);
@@ -209,14 +209,14 @@ impl DiagnosticsUI {
     }
 
     /// This function takes care of updating the results of a diagnostics check for the provided paths.
-    pub unsafe fn check_on_path(pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<PathType>) {
+    pub unsafe fn check_on_path(app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>, diagnostics_ui: &Rc<Self>, paths: Vec<PathType>) {
         if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
             let diagnostics = UI_STATE.get_diagnostics();
             CENTRAL_COMMAND.send_message_qt(Command::DiagnosticsUpdate((diagnostics, paths)));
             let (diagnostics, packed_files_info) = CENTRAL_COMMAND.recv_message_diagnostics_update_to_qt_try();
 
             diagnostics_ui.diagnostics_table_model.clear();
-            Self::load_diagnostics_to_ui(diagnostics_ui, diagnostics.get_ref_diagnostics());
+            Self::load_diagnostics_to_ui(app_ui, diagnostics_ui, diagnostics.get_ref_diagnostics());
             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
 
             Self::filter_by_level(diagnostics_ui);
@@ -226,60 +226,116 @@ impl DiagnosticsUI {
     }
 
     /// This function takes care of loading the results of a diagnostic check into the table.
-    unsafe fn load_diagnostics_to_ui(diagnostics_ui: &Rc<Self>, diagnostics: &[Diagnostic]) {
+    unsafe fn load_diagnostics_to_ui(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
         if !diagnostics.is_empty() {
-            for diagnostic in diagnostics {
-                for result in diagnostic.get_result() {
-                    let qlist_boi = QListOfQStandardItem::new();
+            for diagnostic_type in diagnostics {
+                match diagnostic_type {
+                    DiagnosticType::DB(ref diagnostic) |
+                    DiagnosticType::Loc(ref diagnostic) => {
+                        for result in diagnostic.get_ref_result() {
+                            let qlist_boi = QListOfQStandardItem::new();
 
-                    // Create an empty row.
-                    let level = QStandardItem::new();
-                    let column = QStandardItem::new();
-                    let row = QStandardItem::new();
-                    let path = QStandardItem::new();
-                    let message = QStandardItem::new();
+                            // Create an empty row.
+                            let level = QStandardItem::new();
+                            let diag_type = QStandardItem::new();
+                            let column = QStandardItem::new();
+                            let row = QStandardItem::new();
+                            let path = QStandardItem::new();
+                            let message = QStandardItem::new();
+                            let (result_type, color) = match result.level {
+                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
+                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
+                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
+                            };
 
-                    let (result_data, result_type, color) = match result {
-                        DiagnosticResult::Info(data) => (data, "Info".to_owned(), get_color_info()),
-                        DiagnosticResult::Warning(data) => (data, "Warning".to_owned(), get_color_warning()),
-                        DiagnosticResult::Error(data) => (data, "Error".to_owned(), get_color_error()),
-                    };
+                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
+                            level.set_text(&QString::from_std_str(result_type));
+                            diag_type.set_text(&QString::from_std_str("table"));
+                            column.set_data_2a(&QVariant::from_uint(result.column_number), 2);
+                            row.set_data_2a(&QVariant::from_i64(result.row_number + 1), 2);
+                            path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
+                            message.set_text(&QString::from_std_str(&result.message));
 
-                    level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
-                    level.set_text(&QString::from_std_str(result_type));
-                    column.set_data_2a(&QVariant::from_uint(result_data.column_number), 2);
-                    row.set_data_2a(&QVariant::from_i64(result_data.row_number + 1), 2);
-                    path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
-                    message.set_text(&QString::from_std_str(&result_data.message));
+                            level.set_editable(false);
+                            diag_type.set_editable(false);
+                            column.set_editable(false);
+                            row.set_editable(false);
+                            path.set_editable(false);
+                            message.set_editable(false);
 
-                    level.set_editable(false);
-                    column.set_editable(false);
-                    row.set_editable(false);
-                    path.set_editable(false);
-                    message.set_editable(false);
+                            // Add an empty row to the list.
+                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
 
-                    // Add an empty row to the list.
-                    qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&column.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&row.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
-                    qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+                            // Append the new row.
+                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                        }
 
-                    // Append the new row.
-                    diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                        // After that, check if the table is open, and paint the results into it.
+                        Self::paint_diagnostics_to_table(app_ui, diagnostic);
+                    }
+
+                    DiagnosticType::PackFile(ref diagnostic) => {
+                        for result in diagnostic.get_ref_result() {
+                            let qlist_boi = QListOfQStandardItem::new();
+
+                            // Create an empty row.
+                            let level = QStandardItem::new();
+                            let diag_type = QStandardItem::new();
+                            let fill1 = QStandardItem::new();
+                            let fill2 = QStandardItem::new();
+                            let path = QStandardItem::new();
+                            let message = QStandardItem::new();
+                            let (result_type, color) = match result.level {
+                                DiagnosticLevel::Info => ("Info".to_owned(), get_color_info()),
+                                DiagnosticLevel::Warning => ("Warning".to_owned(), get_color_warning()),
+                                DiagnosticLevel::Error => ("Error".to_owned(), get_color_error()),
+                            };
+
+                            level.set_background(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(color))));
+                            level.set_text(&QString::from_std_str(result_type));
+                            diag_type.set_text(&QString::from_std_str("packedfile"));
+                            path.set_text(&QString::from_std_str(&diagnostic.get_path().join("/")));
+                            message.set_text(&QString::from_std_str(&result.message));
+
+                            level.set_editable(false);
+                            diag_type.set_editable(false);
+                            fill1.set_editable(false);
+                            fill2.set_editable(false);
+                            path.set_editable(false);
+                            message.set_editable(false);
+
+                            // Add an empty row to the list.
+                            qlist_boi.append_q_standard_item(&level.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&diag_type.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill1.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&fill2.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&path.into_ptr().as_mut_raw_ptr());
+                            qlist_boi.append_q_standard_item(&message.into_ptr().as_mut_raw_ptr());
+
+                            // Append the new row.
+                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                        }
+                    }
                 }
             }
 
             diagnostics_ui.diagnostics_table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_level")));
             diagnostics_ui.diagnostics_table_model.set_header_data_3a(1, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_row")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
-            diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(2, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_column")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(3, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_row")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(4, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_path")));
+            diagnostics_ui.diagnostics_table_model.set_header_data_3a(5, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_message")));
 
             // Hide the column number column for tables.
             diagnostics_ui.diagnostics_table_view.hide_column(1);
             diagnostics_ui.diagnostics_table_view.hide_column(2);
-            diagnostics_ui.diagnostics_table_view.sort_by_column_2a(3, SortOrder::AscendingOrder);
+            diagnostics_ui.diagnostics_table_view.hide_column(3);
+            diagnostics_ui.diagnostics_table_view.sort_by_column_2a(4, SortOrder::AscendingOrder);
 
             diagnostics_ui.diagnostics_table_view.horizontal_header().set_stretch_last_section(true);
             diagnostics_ui.diagnostics_table_view.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
@@ -299,7 +355,7 @@ impl DiagnosticsUI {
         let model_index = filter_model.map_to_source(model_index_filtered.as_ref().unwrap());
 
         // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
-        let item_path = model.item_2a(model_index.row(), 3);
+        let item_path = model.item_2a(model_index.row(), 4);
         let path = item_path.text().to_std_string();
         let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
 
@@ -314,34 +370,76 @@ impl DiagnosticsUI {
                 tree_view.scroll_to_1a(pack_file_contents_model_index);
                 selection_model.select_q_model_index_q_flags_selection_flag(pack_file_contents_model_index, QFlags::from(SelectionFlag::ClearAndSelect));
 
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                    match packed_file_view.get_view() {
+                match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
+                    "table" => {
 
-                        // In case of tables, we have to get the logical row/column of the match and select it.
-                        ViewType::Internal(view) => if let View::Table(view) = view {
-                            let table_view = view.get_ref_table();
-                            let table_view = table_view.get_mut_ptr_table_view_primary();
-                            let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                            let table_selection_model = table_view.selection_model();
+                        if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                            match packed_file_view.get_view() {
 
-                            let row = model.item_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap() - 1;
-                            let column = model.item_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap();
+                                // In case of tables, we have to get the logical row/column of the match and select it.
+                                ViewType::Internal(view) => if let View::Table(view) = view {
+                                    let table_view = view.get_ref_table();
+                                    let table_view = table_view.get_mut_ptr_table_view_primary();
+                                    let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                                    let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                                    let table_selection_model = table_view.selection_model();
 
-                            let table_model_index = table_model.index_2a(row, column);
-                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                            if table_model_index_filtered.is_valid() {
-                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                                table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    let row = model.item_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap() - 1;
+                                    let column = model.item_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap();
+
+                                    let table_model_index = table_model.index_2a(row, column);
+                                    let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                                    if table_model_index_filtered.is_valid() {
+                                        table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                        table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                                    }
+                                },
+
+                                _ => {},
                             }
-                        },
-
-                        _ => {},
+                        }
                     }
+
+                    _ => {}
                 }
             }
         }
         else { show_dialog(app_ui.main_window, ErrorKind::PackedFileNotInFilter, false); }
+    }
+
+    /// This function tries to paint the results from the provided diagnostics into their file view, if the file is open.
+    pub unsafe fn paint_diagnostics_to_table(
+        app_ui: &Rc<AppUI>,
+        diagnostic: &TableDiagnostic,
+    ) {
+
+        if let Some(view) = UI_STATE.get_open_packedfiles().iter().find(|view| view.get_path() == diagnostic.get_path()) {
+            if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
+                match view.get_view() {
+
+                    // In case of tables, we have to get the logical row/column of the match and select it.
+                    ViewType::Internal(view) => if let View::Table(view) = view {
+                        let table_view = view.get_ref_table();
+                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+
+                        for result in diagnostic.get_ref_result() {
+                            let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
+                            let table_model_item = table_model.item_from_index(&table_model_index);
+
+                            match result.level {
+                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error())))),
+                                DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning())))),
+                                DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
+                            }
+                        }
+                    },
+
+                    _ => {},
+                }
+            }
+        }
     }
 
     pub unsafe fn filter_by_level(diagnostics_ui: &Rc<Self>) {
@@ -366,10 +464,46 @@ impl DiagnosticsUI {
         diagnostics_ui.diagnostics_table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
     }
 
-    pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[Diagnostic]) {
-        let info = diagnostics.iter().map(|x| x.get_result().iter().filter(|y| if let DiagnosticResult::Info(_) = y { true } else { false }).count() ).sum::<usize>();
-        let warning = diagnostics.iter().map(|x| x.get_result().iter().filter(|y| if let DiagnosticResult::Warning(_) = y { true } else { false }).count() ).sum::<usize>();
-        let error = diagnostics.iter().map(|x| x.get_result().iter().filter(|y| if let DiagnosticResult::Error(_) = y { true } else { false }).count() ).sum::<usize>();
+    pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
+        let info = diagnostics.iter().map(|x|
+            match x {
+                DiagnosticType::DB(ref diag) |
+                DiagnosticType::Loc(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| if let DiagnosticLevel::Info = y.level { true } else { false })
+                    .count(),
+                DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| if let DiagnosticLevel::Info = y.level { true } else { false })
+                    .count()
+            }).sum::<usize>();
+
+        let warning = diagnostics.iter().map(|x|
+            match x {
+                DiagnosticType::DB(ref diag) |
+                DiagnosticType::Loc(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| if let DiagnosticLevel::Warning = y.level { true } else { false })
+                    .count(),
+                    DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| if let DiagnosticLevel::Warning = y.level { true } else { false })
+                    .count()
+            }).sum::<usize>();
+
+
+        let error = diagnostics.iter().map(|x|
+            match x {
+                DiagnosticType::DB(ref diag) |
+                DiagnosticType::Loc(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| if let DiagnosticLevel::Error = y.level { true } else { false })
+                    .count(),
+                DiagnosticType::PackFile(ref diag) => diag.get_ref_result()
+                    .iter()
+                    .filter(|y| if let DiagnosticLevel::Error = y.level { true } else { false })
+                    .count()
+            }).sum::<usize>();
 
         diagnostics_ui.diagnostics_button_info.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_info"), info)));
         diagnostics_ui.diagnostics_button_warning.set_text(&QString::from_std_str(&format!("{} ({})", tr("diagnostics_button_warning"), warning)));

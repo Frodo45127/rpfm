@@ -293,7 +293,7 @@ impl PackedFileView {
                             UI_STATE.set_global_search(&global_search);
                         }
 
-                        DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, path_types);
+                        DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
 
                         Ok(())
                     }

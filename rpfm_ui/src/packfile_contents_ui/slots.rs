@@ -820,7 +820,7 @@ impl PackFileContentsSlots {
 
                                                 // Update the global search stuff, if needed.
                                                 GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, vec![PathType::File(new_path.to_vec()); 1]);
-                                                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, vec![PathType::File(new_path.to_vec()); 1]);
+                                                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, vec![PathType::File(new_path.to_vec()); 1]);
                                             }
                                         }
                                     }
@@ -1081,7 +1081,7 @@ impl PackFileContentsSlots {
 
                             // Update the global search stuff, if needed.
                             GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, vec![PathType::File(path_to_add.to_vec()); 1]);
-                            DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, vec![PathType::File(path_to_add); 1]);
+                            DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, vec![PathType::File(path_to_add); 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1122,7 +1122,7 @@ impl PackFileContentsSlots {
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
                             GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, vec![path_type.clone(); 1]);
-                            DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, vec![path_type; 1]);
+                            DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, vec![path_type; 1]);
                         }
 
                         Response::Error(error) => show_dialog(app_ui.main_window, error, false),
@@ -1176,7 +1176,7 @@ impl PackFileContentsSlots {
 
                                 // Update the global search stuff, if needed.
                                 GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
-                                DiagnosticsUI::check_on_path(&pack_file_contents_ui, &diagnostics_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
+                                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
                             }
 
                             Response::Error(error) => show_dialog(app_ui.main_window, error, false),
