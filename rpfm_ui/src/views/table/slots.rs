@@ -86,7 +86,9 @@ pub struct TableViewSlots {
     pub sidebar: QBox<SlotOfBool>,
     pub search: QBox<SlotOfBool>,
     pub hide_show_columns: Vec<QBox<SlotOfInt>>,
+    pub hide_show_columns_all: QBox<SlotOfInt>,
     pub freeze_columns: Vec<QBox<SlotOfInt>>,
+    pub freeze_columns_all: QBox<SlotOfInt>,
     pub search_search: QBox<SlotNoArgs>,
     pub search_prev_match: QBox<SlotNoArgs>,
     pub search_next_match: QBox<SlotNoArgs>,
@@ -551,30 +553,39 @@ impl TableViewSlots {
 
         let mut hide_show_columns = vec![];
         let mut freeze_columns = vec![];
-        let mut fields = view.get_ref_table_definition().get_fields_processed().iter()
-            .enumerate()
-            .map(|(x, y)| (x as i32, y.get_ca_order()))
-            .collect::<Vec<(i32, i16)>>();
-        fields.sort_by(|(_, a), (_, b)| a.cmp(&b));
-        let ca_order = fields.iter().map(|x| x.0).collect::<Vec<i32>>();
 
-        for index in ca_order {
+        let fields = get_fields_sorted(&view.get_ref_table_definition());
+        for (index, _) in fields.iter().enumerate() {
             let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
                 mut view => move |state| {
                     let state = state == 2;
-                    view.table_view_primary.set_column_hidden(index, state);
+                    view.table_view_primary.set_column_hidden(index as i32, state);
                 }
             ));
 
             let freeze_slot = SlotOfInt::new(&view.table_view_primary, clone!(
                 mut view => move |_| {
-                    toggle_freezer_safe(&view.table_view_primary, index);
+                    toggle_freezer_safe(&view.table_view_primary, index as i32);
                 }
             ));
 
             hide_show_columns.push(hide_show_slot);
             freeze_columns.push(freeze_slot);
         }
+
+        let hide_show_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
+            mut view => move |state| {
+                let state = state == 2;
+                view.get_hide_show_checkboxes().iter().for_each(|x| x.set_checked(state))
+            }
+        ));
+
+        let freeze_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
+            mut view => move |state| {
+                let state = state == 2;
+                view.get_freeze_checkboxes().iter().for_each(|x| x.set_checked(state))
+            }
+        ));
 
         //------------------------------------------------------//
         // Slots related with the search panel.
@@ -691,7 +702,9 @@ impl TableViewSlots {
             sidebar,
             search,
             hide_show_columns,
+            hide_show_columns_all,
             freeze_columns,
+            freeze_columns_all,
             search_search,
             search_prev_match,
             search_next_match,

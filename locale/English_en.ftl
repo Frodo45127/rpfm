@@ -616,3 +616,5 @@ diagnostics_colum_message = Message
 context_menu_copy_path = Copy Path
 mymod_open_mymod_folder = Open MyMod Folder
 open_from_autosave = Open From Autosave
+
+all = All

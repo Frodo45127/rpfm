@@ -46,7 +46,6 @@ use qt_core::QPtr;
 
 use cpp_core::Ptr;
 
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::{fmt, fmt::Debug};
 use std::sync::{Arc, RwLock, RwLockReadGuard};
@@ -70,10 +69,9 @@ use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{View, ViewType};
-use crate::utils::{atomic_from_ptr, q_ptr_from_atomic};
+use crate::utils::atomic_from_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::show_dialog;
-use crate::utils::atomic_from_q_box;
 
 use self::slots::TableViewSlots;
 use self::utils::*;
@@ -189,8 +187,10 @@ pub struct TableView {
     sidebar_scroll_area: QBox<QScrollArea>,
     search_widget: QBox<QWidget>,
 
-    sidebar_hide_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
-    sidebar_freeze_checkboxes: Arc<Vec<AtomicPtr<QCheckBox>>>,
+    sidebar_hide_checkboxes: Vec<QBox<QCheckBox>>,
+    sidebar_hide_checkboxes_all: QBox<QCheckBox>,
+    sidebar_freeze_checkboxes: Vec<QBox<QCheckBox>>,
+    sidebar_freeze_checkboxes_all: QBox<QCheckBox>,
 
     search_search_line_edit: QBox<QLineEdit>,
     search_replace_line_edit: QBox<QLineEdit>,
@@ -294,18 +294,7 @@ impl TableView {
 
         filter_column_selector.set_model(row_filter_column_list);
 
-        let mut fields = table_definition.get_fields_processed().to_vec();
-        fields.sort_by(|a, b| {
-            if SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] {
-                if a.get_is_key() && b.get_is_key() { Ordering::Equal }
-                else if a.get_is_key() && !b.get_is_key() { Ordering::Less }
-                else if !a.get_is_key() && b.get_is_key() { Ordering::Greater }
-                else { Ordering::Equal }
-            }
-            else if a.get_ca_order() == -1 || b.get_ca_order() == -1 { Ordering::Equal }
-            else { a.get_ca_order().cmp(&b.get_ca_order()) }
-        });
-
+        let fields = get_fields_sorted(&table_definition);
         for field in &fields {
             let name = clean_column_names(&field.get_name());
             filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
@@ -447,8 +436,20 @@ impl TableView {
         sidebar_grid.add_widget_5a(&header_hidden, 0, 1, 1, 1);
         sidebar_grid.add_widget_5a(&header_frozen, 0, 2, 1, 1);
 
-        let mut hide_show_checkboxes = vec![];
-        let mut freeze_checkboxes = vec![];
+        let label_all = QLabel::from_q_string(&qtr("all"));
+        let sidebar_hide_checkboxes_all = QCheckBox::new();
+        let sidebar_freeze_checkboxes_all = QCheckBox::new();
+        sidebar_freeze_checkboxes_all.set_enabled(false);
+
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_hide_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
+        sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_freeze_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
+
+        sidebar_grid.add_widget_5a(&label_all, 1, 0, 1, 1);
+        sidebar_grid.add_widget_5a(&sidebar_hide_checkboxes_all, 1, 1, 1, 1);
+        sidebar_grid.add_widget_5a(&sidebar_freeze_checkboxes_all, 1, 2, 1, 1);
+
+        let mut sidebar_hide_checkboxes = vec![];
+        let mut sidebar_freeze_checkboxes = vec![];
         for (index, column) in fields.iter().enumerate() {
             let column_name = QLabel::from_q_string(&QString::from_std_str(&utils::clean_column_names(&column.get_name())));
             let hide_show_checkbox = QCheckBox::new();
@@ -458,12 +459,12 @@ impl TableView {
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&freeze_unfreeze_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
 
-            sidebar_grid.add_widget_5a(&column_name, (index + 1) as i32, 0, 1, 1);
-            sidebar_grid.add_widget_5a(&hide_show_checkbox, (index + 1) as i32, 1, 1, 1);
-            sidebar_grid.add_widget_5a(&freeze_unfreeze_checkbox, (index + 1) as i32, 2, 1, 1);
+            sidebar_grid.add_widget_5a(&column_name, (index + 2) as i32, 0, 1, 1);
+            sidebar_grid.add_widget_5a(&hide_show_checkbox, (index + 2) as i32, 1, 1, 1);
+            sidebar_grid.add_widget_5a(&freeze_unfreeze_checkbox, (index + 2) as i32, 2, 1, 1);
 
-            hide_show_checkboxes.push(atomic_from_q_box(hide_show_checkbox));
-            freeze_checkboxes.push(atomic_from_q_box(freeze_unfreeze_checkbox));
+            sidebar_hide_checkboxes.push(hide_show_checkbox);
+            sidebar_freeze_checkboxes.push(freeze_unfreeze_checkbox);
         }
 
         // Add all the stuff to the main grid and hide the search widget.
@@ -521,8 +522,10 @@ impl TableView {
             search_case_sensitive_button,
             search_data: Arc::new(RwLock::new(TableSearch::default())),
 
-            sidebar_hide_checkboxes: Arc::new(hide_show_checkboxes),
-            sidebar_freeze_checkboxes: Arc::new(freeze_checkboxes),
+            sidebar_hide_checkboxes,
+            sidebar_hide_checkboxes_all,
+            sidebar_freeze_checkboxes,
+            sidebar_freeze_checkboxes_all,
 
             sidebar_scroll_area,
             search_widget,
@@ -788,17 +791,23 @@ impl TableView {
     }
 
     /// This function returns a vector with the entire hide/show checkbox list.
-    pub fn get_hide_show_checkboxes(&self) -> Vec<QPtr<QCheckBox>> {
-        self.sidebar_hide_checkboxes.iter()
-            .map(|x| q_ptr_from_atomic(x))
-            .collect()
+    pub fn get_hide_show_checkboxes(&self) -> &[QBox<QCheckBox>] {
+        &self.sidebar_hide_checkboxes
+    }
+
+    /// This function returns the checkbox to hide them all.
+    pub fn get_hide_show_checkboxes_all(&self) -> &QBox<QCheckBox> {
+        &self.sidebar_hide_checkboxes_all
     }
 
     /// This function returns a vector with the entire freeze checkbox list.
-    pub fn get_freeze_checkboxes(&self) -> Vec<QPtr<QCheckBox>> {
-        self.sidebar_freeze_checkboxes.iter()
-            .map(|x| q_ptr_from_atomic(x))
-            .collect()
+    pub fn get_freeze_checkboxes(&self) -> &[QBox<QCheckBox>] {
+        &self.sidebar_freeze_checkboxes
+    }
+
+    /// This function returns a the checkbox to freeze them all.
+    pub fn get_freeze_checkboxes_all(&self) -> &QBox<QCheckBox> {
+        &self.sidebar_freeze_checkboxes_all
     }
 
     /// This function returns a pointer to the search lineedit in the search panel.

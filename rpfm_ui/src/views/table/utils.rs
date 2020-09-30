@@ -959,3 +959,19 @@ pub unsafe fn open_subtable(
         }
     } else { None }
 }
+
+/// This function returns the field list of a table, properly sorted for the view.
+pub fn get_fields_sorted(table_definition: &Definition) -> Vec<Field> {
+    let mut fields = table_definition.get_fields_processed().to_vec();
+    fields.sort_by(|a, b| {
+        if SETTINGS.read().unwrap().settings_bool["tables_use_old_column_order"] {
+            if a.get_is_key() && b.get_is_key() { Ordering::Equal }
+            else if a.get_is_key() && !b.get_is_key() { Ordering::Less }
+            else if !a.get_is_key() && b.get_is_key() { Ordering::Greater }
+            else { Ordering::Equal }
+        }
+        else if a.get_ca_order() == -1 || b.get_ca_order() == -1 { Ordering::Equal }
+        else { a.get_ca_order().cmp(&b.get_ca_order()) }
+    });
+    fields
+}
