@@ -32,6 +32,7 @@ use crate::settings::Settings;
 
 pub mod assembly_kit;
 pub mod common;
+pub mod dependencies;
 pub mod diagnostics;
 pub mod config;
 pub mod games;
@@ -56,12 +57,6 @@ lazy_static! {
 
     /// The current GameSelected. Same as the one above, only edited from the background thread.
     pub static ref GAME_SELECTED: Arc<RwLock<String>> = Arc::new(RwLock::new(SETTINGS.read().unwrap().settings_string["default_game"].to_owned()));
-
-    /// PackedFiles from the dependencies of the currently open PackFile.
-    pub static ref DEPENDENCY_DATABASE: Arc<RwLock<Vec<PackedFile>>> = Arc::new(RwLock::new(vec![]));
-
-    /// DB Files from the Pak File of the current game. Only for dependency checking.
-    pub static ref FAKE_DEPENDENCY_DATABASE: Arc<RwLock<Vec<DB>>> = Arc::new(RwLock::new(vec![]));
 
     /// Currently loaded schema.
     pub static ref SCHEMA: Arc<RwLock<Option<Schema>>> = Arc::new(RwLock::new(None));

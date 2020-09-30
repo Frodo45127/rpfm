@@ -24,7 +24,7 @@ use std::ops::Deref;
 
 use rpfm_error::{Error, ErrorKind, Result};
 
-use crate::DEPENDENCY_DATABASE;
+use crate::dependencies::Dependencies;
 use crate::packedfile::animpack::AnimPack;
 use crate::packedfile::ca_vp8::CaVp8;
 use crate::packedfile::image::Image;
@@ -264,10 +264,10 @@ impl DecodedPackedFile {
     /// This function updates a DB Table to its latest valid version, being the latest valid version the one in the data.pack or equivalent of the game.
     ///
     /// It returns both, old and new versions, or an error.
-    pub fn update_table(&mut self) -> Result<(i32, i32)> {
+    pub fn update_table(&mut self, dependencies: &Dependencies) -> Result<(i32, i32)> {
         match self {
             DecodedPackedFile::DB(data) => {
-                let dep_db = DEPENDENCY_DATABASE.read().unwrap();
+                let dep_db = dependencies.get_ref_dependency_database();
                 if let Some(vanilla_db) = dep_db.par_iter()
                     .filter_map(|x| x.get_decoded_from_memory().ok())
                     .filter_map(|x| if let DecodedPackedFile::DB(y) = x { Some(y) } else { None })

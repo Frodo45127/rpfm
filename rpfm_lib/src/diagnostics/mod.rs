@@ -18,8 +18,7 @@ use rayon::prelude::*;
 use fancy_regex::Regex;
 
 use crate::DB;
-use crate::DEPENDENCY_DATABASE;
-use crate::FAKE_DEPENDENCY_DATABASE;
+use crate::dependencies::Dependencies;
 use crate::packfile::{PackFile, PathType};
 use crate::packedfile::{table::DecodedData, DecodedPackedFile, PackedFileType};
 use crate::packfile::packedfile::PackedFileInfo;
@@ -88,9 +87,9 @@ impl Diagnostics {
     }
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
-    pub fn check(&mut self, pack_file: &PackFile) {
-        let real_dep_db = DEPENDENCY_DATABASE.read().unwrap();
-        let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
+    pub fn check(&mut self, pack_file: &PackFile, dependencies: &Dependencies) {
+        let real_dep_db = dependencies.get_ref_dependency_database();
+        let fake_dep_db = dependencies.get_ref_fake_dependency_database();
         self.0 = pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false).par_iter().filter_map(|packed_file| {
             match packed_file.get_packed_file_type_by_path() {
                 PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &real_dep_db, &fake_dep_db),
@@ -128,7 +127,7 @@ impl Diagnostics {
             let mut keys = vec![];
 
             // Before anything else, check if the table is outdated.
-            if table.is_outdated() {
+            if table.is_outdated(&real_dep_db) {
                 diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                     column_number: 0,
                     row_number: -1,
@@ -339,7 +338,7 @@ impl Diagnostics {
     /// use the normal check function, because it's a lot more efficient than this one.
     ///
     /// NOTE: The schema search is not updated on schema change. Remember that.
-    pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType]) {
+    pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &Dependencies) {
 
         // Turn all our updated packs into `PackedFile` paths, and get them.
         let mut paths = vec![];
@@ -353,12 +352,12 @@ impl Diagnostics {
 
         // We remove the added/edited/deleted files from all the search.
         for path in &paths {
-            self.get_ref_mut_diagnostics().retain(|x| &x.get_path() != path);
+            self.get_ref_mut_diagnostics().retain(|x| x.get_path() != &**path);
         }
 
         // If we got no schema, don't even decode.
-        let real_dep_db = DEPENDENCY_DATABASE.read().unwrap();
-        let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
+        let real_dep_db = dependencies.get_ref_dependency_database();
+        let fake_dep_db = dependencies.get_ref_fake_dependency_database();
         for packed_file in pack_file.get_ref_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect()) {
             let diagnostic = match packed_file.get_packed_file_type_by_path() {
                 PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &real_dep_db, &fake_dep_db),

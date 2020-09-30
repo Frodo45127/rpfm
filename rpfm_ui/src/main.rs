@@ -19,7 +19,6 @@
     clippy::new_ret_no_self,                // Disabled because the reported situations are special cases. So no, I'm not going to rewrite them.
     clippy::suspicious_else_formatting,     // Disabled because the errors it gives are actually false positives due to comments.
     clippy::match_wild_err_arm,              // Disabled because, despite being a bad practice, it's the intended behavior in the code it warns about.
-    clippy::large_enum_variant,
     clippy::clone_on_copy
 )]
 
@@ -295,8 +294,8 @@ fn main() {
     //---------------------------------------------------------------------------------------//
 
     // Create the background and network threads, where all the magic will happen.
-    thread::spawn(move || { background_thread::background_loop(); });
-    thread::spawn(move || { network_thread::network_loop(); });
+    thread::spawn(|| { background_thread::background_loop(); });
+    thread::spawn(|| { network_thread::network_loop(); });
 
     // Create the application and start the loop.
     QApplication::init(|app| {

@@ -31,9 +31,10 @@ use rpfm_error::{Result, ErrorKind};
 use crate::assembly_kit::table_definition::RawDefinition;
 use crate::assembly_kit::table_data::RawTable;
 use crate::assembly_kit::localisable_fields::RawLocalisableFields;
-use crate::{DEPENDENCY_DATABASE, GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
+use crate::{GAME_SELECTED, SCHEMA, SUPPORTED_GAMES};
 use crate::common::*;
 use crate::config::get_config_path;
+use crate::dependencies::Dependencies;
 use crate::packfile::PackFile;
 use crate::packedfile::table::db::DB;
 use crate::schema::*;
@@ -74,8 +75,9 @@ const BLACKLISTED_TABLES: [&str; 1] = ["translated_texts.xml"];
 pub fn generate_pak_file(
     raw_db_path: &PathBuf,
     version: i16,
+    dependencies: &Dependencies
 ) -> Result<()> {
-    let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true)?;
+    let (raw_tables, _) = RawTable::read_all(raw_db_path, version, true, dependencies)?;
     let tables: Vec<DB> = raw_tables.par_iter().map(From::from).collect();
 
     // Save our new PAK File where it should be.
@@ -101,7 +103,7 @@ pub fn generate_pak_file(
 /// - This works only over already decoded tables (no new definitions are created).
 /// - This decodes localisable fields as proper localisable fiels, separating them from the rest.
 /// - This only updates the current versions of the tables, not older ones.
-pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()> {
+pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>, dependencies: &Dependencies) -> Result<()> {
     let mut schema_writable = SCHEMA.write().unwrap();
     let schema_referenced: &mut Option<Schema> = schema_writable.borrow_mut();
     if let Some(ref mut schema) = schema_referenced {
@@ -131,7 +133,7 @@ pub fn update_schema_from_raw_files(ass_kit_path: Option<PathBuf>) -> Result<()>
                             from_reader(file).ok()
                         } else { None };
 
-                    let (raw_definitions, _) = RawDefinition::read_all(&ass_kit_schemas_path, raw_db_version, false)?;
+                    let (raw_definitions, _) = RawDefinition::read_all(&ass_kit_schemas_path, raw_db_version, false, dependencies)?;
                     schema.get_ref_mut_versioned_file_db_all().par_iter_mut().for_each(|versioned_file| {
                         if let VersionedFile::DB(table_name, definitions) = versioned_file {
                             let name = &table_name[0..table_name.len() - 7];

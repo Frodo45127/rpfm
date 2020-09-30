@@ -70,8 +70,8 @@ use ron::de::from_reader;
 use ron::ser::{to_string_pretty, PrettyConfig};
 use serde_derive::{Serialize, Deserialize};
 
-use std::collections::BTreeMap;
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::fs::{DirBuilder, File};
 use std::{fmt, fmt::Display};
 use std::io::{BufReader, Write};
@@ -81,7 +81,7 @@ use rpfm_error::{ErrorKind, Result};
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
 use crate::assembly_kit::table_definition::{RawDefinition, RawField};
 use crate::common::get_schemas_path;
-use crate::DEPENDENCY_DATABASE;
+use crate::dependencies::Dependencies;
 use crate::SUPPORTED_GAMES;
 use crate::config::get_config_path;
 use crate::packedfile::DecodedPackedFile;
@@ -407,11 +407,11 @@ impl Schema {
     ///
     /// As we may have versions from other games, we first need to check for the last definition in the dependency database.
     /// If that fails, we try to get it from the schema.
-    pub fn get_ref_last_definition_db(&self, table_name: &str) -> Result<&Definition> {
+    pub fn get_ref_last_definition_db(&self, table_name: &str, dependencies: &Dependencies) -> Result<&Definition> {
 
         // Version is... complicated. We don't really want the last one, but the last one compatible with our game.
         // So we have to try to get it first from the Dependency Database first. If that fails, we fall back to the schema.
-        if let Some(vanilla_table) = DEPENDENCY_DATABASE.read().unwrap().iter()
+        if let Some(vanilla_table) = dependencies.get_ref_dependency_database().iter()
             .filter(|x| x.get_path().len() == 3)
             .find(|x| x.get_path()[0] == "db" && x.get_path()[1] == *table_name) {
             if let DecodedPackedFile::DB(table) = vanilla_table.get_decoded_from_memory()? {

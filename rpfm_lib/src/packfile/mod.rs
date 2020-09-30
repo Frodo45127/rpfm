@@ -34,17 +34,15 @@ use std::sync::{Arc, Mutex};
 use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::GAME_SELECTED;
-use crate::DEPENDENCY_DATABASE;
-use crate::FAKE_DEPENDENCY_DATABASE;
 use crate::SCHEMA;
 use crate::SETTINGS;
 use crate::SUPPORTED_GAMES;
 use crate::common::{*, decoder::Decoder, encoder::Encoder};
+use crate::dependencies::Dependencies;
 use crate::packfile::compression::*;
 use crate::packfile::crypto::*;
 use crate::packfile::packedfile::*;
 use crate::packedfile::{DecodedPackedFile, PackedFileType};
-use crate::packedfile::table::DecodedData;
 use crate::packedfile::table::db::DB;
 use crate::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 
@@ -1454,78 +1452,6 @@ impl PackFile {
         successes
     }
 
-    /// This function checks all the DB Tables of the provided PackFile for dependency errors.
-    ///
-    /// TODO: Make this not throw warnings on references that point to a **localised** column.
-    /// TODO2: Make this return the name of the columns instead of their index.
-    pub fn check_table_integrity(&mut self) -> Result<()> {
-
-        let schema = &*SCHEMA.read().unwrap();
-        match schema {
-            Some(ref schema) => {
-
-                let mut broken_tables = vec![];
-                let real_dep_db = DEPENDENCY_DATABASE.read().unwrap();
-                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
-
-                // Due to how mutability works, we have first to get the data of every table,
-                // then iterate them and decode them. The errors here can be silenced safetly.
-                self.get_ref_mut_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false).par_iter_mut().for_each(|packed_file| {
-                    let _ = packed_file.decode_no_locks(schema);
-                });
-
-                for packed_file in self.get_packed_files_by_path_start(&["db".to_owned()]) {
-                    if let DecodedPackedFile::DB(table) = packed_file.get_ref_decoded() {
-                        let dependency_data = DB::get_dependency_data(self, &table.get_definition(), &real_dep_db, &fake_dep_db, &[]);
-
-                        // If we got some dependency data (the referenced tables actually exists), check every
-                        // referenced field of every referenced column for errors.
-                        if !dependency_data.is_empty() {
-                            let mut broken_columns = vec![];
-                            for row in table.get_table_data() {
-                                for (column, dependency_data) in &dependency_data {
-                                    let field_data = match row[*column as usize] {
-                                        DecodedData::Boolean(ref entry) => entry.to_string(),
-                                        DecodedData::F32(ref entry) => entry.to_string(),
-                                        DecodedData::I16(ref entry) => entry.to_string(),
-                                        DecodedData::I32(ref entry) => entry.to_string(),
-                                        DecodedData::I64(ref entry) => entry.to_string(),
-                                        DecodedData::StringU8(ref entry) |
-                                        DecodedData::StringU16(ref entry) |
-                                        DecodedData::OptionalStringU8(ref entry) |
-                                        DecodedData::OptionalStringU16(ref entry) => entry.to_owned(),
-                                        _ => "NoData".to_owned()
-                                    };
-
-                                    let dependency_data = dependency_data.iter().map(|x| x.0).collect::<Vec<&String>>();
-                                    if &field_data != "NoData" && !field_data.is_empty() && !dependency_data.contains(&&field_data) {
-                                        broken_columns.push(*column);
-                                    }
-                                }
-                            }
-
-                            // If we got missing refs, sort the columns, dedup them and turn them into a nice string for the error message.
-                            // Columns + 1 is so we don't start counting on zero. Easier for the user to see.
-                            if !broken_columns.is_empty() {
-                                let path = packed_file.get_path();
-                                broken_columns.sort();
-                                broken_columns.dedup();
-                                let mut broken_columns = broken_columns.iter().map(|x| format!("{},", *x + 1)).collect::<String>();
-                                broken_columns.pop();
-                                broken_tables.push(format!("Table: {}/{}, Column/s: {}", &path[1], &path[2], broken_columns));
-                            }
-                        }
-                    }
-                }
-
-                // If all tables are Ok, return it. Otherwise, return an error with the list of broken tables.
-                if broken_tables.is_empty() { Ok(()) }
-                else { Err(ErrorKind::DBMissingReferences(broken_tables).into()) }
-            }
-            None => Err(ErrorKind::SchemaNotFound.into())
-        }
-    }
-
     /// This function merges (if possible) the provided DB and LOC tables into one with the provided name.
     ///
     /// NOTE: The merged table will be created in the folder of the first provided file.
@@ -1610,11 +1536,11 @@ impl PackFile {
     /// - Empty DB tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
     /// - Empty Loc tables (except if the table has the same name as his vanilla counterpart and certain setting is enabled).
     /// - XML files in map folders.
-    pub fn optimize(&mut self) -> Vec<Vec<String>> {
+    pub fn optimize(&mut self, dependencies: &Dependencies) -> Vec<Vec<String>> {
 
         // List of PackedFiles to delete.
         let mut files_to_delete: Vec<Vec<String>> = vec![];
-        let dependencies = DEPENDENCY_DATABASE.read().unwrap();
+        let dependencies = dependencies.get_ref_dependency_database();
 
         // We get the entire list of paths from the dependency database, so we can check if each `PackedFile is trying to overwrite a vanilla one or not.
         let database_path_list = dependencies.iter().map(|x| x.get_path().to_vec()).collect::<Vec<Vec<String>>>();

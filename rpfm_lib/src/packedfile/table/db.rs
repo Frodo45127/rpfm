@@ -29,7 +29,6 @@ use rpfm_error::{ErrorKind, Result};
 use crate::assembly_kit::table_data::RawTable;
 use crate::common::{decoder::Decoder, encoder::Encoder};
 use crate::common::get_game_selected_pak_file;
-use crate::DEPENDENCY_DATABASE;
 use crate::GAME_SELECTED;
 use crate::games::*;
 use crate::packedfile::DecodedPackedFile;
@@ -541,8 +540,8 @@ impl DB {
     }
 
     /// This function is used to check if a table is outdated or not.
-    pub fn is_outdated(&self) -> bool {
-        if let Some(vanilla_db) = DEPENDENCY_DATABASE.read().unwrap().iter().find(|x| x.get_path().starts_with(&["db".to_owned(), self.get_table_name()])) {
+    pub fn is_outdated(&self, dependencies: &[PackedFile]) -> bool {
+        if let Some(vanilla_db) = dependencies.iter().find(|x| x.get_path().starts_with(&["db".to_owned(), self.get_table_name()])) {
             if let Ok(table) = vanilla_db.get_decoded_from_memory() {
                 if let DecodedPackedFile::DB(db) = table {
                     if db.get_ref_definition().get_version() != self.get_ref_definition().get_version() {

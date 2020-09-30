@@ -21,14 +21,13 @@ use serde_derive::Deserialize;
 use serde_xml_rs::from_reader;
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use rpfm_error::{Result, Error, ErrorKind};
 
 use crate::assembly_kit::table_definition::RawDefinition;
-
-use std::io::BufReader;
+use crate::dependencies::Dependencies;
 
 //---------------------------------------------------------------------------//
 // Types for parsing the Assembly Kit DB Files into.
@@ -72,10 +71,10 @@ pub struct RawTableField {
 impl RawTable {
 
     /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Tables inside it.
-    pub fn read_all(raw_tables_folder: &PathBuf, version: i16, skip_ingame_tables: bool) -> Result<(Vec<Self>, Vec<Error>)> {
+    pub fn read_all(raw_tables_folder: &PathBuf, version: i16, skip_ingame_tables: bool, dependencies: &Dependencies) -> Result<(Vec<Self>, Vec<Error>)> {
 
         // First, we try to read all `RawDefinitions` from the same folder.
-        let (definitions, _) = RawDefinition::read_all(raw_tables_folder, version, skip_ingame_tables)?;
+        let (definitions, _) = RawDefinition::read_all(raw_tables_folder, version, skip_ingame_tables, dependencies)?;
 
         // Then, depending on the version, we have to use one logic or another.
         match version {

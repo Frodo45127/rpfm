@@ -180,6 +180,7 @@ impl PackedFile {
     pub fn new_from_type_and_path(
         packed_file_type: PackedFileType,
         path: Vec<String>,
+        dependencies: &Dependencies,
     ) -> Result<Self> {
 
         // Depending on their type, we do different things to prepare the PackedFile and get his data.
@@ -199,7 +200,7 @@ impl PackedFile {
             PackedFileType::DB => {
                 let table_name = path.get(1).ok_or_else(|| Error::from(ErrorKind::DBTableIsNotADBTable))?;
                 let table_definition = match *schema {
-                    Some(ref schema) => schema.get_ref_last_definition_db(table_name)?,
+                    Some(ref schema) => schema.get_ref_last_definition_db(table_name, dependencies)?,
                     None => return Err(ErrorKind::SchemaNotFound.into())
                 };
                 DecodedPackedFile::DB(DB::new(&table_name, None, &table_definition))

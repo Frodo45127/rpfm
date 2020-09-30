@@ -25,6 +25,7 @@ use std::io::{BufReader, Write};
 use rpfm_error::{ErrorKind, Result};
 
 use crate::common::*;
+use crate::dependencies::Dependencies;
 use crate::packfile::{PackFile, packedfile::PackedFile};
 use crate::packedfile::DecodedPackedFile;
 use crate::packedfile::table::db::DB;
@@ -93,7 +94,7 @@ struct Asset {
 impl Template {
 
     /// This function applyes a `Template` into the currently open PackFile, if there is one open.
-    pub fn apply_template(&mut self, params: &[String], pack_file: &mut PackFile) -> Result<Vec<Vec<String>>> {
+    pub fn apply_template(&mut self, params: &[String], pack_file: &mut PackFile, dependencies: &Dependencies) -> Result<Vec<Vec<String>>> {
 
         // If there is no PackFile open, stop.
         if pack_file.get_file_name().is_empty() {
@@ -149,9 +150,9 @@ impl Template {
                         if let Ok(table) = packed_file.decode_return_ref_no_locks(&schema) {
                             if let DecodedPackedFile::DB(table) = table {
                                 table.clone()
-                            } else { DB::new(&db.name, None, schema.get_ref_last_definition_db(&db.table)?) }
-                        } else { DB::new(&db.name, None, schema.get_ref_last_definition_db(&db.table)?) }
-                    } else { DB::new(&db.name, None, schema.get_ref_last_definition_db(&db.table)?) };
+                            } else { DB::new(&db.name, None, schema.get_ref_last_definition_db(&db.table, &dependencies)?) }
+                        } else { DB::new(&db.name, None, schema.get_ref_last_definition_db(&db.table, &dependencies)?) }
+                    } else { DB::new(&db.name, None, schema.get_ref_last_definition_db(&db.table, &dependencies)?) };
 
                     let mut data = table.get_table_data();
                     for row in &db.default_data {

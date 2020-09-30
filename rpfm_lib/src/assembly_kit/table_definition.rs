@@ -36,6 +36,7 @@ use rpfm_error::{Result, Error, ErrorKind};
 
 use crate::assembly_kit::get_raw_definition_paths;
 use crate::assembly_kit::localisable_fields::RawLocalisableField;
+use crate::dependencies::Dependencies;
 use super::*;
 
 //---------------------------------------------------------------------------//
@@ -109,11 +110,11 @@ impl RawDefinition {
     /// This function reads the provided folder and tries to parse all the Raw Assembly Kit Definitions inside it.
     ///
     /// This function returns two vectors: one with the read files, and another with the errors during parsing.
-    pub fn read_all(raw_definitions_folder: &PathBuf, version: i16, skip_ingame_tables: bool) -> Result<(Vec<Self>, Vec<Error>)> {
+    pub fn read_all(raw_definitions_folder: &PathBuf, version: i16, skip_ingame_tables: bool, dependencies: &Dependencies) -> Result<(Vec<Self>, Vec<Error>)> {
         let definitions = get_raw_definition_paths(raw_definitions_folder, version)?;
         match version {
             2 | 1 => {
-                let dependency_db = DEPENDENCY_DATABASE.read().unwrap();
+                let dependency_db = dependencies.get_ref_dependency_database();
                 Ok(definitions.par_iter()
                     .filter(|x| !BLACKLISTED_TABLES.contains(&x.file_name().unwrap().to_str().unwrap()))
                     .filter(|x| if skip_ingame_tables {

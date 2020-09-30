@@ -30,8 +30,7 @@ use rpfm_error::{Error, ErrorKind};
 use rpfm_lib::assembly_kit::*;
 use rpfm_lib::common::*;
 use rpfm_lib::diagnostics::Diagnostics;
-use rpfm_lib::DEPENDENCY_DATABASE;
-use rpfm_lib::FAKE_DEPENDENCY_DATABASE;
+use rpfm_lib::dependencies::Dependencies;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::packfile::PFHFileType;
 use rpfm_lib::packedfile::*;
@@ -67,6 +66,8 @@ pub fn background_loop() {
     // - `pack_files_decoded_extra`: This one will hold the PackFiles opened for the `add_from_packfile` feature, using their paths as keys.
     let mut pack_file_decoded = PackFile::new();
     let mut pack_files_decoded_extra = BTreeMap::new();
+
+    let mut dependencies = Dependencies::default();
 
     //---------------------------------------------------------------------------------------//
     // Looping forever and ever...
@@ -232,17 +233,25 @@ pub fn background_loop() {
                 // Send a response, so we can unlock the UI.
                 CENTRAL_COMMAND.send_message_rust(Response::Success);
 
-                // Change the `dependency_database` for that game and preload the dependency data.
-                let mut real_dep_db = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
+                // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
+                // the bastart triggers a memory leak in the next step.
+                dependencies.get_ref_mut_dependency_database().clear();
+                dependencies.get_ref_mut_fake_dependency_database().clear();
+
+                *dependencies.get_ref_mut_dependency_database() = vec![];
+                *dependencies.get_ref_mut_fake_dependency_database() = vec![];
+
+                // Only preload dependencies if we have a schema.
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    let mut real_dep_db = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
                     real_dep_db.par_iter_mut().for_each(|x| {
                         let _ = x.decode_no_locks(schema);
                     });
-                }
-                *DEPENDENCY_DATABASE.write().unwrap() = real_dep_db;
 
-                // Change the `fake dependency_database` for that game.
-                *FAKE_DEPENDENCY_DATABASE.write().unwrap() = DB::read_pak_file();
+                    // Update the dependencies.
+                    *dependencies.get_ref_mut_dependency_database() = real_dep_db;
+                    *dependencies.get_ref_mut_fake_dependency_database() = DB::read_pak_file();
+                }
 
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
@@ -279,18 +288,18 @@ pub fn background_loop() {
 
             // In case we want to generate a new Pak File for our Game Selected...
             Command::GeneratePakFile(path, version) => {
-                match generate_pak_file(&path, version) {
+                match generate_pak_file(&path, version, &dependencies) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
 
                 // Reload the `fake dependency_database` for that game.
-                *FAKE_DEPENDENCY_DATABASE.write().unwrap() = DB::read_pak_file();
+                *dependencies.get_ref_mut_fake_dependency_database() = DB::read_pak_file();
             }
 
             // In case we want to update the Schema for our Game Selected...
             Command::UpdateCurrentSchemaFromAssKit(path) => {
-                match update_schema_from_raw_files(path) {
+                match update_schema_from_raw_files(path, &dependencies) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
@@ -298,7 +307,7 @@ pub fn background_loop() {
 
             // In case we want to optimize our PackFile...
             Command::OptimizePackFile => {
-                CENTRAL_COMMAND.send_message_rust(Response::VecVecString(pack_file_decoded.optimize()));
+                CENTRAL_COMMAND.send_message_rust(Response::VecVecString(pack_file_decoded.optimize(&dependencies)));
             }
 
             // In case we want to Patch the SiegeAI of a PackFile...
@@ -328,7 +337,7 @@ pub fn background_loop() {
             Command::SetDependencyPackFilesList(pack_files) => pack_file_decoded.set_packfiles_list(&pack_files),
 
             // In case we want to check if there is a Dependency Database loaded...
-            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!DEPENDENCY_DATABASE.read().unwrap().is_empty())),
+            Command::IsThereADependencyDatabase => CENTRAL_COMMAND.send_message_rust(Response::Bool(!dependencies.get_ref_dependency_database().is_empty())),
 
             // In case we want to check if there is a Schema loaded...
             Command::IsThereASchema => CENTRAL_COMMAND.send_message_rust(Response::Bool(SCHEMA.read().unwrap().is_some())),
@@ -521,14 +530,14 @@ pub fn background_loop() {
 
             // In case we want to get the list of tables in the dependency database...
             Command::GetTableListFromDependencyPackFile => {
-                let tables = (*DEPENDENCY_DATABASE.read().unwrap()).par_iter().filter(|x| x.get_path().len() > 2).filter(|x| x.get_path()[1].ends_with("_tables")).map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
+                let tables = (*dependencies.get_ref_dependency_database()).par_iter().filter(|x| x.get_path().len() > 2).filter(|x| x.get_path()[1].ends_with("_tables")).map(|x| x.get_path()[1].to_owned()).collect::<Vec<String>>();
                 CENTRAL_COMMAND.send_message_rust(Response::VecString(tables));
             }
 
             // In case we want to get the version of an specific table from the dependency database...
             Command::GetTableVersionFromDependencyPackFile(table_name) => {
                 if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    match schema.get_ref_last_definition_db(&table_name) {
+                    match schema.get_ref_last_definition_db(&table_name, &dependencies) {
                         Ok(definition) => CENTRAL_COMMAND.send_message_rust(Response::I32(definition.get_version())),
                         Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                     }
@@ -548,7 +557,7 @@ pub fn background_loop() {
                 if let PathType::File(path) = path_type {
                     if let Some(packed_file) = pack_file_decoded.get_ref_mut_packed_file_by_path(&path) {
                         match packed_file.decode_return_ref_mut() {
-                            Ok(packed_file) => match packed_file.update_table() {
+                            Ok(packed_file) => match packed_file.update_table(&dependencies) {
                                     Ok(data) => CENTRAL_COMMAND.send_message_rust(Response::I32I32(data)),
                                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                                 }
@@ -574,8 +583,8 @@ pub fn background_loop() {
 
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(definition, files_to_ignore) => {
-                let real_dep_db = DEPENDENCY_DATABASE.read().unwrap();
-                let fake_dep_db = FAKE_DEPENDENCY_DATABASE.read().unwrap();
+                let real_dep_db = dependencies.get_ref_dependency_database();
+                let fake_dep_db = dependencies.get_ref_fake_dependency_database();
 
                 let dependency_data = DB::get_dependency_data(
                     &pack_file_decoded,
@@ -867,7 +876,7 @@ pub fn background_loop() {
 
             // When we want to apply a template over the open PackFile...
             Command::ApplyTemplate(mut template, params) => {
-                match template.apply_template(&params, &mut pack_file_decoded) {
+                match template.apply_template(&params, &mut pack_file_decoded, &dependencies) {
                     Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
@@ -916,11 +925,12 @@ pub fn background_loop() {
             // In case we want to "Open one or more PackFiles"...
             Command::DiagnosticsCheck => {
                 thread::spawn(clone!(
+                    mut dependencies,
                     mut pack_file_decoded => move || {
                     let mut diag = Diagnostics::default();
                     if pack_file_decoded.get_pfh_file_type() == PFHFileType::Mod ||
                         pack_file_decoded.get_pfh_file_type() == PFHFileType::Movie {
-                        diag.check(&pack_file_decoded);
+                        diag.check(&pack_file_decoded, &dependencies);
                     }
                     CENTRAL_COMMAND.send_message_diagnostics_to_qt(diag);
                 }));
@@ -928,7 +938,7 @@ pub fn background_loop() {
 
             // In case we want to "Open one or more PackFiles"...
             Command::DiagnosticsUpdate((mut diagnostics, path_types)) => {
-                diagnostics.update(&pack_file_decoded, &path_types);
+                diagnostics.update(&pack_file_decoded, &path_types, &dependencies);
                 let packed_files_info = diagnostics.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
                 CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
             }
