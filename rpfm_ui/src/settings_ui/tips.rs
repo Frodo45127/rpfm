@@ -31,6 +31,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let ui_table_tight_table_mode_tip = qtr("tt_ui_table_tight_table_mode_tip");
 
     let ui_window_start_maximized_tip = qtr("tt_ui_window_start_maximized_tip");
+    let settings_expand_treeview_when_adding_items_tip = qtr("settings_expand_treeview_when_adding_items_tip");
 
     settings_ui.ui_global_use_dark_theme_label.set_tool_tip(&ui_global_use_dark_theme_tip);
     settings_ui.ui_global_use_dark_theme_checkbox.set_tool_tip(&ui_global_use_dark_theme_tip);
@@ -44,6 +45,8 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     settings_ui.ui_table_tight_table_mode_checkbox.set_tool_tip(&ui_table_tight_table_mode_tip);
     settings_ui.ui_window_start_maximized_label.set_tool_tip(&ui_window_start_maximized_tip);
     settings_ui.ui_window_start_maximized_checkbox.set_tool_tip(&ui_window_start_maximized_tip);
+    settings_ui.general_packfile_treeview_expand_treeview_when_adding_items_label.set_tool_tip(&settings_expand_treeview_when_adding_items_tip);
+    settings_ui.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_tool_tip(&settings_expand_treeview_when_adding_items_tip);
 
     //-----------------------------------------------//
     // `Extra` tips.

@@ -618,3 +618,5 @@ mymod_open_mymod_folder = Open MyMod Folder
 open_from_autosave = Open From Autosave
 
 all = All
+settings_expand_treeview_when_adding_items = Expand new TreeView items when added:
+settings_expand_treeview_when_adding_items_tip = Set this to true if you want folders to be expanded when added to the TreeView. Set it to false to not expand them.

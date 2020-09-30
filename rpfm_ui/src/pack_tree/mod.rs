@@ -1162,7 +1162,10 @@ impl PackTree for QBox<QTreeView> {
                                 }
                             }
                         }
-                        self.expand_treeview_to_item(path);
+
+                        if SETTINGS.read().unwrap().settings_bool["expand_treeview_when_adding_items"] {
+                            self.expand_treeview_to_item(path);
+                        }
                     }
                 }
             },

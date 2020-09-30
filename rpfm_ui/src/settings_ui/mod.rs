@@ -98,6 +98,7 @@ pub struct SettingsUI {
     pub ui_window_start_maximized_label: QBox<QLabel>,
     pub ui_window_hide_background_icon_label: QBox<QLabel>,
     pub general_packfile_treeview_resize_to_fit_label: QBox<QLabel>,
+    pub general_packfile_treeview_expand_treeview_when_adding_items_label: QBox<QLabel>,
 
     pub general_language_combobox: QBox<QComboBox>,
     pub extra_global_default_game_combobox: QBox<QComboBox>,
@@ -115,6 +116,7 @@ pub struct SettingsUI {
     pub ui_window_start_maximized_checkbox: QBox<QCheckBox>,
     pub ui_window_hide_background_icon_checkbox: QBox<QCheckBox>,
     pub general_packfile_treeview_resize_to_fit_checkbox: QBox<QCheckBox>,
+    pub general_packfile_treeview_expand_treeview_when_adding_items_checkbox: QBox<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Table` section of the `Settings` dialog.
@@ -325,6 +327,9 @@ impl SettingsUI {
         let general_packfile_treeview_resize_to_fit_label = QLabel::from_q_string(&qtr("settings_packfile_treeview_resize_to_fit"));
         let general_packfile_treeview_resize_to_fit_checkbox = QCheckBox::new();
 
+        let general_packfile_treeview_expand_treeview_when_adding_items_label = QLabel::from_q_string(&qtr("settings_expand_treeview_when_adding_items"));
+        let general_packfile_treeview_expand_treeview_when_adding_items_checkbox = QCheckBox::new();
+
         // Adding to the grid.
         general_grid.add_widget_5a(&general_language_label, 0, 0, 1, 1);
         general_grid.add_widget_5a(&general_language_combobox, 0, 1, 1, 1);
@@ -374,7 +379,10 @@ impl SettingsUI {
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_label, 14, 0, 1, 1);
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_checkbox, 14, 1, 1, 1);
 
-        main_grid.add_widget_5a(&general_frame, 2, 0, 2, 1);
+        general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_label, 16, 0, 1, 1);
+        general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_checkbox, 16, 1, 1, 1);
+
+        main_grid.add_widget_5a(&general_frame, 2, 0, 3, 1);
 
         //-----------------------------------------------//
         // `Table` Frame.
@@ -456,7 +464,7 @@ impl SettingsUI {
         warning_message.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
 
         warning_grid.add_widget_5a(&warning_message, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&warning_frame, 4, 0, 1, 2);
+        main_grid.add_widget_5a(&warning_frame, 4, 1, 1, 1);
 
         //-----------------------------------------------//
         // `ButtonBox` Button Box.
@@ -515,6 +523,7 @@ impl SettingsUI {
             ui_window_start_maximized_label,
             ui_window_hide_background_icon_label,
             general_packfile_treeview_resize_to_fit_label,
+            general_packfile_treeview_expand_treeview_when_adding_items_label,
 
             general_language_combobox,
             extra_global_default_game_combobox,
@@ -532,6 +541,7 @@ impl SettingsUI {
             ui_window_start_maximized_checkbox,
             ui_window_hide_background_icon_checkbox,
             general_packfile_treeview_resize_to_fit_checkbox,
+            general_packfile_treeview_expand_treeview_when_adding_items_checkbox,
 
             //-------------------------------------------------------------------------------//
             // `Table` section of the `Settings` dialog.
@@ -624,6 +634,7 @@ impl SettingsUI {
         self.extra_packfile_use_lazy_loading_checkbox.set_checked(settings.settings_bool["use_lazy_loading"]);
         self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.set_checked(settings.settings_bool["disable_uuid_regeneration_on_db_tables"]);
         self.general_packfile_treeview_resize_to_fit_checkbox.set_checked(settings.settings_bool["packfile_treeview_resize_to_fit"]);
+        self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.set_checked(settings.settings_bool["expand_treeview_when_adding_items"]);
 
         // Load the Table Stuff.
         self.ui_table_adjust_columns_to_content_checkbox.set_checked(settings.settings_bool["adjust_columns_to_content"]);
@@ -692,6 +703,7 @@ impl SettingsUI {
         settings.settings_bool.insert("use_lazy_loading".to_owned(), self.extra_packfile_use_lazy_loading_checkbox.is_checked());
         settings.settings_bool.insert("disable_uuid_regeneration_on_db_tables".to_owned(), self.extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox.is_checked());
         settings.settings_bool.insert("packfile_treeview_resize_to_fit".to_owned(), self.general_packfile_treeview_resize_to_fit_checkbox.is_checked());
+        settings.settings_bool.insert("expand_treeview_when_adding_items".to_owned(), self.general_packfile_treeview_expand_treeview_when_adding_items_checkbox.is_checked());
 
         // Get the Table Settings.
         settings.settings_bool.insert("adjust_columns_to_content".to_owned(), self.ui_table_adjust_columns_to_content_checkbox.is_checked());
