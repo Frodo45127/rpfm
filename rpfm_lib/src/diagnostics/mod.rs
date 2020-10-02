@@ -223,7 +223,7 @@ impl Diagnostics {
                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: 0,
                         row_number: row as i64,
-                        message: "Duplicated combined keys.".to_string(),
+                        message: format!("Duplicated combined keys: {}.", local_keys.join("| |")),
                         report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
                         level: DiagnosticLevel::Error,
                     });
