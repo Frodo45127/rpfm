@@ -605,7 +605,7 @@ gen_loc_diagnostics = Diagnostics
 diagnostics_button_error = Error
 diagnostics_button_warning = Warning
 diagnostics_button_info = Info
-diagnostics_button_only_current_packed_file = Only Show Currently Open PackedFile Messages
+diagnostics_button_only_current_packed_file = Open PackedFiles Only
 
 diagnostics_colum_level = Level
 diagnostics_colum_column = Column
@@ -620,3 +620,21 @@ open_from_autosave = Open From Autosave
 all = All
 settings_expand_treeview_when_adding_items = Expand new TreeView items when added:
 settings_expand_treeview_when_adding_items_tip = Set this to true if you want folders to be expanded when added to the TreeView. Set it to false to not expand them.
+
+label_outdated_table = Outdated table:
+label_invalid_reference = Invalid reference:
+label_empty_row = Empty row:
+label_empty_key_field = Empty key field:
+label_empty_key_fields = Empty key fields:
+label_duplicated_combined_keys = Duplicated combined keys:
+label_no_reference_table_found = No reference table found:
+label_no_reference_table_nor_column_found_pak = No reference Table/Column found:
+label_no_reference_table_nor_column_found_no_pak = No reference Table/Column/PAK found:
+label_invalid_escape = Invalid escape:
+label_duplicated_row = Duplicated row:
+
+diagnostics_button_show_more_filters = Show more filters
+diagnostics_colum_report_type = Report Type
+
+diagnostic_type = Diagnostic Report Type
+diagnostic_show = Show?

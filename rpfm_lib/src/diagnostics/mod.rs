@@ -26,7 +26,7 @@ use crate::PackedFile;
 use crate::schema::FieldType;
 
 use self::packfile::PackFileDiagnostic;
-use self::table::{TableDiagnostic, TableDiagnosticReport};
+use self::table::{TableDiagnostic, TableDiagnosticReport, TableDiagnosticReportType};
 
 pub mod packfile;
 pub mod table;
@@ -132,6 +132,7 @@ impl Diagnostics {
                     column_number: 0,
                     row_number: -1,
                     message: "Possibly outdated table.".to_owned(),
+                    report_type: TableDiagnosticReportType::OutdatedTable,
                     level: DiagnosticLevel::Error,
                 });
             }
@@ -161,6 +162,7 @@ impl Diagnostics {
                                         column_number: column as u32,
                                         row_number: row as i64,
                                         message: format!("Invalid reference \"{}\" in column \"{}\".", &cell_data, table.get_ref_definition().get_fields_processed()[column].get_name()),
+                                        report_type: TableDiagnosticReportType::InvalidReference,
                                         level: DiagnosticLevel::Error,
                                     });
                                 }
@@ -187,6 +189,7 @@ impl Diagnostics {
                             column_number: column as u32,
                             row_number: row as i64,
                             message: format!("Empty key for column \"{}\".", table.get_ref_definition().get_fields_processed()[column].get_name()),
+                            report_type: TableDiagnosticReportType::EmptyKeyField,
                             level: DiagnosticLevel::Warning,
                         });
                     }
@@ -201,6 +204,7 @@ impl Diagnostics {
                         column_number: 0,
                         row_number: row as i64,
                         message: "Empty row.".to_string(),
+                        report_type: TableDiagnosticReportType::EmptyRow,
                         level: DiagnosticLevel::Error,
                     });
                 }
@@ -210,6 +214,7 @@ impl Diagnostics {
                         column_number: 0,
                         row_number: row as i64,
                         message: "Empty key fields.".to_string(),
+                        report_type: TableDiagnosticReportType::EmptyKeyFields,
                         level: DiagnosticLevel::Warning,
                     });
                 }
@@ -219,6 +224,7 @@ impl Diagnostics {
                         column_number: 0,
                         row_number: row as i64,
                         message: "Duplicated combined keys.".to_string(),
+                        report_type: TableDiagnosticReportType::DuplicatedCombinedKeys,
                         level: DiagnosticLevel::Error,
                     });
                 }
@@ -233,6 +239,7 @@ impl Diagnostics {
                     column_number: *column as u32,
                     row_number: -1,
                     message: format!("No reference table found for column \"{}\".", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                    report_type: TableDiagnosticReportType::NoReferenceTableFound,
                     level: DiagnosticLevel::Info,
                 });
             }
@@ -243,6 +250,7 @@ impl Diagnostics {
                         column_number: *column as u32,
                         row_number: -1,
                         message: format!("No reference column found in referenced table for column \"{}\". Did you forgot to generate the PAK file for this game?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                        report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundNoPak,
                         level: DiagnosticLevel::Warning,
                     });
                 }
@@ -251,6 +259,7 @@ impl Diagnostics {
                         column_number: *column as u32,
                         row_number: -1,
                         message: format!("No reference column found in referenced table for column \"{}\". Maybe a problem with the schema?", table.get_ref_definition().get_fields_processed()[*column as usize].get_name()),
+                        report_type: TableDiagnosticReportType::NoReferenceTableNorColumnFoundPak,
                         level: DiagnosticLevel::Info,
                     });
                 }
@@ -278,6 +287,7 @@ impl Diagnostics {
                         column_number: 0,
                         row_number: row as i64,
                         message: "Empty row.".to_string(),
+                        report_type: TableDiagnosticReportType::EmptyRow,
                         level: DiagnosticLevel::Warning,
                     });
                 }
@@ -287,6 +297,7 @@ impl Diagnostics {
                         column_number: 0,
                         row_number: row as i64,
                         message: "Empty key.".to_string(),
+                        report_type: TableDiagnosticReportType::EmptyKeyField,
                         level: DiagnosticLevel::Warning,
                     });
                 }
@@ -297,6 +308,7 @@ impl Diagnostics {
                         column_number: 1,
                         row_number: row as i64,
                         message: "Invalid line jump/tabulation detected in loc entry. Use \\\\n or \\\\t instead.".to_string(),
+                        report_type: TableDiagnosticReportType::InvalidEscape,
                         level: DiagnosticLevel::Warning,
                     });
                 }
@@ -307,6 +319,7 @@ impl Diagnostics {
                         column_number: 0,
                         row_number: row as i64,
                         message: "Duplicated row.".to_string(),
+                        report_type: TableDiagnosticReportType::DuplicatedRow,
                         level: DiagnosticLevel::Warning,
                     });
                 }

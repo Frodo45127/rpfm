@@ -23,7 +23,23 @@ use super::{DiagnosticsUI, slots::DiagnosticsUISlots};
 pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.diagnostics_table_view.double_clicked().connect(&slots.diagnostics_open_result);
 
-    ui.diagnostics_button_info.toggled().connect(&slots.toggle_filters_by_level);
-    ui.diagnostics_button_warning.toggled().connect(&slots.toggle_filters_by_level);
-    ui.diagnostics_button_error.toggled().connect(&slots.toggle_filters_by_level);
+    ui.diagnostics_button_info.toggled().connect(&slots.toggle_filters);
+    ui.diagnostics_button_warning.toggled().connect(&slots.toggle_filters);
+    ui.diagnostics_button_error.toggled().connect(&slots.toggle_filters);
+    ui.diagnostics_button_only_current_packed_file.toggled().connect(&slots.toggle_filters);
+
+    ui.diagnostics_button_show_more_filters.toggled().connect(&slots.show_hide_extra_filters);
+
+    ui.checkbox_all.toggled().connect(&slots.toggle_filters_types);
+    ui.checkbox_outdated_table.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_invalid_reference.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_empty_row.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_empty_key_field.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_empty_key_fields.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_duplicated_combined_keys.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_no_reference_table_found.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_no_reference_table_nor_column_found_pak.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_no_reference_table_nor_column_found_no_pak.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_invalid_escape.toggled().connect(&slots.toggle_filters);
+    ui.checkbox_duplicated_row.toggled().connect(&slots.toggle_filters);
 }

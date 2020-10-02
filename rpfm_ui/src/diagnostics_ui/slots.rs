@@ -13,7 +13,7 @@ Module with all the code related to the main `DiagnosticsUISlots`.
 !*/
 
 use qt_core::QBox;
-use qt_core::{SlotNoArgs, SlotOfQModelIndex};
+use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndex};
 
 use std::rc::Rc;
 
@@ -28,7 +28,9 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 /// This struct contains all the slots we need to respond to signals of the diagnostics panel.
 pub struct DiagnosticsUISlots {
     pub diagnostics_open_result: QBox<SlotOfQModelIndex>,
-    pub toggle_filters_by_level: QBox<SlotNoArgs>,
+    pub show_hide_extra_filters: QBox<SlotOfBool>,
+    pub toggle_filters: QBox<SlotNoArgs>,
+    pub toggle_filters_types: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -53,15 +55,41 @@ impl DiagnosticsUISlots {
             }
         ));
 
-        let toggle_filters_by_level = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+        let show_hide_extra_filters = SlotOfBool::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move |state| {
+                if !state { diagnostics_ui.sidebar_scroll_area.hide(); }
+                else { diagnostics_ui.sidebar_scroll_area.show();}
+            }
+        ));
+
+        let toggle_filters = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            app_ui,
             diagnostics_ui => move || {
-            DiagnosticsUI::filter_by_level(&diagnostics_ui);
+            DiagnosticsUI::filter(&app_ui, &diagnostics_ui);
         }));
+
+        let toggle_filters_types = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            diagnostics_ui => move || {
+                diagnostics_ui.checkbox_outdated_table.toggle();
+                diagnostics_ui.checkbox_invalid_reference.toggle();
+                diagnostics_ui.checkbox_empty_row.toggle();
+                diagnostics_ui.checkbox_empty_key_field.toggle();
+                diagnostics_ui.checkbox_empty_key_fields.toggle();
+                diagnostics_ui.checkbox_duplicated_combined_keys.toggle();
+                diagnostics_ui.checkbox_no_reference_table_found.toggle();
+                diagnostics_ui.checkbox_no_reference_table_nor_column_found_pak.toggle();
+                diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.toggle();
+                diagnostics_ui.checkbox_invalid_escape.toggle();
+                diagnostics_ui.checkbox_duplicated_row.toggle();
+            }
+        ));
 
         // And here... we return all the slots.
         Self {
             diagnostics_open_result,
-            toggle_filters_by_level,
+            show_hide_extra_filters,
+            toggle_filters,
+            toggle_filters_types,
         }
     }
 }

@@ -30,13 +30,13 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 SOURCES += \
     src/q_main_window_custom.cpp \
     src/packed_file_model.cpp \
-    src/q_list_of_q_standard_item.cpp \
     src/qstring_item_delegate.cpp \
     src/combobox_item_delegate.cpp \
     src/resizable_label.cpp \
     src/spinbox_item_delegate.cpp \
     src/doublespinbox_item_delegate.cpp \
     src/tableview_command_palette.cpp \
+    src/tableview_filter.cpp \
     src/tableview_frozen.cpp \
     src/text_editor.cpp \
     src/treeview_filter.cpp
@@ -47,6 +47,7 @@ INCLUDEPATH += C:\CraftRoot\include
 HEADERS += \
     include/qt_subclasses_global.h \
     include/tableview_command_palette.h \
+    include/tableview_filter.h \
     include/tableview_frozen.h \
     include/combobox_item_delegate.h \
     include/spinbox_item_delegate.h \
@@ -54,7 +55,6 @@ HEADERS += \
     include/text_editor.h \
     include/treeview_filter.h \
     include/qstring_item_delegate.h \
-    include/q_list_of_q_standard_item.h \
     include/packed_file_model.h \
     include/resizable_label.h \
     include/q_main_window_custom.h

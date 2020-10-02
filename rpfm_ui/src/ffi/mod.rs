@@ -29,7 +29,10 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QStringList;
 use qt_core::QPtr;
+use qt_core::QListOfInt;
+use qt_core::CaseSensitivity;
 
+use cpp_core::CppBox;
 use cpp_core::Ptr;
 
 use crate::locale::qtr;
@@ -70,6 +73,27 @@ extern "C" { fn trigger_treeview_filter(filter: *const QSortFilterProxyModel, pa
 pub fn trigger_treeview_filter_safe(filter: &QSortFilterProxyModel, pattern: &Ptr<QRegExp>) {
     unsafe { trigger_treeview_filter(filter, pattern.as_mut_raw_ptr()); }
 }
+
+/// This function setup the special filter used for the TableViews.
+extern "C" { fn new_tableview_filter(parent: *mut QObject) -> *mut QSortFilterProxyModel; }
+pub fn new_tableview_filter_safe(parent: QPtr<QObject>) ->  QBox<QSortFilterProxyModel> {
+    unsafe { QBox::from_raw(new_tableview_filter(parent.as_mut_raw_ptr())) }
+}
+
+/// This function triggers the special filter used for the TableViews It has to be triggered here to work properly.
+extern "C" { fn trigger_tableview_filter(filter: *const QSortFilterProxyModel, columns: *const QListOfInt, patterns: *const QStringList, case_sensitive: *const QListOfInt); }
+pub unsafe fn trigger_tableview_filter_safe(filter: &QSortFilterProxyModel, columns: &[i32], patterns: &[CppBox<QString>], case_sensitive: &[CaseSensitivity]) {
+    let columns_qlist = QListOfInt::new();
+    columns.iter().for_each(|x| columns_qlist.append_int(x));
+
+    let patterns_qlist = QStringList::new();
+    patterns.iter().for_each(|x| patterns_qlist.append_q_string(x.as_ref()));
+
+    let case_sensitive_qlist = QListOfInt::new();
+    case_sensitive.iter().for_each(|x| case_sensitive_qlist.append_int(&x.to_int()));
+    trigger_tableview_filter(filter, columns_qlist.as_raw_ptr(), patterns_qlist.as_raw_ptr(), case_sensitive_qlist.as_raw_ptr());
+}
+
 
 /// This function allow us to create a model compatible with draggable items
 extern "C" { fn new_packed_file_model() -> *mut QStandardItemModel; }

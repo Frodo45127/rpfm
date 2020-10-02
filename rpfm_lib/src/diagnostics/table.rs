@@ -14,6 +14,8 @@ Module with all the code related to the `Diagnostics`.
 This module contains the code needed to get a `Diagnostics` over an entire `PackFile`.
 !*/
 
+use std::{fmt, fmt::Display};
+
 use super::DiagnosticLevel;
 
 //-------------------------------------------------------------------------------//
@@ -33,7 +35,23 @@ pub struct TableDiagnosticReport {
     pub column_number: u32,
     pub row_number: i64,
     pub message: String,
+    pub report_type: TableDiagnosticReportType,
     pub level: DiagnosticLevel,
+}
+
+#[derive(Debug, Clone)]
+pub enum TableDiagnosticReportType {
+    OutdatedTable,
+    InvalidReference,
+    EmptyRow,
+    EmptyKeyField,
+    EmptyKeyFields,
+    DuplicatedCombinedKeys,
+    NoReferenceTableFound,
+    NoReferenceTableNorColumnFoundPak,
+    NoReferenceTableNorColumnFoundNoPak,
+    InvalidEscape,
+    DuplicatedRow,
 }
 
 //---------------------------------------------------------------p----------------//
@@ -59,5 +77,23 @@ impl TableDiagnostic {
 
     pub fn get_ref_mut_result(&mut self) -> &mut Vec<TableDiagnosticReport> {
         &mut self.result
+    }
+}
+
+impl Display for TableDiagnosticReportType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(match self {
+            Self::OutdatedTable => "OutdatedTable",
+            Self::InvalidReference => "InvalidReference",
+            Self::EmptyRow => "EmptyRow",
+            Self::EmptyKeyField => "EmptyKeyField",
+            Self::EmptyKeyFields => "EmptyKeyFields",
+            Self::DuplicatedCombinedKeys => "DuplicatedCombinedKeys",
+            Self::NoReferenceTableFound => "NoReferenceTableFound",
+            Self::NoReferenceTableNorColumnFoundPak => "NoReferenceTableNorColumnFoundPak",
+            Self::NoReferenceTableNorColumnFoundNoPak => "NoReferenceTableNorColumnFoundNoPak",
+            Self::InvalidEscape => "InvalidEscape",
+            Self::DuplicatedRow => "DuplicatedRow",
+        }, f)
     }
 }
