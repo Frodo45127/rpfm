@@ -200,7 +200,7 @@ impl PackedFileView {
                     PackedFileType::Loc |
                     PackedFileType::MatchedCombat => if let View::Table(view) = view {
 
-                        let new_table = get_table_from_view(&view.get_ref_table().get_mut_ptr_table_model(), &view.get_ref_table().get_ref_table_definition())?;
+                        let new_table = get_table_from_view(&view.get_ref_table().get_mut_ptr_table_model().static_upcast(), &view.get_ref_table().get_ref_table_definition())?;
                         match self.packed_file_type {
                             PackedFileType::AnimTable => {
                                 let table = AnimTable::from(new_table);

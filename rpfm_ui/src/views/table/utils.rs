@@ -879,7 +879,7 @@ pub unsafe fn sort_column(
 
 /// This function is used to build a table struct with the data of a TableView and it's definition.
 pub unsafe fn get_table_from_view(
-    model: &QBox<QStandardItemModel>,
+    model: &QPtr<QStandardItemModel>,
     definition: &Definition
 ) -> Result<Table> {
     let mut entries = vec![];
@@ -951,7 +951,7 @@ pub unsafe fn open_subtable(
     accept_button.released().connect(dialog.slot_accept());
 
     if dialog.exec() == 1 {
-        if let Ok(table) = get_table_from_view(&table_view.table_model, &table_view.get_ref_table_definition()) {
+        if let Ok(table) = get_table_from_view(&table_view.table_model.static_upcast(), &table_view.get_ref_table_definition()) {
             Some(serde_json::to_string(&table).unwrap())
         } else {
             show_dialog(&table_view.table_view_primary, ErrorKind::Generic, false);

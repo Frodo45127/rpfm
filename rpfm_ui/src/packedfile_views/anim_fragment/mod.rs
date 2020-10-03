@@ -210,11 +210,11 @@ impl PackedFileAnimFragmentView {
 
         let filter: QPtr<QSortFilterProxyModel> = self.table_view_1.get_mut_ptr_table_view_primary().model().static_downcast();
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let data_1 = get_table_from_view(&table_model.into_q_box(), &self.table_view_1.get_ref_table_definition())?;
+        let data_1 = get_table_from_view(&table_model, &self.table_view_1.get_ref_table_definition())?;
 
         let filter: QPtr<QSortFilterProxyModel> = self.table_view_2.get_mut_ptr_table_view_primary().model().static_downcast();
         let table_model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
-        let data_2 = get_table_from_view(&table_model.into_q_box(), &self.table_view_2.get_ref_table_definition())?;
+        let data_2 = get_table_from_view(&table_model, &self.table_view_2.get_ref_table_definition())?;
 
         data.push(DecodedData::SequenceU32(data_1));
         data.push(i1);
