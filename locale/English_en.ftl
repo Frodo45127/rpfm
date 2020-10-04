@@ -638,3 +638,5 @@ diagnostics_colum_report_type = Report Type
 
 diagnostic_type = Diagnostic Report Type
 diagnostic_show = Show?
+
+dependency_packfile_list_label = <p><b style="color:red;">WARNING: Adding a PackFile to this list will load that PackFile if present EVEN IF IT'S NOT SELECTED IN THE MOD MANAGER!</b></p><p></p>
