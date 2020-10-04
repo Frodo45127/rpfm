@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Implemented more granular filtering for messages of the Diagnostics tool.
+- Implemented a checkbox to hide/show all columns of a table at once.
+- Implemented a setting to disable item autoexpanding when adding new items to the TreeView.
+- Added a warning to the Dependency Manager.
+
+### Changed
+- Reduced autosave amount to 10.
+- Combined Keys diagnostic now show the combined keys.
+
+### Fixed
+- Fixed a weird memory leak in the Diagnostics tool.
+- Fixed a bug that caused fgr files to break after the first save.
+
+
 ## [2.2.1] - 2020-09-26
 ### Changed
 - The diagnostics panel now it starts hidden if the diagnostics tool is disabled.
