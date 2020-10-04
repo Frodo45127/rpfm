@@ -50,7 +50,7 @@ use rpfm_lib::diagnostics::{*, table::*};
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::SETTINGS;
 
-use rpfm_getset::{GetRef, GetRefMut, Set};
+use rpfm_macros::{GetRef, GetRefMut, Set};
 
 use crate::AppUI;
 use crate::communications::Command;

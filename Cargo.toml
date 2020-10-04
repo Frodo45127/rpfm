@@ -2,7 +2,7 @@
 [workspace]
 members = [
 	"rpfm_error",
-    "rpfm_getset",
+    "rpfm_macros",
     "rpfm_lib",
     "rpfm_cli",
     "rpfm_ui",

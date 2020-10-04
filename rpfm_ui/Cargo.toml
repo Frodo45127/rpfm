@@ -10,7 +10,7 @@ edition = "2018"
 # Internal dependencies.
 rpfm_error = { path = "../rpfm_error" }
 rpfm_lib = { path = "../rpfm_lib" }
-rpfm_getset = { path = "../rpfm_getset" }
+rpfm_macros = { path = "../rpfm_macros" }
 
 # Config dependencies.
 lazy_static = "^1.2"
