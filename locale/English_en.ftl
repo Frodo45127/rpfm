@@ -632,6 +632,7 @@ label_no_reference_table_nor_column_found_pak = No reference Table/Column found:
 label_no_reference_table_nor_column_found_no_pak = No reference Table/Column/PAK found:
 label_invalid_escape = Invalid escape:
 label_duplicated_row = Duplicated row:
+label_invalid_dependency_packfile = Invalid dependency PackFile:
 
 diagnostics_button_show_more_filters = Show more filters
 diagnostics_colum_report_type = Report Type

@@ -130,8 +130,8 @@ impl TableView {
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
 
         let mut items_reverted = 0;
         for index in &indexes_sorted {
@@ -168,7 +168,7 @@ impl TableView {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
-            update_undo_model(&self.table_model, &self.undo_model);
+            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         }
     }
 
@@ -179,8 +179,8 @@ impl TableView {
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
             let indexes = self.table_view_primary.selection_model().selection().indexes();
             let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
-            let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
+            sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+            let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
 
             let mut changed_cells = 0;
             for model_index in indexes_sorted {
@@ -298,7 +298,7 @@ impl TableView {
                     history_undo.push(TableOperations::Editing(edits_data));
                     history_redo.clear();
                 }
-                update_undo_model(&self.table_model, &self.undo_model);
+                update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
                 //undo_redo_enabler.trigger();
             }
         }
@@ -310,8 +310,8 @@ impl TableView {
         // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
 
         // Create a string to keep all the values in a TSV format (x\tx\tx) and populate it.
         let mut copy = String::new();
@@ -353,8 +353,8 @@ impl TableView {
         // Get the selection sorted visually.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
 
         // Split the indexes in two groups: those who have a key column selected and those who haven't.
         // Keep in mind this doesn't check what key column we have selected.
@@ -406,7 +406,7 @@ impl TableView {
         // Get the current selection and his, visually speaking, first item (top-left).
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
 
         // If nothing is selected, got back to where you came from.
         if indexes_sorted.is_empty() { return }
@@ -565,7 +565,7 @@ impl TableView {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
-            update_undo_model(&self.table_model, &self.undo_model);
+            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
             self.context_menu_update();
         }
     }
@@ -674,7 +674,7 @@ impl TableView {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
-            update_undo_model(&self.table_model, &self.undo_model);
+            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
             self.context_menu_update();
         }
     }
@@ -755,7 +755,7 @@ impl TableView {
         {
             //let mut table_state_data = table_state_data.borrow_mut();
             //let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
-            update_undo_model(&self.table_model, &self.undo_model);
+            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         }
 
         self.save_lock.store(true, Ordering::SeqCst);
@@ -859,7 +859,7 @@ impl TableView {
                 history_redo.clear();
             }
 
-            update_undo_model(&self.table_model, &self.undo_model);
+            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
             self.context_menu_update();
         }
     }
@@ -932,7 +932,7 @@ impl TableView {
                     // Sort them 0->9, so we can process them.
                     rows.sort();
                     self.undo_lock.store(true, Ordering::SeqCst);
-                    let rows_splitted = delete_rows(&self.table_model, &rows);
+                    let rows_splitted = delete_rows(&self.get_mut_ptr_table_model(), &rows);
                     history_opposite.push(TableOperations::RemoveRows(rows_splitted));
                     self.undo_lock.store(false, Ordering::SeqCst);
                 }
@@ -1229,7 +1229,7 @@ impl TableView {
         let range = (total_rows - rows.len() as i32..total_rows).collect::<Vec<i32>>();
         self.history_undo.write().unwrap().push(TableOperations::AddRows(range));
         self.history_redo.write().unwrap().clear();
-        update_undo_model(&self.table_model, &self.undo_model);
+        update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     }
 
@@ -1294,7 +1294,7 @@ impl TableView {
         // The undo mode needs this reversed.
         self.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
         self.history_redo.write().unwrap().clear();
-        update_undo_model(&self.table_model, &self.undo_model);
+        update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
     }
 
     /// This function returns a copy of the entire model.
@@ -1351,8 +1351,8 @@ impl TableView {
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-        sort_indexes_visually(&mut indexes_sorted, &self.table_view_primary);
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.table_filter);
+        sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
+        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
 
         let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
         for model_index in &indexes_sorted {
@@ -1435,7 +1435,7 @@ impl TableView {
         }
 
         // Then, we delete all the fully selected rows.
-        let rows_splitted = super::utils::delete_rows(&self.table_model, &full_rows);
+        let rows_splitted = super::utils::delete_rows(&self.get_mut_ptr_table_model(), &full_rows);
 
         // Then, we have to fix the undo history. For that, we take out all the editions, merge them,
         // then merge them with the table edition into a carolina.
@@ -1464,10 +1464,15 @@ impl TableView {
                 if !changes.is_empty() {
                     self.history_undo.write().unwrap().push(TableOperations::Carolina(changes));
                     self.history_redo.write().unwrap().clear();
-                    update_undo_model(&self.table_model, &self.undo_model);
+                    update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
                     self.context_menu_update();
                 }
             }
         }
+    }
+
+    pub unsafe fn start_diagnostic_check(&self) {
+        self.timer_diagnostics_check.set_interval(3000);
+        self.timer_diagnostics_check.start_0a();
     }
 }

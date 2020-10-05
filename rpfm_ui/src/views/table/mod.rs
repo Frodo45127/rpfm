@@ -559,15 +559,15 @@ impl TableView {
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
         load_data(
-            &packed_file_table_view.table_view_primary,
-            &packed_file_table_view.table_view_frozen,
+            &packed_file_table_view.get_mut_ptr_table_view_primary(),
+            &packed_file_table_view.get_mut_ptr_table_view_frozen(),
             &packed_file_table_view.table_definition.read().unwrap(),
             &packed_file_table_view.dependency_data,
             &table_data
         );
 
         // Initialize the undo model.
-        update_undo_model(&packed_file_table_view.table_model, &packed_file_table_view.undo_model);
+        update_undo_model(&packed_file_table_view.get_mut_ptr_table_model(), &packed_file_table_view.get_mut_ptr_undo_model());
 
         // Build the columns. If we have a model from before, use it to paint our cells as they were last time we painted them.
         let table_name = if let Some(ref path) = packed_file_path {
@@ -575,8 +575,8 @@ impl TableView {
         } else { None };
 
         build_columns(
-            &packed_file_table_view.table_view_primary,
-            Some(&packed_file_table_view.table_view_frozen),
+            &packed_file_table_view.get_mut_ptr_table_view_primary(),
+            Some(&packed_file_table_view.get_mut_ptr_table_view_frozen()),
             &packed_file_table_view.table_definition.read().unwrap(),
             table_name.as_ref()
         );
@@ -593,9 +593,9 @@ impl TableView {
     ///
     /// NOTE: This allows for a table to change it's definition on-the-fly, so be carefull with that!
     pub unsafe fn reload_view(&self, data: TableType) {
-        let table_view_primary = &self.table_view_primary;
-        let table_view_frozen = &self.table_view_frozen;
-        let undo_model = &self.undo_model;
+        let table_view_primary = &self.get_mut_ptr_table_view_primary();
+        let table_view_frozen = &self.get_mut_ptr_table_view_frozen();
+        let undo_model = &self.get_mut_ptr_undo_model();
 
         let filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter.source_model().static_downcast();
@@ -620,9 +620,7 @@ impl TableView {
         );
 
         // Reset the undo model and the undo/redo history.
-        let model = model.into_q_box();
         update_undo_model(&model, &undo_model);
-        let _model = model.into_q_ptr();
         self.history_undo.write().unwrap().clear();
         self.history_redo.write().unwrap().clear();
 
@@ -656,8 +654,8 @@ impl TableView {
     }
 
     /// This function returns a reference to the StandardItemModel widget.
-    pub fn get_mut_ptr_table_model(&self) -> &QBox<QStandardItemModel> {
-        &self.table_model
+    pub unsafe fn get_mut_ptr_table_model(&self) -> QPtr<QStandardItemModel> {
+        self.table_model.static_upcast()
     }
 
     // This function returns a mutable reference to the `Enable Lookups` Pushbutton.
@@ -666,13 +664,17 @@ impl TableView {
     //}
 
     /// This function returns a pointer to the Primary TableView widget.
-    pub fn get_mut_ptr_table_view_primary(&self) -> &QBox<QTableView> {
-        &self.table_view_primary
+    pub unsafe fn get_mut_ptr_table_view_primary(&self) -> QPtr<QTableView> {
+        self.table_view_primary.static_upcast()
     }
 
     /// This function returns a pointer to the Frozen TableView widget.
-    pub fn get_mut_ptr_table_view_frozen(&self) -> &QBox<QTableView> {
-        &self.table_view_frozen
+    pub unsafe fn get_mut_ptr_table_view_frozen(&self) -> QPtr<QTableView> {
+        self.table_view_frozen.static_upcast()
+    }
+
+    pub unsafe fn get_mut_ptr_table_view_filter(&self) -> QPtr<QSortFilterProxyModel> {
+        self.table_filter.static_upcast()
     }
 
     /// This function returns a pointer to the filter's LineEdit widget.
@@ -850,6 +852,10 @@ impl TableView {
         &self.timer_diagnostics_check
     }
 
+    pub unsafe fn get_mut_ptr_undo_model(&self) -> QPtr<QStandardItemModel> {
+        self.undo_model.static_upcast()
+    }
+
     /// This function returns a reference to this table's name.
     pub fn get_ref_table_name(&self) -> &Option<String> {
         &self.table_name
@@ -876,11 +882,6 @@ impl TableView {
             Some(ref path) => Some(path.read().unwrap().clone()),
             None => None,
         }
-    }
-
-    /// This function returns the PackedFileType of this table.
-    pub fn get_packed_file_type(&self) -> PackedFileType {
-        *self.packed_file_type
     }
 }
 
@@ -1407,7 +1408,7 @@ impl TableSearch {
                     history_undo.push(TableOperations::Editing(edits_data));
                     history_redo.clear();
                 }
-                update_undo_model(&parent.table_model, &parent.undo_model);
+                update_undo_model(&parent.get_mut_ptr_table_model(), &parent.get_mut_ptr_undo_model());
             }
         }
     }

@@ -16,8 +16,6 @@ use qt_widgets::QDialog;
 use qt_widgets::QTableView;
 use qt_widgets::q_header_view::ResizeMode;
 
-use qt_gui::QBrush;
-use qt_gui::QColor;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
@@ -45,11 +43,8 @@ use rpfm_lib::packedfile::table::Table;
 use rpfm_lib::schema::{Definition, Field, FieldType};
 use rpfm_lib::SETTINGS;
 
-use crate::DARK_RED;
-use crate::EVEN_MORE_WHITY_GREY;
 use crate::ffi::*;
 use crate::locale::{qtr, tr, tre};
-use crate::MEDIUM_DARK_GREY;
 use crate::utils::*;
 use crate::UI_STATE;
 use super::*;
@@ -59,7 +54,7 @@ use super::*;
 //----------------------------------------------------------------------------//
 
 /// This function is used to update the background or undo table when a change is made in the main table.
-pub unsafe fn update_undo_model(model: &QBox<QStandardItemModel>, undo_model: &QBox<QStandardItemModel>) {
+pub unsafe fn update_undo_model(model: &QPtr<QStandardItemModel>, undo_model: &QPtr<QStandardItemModel>) {
     undo_model.clear();
     for row in 0..model.row_count_0a() {
         for column in 0..model.column_count_0a() {
@@ -75,7 +70,7 @@ pub unsafe fn update_undo_model(model: &QBox<QStandardItemModel>, undo_model: &Q
 
 /// This function sorts the VISUAL SELECTION. That means, the selection just as you see it on screen.
 /// This should be provided with the indexes OF THE VIEW/FILTER, NOT THE MODEL.
-pub unsafe fn sort_indexes_visually(indexes_sorted: &mut Vec<Ref<QModelIndex>>, table_view: &QBox<QTableView>) {
+pub unsafe fn sort_indexes_visually(indexes_sorted: &mut Vec<Ref<QModelIndex>>, table_view: &QPtr<QTableView>) {
 
     // Sort the indexes so they follow the visual index, not their logical one.
     // This should fix situations like copying a row and getting a different order in the cells,
@@ -109,7 +104,7 @@ pub unsafe fn sort_indexes_by_model(indexes_sorted: &mut Vec<Ref<QModelIndex>>) 
 
 
 /// This function gives you the model's ModelIndexes from the ones from the view/filter.
-pub unsafe fn get_real_indexes(indexes_sorted: &[Ref<QModelIndex>], filter_model: &QBox<QSortFilterProxyModel>) -> Vec<CppBox<QModelIndex>> {
+pub unsafe fn get_real_indexes(indexes_sorted: &[Ref<QModelIndex>], filter_model: &QPtr<QSortFilterProxyModel>) -> Vec<CppBox<QModelIndex>> {
     indexes_sorted.iter().map(|x| filter_model.map_to_source(*x)).collect()
 }
 
@@ -131,7 +126,7 @@ pub unsafe fn dedup_indexes_per_row(indexes: &mut Vec<Ref<QModelIndex>>) {
 ///
 /// It returns a list of (first row of the pack's position, list of deleted rows).
 /// NOTE: The list of rows must be in 9->0 order.
-pub unsafe fn delete_rows(model: &QBox<QStandardItemModel>, rows: &[i32]) -> Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)> {
+pub unsafe fn delete_rows(model: &QPtr<QStandardItemModel>, rows: &[i32]) -> Vec<(i32, Vec<Vec<AtomicPtr<QStandardItem>>>)> {
 
     // Make sure all rows are sorted 9->0.
     let mut rows = rows.to_vec();
@@ -343,55 +338,10 @@ pub fn clean_column_names(field_name: &str) -> String {
     new_name
 }
 
-/// This function returns the color used for wrong referenced data in tables.
-pub unsafe fn get_color_wrong_key() -> Ptr<QColor> {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*DARK_RED)).into_ptr()
-    } else {
-        QColor::from_q_string(&QString::from_std_str(*DARK_RED)).into_ptr()
-    }
-}
-
-/// This function returns the color used for correct referenced data in tables.
-pub unsafe fn get_color_correct_key() -> Ptr<QColor> {
-    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-        QColor::from_q_string(&QString::from_std_str(*EVEN_MORE_WHITY_GREY)).into_ptr()
-    } else {
-        QColor::from_q_string(&QString::from_std_str(*MEDIUM_DARK_GREY)).into_ptr()
-    }
-}
-
-/// Function to check if an specific field's data is in their references.
-pub unsafe fn check_references(
-    _column: i32,
-    item: Ptr<QStandardItem>,
-    _dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
-    table_type: PackedFileType,
-) {
-    match table_type {
-        PackedFileType::DB => {}
-        PackedFileType::DependencyPackFilesList => {
-            let packfile = item.text().to_std_string();
-
-            // We paint it depending on if it's a valid PackFile or not.
-            if !packfile.is_empty() && packfile.ends_with(".pack") && !packfile.contains(' ') {
-                item.set_foreground(&QBrush::from_q_color(get_color_correct_key().as_ref().unwrap()));
-            }
-            else {
-                item.set_foreground(&QBrush::from_q_color(get_color_wrong_key().as_ref().unwrap()))
-            }
-        }
-
-        // TBD.
-        _ => {}
-    }
-}
-
-
 /// This function loads the data from a compatible `PackedFile` into a TableView.
 pub unsafe fn load_data(
-    table_view_primary: &QBox<QTableView>,
-    table_view_frozen: &QBox<QTableView>,
+    table_view_primary: &QPtr<QTableView>,
+    table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
     dependency_data: &RwLock<BTreeMap<i32, BTreeMap<String, String>>>,
     data: &TableType,
@@ -404,13 +354,13 @@ pub unsafe fn load_data(
     table_model.clear();
 
     // Set the right data, depending on the table type you get.
-    let (data, packed_file_type) = match data {
-        TableType::AnimFragment(data) => (data.get_ref_table_data(), PackedFileType::AnimFragment),
-        TableType::AnimTable(data) => (data.get_ref_table_data(), PackedFileType::AnimTable),
-        TableType::DependencyManager(data) => (&**data, PackedFileType::DependencyPackFilesList),
-        TableType::DB(data) => (data.get_ref_table_data(), PackedFileType::DB),
-        TableType::Loc(data) => (data.get_ref_table_data(), PackedFileType::Loc),
-        TableType::MatchedCombat(data) => (data.get_ref_table_data(), PackedFileType::MatchedCombat),
+    let data = match data {
+        TableType::AnimFragment(data) => data.get_ref_table_data(),
+        TableType::AnimTable(data) => data.get_ref_table_data(),
+        TableType::DependencyManager(data) => &**data,
+        TableType::DB(data) => data.get_ref_table_data(),
+        TableType::Loc(data) => data.get_ref_table_data(),
+        TableType::MatchedCombat(data) => data.get_ref_table_data(),
     };
 
     if !data.is_empty() {
@@ -419,18 +369,8 @@ pub unsafe fn load_data(
         let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
         for (row, entry) in data.iter().enumerate() {
             let qlist = QListOfQStandardItem::new();
-            for (index, field) in entry.iter().enumerate() {
+            for field in entry {
                 let item = get_item_from_decoded_data(field);
-
-                match packed_file_type {
-                    PackedFileType::DB => {},
-                    PackedFileType::DependencyPackFilesList => {
-                        check_references(index as i32, item.as_ptr(), &dependency_data.read().unwrap(), packed_file_type);
-                    }
-
-                    _ => {}
-                }
-
                 qlist.append_q_standard_item(&item.into_ptr().as_mut_raw_ptr());
             }
             if row == data.len() - 1 {
@@ -547,8 +487,8 @@ pub unsafe fn get_item_from_decoded_data(data: &DecodedData) -> CppBox<QStandard
 /// This function is meant to be used to prepare and build the column headers, and the column-related stuff.
 /// His intended use is for just after we load/reload the data to the table.
 pub unsafe fn build_columns(
-    table_view_primary: &QBox<QTableView>,
-    table_view_frozen: Option<&QBox<QTableView>>,
+    table_view_primary: &QPtr<QTableView>,
+    table_view_frozen: Option<&QPtr<QTableView>>,
     definition: &Definition,
     table_name: Option<&String>,
 ) {
@@ -770,8 +710,8 @@ pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32
 
 /// This function sets up the item delegates for all columns in a table.
 pub unsafe fn setup_item_delegates(
-    table_view_primary: &QBox<QTableView>,
-    table_view_frozen: &QBox<QTableView>,
+    table_view_primary: &QPtr<QTableView>,
+    table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
     dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
 ) {
@@ -827,31 +767,9 @@ pub unsafe fn setup_item_delegates(
     }
 }
 
-/// This function checks an entire table for errors.
-pub unsafe fn check_table_for_errors(
-    model: &QBox<QStandardItemModel>,
-    _definition: &Definition,
-    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>,
-    packed_file_type: PackedFileType,
-) {
-    let _blocker = QSignalBlocker::from_q_object(model.static_upcast::<QObject>());
-    match packed_file_type {
-        PackedFileType::DB => {}
-        PackedFileType::DependencyPackFilesList => {
-            for row in 0..model.row_count_0a() {
-                let item = model.item_2a(row, 0);
-                check_references(0, item, dependency_data, packed_file_type);
-            }
-        }
-
-        // TBD.
-        _ => {}
-    }
-}
-
 /// This function is a generic way to toggle the sort order of a column.
 pub unsafe fn sort_column(
-    table_view: &QBox<QTableView>,
+    table_view: &QPtr<QTableView>,
     column: i32,
     column_sort_state: Arc<RwLock<(i32, i8)>>
 ) {

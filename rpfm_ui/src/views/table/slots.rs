@@ -146,7 +146,7 @@ impl TableViewSlots {
 
         let sort_order_column_changed = SlotOfIntSortOrder::new(&view.table_view_primary, clone!(
             view => move |column, _| {
-                sort_column(&view.table_view_primary, column, view.column_sort_state.clone());
+                sort_column(&view.get_mut_ptr_table_view_primary(), column, view.column_sort_state.clone());
             }
         ));
 
@@ -192,29 +192,17 @@ impl TableViewSlots {
 
                         // For pasting, or really any heavy operation, only do these tasks the last iteration of the operation.
                         if !view.save_lock.load(Ordering::SeqCst) {
-                            update_undo_model(&view.table_model, &view.undo_model);
+                            update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                             view.context_menu_update();
                             if let Some(ref packed_file_path) = packed_file_path {
                                 TableSearch::update_search(&view);
 
-                                view.timer_diagnostics_check.set_interval(3000);
-                                view.timer_diagnostics_check.start_0a();
+                                view.start_diagnostic_check();
 
                                 set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                             }
                         }
                     }
-                }
-
-                // If we have the dependency stuff enabled, check if it's a valid reference.
-                let column = item.column();
-                match *view.packed_file_type {
-                    PackedFileType::DB => {},
-                    PackedFileType::DependencyPackFilesList => {
-                        let _blocker = QSignalBlocker::from_q_object(&view.table_model);
-                        check_references(column, item, &view.dependency_data.read().unwrap(), *view.packed_file_type);
-                    }
-                    _ => {}
                 }
 
                 if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
@@ -263,13 +251,13 @@ impl TableViewSlots {
                 rows_to_delete.sort();
                 rows_to_delete.dedup();
                 rows_to_delete.reverse();
-                let rows_splitted = delete_rows(&view.table_model, &rows_to_delete);
+                let rows_splitted = delete_rows(&view.get_mut_ptr_table_model(), &rows_to_delete);
 
                 // If we deleted something, try to save the PackedFile to the main PackFile.
                 if !rows_to_delete.is_empty() {
                     view.history_undo.write().unwrap().push(TableOperations::RemoveRows(rows_splitted));
                     view.history_redo.write().unwrap().clear();
-                    update_undo_model(&view.table_model, &view.undo_model);
+                    update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                     if let Some(ref packed_file_path) = view.packed_file_path {
                         set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                     }
@@ -378,7 +366,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             view => move || {
                 view.undo_redo(true, 0);
-                update_undo_model(&view.table_model, &view.undo_model);
+                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                 view.context_menu_update();
                 if view.history_undo.read().unwrap().is_empty() {
                     if let Some(ref packed_file_path) = view.packed_file_path {
@@ -394,7 +382,7 @@ impl TableViewSlots {
             pack_file_contents_ui,
             view => move || {
                 view.undo_redo(false, 0);
-                update_undo_model(&view.table_model, &view.undo_model);
+                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                 view.context_menu_update();
                 if let Some(ref packed_file_path) = view.packed_file_path {
                     set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -431,8 +419,8 @@ impl TableViewSlots {
 
                                 view.undo_lock.store(true, Ordering::SeqCst);
                                 load_data(
-                                    &view.table_view_primary,
-                                    &view.table_view_frozen,
+                                    &view.get_mut_ptr_table_view_primary(),
+                                    &view.get_mut_ptr_table_view_frozen(),
                                     &view.get_ref_table_definition(),
                                     &view.dependency_data,
                                     &data
@@ -444,8 +432,8 @@ impl TableViewSlots {
                                 };
 
                                 build_columns(
-                                    &view.table_view_primary,
-                                    Some(&view.table_view_frozen),
+                                    &view.get_mut_ptr_table_view_primary(),
+                                    Some(&view.get_mut_ptr_table_view_frozen()),
                                     &view.get_ref_table_definition(),
                                     table_name.as_ref()
                                 );
@@ -454,7 +442,7 @@ impl TableViewSlots {
 
                                 view.history_undo.write().unwrap().push(TableOperations::ImportTSV(old_data));
                                 view.history_redo.write().unwrap().clear();
-                                update_undo_model(&view.table_model, &view.undo_model);
+                                update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                                 set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                             },
                             Response::Error(error) => return show_dialog(&view.table_view_primary, error, false),

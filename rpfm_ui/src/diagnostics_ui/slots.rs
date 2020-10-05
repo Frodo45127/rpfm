@@ -19,6 +19,7 @@ use std::rc::Rc;
 
 use crate::AppUI;
 use crate::diagnostics_ui::DiagnosticsUI;
+use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 //-------------------------------------------------------------------------------//
@@ -44,14 +45,17 @@ impl DiagnosticsUISlots {
     pub unsafe fn new(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Self {
 
         // What happens when we try to open the file corresponding to one of the matches.
         let diagnostics_open_result = SlotOfQModelIndex::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
             app_ui,
-            pack_file_contents_ui => move |model_index_filter| {
-                DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, model_index_filter.as_ptr());
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move |model_index_filter| {
+                DiagnosticsUI::open_match(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, model_index_filter.as_ptr());
             }
         ));
 
@@ -81,6 +85,7 @@ impl DiagnosticsUISlots {
                 diagnostics_ui.checkbox_no_reference_table_nor_column_found_no_pak.toggle();
                 diagnostics_ui.checkbox_invalid_escape.toggle();
                 diagnostics_ui.checkbox_duplicated_row.toggle();
+                diagnostics_ui.checkbox_invalid_dependency_packfile.toggle();
             }
         ));
 

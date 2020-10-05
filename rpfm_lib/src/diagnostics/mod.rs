@@ -17,6 +17,8 @@ This module contains the code needed to get a `Diagnostics` over an entire `Pack
 use rayon::prelude::*;
 use fancy_regex::Regex;
 
+use std::{fmt, fmt::Display};
+
 use crate::DB;
 use crate::dependencies::Dependencies;
 use crate::packfile::{PackFile, PathType};
@@ -25,9 +27,11 @@ use crate::packfile::packedfile::PackedFileInfo;
 use crate::PackedFile;
 use crate::schema::FieldType;
 
+use self::dependency_manager::{DependencyManagerDiagnostic, DependencyManagerDiagnosticReport, DependencyManagerDiagnosticReportType};
 use self::packfile::PackFileDiagnostic;
 use self::table::{TableDiagnostic, TableDiagnosticReport, TableDiagnosticReportType};
 
+pub mod dependency_manager;
 pub mod packfile;
 pub mod table;
 
@@ -44,6 +48,7 @@ pub enum DiagnosticType {
     DB(TableDiagnostic),
     Loc(TableDiagnostic),
     PackFile(PackFileDiagnostic),
+    DependencyManager(DependencyManagerDiagnostic),
 }
 
 /// This enum defines the possible results for a result of a diagnostic check.
@@ -71,6 +76,7 @@ impl DiagnosticType {
             Self::DB(ref diag) |
             Self::Loc(ref diag) => diag.get_path(),
             Self::PackFile(ref diag) => diag.get_path(),
+            Self::DependencyManager(_) => &[],
         }
     }
 }
@@ -97,6 +103,10 @@ impl Diagnostics {
                 _ => None,
             }
         }).collect();
+
+        if let Some(diagnostics) = Self::check_dependency_manager(pack_file) {
+            self.0.push(diagnostics);
+        }
 
         if let Some(diagnostics) = Self::check_packfile() {
             self.0.push(diagnostics);
@@ -342,6 +352,29 @@ impl Diagnostics {
         } else { None }
     }
 
+    /// This function takes care of checking for errors in the Dependency Manager.
+    fn check_dependency_manager(pack_file: &PackFile) ->Option<DiagnosticType> {
+        let mut diagnostic = DependencyManagerDiagnostic::new();
+        for (index, pack_file) in pack_file.get_packfiles_list().iter().enumerate() {
+
+            // TODO: Make it so this also checks if the PackFile actually exists,
+            if pack_file.is_empty() || !pack_file.ends_with(".pack") || pack_file.contains(' ') {
+                diagnostic.get_ref_mut_result().push(DependencyManagerDiagnosticReport {
+                    column_number: 0,
+                    row_number: index as i64,
+                    message: format!("Invalid dependency PackFile name: {}", pack_file),
+                    report_type: DependencyManagerDiagnosticReportType::InvalidDependencyPackFileName,
+                    level: DiagnosticLevel::Error,
+                });
+            }
+        }
+
+        if !diagnostic.get_ref_result().is_empty() {
+            Some(DiagnosticType::DependencyManager(diagnostic))
+        } else { None }
+    }
+
+
     /// This function performs a limited diagnostic check on the `PackedFiles` in the provided paths, and updates the `Diagnostic` with the results.
     ///
     /// This means that, as long as you change any `PackedFile` in the `PackFile`, you should trigger this. That way, the `Diagnostics`
@@ -359,6 +392,9 @@ impl Diagnostics {
             match path_type {
                 PathType::File(path) => paths.push(path.to_vec()),
                 PathType::Folder(path) => paths.append(&mut pack_file.get_ref_packed_files_by_path_start(path).iter().map(|x| x.get_path().to_vec()).collect()),
+
+                // PackFile in this instance means the dependency manager.
+                PathType::PackFile => paths.push(vec![]),
                 _ => unimplemented!()
             }
         }
@@ -383,6 +419,13 @@ impl Diagnostics {
             }
         }
 
+        // Check for the dependency manager.
+        if paths.contains(&vec![]) {
+            if let Some(diagnostic) = Self::check_dependency_manager(pack_file) {
+                self.get_ref_mut_diagnostics().push(diagnostic);
+            }
+        }
+
         self.get_ref_mut_diagnostics().sort_by(|a, b| a.get_path().cmp(b.get_path()));
     }
 
@@ -391,5 +434,16 @@ impl Diagnostics {
         let paths = paths.iter().filter_map(|x| if let PathType::File(path) = x { Some(&**path) } else { None }).collect();
         let packed_files = pack_file.get_ref_packed_files_by_paths(paths);
         packed_files.iter().map(|x| From::from(*x)).collect()
+    }
+}
+
+impl Display for DiagnosticType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Display::fmt(match self {
+            Self::DB(_) => "DB",
+            Self::Loc(_) => "Loc",
+            Self::PackFile(_) => "Packfile",
+            Self::DependencyManager(_) => "DependencyManager",
+        }, f)
     }
 }

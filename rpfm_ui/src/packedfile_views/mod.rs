@@ -272,6 +272,9 @@ impl PackedFileView {
                         // Set the packfile as modified. This one is special, as this is a "simulated PackedFile", so we have to mark the PackFile manually.
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
+
+                        DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, vec![PathType::PackFile]);
+
                         return Ok(())
                     } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
 
