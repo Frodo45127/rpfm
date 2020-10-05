@@ -9,16 +9,19 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Implemented more granular filtering for messages of the Diagnostics tool.
 - Implemented a checkbox to hide/show all columns of a table at once.
 - Implemented a setting to disable item autoexpanding when adding new items to the TreeView.
+- Implemented diagnostics support for the Dependency Manager.
 - Added a warning to the Dependency Manager.
+- Reimplemented the old table cell colours, now based on the diagnostics results.
 
 ### Changed
 - Reduced autosave amount to 10.
 - Combined Keys diagnostic now show the combined keys.
 
 ### Fixed
+- Fixed a CTD that could trigger at many places at random and left no error log.
+- Fixed a CTD when trying to open an "Outdated Table" diagnostics result.
 - Fixed a weird memory leak in the Diagnostics tool.
 - Fixed a bug that caused fgr files to break after the first save.
-
 
 ## [2.2.1] - 2020-09-26
 ### Changed
