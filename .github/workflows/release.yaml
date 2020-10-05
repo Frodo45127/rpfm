@@ -25,13 +25,13 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
-          components: rustfmt, clippy
+          components: rustfmt
 
-      - uses: actions/cache@v2
-        with:
-          path: |
-            D:\Craft
-          key: ${{ runner.os }}-Craft-Install
+      #- uses: actions/cache@v2
+      #  with:
+      #    path: |
+      #      D:\Craft
+      #    key: ${{ runner.os }}-Craft-Install
 
       - name: Get the version
         id: get_version
