@@ -219,7 +219,7 @@ impl SettingsUI {
             paths_games_buttons.insert((*folder_name).to_string(), game_button);
         }
 
-        main_grid.add_widget_5a(&paths_frame, 0, 0, 1, 2);
+        main_grid.add_widget_5a(paths_frame.into_ptr(), 0, 0, 1, 2);
 
         //-----------------------------------------------//
         // `Extra Paths` Frame.
@@ -249,7 +249,7 @@ impl SettingsUI {
         paths_grid.add_widget_5a(&paths_zip_line_edit, 1, 1, 1, 1);
         paths_grid.add_widget_5a(&paths_zip_button, 1, 2, 1, 1);
 
-        main_grid.add_widget_5a(&extra_paths_frame, 1, 0, 1, 2);
+        main_grid.add_widget_5a(extra_paths_frame.into_ptr(), 1, 0, 1, 2);
 
         //-----------------------------------------------//
         // `General` Frame.
@@ -382,7 +382,7 @@ impl SettingsUI {
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_label, 16, 0, 1, 1);
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_checkbox, 16, 1, 1, 1);
 
-        main_grid.add_widget_5a(&general_frame, 2, 0, 3, 1);
+        main_grid.add_widget_5a(general_frame.into_ptr(), 2, 0, 3, 1);
 
         //-----------------------------------------------//
         // `Table` Frame.
@@ -430,7 +430,7 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_label, 5, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_checkbox, 5, 1, 1, 1);
 
-        main_grid.add_widget_5a(&ui_table_view_frame, 2, 1, 1, 1);
+        main_grid.add_widget_5a(ui_table_view_frame.into_ptr(), 2, 1, 1, 1);
 
         //-----------------------------------------------//
         // `Debug` Frame.
@@ -453,7 +453,7 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&debug_enable_debug_menu_label, 1, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_enable_debug_menu_checkbox, 1, 1, 1, 1);
 
-        main_grid.add_widget_5a(&debug_frame, 3, 1, 1, 1);
+        main_grid.add_widget_5a(debug_frame.into_ptr(), 3, 1, 1, 1);
 
         //-----------------------------------------------//
         // `Warning` section.
@@ -464,7 +464,7 @@ impl SettingsUI {
         warning_message.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
 
         warning_grid.add_widget_5a(&warning_message, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&warning_frame, 4, 1, 1, 1);
+        main_grid.add_widget_5a(warning_frame.into_ptr(), 4, 1, 1, 1);
 
         //-----------------------------------------------//
         // `ButtonBox` Button Box.
@@ -481,7 +481,7 @@ impl SettingsUI {
         let button_box_cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let button_box_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
 
-        main_grid.add_widget_5a(&button_box, 5, 0, 1, 2);
+        main_grid.add_widget_5a(button_box.into_ptr(), 5, 0, 1, 2);
 
         // Now, we build the `SettingsUI` struct and return it.
         Self {

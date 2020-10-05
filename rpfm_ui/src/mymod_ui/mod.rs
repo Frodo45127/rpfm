@@ -82,7 +82,7 @@ impl MyModUI {
     - You can't create a mod for a game that has no path set in the settings."));
 
         advices_grid.add_widget_5a(&advices_label, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&advices_frame, 0, 0, 1, 2);
+        main_grid.add_widget_5a(advices_frame.into_ptr(), 0, 0, 1, 2);
 
         // Create the "MyMod's Name" Label and LineEdit and configure them.
         let mymod_name_label = QLabel::from_q_string(&qtr("mymod_name"));

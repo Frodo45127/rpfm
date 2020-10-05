@@ -225,7 +225,7 @@ impl PackedFileDecoderView {
         hex_view_layout.add_widget_5a(& hex_view_raw, 0, 1, 1, 1);
         hex_view_layout.add_widget_5a(& hex_view_decoded, 0, 2, 1, 1);
 
-        layout.add_widget_5a(&hex_view_group, 0, 0, 5, 1);
+        layout.add_widget_5a(hex_view_group.into_ptr(), 0, 0, 5, 1);
 
         //---------------------------------------------//
         // Fields Table section.
@@ -332,7 +332,7 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(&optional_string_u16_button, 8, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&sequence_u32_button, 9, 2, 1, 1);
 
-        layout.add_widget_5a(&decoded_fields_frame, 1, 1, 3, 1);
+        layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
 
         //---------------------------------------------//
         // Info section.
@@ -362,7 +362,7 @@ impl PackedFileDecoderView {
         info_layout.add_widget_5a(&packed_file_info_entry_count_label, 2, 0, 1, 1);
         info_layout.add_widget_5a(&packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
 
-        layout.add_widget_5a(&info_frame, 1, 2, 1, 1);
+        layout.add_widget_5a(info_frame.into_ptr(), 1, 2, 1, 1);
 
         //---------------------------------------------//
         // Other Versions section.
@@ -406,7 +406,7 @@ impl PackedFileDecoderView {
         button_box_layout.add_widget_5a(&clear_definition_button, 0, 2, 1, 1);
         button_box_layout.add_widget_5a(&save_button, 0, 3, 1, 1);
 
-        layout.add_widget_5a(&button_box, 4, 1, 1, 2);
+        layout.add_widget_5a(button_box.into_ptr(), 4, 1, 1, 2);
 
         layout.set_column_stretch(1, 10);
         layout.set_row_stretch(0, 10);

@@ -333,7 +333,7 @@ impl GlobalSearchUI {
         global_search_matches_tab_widget.add_tab_2a(&text_matches_widget, &qtr("global_search_txt_matches"));
         global_search_matches_tab_widget.add_tab_2a(&schema_matches_widget, &qtr("global_search_schema_matches"));
 
-        global_search_dock_layout.add_widget_5a(&global_search_search_frame, 0, 0, 1, 3);
+        global_search_dock_layout.add_widget_5a(global_search_search_frame.into_ptr(), 0, 0, 1, 3);
         global_search_dock_layout.add_widget_5a(&global_search_matches_tab_widget, 1, 0, 1, 3);
 
         // Hide this widget by default.

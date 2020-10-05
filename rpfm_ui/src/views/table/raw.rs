@@ -1332,7 +1332,7 @@ impl TableView {
         rewrite_sequence_line_edit.set_placeholder_text(&qtr("rewrite_selection_placeholder"));
         let accept_button = QPushButton::from_q_string(&qtr("rewrite_selection_accept"));
 
-        main_grid.add_widget_5a(&instructions_frame, 0, 0, 1, 2);
+        main_grid.add_widget_5a(instructions_frame.into_ptr(), 0, 0, 1, 2);
         main_grid.add_widget_5a(&is_math_op, 1, 0, 1, 2);
         main_grid.add_widget_5a(&rewrite_sequence_line_edit, 2, 0, 1, 1);
         main_grid.add_widget_5a(&accept_button, 2, 1, 1, 1);
