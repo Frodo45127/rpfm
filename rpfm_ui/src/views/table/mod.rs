@@ -285,6 +285,8 @@ impl TableView {
             table_view_frozen.vertical_header().set_default_section_size(22);
         }
 
+        let warning_message = QLabel::from_q_string(&qtr("dependency_packfile_list_label"));
+
         // Create the filter's widgets.
         let row_filter_line_edit = QLineEdit::new();
         let filter_column_selector = QComboBox::new_0a();
@@ -306,11 +308,16 @@ impl TableView {
 
         // Add everything to the grid.
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
-        layout.add_widget_5a(&table_view_primary, 0, 0, 1, 4);
-        layout.add_widget_5a(&row_filter_line_edit, 2, 0, 1, 1);
-        layout.add_widget_5a(&row_filter_case_sensitive_button, 2, 1, 1, 1);
-        layout.add_widget_5a(&filter_column_selector, 2, 2, 1, 1);
-        //layout.add_widget_5a(& table_enable_lookups_button, 2, 3, 1, 1);
+
+        if let PackedFileType::DependencyPackFilesList = packed_file_type {
+            layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+        }
+
+        layout.add_widget_5a(&table_view_primary, 1, 0, 1, 4);
+        layout.add_widget_5a(&row_filter_line_edit, 3, 0, 1, 1);
+        layout.add_widget_5a(&row_filter_case_sensitive_button, 3, 1, 1, 1);
+        layout.add_widget_5a(&filter_column_selector, 3, 2, 1, 1);
+        //layout.add_widget_5a(& table_enable_lookups_button, 3, 3, 1, 1);
 
         // Action to make the delete button delete contents.
         let smart_delete = QAction::new();
