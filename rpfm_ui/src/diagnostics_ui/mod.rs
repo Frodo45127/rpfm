@@ -29,6 +29,8 @@ use qt_gui::QColor;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
+use qt_gui::q_palette::ColorRole;
+
 
 use qt_core::{AlignmentFlag, CaseSensitivity, ContextMenuPolicy, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QBox;
@@ -39,6 +41,8 @@ use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
 use qt_core::QVariant;
 use qt_core::QPtr;
+use qt_core::QObject;
+use qt_core::QSignalBlocker;
 
 use cpp_core::Ptr;
 
@@ -378,6 +382,10 @@ impl DiagnosticsUI {
 
     /// This function takes care of loading the results of a diagnostic check into the table.
     unsafe fn load_diagnostics_to_ui(app_ui: &Rc<AppUI>, diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
+
+        // First, clean the current diagnostics.
+        Self::clean_diagnostics_from_views(app_ui);
+
         if !diagnostics.is_empty() {
             for diagnostic_type in diagnostics {
                 match diagnostic_type {
@@ -429,9 +437,6 @@ impl DiagnosticsUI {
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                         }
-
-                        // After that, check if the table is open, and paint the results into it.
-                        Self::paint_diagnostics_to_table(app_ui, diagnostic_type);
                     }
 
                     DiagnosticType::PackFile(ref diagnostic) => {
@@ -526,11 +531,11 @@ impl DiagnosticsUI {
                             // Append the new row.
                             diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
                         }
-
-                        // After that, check if the table is open, and paint the results into it.
-                        Self::paint_diagnostics_to_table(app_ui, diagnostic_type);
                     }
                 }
+
+                // After that, check if the table is open, and paint the results into it.
+                Self::paint_diagnostics_to_table(app_ui, diagnostic_type);
             }
 
             diagnostics_ui.diagnostics_table_model.set_header_data_3a(0, Orientation::Horizontal, &QVariant::from_q_string(&qtr("diagnostics_colum_level")));
@@ -651,6 +656,7 @@ impl DiagnosticsUI {
                         let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                        let _blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
 
                         match diagnostic {
                             DiagnosticType::DB(ref diagnostic) |
@@ -687,6 +693,39 @@ impl DiagnosticsUI {
                     },
 
                     _ => {},
+                }
+            }
+        }
+    }
+
+    pub unsafe fn clean_diagnostics_from_views(app_ui: &Rc<AppUI>) {
+        for view in UI_STATE.get_open_packedfiles().iter() {
+
+            // Only update the visible tables.
+            if app_ui.tab_bar_packed_file.index_of(view.get_mut_widget()) != -1 {
+                match view.get_view() {
+
+                    // In case of tables, we have to get the logical row/column of the match and select it.
+                    ViewType::Internal(view) => if let View::Table(view) = view {
+                        let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
+                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                        let _blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+
+                        // Trick to get the right neutral colors: add an item, get the brush, delete it.
+                        let base_qbrush = table_view.palette().brush_1a(ColorRole::Text);
+
+                        for row in 0..table_model.row_count_0a() - 1 {
+                            for column in 0..table_model.column_count_0a() {
+                                let item = table_model.item_2a(row, column);
+                                if item.foreground() != base_qbrush {
+                                    item.set_foreground(base_qbrush);
+                                }
+                            }
+                        }
+                    }
+
+                    _ => {}
                 }
             }
         }
