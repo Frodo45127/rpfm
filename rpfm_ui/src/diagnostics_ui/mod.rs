@@ -666,10 +666,13 @@ impl DiagnosticsUI {
                                         let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
                                         let table_model_item = table_model.item_from_index(&table_model_index);
 
-                                        match result.level {
-                                            DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error())))),
-                                            DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning())))),
-                                            DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
+                                        // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                        if table_model_index.is_valid() {
+                                            match result.level {
+                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error())))),
+                                                DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning())))),
+                                                DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
+                                            }
                                         }
                                     }
                                 }
@@ -680,10 +683,13 @@ impl DiagnosticsUI {
                                         let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
                                         let table_model_item = table_model.item_from_index(&table_model_index);
 
-                                        match result.level {
-                                            DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error())))),
-                                            DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning())))),
-                                            DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
+                                        // At this point, is possible the row is no longer valid, so we have to check it out first.
+                                        if table_model_index.is_valid() {
+                                            match result.level {
+                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error())))),
+                                                DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning())))),
+                                                DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
+                                            }
                                         }
                                     }
                                 }
