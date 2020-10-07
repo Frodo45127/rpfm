@@ -573,6 +573,9 @@ impl TableView {
             &table_data
         );
 
+        // Prepare the diagnostic pass.
+        packed_file_table_view.start_diagnostic_check();
+
         // Initialize the undo model.
         update_undo_model(&packed_file_table_view.get_mut_ptr_table_model(), &packed_file_table_view.get_mut_ptr_undo_model());
 
@@ -625,6 +628,9 @@ impl TableView {
             &self.dependency_data,
             &data
         );
+
+        // Prepare the diagnostic pass.
+        self.start_diagnostic_check();
 
         // Reset the undo model and the undo/redo history.
         update_undo_model(&model, &undo_model);

@@ -257,6 +257,10 @@ impl TableViewSlots {
                 if !rows_to_delete.is_empty() {
                     view.history_undo.write().unwrap().push(TableOperations::RemoveRows(rows_splitted));
                     view.history_redo.write().unwrap().clear();
+
+                    // Prepare the diagnostic pass.
+                    view.start_diagnostic_check();
+
                     update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                     if let Some(ref packed_file_path) = view.packed_file_path {
                         set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
@@ -425,6 +429,9 @@ impl TableViewSlots {
                                     &view.dependency_data,
                                     &data
                                 );
+
+                                // Prepare the diagnostic pass.
+                                view.start_diagnostic_check();
 
                                 let table_name = match data {
                                     TableType::DB(_) => packed_file_path.read().unwrap().get(1).cloned(),

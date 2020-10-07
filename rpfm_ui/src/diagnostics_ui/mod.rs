@@ -31,7 +31,6 @@ use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 use qt_gui::q_palette::ColorRole;
 
-
 use qt_core::{AlignmentFlag, CaseSensitivity, ContextMenuPolicy, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QBox;
 use qt_core::QFlags;
@@ -656,12 +655,13 @@ impl DiagnosticsUI {
                         let table_view = view.get_ref_table().get_mut_ptr_table_view_primary();
                         let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
                         let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                        let _blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
+                        let blocker = QSignalBlocker::from_q_object(table_model.static_upcast::<QObject>());
 
                         match diagnostic {
                             DiagnosticType::DB(ref diagnostic) |
                             DiagnosticType::Loc(ref diagnostic) => {
                                 for result in diagnostic.get_ref_result() {
+
                                     if result.row_number >= 0 {
                                         let table_model_index = table_model.index_2a(result.row_number as i32, result.column_number as i32);
                                         let table_model_item = table_model.item_from_index(&table_model_index);
@@ -696,6 +696,10 @@ impl DiagnosticsUI {
                             },
                             _ => return,
                         }
+
+                        // Unblock the model and update it. Otherwise, the painted cells wont show up until something else updates the view.
+                        blocker.unblock();
+                        table_view.update_q_region(&table_view.visible_region());
                     },
 
                     _ => {},
@@ -724,7 +728,7 @@ impl DiagnosticsUI {
                         for row in 0..table_model.row_count_0a() - 1 {
                             for column in 0..table_model.column_count_0a() {
                                 let item = table_model.item_2a(row, column);
-                                if item.foreground() != base_qbrush {
+                                if item.foreground().color().rgb() != base_qbrush.color().rgb() {
                                     item.set_foreground(base_qbrush);
                                 }
                             }

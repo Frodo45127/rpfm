@@ -168,6 +168,7 @@ impl TableView {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
+            self.start_diagnostic_check();
             update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         }
     }
@@ -298,6 +299,7 @@ impl TableView {
                     history_undo.push(TableOperations::Editing(edits_data));
                     history_redo.clear();
                 }
+                self.start_diagnostic_check();
                 update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
                 //undo_redo_enabler.trigger();
             }
@@ -565,6 +567,7 @@ impl TableView {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
+            self.start_diagnostic_check();
             update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
             self.context_menu_update();
         }
@@ -674,6 +677,7 @@ impl TableView {
                 history_undo.push(TableOperations::Editing(edits_data));
                 history_redo.clear();
             }
+            self.start_diagnostic_check();
             update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
             self.context_menu_update();
         }
@@ -859,6 +863,7 @@ impl TableView {
                 history_redo.clear();
             }
 
+            self.start_diagnostic_check();
             update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
             self.context_menu_update();
         }
@@ -1037,6 +1042,8 @@ impl TableView {
                 history_opposite.push(TableOperations::Carolina(edits));
             }
         }
+
+        self.start_diagnostic_check();
     }
 
     /// This function returns the provided indexes's data as a LUA table.
@@ -1229,6 +1236,7 @@ impl TableView {
         let range = (total_rows - rows.len() as i32..total_rows).collect::<Vec<i32>>();
         self.history_undo.write().unwrap().push(TableOperations::AddRows(range));
         self.history_redo.write().unwrap().clear();
+        self.start_diagnostic_check();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         //unsafe { undo_redo_enabler.as_mut().unwrap().trigger(); }
     }
@@ -1294,6 +1302,7 @@ impl TableView {
         // The undo mode needs this reversed.
         self.history_undo.write().unwrap().push(TableOperations::AddRows(row_numbers));
         self.history_redo.write().unwrap().clear();
+        self.start_diagnostic_check();
         update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
     }
 
@@ -1464,6 +1473,7 @@ impl TableView {
                 if !changes.is_empty() {
                     self.history_undo.write().unwrap().push(TableOperations::Carolina(changes));
                     self.history_redo.write().unwrap().clear();
+                    self.start_diagnostic_check();
                     update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
                     self.context_menu_update();
                 }
@@ -1472,7 +1482,7 @@ impl TableView {
     }
 
     pub unsafe fn start_diagnostic_check(&self) {
-        self.timer_diagnostics_check.set_interval(3000);
+        self.timer_diagnostics_check.set_interval(1500);
         self.timer_diagnostics_check.start_0a();
     }
 }
