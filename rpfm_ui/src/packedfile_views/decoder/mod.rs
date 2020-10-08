@@ -211,10 +211,10 @@ impl PackedFileDecoderView {
         // Hex Data section.
         //---------------------------------------------//
 
-        let hex_view_group = QGroupBox::from_q_string(&QString::from_std_str("PackedFile's Data"));
-        let hex_view_index = QTextEdit::new();
-        let hex_view_raw = QTextEdit::new();
-        let hex_view_decoded = QTextEdit::new();
+        let hex_view_group = QGroupBox::from_q_string_q_widget(&QString::from_std_str("PackedFile's Data"), packed_file_view.get_mut_widget());
+        let hex_view_index = QTextEdit::from_q_widget(&hex_view_group);
+        let hex_view_raw = QTextEdit::from_q_widget(&hex_view_group);
+        let hex_view_decoded = QTextEdit::from_q_widget(&hex_view_group);
         let hex_view_layout = create_grid_layout(hex_view_group.static_upcast());
 
         hex_view_index.set_font(ref_from_atomic(&*FONT_MONOSPACE));
@@ -225,21 +225,21 @@ impl PackedFileDecoderView {
         hex_view_layout.add_widget_5a(& hex_view_raw, 0, 1, 1, 1);
         hex_view_layout.add_widget_5a(& hex_view_decoded, 0, 2, 1, 1);
 
-        layout.add_widget_5a(hex_view_group.into_ptr(), 0, 0, 5, 1);
+        layout.add_widget_5a(&hex_view_group, 0, 0, 5, 1);
 
         //---------------------------------------------//
         // Fields Table section.
         //---------------------------------------------//
 
-        let table_view = QTreeView::new_0a();
-        let table_model = QStandardItemModel::new_0a();
-        table_view.set_model(table_model.as_raw_ptr());
+        let table_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
+        let table_model = QStandardItemModel::new_1a(&table_view);
+        table_view.set_model(&table_model);
         table_view.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
         //table_view.header().set_stretch_last_section(true);
         table_view.set_alternating_row_colors(true);
 
         // Create the Contextual Menu for the TableView.
-        let table_view_context_menu = QMenu::new();
+        let table_view_context_menu = QMenu::from_q_widget(&table_view);
 
         // Create the Contextual Menu Actions.
         let table_view_context_menu_move_up = table_view_context_menu.add_action_q_string(&QString::from_std_str("Move Up"));
@@ -255,49 +255,49 @@ impl PackedFileDecoderView {
         table_view_context_menu_move_right.set_enabled(false);
         table_view_context_menu_delete.set_enabled(false);
 
-        layout.add_widget_5a(table_view.as_raw_ptr(), 0, 1, 1, 2);
+        layout.add_widget_5a(&table_view, 0, 1, 1, 2);
 
         //---------------------------------------------//
         // Decoded Fields section.
         //---------------------------------------------//
 
-        let decoded_fields_frame = QGroupBox::from_q_string(&QString::from_std_str("Current Field Decoded"));
+        let decoded_fields_frame = QGroupBox::from_q_string_q_widget(&QString::from_std_str("Current Field Decoded"), packed_file_view.get_mut_widget());
         let decoded_fields_layout = create_grid_layout(decoded_fields_frame.static_upcast());
         decoded_fields_layout.set_column_stretch(1, 10);
 
         // Create the stuff for the decoded fields.
-        let bool_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Bool\":"));
-        let f32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"F32\":"));
-        let i16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I16\":"));
-        let i32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I32\":"));
-        let i64_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"I64\":"));
-        let string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U8\":"));
-        let string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"String U16\":"));
-        let optional_string_u8_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U8\":"));
-        let optional_string_u16_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"Optional String U16\":"));
-        let sequence_u32_label = QLabel::from_q_string(&QString::from_std_str("Decoded as \"SequenceU32\":"));
+        let bool_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Bool\":"), &decoded_fields_frame);
+        let f32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"F32\":"), &decoded_fields_frame);
+        let i16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I16\":"), &decoded_fields_frame);
+        let i32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I32\":"), &decoded_fields_frame);
+        let i64_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"I64\":"), &decoded_fields_frame);
+        let string_u8_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"String U8\":"), &decoded_fields_frame);
+        let string_u16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"String U16\":"), &decoded_fields_frame);
+        let optional_string_u8_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional String U8\":"), &decoded_fields_frame);
+        let optional_string_u16_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"Optional String U16\":"), &decoded_fields_frame);
+        let sequence_u32_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Decoded as \"SequenceU32\":"), &decoded_fields_frame);
 
-        let bool_line_edit = QLineEdit::new();
-        let f32_line_edit = QLineEdit::new();
-        let i16_line_edit = QLineEdit::new();
-        let i32_line_edit = QLineEdit::new();
-        let i64_line_edit = QLineEdit::new();
-        let string_u8_line_edit = QLineEdit::new();
-        let string_u16_line_edit = QLineEdit::new();
-        let optional_string_u8_line_edit = QLineEdit::new();
-        let optional_string_u16_line_edit = QLineEdit::new();
-        let sequence_u32_line_edit = QLineEdit::new();
+        let bool_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let f32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let i16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let i32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let i64_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let string_u8_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let string_u16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let optional_string_u8_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let optional_string_u16_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
+        let sequence_u32_line_edit = QLineEdit::from_q_widget(&decoded_fields_frame);
 
-        let bool_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let f32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let i16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let i32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let i64_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let optional_string_u8_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let optional_string_u16_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
-        let sequence_u32_button = QPushButton::from_q_string(&QString::from_std_str("Use this"));
+        let bool_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let f32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let i16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let i32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let i64_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let string_u8_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let string_u16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let optional_string_u8_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let optional_string_u16_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
+        let sequence_u32_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Use this"), &decoded_fields_frame);
 
         decoded_fields_layout.add_widget_5a(&bool_label, 0, 0, 1, 1);
         decoded_fields_layout.add_widget_5a(&f32_label, 1, 0, 1, 1);
@@ -332,24 +332,24 @@ impl PackedFileDecoderView {
         decoded_fields_layout.add_widget_5a(&optional_string_u16_button, 8, 2, 1, 1);
         decoded_fields_layout.add_widget_5a(&sequence_u32_button, 9, 2, 1, 1);
 
-        layout.add_widget_5a(decoded_fields_frame.into_ptr(), 1, 1, 3, 1);
+        layout.add_widget_5a(&decoded_fields_frame, 1, 1, 3, 1);
 
         //---------------------------------------------//
         // Info section.
         //---------------------------------------------//
 
-        let info_frame = QGroupBox::from_q_string(&QString::from_std_str("PackedFile Info"));
+        let info_frame = QGroupBox::from_q_string_q_widget(&QString::from_std_str("PackedFile Info"), packed_file_view.get_mut_widget());
         let info_layout = create_grid_layout(info_frame.static_upcast());
 
         // Create stuff for the info frame.
-        let packed_file_info_type_label = QLabel::from_q_string(&QString::from_std_str("PackedFile Type:"));
-        let packed_file_info_version_label = QLabel::from_q_string(&QString::from_std_str("PackedFile version:"));
-        let packed_file_info_entry_count_label = QLabel::from_q_string(&QString::from_std_str("PackedFile entry count:"));
+        let packed_file_info_type_label = QLabel::from_q_string_q_widget(&QString::from_std_str("PackedFile Type:"), &info_frame);
+        let packed_file_info_version_label = QLabel::from_q_string_q_widget(&QString::from_std_str("PackedFile version:"), &info_frame);
+        let packed_file_info_entry_count_label = QLabel::from_q_string_q_widget(&QString::from_std_str("PackedFile entry count:"), &info_frame);
 
-        let packed_file_info_type_decoded_label = QLabel::from_q_string(&QString::from_std_str(match packed_file_type {
+        let packed_file_info_type_decoded_label = QLabel::from_q_string_q_widget(&QString::from_std_str(match packed_file_type {
             PackedFileType::DB => format!("DB/{}", packed_file_view.get_path()[1]),
             _ => format!("{}", packed_file_type),
-        }));
+        }), &info_frame);
         let packed_file_info_version_decoded_label = QLabel::new();
         let packed_file_info_entry_count_decoded_label = QLabel::new();
 
@@ -362,14 +362,14 @@ impl PackedFileDecoderView {
         info_layout.add_widget_5a(&packed_file_info_entry_count_label, 2, 0, 1, 1);
         info_layout.add_widget_5a(&packed_file_info_entry_count_decoded_label, 2, 1, 1, 1);
 
-        layout.add_widget_5a(info_frame.into_ptr(), 1, 2, 1, 1);
+        layout.add_widget_5a(&info_frame, 1, 2, 1, 1);
 
         //---------------------------------------------//
         // Other Versions section.
         //---------------------------------------------//
 
-        let table_view_old_versions = QTableView::new_0a();
-        let table_model_old_versions = QStandardItemModel::new_0a();
+        let table_view_old_versions = QTableView::new_1a(packed_file_view.get_mut_widget());
+        let table_model_old_versions = QStandardItemModel::new_1a(&table_view_old_versions);
         table_view_old_versions.set_model(&table_model_old_versions);
         table_view_old_versions.set_alternating_row_colors(true);
         table_view_old_versions.set_edit_triggers(QFlags::from(EditTrigger::NoEditTriggers));
@@ -391,14 +391,14 @@ impl PackedFileDecoderView {
         // Buttons section.
         //---------------------------------------------//
 
-        let button_box = QFrame::new_0a();
+        let button_box = QFrame::new_1a(packed_file_view.get_mut_widget());
         let button_box_layout = create_grid_layout(button_box.static_upcast());
 
         // Create the bottom Buttons.
-        let import_from_assembly_kit_button = QPushButton::from_q_string(&QString::from_std_str("Import from Assembly Kit"));
-        let test_definition_button = QPushButton::from_q_string(&QString::from_std_str("Test Definition"));
-        let clear_definition_button = QPushButton::from_q_string(&QString::from_std_str("Remove all fields"));
-        let save_button = QPushButton::from_q_string(&QString::from_std_str("Finish it!"));
+        let import_from_assembly_kit_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Import from Assembly Kit"), &button_box);
+        let test_definition_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Test Definition"), &button_box);
+        let clear_definition_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Remove all fields"), &button_box);
+        let save_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Finish it!"), &button_box);
 
         // Add them to the Dialog.
         button_box_layout.add_widget_5a(&import_from_assembly_kit_button, 0, 0, 1, 1);
@@ -406,7 +406,7 @@ impl PackedFileDecoderView {
         button_box_layout.add_widget_5a(&clear_definition_button, 0, 2, 1, 1);
         button_box_layout.add_widget_5a(&save_button, 0, 3, 1, 1);
 
-        layout.add_widget_5a(button_box.into_ptr(), 4, 1, 1, 2);
+        layout.add_widget_5a(&button_box, 4, 1, 1, 2);
 
         layout.set_column_stretch(1, 10);
         layout.set_row_stretch(0, 10);

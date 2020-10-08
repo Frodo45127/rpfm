@@ -90,23 +90,23 @@ impl ShortcutsUI {
 
         // Create the main Grid and add the shortcuts TreeView.
         let main_grid = create_grid_layout(dialog.static_upcast());
-        let shortcuts_table = QTreeView::new_0a();
+        let shortcuts_table = QTreeView::new_1a(&dialog);
         let shortcuts_filter = new_treeview_filter_safe(shortcuts_table.static_upcast());
-        let shortcuts_model = QStandardItemModel::new_0a();
+        let shortcuts_model = QStandardItemModel::new_1a(&shortcuts_filter);
 
         shortcuts_filter.set_source_model(&shortcuts_model);
         shortcuts_table.set_model(&shortcuts_filter);
 
         shortcuts_table.set_sorting_enabled(false);
         shortcuts_table.header().set_stretch_last_section(true);
-        main_grid.add_widget_5a(& shortcuts_table, 0, 0, 1, 1);
+        main_grid.add_widget_5a(&shortcuts_table, 0, 0, 1, 1);
 
         // Create the bottom buttons and add them to the Dialog.
-        let button_box = QDialogButtonBox::new();
+        let button_box = QDialogButtonBox::from_q_widget(&dialog);
         let restore_default_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::RestoreDefaults);
         let cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
-        main_grid.add_widget_5a(button_box.into_ptr(), 1, 0, 1, 1);
+        main_grid.add_widget_5a(&button_box, 1, 0, 1, 1);
 
         Self {
             dialog,
