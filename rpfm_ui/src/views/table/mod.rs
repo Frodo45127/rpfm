@@ -313,6 +313,8 @@ impl TableView {
 
         if let PackedFileType::DependencyPackFilesList = packed_file_type {
             layout.add_widget_5a(&warning_message, 0, 0, 1, 4);
+        } else {
+            warning_message.set_visible(false);
         }
 
         layout.add_widget_5a(&table_view_primary, 1, 0, 1, 4);
