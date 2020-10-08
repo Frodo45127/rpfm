@@ -136,11 +136,11 @@ impl DiagnosticsUI {
         let filter_grid = create_grid_layout(filter_frame.static_upcast());
         filter_grid.set_contents_margins_4a(4, 0, 4, 0);
 
-        let diagnostics_button_error = QPushButton::from_q_string(&qtr("diagnostics_button_error"));
-        let diagnostics_button_warning = QPushButton::from_q_string(&qtr("diagnostics_button_warning"));
-        let diagnostics_button_info = QPushButton::from_q_string(&qtr("diagnostics_button_info"));
-        let diagnostics_button_only_current_packed_file = QPushButton::from_q_string(&qtr("diagnostics_button_only_current_packed_file"));
-        let diagnostics_button_show_more_filters = QPushButton::from_q_string(&qtr("diagnostics_button_show_more_filters"));
+        let diagnostics_button_error = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_error"), &filter_frame);
+        let diagnostics_button_warning = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_warning"), &filter_frame);
+        let diagnostics_button_info = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_info"), &filter_frame);
+        let diagnostics_button_only_current_packed_file = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_only_current_packed_file"), &filter_frame);
+        let diagnostics_button_show_more_filters = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_show_more_filters"), &filter_frame);
         diagnostics_button_error.set_checkable(true);
         diagnostics_button_warning.set_checkable(true);
         diagnostics_button_info.set_checkable(true);
