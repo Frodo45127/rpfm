@@ -534,7 +534,8 @@ impl PackedFileDecoderViewSlots {
 
         // Slot for the "Test Definition" button.
         let test_definition = SlotNoArgs::new(&view.table_view, clone!(
-            mut view => move || {
+            app_ui,
+            view => move || {
                 let schema = view.add_definition_to_schema();
 
                 match view.packed_file_type {
@@ -544,7 +545,7 @@ impl PackedFileDecoderViewSlots {
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
                             }
                         }
                     }
@@ -554,7 +555,7 @@ impl PackedFileDecoderViewSlots {
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
                             }
                         }
                     }
@@ -564,7 +565,7 @@ impl PackedFileDecoderViewSlots {
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
                             }
                         }
                     }
@@ -574,7 +575,7 @@ impl PackedFileDecoderViewSlots {
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
                             }
                         }
                     }
@@ -584,7 +585,7 @@ impl PackedFileDecoderViewSlots {
                         Err(error) => {
                             if let ErrorKind::TableIncompleteError(_, data) = error.kind() {
                                 let data: Table = deserialize(data).unwrap();
-                                show_debug_dialog(&format!("{:#?}", data.get_table_data()));
+                                show_debug_dialog(&app_ui.main_window, &format!("{:#?}", data.get_table_data()));
                             }
                         }
                     }

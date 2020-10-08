@@ -114,8 +114,8 @@ pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidge
 ///
 /// It requires:
 /// - text: something that dereferences to `str`, to put in the window.
-pub unsafe fn show_debug_dialog<T: AsRef<str>>(text: T) {
-    let window = QWidget::new_0a();
+pub unsafe fn show_debug_dialog<T: AsRef<str>>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, text: T) {
+    let window = QWidget::new_1a(parent);
     let layout = create_grid_layout(window.static_upcast());
     let editor = new_text_editor_safe(&window);
 
