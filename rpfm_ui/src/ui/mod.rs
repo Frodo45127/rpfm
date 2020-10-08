@@ -95,11 +95,10 @@ impl UI {
 
     /// This function initialize the entire `UI`.
     pub unsafe fn new(app: Ptr<QApplication>) -> Self {
-
         let app_ui = Rc::new(AppUI::new());
-        let global_search_ui = Rc::new(GlobalSearchUI::new(app_ui.main_window));
-        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(app_ui.main_window));
-        let diagnostics_ui = Rc::new(DiagnosticsUI::new(app_ui.main_window));
+        let global_search_ui = Rc::new(GlobalSearchUI::new(&app_ui.main_window));
+        let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui.main_window));
+        let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
 
         AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
 
@@ -190,7 +189,7 @@ impl UI {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
                 if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path], "") {
-                    show_dialog(app_ui.main_window, error, false);
+                    show_dialog(&app_ui.main_window, error, false);
                 }
 
                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);

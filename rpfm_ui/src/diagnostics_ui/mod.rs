@@ -119,20 +119,20 @@ pub struct DiagnosticsUI {
 impl DiagnosticsUI {
 
     /// This function creates an entire `DiagnosticsUI` struct.
-    pub unsafe fn new(main_window: Ptr<QMainWindow>) -> Self {
+    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Self {
 
         //-----------------------------------------------//
         // `DiagnosticsUI` DockWidget.
         //-----------------------------------------------//
         let diagnostics_dock_widget = QDockWidget::from_q_widget(main_window);
-        let diagnostics_dock_inner_widget = QWidget::new_0a();
+        let diagnostics_dock_inner_widget = QWidget::new_1a(&diagnostics_dock_widget);
         let diagnostics_dock_layout = create_grid_layout(diagnostics_dock_inner_widget.static_upcast());
         diagnostics_dock_widget.set_widget(&diagnostics_dock_inner_widget);
         main_window.add_dock_widget_2a(DockWidgetArea::BottomDockWidgetArea, diagnostics_dock_widget.as_ptr());
         diagnostics_dock_widget.set_window_title(&qtr("gen_loc_diagnostics"));
 
         // Create and configure the filters section.
-        let filter_frame = QGroupBox::new();
+        let filter_frame = QGroupBox::from_q_widget(&diagnostics_dock_inner_widget);
         let filter_grid = create_grid_layout(filter_frame.static_upcast());
         filter_grid.set_contents_margins_4a(4, 0, 4, 0);
 
@@ -147,9 +147,6 @@ impl DiagnosticsUI {
         diagnostics_button_only_current_packed_file.set_checkable(true);
         diagnostics_button_show_more_filters.set_checkable(true);
         diagnostics_button_error.set_checked(true);
-
-        // Hidden until we get this working.
-        //diagnostics_button_only_current_packed_file.set_visible(false);
 
         diagnostics_button_info.set_style_sheet(&QString::from_std_str(&format!("
         QPushButton {{
@@ -181,9 +178,9 @@ impl DiagnosticsUI {
         filter_grid.add_widget_5a(&diagnostics_button_only_current_packed_file, 0, 3, 1, 1);
         filter_grid.add_widget_5a(&diagnostics_button_show_more_filters, 0, 4, 1, 1);
 
-        let diagnostics_table_view = QTableView::new_0a();
-        let diagnostics_table_filter = new_tableview_filter_safe(diagnostics_dock_widget.static_upcast());
-        let diagnostics_table_model = QStandardItemModel::new_0a();
+        let diagnostics_table_view = QTableView::new_1a(&diagnostics_dock_inner_widget);
+        let diagnostics_table_filter = new_tableview_filter_safe(diagnostics_dock_inner_widget.static_upcast());
+        let diagnostics_table_model = QStandardItemModel::new_1a(&diagnostics_dock_inner_widget);
         diagnostics_table_filter.set_source_model(&diagnostics_table_model);
         diagnostics_table_view.set_model(&diagnostics_table_filter);
         diagnostics_table_view.set_selection_mode(SelectionMode::ExtendedSelection);
@@ -195,7 +192,7 @@ impl DiagnosticsUI {
             diagnostics_table_view.vertical_header().set_default_section_size(22);
         }
 
-        diagnostics_dock_layout.add_widget_5a(filter_frame.into_ptr(), 0, 0, 1, 1);
+        diagnostics_dock_layout.add_widget_5a(&filter_frame, 0, 0, 1, 1);
         diagnostics_dock_layout.add_widget_5a(&diagnostics_table_view, 1, 0, 1, 1);
 
         main_window.set_corner(qt_core::Corner::BottomLeftCorner, qt_core::DockWidgetArea::LeftDockWidgetArea);
@@ -206,8 +203,8 @@ impl DiagnosticsUI {
         //-------------------------------------------------------------------------------//
 
         // Create the search and hide/show/freeze widgets.
-        let sidebar_widget = QWidget::new_0a();
-        let sidebar_scroll_area = QScrollArea::new_0a();
+        let sidebar_scroll_area = QScrollArea::new_1a(&diagnostics_dock_inner_widget);
+        let sidebar_widget = QWidget::new_1a(&sidebar_scroll_area);
         let sidebar_grid = create_grid_layout(sidebar_widget.static_upcast());
         sidebar_scroll_area.set_widget(&sidebar_widget);
         sidebar_scroll_area.set_widget_resizable(true);
@@ -215,8 +212,8 @@ impl DiagnosticsUI {
         sidebar_grid.set_contents_margins_4a(4, 0, 4, 4);
         sidebar_grid.set_spacing(4);
 
-        let header_column = QLabel::from_q_string(&qtr("diagnostic_type"));
-        let header_hidden = QLabel::from_q_string(&qtr("diagnostic_show"));
+        let header_column = QLabel::from_q_string_q_widget(&qtr("diagnostic_type"), &sidebar_scroll_area);
+        let header_hidden = QLabel::from_q_string_q_widget(&qtr("diagnostic_show"), &sidebar_scroll_area);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_column, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -224,33 +221,33 @@ impl DiagnosticsUI {
         sidebar_grid.add_widget_5a(&header_column, 0, 0, 1, 1);
         sidebar_grid.add_widget_5a(&header_hidden, 0, 1, 1, 1);
 
-        let label_all = QLabel::from_q_string(&qtr("all"));
-        let label_outdated_table = QLabel::from_q_string(&qtr("label_outdated_table"));
-        let label_invalid_reference = QLabel::from_q_string(&qtr("label_invalid_reference"));
-        let label_empty_row = QLabel::from_q_string(&qtr("label_empty_row"));
-        let label_empty_key_field = QLabel::from_q_string(&qtr("label_empty_key_field"));
-        let label_empty_key_fields = QLabel::from_q_string(&qtr("label_empty_key_fields"));
-        let label_duplicated_combined_keys = QLabel::from_q_string(&qtr("label_duplicated_combined_keys"));
-        let label_no_reference_table_found = QLabel::from_q_string(&qtr("label_no_reference_table_found"));
-        let label_no_reference_table_nor_column_found_pak = QLabel::from_q_string(&qtr("label_no_reference_table_nor_column_found_pak"));
-        let label_no_reference_table_nor_column_found_no_pak = QLabel::from_q_string(&qtr("label_no_reference_table_nor_column_found_no_pak"));
-        let label_invalid_escape = QLabel::from_q_string(&qtr("label_invalid_escape"));
-        let label_duplicated_row = QLabel::from_q_string(&qtr("label_duplicated_row"));
-        let label_invalid_dependency_packfile = QLabel::from_q_string(&qtr("label_invalid_dependency_packfile"));
+        let label_all = QLabel::from_q_string_q_widget(&qtr("all"), &sidebar_scroll_area);
+        let label_outdated_table = QLabel::from_q_string_q_widget(&qtr("label_outdated_table"), &sidebar_scroll_area);
+        let label_invalid_reference = QLabel::from_q_string_q_widget(&qtr("label_invalid_reference"), &sidebar_scroll_area);
+        let label_empty_row = QLabel::from_q_string_q_widget(&qtr("label_empty_row"), &sidebar_scroll_area);
+        let label_empty_key_field = QLabel::from_q_string_q_widget(&qtr("label_empty_key_field"), &sidebar_scroll_area);
+        let label_empty_key_fields = QLabel::from_q_string_q_widget(&qtr("label_empty_key_fields"), &sidebar_scroll_area);
+        let label_duplicated_combined_keys = QLabel::from_q_string_q_widget(&qtr("label_duplicated_combined_keys"), &sidebar_scroll_area);
+        let label_no_reference_table_found = QLabel::from_q_string_q_widget(&qtr("label_no_reference_table_found"), &sidebar_scroll_area);
+        let label_no_reference_table_nor_column_found_pak = QLabel::from_q_string_q_widget(&qtr("label_no_reference_table_nor_column_found_pak"), &sidebar_scroll_area);
+        let label_no_reference_table_nor_column_found_no_pak = QLabel::from_q_string_q_widget(&qtr("label_no_reference_table_nor_column_found_no_pak"), &sidebar_scroll_area);
+        let label_invalid_escape = QLabel::from_q_string_q_widget(&qtr("label_invalid_escape"), &sidebar_scroll_area);
+        let label_duplicated_row = QLabel::from_q_string_q_widget(&qtr("label_duplicated_row"), &sidebar_scroll_area);
+        let label_invalid_dependency_packfile = QLabel::from_q_string_q_widget(&qtr("label_invalid_dependency_packfile"), &sidebar_scroll_area);
 
-        let checkbox_all = QCheckBox::new();
-        let checkbox_outdated_table = QCheckBox::new();
-        let checkbox_invalid_reference = QCheckBox::new();
-        let checkbox_empty_row = QCheckBox::new();
-        let checkbox_empty_key_field = QCheckBox::new();
-        let checkbox_empty_key_fields = QCheckBox::new();
-        let checkbox_duplicated_combined_keys = QCheckBox::new();
-        let checkbox_no_reference_table_found = QCheckBox::new();
-        let checkbox_no_reference_table_nor_column_found_pak = QCheckBox::new();
-        let checkbox_no_reference_table_nor_column_found_no_pak = QCheckBox::new();
-        let checkbox_invalid_escape = QCheckBox::new();
-        let checkbox_duplicated_row = QCheckBox::new();
-        let checkbox_invalid_dependency_packfile = QCheckBox::new();
+        let checkbox_all = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_outdated_table = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_invalid_reference = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_empty_row = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_empty_key_field = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_empty_key_fields = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_duplicated_combined_keys = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_no_reference_table_found = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_no_reference_table_nor_column_found_pak = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_no_reference_table_nor_column_found_no_pak = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_invalid_escape = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_duplicated_row = QCheckBox::from_q_widget(&sidebar_scroll_area);
+        let checkbox_invalid_dependency_packfile = QCheckBox::from_q_widget(&sidebar_scroll_area);
 
         checkbox_all.set_checked(true);
         checkbox_outdated_table.set_checked(true);
@@ -596,7 +593,7 @@ impl DiagnosticsUI {
         }
 
         else {
-            show_dialog(app_ui.main_window, ErrorKind::PackedFileNotInFilter, false);
+            show_dialog(&app_ui.main_window, ErrorKind::PackedFileNotInFilter, false);
         }
 
         match &*model.item_2a(model_index.row(), 1).text().to_std_string() {

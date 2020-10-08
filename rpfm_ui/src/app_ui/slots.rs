@@ -173,7 +173,7 @@ impl AppUISlots {
         //-----------------------------------------------//
 
         // Slot to build the "Open from" submenus of the PackFile menu.
-        let packfile_open_menu = SlotNoArgs::new(app_ui.main_window, clone!(
+        let packfile_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -183,7 +183,7 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "New PackFile" action.
-        let packfile_new_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_new_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -242,7 +242,7 @@ impl AppUISlots {
             }
         ));
 
-        let packfile_open_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_open_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -253,7 +253,7 @@ impl AppUISlots {
 
                     // Create the FileDialog to get the PackFile to open and configure it.
                     let file_dialog = QFileDialog::from_q_widget_q_string(
-                        app_ui.main_window,
+                        &app_ui.main_window,
                         &qtr("open_packfiles"),
                     );
                     file_dialog.set_name_filter(&QString::from_std_str("PackFiles (*.pack)"));
@@ -271,7 +271,7 @@ impl AppUISlots {
 
                         // Try to open it, and report it case of error.
                         if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &paths, "") {
-                            return show_dialog(app_ui.main_window, error, false);
+                            return show_dialog(&app_ui.main_window, error, false);
                         }
 
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
@@ -281,31 +281,31 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Save PackFile" action.
-        let packfile_save_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_save_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move |_| {
                 if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false) {
-                    show_dialog(app_ui.main_window, error, false);
+                    show_dialog(&app_ui.main_window, error, false);
                 }
             }
         ));
 
         // What happens when we trigger the "Save PackFile As" action.
-        let packfile_save_packfile_as = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_save_packfile_as = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move |_| {
                 if let Err(error) = AppUI::save_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, true) {
-                    show_dialog(app_ui.main_window, error, false);
+                    show_dialog(&app_ui.main_window, error, false);
                 }
             }
         ));
 
         // What happens when we trigger the "Load All CA PackFiles" action.
-        let packfile_load_all_ca_packfiles = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_load_all_ca_packfiles = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -377,7 +377,7 @@ impl AppUISlots {
 
                     // If we got an error...
                     Response::Error(error) => {
-                        show_dialog(app_ui.main_window, error, false);
+                        show_dialog(&app_ui.main_window, error, false);
                     }
 
                     // In ANY other situation, it's a message problem.
@@ -390,7 +390,7 @@ impl AppUISlots {
         }));
 
         // What happens when we trigger the "Change PackFile Type" action.
-        let packfile_change_packfile_type = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_change_packfile_type = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
 
@@ -412,7 +412,7 @@ impl AppUISlots {
         ));
 
         // What happens when we change the value of "Include Last Modified Date" action.
-        let packfile_index_includes_timestamp = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_index_includes_timestamp = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui =>  move |_| {
                 let state = app_ui.change_packfile_type_index_includes_timestamp.is_checked();
@@ -422,7 +422,7 @@ impl AppUISlots {
         ));
 
         // What happens when we enable/disable compression on the current PackFile.
-        let packfile_data_is_compressed = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_data_is_compressed = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui =>  move |_| {
                 let state = app_ui.change_packfile_type_data_is_compressed.is_checked();
@@ -432,7 +432,7 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Preferences" action.
-        let packfile_preferences = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_preferences = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -469,7 +469,7 @@ impl AppUISlots {
                         }
 
                         // If we got an error, report it.
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
 
                         // In ANY other situation, it's a message problem.
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
@@ -479,7 +479,7 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Quit" action.
-        let packfile_quit = SlotOfBool::new(app_ui.main_window, clone!(
+        let packfile_quit = SlotOfBool::new(&app_ui.main_window, clone!(
             mut app_ui => move |_| {
                 if AppUI::are_you_sure(&app_ui, false) {
                     app_ui.main_window.close();
@@ -492,7 +492,7 @@ impl AppUISlots {
         //-----------------------------------------------//
 
         // Slot to build the "Open from" submenus of the MyMod menu.
-        let mymod_open_menu = SlotNoArgs::new(app_ui.main_window, clone!(
+        let mymod_open_menu = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -502,18 +502,18 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Open MyMod Folder" action.
-        let mymod_open_mymod_folder = SlotOfBool::new(app_ui.main_window, clone!(
+        let mymod_open_mymod_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Some(ref path) = SETTINGS.read().unwrap().paths["mymods_base_path"] {
                 if open::that(&path).is_err() {
-                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
-            else { show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
+            else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
         }));
 
         // This slot is used for the "New MyMod" action.
-        let mymod_new = SlotOfBool::new(app_ui.main_window, clone!(
+        let mymod_new = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -549,7 +549,7 @@ impl AppUISlots {
                     // Just in case the folder doesn't exist, we try to create it.
                     if DirBuilder::new().recursive(true).create(&mymod_path).is_err() {
                         app_ui.main_window.set_enabled(true);
-                        return show_dialog(app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
+                        return show_dialog(&app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
                     }
 
                     // We need to create another folder inside the game's folder with the name of the new "MyMod", to store extracted files.
@@ -557,7 +557,7 @@ impl AppUISlots {
                     mymod_path_private.push(&mod_name);
                     if DirBuilder::new().recursive(true).create(&mymod_path_private).is_err() {
                         app_ui.main_window.set_enabled(true);
-                        return show_dialog(app_ui.main_window, ErrorKind::IOCreateNestedAssetFolder, false);
+                        return show_dialog(&app_ui.main_window, ErrorKind::IOCreateNestedAssetFolder, false);
                     };
 
                     // Complete the mymod PackFile path and create it.
@@ -608,7 +608,7 @@ impl AppUISlots {
 
                         Response::Error(error) => {
                             app_ui.main_window.set_enabled(true);
-                            show_dialog(app_ui.main_window, error, false);
+                            show_dialog(&app_ui.main_window, error, false);
                         }
 
                         // In ANY other situation, it's a message problem.
@@ -619,7 +619,7 @@ impl AppUISlots {
         ));
 
         // This slot is used for the "Delete Selected MyMod" action.
-        let mymod_delete_selected = SlotOfBool::new(app_ui.main_window, clone!(
+        let mymod_delete_selected = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -647,12 +647,12 @@ impl AppUISlots {
                                 mymod_path.push(&mod_name);
 
                                 if !mymod_path.is_file() {
-                                    return show_dialog(app_ui.main_window, ErrorKind::MyModPackFileDoesntExist, false);
+                                    return show_dialog(&app_ui.main_window, ErrorKind::MyModPackFileDoesntExist, false);
                                 }
 
                                 // Try to delete his PackFile. If it fails, return error.
                                 if remove_file(&mymod_path).is_err() {
-                                    return show_dialog(app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_path; 1]), false);
+                                    return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_path; 1]), false);
                                 }
 
                                 // Now we get his assets folder.
@@ -663,23 +663,23 @@ impl AppUISlots {
                                 // We check that path exists. This is optional, so it should allow the deletion
                                 // process to continue with a warning.
                                 if !mymod_assets_path.is_dir() {
-                                    show_dialog(app_ui.main_window, ErrorKind::MyModPackFileDeletedFolderNotFound, false);
+                                    show_dialog(&app_ui.main_window, ErrorKind::MyModPackFileDeletedFolderNotFound, false);
                                 }
 
                                 // If the assets folder exists, we try to delete it. Again, this is optional, so it should not stop the deleting process.
                                 else if remove_dir_all(&mymod_assets_path).is_err() {
-                                    show_dialog(app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_assets_path; 1]), false);
+                                    show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_assets_path; 1]), false);
                                 }
 
                                 // Update the MyMod list and return true, as we have effectively deleted the MyMod.
                                 AppUI::build_open_mymod_submenus(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
                                 true
                             }
-                            else { return show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
+                            else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
                         }
 
                         // If we have no "MyMod" selected, return an error.
-                        OperationalMode::Normal => return show_dialog(app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                        OperationalMode::Normal => return show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
                     };
 
                     // If we deleted the "MyMod", we allow chaos to form below.
@@ -690,14 +690,14 @@ impl AppUISlots {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Clear);
                         UI_STATE.set_is_modified(false, &app_ui, &pack_file_contents_ui);
 
-                        show_dialog(app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
+                        show_dialog(&app_ui.main_window, tre("mymod_delete_success", &[&old_mod_name]), true);
                     }
                 }
             }
         ));
 
         // This slot is used for the "Install MyMod" action.
-        let mymod_install = SlotOfBool::new(app_ui.main_window, clone!(
+        let mymod_install = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
 
                 // Depending on our current "Mode", we choose what to do.
@@ -716,34 +716,34 @@ impl AppUISlots {
                                 mymod_path.push(&mod_name);
 
                                 if !mymod_path.is_file() {
-                                    return show_dialog(app_ui.main_window, ErrorKind::MyModPackFileDoesntExist, false);
+                                    return show_dialog(&app_ui.main_window, ErrorKind::MyModPackFileDoesntExist, false);
                                 }
 
                                 if !game_data_path.is_dir() {
-                                    return show_dialog(app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
+                                    return show_dialog(&app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
                                 }
 
                                 // Get the destination path for the PackFile with the PackFile name included.
                                 // And copy the PackFile to his destination. If the copy fails, return an error.
                                 game_data_path.push(&mod_name);
                                 if copy(mymod_path, &game_data_path).is_err() {
-                                    return show_dialog(app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                                    return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
                                 }
                             }
-                            else { show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false) }
+                            else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false) }
                         }
-                        else { show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
+                        else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false); }
                     }
 
                     // If we have no "MyMod" selected, return an error.
-                    OperationalMode::Normal => show_dialog(app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                    OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
                 }
 
             }
         ));
 
         // This slot is used for the "Uninstall MyMod" action.
-        let mymod_uninstall = SlotOfBool::new(app_ui.main_window, clone!(
+        let mymod_uninstall = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
 
                 // Depending on our current "Mode", we choose what to do.
@@ -756,18 +756,18 @@ impl AppUISlots {
                             game_data_path.push(&mod_name);
 
                             if !game_data_path.is_file() {
-                                show_dialog(app_ui.main_window, ErrorKind::MyModNotInstalled, false)
+                                show_dialog(&app_ui.main_window, ErrorKind::MyModNotInstalled, false)
                             }
 
                             else if remove_file(&game_data_path).is_err() {
-                                return show_dialog(app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+                                return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
                             }
                         }
-                        else { show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
+                        else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
                     }
 
                    // If we have no "MyMod" selected, return an error.
-                    OperationalMode::Normal => show_dialog(app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
+                    OperationalMode::Normal => show_dialog(&app_ui.main_window, ErrorKind::MyModDeleteWithoutMyModSelected, false),
                 }
             }
         ));
@@ -775,13 +775,13 @@ impl AppUISlots {
         //-----------------------------------------------//
         // `View` menu logic.
         //-----------------------------------------------//
-        let view_toggle_packfile_contents = SlotOfBool::new(app_ui.main_window, clone!(
+        let view_toggle_packfile_contents = SlotOfBool::new(&app_ui.main_window, clone!(
             pack_file_contents_ui => move |state| {
             if !state { pack_file_contents_ui.packfile_contents_dock_widget.hide(); }
             else { pack_file_contents_ui.packfile_contents_dock_widget.show();}
         }));
 
-        let view_toggle_global_search_panel = SlotOfBool::new(app_ui.main_window, clone!(
+        let view_toggle_global_search_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             global_search_ui => move |state| {
             if !state { global_search_ui.global_search_dock_widget.hide(); }
             else {
@@ -790,7 +790,7 @@ impl AppUISlots {
             }
         }));
 
-        let view_toggle_diagnostics_panel = SlotOfBool::new(app_ui.main_window, clone!(
+        let view_toggle_diagnostics_panel = SlotOfBool::new(&app_ui.main_window, clone!(
             diagnostics_ui => move |state| {
                 if !state { diagnostics_ui.get_ref_diagnostics_dock_widget().hide(); }
                 else { diagnostics_ui.get_ref_diagnostics_dock_widget().show();}
@@ -801,53 +801,53 @@ impl AppUISlots {
         //-----------------------------------------------//
 
         // What happens when we trigger the "Launch Game" action.
-        let game_selected_launch_game = SlotOfBool::new(app_ui.main_window, clone!(
+        let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Some(steam_id) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().steam_id {
                 if open::that(format!("steam://rungameid/{}", steam_id)).is_err() {
-                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
-            else { show_dialog(app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false); }
+            else { show_dialog(&app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false); }
         }));
 
         // What happens when we trigger the "Open Game's Data Folder" action.
-        let game_selected_open_game_data_folder = SlotOfBool::new(app_ui.main_window, clone!(
+        let game_selected_open_game_data_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Some(path) = get_game_selected_data_path() {
                 if open::that(&path).is_err() {
-                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
-            else { show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
+            else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
         }));
 
         // What happens when we trigger the "Open Game's Assembly Kit Folder" action.
-        let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(app_ui.main_window, clone!(
+        let game_selected_open_game_assembly_kit_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Some(path) = get_game_selected_assembly_kit_path() {
                 if open::that(&path).is_err() {
-                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
-            else { show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
+            else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }
         }));
 
         // What happens when we trigger the "Open Config Folder" action.
-        let game_selected_open_config_folder = SlotOfBool::new(app_ui.main_window, clone!(
+        let game_selected_open_config_folder = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
             if let Ok(path) = get_config_path() {
                 if open::that(&path).is_err() {
-                    show_dialog(app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
                 };
             }
-            else { show_dialog(app_ui.main_window, ErrorKind::ConfigFolderCouldNotBeOpened, false); }
+            else { show_dialog(&app_ui.main_window, ErrorKind::ConfigFolderCouldNotBeOpened, false); }
         }));
 
         // What happens when we trigger the "Change Game Selected" action.
         //
         // NOTE: NEVER EVER AGAIN SHALL YOU TRIGGER HERE A REBUILD OF THE GAME-SPECIFIC SLOTS!!!!!!!!!!
-        let change_game_selected = SlotOfBool::new(app_ui.main_window, clone!(
+        let change_game_selected = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |_| {
 
@@ -896,7 +896,7 @@ impl AppUISlots {
         //-----------------------------------------------------//
 
         // What happens when we trigger the "Create Dummy AnimPack" action.
-        let special_stuff_repack_animtable = SlotOfBool::new(app_ui.main_window, clone!(
+        let special_stuff_repack_animtable = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -917,7 +917,7 @@ impl AppUISlots {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(response.to_vec()));
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(response.to_vec()));
                     }
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
 
@@ -927,7 +927,7 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Generate Pak File" action.
-        let special_stuff_generate_pak_file = SlotOfBool::new(app_ui.main_window, clone!(
+        let special_stuff_generate_pak_file = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
@@ -944,7 +944,7 @@ impl AppUISlots {
                             path
                         }
                         else {
-                            return show_dialog(app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
+                            return show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false);
                         }
                     }
 
@@ -953,7 +953,7 @@ impl AppUISlots {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let file_dialog = QFileDialog::from_q_widget_q_string(
-                            app_ui.main_window,
+                            &app_ui.main_window,
                             &qtr("special_stuff_select_ak_folder"),
                         );
 
@@ -965,7 +965,7 @@ impl AppUISlots {
                         let mut path = if file_dialog.exec() == 1 {
                             PathBuf::from(file_dialog.selected_files().at(0).to_std_string())
                         } else {
-                            return show_dialog(app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
+                            return show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
                         };
 
                         path.push("raw_data");
@@ -974,7 +974,7 @@ impl AppUISlots {
                     }
 
                     // Empire and Napoleon. This is not really supported yet. It's leave here as a placeholder.
-                    _ => return show_dialog(app_ui.main_window, tr("game_selected_unsupported_operation"), false),
+                    _ => return show_dialog(&app_ui.main_window, tr("game_selected_unsupported_operation"), false),
                 };
 
                 if path.is_dir() {
@@ -985,21 +985,21 @@ impl AppUISlots {
                     CENTRAL_COMMAND.send_message_qt(Command::GeneratePakFile(path, version));
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
-                        Response::Success => show_dialog(app_ui.main_window, tr("generate_pak_success"), true),
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                        Response::Success => show_dialog(&app_ui.main_window, tr("generate_pak_success"), true),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 
                     app_ui.main_window.set_enabled(true);
                 }
                 else {
-                    show_dialog(app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
+                    show_dialog(&app_ui.main_window, ErrorKind::AssemblyKitNotFound, false);
                 }
             }
         ));
 
         // What happens when we trigger the "Optimize PackFile" action.
-        let special_stuff_optimize_packfile = SlotOfBool::new(app_ui.main_window, clone!(
+        let special_stuff_optimize_packfile = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -1009,7 +1009,7 @@ impl AppUISlots {
                 app_ui.main_window.set_enabled(false);
 
                 if let Err(error) = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, true) {
-                    return show_dialog(app_ui.main_window, error, false);
+                    return show_dialog(&app_ui.main_window, error, false);
                 }
 
                 GlobalSearchUI::clear(&global_search_ui);
@@ -1021,7 +1021,7 @@ impl AppUISlots {
                         let response = response.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
 
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(response));
-                        show_dialog(app_ui.main_window, tr("optimize_packfile_success"), true);
+                        show_dialog(&app_ui.main_window, tr("optimize_packfile_success"), true);
                     }
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
@@ -1032,7 +1032,7 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Patch Siege AI" action.
-        let special_stuff_patch_siege_ai = SlotOfBool::new(app_ui.main_window, clone!(
+        let special_stuff_patch_siege_ai = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -1042,7 +1042,7 @@ impl AppUISlots {
                 app_ui.main_window.set_enabled(false);
 
                 if let Err(error) = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, true) {
-                    return show_dialog(app_ui.main_window, error, false);
+                    return show_dialog(&app_ui.main_window, error, false);
                 }
 
                 GlobalSearchUI::clear(&global_search_ui);
@@ -1054,11 +1054,11 @@ impl AppUISlots {
                         let message = response.0;
                         let paths = response.1.iter().map(|x| TreePathType::File(x.to_vec())).collect::<Vec<TreePathType>>();
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Delete(paths));
-                        show_dialog(app_ui.main_window, &message, true);
+                        show_dialog(&app_ui.main_window, &message, true);
                     }
 
                     // If the PackFile is empty or is not patchable, report it. Otherwise, praise the nine divines.
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
                 }
 
@@ -1072,17 +1072,17 @@ impl AppUISlots {
         //-----------------------------------------------//
 
         // What happens when we trigger the "About Qt" action.
-        let about_about_qt = SlotOfBool::new(app_ui.main_window, clone!(
+        let about_about_qt = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-                QMessageBox::about_qt_1a(app_ui.main_window);
+                QMessageBox::about_qt_1a(&app_ui.main_window);
             }
         ));
 
         // What happens when we trigger the "About RPFM" action.
-        let about_about_rpfm = SlotOfBool::new(app_ui.main_window, clone!(
+        let about_about_rpfm = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 QMessageBox::about(
-                    app_ui.main_window,
+                    &app_ui.main_window,
                     &qtr("about_about_rpfm"),
 
                     // NOTE: This one is hardcoded, because I don't want people attributing themselfs the program in the translations.
@@ -1126,34 +1126,34 @@ impl AppUISlots {
         ));
 
         // What happens when we trigger the "Open Manual" action.
-        let about_open_manual = SlotOfBool::new(app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DOCS_BASE_URL))); });
+        let about_open_manual = SlotOfBool::new(&app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(DOCS_BASE_URL))); });
 
         // What happens when we trigger the "Support me on Patreon" action.
-        let about_patreon_link = SlotOfBool::new(app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
+        let about_patreon_link = SlotOfBool::new(&app_ui.main_window, |_| { QDesktopServices::open_url(&QUrl::new_1a(&QString::from_std_str(PATREON_URL))); });
 
         // What happens when we trigger the "Check Update" action.
-        let about_check_updates = SlotOfBool::new(app_ui.main_window, clone!(
+        let about_check_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 AppUI::check_updates(&app_ui, true);
             }
         ));
 
         // What happens when we trigger the "Check Schema Update" action.
-        let about_check_schema_updates = SlotOfBool::new(app_ui.main_window, clone!(
+        let about_check_schema_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 AppUI::check_schema_updates(&app_ui, true);
             }
         ));
 
         // What happens when we trigger the "Update Templates" action.
-        let about_check_templates_updates = SlotOfBool::new(app_ui.main_window, clone!(
+        let about_check_templates_updates = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
                 AppUI::check_template_updates(&app_ui, true);
             }
         ));
 
         // What happens when we trigger the "Update from AssKit" action.
-        let debug_update_current_schema_from_asskit = SlotOfBool::new(app_ui.main_window, clone!(
+        let debug_update_current_schema_from_asskit = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
 
                 // For Rome 2+, we need the game path set. For other games, we have to ask for a path.
@@ -1163,7 +1163,7 @@ impl AppUISlots {
 
                         // Create the FileDialog to get the path of the Assembly Kit.
                         let file_dialog = QFileDialog::from_q_widget_q_string(
-                            app_ui.main_window,
+                            &app_ui.main_window,
                             &qtr("special_stuff_select_raw_db_folder"),
                         );
 
@@ -1184,8 +1184,8 @@ impl AppUISlots {
                 CENTRAL_COMMAND.send_message_qt(Command::UpdateCurrentSchemaFromAssKit(path));
                 let response = CENTRAL_COMMAND.recv_message_qt_try();
                 match response {
-                    Response::Success => show_dialog(app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                    Response::Success => show_dialog(&app_ui.main_window, tr("update_current_schema_from_asskit_success"), true),
+                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
 
@@ -1196,7 +1196,7 @@ impl AppUISlots {
         //-----------------------------------------------//
         // `PackedFileView` logic.
         //-----------------------------------------------//
-        let packed_file_hide = SlotOfInt::new(app_ui.main_window, clone!(
+        let packed_file_hide = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -1205,7 +1205,7 @@ impl AppUISlots {
             }
         ));
 
-        let packed_file_update = SlotOfInt::new(app_ui.main_window, clone!(
+        let packed_file_update = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui => move |index| {
                 if index == -1 { return; }
 
@@ -1245,7 +1245,7 @@ impl AppUISlots {
             }
         ));
 
-        let packed_file_unpreview = SlotOfInt::new(app_ui.main_window, clone!(
+        let packed_file_unpreview = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui => move |index| {
                 if index == -1 { return; }
 
@@ -1265,7 +1265,7 @@ impl AppUISlots {
         ));
 
         // Autosave slot.
-        let pack_file_backup_autosave = SlotNoArgs::new(app_ui.main_window, clone!(
+        let pack_file_backup_autosave = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
                 CENTRAL_COMMAND.send_message_qt(Command::TriggerBackupAutosave);
                 log_to_status_bar(&tr("autosaving"));
@@ -1289,7 +1289,7 @@ impl AppUISlots {
             }
         ));
 
-        let tab_bar_packed_file_close = SlotNoArgs::new(app_ui.main_window, clone!(
+        let tab_bar_packed_file_close = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui,
             global_search_ui,
@@ -1298,7 +1298,7 @@ impl AppUISlots {
             AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, index);
         }));
 
-        let tab_bar_packed_file_prev = SlotNoArgs::new(app_ui.main_window, clone!(
+        let tab_bar_packed_file_prev = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
                 let index = app_ui.tab_bar_packed_file.current_index();
                 if index != -1 {
@@ -1307,7 +1307,7 @@ impl AppUISlots {
             }
         ));
 
-        let tab_bar_packed_file_next = SlotNoArgs::new(app_ui.main_window, clone!(
+        let tab_bar_packed_file_next = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui => move || {
                 let index = app_ui.tab_bar_packed_file.current_index();
                 if index != -1 {

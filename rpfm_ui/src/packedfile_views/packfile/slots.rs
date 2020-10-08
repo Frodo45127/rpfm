@@ -125,7 +125,7 @@ impl PackFileExtraViewSlots {
                             }
                             */
                         },
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
 

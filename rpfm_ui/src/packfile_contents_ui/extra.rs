@@ -89,7 +89,7 @@ impl PackFileContentsUI {
                 });
             }
 
-            Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
@@ -134,7 +134,7 @@ impl PackFileContentsUI {
                 });
             }
 
-            Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         }
 
@@ -168,7 +168,7 @@ impl PackFileContentsUI {
     pub unsafe fn create_rename_dialog(app_ui: &Rc<AppUI>, selected_items: &[TreePathType]) -> Option<String> {
 
         // Create and configure the dialog.
-        let dialog = QDialog::new_1a(app_ui.main_window);
+        let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("rename_selection"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
@@ -209,7 +209,7 @@ impl PackFileContentsUI {
     pub unsafe fn create_mass_import_tsv_dialog(app_ui: &AppUI) -> Option<(Vec<PathBuf>, Option<String>)> {
 
         // Create the "Mass-Import TSV" Dialog and configure it.
-        let dialog = Rc::new(QDialog::new_1a(app_ui.main_window)    );
+        let dialog = Rc::new(QDialog::new_1a(&app_ui.main_window)    );
         dialog.set_window_title(&qtr("mass_import_tsv"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 100);

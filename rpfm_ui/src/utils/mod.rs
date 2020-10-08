@@ -152,7 +152,7 @@ pub fn display_help_tips(app_ui: &AppUI) {
 
 /// This function creates a `GridLayout` for the provided widget with the settings we want.
 pub unsafe fn create_grid_layout(widget: QPtr<QWidget>) -> QBox<QGridLayout> {
-    let widget_layout = QGridLayout::new_0a();
+    let widget_layout = QGridLayout::new_1a(&widget);
     widget.set_layout(&widget_layout);
 
     // Due to how Qt works, if we want a decent look on windows, we have to do some specific tweaks there.

@@ -262,8 +262,8 @@ impl TableView {
         let save_lock = Arc::new(AtomicBool::new(false));
 
         // Prepare the Table and its model.
-        let table_filter = QSortFilterProxyModel::new_0a();
-        let table_model = QStandardItemModel::new_0a();
+        let table_filter = QSortFilterProxyModel::new_1a(parent);
+        let table_model = QStandardItemModel::new_1a(parent);
         table_filter.set_source_model(&table_model);
         let (table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&parent.as_ptr());
         set_frozen_data_model_safe(&table_view_primary.as_ptr(), &table_filter.static_upcast::<QAbstractItemModel>().as_ptr());
@@ -285,16 +285,16 @@ impl TableView {
             table_view_frozen.vertical_header().set_default_section_size(22);
         }
 
-        let warning_message = QLabel::from_q_string(&qtr("dependency_packfile_list_label"));
+        let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
 
         // Create the filter's widgets.
-        let row_filter_line_edit = QLineEdit::new();
-        let filter_column_selector = QComboBox::new_0a();
-        let row_filter_case_sensitive_button = QPushButton::from_q_string(&qtr("table_filter_case_sensitive"));
-        let row_filter_column_list = QStandardItemModel::new_0a().into_ptr();
-        let table_enable_lookups_button = QPushButton::from_q_string(&qtr("table_enable_lookups"));
+        let row_filter_line_edit = QLineEdit::from_q_widget(parent);
+        let filter_column_selector = QComboBox::new_1a(parent);
+        let row_filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_case_sensitive"), parent);
+        let row_filter_column_list = QStandardItemModel::new_1a(&filter_column_selector);
+        let table_enable_lookups_button = QPushButton::from_q_string_q_widget(&qtr("table_enable_lookups"), parent);
 
-        filter_column_selector.set_model(row_filter_column_list);
+        filter_column_selector.set_model(&row_filter_column_list);
 
         let fields = get_fields_sorted(&table_definition);
         for field in &fields {
@@ -305,6 +305,8 @@ impl TableView {
         row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         row_filter_case_sensitive_button.set_checkable(true);
         table_enable_lookups_button.set_checkable(true);
+
+        table_enable_lookups_button.set_visible(false);
 
         // Add everything to the grid.
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
@@ -320,19 +322,19 @@ impl TableView {
         //layout.add_widget_5a(& table_enable_lookups_button, 3, 3, 1, 1);
 
         // Action to make the delete button delete contents.
-        let smart_delete = QAction::new();
+        let smart_delete = QAction::from_q_object(&table_view_primary);
 
         // Create the Contextual Menu for the TableView.
-        let context_menu = QMenu::new();
+        let context_menu = QMenu::from_q_widget(&table_view_primary);
         let context_menu_add_rows = context_menu.add_action_q_string(&qtr("context_menu_add_rows"));
         let context_menu_insert_rows = context_menu.add_action_q_string(&qtr("context_menu_insert_rows"));
         let context_menu_delete_rows = context_menu.add_action_q_string(&qtr("context_menu_delete_rows"));
 
-        let context_menu_clone_submenu = QMenu::from_q_string(&qtr("context_menu_clone_submenu"));
+        let context_menu_clone_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_clone_submenu"), &table_view_primary);
         let context_menu_clone_and_insert = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_insert"));
         let context_menu_clone_and_append = context_menu_clone_submenu.add_action_q_string(&qtr("context_menu_clone_and_append"));
 
-        let context_menu_copy_submenu = QMenu::from_q_string(&qtr("context_menu_copy_submenu"));
+        let context_menu_copy_submenu = QMenu::from_q_string_q_widget(&qtr("context_menu_copy_submenu"), &table_view_primary);
         let context_menu_copy = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy"));
         let context_menu_copy_as_lua_table = context_menu_copy_submenu.add_action_q_string(&qtr("context_menu_copy_as_lua_table"));
 
@@ -354,8 +356,8 @@ impl TableView {
         let context_menu_redo = context_menu.add_action_q_string(&qtr("context_menu_redo"));
 
         // Insert some separators to space the menu, and the paste submenu.
-        context_menu.insert_menu(&context_menu_paste, context_menu_clone_submenu.into_ptr());
-        context_menu.insert_menu(&context_menu_paste, context_menu_copy_submenu.into_ptr());
+        context_menu.insert_menu(&context_menu_paste, &context_menu_clone_submenu);
+        context_menu.insert_menu(&context_menu_paste, &context_menu_copy_submenu);
         context_menu.insert_separator(&context_menu_rewrite_selection);
         context_menu.insert_separator(&context_menu_import_tsv);
         context_menu.insert_separator(&context_menu_search);
@@ -365,28 +367,28 @@ impl TableView {
         // Search Section.
         //--------------------------------------------------//
         //
-        let search_widget = QWidget::new_0a();
+        let search_widget = QWidget::new_1a(parent);
         let search_grid = create_grid_layout(search_widget.static_upcast());
 
-        let search_matches_label = QLabel::new();
-        let search_search_label = QLabel::from_q_string(&QString::from_std_str("Search Pattern:"));
-        let search_replace_label = QLabel::from_q_string(&QString::from_std_str("Replace Pattern:"));
-        let search_search_line_edit = QLineEdit::new();
-        let search_replace_line_edit = QLineEdit::new();
-        let search_prev_match_button = QPushButton::from_q_string(&QString::from_std_str("Prev. Match"));
-        let search_next_match_button = QPushButton::from_q_string(&QString::from_std_str("Next Match"));
-        let search_search_button = QPushButton::from_q_string(&QString::from_std_str("Search"));
-        let search_replace_current_button = QPushButton::from_q_string(&QString::from_std_str("Replace Current"));
-        let search_replace_all_button = QPushButton::from_q_string(&QString::from_std_str("Replace All"));
-        let search_close_button = QPushButton::from_q_string(&QString::from_std_str("Close"));
-        let search_column_selector = QComboBox::new_0a();
-        let search_column_list = QStandardItemModel::new_0a();
-        let search_case_sensitive_button = QPushButton::from_q_string(&QString::from_std_str("Case Sensitive"));
+        let search_matches_label = QLabel::from_q_widget(&search_widget);
+        let search_search_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Search Pattern:"), &search_widget);
+        let search_replace_label = QLabel::from_q_string_q_widget(&QString::from_std_str("Replace Pattern:"), &search_widget);
+        let search_search_line_edit = QLineEdit::from_q_widget(&search_widget);
+        let search_replace_line_edit = QLineEdit::from_q_widget(&search_widget);
+        let search_prev_match_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Prev. Match"), &search_widget);
+        let search_next_match_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Next Match"), &search_widget);
+        let search_search_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Search"), &search_widget);
+        let search_replace_current_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Replace Current"), &search_widget);
+        let search_replace_all_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Replace All"), &search_widget);
+        let search_close_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Close"), &search_widget);
+        let search_column_selector = QComboBox::new_1a(&search_widget);
+        let search_column_list = QStandardItemModel::new_1a(&search_column_selector);
+        let search_case_sensitive_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("Case Sensitive"), &search_widget);
 
         search_search_line_edit.set_placeholder_text(&QString::from_std_str("Type here what you want to search."));
         search_replace_line_edit.set_placeholder_text(&QString::from_std_str("If you want to replace the searched text with something, type the replacement here."));
 
-        search_column_selector.set_model(search_column_list.into_ptr());
+        search_column_selector.set_model(&search_column_list);
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
         for column in &fields {
             search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(&column.get_name())));
@@ -422,8 +424,8 @@ impl TableView {
         //--------------------------------------------------//
 
         // Create the search and hide/show/freeze widgets.
-        let sidebar_widget = QWidget::new_0a();
-        let sidebar_scroll_area = QScrollArea::new_0a();
+        let sidebar_scroll_area = QScrollArea::new_1a(parent);
+        let sidebar_widget = QWidget::new_1a(&sidebar_scroll_area);
         let sidebar_grid = create_grid_layout(sidebar_widget.static_upcast());
         sidebar_scroll_area.set_widget(&sidebar_widget);
         sidebar_scroll_area.set_widget_resizable(true);
@@ -431,9 +433,9 @@ impl TableView {
         sidebar_grid.set_contents_margins_4a(4, 0, 4, 4);
         sidebar_grid.set_spacing(4);
 
-        let header_column = QLabel::from_q_string(&qtr("header_column"));
-        let header_hidden = QLabel::from_q_string(&qtr("header_hidden"));
-        let header_frozen = QLabel::from_q_string(&qtr("header_frozen"));
+        let header_column = QLabel::from_q_string_q_widget(&qtr("header_column"), &sidebar_widget);
+        let header_hidden = QLabel::from_q_string_q_widget(&qtr("header_hidden"), &sidebar_widget);
+        let header_frozen = QLabel::from_q_string_q_widget(&qtr("header_frozen"), &sidebar_widget);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_column, QFlags::from(AlignmentFlag::AlignHCenter));
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&header_hidden, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -443,9 +445,9 @@ impl TableView {
         sidebar_grid.add_widget_5a(&header_hidden, 0, 1, 1, 1);
         sidebar_grid.add_widget_5a(&header_frozen, 0, 2, 1, 1);
 
-        let label_all = QLabel::from_q_string(&qtr("all"));
-        let sidebar_hide_checkboxes_all = QCheckBox::new();
-        let sidebar_freeze_checkboxes_all = QCheckBox::new();
+        let label_all = QLabel::from_q_string_q_widget(&qtr("all"), &sidebar_widget);
+        let sidebar_hide_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
+        let sidebar_freeze_checkboxes_all = QCheckBox::from_q_widget(&sidebar_widget);
         sidebar_freeze_checkboxes_all.set_enabled(false);
 
         sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&sidebar_hide_checkboxes_all, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -458,9 +460,9 @@ impl TableView {
         let mut sidebar_hide_checkboxes = vec![];
         let mut sidebar_freeze_checkboxes = vec![];
         for (index, column) in fields.iter().enumerate() {
-            let column_name = QLabel::from_q_string(&QString::from_std_str(&utils::clean_column_names(&column.get_name())));
-            let hide_show_checkbox = QCheckBox::new();
-            let freeze_unfreeze_checkbox = QCheckBox::new();
+            let column_name = QLabel::from_q_string_q_widget(&QString::from_std_str(&utils::clean_column_names(&column.get_name())), &sidebar_widget);
+            let hide_show_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
+            let freeze_unfreeze_checkbox = QCheckBox::from_q_widget(&sidebar_widget);
             freeze_unfreeze_checkbox.set_enabled(false);
 
             sidebar_grid.set_alignment_q_widget_q_flags_alignment_flag(&hide_show_checkbox, QFlags::from(AlignmentFlag::AlignHCenter));
@@ -479,7 +481,7 @@ impl TableView {
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
 
-        let timer_diagnostics_check = QTimer::new_0a();
+        let timer_diagnostics_check = QTimer::new_1a(parent);
         timer_diagnostics_check.set_single_shot(true);
 
         // Create the raw Struct and begin

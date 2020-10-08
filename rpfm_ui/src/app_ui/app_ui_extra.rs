@@ -335,7 +335,7 @@ impl AppUI {
                                     KEY_THREE_KINGDOMS => app_ui.game_selected_three_kingdoms.trigger(),
                                     KEY_WARHAMMER_2 => app_ui.game_selected_warhammer_2.trigger(),
                                     _ => {
-                                        show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_2]), true);
+                                        show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_WARHAMMER_2]), true);
                                         app_ui.game_selected_warhammer_2.trigger();
                                     }
                                 }
@@ -352,7 +352,7 @@ impl AppUI {
                                 KEY_ATTILA => app_ui.game_selected_attila.trigger(),
                                 KEY_ROME_2 => app_ui.game_selected_rome_2.trigger(),
                                 _ => {
-                                    show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]), true);
+                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_ROME_2]), true);
                                     app_ui.game_selected_rome_2.trigger();
                                 }
                             }
@@ -363,7 +363,7 @@ impl AppUI {
                             match &*game_selected {
                                 KEY_SHOGUN_2 => app_ui.game_selected_shogun_2.trigger(),
                                 _ => {
-                                    show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]), true);
+                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_SHOGUN_2]), true);
                                     app_ui.game_selected_shogun_2.trigger();
                                 }
                             }
@@ -375,7 +375,7 @@ impl AppUI {
                                 KEY_NAPOLEON => app_ui.game_selected_napoleon.trigger(),
                                 KEY_EMPIRE => app_ui.game_selected_empire.trigger(),
                                 _ => {
-                                    show_dialog(app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]), true);
+                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_EMPIRE]), true);
                                     app_ui.game_selected_empire.trigger();
                                 }
                             }
@@ -427,7 +427,7 @@ impl AppUI {
 
             // Create the FileDialog to save the PackFile and configure it.
             let file_dialog = QFileDialog::from_q_widget_q_string(
-                app_ui.main_window,
+                &app_ui.main_window,
                 &qtr("save_packfile"),
             );
             file_dialog.set_accept_mode(qt_widgets::q_file_dialog::AcceptMode::AcceptSave);
@@ -697,7 +697,7 @@ impl AppUI {
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
-                            return show_dialog(app_ui.main_window, error, false);
+                            return show_dialog(&app_ui.main_window, error, false);
                         }
 
                         // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
@@ -731,7 +731,7 @@ impl AppUI {
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
-                            return show_dialog(app_ui.main_window, error, false);
+                            return show_dialog(&app_ui.main_window, error, false);
                         }
                         app_ui.menu_bar_packfile.set_enabled(false);
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
@@ -762,7 +762,7 @@ impl AppUI {
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
                         if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
-                            return show_dialog(app_ui.main_window, error, false);
+                            return show_dialog(&app_ui.main_window, error, false);
                         }
                         app_ui.menu_bar_packfile.set_enabled(false);
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
@@ -816,24 +816,24 @@ impl AppUI {
                                                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                                                             if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
                                                                 if let Err(error) = Self::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false) {
-                                                                    show_dialog(app_ui.main_window, error, false);
+                                                                    show_dialog(&app_ui.main_window, error, false);
                                                                 }
                                                             }
                                                         }
                                                     });
                                                 }
-                                                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                                                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
 
                                                 // In ANY other situation, it's a message problem.
                                                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                             }
                                         }
-                                        Err(error) => show_dialog(app_ui.main_window, error, false),
+                                        Err(error) => show_dialog(&app_ui.main_window, error, false),
                                     }
 
                                 }
                             }
-                            Err(error) => show_dialog(app_ui.main_window, error, false),
+                            Err(error) => show_dialog(&app_ui.main_window, error, false),
                         }
                     }
                 ));
@@ -925,7 +925,7 @@ impl AppUI {
                                             mut game_folder_name => move |_| {
                                             if Self::are_you_sure(&app_ui, false) {
                                                 if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name) {
-                                                    return show_dialog(app_ui.main_window, error, false);
+                                                    return show_dialog(&app_ui.main_window, error, false);
                                                 }
                                                 app_ui.menu_bar_mymod.set_enabled(false);
                                                 DiagnosticsUI::check(&app_ui, &diagnostics_ui);
@@ -960,7 +960,7 @@ impl AppUI {
             &qtr("update_checker"),
             &qtr("update_searching"),
             QFlags::from(q_message_box::StandardButton::Close),
-            app_ui.main_window,
+            &app_ui.main_window,
         );
 
         let close_button = dialog.button(q_message_box::StandardButton::Close);
@@ -1046,7 +1046,7 @@ impl AppUI {
             &qtr("update_schema_checker"),
             &qtr("update_searching"),
             QFlags::from(q_message_box::StandardButton::Close),
-            app_ui.main_window,
+            &app_ui.main_window,
         );
 
         let close_button = dialog.button(q_message_box::StandardButton::Close);
@@ -1122,7 +1122,7 @@ impl AppUI {
             &qtr("update_template_checker"),
             &qtr("update_searching"),
             QFlags::from(q_message_box::StandardButton::Close),
-            app_ui.main_window,
+            &app_ui.main_window,
         );
 
         let close_button = dialog.button(q_message_box::StandardButton::Close);
@@ -1238,11 +1238,12 @@ impl AppUI {
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
                 if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path) {
                     if let Err(error) = Self::purge_that_one_specifically(app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, true) {
-                        show_dialog(app_ui.main_window, error, false);
+                        show_dialog(&app_ui.main_window, error, false);
                     }
                 }
 
                 let mut tab = PackedFileView::default();
+                tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
                 if !is_external {
                     tab.set_is_preview(is_preview);
                     let icon_type = IconType::File(path.to_vec());
@@ -1267,7 +1268,7 @@ impl AppUI {
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
 
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::AnimFragmentDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimFragmentDecode(format!("{}", error)), false),
                             }
                         }
 
@@ -1283,7 +1284,7 @@ impl AppUI {
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::AnimPackDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimPackDecode(format!("{}", error)), false),
                             }
                         }
 
@@ -1301,7 +1302,7 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::AnimTableDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::AnimTableDecode(format!("{}", error)), false),
                             }
                         }
 
@@ -1317,7 +1318,7 @@ impl AppUI {
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::CaVp8Decode(format!("{}", error)), false),
                             }
                         }
 
@@ -1335,7 +1336,7 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
                             }
                         }
 
@@ -1353,7 +1354,7 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::DBTableDecode(format!("{}", error)), false),
                             }
                         }
 
@@ -1371,7 +1372,7 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::MatchedCombatDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::MatchedCombatDecode(format!("{}", error)), false),
                             }
                         }
 
@@ -1389,7 +1390,7 @@ impl AppUI {
                                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                     }
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
                             }
                         }
                         /*
@@ -1405,7 +1406,7 @@ impl AppUI {
                                     open_list.push(tab);
                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
                                 },
-                                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
+                                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::RigidModelDecode(format!("{}", error)), false),
                             }
                         }
                         */
@@ -1445,7 +1446,7 @@ impl AppUI {
                             let mut open_list = UI_STATE.set_open_packedfiles();
                             open_list.push(tab);
                         }
-                        Err(error) => show_dialog(app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
+                        Err(error) => show_dialog(&app_ui.main_window, ErrorKind::LocDecode(format!("{}", error)), false),
                     }
                 }
             }
@@ -1464,7 +1465,7 @@ impl AppUI {
 
         // If we don't have an schema, don't even try it.
         if SCHEMA.read().unwrap().is_none() {
-            return show_dialog(app_ui.main_window, ErrorKind::SchemaNotFound, false);
+            return show_dialog(&app_ui.main_window, ErrorKind::SchemaNotFound, false);
         }
 
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
@@ -1510,6 +1511,7 @@ impl AppUI {
 
                 // If it's not already open/hidden, we create it and add it as a new tab.
                 let mut tab = PackedFileView::default();
+                tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
                 tab.set_is_preview(false);
                 let icon_type = IconType::PackFile(true);
                 let icon = icon_type.get_icon_from_path();
@@ -1524,7 +1526,7 @@ impl AppUI {
                         let mut open_list = UI_STATE.set_open_packedfiles();
                         open_list.push(tab);
                     },
-                    Err(error) => return show_dialog(app_ui.main_window, ErrorKind::DecoderDecode(format!("{}", error)), false),
+                    Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::DecoderDecode(format!("{}", error)), false),
                 }
             }
         }
@@ -1570,6 +1572,7 @@ impl AppUI {
 
             // If it's not already open/hidden, we create it and add it as a new tab.
             let mut tab = PackedFileView::default();
+            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
             tab.set_is_preview(false);
             tab.set_path(&path);
             let icon_type = IconType::PackFile(true);
@@ -1583,7 +1586,7 @@ impl AppUI {
                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                     UI_STATE.set_open_packedfiles().push(tab);
                 },
-                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }
         }
 
@@ -1628,6 +1631,7 @@ impl AppUI {
 
             // If it's not already open/hidden, we create it and add it as a new tab.
             let mut tab = PackedFileView::default();
+            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
             tab.set_is_preview(false);
             let icon_type = IconType::PackFile(true);
             let icon = icon_type.get_icon_from_path();
@@ -1641,7 +1645,7 @@ impl AppUI {
                     app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                     UI_STATE.set_open_packedfiles().push(tab);
                 },
-                Err(error) => return show_dialog(app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
             }
         }
 
@@ -1665,7 +1669,7 @@ impl AppUI {
 
                             // If the name is_empty, stop.
                             if name.is_empty() {
-                                return show_dialog(app_ui.main_window, ErrorKind::EmptyInput, false)
+                                return show_dialog(&app_ui.main_window, ErrorKind::EmptyInput, false)
                             }
 
                             // Fix their name termination if needed.
@@ -1716,7 +1720,7 @@ impl AppUI {
                                 CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(complete_path.to_vec()));
                                 let response = CENTRAL_COMMAND.recv_message_qt();
                                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                                if exists { return show_dialog(app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
+                                if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
 
                                 // Get the response, just in case it failed.
                                 CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(complete_path.to_vec(), new_packed_file));
@@ -1728,14 +1732,14 @@ impl AppUI {
                                         UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
                                     }
 
-                                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                                 }
                             }
                         }
                     }
                 }
-                Err(error) => show_dialog(app_ui.main_window, error, false),
+                Err(error) => show_dialog(&app_ui.main_window, error, false),
             }
         }
     }
@@ -1760,7 +1764,7 @@ impl AppUI {
                     path
                 },
                 TreePathType::Folder(path) => path.to_vec(),
-                _ => return show_dialog(app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false),
+                _ => return show_dialog(&app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false),
             };
 
             if let Some(mut name) = Self::new_packed_file_name_dialog(app_ui) {
@@ -1774,7 +1778,7 @@ impl AppUI {
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     let version = match response {
                         Response::I32(data) => data,
-                        Response::Error(error) => return show_dialog(app_ui.main_window, error, false),
+                        Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     };
 
@@ -1817,14 +1821,14 @@ impl AppUI {
 
                 // Neutral Check, for folders without a predefined type.
                 else {
-                    return show_dialog(app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false);
+                    return show_dialog(&app_ui.main_window, ErrorKind::NoQueekPackedFileHere, false);
                 };
 
                 // Check if the PackedFile already exists, and report it if so.
                 CENTRAL_COMMAND.send_message_qt(Command::PackedFileExists(new_path.to_vec()));
                 let response = CENTRAL_COMMAND.recv_message_qt();
                 let exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
-                if exists { return show_dialog(app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
+                if exists { return show_dialog(&app_ui.main_window, ErrorKind::FileAlreadyInPackFile, false)}
 
                 // Create the PackFile.
                 CENTRAL_COMMAND.send_message_qt(Command::NewPackedFile(new_path.to_vec(), new_packed_file));
@@ -1835,7 +1839,7 @@ impl AppUI {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::File(new_path); 1]));
                         UI_STATE.set_is_modified(true, app_ui, &pack_file_contents_ui);
                     }
-                    Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                    Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 }
             }
@@ -1846,7 +1850,7 @@ impl AppUI {
     ///
     /// It returns the new name of the Folder, or None if the dialog is canceled or closed.
     pub unsafe fn new_folder_dialog(app_ui: &Rc<Self>) -> Option<String> {
-        let dialog = QDialog::new_1a(app_ui.main_window);
+        let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("new_folder"));
         dialog.set_modal(true);
 
@@ -1870,7 +1874,7 @@ impl AppUI {
     pub unsafe fn new_packed_file_dialog(app_ui: &Rc<Self>, packed_file_type: PackedFileType) -> Option<Result<NewPackedFile>> {
 
         // Create and configure the "New PackedFile" Dialog.
-        let dialog = QDialog::new_1a(app_ui.main_window);
+        let dialog = QDialog::new_1a(&app_ui.main_window);
         match packed_file_type {
             PackedFileType::DB => dialog.set_window_title(&qtr("new_db_file")),
             PackedFileType::Loc => dialog.set_window_title(&qtr("new_loc_file")),
@@ -1962,7 +1966,7 @@ impl AppUI {
     unsafe fn new_packed_file_name_dialog(app_ui: &Rc<Self>) -> Option<String> {
 
         // Create and configure the dialog.
-        let dialog = QDialog::new_1a(app_ui.main_window);
+        let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("new_packedfile_name"));
         dialog.set_modal(true);
         dialog.resize_2a(400, 50);
@@ -1987,7 +1991,7 @@ impl AppUI {
     /// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
     pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>) -> Option<(String, bool)> {
 
-        let dialog = QDialog::new_1a(app_ui.main_window);
+        let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("packedfile_merge_tables"));
         dialog.set_modal(true);
 
@@ -2021,7 +2025,7 @@ impl AppUI {
     /// This function creates the entire "Load Template" dialog. It returns a vector with the stuff set in it.
     pub unsafe fn load_template_dialog(app_ui: &Rc<Self>, template: &Template) -> Option<Vec<String>> {
 
-        let dialog = QDialog::new_1a(app_ui.main_window);
+        let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("load_templates_dialog_title"));
         dialog.set_modal(true);
 

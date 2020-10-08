@@ -82,14 +82,14 @@ impl PackedFileAnimPackView {
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
-        let file_count_label = QLabel::from_q_string(&qtr("file_count"));
-        let file_list_label = QLabel::from_q_string(&qtr("file_paths"));
+        let file_count_label = QLabel::from_q_string_q_widget(&qtr("file_count"), packed_file_view.get_mut_widget());
+        let file_list_label = QLabel::from_q_string_q_widget(&qtr("file_paths"), packed_file_view.get_mut_widget());
 
-        let file_count_data_label = QLabel::from_q_string(&QString::from_std_str(format!("{}", data.len())));
-        let file_list_data_text = QPlainTextEdit::from_q_string(&QString::from_std_str(format!("{:#?}", data)));
+        let file_count_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}", data.len())), packed_file_view.get_mut_widget());
+        let file_list_data_text = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(format!("{:#?}", data)), packed_file_view.get_mut_widget());
         file_list_data_text.set_read_only(true);
 
-        let unpack_button = QPushButton::from_q_string(&qtr("animpack_unpack"));
+        let unpack_button = QPushButton::from_q_string_q_widget(&qtr("animpack_unpack"), packed_file_view.get_mut_widget());
 
         layout.add_widget_5a(&unpack_button, 0, 0, 1, 2);
 

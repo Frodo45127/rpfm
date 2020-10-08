@@ -168,7 +168,7 @@ impl SettingsUI {
 
     /// This function creates a ***Settings*** dialog, execute it, and returns a new `Settings`, or `None` if you close/cancel the dialog.
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<Settings> {
-        let settings_ui = Rc::new(Self::new_with_parent(app_ui.main_window));
+        let settings_ui = Rc::new(Self::new_with_parent(&app_ui.main_window));
         let slots = SettingsUISlots::new(&settings_ui);
 
         connections::set_connections(&settings_ui, &slots);
@@ -195,7 +195,7 @@ impl SettingsUI {
         //-----------------------------------------------//
         // `Game Paths` Frame.
         //-----------------------------------------------//
-        let paths_frame = QGroupBox::from_q_string(&qtr("settings_game_paths_title"));
+        let paths_frame = QGroupBox::from_q_string_q_widget(&qtr("settings_game_paths_title"), &dialog);
         let paths_grid = create_grid_layout(paths_frame.static_upcast());
         paths_grid.set_contents_margins_4a(4, 0, 4, 0);
 
@@ -204,9 +204,9 @@ impl SettingsUI {
         let mut paths_games_line_edits = BTreeMap::new();
         let mut paths_games_buttons = BTreeMap::new();
         for (index, (folder_name, game_supported)) in SUPPORTED_GAMES.iter().enumerate() {
-            let game_label = QLabel::from_q_string(&qtre("settings_game_label", &[&game_supported.display_name]));
-            let game_line_edit = QLineEdit::new();
-            let game_button = QPushButton::from_q_string(&QString::from_std_str("..."));
+            let game_label = QLabel::from_q_string_q_widget(&qtre("settings_game_label", &[&game_supported.display_name]), &paths_frame);
+            let game_line_edit = QLineEdit::from_q_widget(&paths_frame);
+            let game_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &paths_frame);
             game_line_edit.set_placeholder_text(&qtre("settings_game_line_ph", &[&game_supported.display_name]));
 
             paths_grid.add_widget_5a(&game_label, (index + 1) as i32, 0, 1, 1);
@@ -219,20 +219,20 @@ impl SettingsUI {
             paths_games_buttons.insert((*folder_name).to_string(), game_button);
         }
 
-        main_grid.add_widget_5a(paths_frame.into_ptr(), 0, 0, 1, 2);
+        main_grid.add_widget_5a(&paths_frame, 0, 0, 1, 2);
 
         //-----------------------------------------------//
         // `Extra Paths` Frame.
         //-----------------------------------------------//
 
-        let extra_paths_frame = QGroupBox::from_q_string(&qtr("settings_extra_paths_title"));
+        let extra_paths_frame = QGroupBox::from_q_string_q_widget(&qtr("settings_extra_paths_title"), &dialog);
         let paths_grid = create_grid_layout(extra_paths_frame.static_upcast());
         paths_grid.set_contents_margins_4a(4, 0, 4, 0);
 
         // Create the MyMod's path stuff.
-        let paths_mymod_label = QLabel::from_q_string(&qtr("settings_paths_mymod"));
-        let paths_mymod_line_edit = QLineEdit::new();
-        let paths_mymod_button = QPushButton::from_q_string(&QString::from_std_str("..."));
+        let paths_mymod_label = QLabel::from_q_string_q_widget(&qtr("settings_paths_mymod"), &extra_paths_frame);
+        let paths_mymod_line_edit = QLineEdit::from_q_widget(&extra_paths_frame);
+        let paths_mymod_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &extra_paths_frame);
         paths_mymod_line_edit.set_placeholder_text(&qtr("settings_paths_mymod_ph"));
 
         paths_grid.add_widget_5a(&paths_mymod_label, 0, 0, 1, 1);
@@ -240,31 +240,31 @@ impl SettingsUI {
         paths_grid.add_widget_5a(&paths_mymod_button, 0, 2, 1, 1);
 
         // Create the 7Zip path stuff.
-        let paths_zip_label = QLabel::from_q_string(&qtr("settings_paths_zip"));
-        let paths_zip_line_edit = QLineEdit::new();
-        let paths_zip_button = QPushButton::from_q_string(&QString::from_std_str("..."));
+        let paths_zip_label = QLabel::from_q_string_q_widget(&qtr("settings_paths_zip"), &extra_paths_frame);
+        let paths_zip_line_edit = QLineEdit::from_q_widget(&extra_paths_frame);
+        let paths_zip_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("..."), &extra_paths_frame);
         paths_zip_line_edit.set_placeholder_text(&qtr("settings_paths_zip_ph"));
 
         paths_grid.add_widget_5a(&paths_zip_label, 1, 0, 1, 1);
         paths_grid.add_widget_5a(&paths_zip_line_edit, 1, 1, 1, 1);
         paths_grid.add_widget_5a(&paths_zip_button, 1, 2, 1, 1);
 
-        main_grid.add_widget_5a(extra_paths_frame.into_ptr(), 1, 0, 1, 2);
+        main_grid.add_widget_5a(&extra_paths_frame, 1, 0, 1, 2);
 
         //-----------------------------------------------//
         // `General` Frame.
         //-----------------------------------------------//
-        let general_frame = QGroupBox::from_q_string(&qtr("settings_ui_title"));
+        let general_frame = QGroupBox::from_q_string_q_widget(&qtr("settings_ui_title"), &dialog);
         let general_grid = create_grid_layout(general_frame.static_upcast());
         general_grid.set_contents_margins_4a(4, 0, 4, 0);
         general_grid.set_spacing(4);
 
         // Language combo.
-        let general_language_label = QLabel::from_q_string(&qtr("settings_ui_language"));
-        let general_language_combobox = QComboBox::new_0a();
+        let general_language_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_language"), &general_frame);
+        let general_language_combobox = QComboBox::new_1a(&general_frame);
 
-        let general_language_model = QStandardItemModel::new_0a().into_ptr();
-        general_language_combobox.set_model(general_language_model);
+        let general_language_model = QStandardItemModel::new_1a(&general_language_combobox);
+        general_language_combobox.set_model(&general_language_model);
         if let Ok(locales) = Locale::get_available_locales() {
             for (language, _) in locales {
                 general_language_combobox.add_item_q_string(&QString::from_std_str(&language));
@@ -272,63 +272,63 @@ impl SettingsUI {
         }
 
         // Default game combo.
-        let extra_global_default_game_label = QLabel::from_q_string(&qtr("settings_default_game"));
-        let extra_global_default_game_combobox = QComboBox::new_0a();
+        let extra_global_default_game_label = QLabel::from_q_string_q_widget(&qtr("settings_default_game"), &general_frame);
+        let extra_global_default_game_combobox = QComboBox::new_1a(&general_frame);
 
-        let extra_global_default_game_model = QStandardItemModel::new_0a().into_ptr();
-        extra_global_default_game_combobox.set_model(extra_global_default_game_model);
+        let extra_global_default_game_model = QStandardItemModel::new_1a(&extra_global_default_game_combobox);
+        extra_global_default_game_combobox.set_model(&extra_global_default_game_model);
         for (_, game) in SUPPORTED_GAMES.iter() {
             extra_global_default_game_combobox.add_item_q_string(&QString::from_std_str(&game.display_name));
         }
 
         // Update channel combo.
-        let extra_network_update_channel_label = QLabel::from_q_string(&qtr("settings_update_channel"));
-        let extra_network_update_channel_combobox = QComboBox::new_0a();
+        let extra_network_update_channel_label = QLabel::from_q_string_q_widget(&qtr("settings_update_channel"), &general_frame);
+        let extra_network_update_channel_combobox = QComboBox::new_1a(&general_frame);
         extra_network_update_channel_combobox.add_item_q_string(&QString::from_std_str(STABLE));
         extra_network_update_channel_combobox.add_item_q_string(&QString::from_std_str(BETA));
 
         // Autosave stuff
-        let extra_packfile_autosave_interval_label = QLabel::from_q_string(&qtr("settings_autosave_interval"));
-        let extra_packfile_autosave_interval_spinbox = QSpinBox::new_0a();
+        let extra_packfile_autosave_interval_label = QLabel::from_q_string_q_widget(&qtr("settings_autosave_interval"), &general_frame);
+        let extra_packfile_autosave_interval_spinbox = QSpinBox::new_1a(&general_frame);
 
         // Update checkers.
-        let extra_network_check_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_updates_on_start"));
-        let extra_network_check_schema_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_schema_updates_on_start"));
-        let extra_network_check_template_updates_on_start_label = QLabel::from_q_string(&qtr("settings_check_template_updates_on_start"));
-        let extra_network_check_updates_on_start_checkbox = QCheckBox::new();
-        let extra_network_check_schema_updates_on_start_checkbox = QCheckBox::new();
-        let extra_network_check_template_updates_on_start_checkbox = QCheckBox::new();
+        let extra_network_check_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_updates_on_start"), &general_frame);
+        let extra_network_check_schema_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_schema_updates_on_start"), &general_frame);
+        let extra_network_check_template_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_template_updates_on_start"), &general_frame);
+        let extra_network_check_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
+        let extra_network_check_schema_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
+        let extra_network_check_template_updates_on_start_checkbox = QCheckBox::from_q_widget(&general_frame);
 
         // Behavior settings.
-        let extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string(&qtr("settings_allow_editing_of_ca_packfiles"));
-        let extra_packfile_allow_editing_of_ca_packfiles_checkbox = QCheckBox::new();
+        let extra_packfile_allow_editing_of_ca_packfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_allow_editing_of_ca_packfiles"), &general_frame);
+        let extra_packfile_allow_editing_of_ca_packfiles_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_enable_diagnostics_label = QLabel::from_q_string(&qtr("settings_use_dependency_checker"));
-        let extra_packfile_enable_diagnostics_checkbox = QCheckBox::new();
+        let extra_packfile_enable_diagnostics_label = QLabel::from_q_string_q_widget(&qtr("settings_use_dependency_checker"), &general_frame);
+        let extra_packfile_enable_diagnostics_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_use_lazy_loading_label = QLabel::from_q_string(&qtr("settings_use_lazy_loading"));
-        let extra_packfile_use_lazy_loading_checkbox = QCheckBox::new();
+        let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &general_frame);
+        let extra_packfile_use_lazy_loading_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_optimize_not_renamed_packedfiles_label = QLabel::from_q_string(&qtr("settings_optimize_not_renamed_packedfiles"));
-        let extra_packfile_optimize_not_renamed_packedfiles_checkbox = QCheckBox::new();
+        let extra_packfile_optimize_not_renamed_packedfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_optimize_not_renamed_packedfiles"), &general_frame);
+        let extra_packfile_optimize_not_renamed_packedfiles_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string(&qtr("settings_disable_uuid_regeneration_tables"));
-        let extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::new();
+        let extra_packfile_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_uuid_regeneration_tables"), &general_frame);
+        let extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let ui_global_use_dark_theme_label = QLabel::from_q_string(&qtr("settings_ui_dark_theme"));
-        let ui_global_use_dark_theme_checkbox = QCheckBox::new();
+        let ui_global_use_dark_theme_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_dark_theme"), &general_frame);
+        let ui_global_use_dark_theme_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let ui_window_start_maximized_label = QLabel::from_q_string(&qtr("settings_ui_window_start_maximized_label"));
-        let ui_window_start_maximized_checkbox = QCheckBox::new();
+        let ui_window_start_maximized_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_window_start_maximized_label"), &general_frame);
+        let ui_window_start_maximized_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let ui_window_hide_background_icon_label = QLabel::from_q_string(&qtr("settings_ui_window_hide_background_icon"));
-        let ui_window_hide_background_icon_checkbox = QCheckBox::new();
+        let ui_window_hide_background_icon_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_window_hide_background_icon"), &general_frame);
+        let ui_window_hide_background_icon_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let general_packfile_treeview_resize_to_fit_label = QLabel::from_q_string(&qtr("settings_packfile_treeview_resize_to_fit"));
-        let general_packfile_treeview_resize_to_fit_checkbox = QCheckBox::new();
+        let general_packfile_treeview_resize_to_fit_label = QLabel::from_q_string_q_widget(&qtr("settings_packfile_treeview_resize_to_fit"), &general_frame);
+        let general_packfile_treeview_resize_to_fit_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let general_packfile_treeview_expand_treeview_when_adding_items_label = QLabel::from_q_string(&qtr("settings_expand_treeview_when_adding_items"));
-        let general_packfile_treeview_expand_treeview_when_adding_items_checkbox = QCheckBox::new();
+        let general_packfile_treeview_expand_treeview_when_adding_items_label = QLabel::from_q_string_q_widget(&qtr("settings_expand_treeview_when_adding_items"), &general_frame);
+        let general_packfile_treeview_expand_treeview_when_adding_items_checkbox = QCheckBox::from_q_widget(&general_frame);
 
         // Adding to the grid.
         general_grid.add_widget_5a(&general_language_label, 0, 0, 1, 1);
@@ -382,35 +382,35 @@ impl SettingsUI {
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_label, 16, 0, 1, 1);
         general_grid.add_widget_5a(&general_packfile_treeview_expand_treeview_when_adding_items_checkbox, 16, 1, 1, 1);
 
-        main_grid.add_widget_5a(general_frame.into_ptr(), 2, 0, 3, 1);
+        main_grid.add_widget_5a(&general_frame, 2, 0, 3, 1);
 
         //-----------------------------------------------//
         // `Table` Frame.
         //-----------------------------------------------//
 
-        let ui_table_view_frame = QGroupBox::from_q_string(&qtr("settings_table_title"));
+        let ui_table_view_frame = QGroupBox::from_q_string_q_widget(&qtr("settings_table_title"), &dialog);
         let ui_table_view_grid = create_grid_layout(ui_table_view_frame.static_upcast());
         ui_table_view_grid.set_contents_margins_4a(4, 0, 4, 0);
         ui_table_view_grid.set_spacing(4);
         ui_table_view_grid.set_row_stretch(99, 10);
 
-        let ui_table_adjust_columns_to_content_label = QLabel::from_q_string(&qtr("settings_ui_table_adjust_columns_to_content"));
-        let ui_table_adjust_columns_to_content_checkbox = QCheckBox::new();
+        let ui_table_adjust_columns_to_content_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_adjust_columns_to_content"), &ui_table_view_frame);
+        let ui_table_adjust_columns_to_content_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
-        let ui_table_disable_combos_label = QLabel::from_q_string(&qtr("settings_ui_table_disable_combos"));
-        let ui_table_disable_combos_checkbox = QCheckBox::new();
+        let ui_table_disable_combos_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_disable_combos"), &ui_table_view_frame);
+        let ui_table_disable_combos_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
-        let ui_table_extend_last_column_label = QLabel::from_q_string(&qtr("settings_ui_table_extend_last_column_label"));
-        let ui_table_extend_last_column_checkbox = QCheckBox::new();
+        let ui_table_extend_last_column_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_extend_last_column_label"), &ui_table_view_frame);
+        let ui_table_extend_last_column_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
-        let ui_table_tight_table_mode_label = QLabel::from_q_string(&qtr("settings_ui_table_tight_table_mode_label"));
-        let ui_table_tight_table_mode_checkbox = QCheckBox::new();
+        let ui_table_tight_table_mode_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_tight_table_mode_label"), &ui_table_view_frame);
+        let ui_table_tight_table_mode_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
-        let ui_table_resize_on_edit_label = QLabel::from_q_string(&qtr("settings_table_resize_on_edit"));
-        let ui_table_resize_on_edit_checkbox = QCheckBox::new();
+        let ui_table_resize_on_edit_label = QLabel::from_q_string_q_widget(&qtr("settings_table_resize_on_edit"), &ui_table_view_frame);
+        let ui_table_resize_on_edit_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
-        let ui_table_use_old_column_order_label = QLabel::from_q_string(&qtr("settings_ui_table_use_old_column_order_label"));
-        let ui_table_use_old_column_order_checkbox = QCheckBox::new();
+        let ui_table_use_old_column_order_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_use_old_column_order_label"), &ui_table_view_frame);
+        let ui_table_use_old_column_order_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_label, 0, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_checkbox, 0, 1, 1, 1);
@@ -430,22 +430,22 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_label, 5, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_checkbox, 5, 1, 1, 1);
 
-        main_grid.add_widget_5a(ui_table_view_frame.into_ptr(), 2, 1, 1, 1);
+        main_grid.add_widget_5a(&ui_table_view_frame, 2, 1, 1, 1);
 
         //-----------------------------------------------//
         // `Debug` Frame.
         //-----------------------------------------------//
-        let debug_frame = QGroupBox::from_q_string(&qtr("settings_debug_title"));
+        let debug_frame = QGroupBox::from_q_string_q_widget(&qtr("settings_debug_title"), &dialog);
         let debug_grid = create_grid_layout(debug_frame.static_upcast());
         debug_grid.set_contents_margins_4a(4, 0, 4, 0);
         debug_grid.set_spacing(4);
         debug_grid.set_row_stretch(99, 10);
 
-        let debug_check_for_missing_table_definitions_label = QLabel::from_q_string(&qtr("settings_debug_missing_table"));
-        let debug_enable_debug_menu_label = QLabel::from_q_string(&qtr("settings_debug_enable_debug_menu"));
+        let debug_check_for_missing_table_definitions_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_missing_table"), &debug_frame);
+        let debug_enable_debug_menu_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_enable_debug_menu"), &debug_frame);
 
-        let debug_check_for_missing_table_definitions_checkbox = QCheckBox::new();
-        let debug_enable_debug_menu_checkbox = QCheckBox::new();
+        let debug_check_for_missing_table_definitions_checkbox = QCheckBox::from_q_widget(&debug_frame);
+        let debug_enable_debug_menu_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_label, 0, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_checkbox, 0, 1, 1, 1);
@@ -453,26 +453,26 @@ impl SettingsUI {
         debug_grid.add_widget_5a(&debug_enable_debug_menu_label, 1, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_enable_debug_menu_checkbox, 1, 1, 1, 1);
 
-        main_grid.add_widget_5a(debug_frame.into_ptr(), 3, 1, 1, 1);
+        main_grid.add_widget_5a(&debug_frame, 3, 1, 1, 1);
 
         //-----------------------------------------------//
         // `Warning` section.
         //-----------------------------------------------//
-        let warning_frame = QGroupBox::new();
+        let warning_frame = QGroupBox::from_q_widget(&dialog);
         let warning_grid = create_grid_layout(warning_frame.static_upcast());
-        let warning_message = QLabel::from_q_string(&qtr("settings_warning_message"));
+        let warning_message = QLabel::from_q_string_q_widget(&qtr("settings_warning_message"), &warning_frame);
         warning_message.set_alignment(QFlags::from(AlignmentFlag::AlignCenter));
 
         warning_grid.add_widget_5a(&warning_message, 0, 0, 1, 1);
-        main_grid.add_widget_5a(warning_frame.into_ptr(), 4, 1, 1, 1);
+        main_grid.add_widget_5a(&warning_frame, 4, 1, 1, 1);
 
         //-----------------------------------------------//
         // `ButtonBox` Button Box.
         //-----------------------------------------------//
-        let button_box = QDialogButtonBox::new();
-        let button_box_shortcuts_button = QPushButton::from_q_string(&qtr("shortcut_title"));
-        let button_box_text_editor_settings_button = QPushButton::from_q_string(&qtr("settings_text_title"));
-        let button_box_font_settings_button = QPushButton::from_q_string(&qtr("settings_font_title"));
+        let button_box = QDialogButtonBox::from_q_widget(&dialog);
+        let button_box_shortcuts_button = QPushButton::from_q_string_q_widget(&qtr("shortcut_title"), &button_box);
+        let button_box_text_editor_settings_button = QPushButton::from_q_string_q_widget(&qtr("settings_text_title"), &button_box);
+        let button_box_font_settings_button = QPushButton::from_q_string_q_widget(&qtr("settings_font_title"), &button_box);
 
         let button_box_restore_default_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::RestoreDefaults);
         button_box.add_button_q_abstract_button_button_role(&button_box_shortcuts_button, ButtonRole::ResetRole);
@@ -481,7 +481,7 @@ impl SettingsUI {
         let button_box_cancel_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Cancel);
         let button_box_accept_button = button_box.add_button_standard_button(q_dialog_button_box::StandardButton::Save);
 
-        main_grid.add_widget_5a(button_box.into_ptr(), 5, 0, 1, 2);
+        main_grid.add_widget_5a(&button_box, 5, 0, 1, 2);
 
         // Now, we build the `SettingsUI` struct and return it.
         Self {

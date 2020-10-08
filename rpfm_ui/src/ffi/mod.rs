@@ -103,8 +103,8 @@ pub fn new_packed_file_model_safe() -> QBox<QStandardItemModel> {
 
 /// This function allow us to create a custom window.
 extern "C" { fn new_q_main_window_custom(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> *mut QMainWindow; }
-pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> Ptr<QMainWindow> {
-    unsafe { Ptr::from_raw(new_q_main_window_custom(are_you_sure)) }
+pub fn new_q_main_window_custom_safe(are_you_sure: extern fn(*mut QMainWindow, bool) -> bool) -> QBox<QMainWindow> {
+    unsafe { QBox::from_raw(new_q_main_window_custom(are_you_sure)) }
 }
 
 //---------------------------------------------------------------------------//

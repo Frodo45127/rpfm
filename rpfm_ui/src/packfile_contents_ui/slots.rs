@@ -424,7 +424,7 @@ impl PackFileContentsSlots {
 
                 // Create the FileDialog to get the file/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
-                    app_ui.main_window,
+                    &app_ui.main_window,
                     &qtr("context_menu_add_files"),
                 );
                 file_dialog.set_file_mode(FileMode::ExistingFiles);
@@ -445,7 +445,7 @@ impl PackFileContentsSlots {
 
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
-                                return show_dialog(app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
+                                return show_dialog(&app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
                             }
 
                             // Run it and expect a response (1 => Accept, 0 => Cancel).
@@ -479,7 +479,7 @@ impl PackFileContentsSlots {
                         }
 
                         // If there is no "MyMod" path configured, report it.
-                        else { show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
+                        else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
                     }
 
                     // If it's in "Normal" mode...
@@ -513,7 +513,7 @@ impl PackFileContentsSlots {
 
                 // Create the FileDialog to get the folder/s to add and configure it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
-                    app_ui.main_window,
+                    &app_ui.main_window,
                     &qtr("context_menu_add_folders"),
                 );
                 file_dialog.set_file_mode(FileMode::Directory);
@@ -534,7 +534,7 @@ impl PackFileContentsSlots {
 
                             // We check that path exists, and create it if it doesn't.
                             if !assets_folder.is_dir() && DirBuilder::new().recursive(true).create(&assets_folder).is_err() {
-                                return show_dialog(app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
+                                return show_dialog(&app_ui.main_window, ErrorKind::IOCreateAssetFolder, false);
                             }
 
                             // Run it and expect a response (1 => Accept, 0 => Cancel).
@@ -571,7 +571,7 @@ impl PackFileContentsSlots {
                         }
 
                         // If there is no "MyMod" path configured, report it.
-                        else { show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
+                        else { show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, false) }
                     }
 
                     // If it's in "Normal" mode, we just get the paths of the files inside them and add those files.
@@ -603,7 +603,7 @@ impl PackFileContentsSlots {
 
                 // Create the FileDialog to get the PackFile to open, configure it and run it.
                 let file_dialog = QFileDialog::from_q_widget_q_string(
-                    app_ui.main_window,
+                    &app_ui.main_window,
                     &qtr("context_menu_select_packfile"),
                 );
 
@@ -651,7 +651,7 @@ impl PackFileContentsSlots {
                             app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
                             UI_STATE.set_open_packedfiles().push(tab);
                         }
-                        Err(error) => show_dialog(app_ui.main_window, error, false),
+                        Err(error) => show_dialog(&app_ui.main_window, error, false),
                     }
                     app_ui.main_window.set_enabled(true);
                 }
@@ -737,13 +737,13 @@ impl PackFileContentsSlots {
                         }
 
                         // If there is no MyMod path configured, report it.
-                        else { return show_dialog(app_ui.main_window, ErrorKind::MyModPathNotConfigured, true); }
+                        else { return show_dialog(&app_ui.main_window, ErrorKind::MyModPathNotConfigured, true); }
                     }
 
                     // In normal mode, we ask the user to provide us with a path.
                     OperationalMode::Normal => {
                         let extraction_path = QFileDialog::get_existing_directory_2a(
-                            app_ui.main_window,
+                            &app_ui.main_window,
                             &qtr("context_menu_extract_packfile"),
                         );
 
@@ -757,7 +757,7 @@ impl PackFileContentsSlots {
                 if let Err(error) = UI_STATE.get_open_packedfiles()
                     .iter()
                     .try_for_each(|packed_file| packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui)) {
-                    show_dialog(app_ui.main_window, error, false);
+                    show_dialog(&app_ui.main_window, error, false);
                 }
 
                 else {
@@ -765,8 +765,8 @@ impl PackFileContentsSlots {
                     app_ui.main_window.set_enabled(false);
                     let response = CENTRAL_COMMAND.recv_message_qt();
                     match response {
-                        Response::String(result) => show_dialog(app_ui.main_window, result, true),
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                        Response::String(result) => show_dialog(&app_ui.main_window, result, true),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                     app_ui.main_window.set_enabled(true);
@@ -865,7 +865,7 @@ impl PackFileContentsSlots {
                             blocker.unblock();
                             UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
                         },
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
@@ -923,7 +923,7 @@ impl PackFileContentsSlots {
                         let folder_exists = if let Response::Bool(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
 
                         // If the folder already exists, return an error.
-                        if folder_exists { return show_dialog(app_ui.main_window, ErrorKind::FolderAlreadyInPackFile, false)}
+                        if folder_exists { return show_dialog(&app_ui.main_window, ErrorKind::FolderAlreadyInPackFile, false)}
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Add(vec![TreePathType::Folder(complete_path.to_vec()); 1]));
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::Folder(complete_path); 1]));
                         UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
@@ -964,7 +964,7 @@ impl PackFileContentsSlots {
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::Success => {}
-                Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                 _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
             }
         }));
@@ -1058,7 +1058,7 @@ impl PackFileContentsSlots {
 
                     for path in paths_to_close {
                         if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, true) {
-                            return show_dialog(app_ui.main_window, error, false);
+                            return show_dialog(&app_ui.main_window, error, false);
                         }
                     }
 
@@ -1084,13 +1084,13 @@ impl PackFileContentsSlots {
                             DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, vec![PathType::File(path_to_add); 1]);
                         }
 
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
             }
 
-            else { show_dialog(app_ui.main_window, ErrorKind::InvalidFilesForMerging, false); }
+            else { show_dialog(&app_ui.main_window, ErrorKind::InvalidFilesForMerging, false); }
         }));
 
         // What happens when we trigger the "Update Table" action in the Contextual Menu.
@@ -1106,7 +1106,7 @@ impl PackFileContentsSlots {
 
                     // First, if the PackedFile is open, save it.
                     if let Err(error) = AppUI::purge_them_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, true) {
-                        return show_dialog(app_ui.main_window, error, false);
+                        return show_dialog(&app_ui.main_window, error, false);
                     }
 
                     let path_type: PathType = From::from(item_type);
@@ -1115,7 +1115,7 @@ impl PackFileContentsSlots {
                     match response {
                         Response::I32I32((old_version, new_version)) => {
                             let message = tre("update_table_success", &[&old_version.to_string(), &new_version.to_string()]);
-                            show_dialog(app_ui.main_window, message, true);
+                            show_dialog(&app_ui.main_window, message, true);
 
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Modify(vec![item_type.clone(); 1]));
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![item_type.clone(); 1]));
@@ -1125,7 +1125,7 @@ impl PackFileContentsSlots {
                             DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, vec![path_type; 1]);
                         }
 
-                        Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                        Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                         _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                     }
                 }
@@ -1150,9 +1150,9 @@ impl PackFileContentsSlots {
 
                     // If there is no name provided, nor TSV file selected, return an error.
                     if let Some(ref name) = data.1 {
-                        if name.is_empty() { return show_dialog(app_ui.main_window, ErrorKind::EmptyInput, false) }
+                        if name.is_empty() { return show_dialog(&app_ui.main_window, ErrorKind::EmptyInput, false) }
                     }
-                    if data.0.is_empty() { return show_dialog(app_ui.main_window, ErrorKind::NoFilesToImport, false) }
+                    if data.0.is_empty() { return show_dialog(&app_ui.main_window, ErrorKind::NoFilesToImport, false) }
 
                     // Otherwise, try to import all of them and report the result.
                     else {
@@ -1179,7 +1179,7 @@ impl PackFileContentsSlots {
                                 DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths_to_add.iter().map(|x| PathType::File(x.to_vec())).collect::<Vec<PathType>>());
                             }
 
-                            Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
                         }
 
@@ -1197,7 +1197,7 @@ impl PackFileContentsSlots {
 
                 // Get a "Folder-only" FileDialog.
                 let export_path = QFileDialog::get_existing_directory_2a(
-                    app_ui.main_window,
+                    &app_ui.main_window,
                     &qtr("context_menu_mass_export_tsv_folder")
                 );
 
@@ -1211,8 +1211,8 @@ impl PackFileContentsSlots {
                         CENTRAL_COMMAND.send_message_qt(Command::MassExportTSV(selected_items, export_path));
                         let response = CENTRAL_COMMAND.recv_message_qt();
                         match response {
-                            Response::String(response) => show_dialog(app_ui.main_window, response, true),
-                            Response::Error(error) => show_dialog(app_ui.main_window, error, false),
+                            Response::String(response) => show_dialog(&app_ui.main_window, response, true),
+                            Response::Error(error) => show_dialog(&app_ui.main_window, error, false),
                             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                         }
 

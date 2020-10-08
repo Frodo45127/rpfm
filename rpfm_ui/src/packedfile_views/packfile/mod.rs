@@ -100,10 +100,10 @@ impl PackFileExtraView {
         }
 
         // Create and configure the `TreeView` itself.
-        let tree_view = QTreeView::new_0a();
-        let tree_model = QStandardItemModel::new_0a().into_ptr();
+        let tree_view = QTreeView::new_1a(pack_file_view.get_mut_widget());
+        let tree_model = QStandardItemModel::new_1a(pack_file_view.get_mut_widget());
         let tree_model_filter = new_treeview_filter_safe(pack_file_view.get_mut_widget().static_upcast());
-        tree_model_filter.set_source_model(tree_model);
+        tree_model_filter.set_source_model(&tree_model);
         tree_view.set_model(&tree_model_filter);
         tree_view.set_header_hidden(true);
         tree_view.set_animated(true);
@@ -114,18 +114,18 @@ impl PackFileExtraView {
         tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.to_path_buf())));
 
         // Create and configure the widgets to control the `TreeView`s filter.
-        let filter_line_edit = QLineEdit::new();
-        let filter_autoexpand_matches_button = QPushButton::from_q_string(&qtr("treeview_autoexpand"));
-        let filter_case_sensitive_button = QPushButton::from_q_string(&qtr("treeview_aai"));
+        let filter_line_edit = QLineEdit::from_q_widget(pack_file_view.get_mut_widget());
+        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), pack_file_view.get_mut_widget());
+        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), pack_file_view.get_mut_widget());
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
 
         // Create the extra actions for the TreeView.
-        let expand_all = QAction::from_q_string(&qtr("treeview_expand_all"));
-        let collapse_all = QAction::from_q_string(&qtr("treeview_collapse_all"));
-        tree_view.add_action(expand_all.as_ptr());
-        tree_view.add_action(collapse_all.as_ptr());
+        let expand_all = QAction::from_q_string_q_object(&qtr("treeview_expand_all"), pack_file_view.get_mut_widget());
+        let collapse_all = QAction::from_q_string_q_object(&qtr("treeview_collapse_all"), pack_file_view.get_mut_widget());
+        tree_view.add_action(&expand_all);
+        tree_view.add_action(&collapse_all);
 
         // Add everything to the main widget's Layout.
         let layout: QPtr<QGridLayout> = pack_file_view.get_mut_widget().layout().static_downcast();

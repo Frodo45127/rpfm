@@ -29,8 +29,6 @@ use qt_core::QBox;
 use qt_core::QPtr;
 use qt_core::QSortFilterProxyModel;
 
-use cpp_core::Ptr;
-
 use rpfm_lib::SETTINGS;
 
 use crate::ffi::{new_packed_file_model_safe, new_treeview_filter_safe};
@@ -103,7 +101,7 @@ pub struct PackFileContentsUI {
 impl PackFileContentsUI {
 
     /// This function creates an entire `PackFileContentsUI` struct.
-    pub unsafe fn new(main_window: Ptr<QMainWindow>) -> Self {
+    pub unsafe fn new(main_window: &QBox<QMainWindow>) -> Self {
 
         //-----------------------------------------------//
         // `PackFile Contents` DockWidget.

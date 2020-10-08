@@ -66,7 +66,7 @@ impl MyModUI {
     pub unsafe fn new(app_ui: &Rc<AppUI>) -> Option<(String, String)> {
 
         // Create the "New MyMod" Dialog and configure it.
-        let dialog = QDialog::new_1a(app_ui.main_window);
+        let dialog = QDialog::new_1a(&app_ui.main_window);
         let main_grid = create_grid_layout(dialog.static_upcast());
         dialog.set_window_title(&qtr("mymod_new"));
         dialog.set_modal(true);

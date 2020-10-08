@@ -92,18 +92,18 @@ impl PackedFileAnimFragmentView {
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
-        let i1_label = QLabel::from_q_string(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[1].get_name()));
-        let i2_label = QLabel::from_q_string(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[2].get_name()));
+        let i1_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[1].get_name()), packed_file_view.get_mut_widget());
+        let i2_label = QLabel::from_q_string_q_widget(&QString::from_std_str(data.get_ref_definition().get_fields_processed()[2].get_name()), packed_file_view.get_mut_widget());
 
-        let i1_line_edit = QLineEdit::from_q_string(&QString::from_std_str(&data.get_ref_table_data()[0][1].data_to_string()));
-        let i2_line_edit = QLineEdit::from_q_string(&QString::from_std_str(&data.get_ref_table_data()[0][2].data_to_string()));
+        let i1_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][1].data_to_string()), packed_file_view.get_mut_widget());
+        let i2_line_edit = QLineEdit::from_q_string_q_widget(&QString::from_std_str(&data.get_ref_table_data()[0][2].data_to_string()), packed_file_view.get_mut_widget());
 
-        let table_1 = QWidget::new_0a();
-        let table_2 = QWidget::new_0a();
-        let layout_1 = QGridLayout::new_0a();
-        let layout_2 = QGridLayout::new_0a();
-        table_1.set_layout(layout_1.into_ptr());
-        table_2.set_layout(layout_2.into_ptr());
+        let table_1 = QWidget::new_1a(packed_file_view.get_mut_widget());
+        let table_2 = QWidget::new_1a(packed_file_view.get_mut_widget());
+        let layout_1 = QGridLayout::new_1a(&table_1);
+        let layout_2 = QGridLayout::new_1a(&table_2);
+        table_1.set_layout(&layout_1);
+        table_2.set_layout(&layout_2);
 
         layout.add_widget_5a(&i1_label, 0, 0, 1, 1);
         layout.add_widget_5a(&i2_label, 1, 0, 1, 1);

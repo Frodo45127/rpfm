@@ -31,8 +31,6 @@ use qt_core::QTimer;
 use qt_core::QPtr;
 use qt_core::QString;
 
-use cpp_core::Ptr;
-
 use std::sync::atomic::Ordering;
 
 use rpfm_lib::games::*;
@@ -79,7 +77,7 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     // Main Window.
     //-------------------------------------------------------------------------------//
-    pub main_window: Ptr<QMainWindow>,
+    pub main_window: QBox<QMainWindow>,
     pub tab_bar_packed_file: QBox<QTabWidget>,
     pub menu_bar: QPtr<QMenuBar>,
     pub status_bar: QPtr<QStatusBar>,
@@ -102,12 +100,12 @@ pub struct AppUI {
     pub packfile_open_packfile: QPtr<QAction>,
     pub packfile_save_packfile: QPtr<QAction>,
     pub packfile_save_packfile_as: QPtr<QAction>,
-    pub packfile_open_from_content: Ptr<QMenu>,
-    pub packfile_open_from_data: Ptr<QMenu>,
-    pub packfile_open_from_autosave: Ptr<QMenu>,
-    pub packfile_change_packfile_type: Ptr<QMenu>,
+    pub packfile_open_from_content: QBox<QMenu>,
+    pub packfile_open_from_data: QBox<QMenu>,
+    pub packfile_open_from_autosave: QBox<QMenu>,
+    pub packfile_change_packfile_type: QBox<QMenu>,
     pub packfile_load_all_ca_packfiles: QPtr<QAction>,
-    pub packfile_load_template: Ptr<QMenu>,
+    pub packfile_load_template: QBox<QMenu>,
     pub packfile_preferences: QPtr<QAction>,
     pub packfile_quit: QPtr<QAction>,
 
@@ -278,7 +276,7 @@ impl AppUI {
 
         // Initialize and configure the main window.
         let main_window = new_q_main_window_custom_safe(are_you_sure);
-        let widget = QWidget::new_0a();
+        let widget = QWidget::new_1a(&main_window);
         let layout = create_grid_layout(widget.static_upcast());
         main_window.set_central_widget(&widget);
         main_window.resize_2a(1300, 800);
@@ -287,7 +285,7 @@ impl AppUI {
         // Get the menu and status bars.
         let menu_bar = main_window.menu_bar();
         let status_bar = main_window.status_bar();
-        let tab_bar_packed_file = QTabWidget::new_0a();
+        let tab_bar_packed_file = QTabWidget::new_1a(&widget);
         tab_bar_packed_file.set_tabs_closable(true);
         tab_bar_packed_file.set_movable(true);
         layout.add_widget_5a(&tab_bar_packed_file, 0, 0, 1, 1);
@@ -324,24 +322,24 @@ impl AppUI {
         let packfile_open_packfile = menu_bar_packfile.add_action_q_string(&qtr("open_packfile"));
         let packfile_save_packfile = menu_bar_packfile.add_action_q_string(&qtr("save_packfile"));
         let packfile_save_packfile_as = menu_bar_packfile.add_action_q_string(&qtr("save_packfile_as"));
-        let packfile_open_from_content = QMenu::from_q_string(&qtr("open_from_content")).into_ptr();
-        let packfile_open_from_data = QMenu::from_q_string(&qtr("open_from_data")).into_ptr();
-        let packfile_open_from_autosave = QMenu::from_q_string(&qtr("open_from_autosave")).into_ptr();
-        let packfile_change_packfile_type = QMenu::from_q_string(&qtr("change_packfile_type")).into_ptr();
+        let packfile_open_from_content = QMenu::from_q_string_q_widget(&qtr("open_from_content"), &menu_bar_packfile);
+        let packfile_open_from_data = QMenu::from_q_string_q_widget(&qtr("open_from_data"), &menu_bar_packfile);
+        let packfile_open_from_autosave = QMenu::from_q_string_q_widget(&qtr("open_from_autosave"), &menu_bar_packfile);
+        let packfile_change_packfile_type = QMenu::from_q_string_q_widget(&qtr("change_packfile_type"), &menu_bar_packfile);
         let packfile_load_all_ca_packfiles = menu_bar_packfile.add_action_q_string(&qtr("load_all_ca_packfiles"));
-        let packfile_load_template = QMenu::from_q_string(&qtr("load_template")).into_ptr();
+        let packfile_load_template = QMenu::from_q_string_q_widget(&qtr("load_template"), &menu_bar_packfile);
         let packfile_preferences = menu_bar_packfile.add_action_q_string(&qtr("preferences"));
         let packfile_quit = menu_bar_packfile.add_action_q_string(&qtr("quit"));
 
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, packfile_open_from_content);
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, packfile_open_from_data);
-        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, packfile_open_from_autosave);
+        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_content);
+        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_data);
+        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_autosave);
 
         menu_bar_packfile.insert_separator(packfile_open_from_content.menu_action());
         menu_bar_packfile.insert_separator(&packfile_preferences);
-        menu_bar_packfile.insert_menu(&packfile_preferences, packfile_change_packfile_type);
-        menu_bar_packfile.insert_menu(&packfile_preferences, packfile_load_template);
+        menu_bar_packfile.insert_menu(&packfile_preferences, &packfile_change_packfile_type);
+        menu_bar_packfile.insert_menu(&packfile_preferences, &packfile_load_template);
         menu_bar_packfile.insert_separator(&packfile_preferences);
 
         // `Change PackFile Type` submenu.
@@ -357,7 +355,7 @@ impl AppUI {
         let change_packfile_type_data_is_encrypted = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_encrypted"));
         let change_packfile_type_data_is_compressed = packfile_change_packfile_type.add_action_q_string(&qtr("change_packfile_type_data_is_compressed"));
 
-        let change_packfile_type_group = QActionGroup::new(packfile_change_packfile_type);
+        let change_packfile_type_group = QActionGroup::new(&packfile_change_packfile_type);
 
         // Configure the `PackFile` menu and his submenu.
         change_packfile_type_group.add_action_q_action(&change_packfile_type_boot);
