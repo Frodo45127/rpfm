@@ -264,6 +264,7 @@ impl TableView {
         // Prepare the Table and its model.
         let table_filter = QSortFilterProxyModel::new_1a(parent);
         let table_model = QStandardItemModel::new_1a(parent);
+        let undo_model = QStandardItemModel::new_1a(parent);
         table_filter.set_source_model(&table_model);
         let (table_view_primary, table_view_frozen) = new_tableview_frozen_safe(&parent.as_ptr());
         set_frozen_data_model_safe(&table_view_primary.as_ptr(), &table_filter.static_upcast::<QAbstractItemModel>().as_ptr());
@@ -551,7 +552,7 @@ impl TableView {
             undo_lock,
             save_lock,
 
-            undo_model: QStandardItemModel::new_0a(),
+            undo_model,
             history_undo: Arc::new(RwLock::new(vec![])),
             history_redo: Arc::new(RwLock::new(vec![])),
 

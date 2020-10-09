@@ -574,7 +574,7 @@ impl AppUI {
         //-------------------------------------------------------------------------------//
         // "Extra stuff" menu.
         //-------------------------------------------------------------------------------//
-        let timer_backup_autosave = QTimer::new_0a();
+        let timer_backup_autosave = QTimer::new_1a(&main_window);
         timer_backup_autosave.set_single_shot(true);
 
         // Create ***Da monsta***.

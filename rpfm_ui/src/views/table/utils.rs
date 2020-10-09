@@ -857,7 +857,7 @@ pub unsafe fn open_subtable(
     dialog.resize_2a(600, 200);
 
     let main_grid = create_grid_layout(dialog.static_upcast());
-    let main_widget = QWidget::new_0a();
+    let main_widget = QWidget::new_1a(&dialog);
     let _widget_grid = create_grid_layout(main_widget.static_upcast());
     let accept_button = QPushButton::from_q_string(&qtr("nested_table_accept"));
 

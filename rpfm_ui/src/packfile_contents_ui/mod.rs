@@ -109,17 +109,18 @@ impl PackFileContentsUI {
 
         // Create and configure the 'TreeView` Dock Widget and all his contents.
         let packfile_contents_dock_widget = QDockWidget::from_q_widget(main_window);
-        let packfile_contents_dock_inner_widget = QWidget::new_0a();
+        let packfile_contents_dock_inner_widget = QWidget::new_1a(&packfile_contents_dock_widget);
         let packfile_contents_dock_layout = create_grid_layout(packfile_contents_dock_inner_widget.static_upcast());
         packfile_contents_dock_widget.set_widget(&packfile_contents_dock_inner_widget);
         main_window.add_dock_widget_2a(DockWidgetArea::LeftDockWidgetArea, &packfile_contents_dock_widget);
         packfile_contents_dock_widget.set_window_title(&qtr("gen_loc_packfile_contents"));
 
         // Create and configure the `TreeView` itself.
-        let packfile_contents_tree_view = QTreeView::new_0a();
+        let packfile_contents_tree_view = QTreeView::new_1a(&packfile_contents_dock_inner_widget);
         let packfile_contents_tree_model = new_packed_file_model_safe();
-        let packfile_contents_tree_model_filter = new_treeview_filter_safe(packfile_contents_dock_widget.static_upcast());
+        let packfile_contents_tree_model_filter = new_treeview_filter_safe(packfile_contents_tree_view.static_upcast());
         packfile_contents_tree_model_filter.set_source_model(&packfile_contents_tree_model);
+        packfile_contents_tree_model.set_parent(&packfile_contents_tree_view);
         packfile_contents_tree_view.set_model(&packfile_contents_tree_model_filter);
         packfile_contents_tree_view.set_header_hidden(true);
         packfile_contents_tree_view.set_animated(true);
@@ -142,9 +143,9 @@ impl PackFileContentsUI {
         }
 
         // Create and configure the widgets to control the `TreeView`s filter.
-        let filter_line_edit = QLineEdit::new();
-        let filter_autoexpand_matches_button = QPushButton::from_q_string(&qtr("treeview_autoexpand"));
-        let filter_case_sensitive_button = QPushButton::from_q_string(&qtr("treeview_aai"));
+        let filter_line_edit = QLineEdit::from_q_widget(&packfile_contents_dock_inner_widget);
+        let filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), &packfile_contents_dock_inner_widget);
+        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), &packfile_contents_dock_inner_widget);
         filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
         filter_autoexpand_matches_button.set_checkable(true);
         filter_case_sensitive_button.set_checkable(true);
@@ -160,7 +161,7 @@ impl PackFileContentsUI {
         //-------------------------------------------------------------------------------//
 
         // Populate the `Contextual Menu` for the `PackFile` TreeView.
-        let packfile_contents_tree_view_context_menu = QMenu::new();
+        let packfile_contents_tree_view_context_menu = QMenu::from_q_widget(&packfile_contents_dock_inner_widget);
         let menu_add = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("context_menu_add"));
         let menu_create = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("context_menu_create"));
         let menu_open = packfile_contents_tree_view_context_menu.add_menu_q_string(&qtr("context_menu_open"));

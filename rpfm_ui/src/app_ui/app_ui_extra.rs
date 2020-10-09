@@ -1885,19 +1885,19 @@ impl AppUI {
 
         // Create the main Grid and his widgets.
         let main_grid = create_grid_layout(dialog.static_upcast());
-        let name_line_edit = QLineEdit::new().into_ptr();
-        let table_filter_line_edit = QLineEdit::new().into_ptr();
-        let create_button = QPushButton::from_q_string(&qtr("gen_loc_create"));
-        let table_dropdown = QComboBox::new_0a();
-        let table_filter = QSortFilterProxyModel::new_0a();
-        let table_model = QStandardItemModel::new_0a();
+        let name_line_edit = QLineEdit::from_q_widget(&dialog);
+        let table_filter_line_edit = QLineEdit::from_q_widget(&dialog);
+        let create_button = QPushButton::from_q_string_q_widget(&qtr("gen_loc_create"), &dialog);
+        let table_dropdown = QComboBox::new_1a(&dialog);
+        let table_filter = QSortFilterProxyModel::new_1a(&dialog);
+        let table_model = QStandardItemModel::new_1a(&dialog);
 
         name_line_edit.set_text(&qtr("new_file_default"));
         table_dropdown.set_model(&table_model);
         table_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
 
         // Add all the widgets to the main grid, except those specific for a PackedFileType.
-        main_grid.add_widget_5a(name_line_edit, 0, 0, 1, 1);
+        main_grid.add_widget_5a(&name_line_edit, 0, 0, 1, 1);
         main_grid.add_widget_5a(& create_button, 0, 1, 1, 1);
 
         // If it's a DB Table, add its widgets, and populate the table list.
@@ -1916,14 +1916,15 @@ impl AppUI {
                     table_filter.set_source_model(&table_model);
                     table_dropdown.set_model(&table_filter);
 
-                    main_grid.add_widget_5a(& table_dropdown, 1, 0, 1, 1);
-                    main_grid.add_widget_5a(table_filter_line_edit, 2, 0, 1, 1);
+                    main_grid.add_widget_5a(&table_dropdown, 1, 0, 1, 1);
+                    main_grid.add_widget_5a(&table_filter_line_edit, 2, 0, 1, 1);
                 }
                 None => return Some(Err(ErrorKind::SchemaNotFound.into())),
             }
         }
 
         // What happens when we search in the filter.
+        let table_filter_line_edit = table_filter_line_edit.as_ptr();
         let slot_table_filter_change_text = SlotOfQString::new(&dialog, move |_| {
             let pattern = QRegExp::new_1a(&table_filter_line_edit.text());
             table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
