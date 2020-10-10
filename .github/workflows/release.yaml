@@ -70,8 +70,8 @@ jobs:
           cd win
           mkdir rpfm-release-assets
           cd rpfm-release-assets
-
-        # Here we copy all the dlls required by RPFM. Otherwise we'll have to manually update them on every freaking release, and for 2 months that's been a royal PITA.
+          
+          # Here we copy all the dlls required by RPFM. Otherwise we'll have to manually update them on every freaking release, and for 2 months that's been a royal PITA.
           mkdir iconengines
           cp D:\Craft\plugins\iconengines\KIconEnginePlugin.dll D:\deploy\win\rpfm-release-assets\iconengines\
           cp D:\Craft\plugins\iconengines\qsvgicon.dll D:\deploy\win\rpfm-release-assets\iconengines\
@@ -146,13 +146,13 @@ jobs:
           cp D:\Craft\bin\vcruntime140_1.dll D:\deploy\win\rpfm-release-assets\
           cp D:\Craft\bin\zlib.dll D:\deploy\win\rpfm-release-assets\
 
-        # Here we copy files generated from the compilation.
+          # Here we copy files generated from the compilation.
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.exe D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.exe D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.pdb D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.pdb D:\deploy\win\rpfm-release-assets
 
-        # Here we copy assets from the repo.
+          # Here we copy assets from the repo.
           cp D:/a/rpfm/rpfm/LICENSE D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/img/* D:\deploy\win\rpfm-release-assets\img\
           cp D:/a/rpfm/rpfm/locale/* D:\deploy\win\rpfm-release-assets\locale\
