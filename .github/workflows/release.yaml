@@ -47,6 +47,7 @@ jobs:
           Invoke-Command -ScriptBlock ([scriptblock]::Create($scriptPath)) -ArgumentList "D:\Craft"
           D:\Craft\craft\craftenv.ps1
           craft -i --ci-mode ktexteditor
+          craft -i --ci-mode kimageformats
         shell: pwsh
 
       - name: Build on Windows
@@ -67,12 +68,91 @@ jobs:
           cd deploy
           mkdir win
           cd win
-          curl -L -o rpfm-release-assets-windows-x64.zip https://www.dropbox.com/s/zjh9dffb6astfqg/rpfm-release-assets-windows-x64-2.zip?dl=0
-          7z x rpfm-release-assets-windows-x64.zip
+          mkdir rpfm-release-assets
+          cd rpfm-release-assets
+
+        # Here we copy all the dlls required by RPFM. Otherwise we'll have to manually update them on every freaking release, and for 2 months that's been a royal PITA.
+          mkdir iconengines
+          cp D:\Craft\plugins\iconengines\KIconEnginePlugin.dll D:\deploy\win\rpfm-release-assets\iconengines\
+          cp D:\Craft\plugins\iconengines\qsvgicon.dll D:\deploy\win\rpfm-release-assets\iconengines\
+
+          mkdir imageformats
+          cp D:\Craft\plugins\imageformats\*.dll D:\deploy\win\rpfm-release-assets\imageformats\
+
+          mkdir platforms
+          cp D:\Craft\plugins\platforms\qwindows.dll D:\deploy\win\rpfm-release-assets\platforms\
+
+          mkdir styles
+          cp D:\Craft\plugins\styles\qwindowsvistastyle.dll D:\deploy\win\rpfm-release-assets\styles\
+
+          cp D:\Craft\bin\d3dcompiler_47.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\git2.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\iconv.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\icudt*.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\icuin*.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\icuuc*.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\intl.dll D:\deploy\win\rpfm-release-assets\
+
+          cp D:\Craft\bin\KF5Archive.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5Attica.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5AuthCore.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5Codecs.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5Completion.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5ConfigCore.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5ConfigGui.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5ConfigWidgets.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5CoreAddons.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5Crash.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5DBusAddons.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5GlobalAccel.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5GuiAddons.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5I18n.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5IconThemes.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5ItemViews.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5JobWidgets.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5KIOCore.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5KIOGui.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5KIOWidgets.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5Parts.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5Service.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5SonnetCore.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5SonnetUi.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5SyntaxHighlighting.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5TextEditor.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5TextWidgets.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5WidgetsAddons.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5WindowSystem.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\KF5XmlGui.dll D:\deploy\win\rpfm-release-assets\
+
+          cp D:\Craft\bin\libcrypto*.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\libEGL.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\libGLESV2.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\liblzma.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\libssl*.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\pcre.dll D:\deploy\win\rpfm-release-assets\
+
+          cp D:\Craft\bin\Qt5Core.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5DBus.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5Gui.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5Network.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5PrintSupport.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5Qml.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5Svg.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5TextToSpeech.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5Widgets.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\Qt5Xml.dll D:\deploy\win\rpfm-release-assets\
+
+          cp D:\Craft\bin\vcruntime140.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\vcruntime140_1.dll D:\deploy\win\rpfm-release-assets\
+          cp D:\Craft\bin\zlib.dll D:\deploy\win\rpfm-release-assets\
+
+        # Here we copy files generated from the compilation.
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.exe D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.exe D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.pdb D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.pdb D:\deploy\win\rpfm-release-assets
+
+        # Here we copy assets from the repo.
           cp D:/a/rpfm/rpfm/LICENSE D:\deploy\win\rpfm-release-assets
           cp D:/a/rpfm/rpfm/img/* D:\deploy\win\rpfm-release-assets\img\
           cp D:/a/rpfm/rpfm/locale/* D:\deploy\win\rpfm-release-assets\locale\
