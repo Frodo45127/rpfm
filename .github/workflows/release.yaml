@@ -64,6 +64,7 @@ jobs:
 
         run: |
           sudo apt update
+          sudo apt upgrade
           sudo apt install qt5-default libkf5texteditor5
         shell: bash
 
