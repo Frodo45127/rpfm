@@ -92,9 +92,9 @@ jobs:
           cp D:\Craft\bin\d3dcompiler_47.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\git2.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\iconv.dll D:\deploy\rpfm-release-assets\
-          cp D:\Craft\bin\icudt*.dll D:\deploy\rpfm-release-assets\
-          cp D:\Craft\bin\icuin*.dll D:\deploy\rpfm-release-assets\
-          cp D:\Craft\bin\icuuc*.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\icudt??.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\icuin??.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\icuuc??.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\intl.dll D:\deploy\rpfm-release-assets\
 
           cp D:\Craft\bin\KF5Archive.dll D:\deploy\rpfm-release-assets\
