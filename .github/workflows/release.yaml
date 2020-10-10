@@ -50,6 +50,7 @@ jobs:
           $scriptPath = ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/Frodo45127/craft/master/setup/install_craft.ps1'))
           Invoke-Command -ScriptBlock ([scriptblock]::Create($scriptPath)) -ArgumentList "D:\Craft"
           D:\Craft\craft\craftenv.ps1
+          craft -i --ci-mode qtimageformats
           craft -i --ci-mode ktexteditor
           craft -i --ci-mode kimageformats
         shell: pwsh
