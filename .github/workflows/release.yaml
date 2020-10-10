@@ -161,7 +161,6 @@ jobs:
           cp D:/a/rpfm/rpfm/LICENSE D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/img/* D:\deploy\rpfm-release-assets\img\
           cp D:/a/rpfm/rpfm/locale/* D:\deploy\rpfm-release-assets\locale\
-          cd rpfm-release-assets
           7z a rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }} .\**
 
       - name: Get Changelog Entry
