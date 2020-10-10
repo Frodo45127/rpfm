@@ -80,7 +80,7 @@ jobs:
 
           mkdir imageformats
           cp D:\Craft\plugins\imageformats\*.dll D:\deploy\rpfm-release-assets\imageformats\
-          cp D:/a/rpfm/rpfm/lib/qdds.dll D:\deploy\rpfm-release-assets\imageformats\
+          cp D:/a/rpfm/rpfm/libs/qdds.dll D:\deploy\rpfm-release-assets\imageformats\
 
           mkdir platforms
           cp D:\Craft\plugins\platforms\qwindows.dll D:\deploy\rpfm-release-assets\platforms\
