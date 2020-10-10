@@ -611,6 +611,20 @@ impl PackFileContentsSlots {
                 if file_dialog.exec() == 1 {
                     let path_str = file_dialog.selected_files().at(0).to_std_string();
                     let path = PathBuf::from(path_str.to_owned());
+
+                    // DON'T ALLOW TO LOAD THE SAME PACKFILE WE HAVE ALREADY OPEN!!!!
+                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView);
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    match response {
+                        Response::PackFileInfoVecPackedFileInfo((pack_file_info, _)) => {
+                            if pack_file_info.file_path == path {
+                                 return show_dialog(&app_ui.main_window, ErrorKind::CannotAddFromOpenPackFile, false);
+                            }
+                        },
+                        Response::Error(error) => return show_dialog(&app_ui.main_window, error, false),
+                        _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+                    }
+
                     app_ui.main_window.set_enabled(false);
 
                     let fake_path = vec![RESERVED_NAME_EXTRA_PACKFILE.to_owned(), path_str.to_owned()];

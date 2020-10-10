@@ -592,6 +592,9 @@ pub enum ErrorKind {
 
     /// Error for when there was an error while downloading the updated templates.
     TemplateUpdateError,
+
+    /// Error for when we try to add from the same PackFile we have already open.
+    CannotAddFromOpenPackFile,
 }
 
 /// Implementation of `Error`.
@@ -898,6 +901,7 @@ impl Display for ErrorKind {
             ErrorKind::PackedFileNotDecoded => write!(f, "<p>Undecoded PackedFile. If you see this, it's a bug, so please report it.<p>"),
             ErrorKind::ManifestError => write!(f, "<p>Error while parsing the manifest.txt file of the game selected.<p>"),
             ErrorKind::TemplateUpdateError => write!(f, "<p>There was an error while downloading the templates. Please, try again later.</p>"),
+            ErrorKind::CannotAddFromOpenPackFile => write!(f, "<p>You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.</p>"),
         }
     }
 }
