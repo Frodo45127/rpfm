@@ -32,7 +32,6 @@ use qt_core::QPtr;
 use qt_core::QListOfInt;
 use qt_core::CaseSensitivity;
 
-use cpp_core::CppBox;
 use cpp_core::Ptr;
 
 use crate::locale::qtr;

@@ -34,7 +34,6 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
 
     ui.get_mut_ptr_table_model().item_changed().connect(&slots.item_changed);
     ui.get_mut_ptr_table_model().data_changed().connect(&slots.save);
-    //ui.get_mut_ptr_timer_diagnostics_check().timeout().connect(&slots.save);
     ui.get_mut_ptr_table_view_primary().selection_model().selection_changed().connect(&slots.context_menu_enabler);
     ui.get_mut_ptr_context_menu_add_rows().triggered().connect(&slots.add_rows);
     ui.get_mut_ptr_context_menu_insert_rows().triggered().connect(&slots.insert_rows);

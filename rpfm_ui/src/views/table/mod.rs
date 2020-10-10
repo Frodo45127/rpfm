@@ -865,11 +865,6 @@ impl TableView {
         &self.search_close_button
     }
 
-    /// This function returns a pointer to the timer for the diagnostic check.
-    pub fn get_mut_ptr_timer_diagnostics_check(&self) -> &QBox<QTimer> {
-        &self.timer_diagnostics_check
-    }
-
     pub unsafe fn get_mut_ptr_undo_model(&self) -> QPtr<QStandardItemModel> {
         self.undo_model.static_upcast()
     }
