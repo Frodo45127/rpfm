@@ -80,6 +80,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
         run: |
+          ls -a
           cd rpfm
           cargo build --release
         shell: bash
