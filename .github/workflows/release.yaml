@@ -80,8 +80,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
         run: |
-          ls -a
-          cd rpfm
           cargo build --release
         shell: bash
 
@@ -191,18 +189,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
         run: |
-          ls -a
-          mkdir -p $HOME/rpfm-release-assets/usr/bin
-          mkdir -p $HOME/rpfm-release-assets/usr/share/rpfm/locale
-          mkdir -p $HOME/rpfm-release-assets/usr/share/rpfm/img
+          mkdir -p rpfm-release-assets/usr/bin
+          mkdir -p rpfm-release-assets/usr/share/rpfm/locale
+          mkdir -p rpfm-release-assets/usr/share/rpfm/img
 
-          cp $HOME/rpfm/target/release/rpfm_ui $HOME/rpfm-release-assets/usr/bin
-          cp $HOME/rpfm/target/release/rpfm_cli $HOME/rpfm-release-assets/usr/bin
+          cp target/release/rpfm_ui rpfm-release-assets/usr/bin
+          cp target/release/rpfm_cli rpfm-release-assets/usr/bin
 
-          cp $HOME/rpfm/rpfm/img/* $HOME/rpfm-release-assets/usr/share/rpfm/img/
-          cp $HOME/rpfm/rpfm/locale/* $HOME/rpfm-release-assets/usr/share/rpfm/locale/
+          cp img/* rpfm-release-assets/usr/share/rpfm/img/
+          cp locale/* rpfm-release-assets/usr/share/rpfm/locale/
 
-          cd $HOME/rpfm-release-assets/
+          cd rpfm-release-assets/
           tar -cvzf rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.tar.gz .\**
 
       - name: Get Changelog Entry
@@ -244,7 +241,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: $HOME/rpfm-release-assets/rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_path: rpfm-release-assets/rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_name: rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
 
