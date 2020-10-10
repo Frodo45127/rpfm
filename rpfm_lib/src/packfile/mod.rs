@@ -23,8 +23,10 @@ use bitflags::bitflags;
 use csv::ReaderBuilder;
 use itertools::{Itertools, Either};
 use serde_derive::{Serialize, Deserialize};
+use serde_json::{from_slice, to_string_pretty};
 use rayon::prelude::*;
 
+use std::collections::BTreeMap;
 use std::{fmt, fmt::Display};
 use std::fs::{DirBuilder, File};
 use std::io::{prelude::*, BufReader, BufWriter, SeekFrom, Read, Write};
@@ -143,6 +145,9 @@ pub struct PackFile {
 
     /// Notes added to the PackFile. Exclusive of this lib.
     notes: Option<String>,
+
+    /// Settings stored in the PackFile itself, to be able to share them between instalations.
+    settings: PackFileSettings,
 }
 
 /// This struct is a reduced version of the `PackFile` one, used to pass just the needed data to an UI.
@@ -274,6 +279,14 @@ pub enum CompressionState {
 
     /// None of the files in the PackFile are compressed.
     Disabled,
+}
+
+/// This struct hold PackFile-specific settings.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct PackFileSettings {
+    pub paths: BTreeMap<String, Option<PathBuf>>,
+    pub settings_string: BTreeMap<String, String>,
+    pub settings_bool: BTreeMap<String, bool>,
 }
 
 //---------------------------------------------------------------------------//
@@ -459,7 +472,8 @@ impl PackFile {
             pack_files: vec![],
             packed_files: vec![],
 
-            notes: None
+            notes: None,
+            settings: PackFileSettings::default(),
         }
     }
 
@@ -476,6 +490,7 @@ impl PackFile {
             packed_files: vec![],
 
             notes: None,
+            settings: PackFileSettings::default(),
         }
     }
 
@@ -1215,6 +1230,16 @@ impl PackFile {
     /// This function saves your notes within the provided `PackFile`.
     pub fn set_notes(&mut self, notes: &Option<String>) {
         self.notes = notes.clone();
+    }
+
+    /// This function returns the settings contained within the provided `PackFile`.
+    pub fn get_settings(&self) -> &PackFileSettings {
+        &self.settings
+    }
+
+    /// This function saves your settings within the provided `PackFile`.
+    pub fn set_settings(&mut self, settings: &PackFileSettings) {
+        self.settings = settings.clone();
     }
 
     /// This function returns the timestamp of the provided `PackFile`.
@@ -2341,10 +2366,18 @@ impl PackFile {
             let mut packed_file = PackedFile::new_from_raw(&raw_data);
 
             // If this is a notes PackedFile, save the notes and forget about the PackedFile. Otherwise, save the PackedFile.
-            if packed_file.get_path() == ["notes.rpfm_reserved"] {
+            if packed_file.get_path() == &[RESERVED_NAME_NOTES] {
                 if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
                     if let Ok(data) = data.decode_string_u8(0, data.len()) {
                         pack_file_decoded.notes = Some(data);
+                    }
+                }
+            }
+
+            else if packed_file.get_path() == &[RESERVED_NAME_SETTINGS] {
+                if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
+                    if let Ok(settings) = from_slice(&data) {
+                        pack_file_decoded.settings = settings;
                     }
                 }
             }
@@ -2394,10 +2427,17 @@ impl PackFile {
         if let Some(note) = &self.notes {
             let mut data = vec![];
             data.encode_string_u8(&note);
-            let raw_data = RawPackedFile::read_from_vec(vec!["notes.rpfm_reserved".to_owned()], self.get_file_name(), 0, false, data);
+            let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_NOTES.to_owned()], self.get_file_name(), 0, false, data);
             let packed_file = PackedFile::new_from_raw(&raw_data);
             self.packed_files.push(packed_file);
         }
+
+        // Saving PackFile settings.
+        let mut data = vec![];
+        data.write_all(&to_string_pretty(&self.settings)?.as_bytes())?;
+        let raw_data = RawPackedFile::read_from_vec(vec![RESERVED_NAME_SETTINGS.to_owned()], self.get_file_name(), 0, false, data);
+        let packed_file = PackedFile::new_from_raw(&raw_data);
+        self.packed_files.push(packed_file);
 
         // For some bizarre reason, if the PackedFiles are not alphabetically sorted they may or may not crash the game for particular people.
         // So, to fix it, we have to sort all the PackedFiles here by path.
@@ -2500,8 +2540,9 @@ impl PackFile {
             file.write_all(&data)?;
         }
 
-        // Remove again the notes PackedFile, as that one is stored separated from the rest.
-        self.remove_packed_file_by_path(&["notes.rpfm_reserved".to_owned()]);
+        // Remove again the reserved PackedFiles.
+        self.remove_packed_file_by_path(&[RESERVED_NAME_NOTES.to_owned()]);
+        self.remove_packed_file_by_path(&[RESERVED_NAME_SETTINGS.to_owned()]);
 
         // If nothing has failed, return success.
         Ok(())
