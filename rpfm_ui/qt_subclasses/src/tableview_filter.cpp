@@ -22,7 +22,6 @@ extern "C" void trigger_tableview_filter(
     filter2->columns = columns;
     filter2->patterns = patterns;
     filter2->case_sensitive = case_sensitive;
-
     filter2->setFilterKeyColumn(0);
 }
 
@@ -33,6 +32,7 @@ QTableViewSortFilterProxyModel::QTableViewSortFilterProxyModel(QObject *parent):
 bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const {
 
     bool is_valid = true;
+
     for (int i = 0; i < columns.count(); ++i) {
         int column = columns.at(i);
         QString const pattern = patterns.at(i);

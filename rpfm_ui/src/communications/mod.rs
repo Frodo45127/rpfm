@@ -599,18 +599,10 @@ impl CentralCommand {
     /// This function will keep asking for a response, keeping the UI responsive. Use it for heavy tasks.
     #[allow(dead_code)]
     pub fn recv_message_diagnostics_update_to_qt_try(&self) -> (Diagnostics, Vec<PackedFileInfo>) {
-        let event_loop = unsafe { QEventLoop::new_0a() };
-        loop {
-
-            // Check the response and, in case of error, try again. If the error is "Disconnected", CTD.
-            let response = self.receiver_diagnostics_update_to_qt.try_recv();
-            match response {
-                Ok(data) => return data,
-                Err(error) => if error.is_disconnected() {
-                    panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
-                }
-            }
-            unsafe { event_loop.process_events_0a(); }
+        let response = self.receiver_diagnostics_update_to_qt.recv();
+        match response {
+            Ok(data) => data,
+            Err(_) => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response)
         }
     }
 

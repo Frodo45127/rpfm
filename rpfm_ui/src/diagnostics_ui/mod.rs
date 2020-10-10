@@ -431,7 +431,7 @@ impl DiagnosticsUI {
                             qlist_boi.append_q_standard_item(&report_type.into_ptr().as_mut_raw_ptr());
 
                             // Append the new row.
-                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
+                            diagnostics_ui.diagnostics_table_model.append_row_q_list_of_q_standard_item(qlist_boi.into_ptr().as_ref().unwrap());
                         }
                     }
 
@@ -758,7 +758,7 @@ impl DiagnosticsUI {
         };
 
         columns.push(0);
-        patterns.push(QString::from_std_str(pattern_level));
+        patterns.push(QString::from_std_str(pattern_level).into_ptr());
         sensitivity.push(CaseSensitivity::CaseSensitive);
 
         // Check for currently open files filter.
@@ -779,7 +779,7 @@ impl DiagnosticsUI {
             }
 
             columns.push(4);
-            patterns.push(QString::from_std_str(pattern));
+            patterns.push(QString::from_std_str(pattern).into_ptr());
             sensitivity.push(CaseSensitivity::CaseSensitive);
         }
 
@@ -831,11 +831,11 @@ impl DiagnosticsUI {
         }
 
         columns.push(6);
-        patterns.push(QString::from_std_str(diagnostic_type_pattern));
+        patterns.push(QString::from_std_str(diagnostic_type_pattern).into_ptr());
         sensitivity.push(CaseSensitivity::CaseSensitive);
 
         // Filter whatever it's in that column by the text we got.
-        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, &patterns, &sensitivity);
+        trigger_tableview_filter_safe(&diagnostics_ui.diagnostics_table_filter, &columns, patterns, &sensitivity);
     }
 
     pub unsafe fn update_level_counts(diagnostics_ui: &Rc<Self>, diagnostics: &[DiagnosticType]) {
