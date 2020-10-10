@@ -48,8 +48,8 @@ jobs:
         run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
         shell: bash
 
-      - name: Installing Qt5, KTextEditor & KImageFormats
-        if: startsWith(matrix.os, 'windows') && steps.cache.outputs.cache-hit != 'true'
+      - name: Installing Qt5, KTextEditor & KImageFormats (Windows)
+        if: matrix.os == 'windows-latest' && steps.cache.outputs.cache-hit != 'true'
 
         run: |
           $scriptPath = ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/Frodo45127/craft/master/setup/install_craft.ps1'))
@@ -59,17 +59,16 @@ jobs:
           craft -i --ci-mode kimageformats
         shell: pwsh
 
-      - name: Installing Qt5 & KTextEditor
-        if: startsWith(matrix.os, 'ubuntu') && steps.cache.outputs.cache-hit != 'true'
+      - name: Installing Qt5 & KTextEditor (Linux)
+        if: matrix.os == 'ubuntu-latest' && steps.cache.outputs.cache-hit != 'true'
 
         run: |
           sudo apt update
-          sudo apt upgrade
           sudo apt install qt5-default libkf5texteditor5
         shell: bash
 
-      - name: Build
-        if: startsWith(matrix.os, 'windows')
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
 
         run: |
           D:\Craft\craft\craftenv.ps1
@@ -77,16 +76,16 @@ jobs:
           cargo build --release
         shell: pwsh
 
-      - name: Build
-        if: startsWith(matrix.os, 'ubuntu')
+      - name: Build (Linux)
+        if: matrix.os == 'ubuntu-latest'
 
         run: |
-          cd D:/a/rpfm/rpfm
+          cd rpfm
           cargo build --release
         shell: bash
 
-      - name: Prepare Assets for Release
-        if: startsWith(matrix.os, 'windows')
+      - name: Prepare Assets for Release (Windows)
+        if: matrix.os == 'windows-latest'
 
         run: |
           cd D:\
@@ -187,21 +186,22 @@ jobs:
           7z a rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.zip .\**
 
 
-      - name: Prepare Assets for Release
-        if: startsWith(matrix.os, 'ubuntu')
+      - name: Prepare Assets for Release (Linux)
+        if: matrix.os == 'ubuntu-latest'
 
         run: |
-          mkdir -p D:/deploy/rpfm-release-assets/usr/bin
-          mkdir -p D:/deploy/rpfm-release-assets/usr/share/rpfm/locale
-          mkdir -p D:/deploy/rpfm-release-assets/usr/share/rpfm/img
+          ls -a
+          mkdir -p $HOME/rpfm-release-assets/usr/bin
+          mkdir -p $HOME/rpfm-release-assets/usr/share/rpfm/locale
+          mkdir -p $HOME/rpfm-release-assets/usr/share/rpfm/img
 
-          cp D:/a/rpfm/rpfm/target/release/rpfm_ui D:/deploy/rpfm-release-assets/usr/bin
-          cp D:/a/rpfm/rpfm/target/release/rpfm_cli D:/deploy/rpfm-release-assets/usr/bin
+          cp $HOME/rpfm/target/release/rpfm_ui $HOME/rpfm-release-assets/usr/bin
+          cp $HOME/rpfm/target/release/rpfm_cli $HOME/rpfm-release-assets/usr/bin
 
-          cp D:/a/rpfm/rpfm/img/* D:/deploy/rpfm-release-assets/usr/share/rpfm/img/
-          cp D:/a/rpfm/rpfm/locale/* D:/deploy/rpfm-release-assets/usr/share/rpfm/locale/
+          cp $HOME/rpfm/rpfm/img/* $HOME/rpfm-release-assets/usr/share/rpfm/img/
+          cp $HOME/rpfm/rpfm/locale/* $HOME/rpfm-release-assets/usr/share/rpfm/locale/
 
-          cd D:/deploy/rpfm-release-assets/
+          cd $HOME/rpfm-release-assets/
           tar -cvzf rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.tar.gz .\**
 
       - name: Get Changelog Entry
@@ -223,7 +223,8 @@ jobs:
           draft: true
           prerelease: true
 
-      - name: Upload Release Asset
+      - name: Upload Release Asset (Windows)
+        if: matrix.os == 'windows-latest'
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
@@ -233,4 +234,17 @@ jobs:
           asset_path: D:/deploy/rpfm-release-assets/rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_name: rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
           asset_content_type: ${{ matrix.MIME }}
+
+      - name: Upload Release Asset (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: $HOME/rpfm-release-assets/rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_name: rpfm-${{ steps.get_version.outputs.VERSION }}-${{ matrix.TARGET }}.${{ matrix.EXTENSION }}
+          asset_content_type: ${{ matrix.MIME }}
+
 
