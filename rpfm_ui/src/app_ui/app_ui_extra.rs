@@ -245,6 +245,10 @@ impl AppUI {
         app_ui.main_window.set_enabled(false);
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackFiles(pack_file_paths.to_vec()));
 
+        if pack_file_paths.len() == 1 {
+            SETTINGS.write().unwrap().update_recent_files(&pack_file_paths[0].to_str().unwrap().to_owned());
+        }
+
         let timer = SETTINGS.read().unwrap().settings_string["autosave_interval"].parse::<i32>().unwrap_or(10);
         if timer > 0 {
             app_ui.timer_backup_autosave.set_interval(timer * 60 * 1000);
@@ -669,6 +673,7 @@ impl AppUI {
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
+        app_ui.packfile_open_recent.clear();
         app_ui.packfile_open_from_content.clear();
         app_ui.packfile_open_from_data.clear();
         app_ui.packfile_open_from_autosave.clear();
@@ -677,6 +682,39 @@ impl AppUI {
         //---------------------------------------------------------------------------------------//
         // Build the menus...
         //---------------------------------------------------------------------------------------//
+
+        // Recent PackFiles.
+        for path in SETTINGS.read().unwrap().get_recent_files() {
+
+            // That means our file is a valid PackFile and it needs to be added to the menu.
+            let path = PathBuf::from(&path);
+            if path.is_file() {
+                let mod_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
+                let open_mod_action = app_ui.packfile_open_recent.add_action_q_string(&QString::from_std_str(mod_name));
+
+                // Create the slot for that action.
+                let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
+                    app_ui,
+                    pack_file_contents_ui,
+                    global_search_ui,
+                    diagnostics_ui,
+                    path => move |_| {
+                    if Self::are_you_sure(&app_ui, false) {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
+                            return show_dialog(&app_ui.main_window, error, false);
+                        }
+
+                        // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
+                        app_ui.menu_bar_packfile.set_enabled(false);
+                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                        app_ui.menu_bar_packfile.set_enabled(true);
+                    }
+                }));
+
+                // Connect the slot and store it.
+                open_mod_action.triggered().connect(&slot_open_mod);
+            }
+        }
 
         // Get the path of every PackFile in the content folder (if the game's path it's configured) and make an action for each one of them.
         let mut content_paths = get_game_selected_content_packfiles_paths();
@@ -844,6 +882,7 @@ impl AppUI {
         }
 
         // Only if the submenu has items, we enable it.
+        app_ui.packfile_open_recent.menu_action().set_visible(!app_ui.packfile_open_recent.actions().is_empty());
         app_ui.packfile_open_from_content.menu_action().set_visible(!app_ui.packfile_open_from_content.actions().is_empty());
         app_ui.packfile_open_from_data.menu_action().set_visible(!app_ui.packfile_open_from_data.actions().is_empty());
         app_ui.packfile_open_from_autosave.menu_action().set_visible(!app_ui.packfile_open_from_autosave.actions().is_empty());

@@ -100,6 +100,7 @@ pub struct AppUI {
     pub packfile_open_packfile: QPtr<QAction>,
     pub packfile_save_packfile: QPtr<QAction>,
     pub packfile_save_packfile_as: QPtr<QAction>,
+    pub packfile_open_recent: QBox<QMenu>,
     pub packfile_open_from_content: QBox<QMenu>,
     pub packfile_open_from_data: QBox<QMenu>,
     pub packfile_open_from_autosave: QBox<QMenu>,
@@ -322,6 +323,7 @@ impl AppUI {
         let packfile_open_packfile = menu_bar_packfile.add_action_q_string(&qtr("open_packfile"));
         let packfile_save_packfile = menu_bar_packfile.add_action_q_string(&qtr("save_packfile"));
         let packfile_save_packfile_as = menu_bar_packfile.add_action_q_string(&qtr("save_packfile_as"));
+        let packfile_open_recent = QMenu::from_q_string_q_widget(&qtr("open_recent"), &menu_bar_packfile);
         let packfile_open_from_content = QMenu::from_q_string_q_widget(&qtr("open_from_content"), &menu_bar_packfile);
         let packfile_open_from_data = QMenu::from_q_string_q_widget(&qtr("open_from_data"), &menu_bar_packfile);
         let packfile_open_from_autosave = QMenu::from_q_string_q_widget(&qtr("open_from_autosave"), &menu_bar_packfile);
@@ -332,11 +334,12 @@ impl AppUI {
         let packfile_quit = menu_bar_packfile.add_action_q_string(&qtr("quit"));
 
         // Add the "Open..." submenus. These needs to be here because they have to be inserted in specific positions of the menu.
+        menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_recent);
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_content);
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_data);
         menu_bar_packfile.insert_menu(&packfile_load_all_ca_packfiles, &packfile_open_from_autosave);
 
-        menu_bar_packfile.insert_separator(packfile_open_from_content.menu_action());
+        menu_bar_packfile.insert_separator(packfile_open_recent.menu_action());
         menu_bar_packfile.insert_separator(&packfile_preferences);
         menu_bar_packfile.insert_menu(&packfile_preferences, &packfile_change_packfile_type);
         menu_bar_packfile.insert_menu(&packfile_preferences, &packfile_load_template);
@@ -608,6 +611,7 @@ impl AppUI {
             packfile_open_packfile,
             packfile_save_packfile,
             packfile_save_packfile_as,
+            packfile_open_recent,
             packfile_open_from_content,
             packfile_open_from_data,
             packfile_open_from_autosave,

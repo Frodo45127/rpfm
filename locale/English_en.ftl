@@ -36,6 +36,7 @@ save_packfile_as = Save PackFile &As...
 load_all_ca_packfiles = &Load All CA PackFiles
 preferences = &Preferences
 quit = &Quit
+open_recent = Open Recent
 open_from_content = Open From Content
 open_from_data = Open From Data
 change_packfile_type = &Change PackFile Type
