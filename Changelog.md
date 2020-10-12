@@ -11,6 +11,9 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Implemented a setting to disable item autoexpanding when adding new items to the TreeView.
 - Implemented diagnostics support for the Dependency Manager.
 - Implemented per-PackFile settings.
+- Implemented a PackFile setting to ignore files in the diagnostics checks.
+- Implemented multi-column filters for tables.
+- Implemented Recent PackFiles list.
 - Added a warning to the Dependency Manager.
 - Reimplemented the old table cell colours, now based on the diagnostics results.
 
@@ -27,6 +30,8 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed a bug that allowed you to add PackedFiles from a PackFile into itself, effectively corrupting the added PackedFiles.
 - Fixed quite a few annoyances of the diagnostics tool.
 - Fixed quite a few bugs regarding parent-child widget relationships.
+- Fixed a performance regression when saving PackFiles with the diagnostics tool enabled.
+- Fixed a weird behavior when adding a folder to a PackFile while on MyMod mode.
 
 ## [2.2.1] - 2020-09-26
 ### Changed
