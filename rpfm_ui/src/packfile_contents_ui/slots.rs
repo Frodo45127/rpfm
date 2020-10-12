@@ -559,23 +559,20 @@ impl PackFileContentsSlots {
                                 for path in &folder_paths { paths.append(&mut get_files_from_subdir(&path).unwrap()); }
 
                                 // Check if the files are in the Assets Folder. All are in the same folder, so we can just check the first one.
-                                let paths_packedfile = if paths[0].starts_with(&assets_folder) {
+                                if paths[0].starts_with(&assets_folder) {
                                     let mut paths_packedfile: Vec<Vec<String>> = vec![];
                                     for path in &paths {
                                         let filtered_path = path.strip_prefix(&assets_folder).unwrap();
                                         paths_packedfile.push(filtered_path.iter().map(|x| x.to_string_lossy().as_ref().to_owned()).collect::<Vec<String>>());
                                     }
-                                    paths_packedfile
+                                    PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &paths, &paths_packedfile);
                                 }
 
                                 // Otherwise, they are added like normal files.
                                 else {
-                                    let mut paths_packedfile: Vec<Vec<String>> = vec![];
-                                    for path in &paths { paths_packedfile.append(&mut <QBox<QTreeView> as PackTree>::get_path_from_pathbuf(&pack_file_contents_ui, &path, true)); }
-                                    paths_packedfile
-                                };
-
-                                PackFileContentsUI::add_packedfiles(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &paths, &paths_packedfile);
+                                    let ui_base_path: Vec<String> = <QBox<QTreeView> as PackTree>::get_path_from_main_treeview_selection(&pack_file_contents_ui)[0].to_vec();
+                                    PackFileContentsUI::add_packed_files_from_folders(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &folder_paths, &[ui_base_path]);
+                                }
                             }
                         }
 
