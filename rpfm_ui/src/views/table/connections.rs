@@ -16,18 +16,14 @@ This module is, and should stay, private, as it's only glue between the `TableVi
 
 use std::sync::Arc;
 
-use super::{TableView, slots::TableViewSlots};
+use super::{FilterView, TableView, slots::{FilterViewSlots, TableViewSlots}};
 
 /// This function connects all the actions from the provided `TableView` with their slots in `TableViewSlots`.
 ///
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
-    ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_line_edit);
-    ui.get_mut_ptr_filter_column_selector().current_index_changed().connect(&slots.filter_column_selector);
-    ui.get_mut_ptr_filter_case_sensitive_button().toggled().connect(&slots.filter_case_sensitive_button);
     ui.get_mut_ptr_table_view_primary().horizontal_header().sort_indicator_changed().connect(&slots.sort_order_column_changed);
-    ui.get_mut_ptr_filter_line_edit().text_changed().connect(&slots.filter_check_regex);
 
     ui.get_mut_ptr_table_view_primary().custom_context_menu_requested().connect(&slots.show_context_menu);
     ui.get_mut_ptr_table_view_frozen().custom_context_menu_requested().connect(&slots.show_context_menu);
@@ -76,4 +72,13 @@ pub unsafe fn set_connections(ui: &Arc<TableView>, slots: &TableViewSlots) {
     ui.get_mut_ptr_search_search_line_edit().text_changed().connect(&slots.search_check_regex);
 
     ui.get_mut_ptr_table_view_primary().double_clicked().connect(&slots.open_subtable);
+}
+
+pub unsafe fn set_connections_filter(ui: &FilterView, slots: &FilterViewSlots) {
+    ui.filter_line_edit.text_changed().connect(&slots.filter_line_edit);
+    ui.filter_column_selector.current_index_changed().connect(&slots.filter_column_selector);
+    ui.filter_case_sensitive_button.toggled().connect(&slots.filter_case_sensitive_button);
+    ui.filter_line_edit.text_changed().connect(&slots.filter_check_regex);
+    ui.filter_add.released().connect(&slots.filter_add);
+    ui.filter_remove.released().connect(&slots.filter_remove);
 }

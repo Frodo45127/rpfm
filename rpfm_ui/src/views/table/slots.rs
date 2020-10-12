@@ -53,12 +53,8 @@ use super::*;
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
-/// This struct contains the slots of the view of an Table PackedFile.
+/// This struct contains the slots of the view of a Table PackedFile.
 pub struct TableViewSlots {
-    pub filter_line_edit: QBox<SlotOfQString>,
-    pub filter_column_selector: QBox<SlotOfInt>,
-    pub filter_case_sensitive_button: QBox<SlotNoArgs>,
-    pub filter_check_regex: QBox<SlotOfQString>,
     pub toggle_lookups: QBox<SlotOfBool>,
     pub sort_order_column_changed: QBox<SlotOfIntSortOrder>,
     pub show_context_menu: QBox<SlotOfQPoint>,
@@ -99,6 +95,16 @@ pub struct TableViewSlots {
     pub open_subtable: QBox<SlotOfQModelIndex>,
 }
 
+/// This struct contains the slots of the view of a table filter.
+pub struct FilterViewSlots {
+    pub filter_line_edit: QBox<SlotOfQString>,
+    pub filter_column_selector: QBox<SlotOfInt>,
+    pub filter_case_sensitive_button: QBox<SlotNoArgs>,
+    pub filter_check_regex: QBox<SlotOfQString>,
+    pub filter_add: QBox<SlotNoArgs>,
+    pub filter_remove: QBox<SlotNoArgs>,
+}
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -115,28 +121,6 @@ impl TableViewSlots {
         diagnostics_ui: &Rc<DiagnosticsUI>,
         packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
     ) -> Self {
-
-        // When we want to filter the table...
-        let filter_line_edit = SlotOfQString::new(&view.table_view_primary, clone!(
-            mut view => move |_| {
-            view.filter_table();
-        }));
-
-        let filter_column_selector = SlotOfInt::new(&view.table_view_primary, clone!(
-            mut view => move |_| {
-            view.filter_table();
-        }));
-
-        let filter_case_sensitive_button = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-            view.filter_table();
-        }));
-
-        // What happens when we trigger the "Check Regex" action.
-        let filter_check_regex = SlotOfQString::new(&view.table_view_primary, clone!(
-            mut view => move |string| {
-            check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast());
-        }));
 
         // When we want to toggle the lookups on and off.
         let toggle_lookups = SlotOfBool::new(&view.table_view_primary, clone!(
@@ -666,10 +650,6 @@ impl TableViewSlots {
 
         // Return the slots, so we can keep them alive for the duration of the view.
         Self {
-            filter_line_edit,
-            filter_column_selector,
-            filter_case_sensitive_button,
-            filter_check_regex,
             toggle_lookups,
             sort_order_column_changed,
             show_context_menu,
@@ -708,6 +688,61 @@ impl TableViewSlots {
             search_close,
             search_check_regex,
             open_subtable,
+        }
+    }
+}
+
+
+/// Implementation for `FilterViewSlots`.
+impl FilterViewSlots {
+    pub unsafe fn new(
+        view: &Arc<FilterView>,
+        parent_view: &Arc<TableView>,
+    ) -> Self {
+
+        // When we want to filter the table...
+        let filter_line_edit = SlotOfQString::new(&view.filter_widget, clone!(
+            parent_view => move |_| {
+            parent_view.filter_table();
+        }));
+
+        let filter_column_selector = SlotOfInt::new(&view.filter_widget, clone!(
+            parent_view => move |_| {
+            parent_view.filter_table();
+        }));
+
+        let filter_case_sensitive_button = SlotNoArgs::new(&view.filter_widget, clone!(
+            parent_view => move || {
+            parent_view.filter_table();
+        }));
+
+        // What happens when we trigger the "Check Regex" action.
+        let filter_check_regex = SlotOfQString::new(&view.filter_widget, clone!(
+            view => move |string| {
+            check_regex(&string.to_std_string(), view.filter_line_edit.static_upcast());
+        }));
+
+        let filter_add = SlotNoArgs::new(&view.filter_widget, clone!(
+            parent_view => move || {
+            FilterView::new(&parent_view);
+        }));
+
+        let filter_remove = SlotNoArgs::new(&view.filter_widget, clone!(
+            parent_view => move || {
+            if parent_view.get_ref_filters().len() > 1 {
+                parent_view.filter_base_widget.layout().remove_widget(parent_view.get_ref_filters().last().unwrap().filter_widget.as_ptr());
+                parent_view.get_ref_mut_filters().pop();
+                parent_view.filter_table();
+            }
+        }));
+
+        Self {
+            filter_line_edit,
+            filter_column_selector,
+            filter_case_sensitive_button,
+            filter_check_regex,
+            filter_add,
+            filter_remove,
         }
     }
 }

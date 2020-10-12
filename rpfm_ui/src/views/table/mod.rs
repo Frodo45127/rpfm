@@ -48,7 +48,7 @@ use cpp_core::Ptr;
 
 use std::collections::BTreeMap;
 use std::{fmt, fmt::Debug};
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::{AtomicBool, AtomicPtr};
 use std::rc::Rc;
 
@@ -73,7 +73,7 @@ use crate::utils::atomic_from_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::show_dialog;
 
-use self::slots::TableViewSlots;
+use self::slots::*;
 use self::utils::*;
 
 mod connections;
@@ -155,10 +155,9 @@ pub struct TableView {
     table_view_frozen: QBox<QTableView>,
     table_filter: QBox<QSortFilterProxyModel>,
     table_model: QBox<QStandardItemModel>,
-    //table_enable_lookups_button: QBox<QPushButton>,
-    filter_case_sensitive_button: QBox<QPushButton>,
-    filter_column_selector: QBox<QComboBox>,
-    filter_line_edit: QBox<QLineEdit>,
+
+    filter_base_widget: QBox<QWidget>,
+    filters: Arc<RwLock<Vec<Arc<FilterView>>>>,
 
     column_sort_state: Arc<RwLock<(i32, i8)>>,
 
@@ -222,6 +221,16 @@ pub struct TableView {
     timer_diagnostics_check: QBox<QTimer>,
 }
 
+/// This struct contains the stuff needed for a filter row.
+pub struct FilterView {
+    filter_widget: QBox<QWidget>,
+    filter_case_sensitive_button: QBox<QPushButton>,
+    filter_column_selector: QBox<QComboBox>,
+    filter_line_edit: QBox<QLineEdit>,
+    filter_add: QBox<QPushButton>,
+    filter_remove: QBox<QPushButton>,
+}
+
 //-------------------------------------------------------------------------------//
 //                             Implementations
 //-------------------------------------------------------------------------------//
@@ -262,7 +271,7 @@ impl TableView {
         let save_lock = Arc::new(AtomicBool::new(false));
 
         // Prepare the Table and its model.
-        let table_filter = QSortFilterProxyModel::new_1a(parent);
+        let table_filter = new_tableview_filter_safe(parent.static_upcast());
         let table_model = QStandardItemModel::new_1a(parent);
         let undo_model = QStandardItemModel::new_1a(parent);
         table_filter.set_source_model(&table_model);
@@ -289,25 +298,8 @@ impl TableView {
         let warning_message = QLabel::from_q_string_q_widget(&qtr("dependency_packfile_list_label"), parent);
 
         // Create the filter's widgets.
-        let row_filter_line_edit = QLineEdit::from_q_widget(parent);
-        let filter_column_selector = QComboBox::new_1a(parent);
-        let row_filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_case_sensitive"), parent);
-        let row_filter_column_list = QStandardItemModel::new_1a(&filter_column_selector);
-        let table_enable_lookups_button = QPushButton::from_q_string_q_widget(&qtr("table_enable_lookups"), parent);
-
-        filter_column_selector.set_model(&row_filter_column_list);
-
-        let fields = get_fields_sorted(&table_definition);
-        for field in &fields {
-            let name = clean_column_names(&field.get_name());
-            filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
-        }
-
-        row_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
-        row_filter_case_sensitive_button.set_checkable(true);
-        table_enable_lookups_button.set_checkable(true);
-
-        table_enable_lookups_button.set_visible(false);
+        let filter_base_widget = QWidget::new_1a(parent);
+        let _filter_base_grid = create_grid_layout(filter_base_widget.static_upcast());
 
         // Add everything to the grid.
         let layout: QPtr<QGridLayout> = parent.layout().static_downcast();
@@ -318,11 +310,8 @@ impl TableView {
             warning_message.set_visible(false);
         }
 
-        layout.add_widget_5a(&table_view_primary, 1, 0, 1, 4);
-        layout.add_widget_5a(&row_filter_line_edit, 3, 0, 1, 1);
-        layout.add_widget_5a(&row_filter_case_sensitive_button, 3, 1, 1, 1);
-        layout.add_widget_5a(&filter_column_selector, 3, 2, 1, 1);
-        //layout.add_widget_5a(& table_enable_lookups_button, 3, 3, 1, 1);
+        layout.add_widget_5a(&table_view_primary, 1, 0, 1, 1);
+        layout.add_widget_5a(&filter_base_widget, 2, 0, 1, 2);
 
         // Action to make the delete button delete contents.
         let smart_delete = QAction::from_q_object(&table_view_primary);
@@ -393,6 +382,8 @@ impl TableView {
 
         search_column_selector.set_model(&search_column_list);
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
+
+        let fields = get_fields_sorted(&table_definition);
         for column in &fields {
             search_column_selector.add_item_q_string(&QString::from_std_str(&utils::clean_column_names(&column.get_name())));
         }
@@ -494,9 +485,8 @@ impl TableView {
             table_filter,
             table_model,
             //table_enable_lookups_button: table_enable_lookups_button.into_ptr(),
-            filter_line_edit: row_filter_line_edit,
-            filter_case_sensitive_button: row_filter_case_sensitive_button,
-            filter_column_selector,
+            filters: Arc::new(RwLock::new(vec![])),
+            filter_base_widget,
             column_sort_state: Arc::new(RwLock::new((-1, 0))),
 
             context_menu,
@@ -567,6 +557,9 @@ impl TableView {
             diagnostics_ui,
             packed_file_path.clone(),
         );
+
+        // Build the first filter.
+        FilterView::new(&packed_file_table_view);
 
         // Load the data to the Table. For some reason, if we do this after setting the titles of
         // the columns, the titles will be reseted to 1, 2, 3,... so we do this here.
@@ -655,14 +648,19 @@ impl TableView {
         );
 
         // Rebuild the column list of the filter and search panels, just in case the definition changed.
-        let filter_column_selector = &self.filter_column_selector;
+        for filter in self.get_ref_mut_filters().iter() {
+            filter.filter_column_selector.clear();
+            for column in self.table_definition.read().unwrap().get_fields_processed() {
+                let name = QString::from_std_str(&utils::clean_column_names(&column.get_name()));
+                filter.filter_column_selector.add_item_q_string(&name);
+            }
+        }
+
         let search_column_selector = &self.search_column_selector;
-        filter_column_selector.clear();
         search_column_selector.clear();
         search_column_selector.add_item_q_string(&QString::from_std_str("* (All Columns)"));
         for column in self.table_definition.read().unwrap().get_fields_processed() {
             let name = QString::from_std_str(&utils::clean_column_names(&column.get_name()));
-            filter_column_selector.add_item_q_string(&name);
             search_column_selector.add_item_q_string(&name);
         }
 
@@ -696,18 +694,8 @@ impl TableView {
     }
 
     /// This function returns a pointer to the filter's LineEdit widget.
-    pub fn get_mut_ptr_filter_line_edit(&self) -> &QBox<QLineEdit> {
-        &self.filter_line_edit
-    }
-
-    /// This function returns a pointer to the filter's column selector combobox.
-    pub fn get_mut_ptr_filter_column_selector(&self) -> &QBox<QComboBox> {
-        &self.filter_column_selector
-    }
-
-    /// This function returns a pointer to the filter's case sensitive button.
-    pub fn get_mut_ptr_filter_case_sensitive_button(&self) -> &QBox<QPushButton> {
-        &self.filter_case_sensitive_button
+    pub unsafe fn get_mut_ptr_filter_base_widget(&self) -> QPtr<QWidget> {
+        self.filter_base_widget.static_upcast()
     }
 
     /// This function returns a pointer to the add rows action.
@@ -882,6 +870,14 @@ impl TableView {
     /// This function returns a reference to the definition of this table.
     pub fn get_ref_table_definition(&self) -> RwLockReadGuard<Definition> {
         self.table_definition.read().unwrap()
+    }
+
+    pub fn get_ref_filters(&self) -> RwLockReadGuard<Vec<Arc<FilterView>>> {
+        self.filters.read().unwrap()
+    }
+
+    pub fn get_ref_mut_filters(&self) -> RwLockWriteGuard<Vec<Arc<FilterView>>> {
+        self.filters.write().unwrap()
     }
 
     /// This function allows you to set a new dependency data to an already created table.
@@ -1427,3 +1423,59 @@ impl TableSearch {
     }
 }
 
+impl FilterView {
+
+    pub unsafe fn new(view: &Arc<TableView>) {
+        let parent = view.get_mut_ptr_filter_base_widget();
+
+        // Create the filter's widgets.
+        let filter_widget = QWidget::new_1a(&parent);
+        let filter_grid = create_grid_layout(filter_widget.static_upcast());
+        filter_grid.set_column_stretch(0, 99);
+        filter_grid.set_column_stretch(3, 0);
+        filter_grid.set_column_stretch(4, 0);
+
+        let filter_line_edit = QLineEdit::from_q_widget(&parent);
+        let filter_column_selector = QComboBox::new_1a(&parent);
+        let filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("table_filter_case_sensitive"), &parent);
+        let filter_column_list = QStandardItemModel::new_1a(&filter_column_selector);
+        let filter_add = QPushButton::from_q_string_q_widget(&QString::from_std_str("+"), &parent);
+        let filter_remove = QPushButton::from_q_string_q_widget(&QString::from_std_str("-"), &parent);
+
+        filter_column_selector.set_model(&filter_column_list);
+
+        let fields = get_fields_sorted(&view.get_ref_table_definition());
+        for field in &fields {
+            let name = clean_column_names(&field.get_name());
+            filter_column_selector.add_item_q_string(&QString::from_std_str(&name));
+        }
+
+        filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        filter_case_sensitive_button.set_checkable(true);
+
+        // Add everything to the grid.
+        filter_grid.add_widget_5a(&filter_line_edit, 0, 0, 1, 1);
+        filter_grid.add_widget_5a(&filter_case_sensitive_button, 0, 1, 1, 1);
+        filter_grid.add_widget_5a(&filter_column_selector, 0, 2, 1, 1);
+        filter_grid.add_widget_5a(&filter_add, 0, 3, 1, 1);
+        filter_grid.add_widget_5a(&filter_remove, 0, 4, 1, 1);
+
+        let parent_grid: QPtr<QGridLayout> = parent.layout().static_downcast();
+        parent_grid.add_widget_5a(&filter_widget, view.get_ref_filters().len() as i32 + 1, 0, 1, 1);
+
+        let filter = Arc::new(Self {
+            filter_widget,
+            filter_line_edit,
+            filter_case_sensitive_button,
+            filter_column_selector,
+            filter_add,
+            filter_remove,
+        });
+
+        let slots = FilterViewSlots::new(&filter, &view);
+
+        connections::set_connections_filter(&filter, &slots);
+
+        view.get_ref_mut_filters().push(filter);
+    }
+}

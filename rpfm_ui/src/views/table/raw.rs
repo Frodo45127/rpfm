@@ -26,7 +26,6 @@ use qt_gui::QStandardItemModel;
 use qt_core::CaseSensitivity;
 use qt_core::QFlags;
 use qt_core::QItemSelection;
-use qt_core::QRegExp;
 use qt_core::QString;
 use qt_core::QModelIndex;
 use qt_core::QSortFilterProxyModel;
@@ -86,25 +85,30 @@ impl TableView {
 
     /// Function to filter the table.
     pub unsafe fn filter_table(&self) {
+        let mut columns = vec![];
+        let mut patterns = vec![];
+        let mut sensitivity = vec![];
 
-        let pattern = QRegExp::new_1a(&self.filter_line_edit.text());
-
-        let column_name = self.filter_column_selector.current_text();
-        for column in 0..self.table_model.column_count_0a() {
-            if self.table_model.header_data_2a(column, Orientation::Horizontal).to_string().compare_q_string_case_sensitivity(&column_name, CaseSensitivity::CaseSensitive) == 0 {
-                self.table_filter.set_filter_key_column(column);
-                break;
+        let filters = self.filters.read().unwrap();
+        for filter in filters.iter() {
+            let column_name = filter.filter_column_selector.current_text();
+            for column in 0..self.table_model.column_count_0a() {
+                if self.table_model.header_data_2a(column, Orientation::Horizontal).to_string().compare_q_string_case_sensitivity(&column_name, CaseSensitivity::CaseSensitive) == 0 {
+                    columns.push(column);
+                    break;
+                }
             }
+
+            // Check if the filter should be "Case Sensitive".
+            let case_sensitive = filter.filter_case_sensitive_button.is_checked();
+            if case_sensitive { sensitivity.push(CaseSensitivity::CaseSensitive); }
+            else { sensitivity.push(CaseSensitivity::CaseInsensitive); }
+
+            patterns.push(filter.filter_line_edit.text().into_ptr());
         }
 
-        // Check if the filter should be "Case Sensitive".
-        let case_sensitive = self.filter_case_sensitive_button.is_checked();
-
-        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
-        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
-
         // Filter whatever it's in that column by the text we got.
-        self.table_filter.set_filter_reg_exp_q_reg_exp(&pattern);
+        trigger_tableview_filter_safe(&self.table_filter, &columns, patterns, &sensitivity);
     }
 
     /// This function enables/disables showing the lookup values instead of the real ones in the columns that support it.
