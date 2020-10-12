@@ -776,7 +776,7 @@ impl PackFileContentsSlots {
                 // TODO: Make this more... optimal.
                 if let Err(error) = UI_STATE.get_open_packedfiles()
                     .iter()
-                    .try_for_each(|packed_file| packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui)) {
+                    .try_for_each(|packed_file| packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false)) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
 

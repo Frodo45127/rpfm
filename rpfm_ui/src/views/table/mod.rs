@@ -218,7 +218,7 @@ pub struct TableView {
     history_undo: Arc<RwLock<Vec<TableOperations>>>,
     history_redo: Arc<RwLock<Vec<TableOperations>>>,
 
-    timer_diagnostics_check: QBox<QTimer>,
+    pub timer_diagnostics_check: QBox<QTimer>,
 }
 
 /// This struct contains the stuff needed for a filter row.

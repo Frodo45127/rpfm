@@ -111,10 +111,11 @@ impl AppUI {
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        trigger_diagnostic_check: bool,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui)?;
+            packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui, trigger_diagnostic_check)?;
         }
         Ok(())
     }
@@ -131,7 +132,7 @@ impl AppUI {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             if save_before_deleting && !packed_file_view.get_path().starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui)?;
+                packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui, save_before_deleting)?;
             }
             let widget = packed_file_view.get_mut_widget();
             let index = app_ui.tab_bar_packed_file.index_of(widget);
@@ -178,7 +179,7 @@ impl AppUI {
 
                 // Do not try saving PackFiles.
                 if save_before_deleting && !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                    did_it_worked = packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui);
+                    did_it_worked = packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui, save_before_deleting);
                 }
                 let widget = packed_file_view.get_mut_widget();
                 let index = app_ui.tab_bar_packed_file.index_of(widget);
@@ -422,7 +423,7 @@ impl AppUI {
         app_ui.main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
-        AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui)?;
+        AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false)?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -833,7 +834,7 @@ impl AppUI {
                         match Template::load(&template_name) {
                             Ok(template) => {
                                 if let Some(params) = Self::load_template_dialog(&app_ui, &template) {
-                                    match Self::back_to_back_end_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui) {
+                                    match Self::back_to_back_end_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false) {
                                         Ok(_) => {
                                             CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, params));
                                             let response = CENTRAL_COMMAND.recv_message_qt_try();

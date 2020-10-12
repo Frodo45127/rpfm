@@ -66,7 +66,7 @@ impl PackedFileCaVp8ViewSlots {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui);
+                    let _ = packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false);
                 }
             }
         ));
@@ -83,7 +83,7 @@ impl PackedFileCaVp8ViewSlots {
                 if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *view.path.read().unwrap()) {
 
                     // This can never fail, so ignore the result.
-                    let _ = packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui);
+                    let _ = packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false);
                 }
             }
         ));

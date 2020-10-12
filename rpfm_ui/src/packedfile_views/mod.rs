@@ -190,6 +190,7 @@ impl PackedFileView {
         global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        trigger_checks: bool,
     ) -> Result<()> {
 
         match self.get_view() {
@@ -297,16 +298,18 @@ impl PackedFileView {
                 let response = CENTRAL_COMMAND.recv_message_save_packedfile_try();
                 match response {
                     Response::Success => {
+                        if trigger_checks {
 
-                        // If we have a GlobalSearch on, update the results for this specific PackedFile.
-                        let global_search = UI_STATE.get_global_search();
-                        let path_types = vec![PathType::File(self.get_path())];
-                        if !global_search.pattern.is_empty() {
-                            GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, path_types.clone());
-                            UI_STATE.set_global_search(&global_search);
+                            // If we have a GlobalSearch on, update the results for this specific PackedFile.
+                            let global_search = UI_STATE.get_global_search();
+                            let path_types = vec![PathType::File(self.get_path())];
+                            if !global_search.pattern.is_empty() {
+                                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, path_types.clone());
+                                UI_STATE.set_global_search(&global_search);
+                            }
+
+                            DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
                         }
-
-                        DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
 
                         Ok(())
                     }

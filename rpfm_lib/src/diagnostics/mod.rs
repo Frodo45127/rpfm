@@ -392,8 +392,6 @@ impl Diagnostics {
     ///
     /// If you passed the entire `PackFile` to this and it crashed, it's not an error. I forced that crash. If you want to do that,
     /// use the normal check function, because it's a lot more efficient than this one.
-    ///
-    /// NOTE: The schema search is not updated on schema change. Remember that.
     pub fn update(&mut self, pack_file: &PackFile, updated_paths: &[PathType], dependencies: &Dependencies) {
 
         // Turn all our updated packs into `PackedFile` paths, and get them.
