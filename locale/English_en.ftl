@@ -642,3 +642,7 @@ diagnostic_type = Diagnostic Report Type
 diagnostic_show = Show?
 
 dependency_packfile_list_label = <p><b style="color:red;">WARNING: Adding a PackFile to this list will load that PackFile if present EVEN IF IT'S NOT SELECTED IN THE MOD MANAGER!</b></p><p></p>
+
+context_menu_open_packfile_settings = Open PackFile Settings
+pfs_diagnostics_files_to_ignore_label = <p><b><i>PackedFiles to Ignore on Diagnostics Check</i></b></p>
+pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other checks (like reference checks) but they will not be analyzed.</p><p><b>One path per line.</b></p>

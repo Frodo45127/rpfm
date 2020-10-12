@@ -31,7 +31,7 @@ use rpfm_lib::packedfile::image::Image;
 use rpfm_lib::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
-use rpfm_lib::packfile::{PackFileInfo, PathType, PFHFileType};
+use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
 use rpfm_lib::packfile::packedfile::{PackedFile, PackedFileInfo};
 use rpfm_lib::schema::{APIResponseSchema, Definition, Schema};
 use rpfm_lib::settings::*;
@@ -299,6 +299,12 @@ pub enum Command {
 
     /// This command is used to check for template updates.
     CheckTemplateUpdates,
+
+    /// This command is used to get the settings of the currently open PackFile.
+    GetPackFileSettings,
+
+    /// This command is used to set the settings of the currently open PackFile.
+    SetPackFileSettings(PackFileSettings),
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -411,6 +417,9 @@ pub enum Response {
 
     /// Response to return `TableType`.
     TableType(TableType),
+
+    /// Response to return `PackFileSettings`.
+    PackFileSettings(PackFileSettings),
 }
 
 #[derive(Debug)]

@@ -88,6 +88,7 @@ pub struct PackFileContentsSlots {
     pub contextual_menu_open_dependency_manager: QBox<SlotOfBool>,
     pub contextual_menu_open_containing_folder: QBox<SlotOfBool>,
     pub contextual_menu_open_in_external_program: QBox<SlotOfBool>,
+    pub contextual_menu_open_packfile_settings: QBox<SlotOfBool>,
     pub contextual_menu_open_notes: QBox<SlotOfBool>,
 
     pub contextual_menu_tables_merge_tables: QBox<SlotOfBool>,
@@ -194,6 +195,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_rename.set_enabled(true);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
 
                         // These options are limited to only 1 file selected, and should not be usable if multiple files
@@ -225,6 +227,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
@@ -260,6 +263,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
@@ -285,6 +289,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(true);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(true);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(true);
                         pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
@@ -310,6 +315,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
@@ -334,6 +340,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
@@ -359,6 +366,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(true);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
@@ -384,6 +392,7 @@ impl PackFileContentsSlots {
                         pack_file_contents_ui.context_menu_open_decoder.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_dependency_manager.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_containing_folder.set_enabled(false);
+                        pack_file_contents_ui.context_menu_open_packfile_settings.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_with_external_program.set_enabled(false);
                         pack_file_contents_ui.context_menu_open_notes.set_enabled(false);
                         pack_file_contents_ui.context_menu_update_table.set_enabled(false);
@@ -992,6 +1001,11 @@ impl PackFileContentsSlots {
             AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false, true);
         }));
 
+        let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
+            app_ui => move |_| {
+            AppUI::open_packfile_settings(&app_ui);
+        }));
+
         // What happens when we trigger the "Open Notes" Action.
         let contextual_menu_open_notes = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(
             app_ui,
@@ -1289,6 +1303,7 @@ impl PackFileContentsSlots {
             contextual_menu_open_dependency_manager,
             contextual_menu_open_containing_folder,
             contextual_menu_open_in_external_program,
+            contextual_menu_open_packfile_settings,
             contextual_menu_open_notes,
 
             contextual_menu_tables_merge_tables,

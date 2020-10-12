@@ -595,6 +595,9 @@ pub enum ErrorKind {
 
     /// Error for when we try to add from the same PackFile we have already open.
     CannotAddFromOpenPackFile,
+
+    /// Error for when we try to decode the PackFile settings and fail. Contains the error message.
+    PackFileSettingsDecode(String),
 }
 
 /// Implementation of `Error`.
@@ -902,6 +905,7 @@ impl Display for ErrorKind {
             ErrorKind::ManifestError => write!(f, "<p>Error while parsing the manifest.txt file of the game selected.<p>"),
             ErrorKind::TemplateUpdateError => write!(f, "<p>There was an error while downloading the templates. Please, try again later.</p>"),
             ErrorKind::CannotAddFromOpenPackFile => write!(f, "<p>You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.</p>"),
+            ErrorKind::PackFileSettingsDecode(cause) => write!(f, "<p>Error while trying to decode the PackFile-Specific Settings:</p><p>{}</p>", cause),
         }
     }
 }

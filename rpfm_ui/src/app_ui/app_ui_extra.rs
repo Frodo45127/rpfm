@@ -46,7 +46,7 @@ use rpfm_lib::common::*;
 use rpfm_lib::GAME_SELECTED;
 use rpfm_lib::games::*;
 use rpfm_lib::packedfile::{PackedFileType, table::loc, text, text::TextType};
-use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE};
+use rpfm_lib::packfile::{PFHFileType, PFHFlags, CompressionState, PFHVersion, RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_NOTES, RESERVED_NAME_SETTINGS};
 use rpfm_lib::schema::{APIResponseSchema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -64,7 +64,7 @@ use crate::ffi::are_you_sure;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, table::*, text::*};
+use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, packfile_settings::*, table::*, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::QString;
 use crate::UI_STATE;
@@ -1644,7 +1644,7 @@ impl AppUI {
         if !UI_STATE.get_packfile_contents_read_only() {
 
             // Close all preview views except the file we're opening. The path used for the notes is reserved.
-            let path = vec!["notes.rpfm_reserved".to_owned()];
+            let path = vec![RESERVED_NAME_NOTES.to_owned()];
             let name = qtr("notes");
             for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
                 let open_path = packed_file_view.get_ref_path();
@@ -1685,6 +1685,60 @@ impl AppUI {
                     UI_STATE.set_open_packedfiles().push(tab);
                 },
                 Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::TextDecode(format!("{}", error)), false),
+            }
+        }
+
+        Self::update_views_names(app_ui);
+    }
+
+    /// This function is used to open the settings embebed into a PackFile.
+    pub unsafe fn open_packfile_settings(
+        app_ui: &Rc<Self>,
+    ) {
+
+        // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
+        if !UI_STATE.get_packfile_contents_read_only() {
+
+            // Close all preview views except the file we're opening. The path used for the settings is reserved.
+            let path = vec![RESERVED_NAME_SETTINGS.to_owned()];
+            let name = qtr("settings");
+            for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
+                let open_path = packed_file_view.get_ref_path();
+                let index = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                if *open_path != path && packed_file_view.get_is_preview() && index != -1 {
+                    app_ui.tab_bar_packed_file.remove_tab(index);
+                }
+            }
+
+            // If the settings are already open, or are hidden, we show them/focus them, instead of opening them again.
+            if let Some(tab_widget) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                let index = app_ui.tab_bar_packed_file.index_of(tab_widget.get_mut_widget());
+
+                if index == -1 {
+                    let icon_type = IconType::PackFile(true);
+                    let icon = icon_type.get_icon_from_path();
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab_widget.get_mut_widget(), icon, &name);
+                }
+
+                app_ui.tab_bar_packed_file.set_current_widget(tab_widget.get_mut_widget());
+                return;
+            }
+
+            // If it's not already open/hidden, we create it and add it as a new tab.
+            let mut tab = PackedFileView::default();
+            tab.get_mut_widget().set_parent(&app_ui.tab_bar_packed_file);
+            tab.set_is_preview(false);
+            let icon_type = IconType::PackFile(true);
+            let icon = icon_type.get_icon_from_path();
+            tab.set_path(&path);
+
+            match PackFileSettingsView::new_view(&mut tab) {
+                Ok(_) => {
+                    app_ui.tab_bar_packed_file.add_tab_3a(tab.get_mut_widget(), icon, &name);
+                    app_ui.tab_bar_packed_file.set_current_widget(tab.get_mut_widget());
+                    UI_STATE.set_open_packedfiles().push(tab);
+                },
+                Err(error) => return show_dialog(&app_ui.main_window, ErrorKind::PackFileSettingsDecode(format!("{}", error)), false),
             }
         }
 

@@ -54,6 +54,7 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.context_menu_open_decoder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_in_decoder"])));
     ui.context_menu_open_dependency_manager.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_packfiles_list"])));
     ui.context_menu_open_containing_folder.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_containing_folder"])));
+    ui.context_menu_open_packfile_settings.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_packfile_settings"])));
     ui.context_menu_open_with_external_program.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_with_external_program"])));
     ui.context_menu_open_notes.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["open_notes"])));
     ui.packfile_contents_tree_view_expand_all.set_shortcut(&QKeySequence::from_q_string(&QString::from_std_str(&shortcuts.packfile_contents_tree_view["expand_all"])));
@@ -79,6 +80,7 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.context_menu_open_decoder.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_open_dependency_manager.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_open_containing_folder.set_shortcut_context(ShortcutContext::WidgetShortcut);
+    ui.context_menu_open_packfile_settings.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_open_with_external_program.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.context_menu_open_notes.set_shortcut_context(ShortcutContext::WidgetShortcut);
     ui.packfile_contents_tree_view_expand_all.set_shortcut_context(ShortcutContext::WidgetShortcut);
@@ -104,6 +106,7 @@ pub unsafe fn set_shortcuts(ui: &Rc<PackFileContentsUI>) {
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_decoder);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_dependency_manager);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_containing_folder);
+    ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_packfile_settings);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_with_external_program);
     ui.packfile_contents_tree_view.add_action(&ui.context_menu_open_notes);
     ui.packfile_contents_tree_view.add_action(ui.packfile_contents_tree_view_expand_all.as_ptr());

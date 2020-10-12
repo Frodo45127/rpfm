@@ -92,6 +92,7 @@ pub enum PackedFileType {
 
     /// This one is special. It's used just in case we want to open the Dependency PackFile List as a PackedFile.
     DependencyPackFilesList,
+    PackFileSettings,
     Unknown,
 }
 
@@ -314,6 +315,7 @@ impl Display for PackedFileType {
             PackedFileType::RigidModel => write!(f, "RigidModel"),
             PackedFileType::StarPos => write!(f, "StartPos"),
             PackedFileType::Text(text_type) => write!(f, "Text, type: {:?}", text_type),
+            PackedFileType::PackFileSettings => write!(f, "PackFile Settings"),
             PackedFileType::Unknown => write!(f, "Unknown"),
         }
     }
@@ -414,6 +416,7 @@ impl PackedFileType {
             Self::MatchedCombat |
             Self::RigidModel |
             Self::StarPos |
+            Self::PackFileSettings |
             Self::Unknown => self == other,
             Self::Text(_) => if let Self::Text(_) = other { true } else { false },
         }
@@ -439,6 +442,7 @@ impl PackedFileType {
             Self::MatchedCombat |
             Self::RigidModel |
             Self::StarPos |
+            Self::PackFileSettings |
             Self::Unknown => others.contains(&self),
             Self::Text(_) => others.iter().any(|x| if let Self::Text(_) = x { true } else { false }),
         }

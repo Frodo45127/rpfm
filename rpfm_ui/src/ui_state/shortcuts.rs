@@ -81,7 +81,7 @@ const SHORTCUTS_MENU_BAR_ABOUT: [(&str, &str); 6] = [
 ];
 
 /// List of shortcuts for the PackFile Contents Contextual Menu.
-const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 23] = [
+const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 24] = [
     ("add_file", "Ctrl+A"),
     ("add_folder", "Ctrl+Shift+A"),
     ("add_from_packfile", "Ctrl+Alt+A"),
@@ -102,6 +102,7 @@ const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 23] = [
     ("open_packfiles_list", ""),
     ("open_with_external_program", "Ctrl+K"),
     ("open_containing_folder", ""),
+    ("open_packfile_settings", ""),
     ("open_notes", "Ctrl+Y"),
     ("expand_all", "Ctrl++"),
     ("collapse_all", "Ctrl+-"),

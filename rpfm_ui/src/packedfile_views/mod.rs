@@ -52,6 +52,7 @@ use self::image::PackedFileImageView;
 use self::table::PackedFileTableView;
 use self::text::PackedFileTextView;
 use self::packfile::PackFileExtraView;
+use self::packfile_settings::PackFileSettingsView;
 //use self::rigidmodel::PackedFileRigidModelView;
 
 pub mod anim_fragment;
@@ -61,6 +62,7 @@ pub mod decoder;
 pub mod external;
 pub mod image;
 pub mod packfile;
+pub mod packfile_settings;
 //pub mod rigidmodel;
 pub mod table;
 pub mod text;
@@ -98,6 +100,7 @@ pub enum View {
     Decoder(Arc<PackedFileDecoderView>),
     Image(PackedFileImageView),
     PackFile(Arc<PackFileExtraView>),
+    PackFileSettings(Arc<PackFileSettingsView>),
     //RigidModel(PackedFileRigidModelView),
     Table(Arc<PackedFileTableView>),
     Text(Arc<PackedFileTextView>),
@@ -277,6 +280,13 @@ impl PackedFileView {
 
                         return Ok(())
                     } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
+
+                    PackedFileType::PackFileSettings => {
+                        if let View::PackFileSettings(view) = view {
+                            CENTRAL_COMMAND.send_message_qt(Command::SetPackFileSettings(view.save_view()));
+                            return Ok(())
+                        } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) }
+                    },
 
                     PackedFileType::Unknown => return Ok(()),
                     _ => unimplemented!(),

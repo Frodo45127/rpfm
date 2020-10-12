@@ -38,7 +38,7 @@ use rpfm_lib::packedfile::animpack::AnimPack;
 use rpfm_lib::packedfile::table::db::DB;
 use rpfm_lib::packedfile::table::loc::{Loc, TSV_NAME_LOC};
 use rpfm_lib::packedfile::text::{Text, TextType};
-use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags};
+use rpfm_lib::packfile::{PackFile, PackFileInfo, packedfile::PackedFile, PathType, PFHFlags, RESERVED_NAME_NOTES};
 use rpfm_lib::schema::*;
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -429,7 +429,7 @@ pub fn background_loop() {
 
             // In case we want to decode a RigidModel PackedFile...
             Command::DecodePackedFile(path) => {
-                if path == ["notes.rpfm_reserved".to_owned()] {
+                if path == [RESERVED_NAME_NOTES.to_owned()] {
                     let mut note = Text::new();
                     note.set_text_type(TextType::Markdown);
                     match pack_file_decoded.get_notes() {
@@ -472,7 +472,7 @@ pub fn background_loop() {
 
             // When we want to save a PackedFile from the view....
             Command::SavePackedFileFromView(path, decoded_packed_file) => {
-                if path == ["notes.rpfm_reserved".to_owned()] {
+                if path == [RESERVED_NAME_NOTES.to_owned()] {
                     if let DecodedPackedFile::Text(data) = decoded_packed_file {
                         let note = if data.get_ref_contents().is_empty() { None } else { Some(data.get_ref_contents().to_owned()) };
                         pack_file_decoded.set_notes(&note);
@@ -941,6 +941,15 @@ pub fn background_loop() {
                 diagnostics.update(&pack_file_decoded, &path_types, &dependencies);
                 let packed_files_info = diagnostics.get_update_paths_packed_file_info(&mut pack_file_decoded, &path_types);
                 CENTRAL_COMMAND.send_message_diagnostics_update_to_qt((diagnostics, packed_files_info));
+            }
+
+            // In case we want to get the open PackFile's Settings...
+            Command::GetPackFileSettings => {
+                CENTRAL_COMMAND.send_message_rust(Response::PackFileSettings(pack_file_decoded.get_settings().clone()));
+            }
+
+            Command::SetPackFileSettings(settings) => {
+                pack_file_decoded.set_settings(&settings);
             }
 
             // These two belong to the network thread, not to this one!!!!

@@ -96,7 +96,17 @@ impl Diagnostics {
     pub fn check(&mut self, pack_file: &PackFile, dependencies: &Dependencies) {
         let real_dep_db = dependencies.get_ref_dependency_database();
         let fake_dep_db = dependencies.get_ref_fake_dependency_database();
+        let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
+            let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
+            files.iter().map(|x| x.split('/').map(|y| y.to_owned()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>()
+        });
+
         self.0 = pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false).par_iter().filter_map(|packed_file| {
+            if let Some(ref files_to_ignore) = files_to_ignore {
+                if files_to_ignore.contains(&packed_file.get_path().to_vec()) {
+                    return None;
+                }
+            }
             match packed_file.get_packed_file_type_by_path() {
                 PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &real_dep_db, &fake_dep_db),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path()),
@@ -407,7 +417,19 @@ impl Diagnostics {
         // If we got no schema, don't even decode.
         let real_dep_db = dependencies.get_ref_dependency_database();
         let fake_dep_db = dependencies.get_ref_fake_dependency_database();
+
+        let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
+            let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
+            files.iter().map(|x| x.split('/').map(|y| y.to_owned()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>()
+        });
+
         for packed_file in pack_file.get_ref_packed_files_by_paths(paths.iter().map(|x| x.as_ref()).collect()) {
+            if let Some(ref files_to_ignore) = files_to_ignore {
+                if files_to_ignore.contains(&packed_file.get_path().to_vec()) {
+                    continue;
+                }
+            }
+
             let diagnostic = match packed_file.get_packed_file_type_by_path() {
                 PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &real_dep_db, &fake_dep_db),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path()),

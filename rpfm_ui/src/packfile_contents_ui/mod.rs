@@ -81,6 +81,7 @@ pub struct PackFileContentsUI {
     pub context_menu_open_decoder: QPtr<QAction>,
     pub context_menu_open_dependency_manager: QPtr<QAction>,
     pub context_menu_open_containing_folder: QPtr<QAction>,
+    pub context_menu_open_packfile_settings: QPtr<QAction>,
     pub context_menu_open_with_external_program: QPtr<QAction>,
     pub context_menu_open_notes: QPtr<QAction>,
     pub context_menu_merge_tables: QPtr<QAction>,
@@ -183,6 +184,7 @@ impl PackFileContentsUI {
         let context_menu_open_decoder = menu_open.add_action_q_string(&qtr("context_menu_open_decoder"));
         let context_menu_open_dependency_manager = menu_open.add_action_q_string(&qtr("context_menu_open_dependency_manager"));
         let context_menu_open_containing_folder = menu_open.add_action_q_string(&qtr("context_menu_open_containing_folder"));
+        let context_menu_open_packfile_settings = menu_open.add_action_q_string(&qtr("context_menu_open_packfile_settings"));
         let context_menu_open_with_external_program = menu_open.add_action_q_string(&qtr("context_menu_open_with_external_program"));
         let context_menu_open_notes = menu_open.add_action_q_string(&qtr("context_menu_open_notes"));
         let context_menu_merge_tables = packfile_contents_tree_view_context_menu.add_action_q_string(&qtr("context_menu_merge_tables"));
@@ -213,6 +215,7 @@ impl PackFileContentsUI {
         context_menu_open_decoder.set_enabled(false);
         context_menu_open_dependency_manager.set_enabled(false);
         context_menu_open_containing_folder.set_enabled(false);
+        context_menu_open_packfile_settings.set_enabled(false);
         context_menu_open_with_external_program.set_enabled(false);
         context_menu_open_notes.set_enabled(false);
 
@@ -257,6 +260,7 @@ impl PackFileContentsUI {
             context_menu_open_decoder,
             context_menu_open_dependency_manager,
             context_menu_open_containing_folder,
+            context_menu_open_packfile_settings,
             context_menu_open_with_external_program,
             context_menu_open_notes,
 

@@ -282,11 +282,16 @@ pub enum CompressionState {
 }
 
 /// This struct hold PackFile-specific settings.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PackFileSettings {
-    pub paths: BTreeMap<String, Option<PathBuf>>,
+
+    /// For multi-line text.
+    pub settings_text: BTreeMap<String, String>,
+
+    /// For single-line text.
     pub settings_string: BTreeMap<String, String>,
     pub settings_bool: BTreeMap<String, bool>,
+    pub settings_number: BTreeMap<String, i32>,
 }
 
 //---------------------------------------------------------------------------//
@@ -2376,9 +2381,11 @@ impl PackFile {
 
             else if packed_file.get_path() == &[RESERVED_NAME_SETTINGS] {
                 if let Ok(data) = packed_file.get_raw_data_and_keep_it() {
-                    if let Ok(settings) = from_slice(&data) {
-                        pack_file_decoded.settings = settings;
-                    }
+                    pack_file_decoded.settings = if let Ok(settings) = PackFileSettings::load(&data) {
+                        settings
+                    } else {
+                        PackFileSettings::default()
+                    };
                 }
             }
             else {
@@ -2618,5 +2625,63 @@ impl Manifest {
 
         let manifest = Self(entries);
         Ok(manifest)
+    }
+}
+
+/// Default implementation for PackFileSettings.
+impl Default for PackFileSettings {
+
+    fn default() -> Self {
+        let mut settings_text = BTreeMap::new();
+        let settings_string = BTreeMap::new();
+        let settings_bool = BTreeMap::new();
+        let settings_number = BTreeMap::new();
+
+        settings_text.insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+
+        Self {
+            settings_text,
+            settings_string,
+            settings_bool,
+            settings_number,
+        }
+    }
+}
+
+/// Implementation of PackFileSettings.
+impl PackFileSettings {
+
+    /// This function tries to load the settings from the current PackFile and return them.
+    pub fn load(data: &[u8]) -> Result<Self> {
+        let mut settings: Self = from_slice(data)?;
+
+        // Add/Remove settings missing/no-longer-needed for keeping it update friendly. First, remove the outdated ones, then add the new ones.
+        let defaults = Self::default();
+        {
+            let mut keys_to_delete = vec![];
+            for (key, _) in settings.settings_text.clone() { if defaults.settings_text.get(&*key).is_none() { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { settings.settings_text.remove(key); }
+
+            let mut keys_to_delete = vec![];
+            for (key, _) in settings.settings_string.clone() { if defaults.settings_string.get(&*key).is_none() { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { settings.settings_string.remove(key); }
+
+            let mut keys_to_delete = vec![];
+            for (key, _) in settings.settings_bool.clone() { if defaults.settings_bool.get(&*key).is_none() { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { settings.settings_bool.remove(key); }
+
+            let mut keys_to_delete = vec![];
+            for (key, _) in settings.settings_number.clone() { if defaults.settings_number.get(&*key).is_none() { keys_to_delete.push(key); } }
+            for key in &keys_to_delete { settings.settings_number.remove(key); }
+        }
+
+        {
+            for (key, value) in defaults.settings_text { if settings.settings_text.get(&*key).is_none() { settings.settings_text.insert(key, value);  } }
+            for (key, value) in defaults.settings_string { if settings.settings_string.get(&*key).is_none() { settings.settings_string.insert(key, value);  } }
+            for (key, value) in defaults.settings_bool { if settings.settings_bool.get(&*key).is_none() { settings.settings_bool.insert(key, value);  } }
+            for (key, value) in defaults.settings_number { if settings.settings_number.get(&*key).is_none() { settings.settings_number.insert(key, value);  } }
+        }
+
+        Ok(settings)
     }
 }
