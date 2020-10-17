@@ -1322,7 +1322,8 @@ impl PackedFileDecoderView {
         *field.get_ref_mut_field_type() = field_type;
 
         self.add_field_to_view(&field, &mut index, false, None);
-        self.update_view(&[], false, &mut index)
+        self.update_view(&[], false, &mut index)?;
+        self.update_rows_decoded(&mut index, None, None)
     }
 
 
