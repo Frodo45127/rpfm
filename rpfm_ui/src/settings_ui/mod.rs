@@ -332,6 +332,8 @@ impl SettingsUI {
 
         let general_packfile_treeview_resize_to_fit_label = QLabel::from_q_string_q_widget(&qtr("settings_packfile_treeview_resize_to_fit"), &general_frame);
         let general_packfile_treeview_resize_to_fit_checkbox = QCheckBox::from_q_widget(&general_frame);
+        general_packfile_treeview_resize_to_fit_label.set_visible(false);
+        general_packfile_treeview_resize_to_fit_checkbox.set_visible(false);
 
         let general_packfile_treeview_expand_treeview_when_adding_items_label = QLabel::from_q_string_q_widget(&qtr("settings_expand_treeview_when_adding_items"), &general_frame);
         let general_packfile_treeview_expand_treeview_when_adding_items_checkbox = QCheckBox::from_q_widget(&general_frame);
