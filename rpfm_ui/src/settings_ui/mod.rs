@@ -39,6 +39,7 @@ use cpp_core::Ptr;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 use rpfm_lib::SUPPORTED_GAMES;
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
@@ -157,6 +158,11 @@ pub struct SettingsUI {
     pub button_box_font_settings_button: QBox<QPushButton>,
     pub button_box_cancel_button: QPtr<QPushButton>,
     pub button_box_accept_button: QPtr<QPushButton>,
+
+    //-------------------------------------------------------------------------------//
+    // Hidden section of the `Settings` dialog.
+    //-------------------------------------------------------------------------------//
+    pub recent_files: Arc<RwLock<Vec<String>>>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -582,6 +588,11 @@ impl SettingsUI {
             button_box_font_settings_button,
             button_box_cancel_button,
             button_box_accept_button,
+
+            //-------------------------------------------------------------------------------//
+            // Hidden section of the `Settings` dialog.
+            //-------------------------------------------------------------------------------//
+            recent_files: Arc::new(RwLock::new(vec![])),
         }
     }
 
@@ -647,6 +658,9 @@ impl SettingsUI {
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
         self.debug_enable_debug_menu_checkbox.set_checked(settings.settings_bool["enable_debug_menu"]);
+
+        // Hidden stuff.
+        *self.recent_files.write().unwrap() = settings.get_recent_files();
     }
 
     /// This function saves the data from our `SettingsUI` into a `Settings` and return it.
@@ -718,6 +732,8 @@ impl SettingsUI {
         settings.settings_bool.insert("enable_debug_menu".to_owned(), self.debug_enable_debug_menu_checkbox.is_checked());
 
         // Return the new Settings.
+        settings.set_recent_files(&self.recent_files.read().unwrap());
+
         settings
     }
 

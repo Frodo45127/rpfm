@@ -152,6 +152,12 @@ impl Settings {
         from_str(self.settings_string.get("recent_files").unwrap()).unwrap()
     }
 
+    pub fn set_recent_files(&mut self, recent_files: &[String]) {
+        let config = PrettyConfig::default();
+        *self.settings_string.get_mut("recent_files").unwrap() = to_string_pretty(&recent_files, config).unwrap();
+        let _ = self.save();
+    }
+
     pub fn update_recent_files(&mut self, new_path: &str) {
         *self = Self::load(None).unwrap();
         if let Some(recent_files) = self.settings_string.get("recent_files") {
