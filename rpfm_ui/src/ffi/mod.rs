@@ -137,7 +137,7 @@ pub fn toggle_freezer_safe(table: &QBox<QTableView>, column: i32) {
 
 /// This function allow us to create a complete KTextEditor.
 extern "C" { fn new_text_editor(parent: *mut QWidget) -> *mut QWidget; }
-pub fn new_text_editor_safe(parent: &QBox<QWidget>) -> QBox<QWidget> {
+pub fn new_text_editor_safe(parent: &QPtr<QWidget>) -> QBox<QWidget> {
     unsafe { QBox::from_raw(new_text_editor(parent.as_mut_raw_ptr())) }
 }
 

@@ -93,7 +93,7 @@ impl PackedFileTextView {
             TextType::Json => QString::from_std_str(JSON),
         };
 
-        let editor = new_text_editor_safe(&packed_file_view.get_mut_widget());
+        let editor = new_text_editor_safe(&packed_file_view.get_mut_widget().static_upcast());
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
         layout.add_widget_5a(&editor, 0, 0, 1, 1);
 

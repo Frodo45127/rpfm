@@ -16,6 +16,7 @@ use qt_widgets::QApplication;
 use qt_widgets::QGridLayout;
 use qt_widgets::{QMessageBox, q_message_box::{Icon, StandardButton}};
 use qt_widgets::QWidget;
+use qt_widgets::QMainWindow;
 
 use qt_core::QBox;
 use qt_core::QFlags;
@@ -115,9 +116,11 @@ pub unsafe fn show_dialog<T: Display>(parent: impl cpp_core::CastInto<Ptr<QWidge
 /// It requires:
 /// - text: something that dereferences to `str`, to put in the window.
 pub unsafe fn show_debug_dialog<T: AsRef<str>>(parent: impl cpp_core::CastInto<Ptr<QWidget>>, text: T) {
-    let window = QWidget::new_1a(parent);
-    let layout = create_grid_layout(window.static_upcast());
-    let editor = new_text_editor_safe(&window);
+    let window = QMainWindow::new_1a(parent);
+    let widget = QWidget::new_1a(window.static_upcast::<QMainWindow>());
+    window.set_central_widget(&widget);
+    let layout = create_grid_layout(widget.static_upcast());
+    let editor = new_text_editor_safe(&widget.static_upcast());
 
     layout.add_widget_5a(&editor, 0, 0, 1, 1);
     set_text_safe(&editor, &QString::from_std_str(text).as_ptr(), &QString::from_std_str("plain").as_ptr());
