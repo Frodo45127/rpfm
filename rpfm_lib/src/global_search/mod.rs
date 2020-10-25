@@ -230,17 +230,17 @@ impl GlobalSearch {
                     match packed_file.decode_return_ref_no_locks(&schema).unwrap_or_else(|_| &DecodedPackedFile::Unknown) {
                         DecodedPackedFile::DB(data) => {
                             if self.search_on_dbs {
-                                self.search_on_db(&path, data, &matching_mode);
+                                self.matches_db.push(self.search_on_db(&path, data, &matching_mode));
                             }
                         }
                         DecodedPackedFile::Loc(data) => {
                             if self.search_on_locs {
-                                self.search_on_loc(&path, data, &matching_mode);
+                                self.matches_loc.push(self.search_on_loc(&path, data, &matching_mode));
                             }
                         }
                         DecodedPackedFile::Text(data) => {
                             if self.search_on_texts {
-                                self.search_on_text(&path, data, &matching_mode);
+                                self.matches_text.push(self.search_on_text(&path, data, &matching_mode));
                             }
                         }
                         _ => continue,

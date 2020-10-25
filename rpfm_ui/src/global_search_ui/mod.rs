@@ -492,6 +492,7 @@ impl GlobalSearchUI {
                 Self::load_table_matches_to_ui(&model_db, &tree_view_db, &global_search.matches_db);
                 Self::load_table_matches_to_ui(&model_loc, &tree_view_loc, &global_search.matches_loc);
                 Self::load_text_matches_to_ui(&model_text, &tree_view_text, &global_search.matches_text);
+                UI_STATE.set_global_search(&global_search);
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(packed_files_info));
             }
 
