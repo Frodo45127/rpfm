@@ -1484,6 +1484,12 @@ impl PackedFileDecoderView {
     }
 
     /// This function generates a valid definition using the assembly kit as reference. To stop decoding manually.
+    ///
+    /// Known issues:
+    /// - If the loc files hasn't been properly marked in the Assembly Kit, this fails.
+    /// - Sometimes this returns some floats as valid when they're not due to precission differences.
+    /// - Sometimes it duplicates some column names, if both columns are exactly equal.
+    /// - To make this not consider anything as a valid integer, the integers are limited to an range of -60k+60k, around 0 and near their type limits.
     pub fn import_from_assembly_kit(&self) -> Result<Vec<Vec<Field>>> {
 
         // Get the raw data ready.
@@ -1521,10 +1527,22 @@ impl PackedFileDecoderView {
 
         // First check is done here, to initialize the possible schemas.
         if definitions_possible.is_empty() {
+            if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
+                if (number < 60000.0 && number > -60000.0 && (number > 0.001 || number < -0.001 || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
+                    definitions_possible.push(vec![FieldType::F32]);
+                }
+            }
+            if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
+                if (number < 60000 && number > -60000) || (number > i32::MAX - 60000) || (number < i32::MIN + 60000) {
+                    definitions_possible.push(vec![FieldType::I32]);
+                }
+            }
+            if let Ok(number) = data.decode_packedfile_integer_i64(index, &mut index.clone()) {
+                if (number < 60000 && number > -60000) || (number > i64::MAX - 60000) || (number < i64::MIN + 60000) {
+                    definitions_possible.push(vec![FieldType::I64]);
+                }
+            }
             if data.decode_packedfile_bool(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::Boolean]); }
-            if data.decode_packedfile_float_f32(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::F32]); }
-            if data.decode_packedfile_integer_i32(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::I32]); }
-            if data.decode_packedfile_integer_i64(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::I64]); }
             if data.decode_packedfile_string_u8(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::StringU8]); }
             if data.decode_packedfile_optional_string_u8(index, &mut index.clone()).is_ok() { definitions_possible.push(vec![FieldType::OptionalStringU8]); }
         }
@@ -1553,9 +1571,8 @@ impl PackedFileDecoderView {
                     definitions_possible2.push(def);
                 }
 
-                // 60k as offset, so we properly identify as wrong weird numbers.
                 if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
-                    if (number < 60000.0 && number > -60000.0) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
+                    if (number < 60000.0 && number > -60000.0 && (number > 0.001 || number < -0.001 || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
                         let mut def = base.to_vec();
                         def.push(FieldType::F32);
                         definitions_possible2.push(def);
@@ -1594,7 +1611,6 @@ impl PackedFileDecoderView {
             let field_list = x.iter().map(|x| { let mut field = Field::default(); field.set_field_type(x.clone()); field }).collect::<Vec<Field>>();
             if let Ok(table) = DB::read_with_fields(packed_file_data, &path, &field_list, false) {
                 if !table.get_ref_table_data().is_empty() {
-
                     let mut mapper: BTreeMap<usize, usize> = BTreeMap::new();
                     let mut decoded_columns: Vec<Vec<String>> = vec![];
 
@@ -1608,8 +1624,11 @@ impl PackedFileDecoderView {
                     }
 
                     for (index, column) in decoded_columns.iter().enumerate() {
-                        if let Some(raw_column) = raw_columns.iter().position(|x| x == column) {
-                            mapper.insert(index, raw_column);
+                        match raw_columns.iter().position(|x| x == column) {
+                            Some(raw_column) => { mapper.insert(index, raw_column); },
+
+                            // If no equivalent has been found, drop the definition.
+                            None => return None,
                         }
                     }
 

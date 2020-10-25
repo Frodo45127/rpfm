@@ -1244,7 +1244,7 @@ impl From<&RawField> for Field {
             "yesno" => FieldType::Boolean,
             "single" | "double" => FieldType::F32,
             "integer" => FieldType::I32,
-            "autonumber" => FieldType::I64,
+            "autonumber" | "card64" => FieldType::I64,
             "text" => {
                 if raw_field.required == "1" {
                     FieldType::StringU8
