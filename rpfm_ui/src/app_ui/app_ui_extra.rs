@@ -325,6 +325,19 @@ impl AppUI {
                     let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                     match ui_data.pfh_version {
 
+                        // PFH6 is for Troy.
+                        PFHVersion::PFH6 => {
+
+                            // If we have Warhammer selected, we keep Warhammer. If we have Attila, we keep Attila. That's the logic.
+                            match &*game_selected {
+                                KEY_TROY => app_ui.game_selected_troy.trigger(),
+                                _ => {
+                                    show_dialog(&app_ui.main_window, tre("game_selected_changed_on_opening", &[DISPLAY_NAME_TROY]), true);
+                                    app_ui.game_selected_troy.trigger();
+                                }
+                            }
+                        },
+
                         // PFH5 is for Warhammer 2/Arena.
                         PFHVersion::PFH5 => {
 

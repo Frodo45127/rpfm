@@ -60,6 +60,7 @@ const WINDOWS_TICK: i64 = 10_000_000;
 const SEC_TO_UNIX_EPOCH: i64 = 11_644_473_600;
 
 /// These are the different Preamble/Id the PackFiles can have.
+const PFH6_PREAMBLE: &str = "PFH6"; // PFH6
 const PFH5_PREAMBLE: &str = "PFH5"; // PFH5
 const PFH4_PREAMBLE: &str = "PFH4"; // PFH4
 const PFH3_PREAMBLE: &str = "PFH3"; // PFH3
@@ -83,6 +84,12 @@ pub const RESERVED_NAME_NOTES: &str = "notes.rpfm_reserved";
 
 /// This is the list of ***Reserved PackedFile Names***. They're packedfile names used by RPFM for special porpouses.
 pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE, RESERVED_NAME_SETTINGS, RESERVED_NAME_NOTES];
+
+const SUBHEADER_MARK: u32 = 0x12345678;
+const SUBHEADER_VERSION: u32 = 1;
+
+const AUTHORING_TOOL_CA: &[u8; 8] = b"CA_TOOL\0";
+const AUTHORING_TOOL_RPFM: &[u8; 8] = b"RPFM\0\0\0\0";
 
 /// These are the types the PackFiles can have.
 const FILE_TYPE_BOOT: u32 = 0;
@@ -134,6 +141,18 @@ pub struct PackFile {
 
     /// The timestamp of the last time the PackFile was saved.
     timestamp: i64,
+
+    /// Game version this mod is intended for. This usually triggers the "outdated mod" warning in the launcher if it doesn't match the current exe version.
+    game_version: u32,
+
+    /// Build number of the game.
+    build_number: u32,
+
+    /// Tool that created the Pack.
+    authoring_tool: Vec<u8>,
+
+    /// Extra subheader data, in case it's used in the future.
+    extra_subheader_data: Vec<u8>,
 
     /// The list of PackFiles this PackFile requires to be loaded before himself when starting the game.
     ///
@@ -201,6 +220,9 @@ struct ManifestEntry {
 /// This enum represents the **Version** of a PackFile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PFHVersion {
+
+    /// Used in Troy since patch 1.3.0 for mods.
+    PFH6,
 
     /// Used in Warhammer 2, Three Kingdoms and Arena.
     PFH5,
@@ -346,6 +368,7 @@ impl PFHVersion {
     /// This function returns the PackFile's *Id/Preamble* (his 4 first bytes) as a `&str`.
     pub fn get_value(&self) -> &str {
         match *self {
+            PFHVersion::PFH6 => PFH6_PREAMBLE,
             PFHVersion::PFH5 => PFH5_PREAMBLE,
             PFHVersion::PFH4 => PFH4_PREAMBLE,
             PFHVersion::PFH3 => PFH3_PREAMBLE,
@@ -357,6 +380,7 @@ impl PFHVersion {
     /// This function returns the PackFile's `PFHVersion` corresponding to the provided value, or an error if the provided value is not a valid `PFHVersion`.
     pub fn get_version(value: &str) -> Result<Self> {
         match value {
+            PFH6_PREAMBLE => Ok(PFHVersion::PFH6),
             PFH5_PREAMBLE => Ok(PFHVersion::PFH5),
             PFH4_PREAMBLE => Ok(PFHVersion::PFH4),
             PFH3_PREAMBLE => Ok(PFHVersion::PFH3),
@@ -371,6 +395,7 @@ impl PFHVersion {
 impl Display for PFHVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            PFHVersion::PFH6 => write!(f, "PFH6"),
             PFHVersion::PFH5 => write!(f, "PFH5"),
             PFHVersion::PFH4 => write!(f, "PFH4"),
             PFHVersion::PFH3 => write!(f, "PFH3"),
@@ -473,6 +498,10 @@ impl PackFile {
             pfh_file_type: PFHFileType::Mod,
             bitmask: PFHFlags::empty(),
             timestamp: 0,
+            game_version: 0,
+            build_number: 0,
+            authoring_tool: AUTHORING_TOOL_RPFM.to_vec(),
+            extra_subheader_data: vec![0; 256],
 
             pack_files: vec![],
             packed_files: vec![],
@@ -490,6 +519,10 @@ impl PackFile {
             pfh_file_type: PFHFileType::Mod,
             bitmask: PFHFlags::empty(),
             timestamp: 0,
+            game_version: 0,
+            build_number: 0,
+            authoring_tool: AUTHORING_TOOL_RPFM.to_vec(),
+            extra_subheader_data: vec![0; 256],
 
             pack_files: vec![],
             packed_files: vec![],
@@ -2231,6 +2264,10 @@ impl PackFile {
 
         // Depending on the data we got, prepare to read the header and ensure we have all the bytes we need.
         match pack_file_decoded.pfh_version {
+
+            // PFH6 contains a subheader with some extra data we want to keep.
+            PFHVersion::PFH6 => buffer = vec![0; 308],
+
             PFHVersion::PFH5 | PFHVersion::PFH4 => {
                 if (pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 48) ||
                     (!pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) && pack_file_len < 28) { return Err(ErrorKind::PackFileHeaderNotComplete.into()) }
@@ -2251,10 +2288,17 @@ impl PackFile {
         // The creation time is a bit of an asshole. Depending on the PackFile Version/Id/Preamble, it uses a type, another or it doesn't exists.
         // Keep in mind that we store his raw value. If you want his legible value, you have to convert it yourself. PFH0 doesn't have it.
         pack_file_decoded.timestamp = match pack_file_decoded.pfh_version {
-            PFHVersion::PFH5 | PFHVersion::PFH4 => i64::from(buffer.decode_integer_u32(24)?),
+            PFHVersion::PFH6 | PFHVersion::PFH5 | PFHVersion::PFH4 => i64::from(buffer.decode_integer_u32(24)?),
             PFHVersion::PFH3 | PFHVersion::PFH2 => (buffer.decode_integer_i64(24)? / WINDOWS_TICK) - SEC_TO_UNIX_EPOCH,
             PFHVersion::PFH0 => 0
         };
+
+        if let PFHVersion::PFH6 = pack_file_decoded.pfh_version {
+            pack_file_decoded.game_version = buffer.decode_integer_u32(36)?;
+            pack_file_decoded.build_number = buffer.decode_integer_u32(40)?;
+            pack_file_decoded.authoring_tool = buffer[44..52].to_vec();
+            pack_file_decoded.extra_subheader_data = buffer[52..].to_vec();
+        }
 
         // Ensure the PackFile has all the data needed for the index. If the PackFile's data is encrypted
         // and the PackFile is PFH5, due to how the encryption works, the data should start in a multiple of 8.
@@ -2287,7 +2331,7 @@ impl PackFile {
 
         // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
         let packed_file_index_path_offset = match pack_file_decoded.pfh_version {
-            PFHVersion::PFH5 => {
+            PFHVersion::PFH6 | PFHVersion::PFH5 => {
 
                 // If it has the extended header bit, is an Arena PackFile. These ones use a normal PFH4 index format for some reason.
                 if pack_file_decoded.bitmask.contains(PFHFlags::HAS_EXTENDED_HEADER) {
@@ -2325,7 +2369,7 @@ impl PackFile {
             // so we have something to write in case we want to enable them for our PackFile.
             let timestamp = if pack_file_decoded.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) {
                 match pack_file_decoded.pfh_version {
-                    PFHVersion::PFH5 | PFHVersion::PFH4 => {
+                    PFHVersion::PFH6 | PFHVersion::PFH5 | PFHVersion::PFH4 => {
                         let timestamp = i64::from(packed_file_index.decode_integer_u32(index_position + 4)?);
                         if pack_file_decoded.bitmask.contains(PFHFlags::HAS_ENCRYPTED_INDEX) {
                             i64::from(decrypt_index_item_file_length(timestamp as u32, packed_files_to_decode as u32))
@@ -2499,7 +2543,7 @@ impl PackFile {
             // Depending on the version of the PackFile and his bitmask, the PackedFile index has one format or another.
             // In PFH5 case, we don't support saving encrypted PackFiles for Arena. So we'll default to Warhammer 2 format.
             match self.pfh_version {
-                PFHVersion::PFH5 => {
+                PFHVersion::PFH6 | PFHVersion::PFH5 => {
                     if self.bitmask.contains(PFHFlags::HAS_INDEX_WITH_TIMESTAMPS) { packed_file_index.encode_integer_u32(packed_file.get_ref_raw().get_timestamp() as u32); }
                     if packed_file.get_ref_raw().get_should_be_compressed() { packed_file_index.push(1); } else { packed_file_index.push(0); }
                 }
@@ -2533,10 +2577,19 @@ impl PackFile {
         // Update the creation time, then save it. PFH0 files don't have timestamp in the headers.
         self.timestamp = get_current_time();
         match self.pfh_version {
-            PFHVersion::PFH5 | PFHVersion::PFH4 => header.encode_integer_u32(self.timestamp as u32),
+            PFHVersion::PFH6 | PFHVersion::PFH5 | PFHVersion::PFH4 => header.encode_integer_u32(self.timestamp as u32),
             PFHVersion::PFH3 | PFHVersion::PFH2 => header.encode_integer_i64((self.timestamp + SEC_TO_UNIX_EPOCH) * WINDOWS_TICK),
             PFHVersion::PFH0 => {}
         };
+
+        if let PFHVersion::PFH6 = self.pfh_version {
+            header.encode_integer_u32(SUBHEADER_MARK);
+            header.encode_integer_u32(SUBHEADER_VERSION);
+            header.encode_integer_u32(self.game_version);
+            header.encode_integer_u32(self.build_number);
+            header.extend_from_slice(&self.authoring_tool);
+            header.extend_from_slice(&self.extra_subheader_data);
+        }
 
         // Write the indexes and the data of the PackedFiles. No need to keep the data, as it has been preloaded before.
         file.write_all(&header)?;

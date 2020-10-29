@@ -95,7 +95,7 @@ pub fn get_supported_games_list() -> SupportedGames {
     // Troy
     list.insert(KEY_TROY, GameInfo {
         display_name: DISPLAY_NAME_TROY,
-        pfh_version: vec![PFHVersion::PFH5],
+        pfh_version: vec![PFHVersion::PFH6, PFHVersion::PFH5],
         schema: "schema_troy.ron".to_owned(),
         db_packs: vec!["data.pack".to_owned()],
         loc_packs: vec![
