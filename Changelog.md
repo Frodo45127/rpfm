@@ -6,6 +6,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 ## [Unreleased]
 ### Added
+- Implemented support for PFH6 PackFiles (Troy AK-generated mods).
 - Implemented more granular filtering for messages of the Diagnostics tool.
 - Implemented a checkbox to hide/show all columns of a table at once.
 - Implemented a setting to disable item autoexpanding when adding new items to the TreeView.
@@ -32,6 +33,7 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed quite a few bugs regarding parent-child widget relationships.
 - Fixed a performance regression when saving PackFiles with the diagnostics tool enabled.
 - Fixed a weird behavior when adding a folder to a PackFile while on MyMod mode.
+- Fixed a bug that caused Global Search results to dissapear when double-clicking them.
 
 ## [2.2.1] - 2020-09-26
 ### Changed
