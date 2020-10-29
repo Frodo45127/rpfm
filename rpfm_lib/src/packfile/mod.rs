@@ -997,7 +997,7 @@ impl PackFile {
     ///
     /// If `strict_match_mode` is enabled, only the PackedFiles of the specified type and subtype will be returned.
     /// NOTE: This does not garantee the provided PackedFiles are of the type. Just that they `match` one of the types.
-    pub fn get_packed_files_by_types(&mut self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
+    pub fn get_packed_files_by_types(&self, packed_file_types: &[PackedFileType], strict_match_mode: bool) -> Vec<PackedFile> {
         self.packed_files.par_iter()
             .filter(|x| {
                 let y = PackedFileType::get_packed_file_type(x.get_path());

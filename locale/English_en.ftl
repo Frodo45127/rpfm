@@ -646,3 +646,7 @@ dependency_packfile_list_label = <p><b style="color:red;">WARNING: Adding a Pack
 context_menu_open_packfile_settings = Open PackFile Settings
 pfs_diagnostics_files_to_ignore_label = <p><b><i>PackedFiles to Ignore on Diagnostics Check</i></b></p>
 pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The PackedFiles on this list will be ignored when doing a diagnostics check. They'll still be used as source data for other checks (like reference checks) but they will not be analyzed.</p><p><b>One path per line.</b></p>
+
+instructions_ca_vp8 = It's simple, the video can have 2 formats: CAMV (used by the game) and IVF (reproducible on a media player with VP8 codecs).
+  To export a video, convert it to IVF and extract it.
+  To make it load in-game, convert it to CAMV and save the PackFile.

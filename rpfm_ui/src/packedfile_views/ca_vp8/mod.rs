@@ -15,6 +15,7 @@ Module with all the code for managing the view for CA_VP8 PackedFiles.
 use qt_widgets::QGridLayout;
 use qt_widgets::QLabel;
 use qt_widgets::QPushButton;
+use qt_widgets::QWidget;
 
 use qt_core::QBox;
 use qt_core::QString;
@@ -88,6 +89,8 @@ impl PackedFileCaVp8View {
         };
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
+        layout.set_contents_margins_4a(4, 4, 4, 4);
+        layout.set_spacing(2);
 
         let format_label = QLabel::from_q_string_q_widget(&qtr("format"), packed_file_view.get_mut_widget());
         let version_label = QLabel::from_q_string_q_widget(&qtr("version"), packed_file_view.get_mut_widget());
@@ -97,19 +100,24 @@ impl PackedFileCaVp8View {
         let num_frames_label = QLabel::from_q_string_q_widget(&qtr("num_frames"), packed_file_view.get_mut_widget());
         let framerate_label = QLabel::from_q_string_q_widget(&qtr("framerate"), packed_file_view.get_mut_widget());
 
-        let format_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", data.get_format())), packed_file_view.get_mut_widget());
-        let version_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", data.get_version())), packed_file_view.get_mut_widget());
-        let codec_four_cc_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", data.get_ref_codec_four_cc())), packed_file_view.get_mut_widget());
-        let width_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", data.get_width())), packed_file_view.get_mut_widget());
-        let height_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", data.get_height())), packed_file_view.get_mut_widget());
-        let num_frames_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", data.get_num_frames())), packed_file_view.get_mut_widget());
-        let framerate_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}", data.get_framerate())), packed_file_view.get_mut_widget());
+        let format_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{:?}.", data.get_format())), packed_file_view.get_mut_widget());
+        let version_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.get_version())), packed_file_view.get_mut_widget());
+        let codec_four_cc_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}.", data.get_ref_codec_four_cc())), packed_file_view.get_mut_widget());
+        let width_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.get_width())), packed_file_view.get_mut_widget());
+        let height_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} px.", data.get_height())), packed_file_view.get_mut_widget());
+        let num_frames_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}", data.get_num_frames())), packed_file_view.get_mut_widget());
+        let framerate_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{} FPS.", data.get_framerate())), packed_file_view.get_mut_widget());
 
         let convert_to_camv_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_camv"), packed_file_view.get_mut_widget());
         let convert_to_ivf_button = QPushButton::from_q_string_q_widget(&qtr("convert_to_ivf"), packed_file_view.get_mut_widget());
 
-        layout.add_widget_5a(&convert_to_camv_button, 0, 1, 1, 1);
-        layout.add_widget_5a(&convert_to_ivf_button, 0, 2, 1, 1);
+        let instructions_label = QLabel::from_q_string_q_widget(&qtr("instructions_ca_vp8"), packed_file_view.get_mut_widget());
+
+        let fill_widget = QWidget::new_1a(packed_file_view.get_mut_widget());
+        let fill_widget2 = QWidget::new_1a(packed_file_view.get_mut_widget());
+
+        layout.add_widget_5a(&convert_to_camv_button, 0, 0, 1, 1);
+        layout.add_widget_5a(&convert_to_ivf_button, 0, 1, 1, 1);
 
         layout.add_widget_5a(&format_label, 2, 0, 1, 1);
         layout.add_widget_5a(&version_label, 3, 0, 1, 1);
@@ -126,6 +134,14 @@ impl PackedFileCaVp8View {
         layout.add_widget_5a(&height_data_label, 7, 1, 1, 1);
         layout.add_widget_5a(&num_frames_data_label, 9, 1, 1, 1);
         layout.add_widget_5a(&framerate_data_label, 13, 1, 1, 1);
+
+        layout.add_widget_5a(&instructions_label, 20, 0, 1, 2);
+
+        layout.add_widget_5a(&fill_widget, 99, 0, 1, 2);
+        layout.add_widget_5a(&fill_widget2, 0, 2, 1, 1);
+
+        layout.set_row_stretch(99, 99);
+        layout.set_column_stretch(2, 99);
 
         let packed_file_ca_vp8_view = Arc::new(PackedFileCaVp8View {
             format_data_label,
