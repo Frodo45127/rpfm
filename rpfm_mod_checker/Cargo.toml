@@ -1,0 +1,14 @@
+[package]
+name = "rpfm_mod_checker"
+version = "2.2.101"
+authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
+description = "A simple tool to quickly find out what files are causing your game to be modded."
+edition = "2018"
+
+[dependencies]
+# Internal dependencies.
+rpfm_error = { path = "../rpfm_error" }
+rpfm_lib = { path = "../rpfm_lib" }
+
+# Support for open files in a native way.
+open = "^1.2"

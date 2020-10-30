@@ -201,7 +201,7 @@ pub struct PackFileInfo {
 ///
 /// Private for now, because I see no public use for this.
 #[derive(Debug, Serialize, Deserialize)]
-struct Manifest(Vec<ManifestEntry>);
+pub struct Manifest(Vec<ManifestEntry>);
 
 /// This struct represents a Manifest Entry.
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -2678,6 +2678,51 @@ impl Manifest {
 
         let manifest = Self(entries);
         Ok(manifest)
+    }
+
+    /// This function returns a parsed version of the `manifest.txt` in the folder you provided, if exists and is parseable.
+    pub fn read_from_folder(path: &Path) -> Result<Self> {
+        let manifest_path = path.join("manifest.txt");
+
+        let mut reader = ReaderBuilder::new()
+            .delimiter(b'\t')
+            .quoting(false)
+            .has_headers(false)
+            .flexible(true)
+            .from_path(&manifest_path)?;
+
+        // Due to "flexible" not actually working when doing serde-backed deserialization (took some time to figure this out)
+        // the deserialization has to be done manually.
+        let mut entries = vec![];
+        for record in reader.records() {
+            let record = record?;
+
+            // We only know these manifest formats.
+            if record.len() != 2 && record.len() != 3 {
+                return Err(ErrorKind::ManifestError.into());
+            } else {
+                let mut manifest_entry = ManifestEntry::default();
+                manifest_entry.relative_path = record.get(0).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.to_owned();
+                manifest_entry.size = record.get(1).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse()?;
+
+                // In newer games, a third field has been added.
+                if record.len() == 3 {
+                    manifest_entry.belongs_to_base_game = record.get(2).ok_or_else(|| Error::from(ErrorKind::ManifestError))?.parse().ok();
+                }
+                else {
+                    manifest_entry.belongs_to_base_game = None;
+                }
+
+                entries.push(manifest_entry);
+            }
+        }
+
+        let manifest = Self(entries);
+        Ok(manifest)
+    }
+
+    pub fn is_path_in_manifest(&self, path: &Path) -> bool {
+        self.0.iter().any(|x| path.ends_with(&x.relative_path))
     }
 }
 

@@ -5,6 +5,7 @@ members = [
     "rpfm_macros",
     "rpfm_lib",
     "rpfm_cli",
+    "rpfm_mod_checker",
     "rpfm_ui",
 ]
 
