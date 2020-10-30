@@ -2722,7 +2722,8 @@ impl Manifest {
     }
 
     pub fn is_path_in_manifest(&self, path: &Path) -> bool {
-        self.0.iter().any(|x| path.ends_with(&x.relative_path))
+        let insensitivized_path = path.to_str().unwrap().to_lowercase().replace("\\", "/");
+        self.0.iter().any(|x| insensitivized_path.ends_with(&x.relative_path.to_lowercase()))
     }
 }
 

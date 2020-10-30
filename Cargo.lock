@@ -1899,11 +1899,11 @@ dependencies = [
 
 [[package]]
 name = "rpfm_mod_checker"
-version = "2.2.101"
+version = "2.2.113"
 dependencies = [
- "open 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rpfm_error 2.2.101",
- "rpfm_lib 2.2.101",
+ "open",
+ "rpfm_error",
+ "rpfm_lib",
 ]
 
 [[package]]
