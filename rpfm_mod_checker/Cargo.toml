@@ -12,3 +12,7 @@ rpfm_lib = { path = "../rpfm_lib" }
 
 # Support for open files in a native way.
 open = "^1.2"
+
+# Windows resources support.
+[target.'cfg(windows)'.build-dependencies]
+winres = "^0.1"

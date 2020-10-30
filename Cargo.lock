@@ -1904,6 +1904,7 @@ dependencies = [
  "open",
  "rpfm_error",
  "rpfm_lib",
+ "winres",
 ]
 
 [[package]]
