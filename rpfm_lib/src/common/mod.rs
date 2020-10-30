@@ -24,6 +24,7 @@ use std::path::{Path, PathBuf};
 use crate::template;
 use crate::schema;
 use crate::config::get_config_path;
+use crate::games::InstallType;
 use crate::GAME_SELECTED;
 use crate::{SETTINGS, SUPPORTED_GAMES};
 
@@ -189,14 +190,23 @@ pub fn get_game_selected_data_packfiles_paths() -> Option<Vec<PathBuf>> {
 #[allow(dead_code)]
 pub fn get_game_selected_content_packfiles_paths() -> Option<Vec<PathBuf>> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
-    let id = SUPPORTED_GAMES.get(game_selected)?.steam_id?.to_string();
-
-    path.pop();
-    path.pop();
-    path.push("workshop");
-    path.push("content");
-    path.push(id);
+    let path = match get_game_selected_install_type().ok()? {
+        InstallType::Steam(steam_id) => {
+            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
+            path.pop();
+            path.pop();
+            path.push("workshop");
+            path.push("content");
+            path.push(steam_id.to_string());
+            path
+        }
+        InstallType::Epic => {
+            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
+            path.push("mods");
+            path
+        }
+        InstallType::Wargaming => return None,
+    };
 
     let mut paths = vec![];
 
@@ -340,5 +350,18 @@ pub fn get_assembly_kit_db_tables_path() -> Result<PathBuf> {
 
         // Shogun 2/Older games
         _ => Err(ErrorKind::AssemblyKitUnsupportedVersion(version).into())
+    }
+}
+
+/// This function returns the install type corresponding to the current game selected.
+#[allow(dead_code)]
+pub fn get_game_selected_install_type() -> Result<InstallType> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
+    let supported_install_types = &SUPPORTED_GAMES.get(game_selected).unwrap().install_type;
+    if supported_install_types.len() == 1 {
+        Ok(supported_install_types[0].clone())
+    }
+    else {
+        todo!();
     }
 }

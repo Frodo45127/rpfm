@@ -803,12 +803,14 @@ impl AppUISlots {
         // What happens when we trigger the "Launch Game" action.
         let game_selected_launch_game = SlotOfBool::new(&app_ui.main_window, clone!(
             app_ui => move |_| {
-            if let Some(steam_id) = SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().steam_id {
-                if open::that(format!("steam://rungameid/{}", steam_id)).is_err() {
-                    show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
-                };
+            match get_game_selected_install_type().unwrap() {
+                InstallType::Steam(steam_id) => {
+                    if open::that(format!("steam://rungameid/{}", steam_id)).is_err() {
+                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    };
+                }
+                _ => show_dialog(&app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false),
             }
-            else { show_dialog(&app_ui.main_window, ErrorKind::LaunchNotSupportedForThisGame, false); }
         }));
 
         // What happens when we trigger the "Open Game's Data Folder" action.

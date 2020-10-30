@@ -66,8 +66,8 @@ pub struct GameInfo {
     /// These are the PackFiles from where we load the data for loc special stuff.
     pub loc_packs: Vec<String>,
 
-    /// This is the `SteamID` used by the game, if it's on steam. If not, it's just None.
-    pub steam_id: Option<u64>,
+    /// This is the type of installs supported for the game in question, with install-specific data.
+    pub install_type: Vec<InstallType>,
 
     /// This is the **type** of raw files the game uses. -1 is "Don't have Assembly Kit". 0 is Empire/Nappy. 1 is Shogun 2. 2 is anything newer than Shogun 2.
     pub raw_db_version: i16,
@@ -86,6 +86,20 @@ pub struct GameInfo {
 
     /// Name of the big icon used to display the game as `Game Selected`, in an UI.
     pub game_selected_big_icon: String,
+}
+
+/// This enum holds the info needed to deal with particularities of the games if they're installed from X or Y store.
+#[derive(Clone, Debug)]
+pub enum InstallType {
+
+    /// Steam variant. Contains the steamID of the game.
+    Steam(u64),
+
+    /// Epic Store Variant.
+    Epic,
+
+    /// Wargaming Variant.
+    Wargaming,
 }
 
 /// This function returns a `SupportedGames` struct with the list of all games supported by this lib inside.
@@ -113,7 +127,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: None,
+        install_type: vec![InstallType::Epic],
         raw_db_version: 2,
         pak_file: Some("troy.pak".to_owned()),
         ca_types_file: None,
@@ -143,7 +157,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: Some(779_340),
+        install_type: vec![InstallType::Steam(779_340)],
         raw_db_version: 2,
         pak_file: Some("3k.pak".to_owned()),
         ca_types_file: None,
@@ -173,7 +187,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: Some(594_570),
+        install_type: vec![InstallType::Steam(594_570)],
         raw_db_version: 2,
         pak_file: Some("wh2.pak".to_owned()),
         ca_types_file: Some("ca_types_wh2".to_owned()),
@@ -207,7 +221,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: Some(364_360),
+        install_type: vec![InstallType::Steam(364_360)],
         raw_db_version: 2,
         pak_file: Some("wh.pak".to_owned()),
         ca_types_file: None,
@@ -237,7 +251,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: Some(712_100),
+        install_type: vec![InstallType::Steam(712_100)],
         raw_db_version: 2,
         pak_file: Some("tob.pak".to_owned()),
         ca_types_file: None,
@@ -267,7 +281,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: Some(325_610),
+        install_type: vec![InstallType::Steam(325_610)],
         raw_db_version: 2,
         pak_file: Some("att.pak".to_owned()),
         ca_types_file: None,
@@ -297,7 +311,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: Some(214_950),
+        install_type: vec![InstallType::Steam(214_950)],
         raw_db_version: 2,
         pak_file: Some("rom2.pak".to_owned()),
         ca_types_file: None,
@@ -327,7 +341,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_cn.pack".to_owned(),     // Simplified Chinese
             "local_zh.pack".to_owned(),     // Traditional Chinese
         ],
-        steam_id: Some(34330),
+        install_type: vec![InstallType::Steam(34_330)],
         raw_db_version: 1,
         pak_file: Some("sho2.pak".to_owned()),
         ca_types_file: None,
@@ -377,7 +391,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_zh.pack".to_owned(),         // Traditional Chinese
             "local_zh_patch.pack".to_owned(),   // Traditional Chinese Patch
         ],
-        steam_id: Some(34030),
+        install_type: vec![InstallType::Steam(34_030)],
         raw_db_version: 0,
         pak_file: Some("nap.pak".to_owned()),
         ca_types_file: None,
@@ -428,7 +442,7 @@ pub fn get_supported_games_list() -> SupportedGames {
             "local_zh.pack".to_owned(),     // Traditional Chinese
             "patch_zh.pack".to_owned(),     // Traditional Chinese Patch
         ],
-        steam_id: Some(10500),
+        install_type: vec![InstallType::Steam(10_500)],
         raw_db_version: 0,
         pak_file: Some("emp.pak".to_owned()),
         ca_types_file: None,
@@ -446,7 +460,7 @@ pub fn get_supported_games_list() -> SupportedGames {
         schema: "schema_are.ron".to_owned(),
         db_packs: vec!["wad.pack".to_owned()],
         loc_packs: vec!["local_ex.pack".to_owned()],
-        steam_id: None,
+        install_type: vec![InstallType::Wargaming],
         raw_db_version: -1,
         pak_file: None,
         ca_types_file: None,
