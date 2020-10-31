@@ -542,6 +542,16 @@ impl PackFile {
         TERRY_MAP_PATH.iter().map(|x| (*x).to_string()).collect()
     }
 
+    /// This function returns the game version of this PackFile.
+    pub fn get_game_version(&self) -> u32 {
+        self.game_version
+    }
+
+    /// This function allows you to change the game version of this PackFile.
+    pub fn set_game_version(&mut self, version: u32) {
+        self.game_version = version;
+    }
+
     /// This function returns the `PackFile List` of the provided `PackFile`.
     pub fn get_packfiles_list(&self) -> &[String] {
         &self.pack_files

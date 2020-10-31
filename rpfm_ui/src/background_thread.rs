@@ -90,6 +90,10 @@ pub fn background_loop() {
                 let game_selected = GAME_SELECTED.read().unwrap();
                 let pack_version = SUPPORTED_GAMES.get(&**game_selected).unwrap().pfh_version[0];
                 pack_file_decoded = PackFile::new_with_name("unknown.pack", pack_version);
+
+                if let Ok(version_number) = get_game_selected_exe_version_number() {
+                    pack_file_decoded.set_game_version(version_number);
+                }
             }
 
             // In case we want to "Open one or more PackFiles"...
@@ -256,6 +260,10 @@ pub fn background_loop() {
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
                     pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pfh_version[0]);
+
+                    if let Ok(version_number) = get_game_selected_exe_version_number() {
+                        pack_file_decoded.set_game_version(version_number);
+                    }
                 }
 
                 // Test to see if every DB Table can be decoded. This is slow and only useful when

@@ -14,11 +14,16 @@ Module with utility functions that don't fit anywhere else.
 Basically, if you need a function, but it's kinda a generic function, it goes here.
 !*/
 
+use pelite::pe64;
+use pelite::resources::{FindError, Resources};
+use pelite::resources::version_info::VersionInfo;
+
 use chrono::{Utc, DateTime};
 
 use rpfm_error::{Error, ErrorKind, Result};
 
 use std::fs::{DirBuilder, File, read_dir};
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use crate::template;
@@ -386,5 +391,75 @@ pub fn get_mymod_install_path() -> Option<PathBuf> {
             Some(path)
         }
         InstallType::Wargaming => return None,
+    }
+}
+
+/// This function gets the version number of the exe for the current GameSelected, if it exists.
+#[allow(dead_code)]
+pub fn get_game_selected_exe_version_number() -> Result<u32> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
+    use crate::games::KEY_TROY;
+    match game_selected {
+        KEY_TROY => {
+            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone().ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;
+            path.push("Troy.exe");
+            if path.is_file() {
+                let mut data = vec![];
+                let mut file = BufReader::new(File::open(path)?);
+                file.read_to_end(&mut data)?;
+
+                let version_info = get_pe_version_info(&data).map_err(|_| Error::from(ErrorKind::IOGeneric))?;
+
+                match version_info.fixed() {
+                    Some(version_info) => {
+                        let mut version: u32 = 0;
+
+                        // The CA format is limited so these can only be u8 when encoded, so we can safetly convert them.
+                        let major = version_info.dwFileVersion.Major as u32;
+                        let minor = version_info.dwFileVersion.Minor as u32;
+                        let patch = version_info.dwFileVersion.Patch as u32;
+                        let build = version_info.dwFileVersion.Build as u32;
+
+                        version += major << 24;
+                        version += minor << 16;
+                        version += patch << 8;
+                        version += build;
+                        Ok(version)
+                    }
+
+                    None => Ok(0),
+                }
+            }
+
+            // If we have no exe, return a default value.
+            else {
+                Ok(0)
+            }
+
+        }
+
+        _ => Ok(0),
+    }
+}
+
+/// Function to get the version info of a file, courtesy of TES Loot team.
+fn get_pe_version_info(bytes: &[u8]) -> std::result::Result<VersionInfo, FindError> {
+    get_pe_resources(bytes)?.version_info()
+}
+
+/// Function to get the resources of a file, courtesy of TES Loot team.
+fn get_pe_resources(bytes: &[u8]) -> std::result::Result<Resources, pelite::Error> {
+    match pe64::PeFile::from_bytes(bytes) {
+        Ok(file) => {
+            use pelite::pe64::Pe;
+
+            file.resources()
+        }
+        Err(pelite::Error::PeMagic) => {
+            use pelite::pe32::{Pe, PeFile};
+
+            PeFile::from_bytes(bytes)?.resources()
+        }
+        Err(e) => Err(e),
     }
 }
