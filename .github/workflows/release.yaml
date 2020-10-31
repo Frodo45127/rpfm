@@ -133,6 +133,11 @@ jobs:
           cp D:\Craft\bin\libGLESV2.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\liblzma.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\libssl*.dll D:\deploy\rpfm-release-assets\
+
+          cp D:\Craft\bin\msvcp140.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\msvcp140_1.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\msvcp140_2.dll D:\deploy\rpfm-release-assets\
+
           cp D:\Craft\bin\pcre.dll D:\deploy\rpfm-release-assets\
 
           cp D:\Craft\bin\Qt5Core.dll D:\deploy\rpfm-release-assets\
@@ -153,6 +158,7 @@ jobs:
           # Here we copy files generated from the compilation.
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.exe D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.exe D:\deploy\rpfm-release-assets
+          cp D:/a/rpfm/rpfm/target/release/rpfm_mod_checker.exe D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.pdb D:\deploy\rpfm-release-assets
           cp D:/a/rpfm/rpfm/target/release/rpfm_cli.pdb D:\deploy\rpfm-release-assets
 
