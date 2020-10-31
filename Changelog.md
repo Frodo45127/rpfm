@@ -17,11 +17,13 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Implemented Recent PackFiles list.
 - Added a warning to the Dependency Manager.
 - Reimplemented the old table cell colours, now based on the diagnostics results.
+- Implemented new `RPFM Mod Checker` (Drop its exe into a game´s folder, execute it, and it'll tell you what files are making the game show up as "modded", and for Troy it'll also tell you if you are subscribed to movie files).
 
 ### Changed
 - Reduced autosave amount to 10.
 - Combined Keys diagnostic now show the combined keys.
 - Improved release deploying process.
+- Improved CA_VP8 UI, including an explanation on how to use it.
 
 ### Fixed
 - Fixed two CTD that could trigger at many places at random and left no error log.
@@ -34,6 +36,8 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed a performance regression when saving PackFiles with the diagnostics tool enabled.
 - Fixed a weird behavior when adding a folder to a PackFile while on MyMod mode.
 - Fixed a bug that caused Global Search results to dissapear when double-clicking them.
+- Fixed a bug that caused files with weird casing to be recognized as `Umknown` type and not being openable.
+- Fixed a bug that caused RPFM to not start if you didn't have the msvcp140_1.dll file in your system.
 
 ## [2.2.1] - 2020-09-26
 ### Changed
