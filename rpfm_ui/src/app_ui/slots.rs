@@ -708,7 +708,7 @@ impl AppUISlots {
                     OperationalMode::MyMod(ref game_folder_name, ref mod_name) => {
                         let mymods_base_path = &SETTINGS.read().unwrap().paths["mymods_base_path"];
                         if let Some(ref mymods_base_path) = mymods_base_path {
-                            if let Some(mut game_data_path) = get_game_selected_data_path() {
+                            if let Some(mut mymod_install_path) = get_mymod_install_path() {
 
                                 // We get the "MyMod"s PackFile path.
                                 let mut mymod_path = mymods_base_path.to_path_buf();
@@ -719,15 +719,15 @@ impl AppUISlots {
                                     return show_dialog(&app_ui.main_window, ErrorKind::MyModPackFileDoesntExist, false);
                                 }
 
-                                if !game_data_path.is_dir() {
+                                if !mymod_install_path.is_dir() {
                                     return show_dialog(&app_ui.main_window, ErrorKind::MyModInstallFolderDoesntExists, false);
                                 }
 
                                 // Get the destination path for the PackFile with the PackFile name included.
                                 // And copy the PackFile to his destination. If the copy fails, return an error.
-                                game_data_path.push(&mod_name);
-                                if copy(mymod_path, &game_data_path).is_err() {
-                                    return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(game_data_path), false);
+                                mymod_install_path.push(&mod_name);
+                                if copy(mymod_path, &mymod_install_path).is_err() {
+                                    return show_dialog(&app_ui.main_window, ErrorKind::IOGenericCopy(mymod_install_path), false);
                                 }
                             }
                             else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false) }
@@ -752,15 +752,15 @@ impl AppUISlots {
                     // If we have a "MyMod" selected, and everything we need it's configured,
                     // try to delete the PackFile (if exists) from the data folder of the selected game.
                     OperationalMode::MyMod(_, ref mod_name) => {
-                        if let Some(mut game_data_path) = get_game_selected_data_path() {
-                            game_data_path.push(&mod_name);
+                        if let Some(mut mymod_install_path) = get_mymod_install_path() {
+                            mymod_install_path.push(&mod_name);
 
-                            if !game_data_path.is_file() {
+                            if !mymod_install_path.is_file() {
                                 show_dialog(&app_ui.main_window, ErrorKind::MyModNotInstalled, false)
                             }
 
-                            else if remove_file(&game_data_path).is_err() {
-                                return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![game_data_path; 1]), false);
+                            else if remove_file(&mymod_install_path).is_err() {
+                                return show_dialog(&app_ui.main_window, ErrorKind::IOGenericDelete(vec![mymod_install_path; 1]), false);
                             }
                         }
                         else { show_dialog(&app_ui.main_window, ErrorKind::GamePathNotConfigured, false); }

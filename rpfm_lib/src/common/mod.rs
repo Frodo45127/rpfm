@@ -18,7 +18,7 @@ use chrono::{Utc, DateTime};
 
 use rpfm_error::{Error, ErrorKind, Result};
 
-use std::fs::{File, read_dir};
+use std::fs::{DirBuilder, File, read_dir};
 use std::path::{Path, PathBuf};
 
 use crate::template;
@@ -363,5 +363,28 @@ pub fn get_game_selected_install_type() -> Result<InstallType> {
     }
     else {
         todo!();
+    }
+}
+
+/// This function gets the destination folder for MyMod packs.
+#[allow(dead_code)]
+pub fn get_mymod_install_path() -> Option<PathBuf> {
+    let game_selected: &str = &*GAME_SELECTED.read().unwrap();
+    match get_game_selected_install_type().ok()? {
+        InstallType::Steam(_) => {
+            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
+            path.push("data");
+            Some(path)
+        }
+        InstallType::Epic => {
+            let mut path = SETTINGS.read().unwrap().paths[game_selected].clone()?;
+            path.push("mods");
+            path.push("mymods");
+
+            // Make sure the folder exists.
+            DirBuilder::new().recursive(true).create(&path).ok()?;
+            Some(path)
+        }
+        InstallType::Wargaming => return None,
     }
 }
