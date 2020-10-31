@@ -327,6 +327,7 @@ impl PackedFileType {
     /// This function returns the type of the `PackedFile` at the provided path based on the path itself.
     pub fn get_packed_file_type(path: &[String]) -> Self {
         if let Some(packedfile_name) = path.last() {
+            let packedfile_name = packedfile_name.to_lowercase();
             if packedfile_name.ends_with(table::loc::EXTENSION) { Self::Loc }
             else if packedfile_name.ends_with(animpack::EXTENSION) { Self::AnimPack }
             else if packedfile_name.ends_with(rigidmodel::EXTENSION) { Self::RigidModel }
@@ -360,6 +361,7 @@ impl PackedFileType {
         match packed_file.get_raw_data() {
             Ok(data) => {
                 if let Some(packedfile_name) = packed_file.get_path().last() {
+                    let packedfile_name = packedfile_name.to_lowercase();
                     if packedfile_name.ends_with(rigidmodel::EXTENSION) {
                         return Self::RigidModel
                     }
