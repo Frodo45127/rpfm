@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 use crate::template;
 use crate::schema;
 use crate::config::get_config_path;
-use crate::games::InstallType;
+use crate::games::{InstallType, KEY_TROY};
 use crate::GAME_SELECTED;
 use crate::{SETTINGS, SUPPORTED_GAMES};
 
@@ -367,7 +367,7 @@ pub fn get_game_selected_install_type() -> Result<InstallType> {
         Ok(supported_install_types[0].clone())
     }
     else {
-        todo!();
+        Err(ErrorKind::NoInstallTypeForGame.into())
     }
 }
 
@@ -398,7 +398,6 @@ pub fn get_mymod_install_path() -> Option<PathBuf> {
 #[allow(dead_code)]
 pub fn get_game_selected_exe_version_number() -> Result<u32> {
     let game_selected: &str = &*GAME_SELECTED.read().unwrap();
-    use crate::games::KEY_TROY;
     match game_selected {
         KEY_TROY => {
             let mut path = SETTINGS.read().unwrap().paths[game_selected].clone().ok_or_else(|| Error::from(ErrorKind::GameNotSupported))?;

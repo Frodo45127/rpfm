@@ -598,6 +598,9 @@ pub enum ErrorKind {
 
     /// Error for when we try to decode the PackFile settings and fail. Contains the error message.
     PackFileSettingsDecode(String),
+
+    /// Error for when we have no install type for a game selected.
+    NoInstallTypeForGame,
 }
 
 /// Implementation of `Error`.
@@ -906,6 +909,7 @@ impl Display for ErrorKind {
             ErrorKind::TemplateUpdateError => write!(f, "<p>There was an error while downloading the templates. Please, try again later.</p>"),
             ErrorKind::CannotAddFromOpenPackFile => write!(f, "<p>You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.</p>"),
             ErrorKind::PackFileSettingsDecode(cause) => write!(f, "<p>Error while trying to decode the PackFile-Specific Settings:</p><p>{}</p>", cause),
+            ErrorKind::NoInstallTypeForGame => write!(f, "<p>The currently selected game doesn't have an Install Type. If this pops up and the Game is not Arena, please report it.</p>"),
         }
     }
 }
