@@ -2595,6 +2595,12 @@ impl PackFile {
         if let PFHVersion::PFH6 = self.pfh_version {
             header.encode_integer_u32(SUBHEADER_MARK);
             header.encode_integer_u32(SUBHEADER_VERSION);
+
+            // Just in case the PackFile is not up-to-date, we update it.
+            if let Ok(version_number) = get_game_selected_exe_version_number() {
+                self.set_game_version(version_number);
+            }
+
             header.encode_integer_u32(self.game_version);
             header.encode_integer_u32(self.build_number);
             header.extend_from_slice(&self.authoring_tool);
