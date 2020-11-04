@@ -534,22 +534,24 @@ impl TableViewSlots {
         let mut freeze_columns = vec![];
 
         let fields = get_fields_sorted(&view.get_ref_table_definition());
-        for (index, _) in fields.iter().enumerate() {
-            let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
-                mut view => move |state| {
-                    let state = state == 2;
-                    view.table_view_primary.set_column_hidden(index as i32, state);
-                }
-            ));
+        for field in &fields {
+            if let Some(index) = view.get_ref_table_definition().get_fields_processed().iter().position(|x| x == field) {
+                let hide_show_slot = SlotOfInt::new(&view.table_view_primary, clone!(
+                    mut view => move |state| {
+                        let state = state == 2;
+                        view.table_view_primary.set_column_hidden(index as i32, state);
+                    }
+                ));
 
-            let freeze_slot = SlotOfInt::new(&view.table_view_primary, clone!(
-                mut view => move |_| {
-                    toggle_freezer_safe(&view.table_view_primary, index as i32);
-                }
-            ));
+                let freeze_slot = SlotOfInt::new(&view.table_view_primary, clone!(
+                    mut view => move |_| {
+                        toggle_freezer_safe(&view.table_view_primary, index as i32);
+                    }
+                ));
 
-            hide_show_columns.push(hide_show_slot);
-            freeze_columns.push(freeze_slot);
+                hide_show_columns.push(hide_show_slot);
+                freeze_columns.push(freeze_slot);
+            }
         }
 
         let hide_show_columns_all = SlotOfInt::new(&view.table_view_primary, clone!(
