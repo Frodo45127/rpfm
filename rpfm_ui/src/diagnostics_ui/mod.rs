@@ -61,7 +61,7 @@ use crate::CENTRAL_COMMAND;
 use crate::ffi::{new_tableview_filter_safe, trigger_tableview_filter_safe};
 use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, tr};
-use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, TreeViewOperation};
+use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_error, get_color_info_pressed, get_color_warning_pressed, get_color_error_pressed, get_color_error_foreground, TreeViewOperation};
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
@@ -666,7 +666,7 @@ impl DiagnosticsUI {
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
                                         if table_model_index.is_valid() {
                                             match result.level {
-                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error())))),
+                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
                                                 DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning())))),
                                                 DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
                                             }
@@ -683,7 +683,7 @@ impl DiagnosticsUI {
                                         // At this point, is possible the row is no longer valid, so we have to check it out first.
                                         if table_model_index.is_valid() {
                                             match result.level {
-                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error())))),
+                                                DiagnosticLevel::Error => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_error_foreground())))),
                                                 DiagnosticLevel::Warning => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_warning())))),
                                                 DiagnosticLevel::Info => table_model_item.set_foreground(&QBrush::from_q_color(&QColor::from_q_string(&QString::from_std_str(get_color_info())))),
                                             }
