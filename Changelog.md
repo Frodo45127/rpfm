@@ -6,6 +6,13 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 
 ## [Unreleased]
 
+## [2.3.1] - 2020-11-04
+### Fixed
+- Fixed a CTD when opening PackFiles if the settings file wasn't initialized beforehand.
+- Fixed hide/show checkboxes hiding/showing the wrong columns on tables.
+- Fixed light theme error text to be more visible.
+- Fixed RPFM not setting PFH6 PackFile's Game Version if the user didn't changed the game selected.
+
 ## [2.3.0] - 2020-11-03
 ### Added
 - Implemented support for PFH6 PackFiles (Troy AK-generated mods).
