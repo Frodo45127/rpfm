@@ -159,7 +159,7 @@ impl Settings {
     }
 
     pub fn update_recent_files(&mut self, new_path: &str) {
-        *self = Self::load(None).unwrap();
+        *self = Self::load(None).unwrap_or_else(|_|Settings::new());
         if let Some(recent_files) = self.settings_string.get("recent_files") {
             let mut recent_files: Vec<String> = from_str(recent_files).unwrap();
 
