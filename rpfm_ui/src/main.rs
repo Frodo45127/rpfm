@@ -232,6 +232,7 @@ lazy_static! {
     static ref WARNING_UNPRESSED_LIGHT: &'static str = "#ffffcc";
     static ref WARNING_PRESSED_DARK: &'static str = "#808000";
     static ref WARNING_PRESSED_LIGHT: &'static str = "#ffff99";
+    static ref WARNING_FOREGROUND_LIGHT: &'static str = "#B300C0";
 
     static ref INFO_UNPRESSED_DARK: &'static str = "#0059b3";
     static ref INFO_UNPRESSED_LIGHT: &'static str = "#cce6ff";

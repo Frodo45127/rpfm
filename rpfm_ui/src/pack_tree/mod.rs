@@ -76,6 +76,7 @@ use crate::{
     WARNING_UNPRESSED_LIGHT,
     WARNING_PRESSED_DARK,
     WARNING_PRESSED_LIGHT,
+    WARNING_FOREGROUND_LIGHT,
     INFO_UNPRESSED_DARK,
     INFO_UNPRESSED_LIGHT,
     INFO_PRESSED_DARK,
@@ -1841,6 +1842,14 @@ pub unsafe fn get_color_warning() -> String {
         WARNING_UNPRESSED_DARK.to_owned()
     } else {
         WARNING_UNPRESSED_LIGHT.to_owned()
+    }
+}
+
+pub unsafe fn get_color_warning_foreground() -> String {
+    if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
+        WARNING_UNPRESSED_DARK.to_owned()
+    } else {
+        WARNING_FOREGROUND_LIGHT.to_owned()
     }
 }
 
