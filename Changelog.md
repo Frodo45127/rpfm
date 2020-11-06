@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.3.2] - 2020-11-06
+### Changed
+- Rewritten the "Open match" logic of Global Search and Diagnostics to not require the item to open being visible in the PackFile TreeView.
+- Changed warning cells's color, so it's no longer hard to see in added/modified cells.
+
+### Fixed
+- Fixed a CTD when the a table view gets reloaded (for example, doing a global replace).
 
 ## [2.3.1] - 2020-11-04
 ### Fixed
