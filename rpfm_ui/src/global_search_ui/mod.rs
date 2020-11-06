@@ -14,7 +14,7 @@ Module with all the code related to the `GlobalSearchSlots`.
 This module contains all the code needed to initialize the Global Search Panel.
 !*/
 
-use qt_widgets::q_abstract_item_view::{ScrollHint, ScrollMode};
+use qt_widgets::q_abstract_item_view::ScrollMode;
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDockWidget;
@@ -33,8 +33,6 @@ use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
 use qt_core::QPtr;
-use qt_core::q_item_selection_model::SelectionFlag;
-use qt_core::QFlags;
 use qt_core::QModelIndex;
 use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QRegExp;
@@ -44,8 +42,6 @@ use qt_core::QVariant;
 use cpp_core::Ptr;
 
 use std::rc::Rc;
-
-use rpfm_error::ErrorKind;
 
 use rpfm_lib::packfile::PathType;
 use rpfm_lib::global_search::{GlobalSearch, MatchHolder, schema::SchemaMatches, table::{TableMatches, TableMatch}, text::TextMatches};
@@ -57,7 +53,6 @@ use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
-use crate::packedfile_views::{View, ViewType};
 use crate::pack_tree::{PackTree, TreeViewOperation};
 use crate::QString;
 use crate::utils::{create_grid_layout, show_dialog};
@@ -643,10 +638,11 @@ impl GlobalSearchUI {
     pub unsafe fn open_match(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
         model_index_filtered: Ptr<QModelIndex>
     ) {
 
-        let tree_view = &pack_file_contents_ui.packfile_contents_tree_view;
         let filter_model: QPtr<QSortFilterProxyModel> = model_index_filtered.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter_model.source_model().static_downcast();
         let model_index = filter_model.map_to_source(model_index_filtered.as_ref().unwrap());
@@ -655,71 +651,20 @@ impl GlobalSearchUI {
         let is_match = !gidhora.has_children();
 
         // If it's a match, get the path, the position data of the match, and open the PackedFile, scrolling it down.
-        if is_match {
+        let path: Vec<String> = if is_match {
             let parent = gidhora.parent();
             let path = parent.text().to_std_string();
-            let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
-
-            if let Some(pack_file_contents_model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
-                let pack_file_contents_model_index = pack_file_contents_model_index.as_ref().unwrap();
-                let selection_model = tree_view.selection_model();
-
-                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
-                //
-                // Note: the selection should already trigger the open PackedFile action.
-                if pack_file_contents_model_index.is_valid() {
-                    tree_view.scroll_to_1a(pack_file_contents_model_index);
-                    selection_model.select_q_model_index_q_flags_selection_flag(pack_file_contents_model_index, QFlags::from(SelectionFlag::ClearAndSelect));
-
-                    if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                        match packed_file_view.get_view() {
-
-                            // In case of tables, we have to get the logical row/column of the match and select it.
-                            ViewType::Internal(view) => if let View::Table(view) = view {
-                                let table_view = view.get_ref_table();
-                                let table_view = table_view.get_mut_ptr_table_view_primary();
-                                let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                                let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                                let table_selection_model = table_view.selection_model();
-
-                                let row = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
-                                let column = parent.child_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap();
-
-                                let table_model_index = table_model.index_2a(row, column);
-                                let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                                if table_model_index_filtered.is_valid() {
-                                    table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                                    table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
-                                }
-                            },
-
-                            _ => {},
-                        }
-                    }
-                }
-            }
-            else { show_dialog(&app_ui.main_window, ErrorKind::PackedFileNotInFilter, false); }
+            path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect()
         }
 
         // If not... just expand and open the PackedFile.
         else {
             let path = gidhora.text().to_std_string();
-            let path: Vec<String> = path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect();
+            path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect()
+        };
 
-            if let Some(model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
-                let model_index = model_index.as_ref().unwrap();
-                let selection_model = tree_view.selection_model();
-
-                // If it's not in the current TreeView Filter we CAN'T OPEN IT.
-                //
-                // Note: the selection should already trigger the open PackedFile action.
-                if model_index.is_valid() {
-                    tree_view.scroll_to_1a(model_index);
-                    selection_model.select_q_model_index_q_flags_selection_flag(model_index, QFlags::from(SelectionFlag::ClearAndSelect));
-                }
-            }
-            else { show_dialog(&app_ui.main_window, ErrorKind::PackedFileNotInFilter, false); }
-        }
+        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
+        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path), false, false);
     }
 
     /// This function takes care of loading the results of a global search of `TableMatches` into a model.

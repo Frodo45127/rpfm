@@ -1245,6 +1245,7 @@ impl AppUI {
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
+        packed_file_path: Option<Vec<String>>,
         is_preview: bool,
         is_external: bool,
     ) {
@@ -1252,9 +1253,14 @@ impl AppUI {
         // Before anything else, we need to check if the TreeView is unlocked. Otherwise we don't do anything from here on.
         // Also, only open the selection when there is only one thing selected.
         if !UI_STATE.get_packfile_contents_read_only() {
-            let selected_items = pack_file_contents_ui.packfile_contents_tree_view.get_item_types_from_selection(true);
-            let item_type = if selected_items.len() == 1 { &selected_items[0] } else { return };
-            if let TreePathType::File(path) = item_type {
+            let item_type = match packed_file_path {
+                Some(packed_file_path) => TreePathType::File(packed_file_path),
+                None => {
+                    let selected_items = pack_file_contents_ui.packfile_contents_tree_view.get_item_types_from_selection(true);
+                    if selected_items.len() == 1 { selected_items[0].clone() } else { return }
+                }
+            };
+            if let TreePathType::File(ref path) = item_type {
 
                 // Close all preview views except the file we're opening.
                 for packed_file_view in UI_STATE.get_open_packedfiles().iter() {

@@ -125,7 +125,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move || {
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, true, false);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, None, true, false);
         }));
 
         // Slot to open the selected PackedFile as a permanent view.
@@ -134,7 +134,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move || {
-            AppUI::open_packedfile(&app_ui, & pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false, false);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, None, false, false);
         }));
 
         // What happens when we trigger one of the filter events for the PackFile Contents TreeView.
@@ -995,7 +995,7 @@ impl PackFileContentsSlots {
             pack_file_contents_ui,
             global_search_ui,
             diagnostics_ui => move |_| {
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, false, true);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, None, false, true);
         }));
 
         let contextual_menu_open_packfile_settings = SlotOfBool::new(&pack_file_contents_ui.packfile_contents_dock_widget, clone!(

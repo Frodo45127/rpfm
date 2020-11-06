@@ -12,7 +12,7 @@
 Module with all the code related to the `DiagnosticsUI`.
 !*/
 
-use qt_widgets::q_abstract_item_view::{ScrollHint, SelectionMode};
+use qt_widgets::q_abstract_item_view::SelectionMode;
 use qt_widgets::QCheckBox;
 use qt_widgets::QDockWidget;
 use qt_widgets::QGroupBox;
@@ -34,7 +34,6 @@ use qt_gui::q_palette::ColorRole;
 use qt_core::{AlignmentFlag, CaseSensitivity, ContextMenuPolicy, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QBox;
 use qt_core::QFlags;
-use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
@@ -46,8 +45,6 @@ use qt_core::QSignalBlocker;
 use cpp_core::Ptr;
 
 use std::rc::Rc;
-
-use rpfm_error::ErrorKind;
 
 use rpfm_lib::diagnostics::{*, table::*, dependency_manager::*};
 use rpfm_lib::packfile::PathType;
@@ -65,7 +62,7 @@ use crate::pack_tree::{PackTree, get_color_info, get_color_warning, get_color_er
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::UI_STATE;
-use crate::utils::{create_grid_layout, show_dialog};
+use crate::utils::create_grid_layout;
 
 pub mod connections;
 pub mod slots;
@@ -563,7 +560,6 @@ impl DiagnosticsUI {
         model_index_filtered: Ptr<QModelIndex>
     ) {
 
-        let tree_view = &pack_file_contents_ui.packfile_contents_tree_view;
         let filter_model: QPtr<QSortFilterProxyModel> = model_index_filtered.model().static_downcast();
         let model: QPtr<QStandardItemModel> = filter_model.source_model().static_downcast();
         let model_index = filter_model.map_to_source(model_index_filtered.as_ref().unwrap());
@@ -572,61 +568,15 @@ impl DiagnosticsUI {
         let item_path = model.item_2a(model_index.row(), 4);
         let path = item_path.text().to_std_string();
         let path: Vec<String> = if path.is_empty() { vec![] } else { path.split(|x| x == '/' || x == '\\').map(|x| x.to_owned()).collect() };
+        pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
 
         // If the path is empty, we're looking for the dependency manager.
         if path.is_empty() {
             AppUI::open_dependency_manager(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui);
         }
 
-        // If not, it's a file we're going to try and open.
-        else if let Some(pack_file_contents_model_index) = pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path) {
-            let pack_file_contents_model_index = pack_file_contents_model_index.as_ref().unwrap();
-            let selection_model = tree_view.selection_model();
-
-            // If it's not in the current TreeView Filter we CAN'T OPEN IT.
-            //
-            // Note: the selection should already trigger the open PackedFile action.
-            if pack_file_contents_model_index.is_valid() {
-                tree_view.scroll_to_1a(pack_file_contents_model_index);
-                selection_model.select_q_model_index_q_flags_selection_flag(pack_file_contents_model_index, QFlags::from(SelectionFlag::ClearAndSelect));
-            }
-        }
-
         else {
-            show_dialog(&app_ui.main_window, ErrorKind::PackedFileNotInFilter, false);
-        }
-
-        match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
-            "DB" | "Loc" | "DependencyManager" => {
-
-                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
-                    match packed_file_view.get_view() {
-
-                        // In case of tables, we have to get the logical row/column of the match and select it.
-                        ViewType::Internal(view) => if let View::Table(view) = view {
-                            let table_view = view.get_ref_table();
-                            let table_view = table_view.get_mut_ptr_table_view_primary();
-                            let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
-                            let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
-                            let table_selection_model = table_view.selection_model();
-
-                            let row = model.item_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap() - 1;
-                            let column = model.item_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap();
-
-                            let table_model_index = table_model.index_2a(row, column);
-                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
-                            if table_model_index_filtered.is_valid() {
-                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
-                                table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
-                            }
-                        },
-
-                        _ => {},
-                    }
-                }
-            }
-
-            _ => {}
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path), false, false);
         }
     }
 
