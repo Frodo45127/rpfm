@@ -43,6 +43,8 @@ use qt_core::QVariant;
 use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::MatchFlag;
 use qt_core::QPtr;
+use qt_core::QSignalBlocker;
+use qt_core::QObject;
 
 use cpp_core::Ptr;
 
@@ -648,7 +650,9 @@ impl TableView {
         );
 
         // Rebuild the column list of the filter and search panels, just in case the definition changed.
+        // NOTE: We need to lock the signals for the column selector so it doesn't try to trigger in the middle of the rebuild, causing a deadlock.
         for filter in self.get_ref_mut_filters().iter() {
+            let _filter_blocker = QSignalBlocker::from_q_object(filter.filter_column_selector.static_upcast::<QObject>());
             filter.filter_column_selector.clear();
             for column in self.table_definition.read().unwrap().get_fields_processed() {
                 let name = QString::from_std_str(&utils::clean_column_names(&column.get_name()));
