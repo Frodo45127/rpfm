@@ -132,6 +132,7 @@ jobs:
           cp D:\Craft\bin\libEGL.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\libGLESV2.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\liblzma.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\libpng16.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\libssl*.dll D:\deploy\rpfm-release-assets\
 
           cp D:\Craft\bin\msvcp140.dll D:\deploy\rpfm-release-assets\
@@ -139,6 +140,7 @@ jobs:
           cp D:\Craft\bin\msvcp140_2.dll D:\deploy\rpfm-release-assets\
 
           cp D:\Craft\bin\pcre.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\pcre2-16.dll D:\deploy\rpfm-release-assets\
 
           cp D:\Craft\bin\Qt5Core.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\Qt5DBus.dll D:\deploy\rpfm-release-assets\
@@ -154,6 +156,7 @@ jobs:
           cp D:\Craft\bin\vcruntime140.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\vcruntime140_1.dll D:\deploy\rpfm-release-assets\
           cp D:\Craft\bin\zlib.dll D:\deploy\rpfm-release-assets\
+          cp D:\Craft\bin\zstd.dll D:\deploy\rpfm-release-assets\
 
           # Here we copy files generated from the compilation.
           cp D:/a/rpfm/rpfm/target/release/rpfm_ui.exe D:\deploy\rpfm-release-assets
