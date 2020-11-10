@@ -387,54 +387,57 @@ impl PackTree for QBox<QTreeView> {
             // Indexes to see how deep we must go.
             let mut index = 0;
             let path_deep = path.len();
-            loop {
+            if path_deep > 0 {
 
-                let mut not_found = true;
-                for row in 0..item.row_count() {
-                    let child = item.child_1a(row);
+                loop {
 
-                    // In the last cycle, we're interested in files, not folders.
-                    if index == (path_deep -1) {
+                    let mut not_found = true;
+                    for row in 0..item.row_count() {
+                        let child = item.child_1a(row);
 
-                        if child.has_children() { continue; }
+                        // In the last cycle, we're interested in files, not folders.
+                        if index == (path_deep -1) {
 
-                        // We guarantee that the name of the files/folders is unique, so we use it to find the one to expand.
-                        if path[index] == child.text().to_std_string() {
-                            item = child;
+                            if child.has_children() { continue; }
 
-                            let model_index = model.index_from_item(item);
-                            let filtered_index = filter.map_from_source(&model_index);
+                            // We guarantee that the name of the files/folders is unique, so we use it to find the one to expand.
+                            if path[index] == child.text().to_std_string() {
+                                item = child;
 
-                            if filtered_index.is_valid() { return Some(filtered_index.into_ptr()); }
-                            else { return None }
+                                let model_index = model.index_from_item(item);
+                                let filtered_index = filter.map_from_source(&model_index);
+
+                                if filtered_index.is_valid() { return Some(filtered_index.into_ptr()); }
+                                else { return None }
+                            }
+                        }
+
+                        // In the rest, we look for children with children of its own.
+                        else {
+                            if !child.has_children() { continue; }
+
+                            // We guarantee that the name of the files/folders is unique, so we use it to find the one to expand.
+                            if path[index] == child.text().to_std_string() {
+                                item = child;
+                                index += 1;
+                                not_found = false;
+
+                                // Expand the folder, if exists.
+                                let model_index = model.index_from_item(item);
+                                let filtered_index = filter.map_from_source(&model_index);
+
+                                if filtered_index.is_valid() { self.expand(&filtered_index); }
+                                else { not_found = true; }
+
+                                // Break the loop.
+                                break;
+                            }
                         }
                     }
 
-                    // In the rest, we look for children with children of its own.
-                    else {
-                        if !child.has_children() { continue; }
-
-                        // We guarantee that the name of the files/folders is unique, so we use it to find the one to expand.
-                        if path[index] == child.text().to_std_string() {
-                            item = child;
-                            index += 1;
-                            not_found = false;
-
-                            // Expand the folder, if exists.
-                            let model_index = model.index_from_item(item);
-                            let filtered_index = filter.map_from_source(&model_index);
-
-                            if filtered_index.is_valid() { self.expand(&filtered_index); }
-                            else { not_found = true; }
-
-                            // Break the loop.
-                            break;
-                        }
-                    }
+                    // If the child was not found, stop and return the parent.
+                    if not_found { break; }
                 }
-
-                // If the child was not found, stop and return the parent.
-                if not_found { break; }
             }
         }
         None
