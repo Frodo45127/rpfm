@@ -88,8 +88,9 @@ pub const RESERVED_PACKED_FILE_NAMES: [&str; 3] = [RESERVED_NAME_EXTRA_PACKFILE,
 const SUBHEADER_MARK: u32 = 0x12345678;
 const SUBHEADER_VERSION: u32 = 1;
 
-const AUTHORING_TOOL_CA: &[u8; 8] = b"CA_TOOL\0";
-const AUTHORING_TOOL_RPFM: &[u8; 8] = b"RPFM\0\0\0\0";
+const AUTHORING_TOOL_CA: &str = "CA_TOOL";
+const AUTHORING_TOOL_RPFM: &str = "RPFM";
+const AUTHORING_TOOL_SIZE: u32 = 8;
 
 /// These are the types the PackFiles can have.
 const FILE_TYPE_BOOT: u32 = 0;
@@ -148,8 +149,8 @@ pub struct PackFile {
     /// Build number of the game.
     build_number: u32,
 
-    /// Tool that created the Pack.
-    authoring_tool: Vec<u8>,
+    /// Tool that created the PackFile. Max 8 characters, 00-padded.
+    authoring_tool: String,
 
     /// Extra subheader data, in case it's used in the future.
     extra_subheader_data: Vec<u8>,
@@ -500,7 +501,7 @@ impl PackFile {
             timestamp: 0,
             game_version: 0,
             build_number: 0,
-            authoring_tool: AUTHORING_TOOL_RPFM.to_vec(),
+            authoring_tool: AUTHORING_TOOL_RPFM.to_owned(),
             extra_subheader_data: vec![0; 256],
 
             pack_files: vec![],
@@ -521,7 +522,7 @@ impl PackFile {
             timestamp: 0,
             game_version: 0,
             build_number: 0,
-            authoring_tool: AUTHORING_TOOL_RPFM.to_vec(),
+            authoring_tool: AUTHORING_TOOL_RPFM.to_owned(),
             extra_subheader_data: vec![0; 256],
 
             pack_files: vec![],
@@ -550,6 +551,22 @@ impl PackFile {
     /// This function allows you to change the game version of this PackFile.
     pub fn set_game_version(&mut self, version: u32) {
         self.game_version = version;
+    }
+
+    /// This function returns the authoring tool used to make this PackFile initially.
+    pub fn get_authoring_tool(&self) -> &str {
+        &self.authoring_tool
+    }
+
+    /// This function allows you to change the authoring tool used to make this PackFile.
+    ///
+    /// This has a character limit, and will fail if you pass a string longer than that.
+    pub fn set_authoring_tool(&mut self, authoring_tool: &str) -> Result<()> {
+        if authoring_tool.len() > AUTHORING_TOOL_SIZE as usize {
+            return Err(ErrorKind::StringTooLong(AUTHORING_TOOL_SIZE).into());
+        }
+        self.authoring_tool = authoring_tool.to_owned();
+        Ok(())
     }
 
     /// This function returns the `PackFile List` of the provided `PackFile`.
@@ -2306,7 +2323,7 @@ impl PackFile {
         if let PFHVersion::PFH6 = pack_file_decoded.pfh_version {
             pack_file_decoded.game_version = buffer.decode_integer_u32(36)?;
             pack_file_decoded.build_number = buffer.decode_integer_u32(40)?;
-            pack_file_decoded.authoring_tool = buffer[44..52].to_vec();
+            pack_file_decoded.authoring_tool = buffer.decode_string_u8_0padded(44, AUTHORING_TOOL_SIZE as usize)?.0;
             pack_file_decoded.extra_subheader_data = buffer[52..].to_vec();
         }
 
@@ -2603,7 +2620,13 @@ impl PackFile {
 
             header.encode_integer_u32(self.game_version);
             header.encode_integer_u32(self.build_number);
-            header.extend_from_slice(&self.authoring_tool);
+
+            // Save it as "Made By CA" if the debug setting for it is enabled.
+            if SETTINGS.read().unwrap().settings_bool["spoof_ca_authoring_tool"] {
+                self.set_authoring_tool(AUTHORING_TOOL_CA)?;
+            }
+
+            header.encode_string_u8_0padded(&(self.authoring_tool.to_owned(), 8))?;
             header.extend_from_slice(&self.extra_subheader_data);
         }
 

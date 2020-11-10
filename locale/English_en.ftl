@@ -650,3 +650,6 @@ pfs_diagnostics_files_to_ignore_description_label = <p>------------</p><p>The Pa
 instructions_ca_vp8 = It's simple, the video can have 2 formats: CAMV (used by the game) and IVF (reproducible on a media player with VP8 codecs).
   To export a video, convert it to IVF and extract it.
   To make it load in-game, convert it to CAMV and save the PackFile.
+
+settings_debug_spoof_ca_authoring_tool = Spoof CA's Authoring Tool
+tt_settings_debug_spoof_ca_authoring_tool = Checking this will make all PFH6 PackFiles saved with RPFM to be marked as "Saved with CA-TOOL". For testing purpouses only.

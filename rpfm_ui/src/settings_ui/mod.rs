@@ -143,6 +143,8 @@ pub struct SettingsUI {
     pub debug_check_for_missing_table_definitions_checkbox: QBox<QCheckBox>,
     pub debug_enable_debug_menu_label: QBox<QLabel>,
     pub debug_enable_debug_menu_checkbox: QBox<QCheckBox>,
+    pub debug_spoof_ca_authoring_tool_label: QBox<QLabel>,
+    pub debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
 
     //-------------------------------------------------------------------------------//
     // `Warning` section of the `Settings` dialog.
@@ -451,15 +453,20 @@ impl SettingsUI {
 
         let debug_check_for_missing_table_definitions_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_missing_table"), &debug_frame);
         let debug_enable_debug_menu_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_enable_debug_menu"), &debug_frame);
+        let debug_spoof_ca_authoring_tool_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_spoof_ca_authoring_tool"), &debug_frame);
 
         let debug_check_for_missing_table_definitions_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_enable_debug_menu_checkbox = QCheckBox::from_q_widget(&debug_frame);
+        let debug_spoof_ca_authoring_tool_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_label, 0, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_checkbox, 0, 1, 1, 1);
 
         debug_grid.add_widget_5a(&debug_enable_debug_menu_label, 1, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_enable_debug_menu_checkbox, 1, 1, 1, 1);
+
+        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_label, 2, 0, 1, 1);
+        debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_checkbox, 2, 1, 1, 1);
 
         main_grid.add_widget_5a(&debug_frame, 3, 1, 1, 1);
 
@@ -575,6 +582,8 @@ impl SettingsUI {
             debug_check_for_missing_table_definitions_checkbox,
             debug_enable_debug_menu_label,
             debug_enable_debug_menu_checkbox,
+            debug_spoof_ca_authoring_tool_label,
+            debug_spoof_ca_authoring_tool_checkbox,
 
             //-------------------------------------------------------------------------------//
             // `Warning` section of the `Settings` dialog.
@@ -660,6 +669,7 @@ impl SettingsUI {
         // Load the Debug Stuff.
         self.debug_check_for_missing_table_definitions_checkbox.set_checked(settings.settings_bool["check_for_missing_table_definitions"]);
         self.debug_enable_debug_menu_checkbox.set_checked(settings.settings_bool["enable_debug_menu"]);
+        self.debug_spoof_ca_authoring_tool_checkbox.set_checked(settings.settings_bool["spoof_ca_authoring_tool"]);
 
         // Hidden stuff.
         *self.recent_files.write().unwrap() = settings.get_recent_files();
@@ -732,6 +742,7 @@ impl SettingsUI {
         // Get the Debug Settings.
         settings.settings_bool.insert("check_for_missing_table_definitions".to_owned(), self.debug_check_for_missing_table_definitions_checkbox.is_checked());
         settings.settings_bool.insert("enable_debug_menu".to_owned(), self.debug_enable_debug_menu_checkbox.is_checked());
+        settings.settings_bool.insert("spoof_ca_authoring_tool".to_owned(), self.debug_spoof_ca_authoring_tool_checkbox.is_checked());
 
         // Return the new Settings.
         settings.set_recent_files(&self.recent_files.read().unwrap());

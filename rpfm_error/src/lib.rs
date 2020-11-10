@@ -601,6 +601,9 @@ pub enum ErrorKind {
 
     /// Error for when we have no install type for a game selected.
     NoInstallTypeForGame,
+
+    /// Generic error for when we want to say that a string is too long for the text we want.
+    StringTooLong(u32),
 }
 
 /// Implementation of `Error`.
@@ -910,6 +913,7 @@ impl Display for ErrorKind {
             ErrorKind::CannotAddFromOpenPackFile => write!(f, "<p>You cannot add PackedFile to the same PackFile you're adding from. It's like putting a bag of holding into a bag of holding.</p>"),
             ErrorKind::PackFileSettingsDecode(cause) => write!(f, "<p>Error while trying to decode the PackFile-Specific Settings:</p><p>{}</p>", cause),
             ErrorKind::NoInstallTypeForGame => write!(f, "<p>The currently selected game doesn't have an Install Type. If this pops up and the Game is not Arena, please report it.</p>"),
+            ErrorKind::StringTooLong(size) => write!(f, "<p>The string is too long. The MAX limit is {}.</p>", size),
         }
     }
 }
