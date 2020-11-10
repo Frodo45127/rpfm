@@ -14,7 +14,7 @@ Module with all the code related to the `GlobalSearchSlots`.
 This module contains all the code needed to initialize the Global Search Panel.
 !*/
 
-use qt_widgets::q_abstract_item_view::ScrollMode;
+use qt_widgets::q_abstract_item_view::{ScrollHint, ScrollMode};
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDockWidget;
@@ -33,7 +33,9 @@ use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
 use qt_core::QPtr;
+use qt_core::QFlags;
 use qt_core::QModelIndex;
+use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::{CaseSensitivity, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QRegExp;
 use qt_core::QSortFilterProxyModel;
@@ -54,6 +56,7 @@ use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
 use crate::locale::qtr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreeViewOperation};
+use crate::packedfile_views::{View, ViewType};
 use crate::QString;
 use crate::utils::{create_grid_layout, show_dialog};
 use crate::UI_STATE;
@@ -664,7 +667,37 @@ impl GlobalSearchUI {
         };
 
         pack_file_contents_ui.packfile_contents_tree_view.expand_treeview_to_item(&path);
-        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path), false, false);
+        AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
+
+        // If it's a table, focus on the matched cell.
+        if is_match {
+            if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                match packed_file_view.get_view() {
+
+                    // In case of tables, we have to get the logical row/column of the match and select it.
+                    ViewType::Internal(view) => if let View::Table(view) = view {
+                        let parent = gidhora.parent();
+                        let table_view = view.get_ref_table();
+                        let table_view = table_view.get_mut_ptr_table_view_primary();
+                        let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                        let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                        let table_selection_model = table_view.selection_model();
+
+                        let row = parent.child_2a(model_index.row(), 1).text().to_std_string().parse::<i32>().unwrap() - 1;
+                        let column = parent.child_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap();
+
+                        let table_model_index = table_model.index_2a(row, column);
+                        let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                        if table_model_index_filtered.is_valid() {
+                            table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                            table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                        }
+                    },
+
+                    _ => {},
+                }
+            }
+        }
     }
 
     /// This function takes care of loading the results of a global search of `TableMatches` into a model.

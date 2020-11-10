@@ -12,7 +12,7 @@
 Module with all the code related to the `DiagnosticsUI`.
 !*/
 
-use qt_widgets::q_abstract_item_view::SelectionMode;
+use qt_widgets::q_abstract_item_view::{ScrollHint, SelectionMode};
 use qt_widgets::QCheckBox;
 use qt_widgets::QDockWidget;
 use qt_widgets::QGroupBox;
@@ -34,6 +34,7 @@ use qt_gui::q_palette::ColorRole;
 use qt_core::{AlignmentFlag, CaseSensitivity, ContextMenuPolicy, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QBox;
 use qt_core::QFlags;
+use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QModelIndex;
 use qt_core::QSortFilterProxyModel;
 use qt_core::QString;
@@ -576,7 +577,41 @@ impl DiagnosticsUI {
         }
 
         else {
-            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path), false, false);
+            AppUI::open_packedfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, Some(path.to_vec()), false, false);
+        }
+
+        // If it's a table, focus on the matched cell.
+        match &*model.item_2a(model_index.row(), 1).text().to_std_string() {
+            "DB" | "Loc" | "DependencyManager" => {
+
+                if let Some(packed_file_view) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == path) {
+                    match packed_file_view.get_view() {
+
+                        // In case of tables, we have to get the logical row/column of the match and select it.
+                        ViewType::Internal(view) => if let View::Table(view) = view {
+                            let table_view = view.get_ref_table();
+                            let table_view = table_view.get_mut_ptr_table_view_primary();
+                            let table_filter: QPtr<QSortFilterProxyModel> = table_view.model().static_downcast();
+                            let table_model: QPtr<QStandardItemModel> = table_filter.source_model().static_downcast();
+                            let table_selection_model = table_view.selection_model();
+
+                            let row = model.item_2a(model_index.row(), 3).text().to_std_string().parse::<i32>().unwrap() - 1;
+                            let column = model.item_2a(model_index.row(), 2).text().to_std_string().parse::<i32>().unwrap();
+
+                            let table_model_index = table_model.index_2a(row, column);
+                            let table_model_index_filtered = table_filter.map_from_source(&table_model_index);
+                            if table_model_index_filtered.is_valid() {
+                                table_view.scroll_to_2a(table_model_index_filtered.as_ref(), ScrollHint::EnsureVisible);
+                                table_selection_model.select_q_model_index_q_flags_selection_flag(table_model_index_filtered.as_ref(), QFlags::from(SelectionFlag::ClearAndSelect));
+                            }
+                        },
+
+                        _ => {},
+                    }
+                }
+            }
+
+            _ => {}
         }
     }
 
