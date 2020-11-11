@@ -1230,7 +1230,9 @@ impl AppUISlots {
                                     );
 
                                     if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
-                                        table.start_diagnostic_check();
+                                        for diagnostic in UI_STATE.get_diagnostics().get_ref_diagnostics() {
+                                            DiagnosticsUI::paint_diagnostics_to_table(&app_ui, diagnostic);
+                                        }
                                     }
                                 }
                             }

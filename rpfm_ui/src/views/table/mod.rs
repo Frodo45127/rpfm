@@ -12,7 +12,6 @@
 Module with all the code for managing the view for Tables.
 !*/
 
-use crate::utils::ptr_from_atomic;
 use qt_widgets::QCheckBox;
 use qt_widgets::QAction;
 use qt_widgets::QComboBox;
@@ -74,6 +73,8 @@ use crate::packedfile_views::{View, ViewType};
 use crate::utils::atomic_from_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::show_dialog;
+use crate::utils::ptr_from_atomic;
+use crate::UI_STATE;
 
 use self::slots::*;
 use self::utils::*;
@@ -574,7 +575,11 @@ impl TableView {
         );
 
         // Prepare the diagnostic pass.
-        packed_file_table_view.start_diagnostic_check();
+        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
+            for diagnostic in UI_STATE.get_diagnostics().get_ref_diagnostics() {
+                DiagnosticsUI::paint_diagnostics_to_table(&app_ui, diagnostic);
+            }
+        }
 
         // Initialize the undo model.
         update_undo_model(&packed_file_table_view.get_mut_ptr_table_model(), &packed_file_table_view.get_mut_ptr_undo_model());
