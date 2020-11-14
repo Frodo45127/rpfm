@@ -733,7 +733,7 @@ impl Display for ErrorKind {
             ErrorKind::SchemaVersionedFileNotFound => write!(f, "<p>There is no Definition of the table in the Schema.</p>"),
             ErrorKind::SchemaDefinitionNotFound => write!(f, "<p>There is no Definition for this specific version of the table in the Schema.</p>"),
             ErrorKind::NoSchemaUpdatesAvailable => write!(f, "<p>No schema updates available</p>"),
-            ErrorKind::SchemaUpdateError => write!(f, "<p>There was an error while downloading the schemas. Please, try again later.</p>"),
+            ErrorKind::SchemaUpdateError => write!(f, "<p>There was an error while downloading the schemas. Please, try again later.</p><p>If the problem persists (like that time I force-pushed to the repo breaking the updater, good old times) go to <b><i>Game Selected/Open RPFM's Config Folder</i></b>, delete the schemas folder and try again.</p>"),
 
             //-----------------------------------------------------//
             //                PackedFile Errors

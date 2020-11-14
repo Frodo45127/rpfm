@@ -1056,9 +1056,9 @@ impl AppUI {
                 }
             }
 
-            Response::Error(_) => {
+            Response::Error(error) => {
                 if !use_dialog { return; }
-                qtr("api_response_error")
+                qtre("api_response_error", &[&error.to_string()])
             }
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
         };
@@ -1131,9 +1131,9 @@ impl AppUI {
                 }
             }
 
-            Response::Error(_) => {
+            Response::Error(error) => {
                 if !use_dialog { return; }
-                qtr("api_response_error")
+                qtre("api_response_error", &[&error.to_string()])
             }
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
         };
@@ -1207,9 +1207,9 @@ impl AppUI {
                 }
             }
 
-            Response::Error(_) => {
+            Response::Error(error) => {
                 if !use_dialog { return; }
-                qtr("api_response_error")
+                qtre("api_response_error", &[&error.to_string()])
             }
             _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response_thread),
         };

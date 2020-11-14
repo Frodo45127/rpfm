@@ -611,6 +611,7 @@ impl Schema {
             Ok(APIResponseSchema::NewUpdate)
         }
 
+        // Otherwise, it means the branches diverged. This may be due to local changes or due to me diverging the master branch with a force push.
         else {
             Err(ErrorKind::SchemaUpdateError.into())
         }
