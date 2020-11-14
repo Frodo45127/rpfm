@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2020-11-14
+### Added
+- Implemented debug setting for changing the Authoring tool in PFH6 PackFiles to CA's.
+
+### Changed
+- Increased size of `New PackedFile/Folder` dialogs so the title is not cut.
+
+### Fixed
+- Fixed a CTD when trying to open a Dependency PackFile diagnostic.
+- Fixed table views not scrolling to matches when trying to open a match from the Global Search/Diagnostics table.
+- Fixed some overly-aggressive global search/diagnostics checks.
+- Fixed `New PackedFile` dialog having overlayed items.
+
 ## [2.3.2] - 2020-11-06
 ### Changed
 - Rewritten the "Open match" logic of Global Search and Diagnostics to not require the item to open being visible in the PackFile TreeView.
