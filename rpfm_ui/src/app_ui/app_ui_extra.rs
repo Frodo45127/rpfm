@@ -1966,6 +1966,7 @@ impl AppUI {
         let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("new_folder"));
         dialog.set_modal(true);
+        dialog.resize_2a(600, 20);
 
         let main_grid = create_grid_layout(dialog.static_upcast());
 
@@ -1995,6 +1996,7 @@ impl AppUI {
             _ => unimplemented!(),
         }
         dialog.set_modal(true);
+        dialog.resize_2a(600, 20);
 
         // Create the main Grid and his widgets.
         let main_grid = create_grid_layout(dialog.static_upcast());
@@ -2011,7 +2013,7 @@ impl AppUI {
 
         // Add all the widgets to the main grid, except those specific for a PackedFileType.
         main_grid.add_widget_5a(&name_line_edit, 0, 0, 1, 1);
-        main_grid.add_widget_5a(& create_button, 0, 1, 1, 1);
+        main_grid.add_widget_5a(&create_button, 0, 1, 1, 1);
 
         // If it's a DB Table, add its widgets, and populate the table list.
         if let PackedFileType::DB = packed_file_type {
@@ -2034,6 +2036,12 @@ impl AppUI {
                 }
                 None => return Some(Err(ErrorKind::SchemaNotFound.into())),
             }
+        }
+
+        // Remember to hide the unused stuff. Otherwise, it'll be shown out of place due to parenting.
+        else {
+            table_dropdown.set_visible(false);
+            table_filter_line_edit.set_visible(false);
         }
 
         // What happens when we search in the filter.
