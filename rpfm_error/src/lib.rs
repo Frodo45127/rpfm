@@ -18,7 +18,7 @@ If you need a custom `From` implementation for any error of any lib, add it here
 !*/
 
 use fluent::{FluentError, FluentResource};
-use fluent_syntax::parser::errors::ParserError;
+use fluent_syntax::parser::ParserError;
 use log::SetLoggerError;
 use serde_json::error::Category;
 

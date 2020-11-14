@@ -14,7 +14,7 @@ This module defines the code used for thread communication.
 
 use qt_core::QEventLoop;
 
-use crossbeam::{Receiver, Sender, unbounded};
+use crossbeam::channel::{Receiver, Sender, unbounded};
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
