@@ -478,9 +478,17 @@ impl GlobalSearch {
                 }
             }
             MatchingMode::Pattern => {
+                let mut index = 0;
                 while let Some(start) = text.find(&self.pattern) {
-                    let end = start + self.pattern.len();
-                    text.replace_range(start..end, &self.replace_text);
+
+                    // Advance the index so we don't get trapped in an infinite loop... again.
+                    if start >= index {
+                        let end = start + self.pattern.len();
+                        text.replace_range(start..end, &self.replace_text);
+                        index = end;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
