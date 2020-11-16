@@ -26,12 +26,13 @@ use rpfm_error::{ErrorKind, Result};
 
 use crate::common::*;
 use crate::dependencies::Dependencies;
-use crate::packfile::{PackFile, packedfile::PackedFile};
-use crate::packedfile::DecodedPackedFile;
+use crate::packfile::{PathType, PackFile, packedfile::PackedFile};
+use crate::packedfile::{DecodedPackedFile, PackedFileType};
 use crate::packedfile::table::db::DB;
 use crate::packedfile::table::loc::Loc;
 use crate::packedfile::table::Table;
 use crate::packedfile::table::DecodedData;
+use crate::packedfile::text::TextType;
 use crate::SCHEMA;
 use crate::schema::{APIResponseSchema, FieldType};
 
@@ -55,9 +56,12 @@ pub struct Template {
     /// It stores the structural version of the Table.
     version: u16,
     pub author: String,
+    name: String,
     pub description: String,
 
     /// List of params this template requires the user to fill.
+    ///
+    /// This means: (Display Name, Key)
     pub params: Vec<(String, String)>,
 
     /// The list of tables that should be created using this template.
@@ -70,6 +74,8 @@ pub struct Template {
 struct TemplateDB {
     pub name: String,
     pub table: String,
+
+    /// This means: Rows(Values in Row(Field Name, Value)).
     pub default_data: Vec<Vec<(String, String)>>,
 }
 
@@ -77,12 +83,14 @@ struct TemplateDB {
 #[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 struct TemplateLoc {
     pub name: String,
+
+    /// This means: Rows(Values in Row(Field Name, Value)).
     pub default_data: Vec<Vec<(String, String)>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 struct Asset {
-    pub file_name: String,
+    pub file_path: String,
     pub packed_file_path: String,
 }
 
@@ -94,7 +102,7 @@ struct Asset {
 impl Template {
 
     /// This function applyes a `Template` into the currently open PackFile, if there is one open.
-    pub fn apply_template(&mut self, params: &[String], pack_file: &mut PackFile, dependencies: &Dependencies) -> Result<Vec<Vec<String>>> {
+    pub fn apply_template(&mut self, params: &[String], pack_file: &mut PackFile, dependencies: &Dependencies, is_custom: bool) -> Result<Vec<Vec<String>>> {
 
         // If there is no PackFile open, stop.
         if pack_file.get_file_name().is_empty() {
@@ -241,9 +249,11 @@ impl Template {
                 }
 
                 // And finally, the custom assets.
-                let assets_folder = get_template_assets_path()?;
+                let assets_folder = if is_custom { get_template_assets_path()?.join(&self.name) }
+                else { get_template_assets_path()?.join(&self.name) };
+
                 for asset in &self.assets {
-                    let path = assets_folder.join(&asset.file_name);
+                    let path = assets_folder.join(&asset.file_path);
                     let packed_file_path = asset.packed_file_path.split('/').map(|x| x.to_owned()).collect::<Vec<String>>();
                     let packed_file = PackedFile::new_from_file(&path, &packed_file_path)?;
 
@@ -259,28 +269,83 @@ impl Template {
         }
     }
 
+    /// Function to generate a Template from the currently open PackedFile.
+    pub fn save_from_packfile(pack_file: &mut PackFile, template_name: &str, template_author: &str, template_description: &str, params: &[(String, String)]) -> Result<()> {
+
+        // If we have no PackedFiles, return an error.
+        if pack_file.get_packedfiles_list().is_empty() {
+            return Err(ErrorKind::Generic.into());
+        }
+
+        // DB Importing.
+        let tables = pack_file.get_packed_files_by_type(PackedFileType::DB, false);
+        let dbs = tables.iter().map(|table| TemplateDB::new_from_packedfile(&table).unwrap()).collect::<Vec<TemplateDB>>();
+
+        // Loc Importing.
+        let tables = pack_file.get_packed_files_by_type(PackedFileType::Loc, false);
+        let locs = tables.iter().map(|table| TemplateLoc::new_from_packedfile(&table).unwrap()).collect::<Vec<TemplateLoc>>();
+
+        // Raw Assets Importing.
+        let raw_types = vec![
+            PackedFileType::Anim,
+            PackedFileType::AnimFragment,
+            PackedFileType::AnimPack,
+            PackedFileType::AnimTable,
+            PackedFileType::CaVp8,
+            PackedFileType::CEO,
+            PackedFileType::DependencyPackFilesList,
+            PackedFileType::Image,
+            PackedFileType::GroupFormations,
+            PackedFileType::MatchedCombat,
+            PackedFileType::RigidModel,
+            PackedFileType::StarPos,
+            PackedFileType::PackFileSettings,
+            PackedFileType::Unknown,
+            PackedFileType::Text(TextType::Plain)
+        ];
+
+        let assets_path = get_custom_template_assets_path()?.join(template_name);
+        DirBuilder::new().recursive(true).create(&assets_path)?;
+
+        let assets = pack_file.get_ref_packed_files_by_types(&raw_types, false);
+        let assets_path_types = assets.iter().map(|x| PathType::File(x.get_path().to_vec())).collect::<Vec<PathType>>();
+
+        pack_file.extract_packed_files_by_type(&assets_path_types, &assets_path)?;
+
+        let mut template = Self {
+            version: 0,
+            author: template_author.to_owned(),
+            name: template_name.to_owned(),
+            description: template_description.to_owned(),
+
+            params: params.to_vec(),
+
+            dbs,
+            locs,
+            assets: vec![],
+        };
+
+        template.save(template_name)
+    }
+
     /// This function loads a `Template` to memory.
-    pub fn load(template: &str) -> Result<Self> {
-        let mut file_path = get_custom_template_definitions_path()?;
-        file_path.push(template);
+    pub fn load(template: &str, is_custom: bool) -> Result<Self> {
+        let mut file_path_official = get_template_definitions_path()?;
+        let mut file_path_custom = get_custom_template_definitions_path()?;
+        file_path_official.push(template);
+        file_path_custom.push(template);
 
-        if file_path.exists() {
-            let file = BufReader::new(File::open(&file_path)?);
-            from_reader(file).map_err(From::from)
-        }
+        let file = if is_custom { BufReader::new(File::open(&file_path_custom)?) }
+        else { BufReader::new(File::open(&file_path_official)?) };
 
-        else {
-            let mut file_path = get_template_definitions_path()?;
-            file_path.push(template);
-
-            let file = BufReader::new(File::open(&file_path)?);
-            from_reader(file).map_err(From::from)
-        }
+        let mut template_loaded: Self = from_reader(file)?;
+        template_loaded.name = template.to_owned();
+        Ok(template_loaded)
     }
 
     /// This function saves a `Template` from memory to a file in the `template/` folder.
     pub fn save(&mut self, template: &str) -> Result<()> {
-        let mut file_path = get_template_definitions_path()?;
+        let mut file_path = get_custom_template_definitions_path()?;
 
         // Make sure the path exists to avoid problems with updating templates.
         DirBuilder::new().recursive(true).create(&file_path)?;
@@ -355,5 +420,57 @@ impl Template {
         else {
             Err(ErrorKind::TemplateUpdateError.into())
         }
+    }
+}
+
+impl TemplateDB {
+    pub fn new_from_packedfile(packed_file: &PackedFile) -> Result<Self> {
+        let mut template = Self::default();
+        template.name = packed_file.get_path().last().unwrap().to_owned();
+        template.table = match packed_file.get_path().get(1) {
+            Some(table) => table.to_owned(),
+            None => return Err(ErrorKind::Generic.into()),
+        };
+
+        match packed_file.get_decoded_from_memory()? {
+            DecodedPackedFile::DB(table) => {
+                let definition = table.get_ref_definition();
+                for row in table.get_ref_table_data() {
+                    let mut row_data = vec![];
+                    for (column, field) in row.iter().enumerate() {
+                        row_data.push((definition.get_fields_processed().get(column).unwrap().get_name().to_owned(), field.data_to_string()))
+                    }
+                    template.default_data.push(row_data);
+                }
+            },
+
+            _ => return Err(ErrorKind::Generic.into()),
+        }
+
+        Ok(template)
+    }
+}
+
+impl TemplateLoc {
+    pub fn new_from_packedfile(packed_file: &PackedFile) -> Result<Self> {
+        let mut template = Self::default();
+        template.name = packed_file.get_path().last().unwrap().to_owned();
+
+        match packed_file.get_decoded_from_memory()? {
+            DecodedPackedFile::Loc(table) => {
+                let definition = table.get_ref_definition();
+                for row in table.get_ref_table_data() {
+                    let mut row_data = vec![];
+                    for (column, field) in row.iter().enumerate() {
+                        row_data.push((definition.get_fields_processed().get(column).unwrap().get_name().to_owned(), field.data_to_string()))
+                    }
+                    template.default_data.push(row_data);
+                }
+            },
+
+            _ => return Err(ErrorKind::Generic.into()),
+        }
+
+        Ok(template)
     }
 }

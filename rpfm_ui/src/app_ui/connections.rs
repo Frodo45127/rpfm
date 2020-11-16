@@ -115,6 +115,15 @@ pub unsafe fn set_connections(app_ui: &Rc<AppUI>, slots: &AppUISlots) {
     app_ui.special_stuff_sho2_generate_pak_file.triggered().connect(&slots.special_stuff_generate_pak_file);
 
     //-----------------------------------------------//
+    // `Templates` menu connections.
+    //-----------------------------------------------//
+    app_ui.menu_bar_templates.about_to_show().connect(&slots.packfile_open_menu);
+
+    app_ui.templates_open_custom_templates_folder.triggered().connect(&slots.templates_open_custom_templates_folder);
+    app_ui.templates_open_official_templates_folder.triggered().connect(&slots.templates_open_official_templates_folder);
+    app_ui.templates_save_packfile_to_template.triggered().connect(&slots.templates_save_packfile_to_template);
+
+    //-----------------------------------------------//
     // `About` menu connections.
     //-----------------------------------------------//
     app_ui.about_about_qt.triggered().connect(&slots.about_about_qt);

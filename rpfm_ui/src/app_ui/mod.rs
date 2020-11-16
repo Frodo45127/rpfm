@@ -90,6 +90,7 @@ pub struct AppUI {
     pub menu_bar_view: QPtr<QMenu>,
     pub menu_bar_game_selected: QPtr<QMenu>,
     pub menu_bar_special_stuff: QPtr<QMenu>,
+    pub menu_bar_templates: QPtr<QMenu>,
     pub menu_bar_about: QPtr<QMenu>,
     pub menu_bar_debug: QPtr<QMenu>,
 
@@ -106,7 +107,6 @@ pub struct AppUI {
     pub packfile_open_from_autosave: QBox<QMenu>,
     pub packfile_change_packfile_type: QBox<QMenu>,
     pub packfile_load_all_ca_packfiles: QPtr<QAction>,
-    pub packfile_load_template: QBox<QMenu>,
     pub packfile_preferences: QPtr<QAction>,
     pub packfile_quit: QPtr<QAction>,
 
@@ -226,6 +226,15 @@ pub struct AppUI {
     pub special_stuff_emp_optimize_packfile: QPtr<QAction>,
 
     //-------------------------------------------------------------------------------//
+    // `Templates` menu.
+    //-------------------------------------------------------------------------------//
+    pub templates_open_custom_templates_folder: QPtr<QAction>,
+    pub templates_open_official_templates_folder: QPtr<QAction>,
+    pub templates_save_packfile_to_template: QPtr<QAction>,
+    pub templates_load_custom_template_to_packfile: QPtr<QMenu>,
+    pub templates_load_official_template_to_packfile: QPtr<QMenu>,
+
+    //-------------------------------------------------------------------------------//
     // `About` menu.
     //-------------------------------------------------------------------------------//
     pub about_about_qt: QPtr<QAction>,
@@ -306,6 +315,7 @@ impl AppUI {
         let menu_bar_view = menu_bar.add_menu_q_string(&qtr("menu_bar_view"));
         let menu_bar_game_selected = menu_bar.add_menu_q_string(&qtr("menu_bar_game_selected"));
         let menu_bar_special_stuff = menu_bar.add_menu_q_string(&qtr("menu_bar_special_stuff"));
+        let menu_bar_templates = menu_bar.add_menu_q_string(&qtr("menu_bar_templates"));
         let menu_bar_about = menu_bar.add_menu_q_string(&qtr("menu_bar_about"));
 
         // This menu is hidden unless you enable it.
@@ -329,7 +339,6 @@ impl AppUI {
         let packfile_open_from_autosave = QMenu::from_q_string_q_widget(&qtr("open_from_autosave"), &menu_bar_packfile);
         let packfile_change_packfile_type = QMenu::from_q_string_q_widget(&qtr("change_packfile_type"), &menu_bar_packfile);
         let packfile_load_all_ca_packfiles = menu_bar_packfile.add_action_q_string(&qtr("load_all_ca_packfiles"));
-        let packfile_load_template = QMenu::from_q_string_q_widget(&qtr("load_template"), &menu_bar_packfile);
         let packfile_preferences = menu_bar_packfile.add_action_q_string(&qtr("preferences"));
         let packfile_quit = menu_bar_packfile.add_action_q_string(&qtr("quit"));
 
@@ -342,7 +351,6 @@ impl AppUI {
         menu_bar_packfile.insert_separator(packfile_open_recent.menu_action());
         menu_bar_packfile.insert_separator(&packfile_preferences);
         menu_bar_packfile.insert_menu(&packfile_preferences, &packfile_change_packfile_type);
-        menu_bar_packfile.insert_menu(&packfile_preferences, &packfile_load_template);
         menu_bar_packfile.insert_separator(&packfile_preferences);
 
         // `Change PackFile Type` submenu.
@@ -555,6 +563,22 @@ impl AppUI {
         let special_stuff_emp_optimize_packfile = menu_empire.add_action_q_string(&qtr("special_stuff_optimize_packfile"));
 
         //-----------------------------------------------//
+        // `Templates` Menu.
+        //-----------------------------------------------//
+
+        // Populate the `Game Selected` menu.
+        let templates_open_custom_templates_folder = menu_bar_templates.add_action_q_string(&qtr("templates_open_custom_templates_folder"));
+        let templates_open_official_templates_folder = menu_bar_templates.add_action_q_string(&qtr("templates_open_official_templates_folder"));
+        let templates_save_packfile_to_template = menu_bar_templates.add_action_q_string(&qtr("templates_save_packfile_to_template"));
+        let templates_load_custom_template_to_packfile = menu_bar_templates.add_menu_q_string(&qtr("templates_load_custom_template_to_packfile"));
+        let templates_load_official_template_to_packfile = menu_bar_templates.add_menu_q_string(&qtr("templates_load_official_template_to_packfile"));
+
+        menu_bar_templates.insert_separator(&templates_save_packfile_to_template);
+
+        // Disable all the Contextual Menu actions by default.
+        templates_save_packfile_to_template.set_enabled(false);
+
+        //-----------------------------------------------//
         // `About` Menu.
         //-----------------------------------------------//
 
@@ -599,6 +623,7 @@ impl AppUI {
             menu_bar_view,
             menu_bar_game_selected,
             menu_bar_special_stuff,
+            menu_bar_templates,
             menu_bar_about,
             menu_bar_debug,
 
@@ -617,7 +642,6 @@ impl AppUI {
             packfile_open_from_autosave,
             packfile_change_packfile_type,
             packfile_load_all_ca_packfiles,
-            packfile_load_template,
             packfile_preferences,
             packfile_quit,
 
@@ -735,6 +759,15 @@ impl AppUI {
 
             // Empire's actions.
             special_stuff_emp_optimize_packfile,
+
+            //-------------------------------------------------------------------------------//
+            // "Templates" menu.
+            //-------------------------------------------------------------------------------//
+            templates_open_custom_templates_folder,
+            templates_open_official_templates_folder,
+            templates_save_packfile_to_template,
+            templates_load_custom_template_to_packfile,
+            templates_load_official_template_to_packfile,
 
             //-------------------------------------------------------------------------------//
             // "About" menu.

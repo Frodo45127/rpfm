@@ -280,7 +280,16 @@ pub enum Command {
     GenerateDummyAnimPack,
 
     /// This command is used to load a template into the currently open PackFile.
-    ApplyTemplate(Template, Vec<String>),
+    ApplyTemplate(Template, Vec<String>, bool),
+
+    /// This command is used to save a PackFile into a template.
+    ///
+    /// The data it contains is:
+    /// - Name of the template.
+    /// - Description.
+    /// - Author.
+    /// - Params (Visual description, key).
+    SaveTemplate(String, String, String, Vec<(String, String)>),
 
     /// This command is used to update the templates.
     UpdateTemplates,

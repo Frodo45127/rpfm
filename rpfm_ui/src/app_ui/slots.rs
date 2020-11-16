@@ -119,6 +119,13 @@ pub struct AppUISlots {
     pub special_stuff_patch_siege_ai: QBox<SlotOfBool>,
 
     //-----------------------------------------------//
+    // `Templates` menu slots.
+    //-----------------------------------------------//
+    pub templates_open_custom_templates_folder: QBox<SlotNoArgs>,
+    pub templates_open_official_templates_folder: QBox<SlotNoArgs>,
+    pub templates_save_packfile_to_template: QBox<SlotNoArgs>,
+
+    //-----------------------------------------------//
     // `About` menu slots.
     //-----------------------------------------------//
     pub about_about_qt: QBox<SlotOfBool>,
@@ -1069,6 +1076,42 @@ impl AppUISlots {
             }
         ));
 
+        //-----------------------------------------------//
+        // `Templates` menu logic.
+        //-----------------------------------------------//
+
+        let templates_open_custom_templates_folder = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                match get_custom_template_definitions_path() {
+                    Ok(path) => if open::that(&path).is_err() {
+                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    },
+                    Err(error) => show_dialog(&app_ui.main_window, error, false),
+                }
+            }
+        ));
+
+        let templates_open_official_templates_folder = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui => move || {
+                match get_template_definitions_path() {
+                    Ok(path) => if open::that(&path).is_err() {
+                        show_dialog(&app_ui.main_window, ErrorKind::IOFolderCannotBeOpened, false);
+                    },
+                    Err(error) => show_dialog(&app_ui.main_window, error, false),
+                }
+            }
+        ));
+
+        let templates_save_packfile_to_template = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            global_search_ui,
+            diagnostics_ui => move || {
+                if let Err(error) = AppUI::save_to_template(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui) {
+                    show_dialog(&app_ui.main_window, error, false);
+                }
+            }
+        ));
 		//-----------------------------------------------//
         // `About` menu logic.
         //-----------------------------------------------//
@@ -1371,6 +1414,13 @@ impl AppUISlots {
             special_stuff_generate_pak_file,
             special_stuff_optimize_packfile,
             special_stuff_patch_siege_ai,
+
+            //-----------------------------------------------//
+            // `Templates` menu slots.
+            //-----------------------------------------------//
+            templates_open_custom_templates_folder,
+            templates_open_official_templates_folder,
+            templates_save_packfile_to_template,
 
     		//-----------------------------------------------//
 	        // `About` menu slots.

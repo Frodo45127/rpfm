@@ -241,15 +241,15 @@ pub fn get_game_selected_pak_file() -> Result<PathBuf> {
     else { Err(ErrorKind::PAKFileNotSupportedForThisGame.into()) }
 }
 
-/// This function gets the `/templates/definitions` path of the game selected, if they exists.
+/// This function gets the `/templates/definitions` path of the game selected, if they exists, and if it's custom or not.
 #[allow(dead_code)]
-pub fn get_game_selected_template_definitions_paths() -> Option<Vec<PathBuf>> {
+pub fn get_game_selected_template_definitions_paths() -> Option<Vec<(bool, PathBuf)>> {
     let definitions_path = get_template_definitions_path().ok()?;
 
     let mut paths = vec![];
     for path in get_files_from_subdir(&definitions_path).ok()?.iter() {
         match path.extension() {
-            Some(extension) => if extension == "json" { paths.push(path.to_path_buf()); }
+            Some(extension) => if extension == "json" { paths.push((false, path.to_path_buf())); }
             None => continue,
         }
     }
@@ -258,7 +258,7 @@ pub fn get_game_selected_template_definitions_paths() -> Option<Vec<PathBuf>> {
         if let Ok(json_paths) = get_files_from_subdir(&definitions_path) {
             for path in &json_paths {
                 match path.extension() {
-                    Some(extension) => if extension == "json" { paths.push(path.to_path_buf()); }
+                    Some(extension) => if extension == "json" { paths.push((true, path.to_path_buf())); }
                     None => continue,
                 }
             }

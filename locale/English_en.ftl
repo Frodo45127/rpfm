@@ -24,6 +24,7 @@ menu_bar_view = &View
 menu_bar_mymod = &MyMod
 menu_bar_game_selected = &Game Selected
 menu_bar_special_stuff = &Special Stuff
+menu_bar_templates = Templates
 menu_bar_about = &About
 menu_bar_debug = &Debug
 
@@ -87,6 +88,13 @@ special_stuff_generate_pak_file = &Generate PAK File
 special_stuff_patch_siege_ai = &Patch Siege AI
 special_stuff_select_ak_folder = Select Assembly Kit's Folder
 special_stuff_select_raw_db_folder = Select Raw DB Folder
+
+## Templates Menu
+templates_open_custom_templates_folder = Open Custom Template Folder
+templates_open_official_templates_folder = Open Official Template Folder
+templates_save_packfile_to_template = Save PackFile to Template
+templates_load_custom_template_to_packfile = Load Custom Templates to PackFile
+templates_load_official_template_to_packfile = Load Official Templates to PackFile
 
 ## About Menu
 
@@ -653,3 +661,8 @@ instructions_ca_vp8 = It's simple, the video can have 2 formats: CAMV (used by t
 
 settings_debug_spoof_ca_authoring_tool = Spoof CA's Authoring Tool
 tt_settings_debug_spoof_ca_authoring_tool = Checking this will make all PFH6 PackFiles saved with RPFM to be marked as "Saved with CA-TOOL". For testing purpouses only.
+
+template_name = Name of the Template:
+template_description = Description:
+template_author = Author:
+save_template = Save PackFile to Template

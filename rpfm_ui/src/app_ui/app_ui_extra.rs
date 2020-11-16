@@ -555,6 +555,10 @@ impl AppUI {
         app_ui.change_packfile_type_group.set_enabled(enable);
         app_ui.change_packfile_type_index_includes_timestamp.set_enabled(enable);
 
+        app_ui.templates_save_packfile_to_template.set_enabled(enable);
+        app_ui.templates_load_custom_template_to_packfile.set_enabled(enable);
+        app_ui.templates_load_official_template_to_packfile.set_enabled(enable);
+
         // If we are enabling...
         if enable {
 
@@ -691,7 +695,8 @@ impl AppUI {
         app_ui.packfile_open_from_content.clear();
         app_ui.packfile_open_from_data.clear();
         app_ui.packfile_open_from_autosave.clear();
-        app_ui.packfile_load_template.clear();
+        app_ui.templates_load_custom_template_to_packfile.clear();
+        app_ui.templates_load_official_template_to_packfile.clear();
 
         //---------------------------------------------------------------------------------------//
         // Build the menus...
@@ -720,8 +725,10 @@ impl AppUI {
 
                         // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
                         app_ui.menu_bar_packfile.set_enabled(false);
+                        app_ui.menu_bar_templates.set_enabled(false);
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         app_ui.menu_bar_packfile.set_enabled(true);
+                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -754,8 +761,10 @@ impl AppUI {
 
                         // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
                         app_ui.menu_bar_packfile.set_enabled(false);
+                        app_ui.menu_bar_templates.set_enabled(false);
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         app_ui.menu_bar_packfile.set_enabled(true);
+                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -786,8 +795,10 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
                         app_ui.menu_bar_packfile.set_enabled(false);
+                        app_ui.menu_bar_templates.set_enabled(false);
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         app_ui.menu_bar_packfile.set_enabled(true);
+                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -817,8 +828,10 @@ impl AppUI {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
                         app_ui.menu_bar_packfile.set_enabled(false);
+                        app_ui.menu_bar_templates.set_enabled(false);
                         DiagnosticsUI::check(&app_ui, &diagnostics_ui);
                         app_ui.menu_bar_packfile.set_enabled(true);
+                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -830,26 +843,28 @@ impl AppUI {
         // Get the path of every PackFile in the data folder (if the game's path it's configured) and make an action for each one of them.
         let mut template_paths = get_game_selected_template_definitions_paths();
         if let Some(ref mut paths) = template_paths {
-            paths.sort_unstable_by_key(|x| x.file_name().unwrap().to_string_lossy().as_ref().to_owned());
-            for path in paths {
+            paths.sort_unstable_by_key(|x| x.1.file_name().unwrap().to_string_lossy().as_ref().to_owned());
+            for (is_custom, path) in paths {
 
                 // That means our file is a valid PackFile and it needs to be added to the menu.
                 let template_name = path.file_name().unwrap().to_string_lossy().as_ref().to_owned();
-                let template_load_action = app_ui.packfile_load_template.add_action_q_string(&QString::from_std_str(&template_name));
+                let template_load_action = if *is_custom { app_ui.templates_load_custom_template_to_packfile.add_action_q_string(&QString::from_std_str(&template_name)) }
+                else { app_ui.templates_load_official_template_to_packfile.add_action_q_string(&QString::from_std_str(&template_name)) };
 
                 // Create the slot for that action.
                 let slot_load_template = SlotOfBool::new(&template_load_action, clone!(
-                    mut app_ui,
-                    mut pack_file_contents_ui,
-                    mut global_search_ui,
-                    mut diagnostics_ui,
-                    mut template_name => move |_| {
-                        match Template::load(&template_name) {
+                    app_ui,
+                    pack_file_contents_ui,
+                    global_search_ui,
+                    diagnostics_ui,
+                    template_name,
+                    is_custom => move |_| {
+                        match Template::load(&template_name, is_custom) {
                             Ok(template) => {
                                 if let Some(params) = Self::load_template_dialog(&app_ui, &template) {
                                     match Self::back_to_back_end_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false) {
                                         Ok(_) => {
-                                            CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, params));
+                                            CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, params, is_custom));
                                             let response = CENTRAL_COMMAND.recv_message_qt_try();
                                             match response {
                                                 Response::VecVecString(packed_file_paths) => {
@@ -900,7 +915,8 @@ impl AppUI {
         app_ui.packfile_open_from_content.menu_action().set_visible(!app_ui.packfile_open_from_content.actions().is_empty());
         app_ui.packfile_open_from_data.menu_action().set_visible(!app_ui.packfile_open_from_data.actions().is_empty());
         app_ui.packfile_open_from_autosave.menu_action().set_visible(!app_ui.packfile_open_from_autosave.actions().is_empty());
-        app_ui.packfile_load_template.menu_action().set_visible(!app_ui.packfile_load_template.actions().is_empty());
+        app_ui.templates_load_custom_template_to_packfile.menu_action().set_visible(!app_ui.templates_load_custom_template_to_packfile.actions().is_empty());
+        app_ui.templates_load_official_template_to_packfile.menu_action().set_visible(!app_ui.templates_load_official_template_to_packfile.actions().is_empty());
     }
 
 
@@ -1959,6 +1975,31 @@ impl AppUI {
         }
     }
 
+    /// This function creates a new Template by saving the currently open PackFile into a template.
+    pub unsafe fn save_to_template(
+        app_ui: &Rc<Self>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>,
+        global_search_ui: &Rc<GlobalSearchUI>,
+        diagnostics_ui: &Rc<DiagnosticsUI>,
+    ) -> Result<Option<String>> {
+
+        // Launch the dialog and wait for the answer.
+        if let Some((name, description, author, params)) = Self::new_template_dialog(app_ui) {
+
+            // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
+            AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false)?;
+
+            // Create the PackFile.
+            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description.to_owned(), author.to_owned(), params));
+            let response = CENTRAL_COMMAND.recv_message_qt();
+            match response {
+                Response::Success => Ok(Some(name)),
+                Response::Error(error) => Err(error),
+                _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
+            }
+        } else { Ok(None) }
+    }
+
     /// This function creates the entire "New Folder" dialog.
     ///
     /// It returns the new name of the Folder, or None if the dialog is canceled or closed.
@@ -2107,6 +2148,54 @@ impl AppUI {
         if dialog.exec() == 1 {
             let new_text = name_line_edit.text().to_std_string();
             if new_text.is_empty() { None } else { Some(name_line_edit.text().to_std_string()) }
+        } else { None }
+    }
+
+    /// This function creates the "New Template" dialog when saving the currently open PackFile into a Template.
+    ///
+    /// It returns the new name of the Template, or `None` if the dialog is canceled or closed.
+    unsafe fn new_template_dialog(app_ui: &Rc<Self>) -> Option<(String, String, String, Vec<(String, String)>)> {
+
+        // Create and configure the dialog.
+        let dialog: QBox<QDialog> = QDialog::new_1a(&app_ui.main_window);
+        dialog.set_window_title(&qtr("save_template"));
+        dialog.set_modal(true);
+        dialog.resize_2a(400, 50);
+
+        let main_grid = create_grid_layout(dialog.static_upcast());
+
+        let name_label = QLabel::from_q_string_q_widget(&qtr("template_name"), &dialog);
+        let name_line_edit = QLineEdit::from_q_widget(&dialog);
+
+        let description_label = QLabel::from_q_string_q_widget(&qtr("template_description"), &dialog);
+        let description_line_edit = QLineEdit::from_q_widget(&dialog);
+
+        let author_label = QLabel::from_q_string_q_widget(&qtr("template_author"), &dialog);
+        let author_line_edit = QLineEdit::from_q_widget(&dialog);
+
+        let accept_button = QPushButton::from_q_string_q_widget(&qtr("gen_loc_accept"), &dialog);
+
+        main_grid.add_widget_5a(&name_label, 1, 0, 1, 1);
+        main_grid.add_widget_5a(&name_line_edit, 1, 1, 1, 1);
+
+        main_grid.add_widget_5a(&description_label, 2, 0, 1, 1);
+        main_grid.add_widget_5a(&description_line_edit, 2, 1, 1, 1);
+
+        main_grid.add_widget_5a(&author_label, 3, 0, 1, 1);
+        main_grid.add_widget_5a(&author_line_edit, 3, 1, 1, 1);
+
+        main_grid.add_widget_5a(&accept_button, 1, 999, 1, 1);
+
+        accept_button.released().connect(dialog.slot_accept());
+
+        if dialog.exec() == 1 {
+            let new_text = name_line_edit.text().to_std_string();
+            if new_text.is_empty() { None } else { Some((
+                name_line_edit.text().to_std_string(),
+                description_line_edit.text().to_std_string(),
+                author_line_edit.text().to_std_string(),
+                vec![]
+            )) }
         } else { None }
     }
 
