@@ -861,10 +861,10 @@ impl AppUI {
                     is_custom => move |_| {
                         match Template::load(&template_name, is_custom) {
                             Ok(template) => {
-                                if let Some(params) = Self::load_template_dialog(&app_ui, &template) {
+                                if let Some((options, params)) = Self::load_template_dialog(&app_ui, &template) {
                                     match Self::back_to_back_end_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false) {
                                         Ok(_) => {
-                                            CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, params, is_custom));
+                                            CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, options, params, is_custom));
                                             let response = CENTRAL_COMMAND.recv_message_qt_try();
                                             match response {
                                                 Response::VecVecString(packed_file_paths) => {
@@ -1984,13 +1984,13 @@ impl AppUI {
     ) -> Result<Option<String>> {
 
         // Launch the dialog and wait for the answer.
-        if let Some((name, description, author, params)) = Self::new_template_dialog(app_ui) {
+        if let Some((name, description, author, options, params)) = Self::new_template_dialog(app_ui) {
 
             // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
             AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false)?;
 
             // Create the PackFile.
-            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description.to_owned(), author.to_owned(), params));
+            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description.to_owned(), author.to_owned(), options, params));
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::Success => Ok(Some(name)),
@@ -2154,7 +2154,7 @@ impl AppUI {
     /// This function creates the "New Template" dialog when saving the currently open PackFile into a Template.
     ///
     /// It returns the new name of the Template, or `None` if the dialog is canceled or closed.
-    unsafe fn new_template_dialog(app_ui: &Rc<Self>) -> Option<(String, String, String, Vec<(String, String)>)> {
+    unsafe fn new_template_dialog(app_ui: &Rc<Self>) -> Option<(String, String, String, Vec<(String, String)>, Vec<(String, String)>)> {
 
         // Create and configure the dialog.
         let dialog: QBox<QDialog> = QDialog::new_1a(&app_ui.main_window);
@@ -2194,6 +2194,7 @@ impl AppUI {
                 name_line_edit.text().to_std_string(),
                 description_line_edit.text().to_std_string(),
                 author_line_edit.text().to_std_string(),
+                vec![],
                 vec![]
             )) }
         } else { None }
@@ -2234,7 +2235,7 @@ impl AppUI {
     }
 
     /// This function creates the entire "Load Template" dialog. It returns a vector with the stuff set in it.
-    pub unsafe fn load_template_dialog(app_ui: &Rc<Self>, template: &Template) -> Option<Vec<String>> {
+    pub unsafe fn load_template_dialog(app_ui: &Rc<Self>, template: &Template) -> Option<(Vec<bool>, Vec<String>)> {
 
         let dialog = QDialog::new_1a(&app_ui.main_window);
         dialog.set_window_title(&qtr("load_templates_dialog_title"));
@@ -2260,6 +2261,15 @@ impl AppUI {
             param_widgets.push(param_widget.into_ptr());
         }
 
+        let mut option_widgets = vec![];
+        for (row, option) in template.get_options().iter().enumerate() {
+            let option_label = QLabel::from_q_string(&QString::from_std_str(&option.0));
+            let option_widget = QCheckBox::new();
+            main_grid.add_widget_5a(option_label.into_ptr(), row as i32 + 2, 0, 1, 1);
+            main_grid.add_widget_5a(&option_widget, row as i32 + 2, 1, 1, 1);
+            option_widgets.push(option_widget.into_ptr());
+        }
+
         let accept_button = QPushButton::from_q_string(&qtr("load_templates_dialog_accept"));
         main_grid.add_widget_5a(&accept_button, 99, 0, 1, 2);
 
@@ -2268,9 +2278,9 @@ impl AppUI {
 
         // Execute the dialog.
         if dialog.exec() == 1 {
-            let data = param_widgets.iter().map(|x| x.text().to_std_string()).collect::<Vec<String>>();
-            if !data.is_empty() { Some(data) }
-            else { None }
+            let options = option_widgets.iter().map(|x| x.is_checked()).collect::<Vec<bool>>();
+            let params = param_widgets.iter().map(|x| x.text().to_std_string()).collect::<Vec<String>>();
+            Some((options, params))
         }
 
         // Otherwise, return None.

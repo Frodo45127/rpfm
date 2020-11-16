@@ -883,16 +883,16 @@ pub fn background_loop() {
             }
 
             // When we want to apply a template over the open PackFile...
-            Command::ApplyTemplate(mut template, params, is_custom) => {
-                match template.apply_template(&params, &mut pack_file_decoded, &dependencies, is_custom) {
+            Command::ApplyTemplate(mut template, options, params, is_custom) => {
+                match template.apply_template(&options, &params, &mut pack_file_decoded, &dependencies, is_custom) {
                     Ok(result) => CENTRAL_COMMAND.send_message_rust(Response::VecVecString(result)),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
 
             // When we want to apply a template over the open PackFile...
-            Command::SaveTemplate(name, description, author, params) => {
-                match Template::save_from_packfile(&mut pack_file_decoded, &name, &description, &author, &params) {
+            Command::SaveTemplate(name, description, author, options, params) => {
+                match Template::save_from_packfile(&mut pack_file_decoded, &name, &description, &author, &options, &params) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
