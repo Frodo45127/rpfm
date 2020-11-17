@@ -1015,7 +1015,7 @@ impl TableSearch {
             let model_index = matches_unprocessed.value_1a(index).index();
             let filter_model_index = filter.map_from_source(&model_index);
             self.matches.push((
-                model_index.as_ptr(),
+                model_index.into_ptr(),
                 if filter_model_index.is_valid() { Some(filter_model_index.into_ptr()) } else { None }
             ));
         }
