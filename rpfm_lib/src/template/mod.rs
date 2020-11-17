@@ -165,8 +165,14 @@ impl Template {
                 }
 
                 // And finally, the custom assets.
-                let assets_folder = if is_custom { get_template_assets_path()?.join(&self.name) }
-                else { get_template_assets_path()?.join(&self.name) };
+                let mut folder_name = self.name.to_owned();
+                folder_name.pop();
+                folder_name.pop();
+                folder_name.pop();
+                folder_name.pop();
+                folder_name.pop();
+                let assets_folder = if is_custom { get_custom_template_assets_path()?.join(&folder_name) }
+                else { get_template_assets_path()?.join(&folder_name) };
 
                 for asset in &self.assets {
                     if asset.has_required_options(&options) {
@@ -282,7 +288,7 @@ impl Template {
         // Make sure the path exists to avoid problems with updating templates.
         DirBuilder::new().recursive(true).create(&file_path)?;
 
-        file_path.push(template);
+        file_path.push(format!("{}.json", template));
         let mut file = File::create(&file_path)?;
         file.write_all(serde_json::to_string_pretty(&self)?.as_bytes())?;
         Ok(())

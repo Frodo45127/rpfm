@@ -662,7 +662,41 @@ instructions_ca_vp8 = It's simple, the video can have 2 formats: CAMV (used by t
 settings_debug_spoof_ca_authoring_tool = Spoof CA's Authoring Tool
 tt_settings_debug_spoof_ca_authoring_tool = Checking this will make all PFH6 PackFiles saved with RPFM to be marked as "Saved with CA-TOOL". For testing purpouses only.
 
-template_name = Name of the Template:
+template_name = Name:
 template_description = Description:
 template_author = Author:
 save_template = Save PackFile to Template
+
+new_template_step_1 = Step 1: Basic Info
+new_template_step_2 = Step 2: Options
+new_template_step_3 = Step 3: Parameters
+new_template_step_4 = Step 4: And we're done!
+
+new_template_step_1_description = This is the basic info of the Template: name, author, description,...
+new_template_step_2_description = <p>These are options/flags/however you want to call them.</p>
+ <p>They control what parts of the template can be enabled/disabled when loading it to a PackFile.
+ For example, in a template for projectiles, an option can be "Has custom explosion?" or "Has custom display proyectile?".</p>
+ The columns mean:
+ <ul>
+    <li>The first column is the internal name of the option.</li>
+    <li>The second column is the text the user will see when using the Template.</li>
+ </ul>
+
+new_template_step_3_description = <p>These are the parameters that can be applied to the Template by the user when loading it to a PackFile.</p>
+ <p>They allow the user to personalize parts of the template for his use, like changing the name of the files, the value on cells,...</p>
+ The columns mean:
+ <ul>
+    <li>The first column is the internal name of the parameter.</li>
+    <li>The second column is the text the user will see when using the Template.</li>
+ </ul>
+
+new_template_step_4_description = <p>This is where you hit "Save" to save the template as a custom template.</p>
+ Remember! Once you're done, you'll have to manually open the json of the template and apply the parameters/options where you see fit!
+ You can take a look at one of the official templates to see examples of how to do it.
+
+key = Key
+value = Value
+
+load_template_info_section = Template's Info
+load_template_options_section = Options
+load_template_params_section = Parameters
