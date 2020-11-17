@@ -314,7 +314,7 @@ impl TableView {
         }
 
         layout.add_widget_5a(&table_view_primary, 1, 0, 1, 1);
-        layout.add_widget_5a(&filter_base_widget, 2, 0, 1, 2);
+        layout.add_widget_5a(&filter_base_widget, 3, 0, 1, 2);
 
         // Action to make the delete button delete contents.
         let smart_delete = QAction::from_q_object(&table_view_primary);
@@ -412,7 +412,7 @@ impl TableView {
         search_grid.add_widget_5a(&search_column_selector, 2, 2, 1, 1);
         search_grid.add_widget_5a(&search_case_sensitive_button, 2, 3, 1, 1);
 
-        layout.add_widget_5a(&search_widget, 2, 0, 1, 4);
+        layout.add_widget_5a(&search_widget, 2, 0, 1, 2);
         layout.set_column_stretch(0, 10);
         search_widget.hide();
 
@@ -474,7 +474,7 @@ impl TableView {
         }
 
         // Add all the stuff to the main grid and hide the search widget.
-        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 3, 1);
+        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 999, 1);
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
 
@@ -1470,7 +1470,7 @@ impl FilterView {
         filter_grid.add_widget_5a(&filter_remove, 0, 4, 1, 1);
 
         let parent_grid: QPtr<QGridLayout> = parent.layout().static_downcast();
-        parent_grid.add_widget_5a(&filter_widget, view.get_ref_filters().len() as i32 + 1, 0, 1, 1);
+        parent_grid.add_widget_5a(&filter_widget, view.get_ref_filters().len() as i32 + 3, 0, 1, 2);
 
         let filter = Arc::new(Self {
             filter_widget,
