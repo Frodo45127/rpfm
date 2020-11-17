@@ -412,7 +412,7 @@ impl TableView {
         search_grid.add_widget_5a(&search_column_selector, 2, 2, 1, 1);
         search_grid.add_widget_5a(&search_case_sensitive_button, 2, 3, 1, 1);
 
-        layout.add_widget_5a(&search_widget, 1, 0, 1, 4);
+        layout.add_widget_5a(&search_widget, 2, 0, 1, 4);
         layout.set_column_stretch(0, 10);
         search_widget.hide();
 
