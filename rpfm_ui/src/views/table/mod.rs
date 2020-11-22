@@ -474,7 +474,7 @@ impl TableView {
         }
 
         // Add all the stuff to the main grid and hide the search widget.
-        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 999, 1);
+        layout.add_widget_5a(&sidebar_scroll_area, 0, 4, 4, 1);
         sidebar_scroll_area.hide();
         sidebar_grid.set_row_stretch(999, 10);
 
