@@ -707,7 +707,7 @@ impl DiagnosticsUI {
                         // Trick to get the right neutral colors: add an item, get the brush, delete it.
                         let base_qbrush = table_view.palette().brush_1a(ColorRole::Text);
 
-                        for row in 0..table_model.row_count_0a() - 1 {
+                        for row in 0..table_model.row_count_0a() {
                             for column in 0..table_model.column_count_0a() {
                                 let item = table_model.item_2a(row, column);
                                 if item.foreground().color().rgb() != base_qbrush.color().rgb() {
