@@ -13,6 +13,7 @@ doctest = false
 [dependencies]
 # Internal dependencies.
 rpfm_error = { path = "../rpfm_error" }
+rpfm_macros = { path = "../rpfm_macros" }
 
 # Configuration support.
 directories = "^3.0"

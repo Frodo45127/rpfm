@@ -16,31 +16,23 @@ they're here and not in the main file is because I don't want to polute that one
 as it's mostly meant for initialization and configuration.
 !*/
 
-use qt_widgets::QTableView;
+
 use qt_widgets::QCheckBox;
 use qt_widgets::QComboBox;
 use qt_widgets::QDialog;
 use qt_widgets::QFileDialog;
-use qt_widgets::QGroupBox;
 use qt_widgets::QLineEdit;
 use qt_widgets::{q_message_box, QMessageBox};
 use qt_widgets::QPushButton;
 use qt_widgets::QTreeView;
-use qt_widgets::QLabel;
-use qt_widgets::QWidget;
 
-use qt_gui::QListOfQStandardItem;
-use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
 
 use qt_core::QBox;
 use qt_core::QFlags;
-use qt_core::QModelIndex;
 use qt_core::QRegExp;
-use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQString};
+use qt_core::{SlotOfBool, SlotOfQString};
 use qt_core::QSortFilterProxyModel;
-
-use cpp_core::Ref;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -74,6 +66,7 @@ use crate::locale::{qtr, qtre, tre};
 use crate::pack_tree::{icons::IconType, new_pack_file_tooltip, PackTree, TreePathType, TreeViewOperation};
 use crate::packedfile_views::{anim_fragment::*, animpack::*, ca_vp8::*, decoder::*, external::*, image::*, PackedFileView, packfile_settings::*, table::*, text::*};
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::template_ui::{TemplateUI, SaveTemplateUI};
 use crate::QString;
 use crate::UI_STATE;
 use crate::ui::GameSelectedIcons;
@@ -869,7 +862,7 @@ impl AppUI {
                     is_custom => move |_| {
                         match Template::load(&template_name, is_custom) {
                             Ok(template) => {
-                                if let Some((options, params)) = Self::load_template_dialog(&app_ui, &template) {
+                                if let Some((options, params)) = TemplateUI::load(&app_ui, &template) {
                                     match Self::back_to_back_end_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false) {
                                         Ok(_) => {
                                             CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, options, params, is_custom));
@@ -1992,13 +1985,13 @@ impl AppUI {
     ) -> Result<Option<String>> {
 
         // Launch the dialog and wait for the answer.
-        if let Some((name, description, author, options, params)) = Self::new_template_dialog(app_ui) {
+        if let Some((name, description, author, post_message, sections, options, params)) = SaveTemplateUI::load(app_ui) {
 
             // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
             AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false)?;
 
             // Create the PackFile.
-            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description.to_owned(), author.to_owned(), options, params));
+            CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description.to_owned(), author.to_owned(), post_message.to_owned(), sections, options, params));
             let response = CENTRAL_COMMAND.recv_message_qt();
             match response {
                 Response::Success => Ok(Some(name)),
@@ -2159,244 +2152,6 @@ impl AppUI {
         } else { None }
     }
 
-    /// This function creates the "New Template" dialog when saving the currently open PackFile into a Template.
-    ///
-    /// It returns the new name of the Template, or `None` if the dialog is canceled or closed.
-    unsafe fn new_template_dialog(app_ui: &Rc<Self>) -> Option<(String, String, String, Vec<(String, String)>, Vec<(String, String)>)> {
-
-        // Create and configure the dialog.
-        let dialog: QBox<QDialog> = QDialog::new_1a(&app_ui.main_window);
-        dialog.set_window_title(&qtr("save_template"));
-        dialog.set_modal(true);
-        dialog.resize_2a(1000, 400);
-
-        let main_grid = create_grid_layout(dialog.static_upcast());
-
-        //-----------------------------------------//
-        // Step 1: Basic info.
-        //-----------------------------------------//
-        let step_1_groupbox = QGroupBox::from_q_string_q_widget(&qtr("new_template_step_1"), &dialog);
-        let step_1_grid = create_grid_layout(step_1_groupbox.static_upcast());
-        step_1_groupbox.set_minimum_width(300);
-
-        let step_1_description_label = QLabel::from_q_string_q_widget(&qtr("new_template_step_1_description"), &step_1_groupbox);
-        step_1_description_label.set_word_wrap(true);
-
-        let name_label = QLabel::from_q_string_q_widget(&qtr("template_name"), &step_1_groupbox);
-        let name_line_edit = QLineEdit::from_q_widget(&step_1_groupbox);
-
-        let description_label = QLabel::from_q_string_q_widget(&qtr("template_description"), &step_1_groupbox);
-        let description_line_edit = QLineEdit::from_q_widget(&step_1_groupbox);
-
-        let author_label = QLabel::from_q_string_q_widget(&qtr("template_author"), &step_1_groupbox);
-        let author_line_edit = QLineEdit::from_q_widget(&step_1_groupbox);
-
-        let step_1_filler = QWidget::new_1a(&step_1_groupbox);
-
-        step_1_grid.add_widget_5a(&step_1_description_label, 0, 0, 1, 2);
-
-        step_1_grid.add_widget_5a(&name_label, 1, 0, 1, 1);
-        step_1_grid.add_widget_5a(&name_line_edit, 1, 1, 1, 1);
-
-        step_1_grid.add_widget_5a(&description_label, 2, 0, 1, 1);
-        step_1_grid.add_widget_5a(&description_line_edit, 2, 1, 1, 1);
-
-        step_1_grid.add_widget_5a(&author_label, 3, 0, 1, 1);
-        step_1_grid.add_widget_5a(&author_line_edit, 3, 1, 1, 1);
-
-        step_1_grid.add_widget_5a(&step_1_filler, 999, 0, 1, 2);
-        step_1_grid.set_row_stretch(999, 99);
-
-        //-----------------------------------------//
-        // Step 2: Options.
-        //-----------------------------------------//
-        let step_2_groupbox = QGroupBox::from_q_string_q_widget(&qtr("new_template_step_2"), &dialog);
-        let step_2_grid = create_grid_layout(step_2_groupbox.static_upcast());
-        step_2_groupbox.set_minimum_width(450);
-
-        let step_2_description_label = QLabel::from_q_string_q_widget(&qtr("new_template_step_2_description"), &step_2_groupbox);
-        let step_2_tableview = Rc::new(QTableView::new_1a(&step_2_groupbox));
-        let step_2_model = Rc::new(QStandardItemModel::new_1a(&*step_2_tableview));
-        let step_2_add_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("+"), &step_2_groupbox);
-        let step_2_remove_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("-"), &step_2_groupbox);
-        step_2_tableview.set_model(&*step_2_model);
-        step_2_tableview.horizontal_header().set_stretch_last_section(true);
-        step_2_description_label.set_word_wrap(true);
-
-        step_2_grid.add_widget_5a(&step_2_description_label, 0, 0, 1, 2);
-        step_2_grid.add_widget_5a(&*step_2_tableview, 1, 0, 1, 2);
-        step_2_grid.add_widget_5a(&step_2_add_button, 2, 0, 1, 1);
-        step_2_grid.add_widget_5a(&step_2_remove_button, 2, 1, 1, 1);
-        step_2_grid.set_row_stretch(1, 99);
-
-        // Slots for step 2
-        let step_2_slot_add = SlotNoArgs::new(&*step_2_tableview, clone!(
-            step_2_model => move || {
-            let qlist_boi = QListOfQStandardItem::new();
-
-            let key = QStandardItem::new();
-            let value = QStandardItem::new();
-
-            qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
-
-            step_2_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-        }));
-
-        let step_2_slot_remove = SlotNoArgs::new(&*step_2_tableview, clone!(
-            step_2_tableview,
-            step_2_model => move || {
-            let indexes = step_2_tableview.selection_model().selection().indexes();
-            let indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            let rows_sorted = indexes_sorted.iter().map(|x| x.row()).collect::<Vec<i32>>();
-
-            crate::views::table::utils::delete_rows(&step_2_model.static_upcast(), &rows_sorted);
-        }));
-
-        // Signals for step 2.
-        step_2_add_button.released().connect(&step_2_slot_add);
-        step_2_remove_button.released().connect(&step_2_slot_remove);
-
-        //-----------------------------------------//
-        // Step 3: Parameters.
-        //-----------------------------------------//
-        let step_3_groupbox = QGroupBox::from_q_string_q_widget(&qtr("new_template_step_3"), &dialog);
-        let step_3_grid = create_grid_layout(step_3_groupbox.static_upcast());
-        step_3_groupbox.set_minimum_width(450);
-
-        let step_3_description_label = QLabel::from_q_string_q_widget(&qtr("new_template_step_3_description"), &step_3_groupbox);
-        let step_3_tableview = Rc::new(QTableView::new_1a(&step_3_groupbox));
-        let step_3_model = Rc::new(QStandardItemModel::new_1a(&*step_3_tableview));
-        let step_3_add_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("+"), &step_3_groupbox);
-        let step_3_remove_button = QPushButton::from_q_string_q_widget(&QString::from_std_str("-"), &step_3_groupbox);
-        step_3_tableview.set_model(&*step_3_model);
-        step_3_tableview.horizontal_header().set_stretch_last_section(true);
-        step_3_description_label.set_word_wrap(true);
-
-        step_3_grid.add_widget_5a(&step_3_description_label, 0, 0, 1, 2);
-        step_3_grid.add_widget_5a(&*step_3_tableview, 1, 0, 1, 2);
-        step_3_grid.add_widget_5a(&step_3_add_button, 2, 0, 1, 1);
-        step_3_grid.add_widget_5a(&step_3_remove_button, 2, 1, 1, 1);
-        step_3_grid.set_row_stretch(1, 99);
-
-        // Slots for step 3
-        let step_3_slot_add = SlotNoArgs::new(&*step_3_tableview, clone!(
-            step_3_model => move || {
-            let qlist_boi = QListOfQStandardItem::new();
-
-            let key = QStandardItem::new();
-            let value = QStandardItem::new();
-
-            qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
-            qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
-
-            step_3_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-        }));
-
-        let step_3_slot_remove = SlotNoArgs::new(&*step_3_tableview, clone!(
-            step_3_tableview,
-            step_3_model => move || {
-            let indexes = step_3_tableview.selection_model().selection().indexes();
-            let indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-            let rows_sorted = indexes_sorted.iter().map(|x| x.row()).collect::<Vec<i32>>();
-
-            crate::views::table::utils::delete_rows(&step_3_model.static_upcast(), &rows_sorted);
-        }));
-
-        // Signals for step 3.
-        step_3_add_button.released().connect(&step_3_slot_add);
-        step_3_remove_button.released().connect(&step_3_slot_remove);
-
-        //-----------------------------------------//
-        // Step 4: Finish.
-        //-----------------------------------------//
-        let step_4_groupbox = QGroupBox::from_q_string_q_widget(&qtr("new_template_step_4"), &dialog);
-        let step_4_grid = create_grid_layout(step_4_groupbox.static_upcast());
-        step_4_groupbox.set_minimum_width(300);
-
-        let step_4_description_label = QLabel::from_q_string_q_widget(&qtr("new_template_step_4_description"), &step_4_groupbox);
-        let step_4_filler = QWidget::new_1a(&step_4_groupbox);
-        let accept_button = QPushButton::from_q_string_q_widget(&qtr("gen_loc_accept"), &step_4_groupbox);
-
-        step_4_description_label.set_word_wrap(true);
-
-        step_4_grid.add_widget_5a(&step_4_description_label, 0, 0, 1, 1);
-        step_4_grid.add_widget_5a(&step_4_filler, 1, 0, 1, 1);
-        step_4_grid.add_widget_5a(&accept_button, 2, 0, 1, 1);
-        step_4_grid.set_row_stretch(1, 99);
-
-        //-----------------------------------------//
-        // Finishing layouts and execution.
-        //-----------------------------------------//
-        main_grid.add_widget_5a(&step_1_groupbox, 0, 0, 1, 1);
-        main_grid.add_widget_5a(&step_2_groupbox, 0, 1, 1, 1);
-        main_grid.add_widget_5a(&step_3_groupbox, 0, 2, 1, 1);
-        main_grid.add_widget_5a(&step_4_groupbox, 0, 3, 1, 1);
-
-        accept_button.released().connect(dialog.slot_accept());
-
-        // Initialize the tables.
-        let qlist_boi = QListOfQStandardItem::new();
-        let key = QStandardItem::new();
-        let value = QStandardItem::new();
-
-        qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
-        qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
-        step_2_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-
-        let qlist_boi = QListOfQStandardItem::new();
-        let key = QStandardItem::new();
-        let value = QStandardItem::new();
-
-        qlist_boi.append_q_standard_item(&key.into_ptr().as_mut_raw_ptr());
-        qlist_boi.append_q_standard_item(&value.into_ptr().as_mut_raw_ptr());
-        step_3_model.append_row_q_list_of_q_standard_item(qlist_boi.as_ref());
-
-        let step_2_columm_1 = QStandardItem::from_q_string(&qtr("key"));
-        let step_2_columm_2 = QStandardItem::from_q_string(&qtr("value"));
-        step_2_model.set_horizontal_header_item(0, step_2_columm_1.into_ptr());
-        step_2_model.set_horizontal_header_item(1, step_2_columm_2.into_ptr());
-
-        let step_3_columm_1 = QStandardItem::from_q_string(&qtr("key"));
-        let step_3_columm_2 = QStandardItem::from_q_string(&qtr("value"));
-        step_3_model.set_horizontal_header_item(0, step_3_columm_1.into_ptr());
-        step_3_model.set_horizontal_header_item(1, step_3_columm_2.into_ptr());
-
-        if dialog.exec() == 1 {
-
-            // Get all the data from the view.
-            let name = name_line_edit.text().to_std_string();
-            let description = description_line_edit.text().to_std_string();
-            let author = author_line_edit.text().to_std_string();
-
-            let mut options = vec![];
-            for row in 0..step_2_model.row_count_0a() {
-                let option = (step_2_model.item_2a(row, 1).text().to_std_string(), step_2_model.item_2a(row, 0).text().to_std_string());
-                if !option.0.is_empty() && !option.1.is_empty() {
-                    options.push(option);
-                }
-            }
-
-            let mut params = vec![];
-            for row in 0..step_3_model.row_count_0a() {
-                let param = (step_3_model.item_2a(row, 1).text().to_std_string(), step_3_model.item_2a(row, 0).text().to_std_string());
-                if !param.0.is_empty() && !param.1.is_empty() {
-                    params.push(param);
-                }
-            }
-
-            if !name.is_empty() && !description.is_empty() && !author.is_empty() {
-                Some((
-                    name,
-                    description,
-                    author,
-                    options,
-                    params
-                ))
-            } else { None }
-        } else { None }
-    }
-
     /// This function creates the entire "Merge Tables" dialog. It returns the stuff set in it.
     pub unsafe fn merge_tables_dialog(app_ui: &Rc<Self>) -> Option<(String, bool)> {
 
@@ -2425,76 +2180,6 @@ impl AppUI {
             let delete_source_tables = delete_source_tables.is_checked();
             if !text.is_empty() { Some((text, delete_source_tables)) }
             else { None }
-        }
-
-        // Otherwise, return None.
-        else { None }
-    }
-
-    /// This function creates the entire "Load Template" dialog. It returns a vector with the stuff set in it.
-    pub unsafe fn load_template_dialog(app_ui: &Rc<Self>, template: &Template) -> Option<(Vec<bool>, Vec<String>)> {
-
-        let dialog = QDialog::new_1a(&app_ui.main_window);
-        dialog.set_window_title(&qtr("load_templates_dialog_title"));
-        dialog.set_modal(true);
-
-        // Create the main Grid.
-        let main_grid = create_grid_layout(dialog.static_upcast());
-        main_grid.set_contents_margins_4a(4, 0, 4, 4);
-        main_grid.set_spacing(4);
-
-        let info_groupbox = QGroupBox::from_q_string_q_widget(&qtr("load_template_info_section"), &dialog);
-        let info_grid = create_grid_layout(info_groupbox.static_upcast());
-        info_groupbox.set_minimum_width(450);
-
-        let author_label = QLabel::from_q_string_q_widget(&QString::from_std_str("By: ".to_owned() + &template.author), &info_groupbox);
-        let description_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&template.description), &info_groupbox);
-        info_grid.add_widget_5a(&author_label, 0,  0, 1, 2);
-        info_grid.add_widget_5a(&description_label, 1 , 0, 1, 2);
-
-        let option_groupbox = QGroupBox::from_q_string_q_widget(&qtr("load_template_options_section"), &dialog);
-        let option_grid = create_grid_layout(option_groupbox.static_upcast());
-        option_groupbox.set_minimum_width(450);
-
-        let mut option_widgets = vec![];
-        for (row, option) in template.get_options().iter().enumerate() {
-            let option_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&option.0), &option_groupbox);
-            let option_widget = QCheckBox::from_q_widget(&option_groupbox);
-            option_grid.add_widget_5a(&option_label, row as i32 + 2, 0, 1, 1);
-            option_grid.add_widget_5a(&option_widget, row as i32 + 2, 1, 1, 1);
-            option_widgets.push(option_widget.into_ptr());
-        }
-
-        let param_groupbox = QGroupBox::from_q_string_q_widget(&qtr("load_template_params_section"), &dialog);
-        let param_grid = create_grid_layout(param_groupbox.static_upcast());
-        info_groupbox.set_minimum_width(450);
-
-        let mut param_widgets = vec![];
-        for (row, param) in template.params.iter().enumerate() {
-            let param_label = QLabel::from_q_string_q_widget(&QString::from_std_str(&param.0), &param_groupbox);
-            let param_widget = QLineEdit::from_q_widget(&param_groupbox);
-            param_widget.set_placeholder_text(&QString::from_std_str(&param.0));
-            param_grid.add_widget_5a(&param_label, row as i32 + 2, 0, 1, 1);
-            param_grid.add_widget_5a(&param_widget, row as i32 + 2, 1, 1, 1);
-            param_widgets.push(param_widget.into_ptr());
-        }
-
-        let accept_button = QPushButton::from_q_string(&qtr("load_templates_dialog_accept"));
-
-
-        main_grid.add_widget_5a(&info_groupbox, 0, 0, 1, 2);
-        main_grid.add_widget_5a(&option_groupbox, 1, 0, 1, 2);
-        main_grid.add_widget_5a(&param_groupbox, 2, 0, 1, 2);
-        main_grid.add_widget_5a(&accept_button, 99, 0, 1, 2);
-
-        // What happens when we hit the "Load Template" button.
-        accept_button.released().connect(dialog.slot_accept());
-
-        // Execute the dialog.
-        if dialog.exec() == 1 {
-            let options = option_widgets.iter().map(|x| x.is_checked()).collect::<Vec<bool>>();
-            let params = param_widgets.iter().map(|x| x.text().to_std_string()).collect::<Vec<String>>();
-            Some((options, params))
         }
 
         // Otherwise, return None.

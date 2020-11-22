@@ -891,8 +891,8 @@ pub fn background_loop() {
             }
 
             // When we want to apply a template over the open PackFile...
-            Command::SaveTemplate(name, description, author, options, params) => {
-                match Template::save_from_packfile(&mut pack_file_decoded, &name, &description, &author, &options, &params) {
+            Command::SaveTemplate(name, description, author, post_message, sections, options, params) => {
+                match Template::save_from_packfile(&mut pack_file_decoded, &name, &description, &author, &post_message, &sections, &options, &params) {
                     Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
@@ -966,6 +966,16 @@ pub fn background_loop() {
 
             Command::SetPackFileSettings(settings) => {
                 pack_file_decoded.set_settings(&settings);
+            }
+
+            Command::GetDefinitionList => {
+                let tables = pack_file_decoded.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false);
+                let definitions = tables.iter().filter_map(|x| x.get_decoded_from_memory().ok()).filter_map(|y| match y {
+                    DecodedPackedFile::DB(table) => Some(table.get_definition()),
+                    DecodedPackedFile::Loc(table) => Some(table.get_definition()),
+                    _ => None,
+                }).collect::<Vec<Definition>>();
+                CENTRAL_COMMAND.send_message_rust(Response::VecDefinition(definitions));
             }
 
             // These two belong to the network thread, not to this one!!!!

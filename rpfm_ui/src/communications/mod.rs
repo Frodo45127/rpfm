@@ -285,7 +285,7 @@ pub enum Command {
     /// - Options list.
     /// - Params list.
     /// - Is custom?
-    ApplyTemplate(Template, Vec<bool>, Vec<String>, bool),
+    ApplyTemplate(Template, Vec<(String, bool)>, Vec<(String, String)>, bool),
 
     /// This command is used to save a PackFile into a template.
     ///
@@ -295,7 +295,7 @@ pub enum Command {
     /// - Author.
     /// - Options (Visual description, key).
     /// - Params (Visual description, key).
-    SaveTemplate(String, String, String, Vec<(String, String)>, Vec<(String, String)>),
+    SaveTemplate(String, String, String, String, Vec<(String, String)>, Vec<(String, String, String)>, Vec<(String, String, String, String)>),
 
     /// This command is used to update the templates.
     UpdateTemplates,
@@ -320,6 +320,9 @@ pub enum Command {
 
     /// This command is used to set the settings of the currently open PackFile.
     SetPackFileSettings(PackFileSettings),
+
+    /// This command is used to get the definitions of all the tables in the PackFile.
+    GetDefinitionList
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.
@@ -435,6 +438,9 @@ pub enum Response {
 
     /// Response to return `PackFileSettings`.
     PackFileSettings(PackFileSettings),
+
+    /// Response to return `Vec<Definition>`.
+    VecDefinition(Vec<Definition>),
 }
 
 #[derive(Debug)]

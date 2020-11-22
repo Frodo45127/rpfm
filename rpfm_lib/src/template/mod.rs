@@ -25,6 +25,8 @@ use serde_derive::{Serialize, Deserialize};
 use std::fs::{DirBuilder, File};
 use std::io::{BufReader, Write};
 
+use rpfm_macros::GetRef;
+
 use rpfm_error::{ErrorKind, Result};
 
 use crate::common::*;
@@ -33,7 +35,7 @@ use crate::packfile::{PathType, PackFile, packedfile::PackedFile};
 use crate::packedfile::PackedFileType;
 use crate::packedfile::text::TextType;
 use crate::SCHEMA;
-use crate::schema::APIResponseSchema;
+use crate::schema::{APIResponseSchema, Definition, Field};
 use self::{asset::Asset, template_db::TemplateDB, template_loc::TemplateLoc};
 
 pub const TEMPLATE_FOLDER: &str = "templates";
@@ -59,19 +61,28 @@ pub struct Template {
 
     /// It stores the structural version of the Table.
     version: u16,
+
+    /// Author of the PackFile.
     pub author: String,
+
+    /// Name of the template (his filename.json).
     name: String,
+
+    /// Description of what this template does.
     pub description: String,
 
-    /// List of params this template requires the user to fill.
-    ///
-    /// This means: (Display Name, Key)
-    pub params: Vec<(String, String)>,
+    /// This message is shown in the UI after the template has been applied.
+    post_message: String,
+
+    /// Sections this template has.
+    sections: Vec<TemplateSection>,
 
     /// List of options this PackFile can have.
-    ///
-    /// This means: (Display Name, Key)
-    options: Vec<(String, String)>,
+    options: Vec<TemplateOption>,
+
+    /// List of params this template requires the user to fill.
+    params: Vec<TemplateParam>,
+
 
     /// The list of DB tables that should be created using this template.
     dbs: Vec<TemplateDB>,
@@ -97,6 +108,79 @@ struct TemplateField {
     field_value: String,
 }
 
+/// This struct contains the data for a section that will group items in the view.
+#[derive(GetRef, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+pub struct TemplateSection {
+
+    /// Options required for this section to be enabled.
+    required_options: Vec<String>,
+
+    /// Internal key of the section.
+    key: String,
+
+    /// Visual name of the section.
+    name: String,
+
+    /// Section under which this section should be put.
+    section: String,
+}
+
+/// This struct contains the data of an option to be chosen in a template.
+#[derive(GetRef, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+pub struct TemplateOption {
+
+    /// Options required for this option to be enabled.
+    required_options: Vec<String>,
+
+    /// Internal key of the option.
+    key: String,
+
+    /// Visual name of the option.
+    name: String,
+
+    /// Key of the section where the UI will put the param (for grouping options).
+    section: String,
+}
+
+/// This struct contains the data of a param to be filled in a Template.
+#[derive(GetRef, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+pub struct TemplateParam {
+
+    /// Options required for the field to be used in the param.
+    required_options: Vec<String>,
+
+    /// Internal key of the param.
+    key: String,
+
+    /// Visual name of the param.
+    name: String,
+
+    /// Key of the section where the UI will put the param (for grouping params).
+    section: String,
+
+    /// Type of the param, so the UI uses one type of input or another.
+    param_type: ParamType
+}
+
+/// Types of params the templates can use.
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum ParamType {
+
+    /// Basic text type. This is used for strings that need no validation.
+    Text,
+
+    /// Field type. This is used for params that directly translate into a field in a table, so it can use their validations.
+    TableField(Field),
+
+    /// Full table type: This is used for params that admit multiple entries, like tables where you add multiple effects to a spell.
+    Table(Definition),
+}
+
+impl Default for ParamType {
+    fn default() -> Self {
+        ParamType::Text
+    }
+}
 //---------------------------------------------------------------------------//
 //                       Enum & Structs Implementations
 //---------------------------------------------------------------------------//
@@ -105,10 +189,12 @@ struct TemplateField {
 impl Template {
 
     /// This function applyes a `Template` into the currently open PackFile, if there is one open.
-    pub fn apply_template(&mut self, options: &[bool], params: &[String], pack_file: &mut PackFile, dependencies: &Dependencies, is_custom: bool) -> Result<Vec<Vec<String>>> {
+    pub fn apply_template(&mut self, options: &[(String, bool)], params: &[(String, String)], pack_file: &mut PackFile, dependencies: &Dependencies, is_custom: bool) -> Result<Vec<Vec<String>>> {
 
         // "Parse" the options list into keys, so we know what options are enabled.
-        let options = self.options.iter().zip(options.iter()).filter_map(|x| if *x.1 { Some(x.0.1.to_owned()) } else { None }).collect::<Vec<String>>();
+        let options = self.options.iter().filter_map(|x| {
+            options.iter().find_map(|(y, z)| if x.get_ref_key() == y && *z { Some(x.key.to_owned()) } else { None })
+        }).collect::<Vec<String>>();
 
         // If there is no PackFile open, stop.
         if pack_file.get_file_name().is_empty() {
@@ -116,17 +202,18 @@ impl Template {
         }
 
         // First, deal with all the params.
-        for (key, value) in self.params.iter().zip(params.iter()) {
+        for param in &self.params {
+            let value = params.iter().find_map(|(y, z)| if param.get_ref_key() == y { Some(z.to_owned()) } else { None }).unwrap();
             for db in &mut self.dbs {
-                db.replace_params(&key.1, value);
+                db.replace_params(&param.key, &value);
             }
 
             for loc in &mut self.locs {
-                loc.replace_params(&key.1, value);
+                loc.replace_params(&param.key, &value);
             }
 
             for asset in &mut self.assets {
-                asset.replace_params(&key.1, value);
+                asset.replace_params(&param.key, &value);
             }
         }
 
@@ -199,9 +286,39 @@ impl Template {
         template_name: &str,
         template_author: &str,
         template_description: &str,
-        options: &[(String, String)],
-        params: &[(String, String)]
+        template_post_message: &str,
+        sections: &[(String, String)],
+        options: &[(String, String, String)],
+        params: &[(String, String, String, String)]
     ) -> Result<()> {
+
+        let sections = sections.iter().map(|(key, name)| {
+            TemplateSection {
+                required_options: vec![],
+                key: key.to_owned(),
+                name: name.to_owned(),
+                section: String::new(),
+            }
+        }).collect::<Vec<TemplateSection>>();
+
+        let options = options.iter().map(|(key, name, section)| {
+            TemplateOption {
+                required_options: vec![],
+                key: key.to_owned(),
+                name: name.to_owned(),
+                section: section.to_owned(),
+            }
+        }).collect::<Vec<TemplateOption>>();
+
+        let params = params.iter().map(|(key, name, section, param_type)| {
+            TemplateParam {
+                required_options: vec![],
+                key: key.to_owned(),
+                name: name.to_owned(),
+                section: section.to_owned(),
+                param_type: serde_json::from_str(param_type).unwrap_or(ParamType::Text),
+            }
+        }).collect::<Vec<TemplateParam>>();
 
         // If we have no PackedFiles, return an error.
         if pack_file.get_packedfiles_list().is_empty() {
@@ -241,17 +358,20 @@ impl Template {
         let assets_packed_files = pack_file.get_ref_packed_files_by_types(&raw_types, false);
         let assets_path_types = assets_packed_files.iter().map(|x| PathType::File(x.get_path().to_vec())).collect::<Vec<PathType>>();
         let assets = assets_packed_files.iter().map(|x| Asset::new_from_packedfile(x)).collect::<Vec<Asset>>();
-
-        pack_file.extract_packed_files_by_type(&assets_path_types, &assets_path)?;
+        if !assets.is_empty() {
+            pack_file.extract_packed_files_by_type(&assets_path_types, &assets_path)?;
+        }
 
         let mut template = Self {
             version: 0,
             author: template_author.to_owned(),
             name: template_name.to_owned(),
             description: template_description.to_owned(),
+            post_message: template_post_message.to_owned(),
 
-            params: params.to_vec(),
+            sections: sections.to_vec(),
             options: options.to_vec(),
+            params: params.to_vec(),
 
             dbs,
             locs,
@@ -261,9 +381,19 @@ impl Template {
         template.save(template_name)
     }
 
+    /// This function returns the list of sections available for the provided Template.
+    pub fn get_sections(&self) -> &[TemplateSection] {
+        &self.sections
+    }
+
     /// This function returns the list of options available for the provided Template.
-    pub fn get_options(&self) -> &[(String, String)] {
+    pub fn get_options(&self) -> &[TemplateOption] {
         &self.options
+    }
+
+    /// This function returns the list of params available for the provided Template.
+    pub fn get_params(&self) -> &[TemplateParam] {
+        &self.params
     }
 
     /// This function loads a `Template` to memory.
@@ -387,6 +517,22 @@ impl TemplateField {
     pub fn get_ref_mut_field_value(&mut self) -> &mut String {
         &mut self.field_value
     }
+
+    /// This function is used to check if we have all the options required to use this field in the template.
+    pub fn has_required_options(&self, options: &[String]) -> bool {
+        self.required_options.is_empty() || self.required_options.iter().all(|x| options.contains(x))
+    }
+}
+
+impl TemplateOption {
+
+    /// This function is used to check if we have all the options required to use this field in the template.
+    pub fn has_required_options(&self, options: &[String]) -> bool {
+        self.required_options.is_empty() || self.required_options.iter().all(|x| options.contains(x))
+    }
+}
+
+impl TemplateParam {
 
     /// This function is used to check if we have all the options required to use this field in the template.
     pub fn has_required_options(&self, options: &[String]) -> bool {
