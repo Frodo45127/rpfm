@@ -720,6 +720,10 @@ impl PackFileContentsSlots {
                                 TreePathType::None => unreachable!(),
                             }
                         }
+
+                        // Update the global search stuff, if needed.
+                        GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, deleted_items.clone());
+                        DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, deleted_items);
                     },
                     _ => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
                 };
