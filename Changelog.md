@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.4] - 2020-11-22
+### Added
+- Implemented improved template controls (experimental, do not use them!!!!).
+- Implemented editing support for Texture Arrays.
+
+### Changed
+- Increased size of `New PackedFile/Folder` dialogs so the title is not cut.
+
+### Fixed
+- Fixed a CTD when trying to perform a local search.
+- Fixed a hang when trying to perform a global replace.
+- Fixed the local search panel being broken.
+- Fixed global search/diagnostics updates not triggering on file deletion.
+
 ## [2.3.3] - 2020-11-14
 ### Added
 - Implemented debug setting for changing the Authoring tool in PFH6 PackFiles to CA's.
