@@ -27,9 +27,14 @@ public:
     explicit QTableViewSortFilterProxyModel(QObject *parent = nullptr);
     bool filterAcceptsRow(int source_row, const QModelIndex & source_parent) const;
 
-signals:
+
+protected:
+    bool lessThan(const QModelIndex &left, const QModelIndex &right) const;
 
 private:
+
+signals:
+
 };
 
 #endif // TABLEVIEW_FILTER_H

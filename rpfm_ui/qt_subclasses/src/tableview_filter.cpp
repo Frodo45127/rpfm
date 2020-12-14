@@ -64,3 +64,22 @@ bool QTableViewSortFilterProxyModel::filterAcceptsRow(int source_row, const QMod
 
     return is_valid;
 }
+
+// Function called when the filter changes.
+bool QTableViewSortFilterProxyModel::lessThan(const QModelIndex &left, const QModelIndex &right) const {
+
+    QStandardItem *leftData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(left);
+    QStandardItem *rightData = static_cast<QStandardItemModel*>(sourceModel())->itemFromIndex(right);
+
+    if (leftData->isCheckable() && rightData->isCheckable()) {
+        if (leftData->checkState() == rightData->checkState()) {
+            return false;
+        } else if (leftData->checkState() == Qt::CheckState::Checked && rightData->checkState() == Qt::CheckState::Unchecked) {
+            return false;
+        } else {
+            return true;
+        }
+    } else {
+        return QSortFilterProxyModel::lessThan(left, right);
+    }
+}
