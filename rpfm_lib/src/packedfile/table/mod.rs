@@ -18,6 +18,7 @@ use bincode::serialize;
 use csv::{QuoteStyle, ReaderBuilder, WriterBuilder};
 use serde_derive::{Serialize, Deserialize};
 
+use std::collections::BTreeMap;
 use std::{fmt, fmt::Display};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -69,6 +70,20 @@ pub enum DecodedData {
     OptionalStringU16(String),
     SequenceU16(Table),
     SequenceU32(Table)
+}
+
+/// This holds the dependency data for a specific column of a table.
+#[derive(PartialEq, Clone, Default, Debug, Serialize, Deserialize)]
+pub struct DependencyData {
+
+    /// If the table is only present in the Ak. Useful to identify unused tables on diagnostics checks.
+    pub referenced_table_is_ak_only: bool,
+
+    /// If the referenced column has been moved into a loc file while exporting it from Dave.
+    pub referenced_column_is_localised: bool,
+
+    /// The data itself, as in "key, lookup" format.
+    pub data: BTreeMap<String, String>,
 }
 
 //----------------------------------------------------------------//

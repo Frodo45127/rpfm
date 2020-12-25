@@ -29,7 +29,6 @@ use qt_gui::QColor;
 use qt_gui::QListOfQStandardItem;
 use qt_gui::QStandardItem;
 use qt_gui::QStandardItemModel;
-use qt_gui::q_palette::ColorRole;
 
 use qt_core::{AlignmentFlag, CaseSensitivity, ContextMenuPolicy, DockWidgetArea, Orientation, SortOrder};
 use qt_core::QBox;
@@ -87,6 +86,8 @@ pub struct DiagnosticsUI {
     //-------------------------------------------------------------------------------//
     // Filters section.
     //-------------------------------------------------------------------------------//
+    diagnostics_button_check_packfile: QBox<QPushButton>,
+    diagnostics_button_check_current_packed_file: QBox<QPushButton>,
     diagnostics_button_error: QBox<QPushButton>,
     diagnostics_button_warning: QBox<QPushButton>,
     diagnostics_button_info: QBox<QPushButton>,
@@ -134,6 +135,8 @@ impl DiagnosticsUI {
         let filter_grid = create_grid_layout(filter_frame.static_upcast());
         filter_grid.set_contents_margins_4a(4, 0, 4, 0);
 
+        let diagnostics_button_check_packfile = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_check_packfile"), &filter_frame);
+        let diagnostics_button_check_current_packed_file = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_check_current_packed_file"), &filter_frame);
         let diagnostics_button_error = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_error"), &filter_frame);
         let diagnostics_button_warning = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_warning"), &filter_frame);
         let diagnostics_button_info = QPushButton::from_q_string_q_widget(&qtr("diagnostics_button_info"), &filter_frame);
@@ -170,11 +173,13 @@ impl DiagnosticsUI {
             background-color: {}
         }}", get_color_error(), get_color_error_pressed())));
 
-        filter_grid.add_widget_5a(&diagnostics_button_error, 0, 0, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_warning, 0, 1, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_info, 0, 2, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_only_current_packed_file, 0, 3, 1, 1);
-        filter_grid.add_widget_5a(&diagnostics_button_show_more_filters, 0, 4, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_check_packfile, 0, 0, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_check_current_packed_file, 0, 1, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_error, 0, 2, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_warning, 0, 3, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_info, 0, 4, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_only_current_packed_file, 0, 5, 1, 1);
+        filter_grid.add_widget_5a(&diagnostics_button_show_more_filters, 0, 6, 1, 1);
 
         let diagnostics_table_view = QTableView::new_1a(&diagnostics_dock_inner_widget);
         let diagnostics_table_filter = new_tableview_filter_safe(diagnostics_dock_inner_widget.static_upcast());
@@ -321,6 +326,8 @@ impl DiagnosticsUI {
             //-------------------------------------------------------------------------------//
             // Filters section.
             //-------------------------------------------------------------------------------//
+            diagnostics_button_check_packfile,
+            diagnostics_button_check_current_packed_file,
             diagnostics_button_error,
             diagnostics_button_warning,
             diagnostics_button_info,

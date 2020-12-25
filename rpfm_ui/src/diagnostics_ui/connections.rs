@@ -23,6 +23,9 @@ use super::{DiagnosticsUI, slots::DiagnosticsUISlots};
 pub unsafe fn set_connections(ui: &DiagnosticsUI, slots: &DiagnosticsUISlots) {
     ui.diagnostics_table_view.double_clicked().connect(&slots.diagnostics_open_result);
 
+    ui.diagnostics_button_check_packfile.released().connect(&slots.diagnostics_check_packfile);
+    ui.diagnostics_button_check_current_packed_file.released().connect(&slots.diagnostics_check_currently_open_packed_file);
+
     ui.diagnostics_button_info.toggled().connect(&slots.toggle_filters);
     ui.diagnostics_button_warning.toggled().connect(&slots.toggle_filters);
     ui.diagnostics_button_error.toggled().connect(&slots.toggle_filters);

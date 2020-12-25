@@ -83,9 +83,8 @@ impl GlobalSearchSlots {
         let global_search_replace_all = SlotNoArgs::new(&global_search_ui.global_search_dock_widget, clone!(
             app_ui,
             pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui => move || {
-            GlobalSearchUI::replace_all(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+            global_search_ui => move || {
+            GlobalSearchUI::replace_all(&app_ui, &pack_file_contents_ui, &global_search_ui);
         }));
 
         // What happens when we trigger the "Check Regex" action.

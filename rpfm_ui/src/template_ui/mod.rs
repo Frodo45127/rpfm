@@ -262,7 +262,7 @@ impl TemplateUI {
                             grid.add_widget_5a(&field_widget, 0, 1, 1, 1);
                             ui.params.borrow_mut().push((param.get_ref_key().to_owned(), field_widget.static_upcast()));
 
-                            for ref_data in ref_data.get(&0).unwrap().keys() {
+                            for ref_data in ref_data.get(&0).unwrap().data.keys() {
                                 field_widget.add_item_q_string(&QString::from_std_str(ref_data));
                             }
                         }
@@ -278,7 +278,7 @@ impl TemplateUI {
 
             }
 
-            ParamType::Table(definition) => {
+            ParamType::Table(_definition) => {
                 unimplemented!()
             }
         }

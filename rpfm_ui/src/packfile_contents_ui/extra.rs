@@ -37,10 +37,8 @@ use rpfm_lib::packfile::PathType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi::trigger_treeview_filter_safe;
-use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::{qtr, qtre};
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -58,8 +56,6 @@ impl PackFileContentsUI {
     pub unsafe fn add_packedfiles(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>]
     ) {
@@ -74,16 +70,12 @@ impl PackFileContentsUI {
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
-                // Update the global search stuff, if needed.
-                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
-                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
-
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                 paths_packedfile.iter().for_each(|path| {
                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                         if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                            let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false);
+                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
                         }
                     }
                 });
@@ -101,8 +93,6 @@ impl PackFileContentsUI {
     pub unsafe fn add_packed_files_from_folders(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<Self>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         paths: &[PathBuf],
         paths_packedfile: &[Vec<String>]
     ) {
@@ -117,17 +107,13 @@ impl PackFileContentsUI {
                 pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
                 UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
-                // Update the global search stuff, if needed.
-                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
-                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
-
                 // Try to reload all open files which data we altered, and close those that failed.
                 let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                 paths_packedfile.iter().for_each(|path| {
                     if let PathType::File(path) = path {
                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                             if packed_file_view.reload(path, pack_file_contents_ui).is_err() {
-                                let _ = AppUI::purge_that_one_specifically(app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false);
+                                let _ = AppUI::purge_that_one_specifically(app_ui, &pack_file_contents_ui, path, false);
                             }
                         }
                     }

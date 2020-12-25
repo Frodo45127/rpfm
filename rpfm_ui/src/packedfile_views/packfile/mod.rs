@@ -39,9 +39,7 @@ use rpfm_error::Result;
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_treeview_filter_safe, trigger_treeview_filter_safe};
-use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -83,8 +81,6 @@ impl PackFileExtraView {
         pack_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         pack_file_path: PathBuf,
     ) -> Result<()> {
 
@@ -148,7 +144,7 @@ impl PackFileExtraView {
             collapse_all,
         });
 
-        let slots = PackFileExtraViewSlots::new(app_ui, pack_file_contents_ui, global_search_ui, diagnostics_ui, &view);
+        let slots = PackFileExtraViewSlots::new(app_ui, pack_file_contents_ui, &view);
 
         connections::set_connections(&view, &slots);
         shortcuts::set_shortcuts(&view);

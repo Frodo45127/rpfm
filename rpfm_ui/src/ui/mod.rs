@@ -100,12 +100,13 @@ impl UI {
         let pack_file_contents_ui = Rc::new(PackFileContentsUI::new(&app_ui.main_window));
         let diagnostics_ui = Rc::new(DiagnosticsUI::new(&app_ui.main_window));
 
-        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+        AppUITempSlots::build(&app_ui, &pack_file_contents_ui, &global_search_ui);
 
         let app_slots = AppUISlots::new(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui);
         let pack_file_contents_slots = PackFileContentsSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         let global_search_slots = GlobalSearchSlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
         let diagnostics_slots = DiagnosticsUISlots::new(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui);
+            dbg!(app_ui.main_window.palette().color_1a(qt_gui::q_palette::ColorRole::Text).name_1a(qt_gui::q_color::NameFormat::HexRgb).to_std_string());
 
         app_ui::connections::set_connections(&app_ui, &app_slots);
         app_ui::tips::set_tips(&app_ui);
@@ -188,11 +189,9 @@ impl UI {
         if args.len() > 1 {
             let path = PathBuf::from(&args[1]);
             if path.is_file() {
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path], "") {
+                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
                     show_dialog(&app_ui.main_window, error, false);
                 }
-
-                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
             }
         }
 

@@ -31,8 +31,6 @@ use rpfm_lib::packfile::packedfile::PackedFileInfo;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::diagnostics_ui::DiagnosticsUI;
-use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -66,9 +64,7 @@ impl PackedFileAnimPackView {
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
         app_ui: &Rc<AppUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Result<PackedFileInfo> {
 
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
@@ -111,9 +107,7 @@ impl PackedFileAnimPackView {
         let packed_file_animpack_view_slots = PackedFileAnimPackViewSlots::new(
             &packed_file_animpack_view,
             app_ui,
-            pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui
+            pack_file_contents_ui
         );
 
         connections::set_connections(&packed_file_animpack_view, &packed_file_animpack_view_slots);

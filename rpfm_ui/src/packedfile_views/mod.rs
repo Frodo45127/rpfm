@@ -27,14 +27,11 @@ use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::packedfile::{DecodedPackedFile, PackedFileType};
 use rpfm_lib::packedfile::table::{animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
-use rpfm_lib::packfile::PathType;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::get_text_safe;
-use crate::global_search_ui::GlobalSearchUI;
 use crate::pack_tree::*;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::views::table::utils::get_table_from_view;
@@ -187,10 +184,7 @@ impl PackedFileView {
     pub unsafe fn save(
         &self,
         app_ui: &Rc<AppUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-        trigger_checks: bool,
     ) -> Result<()> {
 
         match self.get_view() {
@@ -277,8 +271,6 @@ impl PackedFileView {
                         pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(vec![TreePathType::PackFile]));
                         UI_STATE.set_is_modified(true, app_ui, pack_file_contents_ui);
 
-                        DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, vec![PathType::PackFile]);
-
                         return Ok(())
                     } else { return Err(ErrorKind::PackedFileSaveError(self.get_path()).into()) },
 
@@ -298,17 +290,6 @@ impl PackedFileView {
                 let response = CENTRAL_COMMAND.recv_message_save_packedfile_try();
                 match response {
                     Response::Success => {
-                        if trigger_checks {
-
-                            // If we have a GlobalSearch on, update the results for this specific PackedFile.
-                            let path_types = vec![PathType::File(self.get_path())];
-                            if !UI_STATE.get_global_search().pattern.is_empty() {
-                                GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, path_types.clone());
-                            }
-
-                            DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
-                        }
-
                         Ok(())
                     }
 

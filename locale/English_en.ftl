@@ -611,6 +611,8 @@ settings_ui_table_use_old_column_order_label = Use Old Column Order (Keys first)
 context_menu_paste_as_new_row = Paste as New Row
 
 gen_loc_diagnostics = Diagnostics
+diagnostics_button_check_packfile = Check PackFile
+diagnostics_button_check_current_packed_file = Check Open PackedFiles Only
 diagnostics_button_error = Error
 diagnostics_button_warning = Warning
 diagnostics_button_info = Info

@@ -28,7 +28,7 @@ use rpfm_lib::global_search::MatchHolder;
 use rpfm_lib::packedfile::ca_vp8::{CaVp8, SupportedFormats};
 use rpfm_lib::packedfile::DecodedPackedFile;
 use rpfm_lib::packedfile::image::Image;
-use rpfm_lib::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
+use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::packedfile::text::Text;
 use rpfm_lib::packedfile::rigidmodel::RigidModel;
 use rpfm_lib::packfile::{PackFileInfo, PackFileSettings, PathType, PFHFileType};
@@ -427,8 +427,8 @@ pub enum Response {
     /// Response to return `(i32, i32)`.
     I32I32((i32, i32)),
 
-    /// Response to return `BTreeMap<i32, BTreeMap<String, String>>`.
-    BTreeMapI32BTreeMapStringString(BTreeMap<i32, BTreeMap<String, String>>),
+    /// Response to return `BTreeMap<i32, DependencyData>`.
+    BTreeMapI32DependencyData(BTreeMap<i32, DependencyData>),
 
     /// Response to return `Option<PackedFile>`.
     OptionPackedFile(Option<PackedFile>),

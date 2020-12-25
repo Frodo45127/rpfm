@@ -39,7 +39,7 @@ use std::cmp::{Ordering, Reverse};
 use std::rc::Rc;
 use std::sync::{atomic::AtomicPtr, RwLock};
 
-use rpfm_lib::packedfile::table::Table;
+use rpfm_lib::packedfile::table::{DependencyData, Table};
 use rpfm_lib::schema::{Definition, Field, FieldType};
 use rpfm_lib::SETTINGS;
 
@@ -343,7 +343,7 @@ pub unsafe fn load_data(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &RwLock<BTreeMap<i32, BTreeMap<String, String>>>,
+    dependency_data: &RwLock<BTreeMap<i32, DependencyData>>,
     data: &TableType,
 ) {
     let table_filter: QPtr<QSortFilterProxyModel> = table_view_primary.model().static_downcast();
@@ -644,7 +644,7 @@ pub unsafe fn set_column_tooltip(
 }
 
 /// This function returns the reference data for an entire table.
-pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32, BTreeMap<String, String>>> {
+pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32, DependencyData>> {
 
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
     let files_to_ignore = UI_STATE.get_open_packedfiles().iter().map(|x| x.get_path()).collect();
@@ -692,11 +692,11 @@ pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32
 
     let mut response = CENTRAL_COMMAND.recv_message_qt();
     match response {
-        Response::BTreeMapI32BTreeMapStringString(ref mut dependency_data) => {
+        Response::BTreeMapI32DependencyData(ref mut dependency_data) => {
             for index in reference_data.keys() {
                 if let Some(mut column_data_visual) = dependency_data_visual.get_mut(index) {
                     if let Some(column_data) = dependency_data.get_mut(index) {
-                        column_data.append(&mut column_data_visual);
+                        column_data.data.append(&mut column_data_visual);
                     }
                 }
             }
@@ -713,7 +713,7 @@ pub unsafe fn setup_item_delegates(
     table_view_primary: &QPtr<QTableView>,
     table_view_frozen: &QPtr<QTableView>,
     definition: &Definition,
-    dependency_data: &BTreeMap<i32, BTreeMap<String, String>>
+    dependency_data: &BTreeMap<i32, DependencyData>
 ) {
     let enable_lookups = false; //table_enable_lookups_button.is_checked();
     for (column, field) in definition.get_fields_processed().iter().enumerate() {
@@ -722,7 +722,7 @@ pub unsafe fn setup_item_delegates(
         if !SETTINGS.read().unwrap().settings_bool["disable_combos_on_tables"] && dependency_data.get(&(column as i32)).is_some() || !field.get_enum_values().is_empty() {
             let list = QStringList::new();
             if let Some(data) = dependency_data.get(&(column as i32)) {
-                data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
+                data.data.iter().map(|x| if enable_lookups { x.1 } else { x.0 }).for_each(|x| list.append_q_string(&QString::from_std_str(x)));
             }
 
             if !field.get_enum_values().is_empty() {

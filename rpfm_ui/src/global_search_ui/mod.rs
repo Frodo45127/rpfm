@@ -573,11 +573,10 @@ impl GlobalSearchUI {
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<Self>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
 
         // To avoid conflicting data, we close all PackedFiles hard and re-search before replacing.
-        if let Err(error) = AppUI::back_to_back_end_all(&app_ui, global_search_ui, pack_file_contents_ui, &diagnostics_ui, false) {
+        if let Err(error) = AppUI::back_to_back_end_all(&app_ui, pack_file_contents_ui) {
             return show_dialog(&app_ui.main_window, error, false);
         }
 

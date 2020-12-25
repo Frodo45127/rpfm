@@ -23,10 +23,8 @@ use rpfm_lib::packfile::PathType;
 use crate::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::pack_tree::{PackTree, TreePathType, TreeViewOperation};
-use crate::packedfile_views::DiagnosticsUI;
 use crate::utils::show_dialog;
 use super::PackFileExtraView;
 use crate::UI_STATE;
@@ -58,8 +56,6 @@ impl PackFileExtraViewSlots {
     pub unsafe fn new(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         pack_file_view: &Arc<PackFileExtraView>
     ) -> Self {
 
@@ -67,8 +63,6 @@ impl PackFileExtraViewSlots {
         let import = SlotOfQModelIndex::new(&pack_file_view.tree_view, clone!(
             app_ui,
             pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui,
             pack_file_view => move |_| {
 
                 // Get the file to get from the TreeView.
@@ -89,7 +83,7 @@ impl PackFileExtraViewSlots {
                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                     if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                                         if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false);
+                                            let _ = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false);
                                         }
                                     }
                                 }

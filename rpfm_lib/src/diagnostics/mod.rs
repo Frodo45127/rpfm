@@ -24,8 +24,8 @@ use crate::dependencies::Dependencies;
 use crate::packfile::{PackFile, PathType};
 use crate::packedfile::{table::DecodedData, DecodedPackedFile, PackedFileType};
 use crate::packfile::packedfile::PackedFileInfo;
-use crate::PackedFile;
-use crate::schema::FieldType;
+use crate::schema::{FieldType, Schema};
+use crate::SCHEMA;
 
 use self::dependency_manager::{DependencyManagerDiagnostic, DependencyManagerDiagnosticReport, DependencyManagerDiagnosticReportType};
 use self::packfile::PackFileDiagnostic;
@@ -94,8 +94,8 @@ impl Diagnostics {
 
     /// This function performs a search over the parts of a `PackFile` you specify it, storing his results.
     pub fn check(&mut self, pack_file: &PackFile, dependencies: &Dependencies) {
-        let real_dep_db = dependencies.get_ref_dependency_database();
-        let fake_dep_db = dependencies.get_ref_fake_dependency_database();
+        let schema = SCHEMA.read().unwrap();
+
         let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
             files.iter().map(|x| x.split('/').map(|y| y.to_owned()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>()
@@ -108,7 +108,7 @@ impl Diagnostics {
                 }
             }
             match packed_file.get_packed_file_type_by_path() {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &real_dep_db, &fake_dep_db),
+                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path()),
                 _ => None,
             }
@@ -128,16 +128,15 @@ impl Diagnostics {
         pack_file: &PackFile,
         packed_file: &DecodedPackedFile,
         path: &[String],
-        real_dep_db: &[PackedFile],
-        fake_dep_db: &[DB],
+        dependencies: &Dependencies,
+        _schema: &Option<Schema>
     ) ->Option<DiagnosticType> {
         if let DecodedPackedFile::DB(table) = packed_file {
             let mut diagnostic = TableDiagnostic::new(path);
             let dependency_data = DB::get_dependency_data(
                 &pack_file,
                 table.get_ref_definition(),
-                real_dep_db,
-                fake_dep_db,
+                &dependencies,
                 &[],
             );
 
@@ -147,7 +146,7 @@ impl Diagnostics {
             let mut keys = vec![];
 
             // Before anything else, check if the table is outdated.
-            if table.is_outdated(&real_dep_db) {
+            if table.is_outdated(&dependencies.get_ref_dependency_database()) {
                 diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                     column_number: 0,
                     row_number: -1,
@@ -164,20 +163,28 @@ impl Diagnostics {
                 for (column, field) in table.get_ref_definition().get_fields_processed().iter().enumerate() {
                     let cell_data = cells[column].data_to_string();
 
-                    // First, check if we have dependency data for that column.
-                    if field.get_is_reference().is_some() {
+                    // Dependency checks.
+                    if let Some((_ref_table_name, _ref_column_name)) = field.get_is_reference() {
                         match dependency_data.get(&(column as i32)) {
                             Some(ref_data) => {
 
+                                if ref_data.referenced_column_is_localised {
+                                    // TODO: report missing loc data here.
+                                }
+
+                                else if ref_data.referenced_table_is_ak_only {
+                                    // If it's only in the AK, ignore it.
+                                }
+
                                 // Blue cell check. Only one for each column, so we don't fill the diagnostics with this.
-                                if ref_data.is_empty() {
+                                else if ref_data.data.is_empty() {
                                     if !columns_with_reference_table_and_no_column.contains(&column) {
                                         columns_with_reference_table_and_no_column.push(column);
                                     }
                                 }
 
                                 // Check for non-empty cells with reference data, but the data in the cell is not in the reference data list.
-                                else if !cell_data.is_empty() && !ref_data.contains_key(&cell_data) {
+                                else if !cell_data.is_empty() && !ref_data.data.contains_key(&cell_data) {
                                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                                         column_number: column as u32,
                                         row_number: row as i64,
@@ -265,7 +272,7 @@ impl Diagnostics {
             }
 
             for column in &columns_with_reference_table_and_no_column {
-                if fake_dep_db.is_empty() {
+                if dependencies.get_ref_fake_dependency_database().is_empty() {
                     diagnostic.get_ref_mut_result().push(TableDiagnosticReport {
                         column_number: *column as u32,
                         row_number: -1,
@@ -412,9 +419,7 @@ impl Diagnostics {
             self.get_ref_mut_diagnostics().retain(|x| x.get_path() != &**path);
         }
 
-        // If we got no schema, don't even decode.
-        let real_dep_db = dependencies.get_ref_dependency_database();
-        let fake_dep_db = dependencies.get_ref_fake_dependency_database();
+        let schema = SCHEMA.read().unwrap();
 
         let files_to_ignore = pack_file.get_settings().settings_text.get("diagnostics_files_to_ignore").map(|files_to_ignore| {
             let files = files_to_ignore.split('\n').collect::<Vec<&str>>();
@@ -429,7 +434,7 @@ impl Diagnostics {
             }
 
             let diagnostic = match packed_file.get_packed_file_type_by_path() {
-                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &real_dep_db, &fake_dep_db),
+                PackedFileType::DB => Self::check_db(pack_file, packed_file.get_ref_decoded(), packed_file.get_path(), &dependencies, &schema),
                 PackedFileType::Loc => Self::check_loc(packed_file.get_ref_decoded(), packed_file.get_path()),
                 _ => None,
             };

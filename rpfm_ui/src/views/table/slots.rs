@@ -72,7 +72,6 @@ pub struct TableViewSlots {
     pub invert_selection: QBox<SlotNoArgs>,
     pub reset_selection: QBox<SlotNoArgs>,
     pub rewrite_selection: QBox<SlotNoArgs>,
-    pub save: QBox<SlotNoArgs>,
     pub undo: QBox<SlotNoArgs>,
     pub redo: QBox<SlotNoArgs>,
     pub import_tsv: QBox<SlotOfBool>,
@@ -326,28 +325,6 @@ impl TableViewSlots {
             view.rewrite_selection();
         }));
 
-        // When we want to save the contents of the UI to the backend...
-        //
-        // NOTE: in-edition saves to backend are only triggered when the GlobalSearch has search data, to keep it updated.
-        let save = SlotNoArgs::new(&view.table_view_primary, clone!(
-            app_ui,
-            pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui,
-            view => move || {
-
-            // Only save to the backend if both, the save and undo locks are disabled. Otherwise this will cause locks.
-            if !view.save_lock.load(Ordering::SeqCst) && !view.undo_lock.load(Ordering::SeqCst) {
-                if let Some(ref packed_file_path) = view.packed_file_path {
-                    if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
-                        if let Err(error) = packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, true) {
-                            show_dialog(&view.table_view_primary, error, false);
-                        }
-                    }
-                }
-            }
-        }));
-
         // When we want to undo the last action.
         let undo = SlotNoArgs::new(&view.table_view_primary, clone!(
             app_ui,
@@ -451,8 +428,6 @@ impl TableViewSlots {
         let export_tsv = SlotOfBool::new(&view.table_view_primary, clone!(
             app_ui,
             pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui,
             view => move |_| {
 
                 if let Some(ref packed_file_path) = view.packed_file_path {
@@ -473,7 +448,7 @@ impl TableViewSlots {
 
                         let path = PathBuf::from(file_dialog.selected_files().at(0).to_std_string());
                         if let Some(packed_file) = UI_STATE.get_open_packedfiles().iter().find(|x| *x.get_ref_path() == *packed_file_path.read().unwrap()) {
-                            if let Err(error) = packed_file.save(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false) {
+                            if let Err(error) = packed_file.save(&app_ui, &pack_file_contents_ui) {
                                 return show_dialog(&view.table_view_primary, error, false);
                             }
                         }
@@ -669,7 +644,6 @@ impl TableViewSlots {
             invert_selection,
             reset_selection,
             rewrite_selection,
-            save,
             undo,
             redo,
             import_tsv,

@@ -23,8 +23,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::app_ui::AppUI;
-use crate::diagnostics_ui::DiagnosticsUI;
-use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::PackedFileExternalView;
 use crate::utils::show_dialog;
@@ -51,8 +49,6 @@ impl PackedFileExternalViewSlots {
         view: &Arc<PackedFileExternalView>,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         packed_file_path: &Rc<RefCell<Vec<String>>>
     )  -> Self {
 
@@ -60,10 +56,8 @@ impl PackedFileExternalViewSlots {
         let stop_watching = SlotNoArgs::new(&view.stop_watching_button, clone!(
             app_ui,
             pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui,
             packed_file_path => move || {
-                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &packed_file_path.borrow(), true) {
+                if let Err(error) = AppUI::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, &packed_file_path.borrow(), true) {
                     show_dialog(&app_ui.main_window, error, false);
                 }
             }

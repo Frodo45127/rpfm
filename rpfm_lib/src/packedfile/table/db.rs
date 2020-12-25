@@ -32,12 +32,13 @@ use crate::common::get_game_selected_pak_file;
 use crate::GAME_SELECTED;
 use crate::games::*;
 use crate::packedfile::DecodedPackedFile;
+use crate::packedfile::Dependencies;
 use crate::packfile::PackFile;
 use crate::packfile::packedfile::PackedFile;
 use crate::schema::*;
 use crate::SETTINGS;
-use super::DecodedData;
-use super::Table;
+use crate::SCHEMA;
+use super::{DecodedData, Table, DependencyData};
 
 /// If this sequence is found, the DB Table has a GUID after it.
 const GUID_MARKER: &[u8] = &[253, 254, 252, 255];
@@ -328,14 +329,17 @@ impl DB {
     }
 
     /// This function returns the dependency/lookup data of a column from the dependency database.
+    ///
+    /// Returns true if anything was found. Otherwise returns false.
     fn get_dependency_data_from_real_dependencies(
-        references: &mut BTreeMap<String, String>,
+        references: &mut DependencyData,
         reference_info: (&str, &str, &[String]),
         real_dep_db: &[PackedFile],
-    ) {
+    ) -> bool {
 
         // Scan the dependency data for references. The process is simple: keep finding referenced tables,
         // Then open them and get the column we need. Here, we do it on the real dependencies (vanilla + mod).
+        let mut data_found = false;
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
@@ -381,22 +385,25 @@ impl DB {
                             }
                         }
 
-                        references.insert(reference_data, lookup_data.join(" "));
+                        references.data.insert(reference_data, lookup_data.join(" "));
+
+                        if !data_found {
+                            data_found = true;
+                        }
                     }
                 }
             }
         }
+        return data_found;
     }
 
     /// This function returns the dependency/lookup data of a column from the fake dependency database.
     fn get_dependency_data_from_fake_dependencies(
-        references: &mut BTreeMap<String, String>,
+        references: &mut DependencyData,
         reference_info: (&str, &str, &[String]),
         fake_dep_db: &[DB],
-    ) {
-
-        // Scan the dependency data for references. The process is simple: keep finding referenced tables,
-        // Then open them and get the column we need. Here, we do it on the real dependencies (vanilla + mod).
+    ) -> bool {
+        let mut data_found = false;
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
@@ -440,21 +447,27 @@ impl DB {
                     }
                 }
 
-                references.insert(reference_data, lookup_data.join(" "));
+                references.data.insert(reference_data, lookup_data.join(" "));
+
+                if !data_found {
+                    data_found = true;
+                }
             }
         }
+        return data_found;
     }
 
     /// This function returns the dependency/lookup data of a column from our own `PackFile`.
     fn get_dependency_data_from_packfile(
-        references: &mut BTreeMap<String, String>,
+        references: &mut DependencyData,
         reference_info: (&str, &str, &[String]),
         packfile: &PackFile,
         files_to_ignore: &[Vec<String>]
-    ) {
+    ) -> bool {
 
         // Scan our own packedfiles data for references. The process is simple: keep finding referenced tables,
         // Then open them and get the column we need. Here, we do it on the real dependencies (vanilla + mod).
+        let mut data_found = false;
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
@@ -500,43 +513,60 @@ impl DB {
                             }
                         }
 
-                        references.insert(reference_data, lookup_data.join(" "));
+                        references.data.insert(reference_data, lookup_data.join(" "));
+
+                        if !data_found {
+                            data_found = true;
+                        }
                     }
                 }
             }
         }
+        return data_found;
     }
 
     /// This function returns the dependency/lookup data of each column of a DB Table.
     ///
     /// The returned references are in the following format:
-    /// ```BTreeMap<column_index, Vec<(referenced_value, lookup_value)>```.
+    /// ```BTreeMap<column_index, Vec<(referenced_value, lookup_value, only_present_in_ak)>```.
     pub fn get_dependency_data(
         pack_file: &PackFile,
         table_definition: &Definition,
-        real_dep_db: &[PackedFile],
-        fake_dep_db: &[DB],
+        dependencies: &Dependencies,
         files_to_ignore: &[Vec<String>]
-    ) -> BTreeMap<i32, BTreeMap<String, String>> {
-        let mut data = BTreeMap::new();
+    ) -> BTreeMap<i32, DependencyData> {
+        let schema = SCHEMA.read().unwrap();
+        let mut dep_data = BTreeMap::new();
         for (column, field) in table_definition.get_fields_processed().iter().enumerate() {
             if let Some((ref ref_table, ref ref_column)) = field.get_is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
 
                     // Get his lookup data if it has it.
                     let lookup_data = if let Some(ref data) = field.get_lookup() { data.to_vec() } else { Vec::with_capacity(0) };
-                    let mut references = BTreeMap::new();
+                    let mut references = DependencyData::default();
 
-                    Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), real_dep_db);
-                    Self::get_dependency_data_from_fake_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), fake_dep_db);
-                    Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, files_to_ignore);
+                    let fake_found = Self::get_dependency_data_from_fake_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_fake_dependency_database());
+                    let real_found = Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_dependency_database());
+                    let local_found = Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, files_to_ignore);
 
-                    data.insert(column as i32, references);
+                    if fake_found && !real_found && !local_found {
+                        references.referenced_table_is_ak_only = true;
+                    }
+
+                    if let Some(ref schema) = *schema {
+                        if let Ok(ref_definition) = schema.get_ref_last_definition_db(ref_table, &dependencies) {
+                            if ref_definition.get_localised_fields().iter().any(|x| x.get_name() == ref_column) {
+                                references.referenced_column_is_localised = true;
+                            }
+                        }
+                    }
+
+                    dep_data.insert(column as i32, references);
                 }
             }
         }
 
-        data
+        dep_data
     }
 
     /// This function is used to check if a table is outdated or not.

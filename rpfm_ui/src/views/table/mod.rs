@@ -56,7 +56,7 @@ use std::rc::Rc;
 use rpfm_error::{ErrorKind, Result};
 use rpfm_lib::common::parse_str_as_bool;
 use rpfm_lib::packedfile::PackedFileType;
-use rpfm_lib::packedfile::table::{anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat};
+use rpfm_lib::packedfile::table::{DependencyData, anim_fragment::AnimFragment, animtable::AnimTable, DecodedData, db::DB, loc::Loc, matched_combat::MatchedCombat};
 use rpfm_lib::schema::{Definition, FieldType, Schema, VersionedFile};
 use rpfm_lib::SCHEMA;
 use rpfm_lib::SETTINGS;
@@ -74,7 +74,6 @@ use crate::utils::atomic_from_ptr;
 use crate::utils::create_grid_layout;
 use crate::utils::show_dialog;
 use crate::utils::ptr_from_atomic;
-use crate::UI_STATE;
 
 use self::slots::*;
 use self::utils::*;
@@ -212,7 +211,7 @@ pub struct TableView {
     packed_file_path: Option<Arc<RwLock<Vec<String>>>>,
     packed_file_type: Arc<PackedFileType>,
     table_definition: Arc<RwLock<Definition>>,
-    dependency_data: Arc<RwLock<BTreeMap<i32, BTreeMap<String, String>>>>,
+    dependency_data: Arc<RwLock<BTreeMap<i32, DependencyData>>>,
 
     save_lock: Arc<AtomicBool>,
     undo_lock: Arc<AtomicBool>,
@@ -574,13 +573,6 @@ impl TableView {
             &table_data
         );
 
-        // Prepare the diagnostic pass.
-        if SETTINGS.read().unwrap().settings_bool["enable_diagnostics_tool"] {
-            for diagnostic in UI_STATE.get_diagnostics().get_ref_diagnostics() {
-                DiagnosticsUI::paint_diagnostics_to_table(&app_ui, diagnostic);
-            }
-        }
-
         // Initialize the undo model.
         update_undo_model(&packed_file_table_view.get_mut_ptr_table_model(), &packed_file_table_view.get_mut_ptr_undo_model());
 
@@ -890,7 +882,7 @@ impl TableView {
     }
 
     /// This function allows you to set a new dependency data to an already created table.
-    pub fn set_dependency_data(&self, data: &BTreeMap<i32, BTreeMap<String, String>>) {
+    pub fn set_dependency_data(&self, data: &BTreeMap<i32, DependencyData>) {
         *self.dependency_data.write().unwrap() = data.clone();
     }
 

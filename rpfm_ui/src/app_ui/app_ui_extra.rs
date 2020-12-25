@@ -109,14 +109,11 @@ impl AppUI {
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn back_to_back_end_all(
         app_ui: &Rc<Self>,
-        global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
-        trigger_diagnostic_check: bool,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui, trigger_diagnostic_check)?;
+            packed_file_view.save(app_ui, &pack_file_contents_ui)?;
         }
         Ok(())
     }
@@ -125,15 +122,13 @@ impl AppUI {
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn purge_them_all(
         app_ui: &Rc<Self>,
-        global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         save_before_deleting: bool,
     ) -> Result<()> {
 
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
             if save_before_deleting && !packed_file_view.get_path().starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui, save_before_deleting)?;
+                packed_file_view.save(app_ui, &pack_file_contents_ui)?;
             }
             let widget = packed_file_view.get_mut_widget();
             let index = app_ui.tab_bar_packed_file.index_of(widget);
@@ -164,9 +159,7 @@ impl AppUI {
     #[must_use = "If one of those mysterious save errors happen here and we don't use the result, we may be losing the new changes to a file."]
     pub unsafe fn purge_that_one_specifically(
         app_ui: &Rc<Self>,
-        global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         path: &[String],
         save_before_deleting: bool
     ) -> Result<()> {
@@ -180,7 +173,7 @@ impl AppUI {
 
                 // Do not try saving PackFiles.
                 if save_before_deleting && !path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                    did_it_worked = packed_file_view.save(app_ui, global_search_ui, &pack_file_contents_ui, &diagnostics_ui, save_before_deleting);
+                    did_it_worked = packed_file_view.save(app_ui, &pack_file_contents_ui);
                 }
                 let widget = packed_file_view.get_mut_widget();
                 let index = app_ui.tab_bar_packed_file.index_of(widget);
@@ -235,13 +228,12 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         pack_file_paths: &[PathBuf],
         game_folder: &str,
     ) -> Result<()> {
 
         // Destroy whatever it's in the PackedFile's view, to avoid data corruption. We don't care about this result.
-        let _ = Self::purge_them_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false);
+        let _ = Self::purge_them_all(app_ui, pack_file_contents_ui, false);
 
         // Tell the Background Thread to create a new PackFile with the data of one or more from the disk.
         app_ui.main_window.set_enabled(false);
@@ -428,8 +420,6 @@ impl AppUI {
     pub unsafe fn save_packfile(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         save_as: bool,
     ) -> Result<()> {
 
@@ -437,7 +427,7 @@ impl AppUI {
         app_ui.main_window.set_enabled(false);
 
         // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
-        AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false)?;
+        AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
         CENTRAL_COMMAND.send_message_qt(Command::GetPackFilePath);
         let response = CENTRAL_COMMAND.recv_message_qt();
@@ -688,7 +678,6 @@ impl AppUI {
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
         global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) {
 
         // First, we clear both menus, so we can rebuild them properly.
@@ -717,19 +706,11 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
-                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
-
-                        // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
-                        app_ui.menu_bar_packfile.set_enabled(false);
-                        app_ui.menu_bar_templates.set_enabled(false);
-                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                        app_ui.menu_bar_packfile.set_enabled(true);
-                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -753,19 +734,11 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
-                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
-
-                        // Disable the PackFile menu until this finishes, becaase otherwise if the user tries to click it, RPFM will die.
-                        app_ui.menu_bar_packfile.set_enabled(false);
-                        app_ui.menu_bar_templates.set_enabled(false);
-                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                        app_ui.menu_bar_packfile.set_enabled(true);
-                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -789,17 +762,11 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
-                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
-                        app_ui.menu_bar_packfile.set_enabled(false);
-                        app_ui.menu_bar_templates.set_enabled(false);
-                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                        app_ui.menu_bar_packfile.set_enabled(true);
-                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -822,17 +789,11 @@ impl AppUI {
                     app_ui,
                     pack_file_contents_ui,
                     global_search_ui,
-                    diagnostics_ui,
                     path => move |_| {
                     if Self::are_you_sure(&app_ui, false) {
-                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[path.to_path_buf()], "") {
+                        if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path.to_path_buf()], "") {
                             return show_dialog(&app_ui.main_window, error, false);
                         }
-                        app_ui.menu_bar_packfile.set_enabled(false);
-                        app_ui.menu_bar_templates.set_enabled(false);
-                        DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                        app_ui.menu_bar_packfile.set_enabled(true);
-                        app_ui.menu_bar_templates.set_enabled(true);
                     }
                 }));
 
@@ -856,14 +817,12 @@ impl AppUI {
                 let slot_load_template = SlotOfBool::new(&template_load_action, clone!(
                     app_ui,
                     pack_file_contents_ui,
-                    global_search_ui,
-                    diagnostics_ui,
                     template_name,
                     is_custom => move |_| {
                         match Template::load(&template_name, is_custom) {
                             Ok(template) => {
                                 if let Some((options, params)) = TemplateUI::load(&app_ui, &template) {
-                                    match Self::back_to_back_end_all(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, false) {
+                                    match Self::back_to_back_end_all(&app_ui, &pack_file_contents_ui) {
                                         Ok(_) => {
                                             CENTRAL_COMMAND.send_message_qt(Command::ApplyTemplate(template, options, params, is_custom));
                                             let response = CENTRAL_COMMAND.recv_message_qt_try();
@@ -874,16 +833,12 @@ impl AppUI {
                                                     pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::MarkAlwaysModified(paths.to_vec()));
                                                     UI_STATE.set_is_modified(true, &app_ui, &pack_file_contents_ui);
 
-                                                    // Update the global search stuff, if needed.
-                                                    GlobalSearchUI::search_on_path(&pack_file_contents_ui, &global_search_ui, paths.iter().map(From::from).collect());
-                                                    DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, paths.iter().map(From::from).collect());
-
                                                     // Try to reload all open files which data we altered, and close those that failed.
                                                     let mut open_packedfiles = UI_STATE.set_open_packedfiles();
                                                     packed_file_paths.iter().for_each(|path| {
                                                         if let Some(packed_file_view) = open_packedfiles.iter_mut().find(|x| *x.get_ref_path() == *path) {
                                                             if packed_file_view.reload(path, &pack_file_contents_ui).is_err() {
-                                                                if let Err(error) = Self::purge_that_one_specifically(&app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, path, false) {
+                                                                if let Err(error) = Self::purge_that_one_specifically(&app_ui, &pack_file_contents_ui, path, false) {
                                                                     show_dialog(&app_ui.main_window, error, false);
                                                                 }
                                                             }
@@ -925,8 +880,7 @@ impl AppUI {
     pub unsafe fn build_open_mymod_submenus(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>
+        global_search_ui: &Rc<GlobalSearchUI>
     ) {
 
         // First, we need to reset the menu, which basically means deleting all the game submenus and hiding them.
@@ -988,18 +942,14 @@ impl AppUI {
 
                                         // Create the slot for that action.
                                         let slot_open_mod = SlotOfBool::new(&open_mod_action, clone!(
-                                            mut app_ui,
-                                            mut pack_file_contents_ui,
-                                            mut global_search_ui,
-                                            mut diagnostics_ui,
-                                            mut game_folder_name => move |_| {
+                                            app_ui,
+                                            pack_file_contents_ui,
+                                            global_search_ui,
+                                            game_folder_name => move |_| {
                                             if Self::are_you_sure(&app_ui, false) {
-                                                if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &diagnostics_ui, &[pack_file.to_path_buf()], &game_folder_name) {
+                                                if let Err(error) = Self::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[pack_file.to_path_buf()], &game_folder_name) {
                                                     return show_dialog(&app_ui.main_window, error, false);
                                                 }
-                                                app_ui.menu_bar_mymod.set_enabled(false);
-                                                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
-                                                app_ui.menu_bar_mymod.set_enabled(true);
                                             }
                                         }));
 
@@ -1313,7 +1263,7 @@ impl AppUI {
 
                 // If we have a PackedFile open, but we want to open it as a External file, close it here.
                 if is_external && UI_STATE.get_open_packedfiles().iter().any(|x| *x.get_ref_path() == *path) {
-                    if let Err(error) = Self::purge_that_one_specifically(app_ui, &global_search_ui, &pack_file_contents_ui, &diagnostics_ui, &path, true) {
+                    if let Err(error) = Self::purge_that_one_specifically(app_ui, &pack_file_contents_ui, &path, true) {
                         show_dialog(&app_ui.main_window, error, false);
                     }
                 }
@@ -1350,7 +1300,7 @@ impl AppUI {
 
                         // If the file is an AnimPack PackedFile...
                         PackedFileType::AnimPack => {
-                            match PackedFileAnimPackView::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileAnimPackView::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1384,7 +1334,7 @@ impl AppUI {
 
                         // If the file is a CA_VP8 PackedFile...
                         PackedFileType::CaVp8 => {
-                            match PackedFileCaVp8View::new_view(&mut tab, app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                            match PackedFileCaVp8View::new_view(&mut tab, app_ui, pack_file_contents_ui) {
                                 Ok(packed_file_info) => {
 
                                     // Add the file to the 'Currently open' list and make it visible.
@@ -1513,7 +1463,7 @@ impl AppUI {
                     let icon = icon_type.get_icon_from_path();
                     let path = Rc::new(RefCell::new(path.to_vec()));
 
-                    match PackedFileExternalView::new_view(&path, app_ui,  &mut tab, global_search_ui, pack_file_contents_ui, diagnostics_ui) {
+                    match PackedFileExternalView::new_view(&path, app_ui,  &mut tab, pack_file_contents_ui) {
                         Ok(_) => {
 
                             // Add the file to the 'Currently open' list and make it visible.
@@ -1534,9 +1484,7 @@ impl AppUI {
     /// This function is used to open the PackedFile Decoder.
     pub unsafe fn open_decoder(
         app_ui: &Rc<Self>,
-        pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>
     ) {
 
         // If we don't have an schema, don't even try it.
@@ -1593,7 +1541,7 @@ impl AppUI {
                 let icon = icon_type.get_icon_from_path();
                 tab.set_path(path);
 
-                match PackedFileDecoderView::new_view(&mut tab, global_search_ui, pack_file_contents_ui, &app_ui, diagnostics_ui) {
+                match PackedFileDecoderView::new_view(&mut tab, pack_file_contents_ui, &app_ui) {
                     Ok(_) => {
 
                         // Add the decoder to the 'Currently open' list and make it visible.
@@ -1980,15 +1928,13 @@ impl AppUI {
     pub unsafe fn save_to_template(
         app_ui: &Rc<Self>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Result<Option<String>> {
 
         // Launch the dialog and wait for the answer.
         if let Some((name, description, author, post_message, sections, options, params)) = SaveTemplateUI::load(app_ui) {
 
             // First, we need to save all open `PackedFiles` to the backend. If one fails, we want to know what one.
-            AppUI::back_to_back_end_all(app_ui, global_search_ui, pack_file_contents_ui, diagnostics_ui, false)?;
+            AppUI::back_to_back_end_all(app_ui, pack_file_contents_ui)?;
 
             // Create the PackFile.
             CENTRAL_COMMAND.send_message_qt(Command::SaveTemplate(name.to_owned(), description.to_owned(), author.to_owned(), post_message.to_owned(), sections, options, params));
@@ -2232,8 +2178,6 @@ impl AppUI {
     pub unsafe fn packed_file_view_hide(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
         index: i32
     ) {
 
@@ -2259,7 +2203,7 @@ impl AppUI {
 
         // This is for cleaning up open PackFiles.
         if !purge_on_delete.is_empty() {
-            let _ = Self::purge_that_one_specifically(app_ui, global_search_ui, pack_file_contents_ui, &diagnostics_ui, &purge_on_delete, false);
+            let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &purge_on_delete, false);
         }
 
         // Update the background icon.

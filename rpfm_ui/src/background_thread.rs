@@ -591,18 +591,14 @@ pub fn background_loop() {
 
             // In case we want to get the reference data for a definition...
             Command::GetReferenceDataFromDefinition(definition, files_to_ignore) => {
-                let real_dep_db = dependencies.get_ref_dependency_database();
-                let fake_dep_db = dependencies.get_ref_fake_dependency_database();
-
                 let dependency_data = DB::get_dependency_data(
                     &pack_file_decoded,
                     &definition,
-                    &real_dep_db,
-                    &fake_dep_db,
+                    &dependencies,
                     &files_to_ignore,
                 );
 
-                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32BTreeMapStringString(dependency_data));
+                CENTRAL_COMMAND.send_message_rust(Response::BTreeMapI32DependencyData(dependency_data));
             }
 
             // In case we want to return an entire PackedFile to the UI.

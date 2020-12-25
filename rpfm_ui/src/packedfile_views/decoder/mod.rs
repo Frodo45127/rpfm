@@ -76,10 +76,8 @@ use rpfm_lib::SUPPORTED_GAMES;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::diagnostics_ui::DiagnosticsUI;
 use crate::ffi::{new_combobox_item_delegate_safe, new_spinbox_item_delegate_safe, new_qstring_item_delegate_safe};
 use crate::FONT_MONOSPACE;
-use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packedfile_views::{PackedFileView, View, ViewType};
 use crate::utils::create_grid_layout;
@@ -179,10 +177,8 @@ impl PackedFileDecoderView {
     /// This function creates a new Decoder View, and sets up his slots and connections.
     pub unsafe fn new_view(
         packed_file_view: &mut PackedFileView,
-        global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        app_ui: &Rc<AppUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
+        app_ui: &Rc<AppUI>
     ) -> Result<()> {
 
         // Get the decoded Text.
@@ -482,9 +478,7 @@ impl PackedFileDecoderView {
             &packed_file_decoder_view,
             packed_file_decoder_mutable_data.clone(),
             app_ui,
-            pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui,
+            pack_file_contents_ui
         );
 
         let definition = get_definition(

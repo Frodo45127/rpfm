@@ -32,8 +32,6 @@ use rpfm_lib::packedfile::PackedFileType;
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
-use crate::diagnostics_ui::DiagnosticsUI;
-use crate::global_search_ui::GlobalSearchUI;
 use crate::locale::qtr;
 use crate::packedfile_views::{PackedFileView, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
@@ -65,9 +63,7 @@ impl PackedFileExternalView {
         packed_file_path: &Rc<RefCell<Vec<String>>>,
         app_ui: &Rc<AppUI>,
         packed_file_view: &mut PackedFileView,
-        global_search_ui: &Rc<GlobalSearchUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Result<()> {
 
         CENTRAL_COMMAND.send_message_qt(Command::OpenPackedFileInExternalProgram(packed_file_path.borrow().to_vec()));
@@ -100,8 +96,6 @@ impl PackedFileExternalView {
             &packed_file_external_view,
             app_ui,
             pack_file_contents_ui,
-            global_search_ui,
-            diagnostics_ui,
             &packed_file_path
         );
 

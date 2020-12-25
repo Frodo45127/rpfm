@@ -17,10 +17,13 @@ use qt_core::{SlotNoArgs, SlotOfBool, SlotOfQModelIndex};
 
 use std::rc::Rc;
 
+use rpfm_lib::packfile::PathType;
+
 use crate::AppUI;
 use crate::diagnostics_ui::DiagnosticsUI;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
+use crate::UI_STATE;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -28,6 +31,8 @@ use crate::packfile_contents_ui::PackFileContentsUI;
 
 /// This struct contains all the slots we need to respond to signals of the diagnostics panel.
 pub struct DiagnosticsUISlots {
+    pub diagnostics_check_packfile: QBox<SlotNoArgs>,
+    pub diagnostics_check_currently_open_packed_file: QBox<SlotNoArgs>,
     pub diagnostics_open_result: QBox<SlotOfQModelIndex>,
     pub show_hide_extra_filters: QBox<SlotOfBool>,
     pub toggle_filters: QBox<SlotNoArgs>,
@@ -48,6 +53,28 @@ impl DiagnosticsUISlots {
         global_search_ui: &Rc<GlobalSearchUI>,
         diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Self {
+
+        // Checker slots.
+        let diagnostics_check_packfile = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            app_ui,
+            diagnostics_ui => move || {
+                app_ui.main_window.set_disabled(true);
+                DiagnosticsUI::check(&app_ui, &diagnostics_ui);
+                app_ui.main_window.set_disabled(false);
+            }
+        ));
+
+        let diagnostics_check_currently_open_packed_file = SlotNoArgs::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
+            app_ui,
+            pack_file_contents_ui,
+            diagnostics_ui => move || {
+                app_ui.main_window.set_disabled(true);
+                let _ = AppUI::back_to_back_end_all(&app_ui, &pack_file_contents_ui);
+                let path_types = UI_STATE.get_open_packedfiles().iter().map(|x| PathType::File(x.get_ref_path().to_vec())).collect::<Vec<PathType>>();
+                DiagnosticsUI::check_on_path(&app_ui, &pack_file_contents_ui, &diagnostics_ui, path_types);
+                app_ui.main_window.set_disabled(false);
+            }
+        ));
 
         // What happens when we try to open the file corresponding to one of the matches.
         let diagnostics_open_result = SlotOfQModelIndex::new(&diagnostics_ui.diagnostics_dock_widget, clone!(
@@ -91,6 +118,8 @@ impl DiagnosticsUISlots {
 
         // And here... we return all the slots.
         Self {
+            diagnostics_check_packfile,
+            diagnostics_check_currently_open_packed_file,
             diagnostics_open_result,
             show_hide_extra_filters,
             toggle_filters,

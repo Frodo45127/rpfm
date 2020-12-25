@@ -41,9 +41,7 @@ use rpfm_lib::schema::{Definition, FieldType};
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
-use crate::diagnostics_ui::DiagnosticsUI;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
-use crate::global_search_ui::GlobalSearchUI;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::utils::show_dialog;
 use crate::utils::show_debug_dialog;
@@ -112,8 +110,6 @@ impl PackedFileDecoderViewSlots {
         mutable_data: PackedFileDecoderMutableData,
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        global_search_ui: &Rc<GlobalSearchUI>,
-        diagnostics_ui: &Rc<DiagnosticsUI>,
     ) -> Self {
 
         // Slot to keep scroll in views in sync.
@@ -610,11 +606,9 @@ impl PackedFileDecoderViewSlots {
 
         // Slot for the "Finish it!" button.
         let save_definition = SlotNoArgs::new(&view.table_view, clone!(
-            mut app_ui,
-            mut pack_file_contents_ui,
-            mut global_search_ui,
-            mut diagnostics_ui,
-            mut view => move || {
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
                 let schema = view.add_definition_to_schema();
 
                 // Save and close all PackedFiles that use our definition.
@@ -631,9 +625,7 @@ impl PackedFileDecoderViewSlots {
                 for path in &packed_files_to_save {
                     if let Err(error) = AppUI::purge_that_one_specifically(
                         &app_ui,
-                        &global_search_ui,
                         &pack_file_contents_ui,
-                        &diagnostics_ui,
                         path,
                         true,
                     ) {
