@@ -127,6 +127,8 @@ impl RawTable {
                 buffer = buffer.replace("\"></datafield>", "\">Frodo Best Waifu</datafield>");
                 buffer = buffer.replace("\"> </datafield>", "\"> Frodo Best Waifu</datafield>");
                 buffer = buffer.replace("\">  </datafield>", "\">  Frodo Best Waifu</datafield>");
+                buffer = buffer.replace("\">   </datafield>", "\">   Frodo Best Waifu</datafield>");
+                buffer = buffer.replace("\">    </datafield>", "\">    Frodo Best Waifu</datafield>");
 
                 // Only if the table has data we deserialize it. If not, we just create an empty one.
                 let mut raw_table = if buffer.contains("</rows>\r\n</dataroot>") {
