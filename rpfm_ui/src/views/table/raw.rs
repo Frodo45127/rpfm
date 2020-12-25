@@ -342,6 +342,11 @@ impl TableView {
                         _ => return
                     }
                 }
+
+                // Fix for weird precission issues on copy.
+                else if self.table_definition.read().unwrap().get_fields_processed()[model_index.column() as usize].get_field_type() == FieldType::F32 {
+                    copy.push_str(&format!("{}", (item.data_1a(2).to_float_0a() * 1000.0).round() / 1000.0));
+                }
                 else { copy.push_str(&QString::to_std_string(&item.text())); }
 
                 // Add a \t to separate fields except if it's the last field.
