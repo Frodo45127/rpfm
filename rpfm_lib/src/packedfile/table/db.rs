@@ -16,6 +16,7 @@ effects data, projectile parameters.... It's what modders use the most.
 !*/
 
 use bincode::deserialize;
+use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 use uuid::Uuid;
 
@@ -343,8 +344,7 @@ impl DB {
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
-        let mut iter = real_dep_db.iter();
-        while let Some(packed_file) = iter.find(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", ref_table)])) {
+        real_dep_db.iter().filter(|x| x.get_path().starts_with(&["db".to_owned(), format!("{}_tables", ref_table)])).for_each(|packed_file| {
             if let Ok(table) = packed_file.get_decoded_from_memory() {
                 if let DecodedPackedFile::DB(db) = table {
                     for row in &db.get_table_data() {
@@ -393,7 +393,7 @@ impl DB {
                     }
                 }
             }
-        }
+        });
         return data_found;
     }
 
@@ -407,8 +407,7 @@ impl DB {
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
-        let mut iter = fake_dep_db.iter();
-        if let Some(table) = iter.find(|x| x.name == format!("{}_tables", ref_table)) {
+        fake_dep_db.iter().filter(|x| x.name == format!("{}_tables", ref_table)).for_each(|table| {
             for row in &table.get_table_data() {
                 let mut reference_data = String::new();
                 let mut lookup_data = vec![];
@@ -453,7 +452,7 @@ impl DB {
                     data_found = true;
                 }
             }
-        }
+        });
         return data_found;
     }
 
@@ -471,8 +470,9 @@ impl DB {
         let ref_table = reference_info.0;
         let ref_column = reference_info.1;
         let ref_lookup_columns = reference_info.2;
-        for packed_file in packfile.get_ref_packed_files_by_path_start(&["db".to_owned(), format!("{}_tables", ref_table)]) {
-            if files_to_ignore.contains(&packed_file.get_path().to_vec()) { continue; }
+        packfile.get_ref_packed_files_by_path_start(&["db".to_owned(), format!("{}_tables", ref_table)]).iter()
+            .filter(|x| !files_to_ignore.contains(&x.get_path().to_vec()))
+            .for_each(|packed_file| {
             if let Ok(table) = packed_file.get_decoded_from_memory() {
                 if let DecodedPackedFile::DB(db) = table {
                     for row in &db.get_table_data() {
@@ -521,7 +521,7 @@ impl DB {
                     }
                 }
             }
-        }
+        });
         return data_found;
     }
 
@@ -536,8 +536,7 @@ impl DB {
         files_to_ignore: &[Vec<String>]
     ) -> BTreeMap<i32, DependencyData> {
         let schema = SCHEMA.read().unwrap();
-        let mut dep_data = BTreeMap::new();
-        for (column, field) in table_definition.get_fields_processed().iter().enumerate() {
+        table_definition.get_fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
             if let Some((ref ref_table, ref ref_column)) = field.get_is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
 
@@ -561,12 +560,10 @@ impl DB {
                         }
                     }
 
-                    dep_data.insert(column as i32, references);
-                }
-            }
-        }
-
-        dep_data
+                    Some((column as i32, references))
+                } else { None }
+            } else { None }
+        }).collect::<BTreeMap<i32, DependencyData>>()
     }
 
     /// This function is used to check if a table is outdated or not.
