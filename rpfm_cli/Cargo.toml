@@ -18,5 +18,5 @@ bytesize = "^1.0"
 
 # Logging support.
 log = "^0.4"
-simplelog = "^0.8"
+simplelog = "^0.9"
 simple_logger = "^1.9"

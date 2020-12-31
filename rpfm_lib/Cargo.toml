@@ -21,7 +21,7 @@ lazy_static = "^1.2"
 indexmap = "^1.5"
 
 # Decoding/Encoding support.
-itertools = "^0.9"
+itertools = "^0.10"
 byteorder = "^1.3"
 encoding = "^0.2"
 bitflags = "^1.0"
@@ -59,10 +59,10 @@ rayon = "^1.3"
 half = "^1.4"
 
 # Fractions support
-fraction = "^0.6"
+fraction = "^0.8"
 
 # AutoUpdater Support
-self_update = { version = "^0.20", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
+self_update = { version = "^0.22", features = ["archive-zip", "compression-zip-deflate", "compression-zip-bzip2", "compression-flate2"] }
 tempfile = "^3.1"
 zip-extract = "^0.1"
 

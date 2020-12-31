@@ -54,9 +54,10 @@ rayon = "^1.3"
 
 # Logging support.
 log = "^0.4"
-simplelog = "^0.8"
+simplelog = "^0.9"
 
-itertools = "^0.9"
+# Better iterator support.
+itertools = "^0.10"
 
 # Windows resources support.
 [target.'cfg(windows)'.build-dependencies]
