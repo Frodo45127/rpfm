@@ -714,7 +714,7 @@ impl DiagnosticsUI {
                         // Hardcoded, because I'm tired of wasting time fixing this shit because qt doesn't properly return the stupid colors.
                         let base_qbrush = QBrush::new();
                         if SETTINGS.read().unwrap().settings_bool["use_dark_theme"] {
-                            base_qbrush.set_color_q_color(&QColor::from_3_int(239, 240, 241));
+                            base_qbrush.set_color_q_color(&QColor::from_3_int(187, 187, 187));
                         } else {
                             base_qbrush.set_color_q_color(&QColor::from_3_int(0, 0, 0));
                         }
