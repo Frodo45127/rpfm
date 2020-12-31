@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Changed
+- Removed automatic diagnostics checks (were causing too many issues to be maintainable).
+- Removed automatic global search checks (were causing too many issues to be maintainable).
+- Small performance optimizations for querying for dependency data.
+- Updated dependencies.
+
+### Fixed
+- Fixed checkbox columns not being sortable.
+- Fixed float numbers being copied wrongly.
+- Fixed weird colours after a diagnostics check.
+- Fixed RPFM failing to parse correctly certain specific sequences of the Assembly Kit.
+- Fixed rewrite selection not working properly on integers.
+
 ## [2.3.4] - 2020-11-22
 ### Added
 - Implemented improved template controls (experimental, do not use them!!!!).
