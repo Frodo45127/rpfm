@@ -1908,7 +1908,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_cli"
-version = "2.3.4"
+version = "2.3.100"
 dependencies = [
  "bytesize",
  "clap",
@@ -1923,7 +1923,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_error"
-version = "2.3.4"
+version = "2.3.100"
 dependencies = [
  "backtrace",
  "bincode",
@@ -1947,7 +1947,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_lib"
-version = "2.3.4"
+version = "2.3.100"
 dependencies = [
  "bincode",
  "bitflags",
@@ -1983,7 +1983,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_macros"
-version = "2.3.4"
+version = "2.3.100"
 dependencies = [
  "quote",
  "syn",
@@ -1991,7 +1991,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_mod_checker"
-version = "2.3.4"
+version = "2.3.100"
 dependencies = [
  "open",
  "rpfm_error",
@@ -2001,7 +2001,7 @@ dependencies = [
 
 [[package]]
 name = "rpfm_ui"
-version = "2.3.4"
+version = "2.3.100"
 dependencies = [
  "bincode",
  "chrono",
