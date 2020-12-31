@@ -244,7 +244,15 @@ impl TableView {
 
                         FieldType::I16 => {
                             if current_value != text {
-                                if let Ok(value) = text.parse::<i16>() {
+                                if is_math_operation {
+                                    if let Ok(value) = text.parse::<f32>() {
+                                        let value = value.round() as i16;
+                                        if current_value.parse::<i16>().unwrap() != value {
+                                            item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                            changed_cells += 1;
+                                        }
+                                    }
+                                } else if let Ok(value) = text.parse::<i16>() {
                                     item.set_data_2a(&QVariant::from_int(value.into()), 2);
                                     changed_cells += 1;
                                 }
@@ -253,7 +261,15 @@ impl TableView {
 
                         FieldType::I32 => {
                             if current_value != text {
-                                if let Ok(value) = text.parse::<i32>() {
+                                if is_math_operation {
+                                    if let Ok(value) = text.parse::<f32>() {
+                                        let value = value.round() as i32;
+                                        if current_value.parse::<i32>().unwrap() != value {
+                                            item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                            changed_cells += 1;
+                                        }
+                                    }
+                                } else if let Ok(value) = text.parse::<i32>() {
                                     item.set_data_2a(&QVariant::from_int(value), 2);
                                     changed_cells += 1;
                                 }
@@ -262,7 +278,15 @@ impl TableView {
 
                         FieldType::I64 => {
                             if current_value != text {
-                                if let Ok(value) = text.parse::<i64>() {
+                                if is_math_operation {
+                                    if let Ok(value) = text.parse::<f32>() {
+                                        let value = value.round() as i64;
+                                        if current_value.parse::<i64>().unwrap() != value {
+                                            item.set_data_2a(&QVariant::from_i64(value.into()), 2);
+                                            changed_cells += 1;
+                                        }
+                                    }
+                                } else if let Ok(value) = text.parse::<i64>() {
                                     item.set_data_2a(&QVariant::from_i64(value), 2);
                                     changed_cells += 1;
                                 }
