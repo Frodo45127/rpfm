@@ -268,33 +268,6 @@ pub fn background_loop() {
                         pack_file_decoded.set_game_version(version_number);
                     }
                 }
-
-                // Test to see if every DB Table can be decoded. This is slow and only useful when
-                // a new patch lands and you want to know what tables you need to decode. So, unless you want
-                // to decode new tables, leave the setting as false.
-                if SETTINGS.read().unwrap().settings_bool["check_for_missing_table_definitions"] {
-                    let mut counter = 0;
-                    let mut table_list = String::new();
-                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                        for packed_file in pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false) {
-                            if packed_file.decode_return_ref_no_locks(schema).is_err() {
-                                if let Ok(raw_data) = packed_file.get_raw_data() {
-                                    if let Ok((_, _, _, entry_count, _)) = DB::read_header(&raw_data) {
-                                        if entry_count > 0 {
-                                            counter += 1;
-                                            table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_path()))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Try to save the file.
-                    let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
-                    let mut file = BufWriter::new(File::create(path).unwrap());
-                    file.write_all(table_list.as_bytes()).unwrap();
-                }
             }
 
             // In case we want to generate a new Pak File for our Game Selected...
@@ -975,6 +948,36 @@ pub fn background_loop() {
                     _ => None,
                 }).collect::<Vec<Definition>>();
                 CENTRAL_COMMAND.send_message_rust(Response::VecDefinition(definitions));
+            }
+
+            Command::GetMissingDefinitions => {
+
+                // Test to see if every DB Table can be decoded. This is slow and only useful when
+                // a new patch lands and you want to know what tables you need to decode. So, unless you want
+                // to decode new tables, leave the setting as false.
+                if SETTINGS.read().unwrap().settings_bool["check_for_missing_table_definitions"] {
+                    let mut counter = 0;
+                    let mut table_list = String::new();
+                    if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                        for packed_file in pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false) {
+                            if packed_file.decode_return_ref_no_locks(schema).is_err() {
+                                if let Ok(raw_data) = packed_file.get_raw_data() {
+                                    if let Ok((_, _, _, entry_count, _)) = DB::read_header(&raw_data) {
+                                        if entry_count > 0 {
+                                            counter += 1;
+                                            table_list.push_str(&format!("{}, {:?}\n", counter, packed_file.get_path()))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Try to save the file.
+                    let path = RPFM_PATH.to_path_buf().join(PathBuf::from("missing_table_definitions.txt"));
+                    let mut file = BufWriter::new(File::create(path).unwrap());
+                    file.write_all(table_list.as_bytes()).unwrap();
+                }
             }
 
             // These two belong to the network thread, not to this one!!!!

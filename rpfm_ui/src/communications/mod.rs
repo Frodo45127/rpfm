@@ -322,7 +322,10 @@ pub enum Command {
     SetPackFileSettings(PackFileSettings),
 
     /// This command is used to get the definitions of all the tables in the PackFile.
-    GetDefinitionList
+    GetDefinitionList,
+
+    /// This command is used to trigger the debug missing table definition's code.
+    GetMissingDefinitions
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

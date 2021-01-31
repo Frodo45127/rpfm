@@ -885,6 +885,9 @@ impl AppUISlots {
                 if pack_file_contents_ui.packfile_contents_tree_model.row_count_0a() != 0 {
                     AppUI::enable_packfile_actions(&app_ui, true);
                 }
+
+                // Always trigger the missing definitions code.
+                CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
             }
         ));
 
