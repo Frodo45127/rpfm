@@ -220,89 +220,93 @@ impl TableView {
                         else { continue; }
                     } else { new_value.to_owned() };
 
-                    let field_type = self.get_ref_table_definition().get_fields_processed()[column as usize].get_field_type();
+                    match self.get_ref_table_definition().get_fields_processed().get(column as usize) {
+                        Some(field) => {
 
-                    // Depending on the column, we try to encode the data in one format or another.
-                    match field_type {
-                        FieldType::Boolean => {
-                            let current_value = item.check_state();
-                            let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                            if current_value != new_value {
-                                item.set_check_state(new_value);
-                                changed_cells += 1;
-                            }
-                        },
+                            // Depending on the column, we try to encode the data in one format or another.
+                            match field.get_field_type() {
+                                FieldType::Boolean => {
+                                    let current_value = item.check_state();
+                                    let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                                    if current_value != new_value {
+                                        item.set_check_state(new_value);
+                                        changed_cells += 1;
+                                    }
+                                },
 
-                        FieldType::F32 => {
-                            if current_value != text {
-                                if let Ok(value) = text.parse::<f32>() {
-                                    item.set_data_2a(&QVariant::from_float(value), 2);
-                                    changed_cells += 1;
-                                }
-                            }
-                        },
+                                FieldType::F32 => {
+                                    if current_value != text {
+                                        if let Ok(value) = text.parse::<f32>() {
+                                            item.set_data_2a(&QVariant::from_float(value), 2);
+                                            changed_cells += 1;
+                                        }
+                                    }
+                                },
 
-                        FieldType::I16 => {
-                            if current_value != text {
-                                if is_math_operation {
-                                    if let Ok(value) = text.parse::<f32>() {
-                                        let value = value.round() as i16;
-                                        if current_value.parse::<i16>().unwrap() != value {
+                                FieldType::I16 => {
+                                    if current_value != text {
+                                        if is_math_operation {
+                                            if let Ok(value) = text.parse::<f32>() {
+                                                let value = value.round() as i16;
+                                                if current_value.parse::<i16>().unwrap() != value {
+                                                    item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                                    changed_cells += 1;
+                                                }
+                                            }
+                                        } else if let Ok(value) = text.parse::<i16>() {
                                             item.set_data_2a(&QVariant::from_int(value.into()), 2);
                                             changed_cells += 1;
                                         }
                                     }
-                                } else if let Ok(value) = text.parse::<i16>() {
-                                    item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                    changed_cells += 1;
-                                }
-                            }
-                        },
+                                },
 
-                        FieldType::I32 => {
-                            if current_value != text {
-                                if is_math_operation {
-                                    if let Ok(value) = text.parse::<f32>() {
-                                        let value = value.round() as i32;
-                                        if current_value.parse::<i32>().unwrap() != value {
-                                            item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                FieldType::I32 => {
+                                    if current_value != text {
+                                        if is_math_operation {
+                                            if let Ok(value) = text.parse::<f32>() {
+                                                let value = value.round() as i32;
+                                                if current_value.parse::<i32>().unwrap() != value {
+                                                    item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                                    changed_cells += 1;
+                                                }
+                                            }
+                                        } else if let Ok(value) = text.parse::<i32>() {
+                                            item.set_data_2a(&QVariant::from_int(value), 2);
                                             changed_cells += 1;
                                         }
                                     }
-                                } else if let Ok(value) = text.parse::<i32>() {
-                                    item.set_data_2a(&QVariant::from_int(value), 2);
-                                    changed_cells += 1;
-                                }
-                            }
-                        },
+                                },
 
-                        FieldType::I64 => {
-                            if current_value != text {
-                                if is_math_operation {
-                                    if let Ok(value) = text.parse::<f32>() {
-                                        let value = value.round() as i64;
-                                        if current_value.parse::<i64>().unwrap() != value {
-                                            item.set_data_2a(&QVariant::from_i64(value.into()), 2);
+                                FieldType::I64 => {
+                                    if current_value != text {
+                                        if is_math_operation {
+                                            if let Ok(value) = text.parse::<f32>() {
+                                                let value = value.round() as i64;
+                                                if current_value.parse::<i64>().unwrap() != value {
+                                                    item.set_data_2a(&QVariant::from_i64(value.into()), 2);
+                                                    changed_cells += 1;
+                                                }
+                                            }
+                                        } else if let Ok(value) = text.parse::<i64>() {
+                                            item.set_data_2a(&QVariant::from_i64(value), 2);
                                             changed_cells += 1;
                                         }
                                     }
-                                } else if let Ok(value) = text.parse::<i64>() {
-                                    item.set_data_2a(&QVariant::from_i64(value), 2);
-                                    changed_cells += 1;
+                                },
+
+                                // Skip sequences while rewriting.
+                                FieldType::SequenceU16(_) |
+                                FieldType::SequenceU32(_) => continue,
+
+                                _ => {
+                                    if current_value != text {
+                                        item.set_text(&QString::from_std_str(&text));
+                                        changed_cells += 1;
+                                    }
                                 }
-                            }
-                        },
-
-                        // Skip sequences while rewriting.
-                        FieldType::SequenceU16(_) |
-                        FieldType::SequenceU32(_) => continue,
-
-                        _ => {
-                            if current_value != text {
-                                item.set_text(&QString::from_std_str(&text));
-                                changed_cells += 1;
                             }
                         }
+                        None => log_to_status_bar(&format!("Trying to get column {} of table with {} columns. WTF?", column, self.get_ref_table_definition().get_fields_processed().len())),
                     }
                 }
             }
@@ -512,70 +516,75 @@ impl TableView {
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = item.text().to_std_string();
-                match self.get_ref_table_definition().get_fields_processed()[column as usize].get_ref_field_type() {
-                    FieldType::Boolean => {
-                        let current_value = item.check_state();
-                        let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                        if current_value != new_value {
-                            item.set_check_state(new_value);
-                            changed_cells += 1;
-                        }
-                    },
+                match self.get_ref_table_definition().get_fields_processed().get(column as usize) {
+                    Some(field) => {
+                        match field.get_ref_field_type() {
+                            FieldType::Boolean => {
+                                let current_value = item.check_state();
+                                let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                                if current_value != new_value {
+                                    item.set_check_state(new_value);
+                                    changed_cells += 1;
+                                }
+                            },
 
-                    // These are a bit special because we have to ignore any difference after the third decimal.
-                    FieldType::F32 => {
-                        if let Ok(value) = text.parse::<f32>() {
-                            let current_value = format!("{:.3}", item.data_1a(2).to_float_0a());
-                            let new_value = format!("{:.3}", value);
-                            if current_value != new_value {
-                                item.set_data_2a(&QVariant::from_float(value), 2);
-                                changed_cells += 1;
+                            // These are a bit special because we have to ignore any difference after the third decimal.
+                            FieldType::F32 => {
+                                if let Ok(value) = text.parse::<f32>() {
+                                    let current_value = format!("{:.3}", item.data_1a(2).to_float_0a());
+                                    let new_value = format!("{:.3}", value);
+                                    if current_value != new_value {
+                                        item.set_data_2a(&QVariant::from_float(value), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            FieldType::I16 => {
+                                if current_value != text {
+                                    if let Ok(value) = text.parse::<i16>() {
+                                        item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            FieldType::I32 => {
+                                if current_value != text {
+                                    if let Ok(value) = text.parse::<i32>() {
+                                        item.set_data_2a(&QVariant::from_int(value), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            FieldType::I64 => {
+                                if current_value != text {
+                                    if let Ok(value) = text.parse::<i64>() {
+                                        item.set_data_2a(&QVariant::from_i64(value), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            _ => {
+                                if current_value != text {
+                                    item.set_text(&QString::from_std_str(&text));
+                                    changed_cells += 1;
+                                }
                             }
                         }
-                    },
 
-                    FieldType::I16 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<i16>() {
-                                item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                changed_cells += 1;
-                            }
-                        }
-                    },
-
-                    FieldType::I32 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<i32>() {
-                                item.set_data_2a(&QVariant::from_int(value), 2);
-                                changed_cells += 1;
-                            }
-                        }
-                    },
-
-                    FieldType::I64 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<i64>() {
-                                item.set_data_2a(&QVariant::from_i64(value), 2);
-                                changed_cells += 1;
-                            }
-                        }
-                    },
-
-                    _ => {
-                        if current_value != text {
-                            item.set_text(&QString::from_std_str(&text));
-                            changed_cells += 1;
+                        // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+                        if index == indexes.len() - 1 {
+                            self.undo_lock.store(true, Ordering::SeqCst);
+                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
+                            self.save_lock.store(false, Ordering::SeqCst);
+                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
+                            self.undo_lock.store(false, Ordering::SeqCst);
                         }
                     }
-                }
-
-                // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
-                if index == indexes.len() - 1 {
-                    self.undo_lock.store(true, Ordering::SeqCst);
-                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
-                    self.save_lock.store(false, Ordering::SeqCst);
-                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
-                    self.undo_lock.store(false, Ordering::SeqCst);
+                    None => log_to_status_bar(&format!("Trying to get column {} of table with {} columns. WTF?", column, self.get_ref_table_definition().get_fields_processed().len())),
                 }
             }
         }
@@ -622,70 +631,75 @@ impl TableView {
 
                 // Depending on the column, we try to encode the data in one format or another.
                 let current_value = item.text().to_std_string();
-                match self.get_ref_table_definition().get_fields_processed()[column as usize].get_ref_field_type() {
-                    FieldType::Boolean => {
-                        let current_value = item.check_state();
-                        let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                        if current_value != new_value {
-                            item.set_check_state(new_value);
-                            changed_cells += 1;
-                        }
-                    },
+                match self.get_ref_table_definition().get_fields_processed().get(column as usize) {
+                    Some(field) => {
+                        match field.get_ref_field_type() {
+                            FieldType::Boolean => {
+                                let current_value = item.check_state();
+                                let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                                if current_value != new_value {
+                                    item.set_check_state(new_value);
+                                    changed_cells += 1;
+                                }
+                            },
 
-                    // These are a bit special because we have to ignore any difference after the third decimal.
-                    FieldType::F32 => {
-                        if let Ok(value) = text.parse::<f32>() {
-                            let current_value = format!("{:.3}", item.data_1a(2).to_float_0a());
-                            let new_value = format!("{:.3}", value);
-                            if current_value != new_value {
-                                item.set_data_2a(&QVariant::from_float(value), 2);
-                                changed_cells += 1;
+                            // These are a bit special because we have to ignore any difference after the third decimal.
+                            FieldType::F32 => {
+                                if let Ok(value) = text.parse::<f32>() {
+                                    let current_value = format!("{:.3}", item.data_1a(2).to_float_0a());
+                                    let new_value = format!("{:.3}", value);
+                                    if current_value != new_value {
+                                        item.set_data_2a(&QVariant::from_float(value), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            FieldType::I16 => {
+                                if current_value != text {
+                                    if let Ok(value) = text.parse::<i16>() {
+                                        item.set_data_2a(&QVariant::from_int(value.into()), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            FieldType::I32 => {
+                                if current_value != text {
+                                    if let Ok(value) = text.parse::<i32>() {
+                                        item.set_data_2a(&QVariant::from_int(value), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            FieldType::I64 => {
+                                if current_value != text {
+                                    if let Ok(value) = text.parse::<i64>() {
+                                        item.set_data_2a(&QVariant::from_i64(value), 2);
+                                        changed_cells += 1;
+                                    }
+                                }
+                            },
+
+                            _ => {
+                                if current_value != text {
+                                    item.set_text(&QString::from_std_str(&text));
+                                    changed_cells += 1;
+                                }
                             }
                         }
-                    },
 
-                    FieldType::I16 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<i16>() {
-                                item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                changed_cells += 1;
-                            }
-                        }
-                    },
-
-                    FieldType::I32 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<i32>() {
-                                item.set_data_2a(&QVariant::from_int(value), 2);
-                                changed_cells += 1;
-                            }
-                        }
-                    },
-
-                    FieldType::I64 => {
-                        if current_value != text {
-                            if let Ok(value) = text.parse::<i64>() {
-                                item.set_data_2a(&QVariant::from_i64(value), 2);
-                                changed_cells += 1;
-                            }
-                        }
-                    },
-
-                    _ => {
-                        if current_value != text {
-                            item.set_text(&QString::from_std_str(&text));
-                            changed_cells += 1;
+                        // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
+                        if index == indexes.len() - 1 {
+                            self.undo_lock.store(true, Ordering::SeqCst);
+                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
+                            self.save_lock.store(false, Ordering::SeqCst);
+                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
+                            self.undo_lock.store(false, Ordering::SeqCst);
                         }
                     }
-                }
-
-                // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
-                if index == indexes.len() - 1 {
-                    self.undo_lock.store(true, Ordering::SeqCst);
-                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
-                    self.save_lock.store(false, Ordering::SeqCst);
-                    self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
-                    self.undo_lock.store(false, Ordering::SeqCst);
+                    None => log_to_status_bar(&format!("Trying to get column {} of table with {} columns. WTF?", column, self.get_ref_table_definition().get_fields_processed().len())),
                 }
             }
         }
