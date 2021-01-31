@@ -563,7 +563,7 @@ impl Schema {
     /// This function exports all the schema files from the `schemas/` folder to `.json`.
     ///
     /// For compatibility purpouses.
-    pub fn export_to_json(&self) -> Result<()> {
+    pub fn export_to_json() -> Result<()> {
         for schema_file in SUPPORTED_GAMES.iter().map(|x| &x.1.schema) {
             let schema = Schema::load(&schema_file)?;
 

@@ -30,3 +30,16 @@ pub fn update(config: &Config) -> Result<()> {
     }
     result
 }
+
+pub fn to_json(config: &Config) -> Result<()> {
+    if config.verbosity_level > 0 {
+        info!("Converting schemas to Json.");
+    }
+
+
+    let result = Schema::export_to_json();
+    if config.verbosity_level > 0 {
+        info!("Schemas converted to Json.");
+    }
+    result
+}

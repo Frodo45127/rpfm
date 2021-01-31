@@ -134,6 +134,9 @@ pub fn command_schema(config: &Config, matches: &ArgMatches) -> Result<()> {
     if matches.is_present("update") {
 		schema::update(config)
     }
+    else if matches.is_present("to-json") {
+        schema::to_json(config)
+    }
 
 	else { Err(ErrorKind::NoHTMLError("No valid argument provided.".to_owned()).into()) }
 }

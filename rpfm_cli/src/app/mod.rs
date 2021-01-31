@@ -170,6 +170,11 @@ pub fn initialize_app<'a, 'b>() -> App<'a, 'b> {
             .arg(Arg::with_name("update")
                 .short("u")
                 .long("update")
+                .takes_value(false))
+            .about("Allows you to convert all schemas from Ron to Json.")
+            .arg(Arg::with_name("to-json")
+                .short("j")
+                .long("json")
                 .takes_value(false)))
 
 }
