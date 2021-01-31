@@ -1565,13 +1565,6 @@ impl PackedFileDecoderView {
                     definitions_possible2.push(def);
                 }
 
-                if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
-                    if (number < 60000.0 && number > -60000.0 && (number > 0.001 || number < -0.001 || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
-                        let mut def = base.to_vec();
-                        def.push(FieldType::F32);
-                        definitions_possible2.push(def);
-                    }
-                }
                 if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
                     if (number < 60000 && number > -60000) || (number > i32::MAX - 60000) || (number < i32::MIN + 60000) {
                         let mut def = base.to_vec();
@@ -1579,6 +1572,14 @@ impl PackedFileDecoderView {
                         definitions_possible2.push(def);
                     }
                 }
+                else if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
+                    if (number < 60000.0 && number > -60000.0 && (number > 0.001 || number < -0.001 || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
+                        let mut def = base.to_vec();
+                        def.push(FieldType::F32);
+                        definitions_possible2.push(def);
+                    }
+                }
+
                 if let Ok(number) = data.decode_packedfile_integer_i64(index, &mut index.clone()) {
                     if (number < 60000 && number > -60000) || (number > i64::MAX - 60000) || (number < i64::MIN + 60000) {
                         let mut def = base.to_vec();
