@@ -1544,8 +1544,8 @@ impl PackedFileDecoderView {
         // All the other checks are done here.
         for step in 0..raw_definition.get_non_localisable_fields(&raw_localisable_fields.unwrap().fields).len() - 1 {
             println!("Possible definitions for the step {}: {}.", step, definitions_possible.len());
-            let mut definitions_possible2: Vec<Vec<FieldType>> = vec![];
-            for base in &definitions_possible {
+            definitions_possible = definitions_possible.par_iter().map(|base| {
+                let mut elements = vec![];
                 let mut index = 0;
                 for field_type in base {
                     match field_type {
@@ -1562,21 +1562,21 @@ impl PackedFileDecoderView {
                 if data.decode_packedfile_bool(index, &mut index.clone()).is_ok() {
                     let mut def = base.to_vec();
                     def.push(FieldType::Boolean);
-                    definitions_possible2.push(def);
+                    elements.push(def);
                 }
 
                 if let Ok(number) = data.decode_packedfile_integer_i32(index, &mut index.clone()) {
                     if (number < 60000 && number > -60000) || (number > i32::MAX - 60000) || (number < i32::MIN + 60000) {
                         let mut def = base.to_vec();
                         def.push(FieldType::I32);
-                        definitions_possible2.push(def);
+                        elements.push(def);
                     }
                 }
                 else if let Ok(number) = data.decode_packedfile_float_f32(index, &mut index.clone()) {
                     if (number < 60000.0 && number > -60000.0 && (number > 0.001 || number < -0.001 || (number - 0.0).abs() <= std::f32::EPSILON)) || (number > f32::MAX - 60000.0) || (number < f32::MIN + 60000.0) {
                         let mut def = base.to_vec();
                         def.push(FieldType::F32);
-                        definitions_possible2.push(def);
+                        elements.push(def);
                     }
                 }
 
@@ -1584,21 +1584,22 @@ impl PackedFileDecoderView {
                     if (number < 60000 && number > -60000) || (number > i64::MAX - 60000) || (number < i64::MIN + 60000) {
                         let mut def = base.to_vec();
                         def.push(FieldType::I64);
-                        definitions_possible2.push(def);
+                        elements.push(def);
                     }
                 }
                 if data.decode_packedfile_string_u8(index, &mut index.clone()).is_ok() {
                     let mut def = base.to_vec();
                     def.push(FieldType::StringU8);
-                    definitions_possible2.push(def);
+                    elements.push(def);
                 }
                 if data.decode_packedfile_optional_string_u8(index, &mut index.clone()).is_ok() {
                     let mut def = base.to_vec();
                     def.push(FieldType::OptionalStringU8);
-                    definitions_possible2.push(def);
+                    elements.push(def);
                 }
-            }
-            definitions_possible = definitions_possible2;
+
+                elements
+            }).flatten().collect::<Vec<Vec<FieldType>>>();
         }
 
         // Now, match all possible definitions against the table, and for the ones that work, match them against the asskit data.
