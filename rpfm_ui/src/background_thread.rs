@@ -230,9 +230,12 @@ pub fn background_loop() {
             Command::SetGameSelected(game_selected) => {
                 *GAME_SELECTED.write().unwrap() = game_selected.to_owned();
 
-                // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE.
-                pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
+                // Try to load the Schema for this game but, before it, PURGE THE DAMN SCHEMA-RELATED CACHE AND REBUIILD IT AFTERWARDS.
+                pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
                 *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
+                if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                    pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(&schema); });
+                }
 
                 // Send a response, so we can unlock the UI.
                 CENTRAL_COMMAND.send_message_rust(Response::Success);
