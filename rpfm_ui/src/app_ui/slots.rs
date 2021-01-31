@@ -886,7 +886,8 @@ impl AppUISlots {
                     AppUI::enable_packfile_actions(&app_ui, true);
                 }
 
-                // Always trigger the missing definitions code.
+                // Always trigger the missing definitions code and the rebuilt for dependencies.
+                CENTRAL_COMMAND.send_message_qt(Command::RebuildDependencies);
                 CENTRAL_COMMAND.send_message_qt(Command::GetMissingDefinitions);
             }
         ));

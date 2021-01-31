@@ -14,8 +14,12 @@ Module with all the code related to the `Dependencies`.
 This module contains the code needed to manage the dependencies of the currently open PackFile.
 !*/
 
+use rayon::prelude::*;
+
 use crate::DB;
 use crate::PackedFile;
+use crate::packfile::PackFile;
+use crate::SCHEMA;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
@@ -53,5 +57,28 @@ impl Dependencies {
 
     pub fn get_ref_mut_fake_dependency_database(&mut self) -> &mut Vec<DB> {
         &mut self.fake_dependency_database
+    }
+
+    pub fn rebuild(&mut self, packfile_list: &[String]) {
+
+        // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
+        // the bastart triggers a memory leak in the next step.
+        self.get_ref_mut_dependency_database().clear();
+        self.get_ref_mut_fake_dependency_database().clear();
+
+        *self.get_ref_mut_dependency_database() = vec![];
+        *self.get_ref_mut_fake_dependency_database() = vec![];
+
+        // Only preload dependencies if we have a schema.
+        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+            let mut real_dep_db = PackFile::load_all_dependency_packfiles(packfile_list);
+            real_dep_db.par_iter_mut().for_each(|x| {
+                let _ = x.decode_no_locks(schema);
+            });
+
+            // Update the dependencies.
+            *self.get_ref_mut_dependency_database() = real_dep_db;
+            *self.get_ref_mut_fake_dependency_database() = DB::read_pak_file();
+        }
     }
 }

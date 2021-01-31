@@ -325,7 +325,10 @@ pub enum Command {
     GetDefinitionList,
 
     /// This command is used to trigger the debug missing table definition's code.
-    GetMissingDefinitions
+    GetMissingDefinitions,
+
+    /// This command is used to rebuild the dependencies of a PackFile.
+    RebuildDependencies
 }
 
 /// This enum defines the responses (messages) you can send to the to the UI thread as result of a command.

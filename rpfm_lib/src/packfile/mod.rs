@@ -2025,7 +2025,7 @@ impl PackFile {
         // Get all the DB Tables from the main DB `PackFiles`, if it's configured.
         if let Some(paths) = main_db_pack_paths {
             if let Ok(pack_file) = PackFile::open_packfiles(&paths, true, false, false) {
-                for packed_file in pack_file.get_ref_packed_files_by_path_start(&["db".to_owned()]) {
+                for packed_file in pack_file.get_ref_packed_files_by_type(PackedFileType::DB, false) {
 
                     // Clone the PackedFile, and add it to the list.
                     let mut packed_file = packed_file.clone();
@@ -2039,7 +2039,7 @@ impl PackFile {
         // Get all the Loc PackedFiles from the main Loc `PackFiles`, if it's configured.
         if let Some(paths) = main_loc_pack_paths {
              if let Ok(pack_file) = PackFile::open_packfiles(&paths, true, false, false) {
-                for packed_file in pack_file.get_ref_packed_files_by_path_end(&[".loc".to_owned()]) {
+                for packed_file in pack_file.get_ref_packed_files_by_type(PackedFileType::Loc, false) {
 
                     // Clone the PackedFile, and add it to the list.
                     let mut packed_file = packed_file.clone();
@@ -2060,58 +2060,44 @@ impl PackFile {
         contents_paths: &Option<Vec<PathBuf>>,
     ) {
 
-        // First we load the content `PackFiles`.
-        if let Some(ref paths) = contents_paths {
-            if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == packfile_name) {
-                if let Ok(pack_file) = PackFile::open_packfiles(&[path.to_path_buf()], true, false, false) {
+        // Do not process already processed packfiles.
+        if !already_loaded_dependencies.contains(&packfile_name.to_owned()) {
 
-                    // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
-                    already_loaded_dependencies.push(packfile_name.to_owned());
-                    pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
-                    for packed_file in pack_file.get_ref_packed_files_by_path_start(&["db".to_owned()]) {
+            // First we load the content `PackFiles`.
+            if let Some(ref paths) = contents_paths {
+                if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == packfile_name) {
+                    if let Ok(pack_file) = PackFile::open_packfiles(&[path.to_path_buf()], true, false, false) {
 
-                        // Clone the PackedFile, and add it to the list.
-                        let mut packed_file = packed_file.clone();
-                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                            packed_files.push(packed_file);
-                        }
-                    }
+                        // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
+                        already_loaded_dependencies.push(packfile_name.to_owned());
+                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
+                        for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
 
-                    for packed_file in pack_file.get_ref_packed_files_by_path_end(&["loc".to_owned()]) {
-
-                        // Clone the PackedFile, and add it to the list.
-                        let mut packed_file = packed_file.clone();
-                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                            packed_files.push(packed_file);
+                            // Clone the PackedFile, and add it to the list.
+                            let mut packed_file = packed_file.clone();
+                            if packed_file.get_ref_mut_raw().load_data().is_ok() {
+                                packed_files.push(packed_file);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // Then we load the data `PackFiles`.
-        if let Some(ref paths) = data_paths {
-            if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == packfile_name) {
-                if let Ok(pack_file) = PackFile::open_packfiles(&[path.to_path_buf()], true, false, false) {
+            // Then we load the data `PackFiles`.
+            if let Some(ref paths) = data_paths {
+                if let Some(path) = paths.iter().find(|x| x.file_name().unwrap().to_string_lossy() == packfile_name) {
+                    if let Ok(pack_file) = PackFile::open_packfiles(&[path.to_path_buf()], true, false, false) {
 
-                    // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
-                    already_loaded_dependencies.push(packfile_name.to_owned());
-                    pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
-                    for packed_file in pack_file.get_ref_packed_files_by_path_start(&["db".to_owned()]) {
+                        // Add the current `PackFile` to the done list, so we don't get into cyclic dependencies.
+                        already_loaded_dependencies.push(packfile_name.to_owned());
+                        pack_file.get_packfiles_list().iter().for_each(|x| Self::load_single_dependency_packfile(packed_files, x, already_loaded_dependencies, data_paths, contents_paths));
+                        for packed_file in pack_file.get_ref_packed_files_by_types(&[PackedFileType::DB, PackedFileType::Loc], false) {
 
-                        // Clone the PackedFile, and add it to the list.
-                        let mut packed_file = packed_file.clone();
-                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                            packed_files.push(packed_file);
-                        }
-                    }
-
-                    for packed_file in pack_file.get_ref_packed_files_by_path_end(&["loc".to_owned()]) {
-
-                        // Clone the PackedFile, and add it to the list.
-                        let mut packed_file = packed_file.clone();
-                        if packed_file.get_ref_mut_raw().load_data().is_ok() {
-                            packed_files.push(packed_file);
+                            // Clone the PackedFile, and add it to the list.
+                            let mut packed_file = packed_file.clone();
+                            if packed_file.get_ref_mut_raw().load_data().is_ok() {
+                                packed_files.push(packed_file);
+                            }
                         }
                     }
                 }

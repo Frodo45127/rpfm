@@ -240,26 +240,6 @@ pub fn background_loop() {
                 // Send a response, so we can unlock the UI.
                 CENTRAL_COMMAND.send_message_rust(Response::Success);
 
-                // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
-                // the bastart triggers a memory leak in the next step.
-                dependencies.get_ref_mut_dependency_database().clear();
-                dependencies.get_ref_mut_fake_dependency_database().clear();
-
-                *dependencies.get_ref_mut_dependency_database() = vec![];
-                *dependencies.get_ref_mut_fake_dependency_database() = vec![];
-
-                // Only preload dependencies if we have a schema.
-                if let Some(ref schema) = *SCHEMA.read().unwrap() {
-                    let mut real_dep_db = PackFile::load_all_dependency_packfiles(&pack_file_decoded.get_packfiles_list());
-                    real_dep_db.par_iter_mut().for_each(|x| {
-                        let _ = x.decode_no_locks(schema);
-                    });
-
-                    // Update the dependencies.
-                    *dependencies.get_ref_mut_dependency_database() = real_dep_db;
-                    *dependencies.get_ref_mut_fake_dependency_database() = DB::read_pak_file();
-                }
-
                 // If there is a PackFile open, change his id to match the one of the new `Game Selected`.
                 if !pack_file_decoded.get_file_name().is_empty() {
                     pack_file_decoded.set_pfh_version(SUPPORTED_GAMES.get(&**GAME_SELECTED.read().unwrap()).unwrap().pfh_version[0]);
@@ -979,6 +959,8 @@ pub fn background_loop() {
                     file.write_all(table_list.as_bytes()).unwrap();
                 }
             }
+
+            Command::RebuildDependencies => dependencies.rebuild(pack_file_decoded.get_packfiles_list()),
 
             // These two belong to the network thread, not to this one!!!!
             Command::CheckUpdates | Command::CheckSchemaUpdates | Command::CheckTemplateUpdates => panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response),
