@@ -1246,7 +1246,8 @@ impl AppUISlots {
                             // For tables, we have to update the dependency data, reset the dropdown's data, and recheck the entire table for errors.
                             if let View::Table(table) = view {
                                 let table = table.get_ref_table();
-                                if let Ok(data) = get_reference_data(&table.get_ref_table_definition()) {
+                                let table_name = if let Some(name) = table.get_ref_table_name() { name.to_owned() } else { "".to_owned() };
+                                if let Ok(data) = get_reference_data(&table_name, &table.get_ref_table_definition()) {
                                     table.set_dependency_data(&data);
 
                                     setup_item_delegates(

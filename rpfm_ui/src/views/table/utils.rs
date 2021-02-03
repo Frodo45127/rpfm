@@ -644,11 +644,11 @@ pub unsafe fn set_column_tooltip(
 }
 
 /// This function returns the reference data for an entire table.
-pub unsafe fn get_reference_data(definition: &Definition) -> Result<BTreeMap<i32, DependencyData>> {
+pub unsafe fn get_reference_data(table_name: &str, definition: &Definition) -> Result<BTreeMap<i32, DependencyData>> {
 
     // Call the backend passing it the files we have open (so we don't get them from the backend too), and get the frontend data while we wait for it to finish.
     let files_to_ignore = UI_STATE.get_open_packedfiles().iter().map(|x| x.get_path()).collect();
-    CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(definition.clone(), files_to_ignore));
+    CENTRAL_COMMAND.send_message_qt(Command::GetReferenceDataFromDefinition(table_name.to_owned(), definition.clone(), files_to_ignore));
 
     let reference_data = definition.get_reference_data();
     let mut dependency_data_visual = BTreeMap::new();

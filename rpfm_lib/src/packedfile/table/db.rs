@@ -531,12 +531,53 @@ impl DB {
     /// ```BTreeMap<column_index, Vec<(referenced_value, lookup_value, only_present_in_ak)>```.
     pub fn get_dependency_data(
         pack_file: &PackFile,
+        table_name: &str,
         table_definition: &Definition,
         dependencies: &Dependencies,
         files_to_ignore: &[Vec<String>]
     ) -> BTreeMap<i32, DependencyData> {
         let schema = SCHEMA.read().unwrap();
-        table_definition.get_fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
+
+        // First check if the data is already cached, to speed up things.
+        let mut vanilla_references = if !table_name.is_empty() {
+            let mut cache = dependencies.get_ref_cached_data().write().unwrap();
+            match cache.get(table_name) {
+                Some(cached_data) => cached_data.clone(),
+                None => {
+                    let cached_data = table_definition.get_fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
+                        if let Some((ref ref_table, ref ref_column)) = field.get_is_reference() {
+                            if !ref_table.is_empty() && !ref_column.is_empty() {
+
+                                // Get his lookup data if it has it.
+                                let lookup_data = if let Some(ref data) = field.get_lookup() { data.to_vec() } else { Vec::with_capacity(0) };
+                                let mut references = DependencyData::default();
+
+                                let fake_found = Self::get_dependency_data_from_fake_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_fake_dependency_database());
+                                let real_found = Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_dependency_database());
+
+                                if fake_found && !real_found {
+                                    references.referenced_table_is_ak_only = true;
+                                }
+
+                                if let Some(ref schema) = *schema {
+                                    if let Ok(ref_definition) = schema.get_ref_last_definition_db(ref_table, &dependencies) {
+                                        if ref_definition.get_localised_fields().iter().any(|x| x.get_name() == ref_column) {
+                                            references.referenced_column_is_localised = true;
+                                        }
+                                    }
+                                }
+
+                                Some((column as i32, references))
+                            } else { None }
+                        } else { None }
+                    }).collect::<BTreeMap<i32, DependencyData>>();
+                    cache.insert(table_name.to_owned(), cached_data.clone());
+                    cached_data
+                }
+            }
+        } else { BTreeMap::new() };
+
+        let local_references = table_definition.get_fields_processed().into_par_iter().enumerate().filter_map(|(column, field)| {
             if let Some((ref ref_table, ref ref_column)) = field.get_is_reference() {
                 if !ref_table.is_empty() && !ref_column.is_empty() {
 
@@ -544,26 +585,20 @@ impl DB {
                     let lookup_data = if let Some(ref data) = field.get_lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = DependencyData::default();
 
-                    let fake_found = Self::get_dependency_data_from_fake_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_fake_dependency_database());
-                    let real_found = Self::get_dependency_data_from_real_dependencies(&mut references, (&ref_table, &ref_column, &lookup_data), dependencies.get_ref_dependency_database());
                     let local_found = Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, files_to_ignore);
-
-                    if fake_found && !real_found && !local_found {
-                        references.referenced_table_is_ak_only = true;
-                    }
-
-                    if let Some(ref schema) = *schema {
-                        if let Ok(ref_definition) = schema.get_ref_last_definition_db(ref_table, &dependencies) {
-                            if ref_definition.get_localised_fields().iter().any(|x| x.get_name() == ref_column) {
-                                references.referenced_column_is_localised = true;
-                            }
-                        }
-                    }
 
                     Some((column as i32, references))
                 } else { None }
             } else { None }
-        }).collect::<BTreeMap<i32, DependencyData>>()
+        }).collect::<BTreeMap<i32, DependencyData>>();
+
+        vanilla_references.par_iter_mut().for_each(|(key, value)|
+            if let Some(local_value) = local_references.get(key) {
+                value.data.append(&mut local_value.data.clone());
+            }
+        );
+
+        vanilla_references
     }
 
     /// This function is used to check if a table is outdated or not.

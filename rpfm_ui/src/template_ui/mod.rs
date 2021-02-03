@@ -243,7 +243,7 @@ impl TemplateUI {
                 let mut definition = Definition::new(-1);
                 *definition.get_ref_mut_fields() = vec![field.clone()];
 
-                let ref_data = get_reference_data(&definition);
+                let ref_data = get_reference_data("", &definition);
 
                 match ref_data {
                     Ok(ref_data) => {

@@ -16,9 +16,14 @@ This module contains the code needed to manage the dependencies of the currently
 
 use rayon::prelude::*;
 
+use std::collections::BTreeMap;
+use std::sync::{Arc, RwLock};
+
+use rpfm_macros::*;
 use crate::DB;
-use crate::PackedFile;
 use crate::packfile::PackFile;
+use crate::PackedFile;
+use crate::packedfile::table::DependencyData;
 use crate::SCHEMA;
 
 //-------------------------------------------------------------------------------//
@@ -26,7 +31,7 @@ use crate::SCHEMA;
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the dependency data for the different features within RPFM.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, GetRef, GetRefMut)]
 pub struct Dependencies {
 
     /// PackedFiles from the dependencies of the currently open PackFile.
@@ -34,6 +39,9 @@ pub struct Dependencies {
 
     /// DB Files from the Pak File of the current game. Only for dependency checking, do not use it as base for new tables.
     fake_dependency_database: Vec<DB>,
+
+    /// Cached data for already checked tables.
+    cached_data: Arc<RwLock<BTreeMap<String, BTreeMap<i32, DependencyData>>>>
 }
 
 //---------------------------------------------------------------p----------------//
@@ -43,31 +51,17 @@ pub struct Dependencies {
 /// Implementation of `Dependencies`.
 impl Dependencies {
 
-    pub fn get_ref_dependency_database(&self) -> &[PackedFile] {
-        &self.dependency_database
-    }
-
-    pub fn get_ref_mut_dependency_database(&mut self) -> &mut Vec<PackedFile> {
-        &mut self.dependency_database
-    }
-
-    pub fn get_ref_fake_dependency_database(&self) -> &[DB] {
-        &self.fake_dependency_database
-    }
-
-    pub fn get_ref_mut_fake_dependency_database(&mut self) -> &mut Vec<DB> {
-        &mut self.fake_dependency_database
-    }
-
     pub fn rebuild(&mut self, packfile_list: &[String]) {
 
         // Clear the dependencies. This is needed because, if we don't clear them here, then overwrite them,
         // the bastart triggers a memory leak in the next step.
         self.get_ref_mut_dependency_database().clear();
         self.get_ref_mut_fake_dependency_database().clear();
+        self.get_ref_cached_data().write().unwrap().clear();
 
         *self.get_ref_mut_dependency_database() = vec![];
         *self.get_ref_mut_fake_dependency_database() = vec![];
+        *self.get_ref_cached_data().write().unwrap() = BTreeMap::new();
 
         // Only preload dependencies if we have a schema.
         if let Some(ref schema) = *SCHEMA.read().unwrap() {

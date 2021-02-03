@@ -546,9 +546,10 @@ pub fn background_loop() {
             }
 
             // In case we want to get the reference data for a definition...
-            Command::GetReferenceDataFromDefinition(definition, files_to_ignore) => {
+            Command::GetReferenceDataFromDefinition(table_name, definition, files_to_ignore) => {
                 let dependency_data = DB::get_dependency_data(
                     &pack_file_decoded,
+                    &table_name,
                     &definition,
                     &dependencies,
                     &files_to_ignore,

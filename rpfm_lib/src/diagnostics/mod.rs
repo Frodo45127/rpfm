@@ -135,6 +135,7 @@ impl Diagnostics {
             let mut diagnostic = TableDiagnostic::new(path);
             let dependency_data = DB::get_dependency_data(
                 &pack_file,
+                table.get_ref_table_name(),
                 table.get_ref_definition(),
                 &dependencies,
                 &[],

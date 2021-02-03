@@ -266,7 +266,8 @@ impl TableView {
         };
 
         // Get the dependency data of this Table.
-        let dependency_data = get_reference_data(&table_definition)?;
+        let table_name_for_ref = if let Some(ref name) = table_name { name.to_owned() } else { "".to_owned() };
+        let dependency_data = get_reference_data(&table_name_for_ref, &table_definition)?;
 
         // Create the locks for undoing and saving. These are needed to optimize the undo/saving process.
         let undo_lock = Arc::new(AtomicBool::new(false));
