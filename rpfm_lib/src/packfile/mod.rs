@@ -2758,10 +2758,11 @@ impl Default for PackFileSettings {
     fn default() -> Self {
         let mut settings_text = BTreeMap::new();
         let settings_string = BTreeMap::new();
-        let settings_bool = BTreeMap::new();
+        let mut settings_bool = BTreeMap::new();
         let settings_number = BTreeMap::new();
 
         settings_text.insert("diagnostics_files_to_ignore".to_owned(), "".to_owned());
+        settings_bool.insert("disable_autosaves".to_owned(), false);
 
         Self {
             settings_text,
