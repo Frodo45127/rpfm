@@ -87,6 +87,7 @@ pub struct SettingsUI {
     pub extra_global_default_game_label: QBox<QLabel>,
     pub extra_network_update_channel_label: QBox<QLabel>,
     pub extra_packfile_autosave_interval_label: QBox<QLabel>,
+    pub extra_packfile_autosave_amount_label: QBox<QLabel>,
     pub extra_network_check_updates_on_start_label: QBox<QLabel>,
     pub extra_network_check_schema_updates_on_start_label: QBox<QLabel>,
     pub extra_network_check_template_updates_on_start_label: QBox<QLabel>,
@@ -105,6 +106,7 @@ pub struct SettingsUI {
     pub extra_global_default_game_combobox: QBox<QComboBox>,
     pub extra_network_update_channel_combobox: QBox<QComboBox>,
     pub extra_packfile_autosave_interval_spinbox: QBox<QSpinBox>,
+    pub extra_packfile_autosave_amount_spinbox: QBox<QSpinBox>,
     pub extra_network_check_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_network_check_schema_updates_on_start_checkbox: QBox<QCheckBox>,
     pub extra_network_check_template_updates_on_start_checkbox: QBox<QCheckBox>,
@@ -145,6 +147,9 @@ pub struct SettingsUI {
     pub debug_enable_debug_menu_checkbox: QBox<QCheckBox>,
     pub debug_spoof_ca_authoring_tool_label: QBox<QLabel>,
     pub debug_spoof_ca_authoring_tool_checkbox: QBox<QCheckBox>,
+
+    pub debug_clear_autosave_folder_button: QBox<QPushButton>,
+    pub debug_clear_schema_folder_button: QBox<QPushButton>,
 
     //-------------------------------------------------------------------------------//
     // `Warning` section of the `Settings` dialog.
@@ -297,7 +302,9 @@ impl SettingsUI {
 
         // Autosave stuff
         let extra_packfile_autosave_interval_label = QLabel::from_q_string_q_widget(&qtr("settings_autosave_interval"), &general_frame);
+        let extra_packfile_autosave_amount_label = QLabel::from_q_string_q_widget(&qtr("settings_autosave_amount"), &general_frame);
         let extra_packfile_autosave_interval_spinbox = QSpinBox::new_1a(&general_frame);
+        let extra_packfile_autosave_amount_spinbox = QSpinBox::new_1a(&general_frame);
 
         // Update checkers.
         let extra_network_check_updates_on_start_label = QLabel::from_q_string_q_widget(&qtr("settings_check_updates_on_start"), &general_frame);
@@ -314,14 +321,8 @@ impl SettingsUI {
         let extra_packfile_enable_diagnostics_label = QLabel::from_q_string_q_widget(&qtr("settings_use_dependency_checker"), &general_frame);
         let extra_packfile_enable_diagnostics_checkbox = QCheckBox::from_q_widget(&general_frame);
 
-        let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &general_frame);
-        let extra_packfile_use_lazy_loading_checkbox = QCheckBox::from_q_widget(&general_frame);
-
         let extra_packfile_optimize_not_renamed_packedfiles_label = QLabel::from_q_string_q_widget(&qtr("settings_optimize_not_renamed_packedfiles"), &general_frame);
         let extra_packfile_optimize_not_renamed_packedfiles_checkbox = QCheckBox::from_q_widget(&general_frame);
-
-        let extra_packfile_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_uuid_regeneration_tables"), &general_frame);
-        let extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::from_q_widget(&general_frame);
 
         let ui_global_use_dark_theme_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_dark_theme"), &general_frame);
         let ui_global_use_dark_theme_checkbox = QCheckBox::from_q_widget(&general_frame);
@@ -350,41 +351,38 @@ impl SettingsUI {
         general_grid.add_widget_5a(&extra_network_update_channel_label, 2, 0, 1, 1);
         general_grid.add_widget_5a(&extra_network_update_channel_combobox, 2, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_autosave_interval_label, 3, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_autosave_interval_spinbox, 3, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_autosave_amount_label, 3, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_autosave_amount_spinbox, 3, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_network_check_updates_on_start_label, 4, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_network_check_updates_on_start_checkbox, 4, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_autosave_interval_label, 4, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_autosave_interval_spinbox, 4, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_label, 5, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_checkbox, 5, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_updates_on_start_label, 5, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_updates_on_start_checkbox, 5, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_network_check_template_updates_on_start_label, 6, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_network_check_template_updates_on_start_checkbox, 6, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_label, 6, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_schema_updates_on_start_checkbox, 6, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 7, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 7, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_template_updates_on_start_label, 7, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_network_check_template_updates_on_start_checkbox, 7, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 8, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 8, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_label, 8, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_allow_editing_of_ca_packfiles_checkbox, 8, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_label, 9, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_checkbox, 9, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_label, 9, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_optimize_not_renamed_packedfiles_checkbox, 9, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 10, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 10, 1, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_label, 10, 0, 1, 1);
+        general_grid.add_widget_5a(&extra_packfile_enable_diagnostics_checkbox, 10, 1, 1, 1);
 
-        general_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_label, 11, 0, 1, 1);
-        general_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox, 11, 1, 1, 1);
+        general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 13, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 13, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_label, 12, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_global_use_dark_theme_checkbox, 12, 1, 1, 1);
+        general_grid.add_widget_5a(&ui_window_start_maximized_label, 14, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 14, 1, 1, 1);
 
-        general_grid.add_widget_5a(&ui_window_start_maximized_label, 13, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_start_maximized_checkbox, 13, 1, 1, 1);
-
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 14, 0, 1, 1);
-        general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 14, 1, 1, 1);
+        general_grid.add_widget_5a(&ui_window_hide_background_icon_label, 15, 0, 1, 1);
+        general_grid.add_widget_5a(&ui_window_hide_background_icon_checkbox, 15, 1, 1, 1);
 
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_label, 14, 0, 1, 1);
         //general_grid.add_widget_5a(&general_packfile_treeview_resize_to_fit_checkbox, 14, 1, 1, 1);
@@ -422,6 +420,9 @@ impl SettingsUI {
         let ui_table_use_old_column_order_label = QLabel::from_q_string_q_widget(&qtr("settings_ui_table_use_old_column_order_label"), &ui_table_view_frame);
         let ui_table_use_old_column_order_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
 
+        let extra_packfile_disable_uuid_regeneration_on_db_tables_label = QLabel::from_q_string_q_widget(&qtr("settings_disable_uuid_regeneration_tables"), &ui_table_view_frame);
+        let extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox = QCheckBox::from_q_widget(&ui_table_view_frame);
+
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_label, 0, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&ui_table_adjust_columns_to_content_checkbox, 0, 1, 1, 1);
 
@@ -440,6 +441,10 @@ impl SettingsUI {
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_label, 5, 0, 1, 1);
         ui_table_view_grid.add_widget_5a(&ui_table_use_old_column_order_checkbox, 5, 1, 1, 1);
 
+        ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_label, 6, 0, 1, 1);
+        ui_table_view_grid.add_widget_5a(&extra_packfile_disable_uuid_regeneration_on_db_tables_checkbox, 6, 1, 1, 1);
+
+
         main_grid.add_widget_5a(&ui_table_view_frame, 2, 1, 1, 1);
 
         //-----------------------------------------------//
@@ -449,7 +454,7 @@ impl SettingsUI {
         let debug_grid = create_grid_layout(debug_frame.static_upcast());
         debug_grid.set_contents_margins_4a(4, 0, 4, 0);
         debug_grid.set_spacing(4);
-        debug_grid.set_row_stretch(99, 10);
+        debug_grid.set_row_stretch(80, 10);
 
         let debug_check_for_missing_table_definitions_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_missing_table"), &debug_frame);
         let debug_enable_debug_menu_label = QLabel::from_q_string_q_widget(&qtr("settings_debug_enable_debug_menu"), &debug_frame);
@@ -459,6 +464,12 @@ impl SettingsUI {
         let debug_enable_debug_menu_checkbox = QCheckBox::from_q_widget(&debug_frame);
         let debug_spoof_ca_authoring_tool_checkbox = QCheckBox::from_q_widget(&debug_frame);
 
+        let extra_packfile_use_lazy_loading_label = QLabel::from_q_string_q_widget(&qtr("settings_use_lazy_loading"), &debug_frame);
+        let extra_packfile_use_lazy_loading_checkbox = QCheckBox::from_q_widget(&debug_frame);
+
+        let debug_clear_autosave_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_autosave_folder"), &debug_frame);
+        let debug_clear_schema_folder_button = QPushButton::from_q_string_q_widget(&qtr("settings_debug_clear_schema_folder"), &debug_frame);
+
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_label, 0, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_check_for_missing_table_definitions_checkbox, 0, 1, 1, 1);
 
@@ -467,6 +478,12 @@ impl SettingsUI {
 
         debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_label, 2, 0, 1, 1);
         debug_grid.add_widget_5a(&debug_spoof_ca_authoring_tool_checkbox, 2, 1, 1, 1);
+
+        debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_label, 11, 0, 1, 1);
+        debug_grid.add_widget_5a(&extra_packfile_use_lazy_loading_checkbox, 11, 1, 1, 1);
+
+        debug_grid.add_widget_5a(&debug_clear_autosave_folder_button, 90, 0, 1, 1);
+        debug_grid.add_widget_5a(&debug_clear_schema_folder_button, 90, 1, 1, 1);
 
         main_grid.add_widget_5a(&debug_frame, 3, 1, 1, 1);
 
@@ -525,6 +542,7 @@ impl SettingsUI {
             general_language_label,
             extra_global_default_game_label,
             extra_network_update_channel_label,
+            extra_packfile_autosave_amount_label,
             extra_packfile_autosave_interval_label,
             extra_network_check_updates_on_start_label,
             extra_network_check_schema_updates_on_start_label,
@@ -543,6 +561,7 @@ impl SettingsUI {
             general_language_combobox,
             extra_global_default_game_combobox,
             extra_network_update_channel_combobox,
+            extra_packfile_autosave_amount_spinbox,
             extra_packfile_autosave_interval_spinbox,
             extra_network_check_updates_on_start_checkbox,
             extra_network_check_schema_updates_on_start_checkbox,
@@ -584,6 +603,9 @@ impl SettingsUI {
             debug_enable_debug_menu_checkbox,
             debug_spoof_ca_authoring_tool_label,
             debug_spoof_ca_authoring_tool_checkbox,
+
+            debug_clear_autosave_folder_button,
+            debug_clear_schema_folder_button,
 
             //-------------------------------------------------------------------------------//
             // `Warning` section of the `Settings` dialog.
@@ -643,6 +665,7 @@ impl SettingsUI {
         }
 
         // Load the General Stuff.
+        self.extra_packfile_autosave_amount_spinbox.set_value(settings.settings_string["autosave_amount"].parse::<i32>().unwrap_or(10));
         self.extra_packfile_autosave_interval_spinbox.set_value(settings.settings_string["autosave_interval"].parse::<i32>().unwrap_or(10));
         self.ui_global_use_dark_theme_checkbox.set_checked(settings.settings_bool["use_dark_theme"]);
         self.ui_window_start_maximized_checkbox.set_checked(settings.settings_bool["start_maximized"]);
@@ -716,6 +739,7 @@ impl SettingsUI {
         settings.settings_string.insert("font_size".to_owned(), current_font.point_size().to_string());
 
         // Get the General Settings.
+        settings.settings_string.insert("autosave_amount".to_owned(), self.extra_packfile_autosave_amount_spinbox.value().to_string());
         settings.settings_string.insert("autosave_interval".to_owned(), self.extra_packfile_autosave_interval_spinbox.value().to_string());
         settings.settings_bool.insert("use_dark_theme".to_owned(), self.ui_global_use_dark_theme_checkbox.is_checked());
         settings.settings_bool.insert("start_maximized".to_owned(), self.ui_window_start_maximized_checkbox.is_checked());

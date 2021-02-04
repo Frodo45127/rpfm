@@ -22,6 +22,8 @@ use std::path::PathBuf;
 
 use rpfm_error::{ErrorKind, Result};
 
+use crate::SETTINGS;
+
 /// Qualifier for the config folder. Only affects MacOS.
 const QUALIFIER: &str = "";
 
@@ -51,8 +53,10 @@ pub fn init_config_path() -> Result<()> {
     DirBuilder::new().recursive(true).create(&templates_path)?;
     DirBuilder::new().recursive(true).create(&templates_custom_path)?;
 
-    // Init autosave files if they're not yet initialized.
-    (1..=10).for_each(|x| {
+    // Init autosave files if they're not yet initialized. Minimum 1.
+    let mut max_autosaves = SETTINGS.read().unwrap().settings_string["autosave_amount"].parse::<i32>().unwrap_or(10);
+    if max_autosaves < 1 { max_autosaves = 1; }
+    (1..=max_autosaves).for_each(|x| {
         let path = autosaves_path.join(format!("autosave_{:02?}.pack", x));
         if !path.is_file() {
             let _ = File::create(path);

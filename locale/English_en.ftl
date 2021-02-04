@@ -712,3 +712,14 @@ close_tabs_to_left = Close Tabs to the Left
 close_tabs_to_right = Close Tabs to the Right
 prev_tab = Next Tab
 next_tab = Previous Tab
+
+settings_debug_clear_autosave_folder = Clear autosave folder
+settings_debug_clear_schema_folder = Clear schema folder
+tt_settings_debug_clear_autosave_folder = Use this to clear the entire autosave folder, either to clear space on your disk, or to apply the changes to autosave amount, if any.
+tt_settings_debug_clear_schema_folder = Use this to clear the entire schema folder. Just in case the updater fails.
+
+autosaves_cleared = Autosave folder deleted. It'll be regenerated the next time you start the program.
+schemas_cleared = Schemas folder deleted. Please, remember to re-download the schemas to be able to open tables.
+
+settings_autosave_amount = Autosave Amount (min 1)
+tt_settings_autosave_amount = Sets the amount of autosaves RPFM is allowed to use. If you reduce this number, you need to hit "Clear Autosave Folder" to delete the extra autosaves. Keep in mind this resets the entire autosave folder.

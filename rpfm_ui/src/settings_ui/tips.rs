@@ -52,6 +52,7 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     // `Extra` tips.
     //-----------------------------------------------//
 
+    let autosave_amount_tip = qtr("tt_settings_autosave_amount");
     let extra_network_check_updates_on_start_tip = qtr("tt_extra_network_check_updates_on_start_tip");
     let extra_network_check_schema_updates_on_start_tip = qtr("tt_extra_network_check_schema_updates_on_start_tip");
     let extra_packfile_allow_editing_of_ca_packfiles_tip = qtr("tt_extra_packfile_allow_editing_of_ca_packfiles_tip");
@@ -59,6 +60,9 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let extra_packfile_use_dependency_checker_tip = qtr("tt_extra_packfile_use_dependency_checker_tip");
     let extra_packfile_use_lazy_loading_tip = qtr("tt_extra_packfile_use_lazy_loading_tip");
     let extra_disable_uuid_regeneration_on_db_tables_label_tip = qtr("tt_extra_disable_uuid_regeneration_on_db_tables_label_tip");
+
+    settings_ui.extra_packfile_autosave_amount_label.set_tool_tip(&autosave_amount_tip);
+    settings_ui.extra_packfile_autosave_amount_spinbox.set_tool_tip(&autosave_amount_tip);
 
     settings_ui.extra_network_check_updates_on_start_label.set_tool_tip(&extra_network_check_updates_on_start_tip);
     settings_ui.extra_network_check_updates_on_start_checkbox.set_tool_tip(&extra_network_check_updates_on_start_tip);
@@ -81,8 +85,14 @@ pub unsafe fn set_tips(settings_ui: &Rc<SettingsUI>) {
     let debug_check_for_missing_table_definitions_tip = qtr("tt_debug_check_for_missing_table_definitions_tip");
     let debug_spoof_ca_authoring_tool_tip = qtr("tt_settings_debug_spoof_ca_authoring_tool");
 
+    let debug_clear_autosaves = qtr("tt_settings_debug_clear_autosave_folder");
+    let debug_clear_schemas = qtr("tt_settings_debug_clear_schema_folder");
+
     settings_ui.debug_check_for_missing_table_definitions_label.set_tool_tip(&debug_check_for_missing_table_definitions_tip);
     settings_ui.debug_check_for_missing_table_definitions_checkbox.set_tool_tip(&debug_check_for_missing_table_definitions_tip);
     settings_ui.debug_spoof_ca_authoring_tool_label.set_tool_tip(&debug_spoof_ca_authoring_tool_tip);
     settings_ui.debug_spoof_ca_authoring_tool_checkbox.set_tool_tip(&debug_spoof_ca_authoring_tool_tip);
+
+    settings_ui.debug_clear_autosave_folder_button.set_tool_tip(&debug_clear_autosaves);
+    settings_ui.debug_clear_schema_folder_button.set_tool_tip(&debug_clear_schemas);
 }

@@ -28,6 +28,9 @@ pub unsafe fn set_connections(settings_ui: &SettingsUI, slots: &SettingsUISlots)
         button.released().connect(&slots.select_game_paths[key]);
     }
 
+    settings_ui.debug_clear_autosave_folder_button.released().connect(&slots.clear_autosaves);
+    settings_ui.debug_clear_schema_folder_button.released().connect(&slots.clear_schemas);
+
     settings_ui.button_box_shortcuts_button.released().connect(&slots.shortcuts);
     settings_ui.button_box_restore_default_button.released().connect(&slots.restore_default);
     settings_ui.button_box_text_editor_settings_button.released().connect(&slots.text_editor);

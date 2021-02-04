@@ -23,13 +23,17 @@ use qt_core::QBox;
 use qt_core::SlotNoArgs;
 
 use std::collections::BTreeMap;
+use std::fs::remove_dir_all;
 use std::rc::Rc;
 
 use rpfm_lib::settings::{Settings, MYMOD_BASE_PATH, ZIP_PATH};
+use rpfm_lib::common::*;
+use rpfm_lib::config::init_config_path;
 
 use crate::CENTRAL_COMMAND;
 use crate::communications::{Command, Response, THREADS_COMMUNICATION_ERROR};
 use crate::ffi;
+use crate::locale::tr;
 use crate::settings_ui::SettingsUI;
 use crate::shortcuts_ui::ShortcutsUI;
 use crate::UI_STATE;
@@ -50,6 +54,8 @@ pub struct SettingsUISlots {
     pub shortcuts: QBox<SlotNoArgs>,
     pub text_editor: QBox<SlotNoArgs>,
     pub font_settings: QBox<SlotNoArgs>,
+    pub clear_autosaves: QBox<SlotNoArgs>,
+    pub clear_schemas: QBox<SlotNoArgs>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -125,6 +131,32 @@ impl SettingsUISlots {
             }
         }));
 
+        let clear_autosaves = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            match get_backup_autosave_path() {
+                Ok(path) => match remove_dir_all(&path) {
+                    Ok(_) => {
+                        let _ = init_config_path();
+                        show_dialog(&ui.dialog, tr("autosaves_cleared"), true);
+                    }
+                    Err(error) => show_dialog(&ui.dialog, error, false),
+                }
+                Err(error) => show_dialog(&ui.dialog, error, false)
+            }
+        }));
+
+        let clear_schemas = SlotNoArgs::new(&ui.dialog, clone!(mut ui => move || {
+            match get_schemas_path() {
+                Ok(path) => match remove_dir_all(&path) {
+                    Ok(_) => {
+                        let _ = init_config_path();
+                        show_dialog(&ui.dialog, tr("schemas_cleared"), true);
+                    }
+                    Err(error) => show_dialog(&ui.dialog, error, false),
+                }
+                Err(error) => show_dialog(&ui.dialog, error, false)
+            }
+        }));
+
         // And here... we return all the slots.
 		Self {
             restore_default,
@@ -133,7 +165,9 @@ impl SettingsUISlots {
             select_game_paths,
             shortcuts,
             text_editor,
-            font_settings
+            font_settings,
+            clear_autosaves,
+            clear_schemas
 		}
 	}
 }
