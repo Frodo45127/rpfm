@@ -585,7 +585,7 @@ impl DB {
                     let lookup_data = if let Some(ref data) = field.get_lookup() { data.to_vec() } else { Vec::with_capacity(0) };
                     let mut references = DependencyData::default();
 
-                    let local_found = Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, files_to_ignore);
+                    let _local_found = Self::get_dependency_data_from_packfile(&mut references, (&ref_table, &ref_column, &lookup_data), pack_file, files_to_ignore);
 
                     Some((column as i32, references))
                 } else { None }
