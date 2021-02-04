@@ -18,6 +18,7 @@ use qt_widgets::QGroupBox;
 use qt_widgets::QLabel;
 use qt_widgets::QLineEdit;
 use qt_widgets::QPushButton;
+use qt_widgets::q_header_view::ResizeMode;
 
 use qt_gui::QBrush;
 use qt_gui::QGuiApplication;
@@ -35,12 +36,14 @@ use qt_core::q_item_selection_model::SelectionFlag;
 use qt_core::QSignalBlocker;
 use qt_core::QPtr;
 
+use cpp_core::CppBox;
 use cpp_core::Ref;
 
 use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 
 use crate::utils::{atomic_from_ptr, create_grid_layout, log_to_status_bar};
+use crate::packedfile_views::utils::set_modified;
 use crate::pack_tree::*;
 use super::*;
 
@@ -178,23 +181,26 @@ impl TableView {
     }
 
     /// This function rewrite the currently selected cells using the provided formula.
-    pub unsafe fn rewrite_selection(&self) {
+    pub unsafe fn rewrite_selection(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
         if let Some((is_math_operation, value)) = self.create_rewrite_selection_dialog() {
+            let horizontal_header = self.table_view_primary.horizontal_header();
+            let vertical_header = self.table_view_primary.vertical_header();
 
             // Get the current selection. As we need his visual order, we get it directly from the table/filter, NOT FROM THE MODEL.
             let indexes = self.table_view_primary.selection_model().selection().indexes();
             let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
             sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-            let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
 
-            let mut changed_cells = 0;
-            for model_index in indexes_sorted {
-                if model_index.is_valid() {
+            let mut real_cells = vec![];
+            let mut values = vec![];
+
+            for index in &indexes_sorted {
+                if index.is_valid() {
 
                     // Get the column of that cell, the row, the current value, and the new value.
-                    let item = self.table_model.item_from_index(model_index.as_ref());
-                    let column = model_index.column();
-                    let row = model_index.row();
+                    let item = self.table_model.item_from_index(&self.table_filter.map_to_source(*index));
+                    let column = horizontal_header.visual_index(index.column());
+                    let row = vertical_header.visual_index(index.row());
                     let current_value = item.text().to_std_string();
                     let new_value = value.replace("{x}", &current_value)
                         .replace("{y}", &column.to_string())
@@ -220,121 +226,18 @@ impl TableView {
                         else { continue; }
                     } else { new_value.to_owned() };
 
-                    match self.get_ref_table_definition().get_fields_processed().get(column as usize) {
-                        Some(field) => {
-
-                            // Depending on the column, we try to encode the data in one format or another.
-                            match field.get_field_type() {
-                                FieldType::Boolean => {
-                                    let current_value = item.check_state();
-                                    let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                                    if current_value != new_value {
-                                        item.set_check_state(new_value);
-                                        changed_cells += 1;
-                                    }
-                                },
-
-                                FieldType::F32 => {
-                                    if current_value != text {
-                                        if let Ok(value) = text.parse::<f32>() {
-                                            item.set_data_2a(&QVariant::from_float(value), 2);
-                                            changed_cells += 1;
-                                        }
-                                    }
-                                },
-
-                                FieldType::I16 => {
-                                    if current_value != text {
-                                        if is_math_operation {
-                                            if let Ok(value) = text.parse::<f32>() {
-                                                let value = value.round() as i16;
-                                                if current_value.parse::<i16>().unwrap() != value {
-                                                    item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                                    changed_cells += 1;
-                                                }
-                                            }
-                                        } else if let Ok(value) = text.parse::<i16>() {
-                                            item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                            changed_cells += 1;
-                                        }
-                                    }
-                                },
-
-                                FieldType::I32 => {
-                                    if current_value != text {
-                                        if is_math_operation {
-                                            if let Ok(value) = text.parse::<f32>() {
-                                                let value = value.round() as i32;
-                                                if current_value.parse::<i32>().unwrap() != value {
-                                                    item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                                    changed_cells += 1;
-                                                }
-                                            }
-                                        } else if let Ok(value) = text.parse::<i32>() {
-                                            item.set_data_2a(&QVariant::from_int(value), 2);
-                                            changed_cells += 1;
-                                        }
-                                    }
-                                },
-
-                                FieldType::I64 => {
-                                    if current_value != text {
-                                        if is_math_operation {
-                                            if let Ok(value) = text.parse::<f32>() {
-                                                let value = value.round() as i64;
-                                                if current_value.parse::<i64>().unwrap() != value {
-                                                    item.set_data_2a(&QVariant::from_i64(value.into()), 2);
-                                                    changed_cells += 1;
-                                                }
-                                            }
-                                        } else if let Ok(value) = text.parse::<i64>() {
-                                            item.set_data_2a(&QVariant::from_i64(value), 2);
-                                            changed_cells += 1;
-                                        }
-                                    }
-                                },
-
-                                // Skip sequences while rewriting.
-                                FieldType::SequenceU16(_) |
-                                FieldType::SequenceU32(_) => continue,
-
-                                _ => {
-                                    if current_value != text {
-                                        item.set_text(&QString::from_std_str(&text));
-                                        changed_cells += 1;
-                                    }
-                                }
-                            }
-                        }
-                        None => log_to_status_bar(&format!("Trying to get column {} of table with {} columns. WTF?", column, self.get_ref_table_definition().get_fields_processed().len())),
-                    }
+                    real_cells.push(self.table_filter.map_to_source(*index));
+                    values.push(text);
                 }
             }
 
-            // Fix the undo history to have all the previous changed merged into one.
-            if changed_cells > 0 {
-                {
-                    let mut history_undo = self.history_undo.write().unwrap();
-                    let mut history_redo = self.history_redo.write().unwrap();
-
-                    let len = history_undo.len();
-                    let mut edits_data = vec![];
-                    {
-                        let mut edits = history_undo.drain((len - changed_cells)..);
-                        for edit in &mut edits {
-                            if let TableOperations::Editing(mut edit) = edit {
-                                edits_data.append(&mut edit);
-                            }
-                        }
-                    }
-
-                    history_undo.push(TableOperations::Editing(edits_data));
-                    history_redo.clear();
-                }
-                self.start_diagnostic_check();
-                update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-                //undo_redo_enabler.trigger();
+            let mut realer_cells = vec![];
+            for index in (0..real_cells.len()).rev() {
+                realer_cells.push((real_cells.pop().unwrap(), &*values[index]));
             }
+            realer_cells.reverse();
+
+            self.set_data_on_cells(&realer_cells, 0, &[], app_ui, pack_file_contents_ui);
         }
     }
 
@@ -416,7 +319,7 @@ impl TableView {
     }
 
     /// This function allow us to paste the contents of the clipboard into new rows at the end of the table, if the content is compatible with them.
-    pub unsafe fn paste_as_new_row(&self) {
+    pub unsafe fn paste_as_new_row(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the current selection. We treat it like a TSV, for compatibility with table editors.
         // Also, if the text ends in \n, remove it. Excel things.
@@ -426,14 +329,14 @@ impl TableView {
         let rows = rows.iter().map(|x| x.split('\t').collect::<Vec<&str>>()).collect::<Vec<Vec<&str>>>();
 
         // Then paste the data as it fits. If no indexes are provided, the data is pasted in new rows.
-        self.paste_as_it_fits(&rows, &[]);
+        self.paste_as_it_fits(&rows, &[], app_ui, pack_file_contents_ui);
     }
 
     /// This function allow us to paste the contents of the clipboard into the selected cells, if the content is compatible with them.
     ///
     /// This function has some... tricky stuff:
     /// - There are several special behaviors when pasting, in order to provide an Excel-Like pasting experience.
-    pub unsafe fn paste(&self) {
+    pub unsafe fn paste(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the current selection. We treat it like a TSV, for compatibility with table editors.
         // Also, if the text ends in \n, remove it. Excel things.
@@ -489,249 +392,46 @@ impl TableView {
         rows_selected.dedup();
 
         if rows.len() == 1 && rows[0].len() == 1 {
-            self.paste_one_for_all(&rows[0][0], &indexes_sorted);
+            self.paste_one_for_all(&rows[0][0], &indexes_sorted, app_ui, pack_file_contents_ui);
         }
 
         else if rows.len() == 1 && same_amount_of_cells_selected_per_row && rows_selected.len() > 1 {
-            self.paste_same_row_for_all(&rows[0], &indexes_sorted);
+            self.paste_same_row_for_all(&rows[0], &indexes_sorted, app_ui, pack_file_contents_ui);
         }
 
         else {
-            self.paste_as_it_fits(&rows, &indexes_sorted);
+            self.paste_as_it_fits(&rows, &indexes_sorted, app_ui, pack_file_contents_ui);
         }
     }
 
     /// This function pastes the value in the clipboard in every selected Cell.
-    unsafe fn paste_one_for_all(&self, text: &str, indexes: &[Ref<QModelIndex>]) {
-        let mut changed_cells = 0;
-        self.save_lock.store(true, Ordering::SeqCst);
+    unsafe fn paste_one_for_all(&self, text: &str, indexes: &[Ref<QModelIndex>], app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
-        for (index, model_index) in indexes.iter().enumerate() {
-            let model_index = self.table_filter.map_to_source(*model_index);
-            if model_index.is_valid() {
-
-                // Get the column of that cell.
-                let column = model_index.column();
-                let item = self.table_model.item_from_index(model_index.as_ref());
-
-                // Depending on the column, we try to encode the data in one format or another.
-                let current_value = item.text().to_std_string();
-                match self.get_ref_table_definition().get_fields_processed().get(column as usize) {
-                    Some(field) => {
-                        match field.get_ref_field_type() {
-                            FieldType::Boolean => {
-                                let current_value = item.check_state();
-                                let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                                if current_value != new_value {
-                                    item.set_check_state(new_value);
-                                    changed_cells += 1;
-                                }
-                            },
-
-                            // These are a bit special because we have to ignore any difference after the third decimal.
-                            FieldType::F32 => {
-                                if let Ok(value) = text.parse::<f32>() {
-                                    let current_value = format!("{:.3}", item.data_1a(2).to_float_0a());
-                                    let new_value = format!("{:.3}", value);
-                                    if current_value != new_value {
-                                        item.set_data_2a(&QVariant::from_float(value), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            FieldType::I16 => {
-                                if current_value != text {
-                                    if let Ok(value) = text.parse::<i16>() {
-                                        item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            FieldType::I32 => {
-                                if current_value != text {
-                                    if let Ok(value) = text.parse::<i32>() {
-                                        item.set_data_2a(&QVariant::from_int(value), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            FieldType::I64 => {
-                                if current_value != text {
-                                    if let Ok(value) = text.parse::<i64>() {
-                                        item.set_data_2a(&QVariant::from_i64(value), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            _ => {
-                                if current_value != text {
-                                    item.set_text(&QString::from_std_str(&text));
-                                    changed_cells += 1;
-                                }
-                            }
-                        }
-
-                        // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
-                        if index == indexes.len() - 1 {
-                            self.undo_lock.store(true, Ordering::SeqCst);
-                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
-                            self.save_lock.store(false, Ordering::SeqCst);
-                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
-                            self.undo_lock.store(false, Ordering::SeqCst);
-                        }
-                    }
-                    None => log_to_status_bar(&format!("Trying to get column {} of table with {} columns. WTF?", column, self.get_ref_table_definition().get_fields_processed().len())),
-                }
-            }
-        }
-
-        // Fix the undo history to have all the previous changed merged into one.
-        if changed_cells > 0 {
-            {
-                let mut history_undo = self.history_undo.write().unwrap();
-                let mut history_redo = self.history_redo.write().unwrap();
-
-                let len = history_undo.len();
-                let mut edits_data = vec![];
-                {
-                    let mut edits = history_undo.drain((len - changed_cells)..);
-                    for edit in &mut edits {
-                        if let TableOperations::Editing(mut edit) = edit {
-                            edits_data.append(&mut edit);
-                        }
-                    }
-                }
-
-                history_undo.push(TableOperations::Editing(edits_data));
-                history_redo.clear();
-            }
-            self.start_diagnostic_check();
-            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-            self.context_menu_update();
-        }
+        let real_cells = indexes.iter().map(|index| {
+            (self.table_filter.map_to_source(*index), text)
+        }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
+        self.set_data_on_cells(&real_cells, 0, &[], app_ui, pack_file_contents_ui);
     }
 
     /// This function pastes the row in the clipboard in every selected row that has the same amount of items selected as items in the clipboard we have.
-    unsafe fn paste_same_row_for_all(&self, text: &[&str], indexes: &[Ref<QModelIndex>]) {
-        self.save_lock.store(true, Ordering::SeqCst);
-        let mut changed_cells = 0;
+    unsafe fn paste_same_row_for_all(&self, text: &[&str], indexes: &[Ref<QModelIndex>], app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
-        for (index, model_index) in indexes.iter().enumerate() {
-            let text = text[index % text.len()];
-            let model_index = self.table_filter.map_to_source(*model_index);
-            if model_index.is_valid() {
-
-                // Get the column of that cell.
-                let column = model_index.column();
-                let item = self.table_model.item_from_index(model_index.as_ref());
-
-                // Depending on the column, we try to encode the data in one format or another.
-                let current_value = item.text().to_std_string();
-                match self.get_ref_table_definition().get_fields_processed().get(column as usize) {
-                    Some(field) => {
-                        match field.get_ref_field_type() {
-                            FieldType::Boolean => {
-                                let current_value = item.check_state();
-                                let new_value = if text.to_lowercase() == "true" || text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                                if current_value != new_value {
-                                    item.set_check_state(new_value);
-                                    changed_cells += 1;
-                                }
-                            },
-
-                            // These are a bit special because we have to ignore any difference after the third decimal.
-                            FieldType::F32 => {
-                                if let Ok(value) = text.parse::<f32>() {
-                                    let current_value = format!("{:.3}", item.data_1a(2).to_float_0a());
-                                    let new_value = format!("{:.3}", value);
-                                    if current_value != new_value {
-                                        item.set_data_2a(&QVariant::from_float(value), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            FieldType::I16 => {
-                                if current_value != text {
-                                    if let Ok(value) = text.parse::<i16>() {
-                                        item.set_data_2a(&QVariant::from_int(value.into()), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            FieldType::I32 => {
-                                if current_value != text {
-                                    if let Ok(value) = text.parse::<i32>() {
-                                        item.set_data_2a(&QVariant::from_int(value), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            FieldType::I64 => {
-                                if current_value != text {
-                                    if let Ok(value) = text.parse::<i64>() {
-                                        item.set_data_2a(&QVariant::from_i64(value), 2);
-                                        changed_cells += 1;
-                                    }
-                                }
-                            },
-
-                            _ => {
-                                if current_value != text {
-                                    item.set_text(&QString::from_std_str(&text));
-                                    changed_cells += 1;
-                                }
-                            }
-                        }
-
-                        // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
-                        if index == indexes.len() - 1 {
-                            self.undo_lock.store(true, Ordering::SeqCst);
-                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::from_int(1i32), 16);
-                            self.save_lock.store(false, Ordering::SeqCst);
-                            self.table_model.item_from_index(&model_index).set_data_2a(&QVariant::new(), 16);
-                            self.undo_lock.store(false, Ordering::SeqCst);
-                        }
-                    }
-                    None => log_to_status_bar(&format!("Trying to get column {} of table with {} columns. WTF?", column, self.get_ref_table_definition().get_fields_processed().len())),
+        let real_cells = indexes.iter().filter_map(|index| {
+            if index.column() == -1 {
+                None
+            } else {
+                match text.get(index.column() as usize) {
+                    Some(text) => Some((self.table_filter.map_to_source(*index), *text)),
+                    None => None
                 }
             }
-        }
+        }).collect::<Vec<(CppBox<QModelIndex>, &str)>>();
 
-        // Fix the undo history to have all the previous changed merged into one.
-        if changed_cells > 0 {
-            {
-                let mut history_undo = self.history_undo.write().unwrap();
-                let mut history_redo = self.history_redo.write().unwrap();
-
-                let len = history_undo.len();
-                let mut edits_data = vec![];
-                {
-                    let mut edits = history_undo.drain((len - changed_cells)..);
-                    for edit in &mut edits {
-                        if let TableOperations::Editing(mut edit) = edit {
-                            edits_data.append(&mut edit);
-                        }
-                    }
-                }
-
-                history_undo.push(TableOperations::Editing(edits_data));
-                history_redo.clear();
-            }
-            self.start_diagnostic_check();
-            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-            self.context_menu_update();
-        }
+        self.set_data_on_cells(&real_cells, 0, &[], app_ui, pack_file_contents_ui);
     }
 
     /// This function pastes the provided text into the table as it fits, following a square strategy starting in the first selected index.
-    unsafe fn paste_as_it_fits(&self, text: &[Vec<&str>], indexes: &[Ref<QModelIndex>]) {
+    unsafe fn paste_as_it_fits(&self, text: &[Vec<&str>], indexes: &[Ref<QModelIndex>], app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // We're going to try and check in square mode. That means, start in the selected cell, then right
         // until we reach a \n, then return to the initial column. Due to how sorting works, we have to do
@@ -759,7 +459,7 @@ impl TableView {
                 // Depending on the column, we try to encode the data in one format or another, or we just skip it.
                 let real_column = horizontal_header.logical_index(visual_column);
                 let mut real_row = vertical_header.logical_index(visual_row);
-                let definition = self.get_ref_table_definition().clone();
+                let definition = self.get_ref_table_definition();
                 if let Some(field) = definition.get_fields_processed().get(real_column as usize) {
 
                     // Check if, according to the definition, we have a valid value for the type.
@@ -791,7 +491,7 @@ impl TableView {
                             real_row = self.table_model.row_count_0a() - 1;
                             added_rows += 1;
                         }
-                        real_cells.push((self.table_filter.map_to_source(&self.table_filter.index_2a(real_row, real_column)), text));
+                        real_cells.push((self.table_filter.map_to_source(&self.table_filter.index_2a(real_row, real_column)), *text));
                     }
                 }
                 visual_column += 1;
@@ -804,116 +504,10 @@ impl TableView {
         // will not trigger, and the update_undo_model will not trigger either, causing a crash if
         // inmediatly after that we try to paste something in a new line (which will not exist in the undo model).
         {
-            //let mut table_state_data = table_state_data.borrow_mut();
-            //let table_state_data = table_state_data.get_mut(&*packed_file_path.borrow()).unwrap();
             update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
         }
 
-        self.save_lock.store(true, Ordering::SeqCst);
-
-        // Now we do the real pass, changing data if needed.
-        let mut changed_cells = 0;
-        for (index, (real_cell, text)) in real_cells.iter().enumerate() {
-
-            // Depending on the column, we try to encode the data in one format or another.
-            let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
-            let definition = self.get_ref_table_definition().clone();
-            match definition.get_fields_processed()[real_cell.column() as usize].get_ref_field_type() {
-
-                FieldType::Boolean => {
-                    let current_value = self.table_model.item_from_index(real_cell).check_state();
-                    let new_value = if text.to_lowercase() == "true" || **text == "1" { CheckState::Checked } else { CheckState::Unchecked };
-                    if current_value != new_value {
-                        self.table_model.item_from_index(real_cell).set_check_state(new_value);
-                        changed_cells += 1;
-                    }
-                },
-
-                // These are a bit special because we have to ignore any difference after the third decimal.
-                FieldType::F32 => {
-                    let current_value = format!("{:.3}", self.table_model.data_2a(real_cell, 2).to_float_0a());
-                    let new_value = format!("{:.3}", text.parse::<f32>().unwrap());
-                    if current_value != new_value {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_float(text.parse::<f32>().unwrap()), 2);
-                        changed_cells += 1;
-                    }
-                },
-
-                FieldType::I16 => {
-                    if &current_value != *text {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(text.parse::<i16>().unwrap() as i32), 2);
-                        changed_cells += 1;
-                    }
-                },
-
-                FieldType::I32 => {
-                    if &current_value != *text {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_int(text.parse::<i32>().unwrap()), 2);
-                        changed_cells += 1;
-                    }
-                },
-
-                FieldType::I64 => {
-                    if &current_value != *text {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_i64(text.parse::<i64>().unwrap()), 2);
-                        changed_cells += 1;
-                    }
-                },
-
-                _ => {
-                    if &current_value != *text {
-                        self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
-                        changed_cells += 1;
-                    }
-                }
-            }
-
-            // If it's the last cycle, trigger a save. That way we ensure a save it's done at the end.
-            if index == real_cells.len() - 1 {
-                self.undo_lock.store(true, Ordering::SeqCst);
-                self.table_model.item_from_index(real_cell).set_data_2a(&QVariant::from_int(1i32), 16);
-                self.save_lock.store(false, Ordering::SeqCst);
-                self.table_model.item_from_index(real_cell).set_data_2a(&QVariant::new(), 16);
-                self.undo_lock.store(false, Ordering::SeqCst);
-            }
-        }
-
-        // Fix the undo history to have all the previous changed merged into one. Or that's what I wanted.
-        // Sadly, the world doesn't work like that. As we can edit AND add rows, we have to use a combined undo operation.
-        // I'll call it... Carolina.
-        if changed_cells > 0 || added_rows > 0 {
-            {
-                let mut history_undo = self.history_undo.write().unwrap();
-                let mut history_redo = self.history_redo.write().unwrap();
-
-                let len = history_undo.len();
-                let mut carolina = vec![];
-                if changed_cells > 0 {
-
-                    let mut edits_data = vec![];
-                    let mut edits = history_undo.drain((len - changed_cells)..);
-                    for edit in &mut edits {
-                        if let TableOperations::Editing(mut edit) = edit {
-                            edits_data.append(&mut edit);
-                        }
-                    }
-                    carolina.push(TableOperations::Editing(edits_data));
-                }
-
-                if added_rows > 0 {
-                    let mut rows = vec![];
-                    ((self.table_model.row_count_0a() - added_rows)..self.table_model.row_count_0a()).rev().for_each(|x| rows.push(x));
-                    carolina.push(TableOperations::AddRows(rows));
-                }
-
-                history_undo.push(TableOperations::Carolina(carolina));
-                history_redo.clear();
-            }
-
-            self.start_diagnostic_check();
-            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-            self.context_menu_update();
-        }
+        self.set_data_on_cells(&real_cells, added_rows, &[], app_ui, pack_file_contents_ui);
     }
 
     /// Function to undo/redo an operation in the table.
@@ -1402,134 +996,258 @@ impl TableView {
     }
 
     /// This function takes care of the "Smart Delete" feature for tables.
-    pub unsafe fn smart_delete(&self) {
+    pub unsafe fn smart_delete(&self, delete_all_rows: bool, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
 
         // Get the selected indexes, the split them in two groups: one with full rows selected and another with single cells selected.
         let indexes = self.table_view_primary.selection_model().selection().indexes();
         let mut indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
         sort_indexes_visually(&mut indexes_sorted, &self.get_mut_ptr_table_view_primary());
-        let indexes_sorted = get_real_indexes(&indexes_sorted, &self.get_mut_ptr_table_view_filter());
 
-        let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
-        for model_index in &indexes_sorted {
-            if model_index.is_valid() {
-                let row = model_index.row();
-                let column = model_index.column();
+        if delete_all_rows {
+            let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
 
-                // Check if we have any cell in that row and add/insert the new one.
-                match cells.get_mut(&row) {
-                    Some(row) => row.push(column),
-                    None => { cells.insert(row, vec![column]); },
-                }
-            }
-        }
+            // Dedup the list and reverse it.
+            rows_to_delete.sort();
+            rows_to_delete.dedup();
+            rows_to_delete.reverse();
 
-        let full_rows = cells.iter()
-            .filter(|(_, y)| y.len() as i32 == self.table_model.column_count_0a())
-            .map(|(x, _)| *x)
-            .collect::<Vec<i32>>();
+            self.set_data_on_cells(&[], 0, &rows_to_delete, app_ui, pack_file_contents_ui);
+        } else {
 
-        let individual_cells = cells.iter()
-            .filter(|(_, y)| y.len() as i32 != self.table_model.column_count_0a())
-            .map(|(x, y)| (*x, y.to_vec()))
-            .collect::<Vec<(i32, Vec<i32>)>>();
+            let mut cells: BTreeMap<i32, Vec<i32>> = BTreeMap::new();
+            for model_index in &indexes_sorted {
+                if model_index.is_valid() {
+                    let row = model_index.row();
+                    let column = model_index.column();
 
-        // First, we do the editions. This means:
-        // - Checkboxes: unchecked.
-        // - Numbers: 0.
-        // - Strings: empty.
-        let mut editions = 0;
-        for (row, columns) in &individual_cells {
-            for column in columns {
-                let item = self.table_model.item_2a(*row, *column);
-                let current_value = item.text().to_std_string();
-                match self.get_ref_table_definition().get_fields_processed()[*column as usize].get_ref_field_type() {
-                    FieldType::Boolean => {
-                        let current_value = item.check_state();
-                        if current_value != CheckState::Unchecked {
-                            item.set_check_state(CheckState::Unchecked);
-                            editions += 1;
-                        }
-                    }
-
-                    FieldType::F32 => {
-                        if !current_value.is_empty() {
-                            item.set_data_2a(&QVariant::from_float(0.0f32), 2);
-                            editions += 1;
-                        }
-                    }
-
-                    FieldType::I16 => {
-                        if !current_value.is_empty() {
-                            item.set_data_2a(&QVariant::from_int(0i32), 2);
-                            editions += 1;
-                        }
-                    }
-
-                    FieldType::I32 => {
-                        if !current_value.is_empty() {
-                            item.set_data_2a(&QVariant::from_int(0i32), 2);
-                            editions += 1;
-                        }
-                    }
-
-                    FieldType::I64 => {
-                        if !current_value.is_empty() {
-                            item.set_data_2a(&QVariant::from_i64(0i64), 2);
-                            editions += 1;
-                        }
-                    }
-
-                    _ => {
-                        if !current_value.is_empty() {
-                            item.set_text(&QString::from_std_str(""));
-                            editions += 1;
-                        }
+                    // Check if we have any cell in that row and add/insert the new one.
+                    match cells.get_mut(&row) {
+                        Some(row) => row.push(column),
+                        None => { cells.insert(row, vec![column]); },
                     }
                 }
             }
-        }
 
-        // Then, we delete all the fully selected rows.
-        let rows_splitted = super::utils::delete_rows(&self.get_mut_ptr_table_model(), &full_rows);
+            let visible_column_count = (0..self.table_model.column_count_0a()).filter(|index| !self.table_view_primary.is_column_hidden(*index)).count();
+            let full_rows = cells.iter()
+                .filter(|(_, y)| y.len() >= visible_column_count)
+                .map(|(x, _)| *x)
+                .collect::<Vec<i32>>();
 
-        // Then, we have to fix the undo history. For that, we take out all the editions, merge them,
-        // then merge them with the table edition into a carolina.
-        if editions > 0 || !rows_splitted.is_empty() {
+            let individual_cells = cells.iter()
+                .filter(|(_, y)| y.len() < visible_column_count)
+                .map(|(x, y)| (*x, y.to_vec()))
+                .collect::<Vec<(i32, Vec<i32>)>>();
 
-            // Update the search stuff, if needed.
-            //unsafe { update_search_stuff.as_mut().unwrap().trigger(); }
+            let default_str = "".to_owned();
+            let default_f32 = "0.0".to_owned();
+            let default_i32 = "0".to_owned();
+            let default_bool = "false".to_owned();
 
-             {
-                let mut changes = vec![];
-                if !rows_splitted.is_empty() {
-                    changes.push(TableOperations::RemoveRows(rows_splitted));
-                }
-
-                let len = self.history_undo.read().unwrap().len();
-                let editions: Vec<((i32, i32), AtomicPtr<QStandardItem>)> = self.history_undo.write().unwrap()
-                    .drain(len - editions..)
-                    .filter_map(|x| if let TableOperations::Editing(y) = x { Some(y) } else { None })
-                    .flatten()
-                    .collect();
-
-                if !editions.is_empty() {
-                    changes.push(TableOperations::Editing(editions));
-                }
-
-                if !changes.is_empty() {
-                    self.history_undo.write().unwrap().push(TableOperations::Carolina(changes));
-                    self.history_redo.write().unwrap().clear();
-                    self.start_diagnostic_check();
-                    update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
-                    self.context_menu_update();
+            let mut real_cells = vec![];
+            let mut values = vec![];
+            for (row, columns) in &individual_cells {
+                for column in columns {
+                    let index = self.table_filter.index_2a(*row, *column);
+                    if index.is_valid() {
+                        match self.get_ref_table_definition().get_fields_processed()[*column as usize].get_ref_field_type() {
+                            FieldType::Boolean => values.push(&*default_bool),
+                            FieldType::F32 => values.push(&*default_f32),
+                            FieldType::I16 |
+                            FieldType::I32 |
+                            FieldType::I64 => values.push(&*default_i32),
+                            FieldType::StringU8 |
+                            FieldType::StringU16 |
+                            FieldType::OptionalStringU8 |
+                            FieldType::OptionalStringU16 => values.push(&*default_str),
+                            FieldType::SequenceU16(_) |
+                            FieldType::SequenceU32(_) => continue,
+                        }
+                        real_cells.push(self.table_filter.map_to_source(&index));
+                    }
                 }
             }
+
+
+            let mut realer_cells = vec![];
+            for index in (0..real_cells.len()).rev() {
+                realer_cells.push((real_cells.pop().unwrap(), &*values[index]));
+            }
+            realer_cells.reverse();
+
+            self.set_data_on_cells(&realer_cells, 0, &full_rows, app_ui, pack_file_contents_ui);
         }
     }
 
     pub unsafe fn start_diagnostic_check(&self) {
         self.timer_diagnostics_check.set_interval(1500);
         self.timer_diagnostics_check.start_0a();
+    }
+
+    /// Function used to have a generic way to set data on cells/remove rows and setup their undo steps.
+    pub unsafe fn set_data_on_cells(
+        &self,
+        real_cells: &[(CppBox<QModelIndex>, &str)],
+        added_rows: i32,
+        rows_to_delete: &[i32],
+        app_ui: &Rc<AppUI>,
+        pack_file_contents_ui: &Rc<PackFileContentsUI>
+    ) {
+
+        // Block the events so this doesn't take ages. Also, this means we do weird things here for performance.
+        let blocker = QSignalBlocker::from_q_object(&self.table_model);
+        let blocker_undo = QSignalBlocker::from_q_object(&self.undo_model);
+        let mut changed_cells = 0;
+
+        for (real_cell, text) in real_cells {
+
+            // Depending on the column, we try to encode the data in one format or another.
+            let current_value = self.table_model.data_1a(real_cell).to_string().to_std_string();
+            let definition = self.get_ref_table_definition();
+            match definition.get_fields_processed()[real_cell.column() as usize].get_ref_field_type() {
+
+                FieldType::Boolean => {
+                    let current_value = self.table_model.item_from_index(real_cell).check_state();
+                    let new_value = if text.to_lowercase() == "true" || *text == "1" { CheckState::Checked } else { CheckState::Unchecked };
+                    if current_value != new_value {
+                        self.table_model.item_from_index(real_cell).set_check_state(new_value);
+                        changed_cells += 1;
+                        self.process_edition(self.table_model.item_from_index(real_cell));
+                    }
+                },
+
+                // These are a bit special because we have to ignore any difference after the third decimal.
+                FieldType::F32 => {
+                    let current_value = format!("{:.3}", self.table_model.data_2a(real_cell, 2).to_float_0a());
+                    if let Ok(new_value) = text.parse::<f32>() {
+                        let new_value_txt = format!("{:.3}", new_value);
+                        if current_value != new_value_txt {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_float(new_value), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
+                    }
+                },
+
+                FieldType::I16 => {
+                    if let Ok(new_value) = text.parse::<i16>() {
+                        if &current_value != *text {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value as i32), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
+                    }
+                },
+
+                FieldType::I32 => {
+                    if let Ok(new_value) = text.parse::<i32>() {
+                        if &current_value != *text {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_int(new_value), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
+                    }
+                },
+
+                FieldType::I64 => {
+                    if let Ok(new_value) = text.parse::<i64>() {
+                        if &current_value != *text {
+                            self.table_model.set_data_3a(real_cell, &QVariant::from_i64(new_value), 2);
+                            changed_cells += 1;
+                            self.process_edition(self.table_model.item_from_index(real_cell));
+                        }
+                    }
+                },
+
+                _ => {
+                    if &current_value != *text {
+                        self.table_model.set_data_3a(real_cell, &QVariant::from_q_string(&QString::from_std_str(text)), 2);
+                        changed_cells += 1;
+                        self.process_edition(self.table_model.item_from_index(real_cell));
+                    }
+                }
+            }
+        }
+
+        blocker.unblock();
+        blocker_undo.unblock();
+
+        // Trick to properly update the view.
+        self.table_view_primary.clear_focus();
+        self.table_view_primary.set_focus_0a();
+
+        let deleted_rows = if !rows_to_delete.is_empty() {
+            super::utils::delete_rows(&self.get_mut_ptr_table_model(), &rows_to_delete)
+        } else { vec![] };
+
+        // Fix the undo history to have all the previous changed merged into one. Or that's what I wanted.
+        // Sadly, the world doesn't work like that. As we can edit, delete AND add rows, we have to use a combined undo operation.
+        // I'll call it... Carolina.
+        if changed_cells > 0 || added_rows > 0 || !deleted_rows.is_empty() {
+            update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+            {
+                let mut history_undo = self.history_undo.write().unwrap();
+                let mut history_redo = self.history_redo.write().unwrap();
+
+                let len = history_undo.len();
+                let mut carolina = vec![];
+
+                if !deleted_rows.is_empty() {
+                    carolina.push(TableOperations::RemoveRows(deleted_rows));
+                }
+
+                if changed_cells > 0 {
+
+                    let mut edits_data = vec![];
+                    let mut edits = history_undo.drain((len - changed_cells)..);
+                    for edit in &mut edits {
+                        if let TableOperations::Editing(mut edit) = edit {
+                            edits_data.append(&mut edit);
+                        }
+                    }
+                    carolina.push(TableOperations::Editing(edits_data));
+                }
+
+                if added_rows > 0 {
+                    let mut rows = vec![];
+                    ((self.table_model.row_count_0a() - added_rows)..self.table_model.row_count_0a()).rev().for_each(|x| rows.push(x));
+                    carolina.push(TableOperations::AddRows(rows));
+                }
+
+                history_undo.push(TableOperations::Carolina(carolina));
+                history_redo.clear();
+            }
+
+            self.post_process_edition(app_ui, pack_file_contents_ui);
+        }
+    }
+
+    /// Process a single cell edition. Launch this after every edition if the signals are blocked.
+    pub unsafe fn process_edition(&self, item: Ptr<QStandardItem>) {
+        let item_old = self.undo_model.item_2a(item.row(), item.column());
+
+        // Only trigger this if the values are actually different. Checkable cells are tricky. Nested cells an go to hell.
+        if (item_old.text().compare_q_string(item.text().as_ref()) != 0 || item_old.check_state() != item.check_state()) ||
+            item_old.data_1a(ITEM_IS_SEQUENCE).to_bool() && 0 != item_old.data_1a(ITEM_SEQUENCE_DATA).to_string().compare_q_string(&item.data_1a(ITEM_SEQUENCE_DATA).to_string()) {
+            let mut edition = Vec::with_capacity(1);
+            edition.push(((item.row(), item.column()), atomic_from_ptr((&*item_old).clone())));
+            let operation = TableOperations::Editing(edition);
+            self.history_undo.write().unwrap().push(operation);
+
+            item.set_background(&QBrush::from_q_color(get_color_modified().as_ref().unwrap()));
+        }
+    }
+
+    /// Triggers stuff that should be done once after a bunch of editions.
+    pub unsafe fn post_process_edition(&self, app_ui: &Rc<AppUI>, pack_file_contents_ui: &Rc<PackFileContentsUI>) {
+        update_undo_model(&self.get_mut_ptr_table_model(), &self.get_mut_ptr_undo_model());
+        self.context_menu_update();
+        if let Some(ref packed_file_path) = self.packed_file_path {
+            set_modified(true, &packed_file_path.read().unwrap(), app_ui, pack_file_contents_ui);
+        }
+
+        if SETTINGS.read().unwrap().settings_bool["table_resize_on_edit"] {
+            self.table_view_primary.horizontal_header().resize_sections(ResizeMode::ResizeToContents);
+        }
     }
 }

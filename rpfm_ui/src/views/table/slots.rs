@@ -23,12 +23,9 @@ use qt_gui::QCursor;
 use qt_gui::SlotOfQStandardItem;
 
 use qt_core::QBox;
-use qt_core::QModelIndex;
 use qt_core::QItemSelection;
 use qt_core::QSignalBlocker;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs, SlotOfQString, SlotOfQItemSelectionQItemSelection, SlotOfQModelIndex};
-
-use cpp_core::Ref;
 
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -178,10 +175,6 @@ impl TableViewSlots {
                             update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
                             view.context_menu_update();
                             if let Some(ref packed_file_path) = packed_file_path {
-                                TableSearch::update_search(&view);
-
-                                view.start_diagnostic_check();
-
                                 set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
                             }
                         }
@@ -223,32 +216,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-
-                // Get all the selected rows.
-                let selection = view.table_view_primary.selection_model().selection();
-                let indexes = view.table_filter.map_selection_to_source(&selection).indexes();
-                let indexes_sorted = (0..indexes.count_0a()).map(|x| indexes.at(x)).collect::<Vec<Ref<QModelIndex>>>();
-                let mut rows_to_delete: Vec<i32> = indexes_sorted.iter().filter_map(|x| if x.is_valid() { Some(x.row()) } else { None }).collect();
-
-                // Dedup the list and reverse it.
-                rows_to_delete.sort();
-                rows_to_delete.dedup();
-                rows_to_delete.reverse();
-                let rows_splitted = delete_rows(&view.get_mut_ptr_table_model(), &rows_to_delete);
-
-                // If we deleted something, try to save the PackedFile to the main PackFile.
-                if !rows_to_delete.is_empty() {
-                    view.history_undo.write().unwrap().push(TableOperations::RemoveRows(rows_splitted));
-                    view.history_redo.write().unwrap().clear();
-
-                    // Prepare the diagnostic pass.
-                    view.start_diagnostic_check();
-
-                    update_undo_model(&view.get_mut_ptr_table_model(), &view.get_mut_ptr_undo_model());
-                    if let Some(ref packed_file_path) = view.packed_file_path {
-                        set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
-                    }
-                }
+                view.smart_delete(true, &app_ui, &pack_file_contents_ui);
             }
         ));
 
@@ -288,14 +256,18 @@ impl TableViewSlots {
 
         // When you want to copy one or more cells.
         let paste = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-            view.paste();
+            view,
+            app_ui,
+            pack_file_contents_ui => move || {
+            view.paste(&app_ui, &pack_file_contents_ui);
         }));
 
         // When you want to paste a row at the end of the table...
         let paste_as_new_row = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-                view.paste_as_new_row();
+            view,
+            app_ui,
+            pack_file_contents_ui => move || {
+                view.paste_as_new_row(&app_ui, &pack_file_contents_ui);
             }
         ));
 
@@ -321,8 +293,10 @@ impl TableViewSlots {
 
         // When we want to rewrite the selected items using a formula.
         let rewrite_selection = SlotNoArgs::new(&view.table_view_primary, clone!(
-            mut view => move || {
-            view.rewrite_selection();
+            app_ui,
+            pack_file_contents_ui,
+            view => move || {
+            view.rewrite_selection(&app_ui, &pack_file_contents_ui);
         }));
 
         // When we want to undo the last action.
@@ -479,10 +453,7 @@ impl TableViewSlots {
             app_ui,
             pack_file_contents_ui,
             view => move || {
-                view.smart_delete();
-                if let Some(ref packed_file_path) = view.packed_file_path {
-                    set_modified(true, &packed_file_path.read().unwrap(), &app_ui, &pack_file_contents_ui);
-                }
+                view.smart_delete(false, &app_ui, &pack_file_contents_ui);
             }
         ));
 
