@@ -12,13 +12,15 @@
 Module with all the code related to the main `AppUISlot`.
 !*/
 
-use qt_core::QBox;
 use qt_widgets::QAction;
 use qt_widgets::{QFileDialog, q_file_dialog::{FileMode, Option as QFileDialogOption}};
 use qt_widgets::QMessageBox;
+use qt_widgets::SlotOfQPoint;
 
+use qt_gui::QCursor;
 use qt_gui::QDesktopServices;
 
+use qt_core::QBox;
 use qt_core::{SlotOfBool, SlotOfInt, SlotNoArgs};
 use qt_core::QFlags;
 use qt_core::QString;
@@ -153,7 +155,11 @@ pub struct AppUISlots {
     //-----------------------------------------------//
     pub pack_file_backup_autosave: QBox<SlotNoArgs>,
 
+    pub tab_bar_packed_file_context_menu_show: QBox<SlotOfQPoint>,
     pub tab_bar_packed_file_close: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_close_all: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_close_all_left: QBox<SlotNoArgs>,
+    pub tab_bar_packed_file_close_all_right: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_prev: QBox<SlotNoArgs>,
     pub tab_bar_packed_file_next: QBox<SlotNoArgs>,
 }
@@ -1230,7 +1236,7 @@ impl AppUISlots {
         let packed_file_hide = SlotOfInt::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move |index| {
-                AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, index);
+                AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &[index]);
             }
         ));
 
@@ -1315,11 +1321,63 @@ impl AppUISlots {
             }
         ));
 
+        // When we want to show the context menu.
+        let tab_bar_packed_file_context_menu_show = SlotOfQPoint::new(&app_ui.main_window, clone!(
+            app_ui => move |_| {
+            app_ui.tab_bar_packed_file_context_menu.exec_1a_mut(&QCursor::pos_0a());
+        }));
+
         let tab_bar_packed_file_close = SlotNoArgs::new(&app_ui.main_window, clone!(
             app_ui,
             pack_file_contents_ui => move || {
             let index = app_ui.tab_bar_packed_file.current_index();
-            AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, index);
+            AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &[index]);
+        }));
+
+        let tab_bar_packed_file_close_all = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+            let index = app_ui.tab_bar_packed_file.current_index();
+            let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|packed_file_view| {
+                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                if index_to_check != index && index_to_check != -1 {
+                    Some(index_to_check)
+                } else {
+                    None
+                }
+            }).collect::<Vec<i32>>();
+
+            AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
+        }));
+
+        let tab_bar_packed_file_close_all_left = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+            let index = app_ui.tab_bar_packed_file.current_index();
+            let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|packed_file_view| {
+                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                if index_to_check < index {
+                    Some(index_to_check)
+                } else {
+                    None
+                }
+            }).collect::<Vec<i32>>();
+            AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
+        }));
+
+        let tab_bar_packed_file_close_all_right = SlotNoArgs::new(&app_ui.main_window, clone!(
+            app_ui,
+            pack_file_contents_ui => move || {
+            let index = app_ui.tab_bar_packed_file.current_index();
+            let indexes = UI_STATE.get_open_packedfiles().iter().filter_map(|packed_file_view| {
+                let index_to_check = app_ui.tab_bar_packed_file.index_of(packed_file_view.get_mut_widget());
+                if index_to_check > index {
+                    Some(index_to_check)
+                } else {
+                    None
+                }
+            }).collect::<Vec<i32>>();
+            AppUI::packed_file_view_hide(&app_ui, &pack_file_contents_ui, &indexes);
         }));
 
         let tab_bar_packed_file_prev = SlotNoArgs::new(&app_ui.main_window, clone!(
@@ -1427,7 +1485,11 @@ impl AppUISlots {
             //-----------------------------------------------//
             pack_file_backup_autosave,
 
+            tab_bar_packed_file_context_menu_show,
             tab_bar_packed_file_close,
+            tab_bar_packed_file_close_all,
+            tab_bar_packed_file_close_all_left,
+            tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next,
 		}

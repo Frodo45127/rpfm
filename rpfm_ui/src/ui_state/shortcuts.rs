@@ -109,7 +109,7 @@ const SHORTCUTS_PACKFILE_CONTENTS_TREE_VIEW: [(&str, &str); 24] = [
 ];
 
 /// List of shortcuts for the Table PackedFile's Contextual Menu.
-const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 23] = [
+const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 26] = [
     ("add_row", "Ctrl+Shift+A"),
     ("insert_row", "Ctrl+I"),
     ("delete_row", "Ctrl+Del"),
@@ -132,6 +132,9 @@ const SHORTCUTS_PACKED_FILE_TABLE: [(&str, &str); 23] = [
     ("resize_columns", ""),
 
     ("shortcut_close_tab", "Ctrl+W"),
+    ("shortcut_close_tab_all", ""),
+    ("shortcut_close_tab_all_left", ""),
+    ("shortcut_close_tab_all_right", ""),
     ("shortcut_tab_prev", "Ctrl+Shift+Tab"),
     ("shortcut_tab_next", "Ctrl+Tab"),
 ];

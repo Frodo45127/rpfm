@@ -26,6 +26,7 @@ use qt_widgets::QWidget;
 
 use qt_gui::QIcon;
 
+use qt_core::ContextMenuPolicy;
 use qt_core::QBox;
 use qt_core::QTimer;
 use qt_core::QPtr;
@@ -255,9 +256,13 @@ pub struct AppUI {
     //-------------------------------------------------------------------------------//
     pub timer_backup_autosave: QBox<QTimer>,
 
-    pub tab_bar_packed_file_close: QBox<QAction>,
-    pub tab_bar_packed_file_prev: QBox<QAction>,
-    pub tab_bar_packed_file_next: QBox<QAction>,
+    pub tab_bar_packed_file_context_menu: QBox<QMenu>,
+    pub tab_bar_packed_file_close: QPtr<QAction>,
+    pub tab_bar_packed_file_close_all: QPtr<QAction>,
+    pub tab_bar_packed_file_close_all_left: QPtr<QAction>,
+    pub tab_bar_packed_file_close_all_right: QPtr<QAction>,
+    pub tab_bar_packed_file_prev: QPtr<QAction>,
+    pub tab_bar_packed_file_next: QPtr<QAction>,
 }
 
 /// This enum contains the data needed to create a new PackedFile.
@@ -298,12 +303,28 @@ impl AppUI {
         let tab_bar_packed_file = QTabWidget::new_1a(&widget);
         tab_bar_packed_file.set_tabs_closable(true);
         tab_bar_packed_file.set_movable(true);
+        tab_bar_packed_file.set_context_menu_policy(ContextMenuPolicy::CustomContextMenu);
         layout.add_widget_5a(&tab_bar_packed_file, 0, 0, 1, 1);
         STATUS_BAR.store(status_bar.as_mut_raw_ptr(), Ordering::SeqCst);
 
-        let tab_bar_packed_file_close = QAction::new();
-        let tab_bar_packed_file_prev = QAction::new();
-        let tab_bar_packed_file_next = QAction::new();
+        let tab_bar_packed_file_context_menu = QMenu::from_q_widget(&tab_bar_packed_file);
+
+        // Create the Contextual Menu Actions.
+        let tab_bar_packed_file_close = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("close_tab"));
+        let tab_bar_packed_file_close_all = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("close_all_other_tabs"));
+        let tab_bar_packed_file_close_all_left = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("close_tabs_to_left"));
+        let tab_bar_packed_file_close_all_right = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("close_tabs_to_right"));
+        let tab_bar_packed_file_prev = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("prev_tab"));
+        let tab_bar_packed_file_next = tab_bar_packed_file_context_menu.add_action_q_string(&qtr("next_tab"));
+
+        tab_bar_packed_file_close.set_enabled(true);
+        tab_bar_packed_file_close_all.set_enabled(true);
+        tab_bar_packed_file_close_all_left.set_enabled(true);
+        tab_bar_packed_file_close_all_right.set_enabled(true);
+        tab_bar_packed_file_prev.set_enabled(true);
+        tab_bar_packed_file_next.set_enabled(true);
+
+        tab_bar_packed_file_context_menu.insert_separator(&tab_bar_packed_file_prev);
 
         //-----------------------------------------------//
         // Menu bar.
@@ -790,7 +811,11 @@ impl AppUI {
             //-------------------------------------------------------------------------------//
             timer_backup_autosave,
 
+            tab_bar_packed_file_context_menu,
             tab_bar_packed_file_close,
+            tab_bar_packed_file_close_all,
+            tab_bar_packed_file_close_all_left,
+            tab_bar_packed_file_close_all_right,
             tab_bar_packed_file_prev,
             tab_bar_packed_file_next
         }

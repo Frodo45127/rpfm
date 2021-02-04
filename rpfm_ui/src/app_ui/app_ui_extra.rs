@@ -2174,37 +2174,37 @@ impl AppUI {
         }
     }
 
-    /// This function hides the provided packedfile view.
+    /// This function hides all the provided packedfile views.
     pub unsafe fn packed_file_view_hide(
         app_ui: &Rc<AppUI>,
         pack_file_contents_ui: &Rc<PackFileContentsUI>,
-        index: i32
+        indexes: &[i32]
     ) {
 
-        // PackFile Views must be deleted on close.
+        let mut indexes = indexes.to_vec();
+        indexes.sort();
+        indexes.dedup();
+        indexes.reverse();
+
+        // PackFile Views must be deleted on close, so get them apart if we find one.
         let mut purge_on_delete = vec![];
-        let mut tab_index = -1;
+
         for packed_file_view in UI_STATE.get_open_packedfiles().iter() {
-            let path = packed_file_view.get_ref_path();
             let widget = packed_file_view.get_mut_widget();
-            if app_ui.tab_bar_packed_file.index_of(widget) == index {
-                tab_index = index;
+            let index_widget = app_ui.tab_bar_packed_file.index_of(widget);
+            if indexes.contains(&index_widget) {
+                let path = packed_file_view.get_ref_path();
                 if !path.is_empty() && path.starts_with(&[RESERVED_NAME_EXTRA_PACKFILE.to_owned()]) {
-                    purge_on_delete = path.to_vec();
+                    purge_on_delete.push(path.to_vec());
                     CENTRAL_COMMAND.send_message_qt(Command::RemovePackFileExtra(PathBuf::from(&path[1])));
                 }
-                break;
             }
         }
 
-        if tab_index != -1 {
-            app_ui.tab_bar_packed_file.remove_tab(tab_index);
-        }
+        indexes.iter().for_each(|x| app_ui.tab_bar_packed_file.remove_tab(*x));
 
         // This is for cleaning up open PackFiles.
-        if !purge_on_delete.is_empty() {
-            let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &purge_on_delete, false);
-        }
+        purge_on_delete.iter().for_each(|x| { let _ = Self::purge_that_one_specifically(app_ui, pack_file_contents_ui, &x, false); });
 
         // Update the background icon.
         GameSelectedIcons::set_game_selected_icon(app_ui);
