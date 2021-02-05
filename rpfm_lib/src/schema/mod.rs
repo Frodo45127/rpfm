@@ -63,7 +63,7 @@ The basic structure of an `Schema` is:
 Inside the schema there are `VersionedFile` variants of different types, with a Vec of `Definition`, one for each version of that PackedFile supported.
 !*/
 
-use git2::Repository;
+use git2::{Reference, ReferenceFormat, Repository, Signature, StashFlags, build::CheckoutBuilder};
 use itertools::Itertools;
 use rayon::prelude::*;
 use ron::de::from_reader;
@@ -590,24 +590,48 @@ impl Schema {
     pub fn check_update() -> Result<APIResponseSchema> {
 
         let schema_path = get_schemas_path()?;
-        let repo = match Repository::open(&schema_path) {
+        let mut repo = match Repository::open(&schema_path) {
             Ok(repo) => repo,
 
-            // If this fails, it means we either we don´t have the schemas downloaded, or we have the old ones downloaded.
+            // If this fails, it means we either we don´t have the schemas downloaded, or we have a folder without the .git folder.
             Err(_) => return Ok(APIResponseSchema::NoLocalFiles),
         };
 
-        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
+        // Just in case there are loose changes, stash them.
+        // Ignore a fail on this, as it's possible we don't have contents to stash.
+        let current_branch_name = Reference::normalize_name(repo.head()?.name().unwrap(), ReferenceFormat::ALLOW_ONELEVEL)?.to_lowercase();
+        let master_refname = format!("refs/heads/{}", BRANCH);
+
+        let signature = Signature::now("RPFM Updater", "-")?;
+        let stash_id = repo.stash_save(&signature, &format!("Stashed changes before checking for updates from branch {}", current_branch_name), Some(StashFlags::INCLUDE_UNTRACKED));
+
+        // In case we're not in master, checkout the master branch.
+        if current_branch_name != master_refname {
+            repo.set_head(&master_refname)?;
+        }
+
+        // Fetch the info of the master branch.
         repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
-        let fetch_head = repo.find_reference("FETCH_HEAD")?;
-        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
-        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+        let analysis = {
+            let fetch_head = repo.find_reference("FETCH_HEAD")?;
+            let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+            repo.merge_analysis(&[&fetch_commit])?
+        };
+
+        // Reset the repo to his original state after the check
+        if current_branch_name != master_refname {
+            let _ = repo.set_head(&current_branch_name);
+        }
+        if stash_id.is_ok() {
+            let _ = repo.stash_pop(0, None);
+        }
 
         if analysis.0.is_up_to_date() {
             Ok(APIResponseSchema::NoUpdate)
         }
 
-        else if analysis.0.is_fast_forward() {
+        // If the branch is a fast-forward, or has diverged, ask for an update.
+        else if analysis.0.is_fast_forward() || analysis.0.is_normal() || analysis.0.is_none() || analysis.0.is_unborn() {
             Ok(APIResponseSchema::NewUpdate)
         }
 
@@ -620,11 +644,12 @@ impl Schema {
     /// This function downloads the latest revision of the schema repository.
     pub fn update_schema_repo() -> Result<()> {
         let schema_path = get_schemas_path()?;
-        let repo = match Repository::open(&schema_path) {
+        let mut repo = match Repository::open(&schema_path) {
             Ok(repo) => repo,
             Err(_) => {
 
-                // Make sure we remnove the folder if exists.
+                // If it fails to open, it means either we don't have the .git folder, or we don't have a folder at all.
+                // In either case, recreate it and redownload the schemas repo. No more steps are needed here.
                 let _ = std::fs::remove_dir_all(&schema_path);
                 DirBuilder::new().recursive(true).create(&schema_path)?;
                 match Repository::clone(SCHEMA_REPO, &schema_path) {
@@ -634,25 +659,67 @@ impl Schema {
             }
         };
 
-        // git2-rs does not support pull. Instead, we kinda force a fast-forward. Made in StackOverflow.
-        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
-        let fetch_head = repo.find_reference("FETCH_HEAD")?;
-        let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
-        let analysis = repo.merge_analysis(&[&fetch_commit])?;
+        // Just in case there are loose changes, stash them.
+        // Ignore a fail on this, as it's possible we don't have contents to stash.
+        let current_branch_name = Reference::normalize_name(repo.head()?.name().unwrap(), ReferenceFormat::ALLOW_ONELEVEL)?.to_lowercase();
+        let master_refname = format!("refs/heads/{}", BRANCH);
 
+        let signature = Signature::now("RPFM Updater", "-")?;
+        let stash_id = repo.stash_save(&signature, &format!("Stashed changes before update from branch {}", current_branch_name), Some(StashFlags::INCLUDE_UNTRACKED));
+
+        // In case we're not in master, checkout the master branch.
+        if current_branch_name != master_refname {
+            repo.set_head(&master_refname)?;
+        }
+
+        // If it worked, now we have to do a pull from master. Sadly, git2-rs does not support pull.
+        // Instead, we kinda force a fast-forward. Made in StackOverflow.
+        repo.find_remote(REMOTE)?.fetch(&[BRANCH], None, None)?;
+        let (analysis, fetch_commit_id) = {
+            let fetch_head = repo.find_reference("FETCH_HEAD")?;
+            let fetch_commit = repo.reference_to_annotated_commit(&fetch_head)?;
+            (repo.merge_analysis(&[&fetch_commit])?, fetch_commit.id())
+        };
+
+        // If we're up to date, nothing more is needed.
         if analysis.0.is_up_to_date() {
+
+            // Reset the repo to his original state after the check
+            if current_branch_name != master_refname {
+                let _ = repo.set_head(&current_branch_name);
+            }
+            if stash_id.is_ok() {
+                let _ = repo.stash_pop(0, None);
+            }
             Err(ErrorKind::NoSchemaUpdatesAvailable.into())
         }
 
+        // If we can do a fast-forward, we do it. This is the prefered option.
         else if analysis.0.is_fast_forward() {
-            let refname = format!("refs/heads/{}", BRANCH);
-            let mut reference = repo.find_reference(&refname)?;
-            reference.set_target(fetch_commit.id(), "Fast-Forward")?;
-            repo.set_head(&refname)?;
-            repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force())).map_err(From::from)
+            let mut reference = repo.find_reference(&master_refname)?;
+            reference.set_target(fetch_commit_id, "Fast-Forward")?;
+            repo.set_head(&master_refname)?;
+            repo.checkout_head(Some(CheckoutBuilder::default().force())).map_err(From::from)
         }
 
+        // If not, we face multiple problems:
+        // - If there are uncommited changes: covered by the stash.
+        // - If we're not in the branch: covered by the branch switch.
+        // - If the branches diverged: this one... the cleanest way to deal with it should be redownload the repo.
+        else if analysis.0.is_normal() || analysis.0.is_none() || analysis.0.is_unborn() {
+            let _ = std::fs::remove_dir_all(&schema_path);
+            Self::update_schema_repo()
+        }
         else {
+
+            // Reset the repo to his original state after the check
+            if current_branch_name != master_refname {
+                let _ = repo.set_head(&current_branch_name);
+            }
+            if stash_id.is_ok() {
+                let _ = repo.stash_pop(0, None);
+            }
+
             Err(ErrorKind::SchemaUpdateError.into())
         }
     }

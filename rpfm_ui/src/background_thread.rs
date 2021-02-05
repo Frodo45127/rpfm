@@ -862,7 +862,19 @@ pub fn background_loop() {
             // When we want to update our schemas...
             Command::UpdateSchemas => {
                 match Schema::update_schema_repo() {
-                    Ok(_) => CENTRAL_COMMAND.send_message_rust(Response::Success),
+
+                    // If it worked, we have to update the currently open schema with the one we just downloaded and rebuild cache/dependencies with it.
+                    Ok(_) => {
+                        CENTRAL_COMMAND.send_message_rust(Response::Success);
+
+                        let game_selected = GAME_SELECTED.read().unwrap().to_owned();
+                        pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.encode_and_clean_cache(); });
+                        *SCHEMA.write().unwrap() = Schema::load(&SUPPORTED_GAMES.get(&*game_selected).unwrap().schema).ok();
+                        if let Some(ref schema) = *SCHEMA.read().unwrap() {
+                            pack_file_decoded.get_ref_mut_packed_files_by_type(PackedFileType::DB, false).par_iter_mut().for_each(|x| { let _ = x.decode_no_locks(&schema); });
+                        }
+                        dependencies.rebuild(pack_file_decoded.get_packfiles_list());
+                    },
                     Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
                 }
             }
