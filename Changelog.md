@@ -5,11 +5,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Implemented `To Json` command on the CLI, to convert the schemas to Json.
+- Implemented context menu for PackedFile View Tabs.
+- Implemented `Close Other Tabs` feature.
+- Implemented `Close Other Tabs to the Left` feature.
+- Implemented `Close Other Tabs to the Right` feature.
+- Implemented `Disable autosaves` packfile setting.
+- Implemented `Autosave Amount` setting.
+- Implemented `Clear autosave folder` button on settings.
+- Implemented `Clear schema folder` button on settings.
+
 ### Changed
 - Removed automatic diagnostics checks (were causing too many issues to be maintainable).
 - Removed automatic global search checks (were causing too many issues to be maintainable).
 - Small performance optimizations for querying for dependency data.
 - Updated dependencies.
+- Improved definition importer performance, both in time and memory consumption.
+- Improved dependency resolving time by 40-60%.
+- Improved performance when swapping/closing PackedFiles (it means it doesn't take a second to close a table).
+- Improved performance of the following table operations:
+    + Paste
+    + Paste as new row
+    + Delete
+    + Delete rows
+    + Rewrite selection
+- Improved Schema/Template updater to be more reliable.
 
 ### Fixed
 - Fixed checkbox columns not being sortable.
@@ -17,6 +38,14 @@ and this project doesn't adhere to [Semantic Versioning](https://semver.org/spec
 - Fixed weird colours after a diagnostics check.
 - Fixed RPFM failing to parse correctly certain specific sequences of the Assembly Kit.
 - Fixed rewrite selection not working properly on integers.
+- Fixed missing compile dependency in PKGBUILD for Arch.
+- Fixed instance of `Undecoded PackedFile` error.
+- Fixed `Missing table definition` debug option not triggering when it should.
+- Fixed a bug that caused dependencies of parent mods to not load properly, causing valid data to show as errors in the diagnostics tool.
+- Fixed a bug that could cause RPFM to become trap in an infinite PackFile loading loop.
+- Fixed a bug that caused the column indexes used in `Rewrite selection` to be incorrect.
+- Fixed a bug that caused the `Delete` funtion on tables to not delete properly a row if it had hidden columns.
+- Fixed a bug that caused local schema changes to be lost in a schema update.
 
 ## [2.3.4] - 2020-11-22
 ### Added
