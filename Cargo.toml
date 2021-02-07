@@ -7,6 +7,7 @@ members = [
     "rpfm_cli",
     "rpfm_mod_checker",
     "rpfm_ui",
+    "rpfm",
 ]
 
 [profile.dev]

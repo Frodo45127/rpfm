@@ -38,6 +38,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use std::process::exit;
 use std::rc::Rc;
 
 use rpfm_error::{ErrorKind, Result};
@@ -1042,8 +1043,15 @@ impl AppUI {
             let response = CENTRAL_COMMAND.recv_message_qt_try();
             match response {
                 Response::Success => {
+                    let restart_button = dialog.add_button_q_string_button_role(&qtr("restart_button"), q_message_box::ButtonRole::ApplyRole);
                     dialog.set_text(&qtr("update_success_main_program"));
+                    restart_button.set_enabled(true);
                     close_button.set_enabled(true);
+
+                    // This closes the program and triggers a restart in the launcher.
+                    if dialog.exec() == 8 {
+                        exit(10);
+                    }
                 },
                 Response::Error(error) => {
                     dialog.set_text(&QString::from_std_str(&error.to_string()));
