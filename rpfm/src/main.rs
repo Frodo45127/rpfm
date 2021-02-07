@@ -9,13 +9,15 @@
 //---------------------------------------------------------------------------//
 
 /*!
-This crate is the `CLI` version of RPFM, who fought in the splitting war as a new power and managed to stablish itself by the end of the war.
+This crate is a launcher for the RPFM UI, so it has a restart capability for updates.
 !*/
+
+// This disables the terminal window, so it doesn't show up when executing RPFM in Windows.
+#![windows_subsystem = "windows"]
 
 use std::env::{args, current_dir, current_exe};
 use std::path::PathBuf;
 use std::process::*;
-
 
 /// Guess you know what this function does....
 fn main() {
@@ -40,6 +42,7 @@ fn main() {
     let mut args = args().collect::<Vec<String>>();
     args.push("--booted_from_launcher".to_string());
 
+    // Code 10 is what we use to restart the program on exit.
     while let Some(code) = Command::new(&rpfm_ui_exe_path)
         .current_dir(&rpfm_path)
         .args(&args[1..])

@@ -1926,6 +1926,7 @@ dependencies = [
  "rpfm_lib",
  "simple_logger",
  "simplelog",
+ "winres",
 ]
 
 [[package]]

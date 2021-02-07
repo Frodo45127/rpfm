@@ -1,6 +1,7 @@
 [package]
 name = "rpfm_cli"
 version = "2.3.101"
+build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "A CLI tool to automate all your modding needs."
 edition = "2018"
@@ -20,3 +21,7 @@ bytesize = "^1.0"
 log = "^0.4"
 simplelog = "^0.9"
 simple_logger = "^1.9"
+
+# Windows resources support.
+[target.'cfg(windows)'.build-dependencies]
+winres = "^0.1"

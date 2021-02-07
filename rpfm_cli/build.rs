@@ -9,8 +9,7 @@
 //---------------------------------------------------------------------------//
 
 /*!
-Build script for the RPFM.
-
+Build script for the RPFM CLI.
 !*/
 
 /// This crate is only needed for the Windows Build.
