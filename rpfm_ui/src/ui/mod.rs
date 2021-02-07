@@ -28,6 +28,7 @@ use cpp_core::Ptr;
 use std::env::args;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::fs::{read_dir, remove_dir_all};
 use std::sync::atomic::AtomicPtr;
 
 use rpfm_lib::GAME_SELECTED;
@@ -53,6 +54,7 @@ use crate::locale::tr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
+use crate::RPFM_PATH;
 use crate::UI_STATE;
 use crate::utils::atomic_from_cpp_box;
 use crate::utils::show_dialog;
@@ -198,7 +200,7 @@ impl UI {
 
         }
 
-        if args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher") && !cfg!(debug_assertions)  {
+        if (args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher")) && !cfg!(debug_assertions)  {
             show_dialog(&app_ui.main_window, &tr("error_not_booted_from_launcher"), false);
         }
 
@@ -210,6 +212,20 @@ impl UI {
 
         // If we have it enabled in the prefs, check if there are templates updates.
         if SETTINGS.read().unwrap().settings_bool["check_template_updates_on_start"] { AppUI::check_template_updates(&app_ui, false) };
+
+        // Clean up folders from previous updates, if they exist.
+        if !cfg!(debug_assertions) {
+            if let Ok(folders) = read_dir(&*RPFM_PATH) {
+                for folder in folders {
+                    if let Ok(folder) = folder {
+                        let folder_path = folder.path();
+                        if folder_path.is_dir() && folder_path.file_name().unwrap().to_string_lossy().starts_with("update") {
+                            remove_dir_all(&folder_path);
+                        }
+                    }
+                }
+            }
+        }
 
         Self {
             app_ui,
