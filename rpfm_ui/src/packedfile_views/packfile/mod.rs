@@ -107,7 +107,7 @@ impl PackFileExtraView {
         tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
         tree_view.set_expands_on_double_click(false);
         //tree_view.set_context_menu_policy(ContextMenuPolicy::Custom);
-        tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.to_path_buf())));
+        tree_view.update_treeview(true, TreeViewOperation::Build(Some(pack_file_path.to_path_buf()), None));
 
         // Create and configure the widgets to control the `TreeView`s filter.
         let filter_line_edit = QLineEdit::from_q_widget(pack_file_view.get_mut_widget());

@@ -12,45 +12,78 @@
 Module with all the code for managing the view for AnimPack PackedFiles.
 !*/
 
+use qt_widgets::q_abstract_item_view::SelectionMode;
+use qt_widgets::q_header_view::ResizeMode;
+use qt_widgets::QTreeView;
+use qt_widgets::QLineEdit;
+use qt_widgets::QAction;
 use qt_widgets::QGridLayout;
-use qt_widgets::QLabel;
-use qt_widgets::QPushButton;
-use qt_widgets::QPlainTextEdit;
 
+use qt_widgets::QPushButton;
+
+use qt_gui::QStandardItemModel;
+
+use qt_core::CaseSensitivity;
 use qt_core::QBox;
-use qt_core::QString;
 use qt_core::QPtr;
+use qt_core::QRegExp;
+use qt_core::QSortFilterProxyModel;
 
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
 use rpfm_error::{Result, ErrorKind};
-use rpfm_lib::packedfile::PackedFileType;
+use rpfm_lib::packfile::PackFileInfo;
 use rpfm_lib::packfile::packedfile::PackedFileInfo;
+use rpfm_lib::packedfile::PackedFileType;
+use rpfm_macros::*;
 
 use crate::app_ui::AppUI;
 use crate::CENTRAL_COMMAND;
 use crate::communications::*;
+use crate::ffi::*;
 use crate::locale::qtr;
-use crate::packedfile_views::{PackedFileView, View, ViewType};
+use crate::pack_tree::PackTree;
+use crate::packedfile_views::{PackedFileView, TreeViewOperation, View, ViewType};
 use crate::packfile_contents_ui::PackFileContentsUI;
 
 use self::slots::PackedFileAnimPackViewSlots;
 
 mod connections;
 pub mod slots;
+mod shortcuts;
 
 //-------------------------------------------------------------------------------//
 //                              Enums & Structs
 //-------------------------------------------------------------------------------//
 
 /// This struct contains the view of an AnimPack PackedFile.
+#[derive(GetRef)]
 pub struct PackedFileAnimPackView {
-    file_count_data_label: QBox<QLabel>,
-    file_list_data_text: QBox<QPlainTextEdit>,
-
-    unpack_button: QBox<QPushButton>,
     path: Arc<RwLock<Vec<String>>>,
+
+    pack_tree_view: QBox<QTreeView>,
+    pack_tree_model_filter: QBox<QSortFilterProxyModel>,
+
+    pack_filter_line_edit: QBox<QLineEdit>,
+    pack_filter_autoexpand_matches_button: QBox<QPushButton>,
+    pack_filter_case_sensitive_button: QBox<QPushButton>,
+
+    pack_expand_all: QBox<QAction>,
+    pack_collapse_all: QBox<QAction>,
+
+    anim_pack_tree_view: QBox<QTreeView>,
+    anim_pack_tree_model_filter: QBox<QSortFilterProxyModel>,
+    anim_pack_tree_model: QBox<QStandardItemModel>,
+
+    anim_pack_filter_line_edit: QBox<QLineEdit>,
+    anim_pack_filter_autoexpand_matches_button: QBox<QPushButton>,
+    anim_pack_filter_case_sensitive_button: QBox<QPushButton>,
+
+    anim_pack_expand_all: QBox<QAction>,
+    anim_pack_collapse_all: QBox<QAction>,
+
+    anim_pack_delete: QBox<QAction>,
 }
 
 //-------------------------------------------------------------------------------//
@@ -69,7 +102,7 @@ impl PackedFileAnimPackView {
 
         CENTRAL_COMMAND.send_message_qt(Command::DecodePackedFile(packed_file_view.get_path()));
         let response = CENTRAL_COMMAND.recv_message_qt();
-        let (data, packed_file_info) = match response {
+        let ((anim_pack_file_info, anim_packed_file_info), packed_file_info) = match response {
             Response::AnimPackPackedFileInfo((data, packed_file_info)) => (data, packed_file_info),
             Response::Error(error) => return Err(error),
             Response::Unknown => return Err(ErrorKind::PackedFileTypeUnknown.into()),
@@ -78,30 +111,105 @@ impl PackedFileAnimPackView {
 
         let layout: QPtr<QGridLayout> = packed_file_view.get_mut_widget().layout().static_downcast();
 
-        let file_count_label = QLabel::from_q_string_q_widget(&qtr("file_count"), packed_file_view.get_mut_widget());
-        let file_list_label = QLabel::from_q_string_q_widget(&qtr("file_paths"), packed_file_view.get_mut_widget());
+        // Create and configure the left `TreeView`, AKA the open PackFile.
+        let pack_tree_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
+        let tree_model = &pack_file_contents_ui.packfile_contents_tree_model;
+        let pack_tree_model_filter = new_treeview_filter_safe(packed_file_view.get_mut_widget().static_upcast());
+        pack_tree_model_filter.set_source_model(tree_model);
+        pack_tree_view.set_model(&pack_tree_model_filter);
+        pack_tree_view.set_header_hidden(true);
+        pack_tree_view.set_animated(true);
+        pack_tree_view.set_uniform_row_heights(true);
+        pack_tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
+        pack_tree_view.set_expands_on_double_click(false);
+        pack_tree_view.header().set_stretch_last_section(false);
 
-        let file_count_data_label = QLabel::from_q_string_q_widget(&QString::from_std_str(format!("{}", data.len())), packed_file_view.get_mut_widget());
-        let file_list_data_text = QPlainTextEdit::from_q_string_q_widget(&QString::from_std_str(format!("{:#?}", data)), packed_file_view.get_mut_widget());
-        file_list_data_text.set_read_only(true);
+        pack_tree_view.header().set_section_resize_mode_2a(0, ResizeMode::Stretch);
+        pack_tree_view.header().set_section_resize_mode_2a(1, ResizeMode::Interactive);
+        pack_tree_view.header().set_minimum_section_size(4);
+        pack_tree_view.header().resize_section(1, 4);
 
-        let unpack_button = QPushButton::from_q_string_q_widget(&qtr("animpack_unpack"), packed_file_view.get_mut_widget());
+        // Create and configure the widgets to control the `TreeView`s filter.
+        let pack_filter_line_edit = QLineEdit::from_q_widget(packed_file_view.get_mut_widget());
+        let pack_filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), packed_file_view.get_mut_widget());
+        let pack_filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), packed_file_view.get_mut_widget());
+        pack_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        pack_filter_autoexpand_matches_button.set_checkable(true);
+        pack_filter_case_sensitive_button.set_checkable(true);
 
-        layout.add_widget_5a(&unpack_button, 0, 0, 1, 2);
+        // Create the extra actions for the TreeView.
+        let pack_expand_all = QAction::from_q_string_q_object(&qtr("treeview_expand_all"), packed_file_view.get_mut_widget());
+        let pack_collapse_all = QAction::from_q_string_q_object(&qtr("treeview_collapse_all"), packed_file_view.get_mut_widget());
+        pack_tree_view.add_action(&pack_expand_all);
+        pack_tree_view.add_action(&pack_collapse_all);
 
-        layout.add_widget_5a(&file_count_label, 2, 0, 1, 1);
-        layout.add_widget_5a(&file_list_label, 3, 0, 1, 1);
+        // Add everything to the main widget's Layout.
+        layout.add_widget_5a(&pack_tree_view, 0, 0, 1, 2);
+        layout.add_widget_5a(&pack_filter_line_edit, 1, 0, 1, 2);
+        layout.add_widget_5a(&pack_filter_autoexpand_matches_button, 2, 0, 1, 1);
+        layout.add_widget_5a(&pack_filter_case_sensitive_button, 2, 1, 1, 1);
 
-        layout.add_widget_5a(&file_count_data_label, 2, 1, 1, 1);
-        layout.add_widget_5a(&file_list_data_text, 4, 0, 1, 2);
+        // Create and configure the right `TreeView`, AKA the AnimPack.
+        let anim_pack_tree_view = QTreeView::new_1a(packed_file_view.get_mut_widget());
+        let anim_pack_tree_model = QStandardItemModel::new_1a(packed_file_view.get_mut_widget());
+        let anim_pack_tree_model_filter = new_treeview_filter_safe(packed_file_view.get_mut_widget().static_upcast());
+        anim_pack_tree_model_filter.set_source_model(&anim_pack_tree_model);
+        anim_pack_tree_view.set_model(&anim_pack_tree_model_filter);
+        anim_pack_tree_view.set_header_hidden(true);
+        anim_pack_tree_view.set_animated(true);
+        anim_pack_tree_view.set_uniform_row_heights(true);
+        anim_pack_tree_view.set_selection_mode(SelectionMode::ExtendedSelection);
+        anim_pack_tree_view.set_expands_on_double_click(false);
+        anim_pack_tree_view.header().set_stretch_last_section(false);
+        anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(None, Some((anim_pack_file_info, anim_packed_file_info))));
 
-        layout.set_column_stretch(1, 10);
+        // Create and configure the widgets to control the `TreeView`s filter.
+        let anim_pack_filter_line_edit = QLineEdit::from_q_widget(packed_file_view.get_mut_widget());
+        let anim_pack_filter_autoexpand_matches_button = QPushButton::from_q_string_q_widget(&qtr("treeview_autoexpand"), packed_file_view.get_mut_widget());
+        let anim_pack_filter_case_sensitive_button = QPushButton::from_q_string_q_widget(&qtr("treeview_aai"), packed_file_view.get_mut_widget());
+        anim_pack_filter_line_edit.set_placeholder_text(&qtr("packedfile_filter"));
+        anim_pack_filter_autoexpand_matches_button.set_checkable(true);
+        anim_pack_filter_case_sensitive_button.set_checkable(true);
+
+        // Create the extra actions for the TreeView.
+        let anim_pack_expand_all = QAction::from_q_string_q_object(&qtr("treeview_expand_all"), packed_file_view.get_mut_widget());
+        let anim_pack_collapse_all = QAction::from_q_string_q_object(&qtr("treeview_collapse_all"), packed_file_view.get_mut_widget());
+        let anim_pack_delete = QAction::from_q_string_q_object(&qtr("treeview_animpack_delete"), packed_file_view.get_mut_widget());
+
+        anim_pack_tree_view.add_action(&anim_pack_expand_all);
+        anim_pack_tree_view.add_action(&anim_pack_collapse_all);
+        anim_pack_tree_view.add_action(&anim_pack_delete);
+
+        // Add everything to the main widget's Layout.
+        layout.add_widget_5a(&anim_pack_tree_view, 0, 2, 1, 2);
+        layout.add_widget_5a(&anim_pack_filter_line_edit, 1, 2, 1, 2);
+        layout.add_widget_5a(&anim_pack_filter_autoexpand_matches_button, 2, 2, 1, 1);
+        layout.add_widget_5a(&anim_pack_filter_case_sensitive_button, 2, 3, 1, 1);
 
         let packed_file_animpack_view = Arc::new(PackedFileAnimPackView {
-            file_count_data_label,
-            file_list_data_text,
-            unpack_button,
-            path: packed_file_view.get_path_raw()
+            path: packed_file_view.get_path_raw(),
+
+            pack_tree_view,
+            pack_tree_model_filter,
+
+            pack_filter_line_edit,
+            pack_filter_autoexpand_matches_button,
+            pack_filter_case_sensitive_button,
+
+            pack_expand_all,
+            pack_collapse_all,
+
+            anim_pack_tree_view,
+            anim_pack_tree_model_filter,
+            anim_pack_tree_model,
+
+            anim_pack_filter_line_edit,
+            anim_pack_filter_autoexpand_matches_button,
+            anim_pack_filter_case_sensitive_button,
+
+            anim_pack_expand_all,
+            anim_pack_collapse_all,
+            anim_pack_delete
         });
 
         let packed_file_animpack_view_slots = PackedFileAnimPackViewSlots::new(
@@ -111,6 +219,7 @@ impl PackedFileAnimPackView {
         );
 
         connections::set_connections(&packed_file_animpack_view, &packed_file_animpack_view_slots);
+        shortcuts::set_shortcuts(&packed_file_animpack_view);
         packed_file_view.view = ViewType::Internal(View::AnimPack(packed_file_animpack_view));
         packed_file_view.packed_file_type = PackedFileType::AnimPack;
 
@@ -118,23 +227,33 @@ impl PackedFileAnimPackView {
     }
 
     /// Function to reload the data of the view without having to delete the view itself.
-    pub unsafe fn reload_view(&self, data: &[String]) {
-        self.get_mut_ptr_file_count_data_label().set_text(&QString::from_std_str(format!("{}", data.len())));
-        self.get_mut_ptr_file_list_data_text().set_plain_text(&QString::from_std_str(format!("{:#?}", data)));
+    pub unsafe fn reload_view(&self, data: (PackFileInfo, Vec<PackedFileInfo>)) {
+        self.anim_pack_tree_view.update_treeview(true, TreeViewOperation::Build(None, Some(data)));
     }
 
-    /// This function returns a pointer to the file count label.
-    pub fn get_mut_ptr_file_count_data_label(&self) -> &QBox<QLabel> {
-        &self.file_count_data_label
-    }
+    /// Function to filter the TreeViews.
+    pub unsafe fn filter_files(ui: &Arc<Self>, is_anim_pack: bool) {
 
-    /// This function returns a pointer to the file list view.
-    pub fn get_mut_ptr_file_list_data_text(&self) -> &QBox<QPlainTextEdit> {
-        &self.file_list_data_text
-    }
+        let tree_view = if is_anim_pack { &ui.anim_pack_tree_view } else { &ui.pack_tree_view };
+        let tree_model_filter = if is_anim_pack { &ui.anim_pack_tree_model_filter } else { &ui.pack_tree_model_filter };
+        let filter_line_edit = if is_anim_pack { &ui.anim_pack_filter_line_edit } else { &ui.pack_filter_line_edit };
+        let filter_case_sensitive_button = if is_anim_pack { &ui.anim_pack_filter_case_sensitive_button } else { &ui.pack_filter_case_sensitive_button };
+        let filter_autoexpand_matches_button = if is_anim_pack { &ui.anim_pack_filter_autoexpand_matches_button } else { &ui.pack_filter_autoexpand_matches_button };
 
-    /// This function returns a pointer to the `Unpack` button.
-    pub fn get_mut_ptr_unpack_button(&self) -> &QBox<QPushButton> {
-        &self.unpack_button
+        // Set the pattern to search.
+        let pattern = QRegExp::new_1a(&filter_line_edit.text());
+
+        // Check if the filter should be "Case Sensitive".
+        let case_sensitive = filter_case_sensitive_button.is_checked();
+        if case_sensitive { pattern.set_case_sensitivity(CaseSensitivity::CaseSensitive); }
+        else { pattern.set_case_sensitivity(CaseSensitivity::CaseInsensitive); }
+
+        // Filter whatever it's in that column by the text we got.
+        trigger_treeview_filter_safe(&tree_model_filter, &pattern.as_ptr());
+
+        // Expand all the matches, if the option for it is enabled.
+        if filter_autoexpand_matches_button.is_checked() {
+            tree_view.expand_all();
+        }
     }
 }

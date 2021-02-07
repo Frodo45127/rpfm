@@ -95,7 +95,7 @@ pub struct RawOnDisk {
 }
 
 /// This struct represents the detailed info about the `PackedFile` we can provide to whoever request it.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PackedFileInfo {
 
     /// This is the path of the `PackedFile`.

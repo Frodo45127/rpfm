@@ -173,7 +173,7 @@ pub struct PackFile {
 /// This struct is a reduced version of the `PackFile` one, used to pass just the needed data to an UI.
 ///
 /// Don't create this one manually. Get it `From` the `PackFile` one, and use it as you need it.
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct PackFileInfo {
 
     /// The name of the PackFile's file, if exists. If not, then this should be empty.
@@ -1089,6 +1089,52 @@ impl PackFile {
     /// This function returns a copy of the `PackedFileInfo` of the `Packedfile` in the provided path.
     pub fn get_packed_file_info_by_path(&self, path: &[String]) -> Option<PackedFileInfo> {
         self.packed_files.par_iter().find_first(|x| x.get_path() == path).map(From::from)
+    }
+
+    pub fn get_packed_files_by_path_type(&mut self, path_types: &[PathType]) -> Vec<PackedFile> {
+
+        // Keep the PathTypes added so we can return them to the UI easely.
+        let path_types = PathType::dedup(path_types);
+
+        // As this can get very slow very quickly, we do here some... optimizations.
+        // First, we get if there are PackFiles or folders in our list of PathTypes.
+        let we_have_packfile = path_types.par_iter().any(|item| {
+            if let PathType::PackFile = item { true } else { false }
+        });
+
+        let we_have_folder = path_types.par_iter().any(|item| {
+            if let PathType::Folder(_) = item { true } else { false }
+        });
+
+        // Then, if we have a PackFile,... just import all PackedFiles.
+        if we_have_packfile {
+            self.get_packed_files_all()
+        }
+
+        // If we only have files, get all the files we have at once, then add them all together.
+        else if !we_have_folder {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(&**path) } else { None }
+            }).collect::<Vec<&[String]>>();
+            self.get_packed_files_by_paths(paths_files)
+        }
+
+        // Otherwise, we have a mix of Files and Folders (or folders only).
+        // In this case, we get all the individual files, then the ones inside folders.
+        // Then we merge them, and add all of them together.
+        else {
+            let paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(&**path) } else { None }
+            }).collect::<Vec<&[String]>>();
+            let mut packed_files = self.get_packed_files_by_paths(paths_files);
+
+            packed_files.append(&mut path_types.par_iter().filter_map(|x| {
+                if let PathType::Folder(path) = x { Some(&**path) } else { None }
+            }).map(|path| self.get_packed_files_by_path_start(path))
+            .flatten()
+            .collect::<Vec<PackedFile>>());
+            packed_files
+        }
     }
 
     /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
@@ -2808,5 +2854,33 @@ impl PackFileSettings {
         }
 
         Ok(settings)
+    }
+}
+
+/// Implementaion of trait `Default` for `PFHFlags`.
+impl Default for PFHFlags {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+/// Implementaion of trait `Default` for `PFHVersion`.
+impl Default for PFHVersion {
+    fn default() -> Self {
+        Self::PFH6
+    }
+}
+
+/// Implementaion of trait `Default` for `PFHFileType`.
+impl Default for PFHFileType {
+    fn default() -> Self {
+        Self::Mod
+    }
+}
+
+/// Implementaion of trait `Default` for `CompressionState`.
+impl Default for CompressionState {
+    fn default() -> Self {
+        Self::Disabled
     }
 }

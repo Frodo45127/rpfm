@@ -191,6 +191,15 @@ pub enum Command {
     /// This command is used when we want to add a PackedFile from one PackFile into another.
     AddPackedFilesFromPackFile((PathBuf, Vec<PathType>)),
 
+    /// This command is used when we want to add a PackedFile from our PackFile to an Animpack.
+    AddPackedFilesFromPackFileToAnimpack((Vec<String>, Vec<PathType>)),
+
+    /// This command is used when we want to add a PackedFile from an AnimPack to our PackFile.
+    AddPackedFilesFromAnimpack((Vec<String>, Vec<PathType>)),
+
+    /// This command is used when we want to delete a PackedFile from an AnimPack.
+    DeleteFromAnimpack((Vec<String>, Vec<PathType>)),
+
     /// This command is used when we want to delete one or more PackedFiles from a PackFile. It contains the PathType of each PackedFile to delete.
     DeletePackedFiles(Vec<PathType>),
 
@@ -392,7 +401,7 @@ pub enum Response {
     AnimFragmentPackedFileInfo((AnimFragment, PackedFileInfo)),
 
     /// Response to return `(Vec<String>, PackedFileInfo)`.
-    AnimPackPackedFileInfo((Vec<String>, PackedFileInfo)),
+    AnimPackPackedFileInfo(((PackFileInfo, Vec<PackedFileInfo>), PackedFileInfo)),
 
     /// Response to return `(AnimTable, PackedFileInfo)`.
     AnimTablePackedFileInfo((AnimTable, PackedFileInfo)),

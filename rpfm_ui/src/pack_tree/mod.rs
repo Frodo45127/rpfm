@@ -202,7 +202,8 @@ pub trait PackTree {
 pub enum TreeViewOperation {
 
     /// Build the entire `TreeView` from nothing. Requires an option: Some<PathBuf> if the `PackFile` is not editable, `None` if it is.
-    Build(Option<PathBuf>),
+    /// Also, you can pass a PackFileInfo/PackedFileInfo if you want to build a TreeView with custom data.
+    Build(Option<PathBuf>, Option<(PackFileInfo, Vec<PackedFileInfo>)>),
 
     /// Add one or more files/folders to the `TreeView`. Requires a `Vec<TreePathType>` to add to the `TreeView`.
     Add(Vec<TreePathType>),
@@ -801,13 +802,24 @@ impl PackTree for QBox<QTreeView> {
         match operation {
 
             // If we want to build a new TreeView...
-            TreeViewOperation::Build(extra_packfile_path) => {
+            TreeViewOperation::Build(extra_packfile_path, internal_packed_file) => {
 
-                // Depending on the PackFile we want to build the TreeView with, we ask for his data.
-                if let Some(ref path) = extra_packfile_path { CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView(path.to_path_buf())); }
-                else { CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView); }
-                let response = CENTRAL_COMMAND.recv_message_qt();
-                let (pack_file_data, packed_files_data) = if let Response::PackFileInfoVecPackedFileInfo(data) = response { data } else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); };
+                // Depending on the PackFile we want to build the TreeView with, we ask for his data. Internal files take priority.
+                let (pack_file_data, packed_files_data) = if let Some(data) = internal_packed_file {
+                    data
+                }
+                else if let Some(ref path) = extra_packfile_path {
+                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileExtraDataForTreeView(path.to_path_buf()));
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
+                    else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response); }
+                }
+                else {
+                    CENTRAL_COMMAND.send_message_qt(Command::GetPackFileDataForTreeView);
+                    let response = CENTRAL_COMMAND.recv_message_qt();
+                    if let Response::PackFileInfoVecPackedFileInfo(data) = response { data }
+                    else { panic!("{}{:?}", THREADS_COMMUNICATION_ERROR, response) }
+                };
                 let mut sorted_path_list = packed_files_data;
 
                 // First, we clean the TreeStore and whatever was created in the TreeView.
@@ -1331,7 +1343,7 @@ impl PackTree for QBox<QTreeView> {
                             }
                         }
 
-                        TreePathType::PackFile => self.update_treeview(true, TreeViewOperation::Build(None)),
+                        TreePathType::PackFile => self.update_treeview(true, TreeViewOperation::Build(None, None)),
 
                         // If we don't have anything selected, we do nothing.
                         _ => {},

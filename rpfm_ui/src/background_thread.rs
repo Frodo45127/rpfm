@@ -391,6 +391,67 @@ pub fn background_loop() {
                 }
             }
 
+            // In case we want to move stuff from our PackFile to an Animpack...
+            Command::AddPackedFilesFromPackFileToAnimpack((anim_pack_path, paths)) => {
+                let packed_files_to_add = pack_file_decoded.get_packed_files_by_path_type(&paths);
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&anim_pack_path) {
+                    Some(packed_file) => {
+                        let packed_file_decoded = packed_file.get_ref_mut_decoded();
+                        match packed_file_decoded {
+                            DecodedPackedFile::AnimPack(anim_pack) => match anim_pack.add_packed_files(&packed_files_to_add) {
+                                Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths)),
+                                Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                            }
+                            _ => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into())),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                }
+            }
+
+            // In case we want to move stuff from an Animpack to our PackFile...
+            Command::AddPackedFilesFromAnimpack((anim_pack_path, paths)) => {
+                let packed_files_to_add = match pack_file_decoded.get_ref_packed_file_by_path(&anim_pack_path) {
+                    Some(ref packed_file) => {
+                        let packed_file_decoded = packed_file.get_ref_decoded();
+                        match packed_file_decoded {
+                            DecodedPackedFile::AnimPack(anim_pack) => anim_pack.get_anim_packed_as_packed_files(&paths),
+                            _ => {
+                                CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into()));
+                                continue;
+                            }
+                        }
+                    }
+                    None => {
+                        CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into()));
+                        continue;
+                    },
+                };
+
+                let packed_files_to_add = packed_files_to_add.iter().collect::<Vec<&PackedFile>>();
+                match pack_file_decoded.add_packed_files(&packed_files_to_add, true) {
+                    Ok(paths) => CENTRAL_COMMAND.send_message_rust(Response::VecPathType(paths.iter().map(|x| PathType::File(x.to_vec())).collect())),
+                    Err(error) => CENTRAL_COMMAND.send_message_rust(Response::Error(error)),
+                }
+            }
+
+            // In case we want to delete files from an Animpack...
+            Command::DeleteFromAnimpack((anim_pack_path, paths)) => {
+                match pack_file_decoded.get_ref_mut_packed_file_by_path(&anim_pack_path) {
+                    Some(packed_file) => {
+                        let packed_file_decoded = packed_file.get_ref_mut_decoded();
+                        match packed_file_decoded {
+                            DecodedPackedFile::AnimPack(anim_pack) => {
+                                anim_pack.remove_packed_file_by_path_types(&paths);
+                                CENTRAL_COMMAND.send_message_rust(Response::Success);
+                            }
+                            _ => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileTypeIsNotWhatWeExpected(PackedFileType::AnimPack.to_string(), PackedFileType::from(&*packed_file_decoded).to_string()).into())),
+                        }
+                    }
+                    None => CENTRAL_COMMAND.send_message_rust(Response::Error(ErrorKind::PackedFileNotFound.into())),
+                }
+            }
+
             // In case we want to decode a RigidModel PackedFile...
             Command::DecodePackedFile(path) => {
                 if path == [RESERVED_NAME_NOTES.to_owned()] {
@@ -413,7 +474,7 @@ pub fn background_loop() {
                                 Ok(packed_file_data) => {
                                     match packed_file_data {
                                         DecodedPackedFile::AnimFragment(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimFragmentPackedFileInfo((data.clone(), From::from(&**packed_file)))),
-                                        DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_file_list(), From::from(&**packed_file)))),
+                                        DecodedPackedFile::AnimPack(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimPackPackedFileInfo((data.get_as_pack_file_info(&path), From::from(&**packed_file)))),
                                         DecodedPackedFile::AnimTable(data) => CENTRAL_COMMAND.send_message_rust(Response::AnimTablePackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::CaVp8(data) => CENTRAL_COMMAND.send_message_rust(Response::CaVp8PackedFileInfo((data.clone(), From::from(&**packed_file)))),
                                         DecodedPackedFile::DB(table) => CENTRAL_COMMAND.send_message_rust(Response::DBPackedFileInfo((table.clone(), From::from(&**packed_file)))),

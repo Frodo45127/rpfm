@@ -239,7 +239,7 @@ impl AppUISlots {
                     app_ui.change_packfile_type_data_is_compressed.set_checked(false);
 
                     // Update the TreeView.
-                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
+                    pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
 
                     // Re-enable the Main Window.
                     app_ui.main_window.set_enabled(true);
@@ -358,7 +358,7 @@ impl AppUISlots {
                         app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                         // Update the TreeView.
-                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
+                        pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
 
                         let game_selected = GAME_SELECTED.read().unwrap().to_owned();
                         match &*game_selected {
@@ -581,7 +581,7 @@ impl AppUISlots {
                     let response = CENTRAL_COMMAND.recv_message_qt_try();
                     match response {
                         Response::PackFileInfo(pack_file_info) => {
-                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
+                            pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
                             let packfile_item = pack_file_contents_ui.packfile_contents_tree_model.item_1a(0);
                             packfile_item.set_tool_tip(&QString::from_std_str(new_pack_file_tooltip(&pack_file_info)));
                             packfile_item.set_text(&QString::from_std_str(&full_mod_name));

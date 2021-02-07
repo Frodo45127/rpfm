@@ -21,13 +21,16 @@ AnimPack's structure is very simple:
     - Byte Count.
 !*/
 
+use rayon::prelude::*;
 use serde_derive::{Serialize, Deserialize};
 
-use rpfm_error::{ErrorKind, Result};
+use std::convert::TryFrom;
+
+use rpfm_error::{Error, ErrorKind, Result};
 
 use crate::common::{decoder::Decoder, encoder::Encoder};
-use crate::packfile::PackFile;
-use crate::packfile::packedfile::PackedFile;
+use crate::packfile::{PackFileInfo, PackFile, PathType};
+use crate::packfile::packedfile::{PackedFile, PackedFileInfo};
 use crate::packedfile::table::animtable;
 
 pub const EXTENSION: &str = ".animpack";
@@ -45,7 +48,7 @@ pub struct AnimPack {
 }
 
 /// This holds a PackedFile from inside an AnimPack in memory.
-#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AnimPacked {
     path: Vec<String>,
     data: Vec<u8>,
@@ -120,6 +123,10 @@ impl AnimPack {
             .collect()
     }
 
+    pub fn get_anim_packed_paths_all(&self) -> Vec<Vec<String>> {
+        self.packed_files.iter().map(|x| x.path.to_vec()).collect()
+    }
+
     /// This function unpacks the entire AnimPack into the current PackFile.
     pub fn unpack(&self, pack_file: &mut PackFile) -> Result<Vec<Vec<String>>> {
         let packed_files = self.packed_files.iter()
@@ -127,6 +134,116 @@ impl AnimPack {
             .collect::<Vec<PackedFile>>();
         let packed_files = packed_files.iter().collect::<Vec<&PackedFile>>();
         pack_file.add_packed_files(&packed_files, true)
+    }
+
+    pub fn add_packed_files(&mut self, packed_files: &[PackedFile]) -> Result<Vec<PathType>> {
+        let mut success_paths = vec![];
+        for packed_file in packed_files {
+            match self.packed_files.iter_mut().find(|x| x.path == packed_file.get_path()) {
+                Some(file) => {
+                    if let Ok(data) = packed_file.get_raw_data() {
+                        file.data = data;
+                        success_paths.push(PathType::File(packed_file.get_path().to_vec()));
+                    }
+                }
+                None => {
+                    if let Ok(anim_packed) = AnimPacked::try_from(packed_file) {
+                        self.packed_files.push(anim_packed);
+                        success_paths.push(PathType::File(packed_file.get_path().to_vec()));
+                    }
+                }
+            }
+        }
+        Ok(success_paths)
+    }
+
+    pub fn get_as_pack_file_info(&self, path: &[String]) -> (PackFileInfo, Vec<PackedFileInfo>) {
+        let mut pack_file_info = PackFileInfo::default();
+        pack_file_info.file_name = path.last().unwrap().to_owned();
+
+        let packed_file_info = self.packed_files.iter().map(From::from).collect();
+        (pack_file_info, packed_file_info)
+    }
+
+    pub fn get_anim_packed_as_packed_files(&self, path_types: &[PathType]) -> Vec<PackedFile> {
+        let paths = self.get_file_paths_from_path_types(path_types);
+        self.get_packed_files_by_paths(paths.iter().map(|x| &**x).collect())
+    }
+
+    /// This function returns a copy of all `PackedFiles` in the provided `PackFile`.
+    pub fn get_packed_files_all(&self) -> Vec<PackedFile> {
+        self.packed_files.iter().map(From::from).collect()
+    }
+
+    /// This function returns a copy of all the `PackedFiles` starting with the provided path.
+    pub fn get_packed_files_by_path_start(&self, path: &[String]) -> Vec<PackedFile> {
+        self.packed_files.par_iter().filter(|x| x.get_ref_path().starts_with(path) && !path.is_empty() && x.get_ref_path().len() > path.len()).map(From::from).collect()
+    }
+
+    /// This function returns a copy of all the `PackedFiles` in the provided paths.
+    pub fn get_packed_files_by_paths(&self, paths: Vec<&[String]>) -> Vec<PackedFile> {
+        self.packed_files.par_iter().filter(|x| paths.contains(&x.get_ref_path())).map(From::from).collect()
+    }
+
+    /// This function returns a reference of the paths of all the `PackedFiles` in the provided `PackFile` under the provided path.
+    pub fn get_ref_packed_files_paths_by_path_start(&self, path: &[String]) -> Vec<&[String]> {
+        self.packed_files.par_iter().map(|x| x.get_ref_path()).filter(|x| x.starts_with(path) && !path.is_empty() && x.len() > path.len()).collect()
+    }
+
+    /// This function removes, if exists, a `PackedFile` with the provided path from the `PackFile`.
+    pub fn remove_packed_file_by_path_types(&mut self, path_types: &[PathType]) {
+        let paths = self.get_file_paths_from_path_types(path_types).iter().map(|x| x.to_vec()).collect::<Vec<Vec<String>>>();
+        for path in &paths {
+            if let Some(position) = self.packed_files.par_iter().position_any(|x| x.get_ref_path() == path) {
+                self.packed_files.remove(position);
+            }
+        }
+    }
+
+    pub fn get_file_paths_from_path_types(&self, path_types: &[PathType]) -> Vec<Vec<String>> {
+
+        // Keep the PathTypes added so we can return them to the UI easely.
+        let path_types = PathType::dedup(path_types);
+
+        // As this can get very slow very quickly, we do here some... optimizations.
+        // First, we get if there are PackFiles or folders in our list of PathTypes.
+        let we_have_packfile = path_types.par_iter().any(|item| {
+            if let PathType::PackFile = item { true } else { false }
+        });
+
+        let we_have_folder = path_types.par_iter().any(|item| {
+            if let PathType::Folder(_) = item { true } else { false }
+        });
+
+        // Then, if we have a PackFile,... just import all PackedFiles.
+        if we_have_packfile {
+            self.get_anim_packed_paths_all()
+        }
+
+        // If we only have files, get all the files we have at once, then add them all together.
+        else if !we_have_folder {
+            path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(path.to_vec()) } else { None }
+            }).collect::<Vec<Vec<String>>>()
+        }
+
+        // Otherwise, we have a mix of Files and Folders (or folders only).
+        // In this case, we get all the individual files, then the ones inside folders.
+        // Then we merge them, and add all of them together.
+        else {
+            let mut paths_files = path_types.par_iter().filter_map(|x| {
+                if let PathType::File(path) = x { Some(path.to_vec()) } else { None }
+            }).collect::<Vec<Vec<String>>>();
+
+            paths_files.append(&mut path_types.par_iter()
+                .filter_map(|x| {
+                    if let PathType::Folder(path) = x { Some(path.to_vec()) } else { None }
+                })
+            .map(|path| self.get_ref_packed_files_paths_by_path_start(&path).iter().map(|x| x.to_vec()).collect::<Vec<Vec<String>>>())
+            .flatten()
+            .collect::<Vec<Vec<String>>>());
+            paths_files
+        }
     }
 }
 
@@ -141,3 +258,23 @@ impl AnimPacked {
     }
 }
 
+/// Implementation to create an `AnimPacked` from a `PackedFile`.
+impl TryFrom<&PackedFile> for AnimPacked {
+
+    type Error = Error;
+
+    fn try_from(packed_file: &PackedFile) -> Result<Self> {
+        let mut anim_packed = Self::default();
+        anim_packed.path = packed_file.get_path().to_vec();
+        anim_packed.data = packed_file.get_raw_data()?;
+        Ok(anim_packed)
+    }
+}
+
+impl From<&AnimPacked> for PackedFileInfo {
+    fn from(anim_packed: &AnimPacked) -> Self {
+        let mut packed_file_info = Self::default();
+        packed_file_info.path = anim_packed.get_ref_path().to_vec();
+        packed_file_info
+    }
+}

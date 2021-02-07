@@ -280,7 +280,7 @@ impl AppUI {
                 app_ui.change_packfile_type_data_is_compressed.set_checked(compression_state);
 
                 // Update the TreeView.
-                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None));
+                pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::Build(None, None));
 
                 // Re-enable the Main Window.
                 app_ui.main_window.set_enabled(true);

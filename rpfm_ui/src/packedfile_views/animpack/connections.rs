@@ -23,6 +23,24 @@ use super::{PackedFileAnimPackView, slots::PackedFileAnimPackViewSlots};
 /// This function is just glue to trigger after initializing both, the actions and the slots. It's here
 /// to not pollute the other modules with a ton of connections.
 pub unsafe fn set_connections(ui: &Arc<PackedFileAnimPackView>, slots: &PackedFileAnimPackViewSlots) {
-    ui.get_mut_ptr_unpack_button().released().connect(&slots.unpack);
+
+    ui.get_ref_pack_tree_view().double_clicked().connect(&slots.copy_in);
+    ui.get_ref_anim_pack_tree_view().double_clicked().connect(&slots.copy_out);
+
+    ui.get_ref_anim_pack_tree_model().item_changed().connect(&slots.anim_pack_paint_treeview);
+
+    ui.get_ref_pack_filter_line_edit().text_changed().connect(&slots.pack_filter_change_text);
+    ui.get_ref_pack_filter_autoexpand_matches_button().toggled().connect(&slots.pack_filter_change_autoexpand_matches);
+    ui.get_ref_pack_filter_case_sensitive_button().toggled().connect(&slots.pack_filter_change_case_sensitive);
+
+    ui.get_ref_anim_pack_filter_line_edit().text_changed().connect(&slots.anim_pack_filter_change_text);
+    ui.get_ref_anim_pack_filter_autoexpand_matches_button().toggled().connect(&slots.anim_pack_filter_change_autoexpand_matches);
+    ui.get_ref_anim_pack_filter_case_sensitive_button().toggled().connect(&slots.anim_pack_filter_change_case_sensitive);
+
+    ui.get_ref_pack_expand_all().triggered().connect(&slots.pack_expand_all);
+    ui.get_ref_pack_collapse_all().triggered().connect(&slots.pack_collapse_all);
+    ui.get_ref_anim_pack_expand_all().triggered().connect(&slots.anim_pack_expand_all);
+    ui.get_ref_anim_pack_collapse_all().triggered().connect(&slots.anim_pack_collapse_all);
+    ui.get_ref_anim_pack_delete().triggered().connect(&slots.delete);
 }
 

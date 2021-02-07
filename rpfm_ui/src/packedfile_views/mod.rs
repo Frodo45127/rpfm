@@ -340,7 +340,7 @@ impl PackedFileView {
 
                     Response::AnimPackPackedFileInfo((anim_pack, packed_file_info)) => {
                         if let View::AnimPack(old_anim_pack) = view {
-                            old_anim_pack.reload_view(&anim_pack);
+                            old_anim_pack.reload_view(anim_pack);
                             pack_file_contents_ui.packfile_contents_tree_view.update_treeview(true, TreeViewOperation::UpdateTooltip(vec![packed_file_info;1]));
 
                         }
