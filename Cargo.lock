@@ -1909,6 +1909,9 @@ dependencies = [
 [[package]]
 name = "rpfm"
 version = "2.3.101"
+dependencies = [
+ "winres",
+]
 
 [[package]]
 name = "rpfm_cli"

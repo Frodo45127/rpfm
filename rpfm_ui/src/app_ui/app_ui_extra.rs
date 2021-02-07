@@ -1049,7 +1049,7 @@ impl AppUI {
                     close_button.set_enabled(true);
 
                     // This closes the program and triggers a restart in the launcher.
-                    if dialog.exec() == 8 {
+                    if dialog.exec() == 1 {
                         exit(10);
                     }
                 },

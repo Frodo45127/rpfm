@@ -49,6 +49,7 @@ use crate::global_search_ui;
 use crate::global_search_ui::GlobalSearchUI;
 use crate::global_search_ui::slots::GlobalSearchSlots;
 use crate::LIGHT_PALETTE;
+use crate::locale::tr;
 use crate::packfile_contents_ui::PackFileContentsUI;
 use crate::packfile_contents_ui;
 use crate::packfile_contents_ui::slots::PackFileContentsSlots;
@@ -186,12 +187,19 @@ impl UI {
         // in which case, we automatically try to open it.
         let args = args().collect::<Vec<String>>();
         if args.len() > 1 {
-            let path = PathBuf::from(&args[1]);
-            if path.is_file() {
-                if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
-                    show_dialog(&app_ui.main_window, error, false);
+            if args[1] != "--booted_from_launcher" {
+                let path = PathBuf::from(&args[1]);
+                if path.is_file() {
+                    if let Err(error) = AppUI::open_packfile(&app_ui, &pack_file_contents_ui, &global_search_ui, &[path], "") {
+                        show_dialog(&app_ui.main_window, error, false);
+                    }
                 }
             }
+
+        }
+
+        if args.len() == 1 || (args.len() > 1 && args.last().unwrap() != "--booted_from_launcher") && !cfg!(debug_assertions)  {
+            show_dialog(&app_ui.main_window, &tr("error_not_booted_from_launcher"), false);
         }
 
         // If we have it enabled in the prefs, check if there are updates.

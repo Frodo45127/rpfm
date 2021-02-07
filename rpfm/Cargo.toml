@@ -1,6 +1,11 @@
 [package]
 name = "rpfm"
 version = "2.3.101"
+build = "build.rs"
 authors = ["Frodo45127 <frodo_gv@hotmail.com>"]
 description = "Launcher of RPFM, to allow autorestarting on update."
 edition = "2018"
+
+# Windows resources support.
+[target.'cfg(windows)'.build-dependencies]
+winres = "^0.1"

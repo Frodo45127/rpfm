@@ -12,7 +12,7 @@
 This crate is the `CLI` version of RPFM, who fought in the splitting war as a new power and managed to stablish itself by the end of the war.
 !*/
 
-use std::env::{current_dir, current_exe};
+use std::env::{args, current_dir, current_exe};
 use std::path::PathBuf;
 use std::process::*;
 
@@ -37,8 +37,12 @@ fn main() {
         rpfm_ui_exe_path.push("rpfm_ui");
     };
 
+    let mut args = args().collect::<Vec<String>>();
+    args.push("--booted_from_launcher".to_string());
+
     while let Some(code) = Command::new(&rpfm_ui_exe_path)
         .current_dir(&rpfm_path)
+        .args(&args[1..])
         .output().unwrap().status.code() {
         if code != 10 {
             exit(code);

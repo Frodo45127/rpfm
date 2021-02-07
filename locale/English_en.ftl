@@ -723,3 +723,6 @@ schemas_cleared = Schemas folder deleted. Please, remember to re-download the sc
 
 settings_autosave_amount = Autosave Amount (min 1)
 tt_settings_autosave_amount = Sets the amount of autosaves RPFM is allowed to use. If you reduce this number, you need to hit "Clear Autosave Folder" to delete the extra autosaves. Keep in mind this resets the entire autosave folder.
+
+restart_button = Restart
+error_not_booted_from_launcher = This window of RPFM has not been launched from the "rpfm.exe" file, but directly from the "rpfm_ui.exe" file. Since version 2.3.102, you should launch it from "rpfm.exe" (or equivalent) to support certain features regarding the update system.
