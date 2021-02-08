@@ -220,7 +220,7 @@ impl UI {
                     if let Ok(folder) = folder {
                         let folder_path = folder.path();
                         if folder_path.is_dir() && folder_path.file_name().unwrap().to_string_lossy().starts_with("update") {
-                            remove_dir_all(&folder_path);
+                            let _ = remove_dir_all(&folder_path);
                         }
                     }
                 }
